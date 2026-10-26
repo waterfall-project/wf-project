@@ -16,7 +16,7 @@
 
 import { FileDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
@@ -82,12 +82,14 @@ function OfferedExports({
   const unmet = offer === undefined ? undefined : unmetId(offer, field);
   const [depth, setDepth] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the request to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending || offer?.is_available !== true) {
+    if (busy || offer?.is_available !== true) {
       return;
     }
     // The level of the image of the tree, when the user gives one; the server's otherwise.
@@ -101,22 +103,19 @@ function OfferedExports({
       ...(kind === "task_tree_image" ? { depth: level } : {}),
     };
     const command = () => requestFileExport(projectId, request);
-    startTransition(async () => {
-      const result = await held(command());
+    setBusy(true);
+    void held(command()).then((result) => {
       if (result.kind === "done") {
         track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });
       }
-      // In the transition too, which an update after an await is not by itself: the answer is told
-      // in the commit that ends the request, never while the press is held (#1484).
-      startTransition(() => {
-        setOutcome(result.kind === "done" ? undefined : result);
-      });
+      setOutcome(result.kind === "done" ? undefined : result);
+      setBusy(false);
     });
   };
   return (
     <form
       aria-label={t("exchanges.export.title")}
-      aria-busy={pending}
+      aria-busy={busy}
       onSubmit={submit}
       className="space-y-2"
     >

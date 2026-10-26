@@ -12,7 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { NO_AUDIT } from "@/test/accounts";
-import { atCommit } from "@/test/committed";
+import { atCommit, atFocus } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
@@ -155,7 +155,7 @@ describe("the creation of a role in line", () => {
     expect(readMessages().messages).toEqual([]);
   });
 
-  it("notes once, with the label sent, a label the server refuses at its field", async () => {
+  it("notes once, with the label sent, a label the server refuses at its field, which takes the focus described by its refusal [WF-IHM-0090-A]", async () => {
     serve({
       [CREATED]: {
         problem: {
@@ -167,10 +167,15 @@ describe("the creation of a role in line", () => {
     });
     render(inFrench(table()));
     const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
-    await userEvent.type(label, "CG{Enter}");
+    await userEvent.type(label, "CG");
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
+    const focusing = atFocus(label);
+    await userEvent.click(within(label.closest("form") ?? document.body).getByRole("button"));
     await waitFor(() => {
-      expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+      expect(label).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual([CATALOGUES.fr.errors.VALUE_TOO_LONG]);
+    expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
         tone: "refusal",

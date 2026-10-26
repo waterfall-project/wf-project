@@ -449,19 +449,28 @@ export function ReferenceForm<T = ReferenceObject>({
   const noteRefusal = useNoteRefusal();
   const controls = useRef<Partial<Record<string, ControlElement | null>>>({});
   const open = useRef(true);
+  // The field refused first, which takes the focus — a new one each time, the same field refused again
+  // taking it again.
+  const [focused, setFocused] = useState<{ readonly name: string }>();
   useEffect(() => {
     open.current = true;
     return () => {
       open.current = false;
     };
   }, []);
+  // After the commit that says the refusal at the field: focused, the field is heard with it (#1484).
+  useEffect(() => {
+    if (focused !== undefined) {
+      controls.current[focused.name]?.focus();
+    }
+  }, [focused]);
 
   /** Say the refusals at their fields, and give the focus to the first one refused. */
   const refuse = (refused: ReadonlyMap<string, FieldProblem>) => {
     setProblems(refused);
     const first = fields.find(({ name }) => refused.has(name));
     if (first !== undefined) {
-      controls.current[first.name]?.focus();
+      setFocused({ name: first.name });
     }
   };
 
@@ -502,8 +511,12 @@ export function ReferenceForm<T = ReferenceObject>({
             // Said at its fields: noted whole, the notice of the rest noting nothing more.
             noteRefusal(answer, { subject, parts: [told.told] });
           }
-          refuse(told.refused);
-          setOutcome(told.told);
+          // In the transition too, which an update after an await is not by itself: the refusal is
+          // told in the commit that ends the request, never while the dialog holds a press (#1484).
+          startTransition(() => {
+            refuse(told.refused);
+            setOutcome(told.told);
+          });
         }
       } finally {
         onWriting?.(false);

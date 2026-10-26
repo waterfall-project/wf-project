@@ -3,7 +3,7 @@
 import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, useTransition } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decode, type Outcome } from "@/api/problem";
@@ -60,6 +60,27 @@ function available(action: () => Promise<Outcome<unknown>>, names?: Record<strin
       action={action}
       names={names}
     />
+  );
+}
+
+/**
+ * Another async action of the page — a dialog that writes, a long command —, run in a transition until
+ * the test settles it: React 19 gives every async action under way one lane (`currentEntangledLane`).
+ */
+function OtherAction({ until }: { readonly until: Promise<void> }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      aria-busy={pending}
+      onClick={() => {
+        startTransition(async () => {
+          await until;
+        });
+      }}
+    >
+      other
+    </button>
   );
 }
 
@@ -316,6 +337,42 @@ describe("the outcome of a command", () => {
     );
     expect(client.calls).toHaveLength(1);
     await expectAccessible(container);
+  });
+
+  it("tells its outcome and is no longer busy while another async action of the page still runs [WF-IHM-0090-A]", async () => {
+    let settle: () => void = () => undefined;
+    const until = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const conflict = refusal("conflict", { code: "STATE_FORBIDS_OPERATION", status: 409 });
+    const { container } = french(
+      <>
+        <OtherAction until={until} />
+        {available(() => Promise.resolve(conflict))}
+      </>,
+    );
+    const other = screen.getByRole("button", { name: "other" });
+    await userEvent.click(other);
+    expect(other).toHaveAttribute("aria-busy", "true");
+
+    // Busy no more in the commit that tells the outcome, which waits not for the other action: its
+    // state lifted with the answer, never by a transition the other one holds (#1484).
+    const command = screen.getByRole("button", { name: "Terminer le projet" });
+    const busyWhenTold = atCommit(
+      container,
+      () => screen.queryByRole("alert") !== null,
+      () => command.getAttribute("aria-busy"),
+    );
+    await userEvent.click(command);
+
+    await screen.findByRole("alert");
+    expect(busyWhenTold.stop()).toEqual(["false"]);
+    expect(other).toHaveAttribute("aria-busy", "true");
+    await act(async () => {
+      settle();
+      await until;
+    });
+    expect(other).toHaveAttribute("aria-busy", "false");
   });
 
   it("holds a navigation clicked while it runs, and drops it when the server refuses it: the refusal is told beside the command (#688)", async () => {

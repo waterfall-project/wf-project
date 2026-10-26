@@ -22,7 +22,7 @@ import {
   writes,
 } from "@/test/accounts";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
+import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -767,7 +767,7 @@ describe("the creation of a local account", () => {
     },
   );
 
-  it("says at its field the address another account holds, the dialog open to correct it [WF-ADM-0050-A]", async () => {
+  it("says at its field the address another account holds, the dialog open to correct it, the field described by its refusal as it takes the focus [WF-ADM-0050-A]", async () => {
     serve({
       "POST /users": { problem: example("user_email_taken") as Problem & { status: 409 } },
     });
@@ -780,11 +780,14 @@ describe("the creation of a local account", () => {
       within(form).getByLabelText("Adresse électronique"),
       "lucas.petit@example.com",
     );
-    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     const email = within(form).getByLabelText("Adresse électronique");
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
+    const focusing = atFocus(email);
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await waitFor(() => {
       expect(email).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual([CATALOGUES.fr.errors.ALREADY_EXISTS]);
     expect(email).toHaveAccessibleDescription(CATALOGUES.fr.errors.ALREADY_EXISTS);
     expect(within(form).queryByRole("alert")).toBeNull();
   });

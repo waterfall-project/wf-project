@@ -12,7 +12,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { atCommit } from "@/test/committed";
+import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -353,7 +353,7 @@ describe("the work breakdown edited in its grid", () => {
     },
   );
 
-  it("notes once a refusal said at the field of the dialog, its rest told under it", async () => {
+  it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus [WF-IHM-0090-A]", async () => {
     serve({
       [SET]: {
         problem: {
@@ -368,11 +368,17 @@ describe("the work breakdown edited in its grid", () => {
     });
     render(list());
     await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
-    const dialog = await enter(ADDED);
+    const dialog = screen.getByRole("dialog");
     const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    await userEvent.type(field, ADDED);
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
+    const focusing = atFocus(field);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
-      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual(["Une valeur est requise."]);
+    expect(field).toHaveAttribute("aria-invalid", "true");
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );

@@ -15,7 +15,7 @@
 
 import { Languages, type LucideIcon, Save, SunMoon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 
 import { updateDisplay } from "@/api/actions/preferences";
 import type { Outcome } from "@/api/problem";
@@ -89,7 +89,10 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
   const [read, setRead] = useState({ language, theme });
   const [chosen, setChosen] = useState({ language, theme });
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page, the tasks of the
+  // shell's tracker among them (#1484).
+  const [busy, setBusy] = useState(false);
   // A link clicked while the choice is recorded waits for it, and is not followed when refused.
   const held = useHeldCommand();
   // The page rendered again holds other preferences — saved here, or chosen in the menu —: the
@@ -100,24 +103,21 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
   }
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (busy) {
       return;
     }
-    startTransition(async () => {
-      // The language only when it changed: the API reports it to the identity provider (#877).
-      const changed = chosen.language === read.language ? {} : { language: chosen.language };
-      const outcome = await held(updateDisplay({ theme: chosen.theme, ...changed }));
-      // In the transition too, which an update after an await is not by itself: the outcome is told
-      // in the commit that ends the request, never while the values are still held (#1484).
-      startTransition(() => {
-        setOutcome(outcome);
-      });
+    // The language only when it changed: the API reports it to the identity provider (#877).
+    const changed = chosen.language === read.language ? {} : { language: chosen.language };
+    setBusy(true);
+    void held(updateDisplay({ theme: chosen.theme, ...changed })).then((outcome) => {
+      setBusy(false);
+      setOutcome(outcome);
     });
   };
   return (
-    <form aria-busy={pending} onSubmit={submit} className="grid gap-5">
+    <form aria-busy={busy} onSubmit={submit} className="grid gap-5">
       {/* Held while the choice is recorded: a value chosen meanwhile would be lost unsaid. */}
-      <fieldset disabled={pending} className="grid gap-6 sm:grid-cols-2">
+      <fieldset disabled={busy} className="grid gap-6 sm:grid-cols-2">
         <Choice
           icon={Languages}
           legend={t("languageSelector.label")}
@@ -151,7 +151,7 @@ export function PreferencesForm({ language, theme }: PreferencesFormProps) {
       />
       <DoneNotice title={outcome?.kind === "done" ? t("account.saved") : undefined} of={outcome} />
       <div>
-        <Button type="submit" aria-disabled={pending} className={WAITING}>
+        <Button type="submit" aria-disabled={busy} className={WAITING}>
           <Save aria-hidden="true" />
           {t("account.save")}
         </Button>

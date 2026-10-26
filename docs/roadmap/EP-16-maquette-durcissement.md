@@ -637,7 +637,14 @@ et ses exemples.
   - L2 (#1491) : l'audit des 26 fichiers à `startTransition(async` (#1484), puis leurs correctifs.
     Une mise à jour d'état faite après un `await` n'appartient pas à la transition : la forme de
     correction est la transition imbriquée de `restore-dialog.tsx` (e7688292), pas une abstraction
-    écrite d'avance ; le défaut s'écrit dans `docs/dev/typescript.md`. La taille de L2 dépend de
+    écrite d'avance ; le défaut s'écrit dans `docs/dev/typescript.md`. Décision de l'auteur du
+    2026-10-26 (#1491, option B), qui précise cette forme après l'audit : la transition imbriquée
+    vaut pour les dialogues modaux ; une commande en ligne qui peut tourner en même temps qu'une
+    autre tient son geste par un état « occupé » local, levé dans la même mise à jour que la
+    réponse, parce que React 19 fait attendre une transition imbriquée jusqu'à la fin de toutes les
+    actions asynchrones de la page ; un refus dit à un champ qui prend le focus déplace ce focus dans
+    un effet, après le commit du refus ; une réponse portée par un magasin externe est sans objet.
+    La taille de L2 dépend de
     l'audit : au-delà de 1 500 lignes ou de 800 de production, le livreur la coupe en L2 (dialogues)
     et L3 (le reste).
   - La durée : en chaîne, le chemin critique mesuré (run 40261263854) est `front-build` (62 s) puis
@@ -679,7 +686,7 @@ et ses exemples.
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1313
@@ -756,6 +763,19 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 - Décision de l'auteur du 2026-10-26 : US-0590d (#1489) reprend les constats restants des revues
   d'US-0590b (#1483 à #1487), en deux lots, et mesure la durée de la chaîne ; elle se livre après
   US-0590c et US-0670/L1, avant les lots de contrat.
+- US-0590d/L2 : l'audit des fichiers à `startTransition(async` est dans #1491, avec la raison de
+  chaque classement. Transition imbriquée, dans les dialogues modaux : `restore-dialog.tsx`,
+  `reference-form.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`, `contributor-commands.tsx`.
+  État « occupé » local, dans les commandes en ligne : `reference/commands.tsx`,
+  `backup-commands.tsx` (lancement, marquage et dépôt), `command.tsx`, `confirmed-command.tsx`,
+  `exit-command.tsx`, `mark-command.tsx`, `export-form.tsx`, `file-drop.tsx`,
+  `import-commands.tsx`, `report-commands.tsx`, `author-filter.tsx`, `identity-sync.tsx`,
+  `role-commands.tsx`, `avatar-form.tsx`, `preferences-form.tsx`. Focus dans un effet, après le
+  commit du refus : `reference-form.tsx`, `role-commands.tsx`, `user-dialogs.tsx`,
+  `breakdown-commands.tsx`. Sans objet : `backup-schedule.tsx`, `held.ts`, `timeline-commands.tsx`,
+  `subproject-commands.tsx`, `kanban.tsx`, `account-menu.tsx`, `task-entry.tsx` et la tâche remise
+  au suivi (un magasin externe). Le défaut est le n° 25 de `docs/dev/typescript.md`. US-0590c et
+  US-0590d/L1 fusionnés, l'US est finie.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 

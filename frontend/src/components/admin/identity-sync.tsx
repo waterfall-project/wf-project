@@ -23,7 +23,7 @@
 
 import { ChevronDown, ChevronRight, UserRoundSearch } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useState, useTransition } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 import { startIdentitySync } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
@@ -186,26 +186,25 @@ function StartIdentitySync() {
   const track = useTrackTask();
   const held = useHeldCommand();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
+  // whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   const start = () => {
-    if (pending) {
+    if (busy) {
       return;
     }
-    startTransition(async () => {
-      const result = await held(startIdentitySync());
+    setBusy(true);
+    void held(startIdentitySync()).then((result) => {
       if (result.kind === "done") {
         track(result.data, { command: startIdentitySync });
       }
-      // In the transition too, which an update after an await is not by itself: the outcome is told
-      // in the commit that ends the request, never while the press is held (#1484).
-      startTransition(() => {
-        setOutcome(result.kind === "done" ? undefined : result);
-      });
+      setOutcome(result.kind === "done" ? undefined : result);
+      setBusy(false);
     });
   };
   return (
     <div className="space-y-2">
-      <Button type="button" variant="outline" size="sm" aria-busy={pending} onClick={start}>
+      <Button type="button" variant="outline" size="sm" aria-busy={busy} onClick={start}>
         <UserRoundSearch aria-hidden="true" />
         {t("start")}
       </Button>

@@ -29,3 +29,32 @@ export function atCommit(
     },
   };
 }
+
+/** The text of what describes `element`, by the identifiers its `aria-describedby` names. */
+function description(element: Element): string {
+  return (element.getAttribute("aria-describedby") ?? "")
+    .split(/\s+/)
+    .filter((id) => id !== "")
+    .map((id) => element.ownerDocument.getElementById(id)?.textContent ?? "")
+    .join(" ")
+    .trim();
+}
+
+/**
+ * What describes `field` each time it takes the focus, `stop` giving them (#1484). A field refused
+ * takes the focus once the commit that says its refusal is made: taken before, a reader of the screen
+ * announces it without its refusal.
+ */
+export function atFocus(field: Element): { readonly stop: () => readonly string[] } {
+  const seen: string[] = [];
+  const focused = () => {
+    seen.push(description(field));
+  };
+  field.addEventListener("focus", focused);
+  return {
+    stop: () => {
+      field.removeEventListener("focus", focused);
+      return seen;
+    },
+  };
+}

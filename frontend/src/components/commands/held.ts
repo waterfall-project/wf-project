@@ -38,8 +38,8 @@ import { rejected } from "./rejection";
  * the transition `traverse` opens (`runAction`, `next/dist/client/components/app-router-instance.js`),
  * where 16.3 applied it a microtask later, outside of it; and React gives a transition asked for
  * while an async action is pending the lane of that action (`requestTransitionLane`, the
- * `currentEntangledLane` of `react-dom`), which commits only once it settles — the write of the
- * screen awaited in `startTransition(async …)`. The screen left stays shown meanwhile, and what
+ * `currentEntangledLane` of `react-dom`), which commits only once it settles — a write awaited in
+ * `startTransition(async …)`, a dialog's (#1484). The screen left stays shown meanwhile, and what
  * would tell a refusal goes with it, unsaid: a write refused while its screen is left that way — made
  * before the traversal or after it — is told by the bar whatever `told` says (`away`). Brought back
  * to its path by « Suivant » or « Précédent » before the refusal, the screen tells it itself, the bar

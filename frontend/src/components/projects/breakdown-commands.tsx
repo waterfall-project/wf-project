@@ -513,16 +513,15 @@ function useSend(commands: Commands, opened: Opened) {
           if (field !== undefined) {
             // Said at its fields: noted whole, the notice of the rest noting nothing more.
             noteRefusal(answer, { subject: told.label, parts: [rest?.outcome] });
-            onField(field);
-            setRefusal(rest);
-          } else {
-            // In the transition too, which an update after an await is not by itself: the refusal
-            // is told in the commit that ends the request, never while the dialog holds a press
-            // (#1484).
-            startTransition(() => {
-              setRefusal(rest);
-            });
           }
+          // In the transition too, which an update after an await is not by itself: the refusal is
+          // told in the commit that ends the request, never while the dialog holds a press (#1484).
+          startTransition(() => {
+            if (field !== undefined) {
+              onField(field);
+            }
+            setRefusal(rest);
+          });
         } else {
           // Gone, or a deletion confirmed: everything is told above the grid, naming its element.
           commands.refuse(split(answer, sent, undefined).refusal);
@@ -554,9 +553,17 @@ function LabelDialog({
   const [problem, setProblem] = useState<FieldProblem>();
   const input = useRef<HTMLInputElement>(null);
   const { pending, refusal, setRefusal, send } = useSend(commands, opened);
+  // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
+  // described by it as it is heard (#1484).
+  const [focused, setFocused] = useState<object>();
+  useEffect(() => {
+    if (focused !== undefined) {
+      input.current?.focus();
+    }
+  }, [focused]);
   const refuse = (refused: FieldProblem) => {
     setProblem(refused);
-    input.current?.focus();
+    setFocused({});
   };
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();

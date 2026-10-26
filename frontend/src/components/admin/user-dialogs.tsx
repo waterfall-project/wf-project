@@ -167,12 +167,21 @@ export function UserCreation({
     };
   }, []);
 
+  // The field refused first, which takes the focus — a new one each time, the same field refused again
+  // taking it again —, after the commit that says its refusal: focused, it is heard with it (#1484).
+  const [focused, setFocused] = useState<{ readonly name: Field }>();
+  useEffect(() => {
+    if (focused !== undefined) {
+      controls.current[focused.name]?.focus();
+    }
+  }, [focused]);
+
   /** Say the refusals at their fields, and give the focus to the first one refused. */
   const refuse = (refused: ReadonlyMap<Field, FieldProblem>) => {
     setProblems(refused);
     const first = FIELDS.find(([name]) => refused.has(name))?.[0];
     if (first !== undefined) {
-      controls.current[first]?.focus();
+      setFocused({ name: first });
     }
   };
 
@@ -225,15 +234,12 @@ export function UserCreation({
         if (told.refused.size > 0) {
           // Said at its fields: noted whole, the notice of the rest noting nothing more.
           noteRefusal(answer, { parts: [told.told] });
+        }
+        // In the transition too: the refusal is told in the commit that ends the request (#1484).
+        startTransition(() => {
           refuse(told.refused);
           setOutcome(told.told);
-        } else {
-          // In the transition too: the refusal is told in the commit that ends the request (#1484).
-          startTransition(() => {
-            refuse(told.refused);
-            setOutcome(told.told);
-          });
-        }
+        });
       }
     });
   };
