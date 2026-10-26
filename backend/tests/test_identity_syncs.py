@@ -144,8 +144,10 @@ def test_the_report_of_two_readings_ended_together_is_that_of_the_greater_task(
     database: Database, queue: TaskQueue, descending: bool
 ) -> None:
     # No requirement: a detail of the choice. The reports are kept in the ascending order of their
-    # task, then in the descending one: whether a read goes forward or backward in the rows, one of
-    # the two orders gives the smaller task, were the order they are stored in to decide.
+    # task, then in the descending one. Only the ascending case falls surely without
+    # desc(task_id): PostgreSQL reads the heap forward, and the top-N sort of ORDER BY ... LIMIT 1
+    # does not guarantee the order of ties, so the first stored is the smaller task. The descending
+    # case is there for the other way of reading, and may pass by chance.
     kept = account(database, "Bernard", "Dominique", origin="directory")
     tasks = sorted(deposit(database, queue) for _ in range(3))
     stored = tasks[::-1] if descending else tasks
