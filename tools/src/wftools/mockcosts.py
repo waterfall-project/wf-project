@@ -167,11 +167,19 @@ def _project() -> tuple[str, str]:
     return project["project_id"], project["code"]
 
 
-def _passthrough(line: CostLine) -> dict[str, str]:
-    """Return the columns of the file a line keeps, in the order the imports declare them."""
+def wbs_element(line: CostLine) -> str:
+    """Return the element of the work breakdown structure the file of the ERP gives a line.
+
+    The code of the project, then, for a line with a subproject part, a slash and the code of the
+    subproject: the slash alone parts the two codes (WF-CRE-0020, C-373).
+    """
     _, code = _project()
-    element = f"WF.{code}" if line.code is None else f"WF.{code}/{line.code}"
-    values = dict(zip(PASSTHROUGH, (line.supplier, line.text, element), strict=True))
+    return code if line.code is None else f"{code}/{line.code}"
+
+
+def _passthrough(line: CostLine) -> dict[str, str]:
+    """Return the columns of the file a line keeps, in the order the mapping declares them."""
+    values = dict(zip(PASSTHROUGH, (line.supplier, line.text), strict=True))
     return {column: values[column] for column in PASSTHROUGH}
 
 
@@ -432,15 +440,19 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             + ", ".join(f"« {line.text} », exclue du périmètre suivi," for line in excluded)
             + f" reste consultable. La facture des études de détail, {studies.document}, "
             f"{_amount(studies.amount)} datés du {mocktext.day(studies.on)}, jour où elles se "
-            "terminent, n'a pas de partie sous-projet dans son OTP, comme leur ligne de devis : "
-            "elle est imputée au seul projet. Les codes de sous-projet "
+            f"terminent, n'a pas de partie sous-projet dans son élément d'OTP, "
+            f"{wbs_element(studies)}, comme leur ligne de devis : elle est imputée au seul "
+            "projet. Les codes de sous-projet "
             + ", ".join(unknown)
-            + ", lus dans l'OTP, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
+            + ", lus dans l'élément d'OTP — "
+            + ", ".join(sorted({wbs_element(line) for line in COSTS if line.code in unknown}))
+            + " —, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
             "imputées au seul projet, hors sous-projet, et présentées avec leur code ; "
-            f"{screens.document}, sous {screens.code}, est imputée au sous-projet Poste de "
-            f"commande. {invoiced(drawn())} Les colonnes conservées du fichier sont celles de "
-            "toutes les lignes retenues (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, "
-            "WF-CRE-0050)."
+            f"{screens.document}, sous {wbs_element(screens)}, est imputée au sous-projet Poste "
+            f"de commande. {invoiced(drawn())} Les colonnes conservées du fichier, celles que "
+            "déclare la correspondance de l'extraction, sont celles de toutes les lignes "
+            "retenues ; l'élément d'OTP, colonne lue, n'en est pas (WF-CRE-0010, WF-CRE-0020, "
+            "WF-CRE-0030, WF-CRE-0040, WF-CRE-0050, WF-REF-0190)."
         ),
         "actual_costs_page": (
             "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des "

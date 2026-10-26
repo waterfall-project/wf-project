@@ -7717,6 +7717,89 @@ caractères, sans autre règle (C-372, D-7 de la reprise du 2026-10-22).
 appliqué aussi au code lu d'une ligne de coût réel, qui refuserait d'importer une ligne que
 WF-CRE-0020 veut conserver.
 
+### La correspondance de l'extraction des coûts réels (US-0620, #1318)
+
+WF-REF-0190 fait déclarer, pour l'installation, les intitulés sous lesquels l'extraction de l'ERP
+nomme les cinq colonnes que l'import lit, et les colonnes qu'il conserve (C-374) ; le contrat ne
+la lisait ni ne l'écrivait, et l'élément d'OTP du témoin portait un préfixe `WF.` que C-373 a
+retiré de la spécification. Ce que la conception d'EP-16 décide est repris tel quel ; ce qui suit
+dit aussi ce que le lot (US-0620/L1) a fixé de forme, là où elle se taisait.
+
+- **Un objet unique de l'installation**, lu et remplacé entier avec son compteur, comme les
+  unités de durée : `getActualCostMapping` (`GET /reference/actual-cost-mapping`, sous
+  `cost_settings.read`, 404 sans elle comme toute lecture interdite) et `setActualCostMapping`
+  (`PUT`, sous `cost_settings.write`, 403 `PERMISSION_MISSING` sans elle, 412
+  `STALE_LOCK_VERSION` sur un compteur périmé). Écartée par la conception : une opération par
+  colonne, la règle des doublons portant sur toute la correspondance.
+- **La lecture** (`ActualCostMapping`) : `columns`, les cinq `ActualCostSourceColumn` dans l'ordre
+  fixe de l'énumération — `wbs_element`, `document_number`, `document_item`, `document_date`,
+  `amount` —, chacune avec `required`, rendu par le serveur (faux pour le seul poste), et
+  `labels`, au plus 20 ; `kept_columns`, au plus 50 ; `is_complete` et `missing_columns`,
+  calculés — les colonnes exigées sans intitulé, dans l'ordre de la correspondance — ;
+  `lock_version` et `audit`. Une correspondance vide naît à l'installation, par la plateforme, à
+  sa version 1, comme les unités de durée.
+- **L'écriture** (`ActualCostMappingWrite`), choix de forme du lot : le corps reprend celui de la
+  lecture, sans ce que le serveur rend — ni `required`, ni `is_complete`, ni `missing_columns`, ni
+  `audit` —, si bien que l'écran renvoie ce qu'il a lu, modifié. Les cinq colonnes y viennent
+  chacune une fois, dans l'ordre de l'énumération ; un corps qui ne les porte pas ainsi est refusé
+  par 422 `VALIDATION_FAILED` au pointeur `/columns`. Écartés : `prefixItems`, qui l'aurait dit au
+  schéma mais que les générateurs du client et des modèles du service ne lisent pas sûrement ; un
+  objet indexé par colonne, qui aurait donné à l'écriture une autre forme que la lecture.
+- **Un intitulé** (`ActualCostColumnLabel`) a de 1 à 200 caractères et n'est jamais blanc
+  (`pattern: '\S'`), règle de tout libellé du contrat, choix de forme du lot : un intitulé blanc
+  se normaliserait en vide et ne désignerait rien. Vide, il est refusé par `VALUE_REQUIRED`,
+  trop long par `VALUE_TOO_LONG`, blanc par `VALIDATION_FAILED` ; une liste trop longue par
+  `VALUE_TOO_LONG` à son pointeur, comme le service le rend pour toute liste bornée.
+- **Les doublons** : `DUPLICATE_COLUMN_LABEL`, nouveau code, motif par champ d'un 422
+  `VALIDATION_FAILED`, au pointeur de l'intitulé en double, `fields[].params.duplicate_of` le
+  pointeur de l'autre. Choix de forme du lot : de deux intitulés qui se doublent, le second dans
+  l'ordre du corps — les colonnes lues dans leur ordre, chacune ses intitulés dans le leur, puis
+  les colonnes conservées — est désigné ; de trois ou plus, chacun après le premier, que tous
+  nomment, comme `DUPLICATE_WORK_BREAKDOWN_ITEM`. La comparaison est celle de WF-REF-0190 : sans
+  égard à la casse, aux accents ni aux espaces en bout.
+- **Le refus de l'import** : `actual_cost_mapping_complete` rejoint `CommandCondition`. La
+  commande `import_actual_costs` du projet la nomme, après les conditions de l'état du projet et
+  des traitements de fond — choix de forme du lot : l'état du projet dit d'abord pourquoi rien ne
+  s'y importe, et la correspondance est une condition de l'installation, que le projet ne règle
+  pas. `openImport` d'un fichier de coûts réels la nomme dans son 409 `STATE_FORBIDS_OPERATION`,
+  `params.columns` les colonnes exigées sans intitulé, dans l'ordre de la correspondance.
+- **La colonne exigée absente** : 422 `FILE_FORMAT_UNREADABLE`, `params.missing_columns` chaque
+  colonne exigée que le fichier ne porte sous aucun de ses intitulés, `{column, labels}`, les
+  intitulés que la correspondance déclare ; sans `expected_version`, une extraction de l'ERP n'en
+  ayant pas (D-2). Choix de forme du lot : `params.expected_format` à `actual_costs` reste, le
+  refus nommant le format attendu (WF-INTF-0070) comme pour les autres formats.
+- **Les colonnes ignorées** : `ImportIgnoredKind` gagne `columns`, les colonnes du fichier ni lues
+  ni déclarées conservées, nommées par leur intitulé tel que le fichier le porte, dans son ordre
+  (`ImportIgnored.labels`).
+- **Un import analysé s'applique tel qu'il a été analysé**, même si la correspondance change
+  entre-temps : le compte rendu confirmé est ce qui s'applique (WF-INTF-0080), et une modification
+  de la correspondance ne change aucune ligne déjà importée (WF-REF-0190). `applyImport`,
+  `openImport` et `setActualCostMapping` le disent. Écarté par la conception : un 409 à
+  l'application.
+- **L'élément d'OTP n'est pas exposé** à la consultation : il se reconstruit du code projet et de
+  `subproject_code`. Colonne lue, il ne peut être aussi conservé — son intitulé doublerait le
+  sien —, et le témoin le retire de ses colonnes conservées.
+- **Les exemples**, écrits à la main : `actual_cost_mapping`, la correspondance du témoin, premier
+  exemple, déclarée par Camille Martin le 3 avril 2026 à 8 h 15, avant le premier import, avec les
+  intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce »,
+  « Val./Devise objet »), sans poste, et les colonnes conservées du témoin, « Fournisseur » et
+  « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation neuve ;
+  `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui, version 3 ;
+  `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme doublant
+  l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`, le
+  projet témoin dont la commande attend la correspondance, et
+  `import_actual_cost_mapping_incomplete`, le 409 d'`openImport`, variantes contrefactuelles sur
+  une installation à la correspondance vide ; `import_actual_costs_column_missing`, une extraction
+  sans montant ; `import_actual_costs_column_ignored`, l'extraction d'avril rejouée, variante
+  contrefactuelle qui porte aussi « Nom Matricule », ignorée.
+- **Le témoin**, engendré : « Élément d'OTP » quitte ses colonnes conservées
+  (`mockwitnesscosts.PASSTHROUGH`), si bien que les consultations et les écritures de ses coûts
+  réels ne le restituent plus ; son élément d'OTP est le code projet, suivi de `/` et du code
+  sous-projet pour une ligne qui en a un, sans préfixe (`mockcosts.wbs_element`, C-373), et le
+  résumé de `actual_costs` le nomme. `tools/tests/test_mockmapping.py` tient la correspondance du
+  témoin et les colonnes conservées de ses lignes d'accord, chaque correspondance lue, la règle des
+  doublons, les refus de l'import et les éléments d'OTP des exemples.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

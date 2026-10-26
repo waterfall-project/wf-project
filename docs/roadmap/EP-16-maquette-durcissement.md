@@ -955,7 +955,7 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
 
 ## US-0620 — La correspondance de l'extraction des coûts réels
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`, ajoutées au contrat ;
   `getProject`, `openImport`, `getImport`

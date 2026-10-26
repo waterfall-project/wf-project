@@ -1,0 +1,17 @@
+{
+  "summary": "Un import de coûts réels demandé sur le projet témoin d'une installation dont la correspondance de l'extraction est vide (actual_cost_mapping_empty), variante contrefactuelle : refusé, la condition manquante nommée — la correspondance à régler — et les quatre colonnes exigées qui n'ont aucun intitulé, comme la commande import_actual_costs du projet le dit d'avance (project_actual_cost_mapping_incomplete) ; rien n'est analysé (WF-REF-0190).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "actual_cost_mapping_complete",
+      "columns": [
+        "wbs_element",
+        "document_number",
+        "document_date",
+        "amount"
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001548"
+  }
+}
