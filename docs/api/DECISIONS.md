@@ -7689,7 +7689,9 @@ caractères, sans autre règle (C-372, D-7 de la reprise du 2026-10-22).
   sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse. Le motif
   le dit par une anticipation négative, chaque lettre des deux noms écrite dans ses deux casses :
   JSON Schema n'a pas de comparaison sans casse, et le motif se lit pareil en ECMAScript et en
-  Python (les modèles engendrés du service le compilent par `re`).
+  Python (les modèles engendrés du service le compilent par `re`), à une exception près : un saut
+  de ligne final. En Python, `$` s'arrête aussi avant un `\n` final, si bien que « Synthèse\n »
+  est refusé ; en ECMAScript, `$` est strict et « Synthèse\n » passe.
 - **Les refus.** Un code trop long : 422 `VALIDATION_FAILED`, `fields` désignant `/code` par
   `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`. Un caractère interdit ou un nom réservé :
   un code nouveau, `SUBPROJECT_CODE_INVALID`, avec `fields[].params.forbidden_characters`, les
