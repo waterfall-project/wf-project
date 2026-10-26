@@ -13,7 +13,7 @@
 
 import { Trash2, Upload } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
 import { removeAvatar, replaceAvatar } from "@/api/actions/account";
 import type { Outcome, Settled } from "@/api/problem";
@@ -46,7 +46,10 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
   const [file, setFile] = useState<File>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [done, setDone] = useState<Done>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page, the tasks of the
+  // shell's tracker among them (#1484).
+  const [busy, setBusy] = useState(false);
   // A link clicked while the image is sent or withdrawn waits for it, and is not followed when
   // refused.
   const held = useHeldCommand();
@@ -54,7 +57,7 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
   const wrongType = file !== undefined && !isAvatarType(file.type);
   const tooLarge = file !== undefined && !wrongType && file.size > maxBytes;
   const invalid = wrongType || tooLarge;
-  const blocked = pending || file === undefined || invalid;
+  const blocked = busy || file === undefined || invalid;
   const size = formatBytes(maxBytes, locale);
   // Withdrawn, the avatar takes its button with it: the focus goes to the choice of an image.
   useEffect(() => {
@@ -63,11 +66,14 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
     }
   }, [done]);
   const run = (action: () => Promise<Settled>, success: Done, form?: HTMLFormElement) => {
-    if (pending) {
+    if (busy) {
       return;
     }
-    startTransition(async () => {
-      const result = await held(action());
+    setBusy(true);
+    void held(action()).then((result) => {
+      // With the outcome, the fieldset active again: the choice of an image takes the focus a
+      // withdrawal gives it.
+      setBusy(false);
       setOutcome(result);
       setDone(result.kind === "done" ? success : undefined);
       if (result.kind === "done") {
@@ -86,9 +92,9 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
     run(() => replaceAvatar(data), "uploaded", event.currentTarget);
   };
   return (
-    <form aria-busy={pending} onSubmit={submit} className="grid gap-4">
+    <form aria-busy={busy} onSubmit={submit} className="grid gap-4">
       {/* Held while an image is sent: one chosen meanwhile would be lost unsaid. */}
-      <fieldset disabled={pending} className="grid max-w-sm gap-2">
+      <fieldset disabled={busy} className="grid max-w-sm gap-2">
         <Label htmlFor={`${id}-file`}>{t("file")}</Label>
         <Input
           ref={field}
@@ -128,7 +134,7 @@ export function AvatarForm({ hasAvatar, maxBytes }: AvatarFormProps) {
           <Button
             type="button"
             variant="outline"
-            aria-disabled={pending}
+            aria-disabled={busy}
             className={WAITING}
             onClick={() => {
               run(removeAvatar, "removed");

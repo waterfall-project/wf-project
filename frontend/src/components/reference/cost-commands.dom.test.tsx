@@ -12,6 +12,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -158,6 +159,22 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+/** A promise the test settles, which holds the answer of the server until then. */
+function held() {
+  const settles: (() => void)[] = [];
+  const until = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return {
+    until,
+    release: () => {
+      for (const settle of settles) {
+        settle();
+      }
+    },
+  };
+}
 
 describe("the creation of a nature or a category", () => {
   it.each([
@@ -453,22 +470,6 @@ describe("the modification of a nature or a category", () => {
 });
 
 describe("a write whose dialog is closed, and the focus", () => {
-  /** A promise the test settles, which holds the answer of the server until then. */
-  function held() {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    return {
-      until,
-      release: () => {
-        for (const settle of settles) {
-          settle();
-        }
-      },
-    };
-  }
-
   it("says the write under way on its button, and once the dialog is closed says what the server did in the list", async () => {
     const answer = held();
     serve({}, { hold: () => answer.until });
@@ -847,16 +848,38 @@ describe("the activation of a nature or a category", () => {
     });
   });
 
-  it("says the refusal of a deactivation above the list, the row as the page read it", async () => {
-    serve({ [TYPE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    render(natures());
-    await userEvent.click(screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }));
+  it("says the refusal of a deactivation above the list, the row as the page read it, and no longer busy while a modification of the list still runs", async () => {
+    const modification = held();
+    serve(
+      { [TYPE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
+      { hold: (route) => (route === TYPE ? modification.until : undefined) },
+    );
+    const { container } = render(natures());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier «\u00a0Débours\u00a0»" }));
+    await userEvent.click(
+      within(dialog("Modifier «\u00a0Débours\u00a0»")).getByRole("button", { name: "Enregistrer" }),
+    );
+    await userEvent.keyboard("{Escape}");
+    // Busy no more in the commit that tells the refusal, which waits not for the modification under
+    // way: the state of the command lifted with the answer, never by a transition (#1484).
+    const deactivate = screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" });
+    const busyWhenTold = atCommit(
+      container,
+      () => screen.queryByRole("alert") !== null,
+      () => deactivate.getAttribute("aria-busy"),
+    );
+    await userEvent.click(deactivate);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Vous n’avez pas la permission nécessaire.",
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(
       screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
     ).toBeInTheDocument();
+    modification.release();
+    await vi.waitFor(() => {
+      expect(announced()).toContain("«\u00a0Débours et achats\u00a0» enregistrée.");
+    });
   });
 
   it("presses the deactivation from the keyboard, Enter on the cell of the state, the grid one stop", async () => {

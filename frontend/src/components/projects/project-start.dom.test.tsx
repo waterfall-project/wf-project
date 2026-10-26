@@ -14,6 +14,7 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -455,6 +456,13 @@ describe("the drop zone", () => {
     const { group } = await zone({
       [UPLOAD]: { problem: { code: "FILE_TOO_LARGE", status: 413 } },
     });
+    // Whether the zone was still busy in the commit that told the refusal: the deposit over, never
+    // while a file dropped is told an upload under way (#1484).
+    const busyWhenTold = atCommit(
+      group,
+      () => within(group).queryByRole("alert") !== null,
+      () => group.getAttribute("aria-busy"),
+    );
     await userEvent.upload(
       within(group).getByLabelText("Fichier MS Project (.xml)"),
       new File(["x"], "planning.xml"),
@@ -464,6 +472,7 @@ describe("the drop zone", () => {
         CATALOGUES.fr.errors.FILE_TOO_LARGE,
       );
     });
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(router.push).not.toHaveBeenCalled();
   });
 });

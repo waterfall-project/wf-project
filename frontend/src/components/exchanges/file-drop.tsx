@@ -17,7 +17,7 @@
 
 import { FileUp, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type DragEvent, useCallback, useId, useRef, useState, useTransition } from "react";
+import { type DragEvent, useCallback, useId, useRef, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
@@ -59,15 +59,17 @@ export function FileDrop({
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [problem, setProblem] = useState<DropProblem>();
-  // The file being sent, then the file sent: the zone takes no other until the report is shown.
+  // The file being sent, then the file sent: the zone takes no other until the report is shown. Being
+  // sent from the drop to the answer, and lifted in the very update that tells it — not by a
+  // transition, whose end would wait for every other async action of the page (#1484).
   const [sending, setSending] = useState<string>();
+  const busy = sending !== undefined;
   const [sent, setSent] = useState<string>();
   // The task that analyses the file sent: its failure frees the zone.
   const [analysis, setAnalysis] = useState<string>();
   // The drags that entered the zone or one of its children and did not leave yet.
   const depth = useRef(0);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
 
   useWhenTaskFails(
     analysis,
@@ -81,7 +83,7 @@ export function FileDrop({
     if (file === undefined || sent !== undefined) {
       return;
     }
-    if (pending) {
+    if (busy) {
       setProblem("busy");
       return;
     }
@@ -92,8 +94,7 @@ export function FileDrop({
       return;
     }
     setSending(file.name);
-    startTransition(async () => {
-      const result = await open({ kind: "ms_project_schedule" }, file);
+    void open({ kind: "ms_project_schedule" }, file).then((result) => {
       setSending(undefined);
       setProblem(undefined);
       if (result.kind === "done") {
@@ -116,7 +117,7 @@ export function FileDrop({
       role="group"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-hint`}
-      aria-busy={pending}
+      aria-busy={busy}
       onDragEnter={() => {
         depth.current += 1;
         setOver(true);
@@ -159,10 +160,10 @@ export function FileDrop({
         type="button"
         variant="outline"
         size="sm"
-        aria-disabled={pending || sent !== undefined ? true : undefined}
+        aria-disabled={busy || sent !== undefined ? true : undefined}
         aria-describedby={problem === undefined ? undefined : `${id}-problem`}
         onClick={() => {
-          if (!pending && sent === undefined) {
+          if (!busy && sent === undefined) {
             input.current?.click();
           }
         }}

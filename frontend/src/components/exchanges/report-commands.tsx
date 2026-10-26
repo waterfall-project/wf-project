@@ -13,15 +13,7 @@
 import { Ban, CheckCheck, FileCheck, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type SubmitEvent,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { type SubmitEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { abandonFileImport, applyFileImport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
@@ -29,6 +21,7 @@ import { Command } from "@/components/commands/command";
 import { commandIcon } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
+import { rejected } from "@/components/commands/rejection";
 import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 
@@ -71,32 +64,37 @@ function ConfirmForm({
   const track = useTrackTask();
   const confirm = useRef<HTMLButtonElement>(null);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     confirm.current?.focus();
   }, []);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (busy) {
       return;
     }
     const command = () => applyFileImport(projectId, importId);
-    startTransition(async () => {
-      const result = await command();
-      if (result.kind === "done") {
-        track(result.data, { command, subject: filename });
-        onClose();
-        onApplied(result.data.task_id);
-      } else {
-        setOutcome(result);
-      }
-    });
+    setBusy(true);
+    void command()
+      .catch(rejected)
+      .then((result) => {
+        setBusy(false);
+        if (result.kind === "done") {
+          track(result.data, { command, subject: filename });
+          onClose();
+          onApplied(result.data.task_id);
+        } else {
+          setOutcome(result);
+        }
+      });
   };
   return (
     <form
       id={id}
       aria-label={t("confirmTitle")}
-      aria-busy={pending}
+      aria-busy={busy}
       onSubmit={submit}
       className="space-y-2 rounded-md border p-3 text-sm"
     >

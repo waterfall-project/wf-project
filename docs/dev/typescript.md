@@ -454,16 +454,30 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     transition : la réponse se peint dans un commit, la fin de la transition dans un suivant. Entre
     les deux, l'écran montre le refus ou le succès alors que ce que `pending` garde l'est encore —
     la réentrée, un champ inactif, « Annuler » ou Échap —, et une commande dit « fait » avec
-    `aria-busy="true"` (#1484). Dans un dialogue modal, où l'on ne lance pas une autre action
-    pendant la requête, ce qui suit l'`await` passe dans une `startTransition(() => …)` imbriquée
+    `aria-busy="true"` (#1484). Deux formes de correction, selon le cas (décision de l'auteur,
+    #1491, option B). Dans un dialogue modal, où l'on ne lance pas une autre action pendant la
+    requête, ce qui suit l'`await` passe dans une `startTransition(() => …)` imbriquée
     (`restore-dialog.tsx`, `reference-form.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`,
-    `contributor-commands.tsx`) ; décision de l'auteur, #1491, option B. Les commandes en ligne,
-    qui peuvent tourner en même temps qu'une autre, ont une autre forme (US-0590d/L3, #1496). Le
-    refus dit à un champ qui prend le focus se pose avec la réponse, et le focus passe dans un
-    effet, après le commit qui pose le refus : donné dans la foulée, il arrive avant la description
-    du champ, et un lecteur d'écran annonce le champ sans son refus (`reference-form.tsx`,
-    `role-commands.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`). Une réponse portée par un
-    magasin externe — la tâche remise au suivi, `task-entry.tsx` — est sans objet : aucune
-    transition ne la porte (n° 18). Les tests relèvent l'état du geste au commit qui montre la
-    réponse (`atCommit`, `src/test/committed.ts`), et la description d'un champ refusé quand il
-    prend le focus (`atFocus`). Aucun outil ne le tient : la revue le cherche.
+    `contributor-commands.tsx`). Une commande en ligne — un bouton, un formulaire ou une
+    confirmation dans la page —, qui peut tourner en même temps qu'une autre, ne prend pas de
+    transition : un état « occupé » local (`useState`), posé avant l'appel et levé dans la même
+    mise à jour que la réponse, que la réentrée, le contrôle inactif et `aria-busy` lisent. La
+    transition imbriquée n'y vaut rien : React 19 rattache toutes les actions asynchrones en cours
+    à une même voie (`currentEntangledLane`), et une transition imbriquée ne s'engage qu'une fois
+    toutes réglées ; la réponse d'une commande courte attendrait une longue — un refus de
+    désactivation, une modification de la liste en route. Sans transition, la commande en ligne ne
+    retient pas non plus l'écran quitté par « Précédent » (vercel/next.js#99612, `held.ts`) :
+    l'écran d'arrivée s'affiche aussitôt, l'écriture encore en route, et son refus est dit par la
+    barre de la coquille (#863, `shell.spec.ts`, `preferences-form.tsx`) ; la retenue, et `away`,
+    valent pour une écriture attendue dans une transition (`startTransition(async …)` avec
+    `held(…)`) : celle d'un dialogue modal, ou d'un fichier classé « sans objet » par l'audit de
+    #1491. Le refus dit à un champ qui prend le
+    focus se pose avec la réponse, et le focus passe dans un effet, après le commit qui pose le
+    refus : donné dans la foulée, il arrive avant la description du champ, et un lecteur d'écran
+    annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,
+    `user-dialogs.tsx`, `breakdown-commands.tsx`). Une réponse portée par un magasin externe — la
+    tâche remise au suivi, `task-entry.tsx` — est sans objet : aucune transition ne la porte
+    (n° 18). Les tests relèvent l'état du geste au commit qui montre la réponse (`atCommit`,
+    `src/test/committed.ts`), et la description d'un champ refusé quand il prend le focus (`atFocus`) ;
+    `command.dom.test.tsx` et `cost-commands.dom.test.tsx` lancent une commande courte pendant une
+    action longue, et la courte dit sa réponse et n'est plus occupée sans l'attendre. Aucun outil ne le tient : la revue le cherche.
