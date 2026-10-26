@@ -42,7 +42,9 @@ ActualCostLine:
         (WF-CRE-0020) ; c'est par ce code que la création du sous-projet lui impute aussitôt les
         lignes qui l'attendaient, et qu'un réimport qui change l'élément d'OTP recalcule son
         imputation — un écart `updated` du compte rendu sur la colonne `subproject`
-        (`ActualCostColumn`, WF-INTF-0140).
+        (`ActualCostColumn`, WF-INTF-0140). Il garde sa borne de 50 caractères : celle de 31 et le
+        motif d'un sous-projet déclaré (`DeclaredSubprojectCode`) ne valent qu'à l'écriture d'un
+        sous-projet (EP-16/US-0610).
     subproject_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-

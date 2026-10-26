@@ -2432,6 +2432,7 @@
     "PROJECT_HORIZON_EXCEEDED": "La durée du projet dépasserait quinze ans.",
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
+    "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",

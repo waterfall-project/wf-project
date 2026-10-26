@@ -2432,6 +2432,7 @@
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
+    "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",

@@ -5,6 +5,7 @@
     "label": "Modernisation du poste de commande",
     "code": "PRJ-001",
     "description": "Remplacement des automates et de la supervision du poste de commande.",
+    "client": "Papeteries de la Vienne",
     "state": "in_progress",
     "inflation_rate": "0.03",
     "win_probability": "1",

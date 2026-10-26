@@ -7669,6 +7669,54 @@ du 2026-10-22 : il se range dans les paramètres communs, à côté de la devise
 Écarté : un réglage dans `Installation`, que `getInstallation` rend sans session, quand le nom ne
 sert qu'aux fichiers exportés.
 
+### Le client d'un projet et le code borné d'un sous-projet (US-0610, #1316)
+
+WF-PRJ-0080 fait porter au projet le nom de son client, facultatif, que présente un devis exporté ;
+WF-PRJ-0050 veut que le code d'un sous-projet nomme son onglet dans le fichier de reste à engager
+(ANNEXE B), ce qu'Excel borne. Le contrat ne lisait pas le client et bornait le code à 50
+caractères, sans autre règle (C-372, D-7 de la reprise du 2026-10-22).
+
+- **Le client.** `Project.client`, `ProjectCreate.client` et `ProjectUpdate.client`, un même
+  schéma, `ProjectClient` : de 1 à 300 caractères comme le libellé, jamais blanc, nullable et
+  facultatif — aucune transition ne l'exige. `createProject` et `updateProject` l'écrivent ; nul,
+  `updateProject` l'efface, absent, il ne change pas. Un client vide est refusé par 422
+  `VALIDATION_FAILED`, `fields` désignant `/client` par `VALUE_REQUIRED`, trop long par
+  `VALUE_TOO_LONG`, fait seulement de blancs, comme tout libellé, par `VALIDATION_FAILED`.
+  Il n'est pas exigé dans la lecture, comme la description et le code du projet.
+- **Le code d'un sous-projet déclaré.** `Subproject.code` et `SubprojectWrite.code` (donc
+  `SubprojectUpdate`) partagent `DeclaredSubprojectCode` : de 1 à 31 caractères — la borne d'un
+  nom d'onglet —, sans `:`, `\`, `/`, `?`, `*`, `[` ni `]`, et ni « Synthèse » ni « Hors
+  sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse. Le motif
+  le dit par une anticipation négative, chaque lettre des deux noms écrite dans ses deux casses :
+  JSON Schema n'a pas de comparaison sans casse, et le motif se lit pareil en ECMAScript et en
+  Python (les modèles engendrés du service le compilent par `re`), à une exception près : un saut
+  de ligne final. En Python, `$` s'arrête aussi avant un `\n` final, si bien que « Synthèse\n »
+  est refusé ; en ECMAScript, `$` est strict et « Synthèse\n » passe.
+- **Les refus.** Un code trop long : 422 `VALIDATION_FAILED`, `fields` désignant `/code` par
+  `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`. Un caractère interdit ou un nom réservé :
+  un code nouveau, `SUBPROJECT_CODE_INVALID`, avec `fields[].params.forbidden_characters`, les
+  caractères interdits que porte le code, chacun une fois, dans l'ordre où il les porte — ce que le
+  formulaire peut nommer — ou `fields[].params.reserved_name`, le nom réservé tel que Waterfall
+  l'écrit. Le front dit ce code par son catalogue (`errors.SUBPROJECT_CODE_INVALID`) ; les
+  paramètres, l'écran du sous-projet les lira (US-0610/L2).
+- **Ce qui garde sa borne.** `ActualCostLine.subproject_code`, le code lu dans l'élément d'OTP
+  d'une ligne de coût réel, garde ses 50 caractères : une ligne au code inconnu se conserve telle
+  quelle (WF-CRE-0020), et la borne d'un sous-projet déclaré ne vaut qu'à son écriture (conception
+  d'EP-16).
+- **Les exemples.** Le témoin, PRJ-001, a pour client « Papeteries de la Vienne » dans chacune de
+  ses lectures ; PRJ-002 et le projet créé aujourd'hui n'en ont pas (`null`). Écrit à la main,
+  `subproject_code_invalid`, un sous-projet créé ou recodé sous « SP/01 », le code de la Vérif
+  de WF-PRJ-0050, refusé, la barre oblique nommée — cité par `createSubproject` et
+  `updateSubproject`. Engendré, `import_remaining_subproject_held` nomme son onglet par le code du
+  sous-projet, « SP-ESS », et non plus par son libellé. Les codes du témoin, « SP-CMD » et
+  « SP-ESS », respectaient déjà la borne : `tools/tests/test_mockclientcode.py` tient chaque code
+  de sous-projet des exemples sous le motif, le motif contre les codes de la Vérif, et le client de
+  chaque lecture d'un projet.
+
+Écarté : `not: { enum: [...] }` pour les noms réservés, qui comparerait avec la casse ; et un motif
+appliqué aussi au code lu d'une ligne de coût réel, qui refuserait d'importer une ligne que
+WF-CRE-0020 veut conserver.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

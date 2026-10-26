@@ -836,7 +836,7 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
 
 ## US-0610 — Le client d'un projet et le code d'un sous-projet
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PRJ-0080-A`, `WF-PRJ-0050-A`
 - **opérations** : `createProject`, `getProject`, `updateProject`, `listProjects`,
   `createSubproject`, `updateSubproject`, `listSubprojects`, `openImport`, `getImport`
