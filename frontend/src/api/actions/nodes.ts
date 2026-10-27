@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
- * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
+ * (`getComputedValueDependencies`), the node a row number names (`resolveRowNumber`), a cell
+ * entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), the state of a task a card of the Kanban sends
  * (`setTaskProgress`), the predecessors of a task (`setPredecessors`), a
  * task or a line created and a node deleted
@@ -66,6 +67,23 @@ export async function readComputedDependencies(
     serverClient().GET(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies",
       { params: { ...nodePath(structure, nodeId).params, query: { field } } },
+    ),
+  );
+}
+
+/**
+ * Read the node a row number names in the numbering of the whole structure, whatever the search and
+ * the filters of the grid (`resolveRowNumber`, US-0650): its identifier, its label and its kind — or
+ * 404 `NOT_FOUND` for a number no node bears.
+ */
+export async function resolveRowNumber(
+  structure: StructurePath,
+  rowNumber: number,
+): Promise<Outcome<components["schemas"]["RowNumberResolution"]>> {
+  return decode(() =>
+    serverClient().GET(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}",
+      { params: { path: { ...structure, row_number: rowNumber } } },
     ),
   );
 }

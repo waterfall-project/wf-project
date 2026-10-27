@@ -851,7 +851,11 @@ moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétré
 rien ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus, collage appliqué, colonnes non montrées, problème de saisie —
 gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
 d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
-chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
+chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Elle écrit aussi les clés de toutes les
+colonnes qu'elle offre (`known_columns`, `gridShape`, US-0650) : une colonne masquée par défaut que la
+grille ne connaissait pas à la dernière écriture est masquée, une colonne que le compte a choisi
+d'afficher le reste ; des réglages écrits avant cette liste n'en connaissent aucune, et une colonne
+masquée par défaut y est masquée (`docs/api/DECISIONS.md`). Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
 l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
 préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
@@ -974,8 +978,12 @@ rien pour une fin à début —, puis le décalage, positif ou négatif, avec l'
 suffixes de `parseDuration`) ou en pourcentage de la durée du prédécesseur ; la liste entière part
 en place de celle de la tâche, par `setPredecessors`, avec la version du nœud lu. Le numéro se résout
 sur les lignes que la grille a lues (celles d'un prédécesseur qu'une recherche a écarté se retrouvent
-par les liaisons d'une ligne lue) : un numéro qu'elles ne connaissent pas laisse la saisie ouverte,
-qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son code — une boucle de
+par les liaisons d'une ligne lue) ; un numéro qu'elles ne connaissent pas se demande au serveur, dans
+la numérotation de toute la structure (`resolveRowNumber`, US-0650), la saisie en lecture seule et
+`aria-busy` tant qu'il n'a pas répondu (`EntryKind.ask`, `useRowNames`), puis validée à nouveau. Un
+numéro qu'aucune tâche ne porte — une ligne de devis, ou aucun nœud (404) — laisse la saisie ouverte,
+qui le dit, sans rien envoyer ; un serveur qui n'a pu répondre aussi, en disant de valider à nouveau.
+Quittée par un clic ailleurs pendant la demande, la saisie se valide à la réponse, ou s'abandonne. Un refus du serveur se dit à la cellule par son code — une boucle de
 liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
 récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
 les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne

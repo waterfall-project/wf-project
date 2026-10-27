@@ -14,9 +14,10 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { keysOf } from "@/test/grid-preferences";
 
 import { AccessRoleList, UserList } from "./account-lists";
-import type { AccessRole, User } from "./admin-grids";
+import { type AccessRole, accessRoleGrid, type User } from "./admin-grids";
 import { type AuditFilters, authorsOf, readAuditFilters } from "./audit-address";
 import { ROLE_KEPT } from "./role-address";
 import { USER_KEPT } from "./user-address";
@@ -257,6 +258,7 @@ describe("the filters of the audit columns, kept", () => {
         access_roles: {
           hidden_columns: [],
           column_widths: {},
+          known_columns: keysOf(accessRoleGrid(false).columns),
           filters: {
             created_by_kind: "platform",
             updated_by_user_id: CAMILLE,

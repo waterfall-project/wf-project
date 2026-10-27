@@ -31,8 +31,9 @@ import {
   type FakeTiming,
   type Problem,
 } from "@/test/fixtures";
+import { keysOf } from "@/test/grid-preferences";
 
-import type { User } from "./admin-grids";
+import { type User, userGrid } from "./admin-grids";
 
 // The server of Next, as far as the screen needs it: the fake back, the address it reads and the
 // navigations it asks.
@@ -847,6 +848,7 @@ describe("the filters of the table", () => {
         users: {
           hidden_columns: [],
           column_widths: {},
+          known_columns: keysOf(userGrid().columns),
           filters: { search: "Mor", origins: "local", is_active: "false" },
         },
       },

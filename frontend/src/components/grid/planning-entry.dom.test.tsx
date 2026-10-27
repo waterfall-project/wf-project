@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -37,11 +38,17 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+type RowNumberResolution = components["schemas"]["RowNumberResolution"];
+
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const PREDECESSORS =
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors";
+const ROW =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}";
+// No node bears the number asked: refused as an object that does not exist (WF-ADM-0110).
+const NO_ROW = { problem: example("row_number_unknown") as Problem & { readonly status: 404 } };
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -562,13 +569,13 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
   );
 
   it.each([
-    { text: "99", problem: "Aucune ligne de la grille n’a l’un de ces numéros." },
+    { text: "99", problem: "Aucune tâche de la structure ne porte l’un de ces numéros." },
     { text: "19 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
     { text: "19FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
   ])(
     "keeps the entry open, saying why, for « $text », a row unknown or a text that is no link, and sends nothing [WF-PLA-0030-A]",
     async ({ text, problem }) => {
-      const client = serve({ [PREDECESSORS]: "predecessor_set" });
+      const client = serve({ [PREDECESSORS]: "predecessor_set", [ROW]: NO_ROW });
       render(grid(nested));
       const mounting = rowOf(nested, "Montage des armoires sur site");
       await retype(await entered(mounting, "predecessors"), text);
@@ -589,5 +596,126 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
       "aria-readonly",
       "true",
     );
+  });
+});
+
+// aucune exigence : propre à l'US (US-0650, un numéro de ligne absent des lignes lues).
+describe("a predecessor whose number no row read bears, resolved by the server", () => {
+  const reception = rowOf(planning, "Réception des études");
+  const node = planning.items[reception];
+  // The number 9 of the main structure, « Câblage des armoires », a task the grid of the studies
+  // does not read; the number 10, a line of the estimate.
+  const task = example("row_number_task") as RowNumberResolution;
+
+  /** The links the grid sent, and the row numbers it asked the server. */
+  function sentOf(client: FakeClient) {
+    return {
+      asked: client.calls.filter((call) => call.route === ROW).map((c) => c.path.split("/").at(-1)),
+      links: client.calls.filter((call) => call.route === PREDECESSORS).map((call) => call.body),
+    };
+  }
+
+  it("asks the server the task of a number no row read bears, the entry waiting, and writes it in predecessor_node_id", async () => {
+    const { until, release } = held();
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
+    render(grid(planning));
+    await retype(await entered(reception, "predecessors"), "5; 9DD");
+    // The entry waits for the answer, its text read only.
+    const field = screen.getByRole("textbox", { name: "Prédécesseurs" });
+    expect(field).toHaveAttribute("aria-busy", "true");
+    expect(field).toHaveAttribute("readonly");
+    expect(sentOf(client)).toEqual({ asked: ["9"], links: [] });
+    await act(async () => {
+      release();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(sentOf(client).links[0]).toEqual({
+      predecessors: [
+        {
+          predecessor_node_id: planning.items[rowOf(planning, "Revue de conception")]?.node_id,
+          link_type: "finish_to_start",
+          lag: { value: "0", unit: "d" },
+        },
+        {
+          predecessor_node_id: task.node_id,
+          link_type: "start_to_start",
+          lag: { value: "0", unit: "d" },
+        },
+      ],
+      lock_version: node?.lock_version,
+    });
+    expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+  });
+
+  it.each([
+    { name: "a line of the estimate", answer: "row_number_estimate_line" as const },
+    { name: "a number no node bears", answer: NO_ROW },
+  ])("refuses as unknown $name, and sends nothing", async ({ answer }) => {
+    const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
+    render(grid(planning));
+    await retype(await entered(reception, "predecessors"), "10");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Aucune tâche de la structure ne porte l’un de ces numéros.",
+    );
+    expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(sentOf(client)).toEqual({ asked: ["10"], links: [] });
+  });
+
+  it.each([
+    { name: "validates where it is", answer: "row_number_task" as const, links: 1 },
+    { name: "abandons, no task bearing its number,", answer: NO_ROW, links: 0 },
+  ])("$name an entry left before the server named its rows", async ({ answer, links }) => {
+    const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
+    render(grid(planning));
+    const field = await entered(reception, "predecessors");
+    await userEvent.clear(field);
+    await userEvent.type(field, "9");
+    // Left by a click elsewhere: the entry waits for the server, a blur being no key to keep it.
+    act(() => {
+      cellAt(rowOf(planning, "Études"), "label").focus();
+    });
+    expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute("aria-busy");
+    await waitFor(() => {
+      expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+      expect(sentOf(client).links).toHaveLength(links);
+    });
+    expect(sentOf(client).asked).toEqual(["9"]);
+  });
+
+  it("says a number the server could not be asked, and asks again when validated anew", async () => {
+    const client = serve({
+      [ROW]: [{ problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } }, "row_number_task"],
+      [PREDECESSORS]: "predecessor_set",
+    });
+    render(grid(planning));
+    await retype(await entered(reception, "predecessors"), "9");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "L’un de ces numéros n’a pu être vérifié : validez à nouveau dans un instant.",
+    );
+    expect(sentOf(client).links).toEqual([]);
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(sentOf(client).links).toHaveLength(1);
+    });
+    expect(sentOf(client)).toEqual({
+      asked: ["9", "9"],
+      links: [
+        {
+          predecessors: [
+            {
+              predecessor_node_id: task.node_id,
+              link_type: "finish_to_start",
+              lag: { value: "0", unit: "d" },
+            },
+          ],
+          lock_version: node?.lock_version,
+        },
+      ],
+    });
   });
 });

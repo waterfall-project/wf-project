@@ -18,6 +18,7 @@ import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
 import { NO_AUDIT } from "@/test/accounts";
 import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
+import { keysOf } from "@/test/grid-preferences";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
 import { type AuditFilters, authorsOf } from "./audit-address";
@@ -600,6 +601,7 @@ describe("the grid of the access roles", () => {
         access_roles: {
           hidden_columns: ["holder_count"],
           column_widths: {},
+          known_columns: keysOf(accessRoleGrid(false).columns),
           sort: { column: "label", order: "desc" },
           filters: { search: "Chef", is_predefined: "false", holder_count_max: "0" },
         },
@@ -629,7 +631,14 @@ describe("the grid of the access roles", () => {
       expect(client.calls).toHaveLength(1);
     });
     expect(client.calls[0]?.body).toEqual({
-      grids: { access_roles: { hidden_columns: [], column_widths: {}, filters: {} } },
+      grids: {
+        access_roles: {
+          hidden_columns: [],
+          column_widths: {},
+          known_columns: keysOf(accessRoleGrid(false).columns),
+          filters: {},
+        },
+      },
     });
     expect(router.replace).not.toHaveBeenCalled();
   });

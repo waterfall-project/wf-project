@@ -24,7 +24,7 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
-import type { PredecessorsProblem } from "./predecessors-entry";
+import type { PredecessorsParsed } from "./predecessors-entry";
 import type { GridAddress } from "./query";
 
 /**
@@ -255,12 +255,14 @@ export type EntryKind =
       readonly type: "predecessors";
       /**
        * Validate the text typed in the language: the links as the value an entry holds, `null`
-       * for none, or why the text is not one (`predecessors-entry.ts`).
+       * for none, why the text is not one, or the row numbers to ask first (`predecessors-entry.ts`).
        */
-      readonly parse: (
-        text: string,
-        locale: Locale,
-      ) => { readonly value: string | null } | { readonly problem: PredecessorsProblem };
+      readonly parse: (text: string, locale: Locale) => PredecessorsParsed;
+      /**
+       * Ask the server the tasks of row numbers `parse` found in no row of the grid, which it then
+       * names: settled once it answered — a number no task bears included —, never rejected.
+       */
+      readonly ask: (rows: readonly number[]) => Promise<void>;
       /** A value validated as it is typed in the language, which the entry starts from. */
       readonly text: (value: string, locale: Locale) => string;
     }

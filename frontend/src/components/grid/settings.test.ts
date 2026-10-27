@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
-import { endedColumns, initialSettings, keptPageSize, recordedPreferences } from "./settings";
+import { gridShape, initialSettings, keptPageSize, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
   it("are the columns the grid hides, and no width, without preferences", () => {
@@ -22,20 +22,54 @@ describe("the settings a grid starts from", () => {
     });
   });
 
-  it("show a column hidden by default once the account kept a list of hidden columns that omits it", () => {
-    expect(initialSettings({ hidden_columns: [] }, PLANNING_GRID.columns).visibility).toEqual({});
+  // aucune exigence : propre à l'US (US-0650, une colonne masquée par défaut que la grille ne
+  // connaissait pas).
+  it("hide a column hidden by default that the grid did not know when the account set it, and show one the account chose to show", () => {
+    const planning = PLANNING_GRID.columns.map((column) => column.key);
+    const estimate = ESTIMATE_GRID.columns.map((column) => column.key);
+    // The grid knew every column: what the account did not hide shows, the columns hidden by
+    // default the account chose to show among them.
     expect(
-      initialSettings({ hidden_columns: ["gantt"] }, PLANNING_GRID.columns).visibility,
-    ).toEqual({ gantt: false });
-    expect(initialSettings({ hidden_columns: [] }, ESTIMATE_GRID.columns).visibility).toEqual({});
+      initialSettings({ hidden_columns: [], known_columns: planning }, PLANNING_GRID.columns)
+        .visibility,
+    ).toEqual({});
+    expect(
+      initialSettings({ hidden_columns: ["hours"], known_columns: estimate }, ESTIMATE_GRID.columns)
+        .visibility,
+    ).toEqual({ hours: false });
+    // Set before the sub-project was offered: hidden by default, it stays hidden.
+    const before = estimate.filter((key) => key !== "subproject");
+    expect(
+      initialSettings({ hidden_columns: ["hours"], known_columns: before }, ESTIMATE_GRID.columns)
+        .visibility,
+    ).toEqual({ hours: false, subproject: false });
+    // A column shown by default that the grid did not know shows.
+    const unknown = planning.filter((key) => key !== "gantt" && key !== "timelines");
+    expect(
+      initialSettings({ hidden_columns: [], known_columns: unknown }, PLANNING_GRID.columns)
+        .visibility,
+    ).toEqual({ timelines: false });
+  });
+
+  // aucune exigence : propre à l'US (US-0650, des réglages écrits avant les colonnes connues).
+  it("hide a column hidden by default for settings recorded before the grid kept the columns it knew, though the account had shown it", () => {
+    // The contract reads the list absent as empty (`docs/api/DECISIONS.md`): the account had shown
+    // the timelines, the sub-project, which it hid no more; both are hidden again, once — shown
+    // anew, the grid records them as known.
+    expect(initialSettings({ hidden_columns: [] }, PLANNING_GRID.columns).visibility).toEqual({
+      timelines: false,
+    });
     expect(
       initialSettings({ hidden_columns: ["hours"] }, ESTIMATE_GRID.columns).visibility,
-    ).toEqual({ hours: false });
+    ).toEqual({ hours: false, subproject: false });
   });
 
   it("hide the columns the account hid, and never the label, which identifies a row", () => {
     const settings = initialSettings(
-      { hidden_columns: ["hours", "label", "removed"] },
+      {
+        hidden_columns: ["hours", "label", "removed"],
+        known_columns: ESTIMATE_GRID.columns.map((column) => column.key),
+      },
       ESTIMATE_GRID.columns,
     );
     expect(settings.visibility).toEqual({ hours: false });
@@ -59,7 +93,7 @@ describe("the settings a grid starts from", () => {
     expect(huge.sizing).toEqual({ gantt: WIDEST });
     // Recorded within the bounds it is read within (#1390).
     const sizing = { gantt: 1200, label: 1200 };
-    const ended = endedColumns(PLANNING_GRID.columns);
+    const shape = gridShape(PLANNING_GRID.columns);
     expect(
       recordedPreferences(
         undefined,
@@ -67,7 +101,7 @@ describe("the settings a grid starts from", () => {
         undefined,
         undefined,
         undefined,
-        ended,
+        shape,
       ).column_widths,
     ).toEqual(wide.sizing);
   });
@@ -104,6 +138,23 @@ describe("the preferences a grid records", () => {
     );
     expect(keptPageSize(sized)).toBe(25);
     expect(keptPageSize(undefined)).toBeUndefined();
+  });
+
+  // aucune exigence : propre à l'US (US-0650, les colonnes connues écrites avec la grille).
+  it("record the columns the grid offers as those it knows, in place of those that came", () => {
+    const shape = gridShape(ESTIMATE_GRID.columns);
+    const before = { ...kept, known_columns: ["label", "quantity"] };
+    expect(recordedPreferences(before, settings, undefined, undefined, undefined, shape)).toEqual({
+      ...before,
+      hidden_columns: ["hours"],
+      column_widths: { label: 413 },
+      known_columns: ESTIMATE_GRID.columns.map((column) => column.key),
+    });
+    // Without the shape of the grid, those that came go back as they came.
+    expect(recordedPreferences(before, settings, undefined).known_columns).toEqual([
+      "label",
+      "quantity",
+    ]);
   });
 
   it("keep no sort once it is lifted, back to the order of the plan", () => {
