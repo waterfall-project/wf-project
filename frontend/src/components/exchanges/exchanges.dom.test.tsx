@@ -411,6 +411,28 @@ describe("the import of actual costs and the correspondence of the extraction", 
 });
 
 describe("the report of an import", () => {
+  it("says the motive of two lines of the file of the same document and item, each rejected, and designates a line by both [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_duplicate_line") as Import));
+    const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
+    const sentence =
+      "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.";
+    expect(
+      within(rejected)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual(["LigneMotif", `4${sentence}`, `5${sentence}`]);
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    expect(differences).toHaveTextContent("Ligne de coût réelFA-2026-0412, poste 10");
+  });
+
+  it("says the motive of the duplicate lines of actual costs in English, blank item included [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_duplicate_line") as Import), "en");
+    const rejected = screen.getByRole("table", { name: "Rejected lines" });
+    expect(rejected).toHaveTextContent(/blank item included/);
+  });
+
   it("lists the rejected lines with their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {
     const client = serve({
       [APPLY]: { example: "task_import_queued", status: 202 },
@@ -670,7 +692,10 @@ describe("the report of an import", () => {
     open(report(example("import_actual_costs_analysed") as Import), "en");
     const differences = screen.getByRole("table", { name: "Differences with the existing data" });
     // `passthrough.Fournisseur`, a column of the file no catalogue translates (#365).
-    expect(differences).toHaveTextContent("FA-2026-0412Amount and Fournisseur");
+    // The line is designated by its document and its item (US-0630); a line with no item, by its
+    // document alone.
+    expect(differences).toHaveTextContent("FA-2026-0412, item 10Amount and Fournisseur");
+    expect(differences).toHaveTextContent("AV-2026-0388Subproject");
   });
 
   it("names the parent a node changes, which no column of the structure holds", () => {

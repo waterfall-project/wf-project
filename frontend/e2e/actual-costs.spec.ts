@@ -26,6 +26,7 @@ test("reads the actual costs of a project: the lines and their three totals, the
   const grid = page.getByRole("grid", { name: "Coûts réels" });
   for (const name of [
     "N° de pièce",
+    "Poste",
     "Date de pièce",
     "Montant",
     "Sous-projet",

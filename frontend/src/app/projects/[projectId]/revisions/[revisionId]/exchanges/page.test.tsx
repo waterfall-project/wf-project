@@ -306,7 +306,7 @@ describe("the screen of the imports and exports", () => {
     // charged anew on its sub-project; an invoice whose amount changed in the ERP.
     const english = text(await exchangesAt({ import: IMPORT }));
     expect(english).toContain(
-      "2 differences with the existing data Change Object Label Fields Updated Actual cost line AV-2026-0388 Subproject Updated Actual cost line FA-2026-0412 Amount",
+      "2 differences with the existing data Change Object Label Fields Updated Actual cost line AV-2026-0388 Subproject Updated Actual cost line FA-2026-0412, item 10 Amount",
     );
     server.answers = {
       ...server.answers,

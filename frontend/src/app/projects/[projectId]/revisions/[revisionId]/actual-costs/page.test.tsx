@@ -183,6 +183,7 @@ describe("the screen of the actual costs", () => {
     expect(Object.keys(handed?.costs.items[0] ?? {})).toEqual([
       "cost_line_id",
       "document_number",
+      "document_item",
       "document_date",
       "amount",
       "subproject_code",

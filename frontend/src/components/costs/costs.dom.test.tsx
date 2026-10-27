@@ -116,6 +116,7 @@ describe("the grid of the actual costs", () => {
         .map((header) => header.textContent),
     ).toEqual([
       "N° de pièce",
+      "Poste",
       "Date de pièce",
       "Montant",
       "Sous-projet",
@@ -125,18 +126,31 @@ describe("the grid of the actual costs", () => {
       "Texte de commande",
     ]);
     const cells = cellsOf("FA-2026-0412");
-    expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
+    expect(cells.slice(0, 6).map((each) => each.textContent)).toEqual([
       "FA-2026-0412",
+      "10",
       "21/04/2026",
       `1${NARROW}800,00`,
       "Hors sous-projetSP-CAB",
       "Suivie",
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
-    expect(cells.slice(6, 8).map((each) => each.textContent)).toEqual([
+    expect(cells.slice(7, 9).map((each) => each.textContent)).toEqual([
       "Câbles du Rhône",
       "Câbles de commande du pupitre",
     ]);
+  });
+
+  it("shows the item of a line next to its document number, and nothing for a line the extraction gave none [WF-CRE-0040-A]", () => {
+    // FA-2026-0301 is split into two items (US-0630); the credit note has none.
+    render(costsGrid(costsOf("actual_costs")));
+    const items = within(grid())
+      .getAllByRole("row")
+      .map((row) => [...row.querySelectorAll("td")].slice(0, 2))
+      .filter((cells) => cells[0]?.textContent === "FA-2026-0301")
+      .map((cells) => cells[1]?.textContent);
+    expect(items).toEqual(["10", "20"]);
+    expect(cellsOf("AV-2026-0388")[1]?.textContent).toBe("");
   });
 
   it("presents the lines in a grid a screen reader reads as such", async () => {
@@ -159,13 +173,13 @@ describe("the grid of the actual costs", () => {
       within(grid())
         .getAllByRole("columnheader")
         .map((header) => header.textContent)
-        .slice(6),
+        .slice(7),
     ).toEqual(["Fournisseur", "Texte de commande"]);
   });
 
   it("accepts a line of negative amount, which lessens the actual cost [WF-CRE-0010-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
-    expect(cellsOf("AV-2026-0388")[2]).toHaveTextContent("-200,00");
+    expect(cellsOf("AV-2026-0388")[3]).toHaveTextContent("-200,00");
   });
 
   it("shows a line whose sub-project is unknown as charged to the project alone, with the code its OTP element gave [WF-CRE-0020-A]", () => {
@@ -177,20 +191,20 @@ describe("the grid of the actual costs", () => {
       ["FA-2026-0295", "SP-REC"],
     ];
     for (const [number, code] of codes) {
-      expect(cellsOf(number)[3]).toHaveTextContent(`Hors sous-projet${code}`);
+      expect(cellsOf(number)[4]).toHaveTextContent(`Hors sous-projet${code}`);
     }
   });
 
   it("names the sub-project of a line by its code and its label, as the server resolves them [WF-CRE-0020-A]", () => {
     render(costsGrid(costsOf("actual_costs_subproject")));
-    expect(cellsOf("FA-2026-0521")[3]).toHaveTextContent("SP-CMDPoste de commande");
+    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent("SP-CMDPoste de commande");
   });
 
   it("keeps an excluded line visible, said excluded in words, with the reason of its exclusion [WF-CRE-0030-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
     const cells = cellsOf("FA-2026-0295");
-    expect(cells[4]).toHaveTextContent("Exclue");
-    expect(cells[5]).toHaveTextContent("Réception du client, non budgétée");
+    expect(cells[5]).toHaveTextContent("Exclue");
+    expect(cells[6]).toHaveTextContent("Réception du client, non budgétée");
   });
 
   it("shows in its totals row the general total of the lines retained the server gives, never a sum of the page [WF-CRE-0040-A]", () => {
@@ -220,6 +234,7 @@ describe("the grid of the actual costs", () => {
         expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?${asked}`, { scroll: false });
       });
     };
+    await sortBy("Poste", "sort_by=document_item&sort_order=asc");
     await sortBy("Périmètre suivi", "sort_by=in_tracked_scope&sort_order=asc");
     await sortBy("Motif de l’exclusion", "sort_by=excluded_reason&sort_order=asc");
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");

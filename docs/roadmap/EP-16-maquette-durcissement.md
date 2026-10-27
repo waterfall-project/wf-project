@@ -1033,7 +1033,7 @@ Waterfall une colonne que nous n'avons pas choisie.
 
 ## US-0630 — Le poste d'une ligne de coût
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre ; le service clôt WF-INTF-0140, WF-CRE-0010 et WF-DAT-0110 en
   EP-09
 - **opérations** : `listActualCosts`, `getImport`
