@@ -105,7 +105,10 @@ def test_the_mapping_of_the_witness_keeps_the_columns_its_lines_keep() -> None:
 @pytest.mark.requirement("WF-REF-0190-A")
 def test_the_witness_declares_the_labels_of_the_verif_before_its_first_import() -> None:
     mapping = fixture("actual_cost_mapping")
-    assert {column: labels for column, labels in _labels(mapping).items() if labels} == VERIF
+    labels = _labels(mapping)
+    assert {column: labels[column] for column in VERIF} == VERIF
+    # And the item of the document, which its lines carry (EP-16/US-0630).
+    assert labels[OPTIONAL] == ["Poste"]
     assert mapping["is_complete"] is True
     first = min(entry.event.instant for entry in mockwitnesscosts.JOURNAL)
     declared = datetime.fromisoformat(mapping["audit"]["updated_at"])

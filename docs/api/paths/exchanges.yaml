@@ -338,7 +338,9 @@
       Project, les dates de tâches manuelles gardées sur un jour sans heure travaillée, signalées
       (`ImportReport.signals`, WF-PLA-0020 ; #1271) ; d'une extraction de coûts réels, les
       colonnes du fichier ni lues ni déclarées conservées, ignorées et nommées par leur intitulé
-      (`ImportIgnoredKind`, `columns`, WF-REF-0190). Le compte rendu est
+      (`ImportIgnoredKind`, `columns`, WF-REF-0190), chaque ligne de coût désignée par sa pièce
+      et son poste, et les lignes du fichier de même pièce et de même poste rejetées
+      (`DUPLICATE_COST_LINE`, WF-INTF-0140 ; EP-16/US-0630). Le compte rendu est
       conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -356,6 +358,7 @@
               remaining_analysed: { $ref: ../../../fixtures/api/import_remaining_analysed.json }
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
               actual_costs_column_ignored: { $ref: ../../../fixtures/api/import_actual_costs_column_ignored.json }
+              actual_costs_duplicate_line: { $ref: ../../../fixtures/api/import_actual_costs_duplicate_line.json }
               planning_rejected: { $ref: ../../../fixtures/api/import_planning_rejected.json }
               remaining_subproject_held: { $ref: ../../../fixtures/api/import_remaining_subproject_held.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
@@ -389,8 +392,8 @@
       (WF-INTF-0080). Les droits, la qualité de contributeur et l'état du projet sont
       revérifiés au moment de l'exécution (WF-ARC-0100) : un devis analysé sur la structure
       principale n'est plus appliqué une fois le projet En cours (WF-INTF-0100). Un import de
-      coûts réels insère ou met à jour sur le numéro de pièce, sans toucher aux exclusions
-      (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030). Il s'applique tel qu'il a été analysé, même si
+      coûts réels insère ou met à jour sur le numéro de pièce et le numéro de poste, sans toucher
+      aux exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030 ; D-4). Il s'applique tel qu'il a été analysé, même si
       la correspondance de l'extraction a changé depuis l'analyse : le compte rendu confirmé est
       ce qui s'applique (WF-INTF-0080), et une modification de la correspondance vaut pour les
       imports suivants, sans changer aucune ligne déjà importée (WF-REF-0190).

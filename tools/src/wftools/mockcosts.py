@@ -65,6 +65,9 @@ _SUPPLIERS = (
 INVOICE_NUMBER_FROM = 1_000
 """Where the numbers of the invoices of the drawn tasks start, after those written by hand."""
 
+INVOICE_ITEM = "10"
+"""The item of the invoice of a drawn task in its document: the first, an invoice having one."""
+
 
 def cost_line_id(number: int) -> str:
     """Return the identifier of a line of cost: 0xc0n written by hand, generated otherwise."""
@@ -94,7 +97,8 @@ def drawn() -> tuple[CostLine, ...]:
     """Return the lines of actual cost of the tasks drawn about the core, completed by today.
 
     Each work task drawn and completed has received one invoice, dated the day it completed, for
-    the amount of the task at the reference year a few hundredths off, under the code of the
+    the amount of the task at the reference year a few hundredths off, in the first item of its
+    document (``INVOICE_ITEM``), under the code of the
     subproject of its lot — none for a lot of no subproject —, brought by the imports whose
     period holds that day (WF-CRE-0010, WF-CRE-0020). A task not completed has received none
     (EP-14/L45a, #528).
@@ -121,6 +125,7 @@ def drawn() -> tuple[CostLine, ...]:
             CostLine(
                 GENERATED + rank,
                 f"FA-2026-{INVOICE_NUMBER_FROM + rank:04d}",
+                INVOICE_ITEM,
                 completed,
                 (Decimal(cast("str", facet["base_amount"])) * share).quantize(CENT),
                 None if subproject is None else codes[subproject],
@@ -196,6 +201,7 @@ def cost_line(line: CostLine) -> JsonObject:
     return {
         "cost_line_id": cost_line_id(line.number),
         "document_number": line.document,
+        "document_item": line.item,
         "document_date": line.on.isoformat(),
         "amount": money(line.amount),
         "project_id": project_id,
@@ -300,8 +306,8 @@ def consultation(lines: Sequence[CostLine], *, limit: int = PAGE, offset: int = 
 def counts(entry: CostImport) -> tuple[int, int, int]:
     """Return the lines an import created, updated and ignored (WF-CRE-0050).
 
-    A line whose document number was already imported is updated, its exclusion kept; an unknown
-    one is created (WF-CRE-0010); a line of another project is rejected, and ignored
+    A line whose document and item were already imported is updated, its exclusion kept; another
+    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected, and ignored
     (WF-CRE-0020).
     """
     created = sum(1 for line in lines() if line.imports[0] is entry)
@@ -421,6 +427,31 @@ def invoiced(invoices: Sequence[CostLine]) -> str:
     )
 
 
+def spread() -> tuple[CostLine, ...]:
+    """Return the lines written by hand whose document holds other items: one invoice, in order.
+
+    The invoice of the safety controller, spread over two elements of the work breakdown
+    structure in two items of the same document, gives two lines (WF-INTF-0140, D-4).
+    """
+    documents = [line.document for line in COSTS]
+    return tuple(line for line in COSTS if documents.count(line.document) > 1)
+
+
+def _spread_said() -> str:
+    """Say the invoice spread over two items, and the credit note that bears none."""
+    found = spread()
+    [credit] = [line for line in COSTS if line.item is None]
+    return (
+        f"La facture {found[0].document} de l'automate, ventilée sur "
+        f"{mocktext.count(len(found))} éléments d'OTP, "
+        + mocktext.listed([wbs_element(line) for line in found])
+        + f", donne {mocktext.count(len(found))} lignes, ses postes "
+        + mocktext.listed([cast("str", line.item) for line in found])
+        + ", chacune identifiée par la pièce et son poste ; l'avoir "
+        f"{credit.document} n'a pas de poste."
+    )
+
+
 def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     today = mocktext.day(TODAY.date())
     witness = cast("JsonObject", found["actual_costs"])
@@ -449,10 +480,10 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             + " —, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
             "imputées au seul projet, hors sous-projet, et présentées avec leur code ; "
             f"{screens.document}, sous {wbs_element(screens)}, est imputée au sous-projet Poste "
-            f"de commande. {invoiced(drawn())} Les colonnes conservées du fichier, celles que "
-            "déclare la correspondance de l'extraction, sont celles de toutes les lignes "
-            "retenues ; l'élément d'OTP, colonne lue, n'en est pas (WF-CRE-0010, WF-CRE-0020, "
-            "WF-CRE-0030, WF-CRE-0040, WF-CRE-0050, WF-REF-0190)."
+            f"de commande. {_spread_said()} {invoiced(drawn())} Les colonnes conservées du "
+            "fichier, celles que déclare la correspondance de l'extraction, sont celles de toutes "
+            "les lignes retenues ; l'élément d'OTP, colonne lue, n'en est pas (WF-CRE-0010, "
+            "WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, WF-CRE-0050, WF-INTF-0140, WF-REF-0190)."
         ),
         "actual_costs_page": (
             "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des "

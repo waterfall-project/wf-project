@@ -19,7 +19,9 @@
       {
         "column": "document_item",
         "required": false,
-        "labels": []
+        "labels": [
+          "Poste"
+        ]
       },
       {
         "column": "document_date",

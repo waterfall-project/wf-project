@@ -377,6 +377,10 @@ ImportRejection:
     rendu le présente comme un écart (`ImportDifference`, `fields` à `subproject`).
     Une tâche que le fichier placerait hors du sous-arbre de la tâche du lot de son poste ne
     rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s).
+    D'une extraction de coûts réels, une ligne dont une autre ligne du fichier porte la même pièce
+    et le même poste, nul compris : `DUPLICATE_COST_LINE`, chacune de ces lignes rejetée,
+    `params.rows` nommant les rangs des autres dans l'ordre du fichier — la ligne ne s'identifie
+    pas, et aucune n'est préférée à l'autre (WF-INTF-0140, D-4 ; EP-16/US-0630).
   properties:
     sheet:
       anyOf: [{ type: string }, { type: 'null' }]
@@ -442,9 +446,17 @@ ImportDifference:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
         Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût,
-        son numéro de pièce, qui l'identifie (WF-INTF-0140) : `document_number` ne figure
-        donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro étant une
-        autre ligne.
+        son numéro de pièce, qui l'identifie avec son poste (`document_item` ; WF-INTF-0140,
+        D-4) : ni `document_number` ni `document_item` ne figurent donc jamais parmi les
+        `fields` d'un `updated`, une pièce d'un autre numéro, ou un autre poste de la même
+        pièce, étant une autre ligne.
+    document_item:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Pour une ligne de coût (`actual_cost_line`), le numéro de son poste dans la pièce que
+        nomme `label`, qui la désigne avec elle (`ActualCostLine.document_item`, WF-INTF-0140,
+        D-4 ; EP-16/US-0630) ; nul pour une ligne sans poste, et nul ou absent pour tout autre
+        objet.
     predecessor_label:
       anyOf: [{ type: string }, { type: 'null' }]
       description: >-
@@ -488,18 +500,20 @@ ActualCostColumn:
   type: string
   description: >-
     Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de
-    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, son
-    montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un
+    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du
+    poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un
     réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un
     écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du
     fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`,
     comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce —
     est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la
-    ligne et n'est jamais un champ d'écart (`ImportDifference.label`). Le périmètre suivi et le
-    motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.
+    ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont
+    jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4).
+    Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes
+    du fichier.
   anyOf:
     - type: string
-      enum: [document_date, document_number, amount, subproject]
+      enum: [document_date, document_number, document_item, amount, subproject]
     - type: string
       pattern: '^passthrough\..+$'
 
