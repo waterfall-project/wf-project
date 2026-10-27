@@ -207,18 +207,22 @@ describe("the correspondence of the extraction of the actual costs, written", ()
   it("holds the fields and the commands while the write is under way, and sends it once [WF-REF-0190-A]", async () => {
     const answer = held();
     const client = serve({ [SET]: "actual_cost_mapping_updated" }, answer.timing);
-    const { container } = shown(witness, true);
+    shown(witness, true);
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
     const sending = screen.getByRole("button", { name: "Enregistrement…" });
     expect(sending).toBeDisabled();
     expect(sending).toHaveAttribute("aria-busy", "true");
-    expect(container.querySelector("form")).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByRole("form", { name: "Correspondance de l’extraction des coûts réels" }),
+    ).toHaveAttribute("aria-busy", "true");
     for (const field of screen.getAllByRole("textbox")) {
       expect(field).toBeDisabled();
     }
     expect(screen.getByRole("button", { name: "Déclarer une colonne conservée" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Retirer la colonne conservée 1" })).toBeDisabled();
-    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    fireEvent.submit(
+      screen.getByRole("form", { name: "Correspondance de l’extraction des coûts réels" }),
+    );
     answer.release();
     await vi.waitFor(() => {
       expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
@@ -234,7 +238,9 @@ describe("the correspondence of the extraction of the actual costs, written", ()
       ],
     });
     const { container } = shown(witness, true);
-    const form = container.querySelector("form") as HTMLFormElement;
+    const form = screen.getByRole("form", {
+      name: "Correspondance de l’extraction des coûts réels",
+    });
     await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),

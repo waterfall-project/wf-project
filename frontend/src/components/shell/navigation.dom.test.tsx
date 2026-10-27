@@ -30,6 +30,11 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const IN_PROJECT = `/projects/${PROJECT}/revisions/${REVISION}`;
 const CONTEXT = `?subproject_id=${SUBPROJECT}&as_of=2026-05-31`;
 
+/** The functions of the platform scope, and the leaf of the costs, which the navigation lists. */
+const PLATFORM_FUNCTIONS = 16;
+const SETTINGS_FUNCTIONS = 4;
+const COST_LEAVES = 1;
+
 /** The permissions of a session of the contract. */
 function permissions(name: string) {
   return (example(name) as components["schemas"]["UserSelf"]).permissions;
@@ -149,7 +154,9 @@ describe("the navigation", () => {
         .map((link) => link.textContent),
     ).toEqual(["Projets"]);
     await openBlocks();
-    expect(within(nav).getAllByRole("link")).toHaveLength(5 + 7 + (4 + 1) + 1); // the settings: four functions and the leaf of the costs
+    expect(within(nav).getAllByRole("link")).toHaveLength(
+      5 + 7 + (SETTINGS_FUNCTIONS + COST_LEAVES) + 1,
+    );
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
         "aria-expanded",
@@ -187,7 +194,7 @@ describe("the navigation", () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
     const links = within(nav).getAllByRole("link");
-    expect(links).toHaveLength(16 + 1 + 1 + 3 + 6 + 5); // 16 platform functions, the leaf of the costs
+    expect(links).toHaveLength(PLATFORM_FUNCTIONS + COST_LEAVES + 1 + 3 + 6 + 5);
     for (const link of [...links, ...within(nav).getAllByRole("button")]) {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");
