@@ -5,14 +5,16 @@
 They try the contract and its examples, not the service (EP-16/US-0650, #1288, #1260): the
 resolution of a number names the node the witness structure numbers so, whatever the rows a grid
 read, an unknown number is refused as an object that does not exist, and the examples of the
-preferences of a grid keep the columns it hid and widened among those it knew. None cites a
-requirement: the parts « au contrat » of US-0650 have none of their own.
+preferences of a grid keep the columns it hid and widened among those it knew. The tests of the
+resolution cite WF-PLA-0080 (a predecessor named by its row number) and WF-ADM-0110 (a refusal
+as an object that does not exist); those of the columns a grid knew cover no requirement.
 """
 
 import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 import yaml
 
 from wftools import REPOSITORY, mockwitness
@@ -46,6 +48,7 @@ def label_of(node: dict[str, Any]) -> str:
     return cast("str", (node.get("task") or node["estimate_line"])["label"])
 
 
+@pytest.mark.requirement("WF-PLA-0080-A")
 def test_the_operation_is_in_the_contract_with_its_examples_the_task_first() -> None:
     operation = resolution()
     assert operation["operationId"] == "resolveRowNumber"
@@ -60,6 +63,7 @@ def test_the_operation_is_in_the_contract_with_its_examples_the_task_first() -> 
     assert f"  {PATH}:" in reference
 
 
+@pytest.mark.requirement("WF-PLA-0080-A")
 def test_a_number_resolves_to_the_node_the_whole_structure_numbers_so() -> None:
     nodes = numbered()
     for name, kind in RESOLVED.items():
@@ -74,6 +78,7 @@ def test_a_number_resolves_to_the_node_the_whole_structure_numbers_so() -> None:
         assert node["kind"] == kind, name
 
 
+@pytest.mark.requirement("WF-PLA-0080-A")
 def test_the_task_resolved_is_one_the_grid_of_the_planning_did_not_read() -> None:
     # The number a predecessor is entered by, out of the rows the planning of « Études » read.
     read = {node["row_number"] for node in fixture("nodes_planning")["items"]}
@@ -87,6 +92,7 @@ def test_the_task_resolved_is_one_the_grid_of_the_planning_did_not_read() -> Non
     assert task["row_number"] not in predecessors
 
 
+@pytest.mark.requirement("WF-ADM-0110-A")
 def test_a_number_no_node_bears_is_refused_as_an_object_that_does_not_exist() -> None:
     assert max(numbered()) == UNKNOWN - 1
     refused = fixture("row_number_unknown")
