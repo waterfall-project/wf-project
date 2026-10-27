@@ -260,7 +260,7 @@ describe("the grid of the actual costs", () => {
     );
     const english = screen.getByRole("grid", { name: "Actual costs" });
     expect(within(english).getByRole("columnheader", { name: /Document no\./ })).toBeVisible();
-    expect(within(english).getAllByText("No subproject")).toHaveLength(14);
+    expect(within(english).getAllByText("No subproject")).toHaveLength(15);
     expect(within(english).getByText("Excluded")).toBeVisible();
   });
 });
@@ -756,10 +756,10 @@ describe("the journal of the imports", () => {
     expect(rows.map((row) => row.textContent)).toEqual([
       "DateParPériode extraiteCrééesMises à jourIgnorées",
       expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/20262200$/),
-      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260512\s345$/),
+      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260612\s345$/),
       expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),
       expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026301$/),
-      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/2026200$/),
+      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/2026300$/),
     ]);
     await expectAccessible(container);
   });

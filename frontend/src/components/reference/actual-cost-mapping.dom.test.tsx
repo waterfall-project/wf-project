@@ -67,9 +67,7 @@ describe("the correspondence of the extraction of the actual costs, read", () =>
     const wbs = screen.getByRole("region", { name: "Élément d’OTP" });
     expect(within(wbs).getByText("Elément d'OTP")).toBeInTheDocument();
     expect(
-      within(screen.getByRole("region", { name: "Poste de la pièce" })).getByText(
-        "Aucun intitulé.",
-      ),
+      within(screen.getByRole("region", { name: "Poste de la pièce" })).getByText("Poste"),
     ).toBeInTheDocument();
     const kept = screen.getByRole("region", { name: "Colonnes conservées" });
     expect(
@@ -99,9 +97,9 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     await userEvent.click(
       screen.getByRole("button", { name: "Ajouter un intitulé à « Poste de la pièce »" }),
     );
-    const post = screen.getByRole("textbox", { name: "Intitulé 1 de « Poste de la pièce »" });
+    const post = screen.getByRole("textbox", { name: "Intitulé 2 de « Poste de la pièce »" });
     expect(post).toHaveFocus();
-    await userEvent.type(post, "  Poste  ");
+    await userEvent.type(post, "  Poste du document  ");
     await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
@@ -118,7 +116,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
           columns: [
             { column: "wbs_element", labels: ["Elément d'OTP"] },
             { column: "document_number", labels: ["Nº pièce référence"] },
-            { column: "document_item", labels: ["Poste"] },
+            { column: "document_item", labels: ["Poste", "Poste du document"] },
             { column: "document_date", labels: ["Date de la pièce"] },
             { column: "amount", labels: ["Val./Devise objet"] },
           ],
@@ -149,7 +147,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
       columns: [
         { column: "wbs_element", labels: ["Elément d'OTP"] },
         { column: "document_number", labels: ["Nº pièce référence"] },
-        { column: "document_item", labels: [] },
+        { column: "document_item", labels: ["Poste"] },
         { column: "document_date", labels: ["Date comptable"] },
         { column: "amount", labels: [] },
       ],

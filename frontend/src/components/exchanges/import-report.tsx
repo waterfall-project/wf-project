@@ -44,6 +44,7 @@ type DifferenceField = NonNullable<Difference["fields"]>[number];
 const ACTUAL_COST_COLUMNS = {
   document_date: true,
   document_number: true,
+  document_item: true,
   amount: true,
   subproject: true,
 } as const satisfies Record<keyof Catalogue["enums"]["ActualCostColumn"], true>;
