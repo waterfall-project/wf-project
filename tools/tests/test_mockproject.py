@@ -554,6 +554,7 @@ def test_a_terminal_project_has_no_current_revision_and_lists_the_risk_commands(
     assert names.index("declare_risk") == names.index("edit_risks") + 1
     assert ("edit_risks", False, [NOT_TERMINAL]) in commands
     assert ("declare_risk", False, [NOT_TERMINAL]) in commands
+    assert ("create_revision", False, [NOT_TERMINAL]) in commands
     assert not any(available for _, available, _ in commands)
 
 

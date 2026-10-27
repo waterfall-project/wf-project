@@ -4294,9 +4294,9 @@ commande `delete` d'un sous-projet cité et chargé d'un projet clos manque alor
 listées `subproject_not_cited`, `subproject_without_actual_costs`, `project_not_terminal`, et le 409
 nomme la première qui manque. C'est l'ordre dans lequel le projet liste déjà les siennes : la
 condition propre à la commande d'abord, celle du projet ensuite — `update_win_probability` d'un
-projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`,
-`create_revision` de `no_current_revision` puis de `project_not_terminal` (`project_completed`) ;
-`update`, qui n'a pas de condition propre, ne nomme que `project_not_terminal`. Écarté :
+projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`
+(`project_completed`) ; `create_revision` d'un projet terminé, qui n'a pas de révision en cours,
+ne nomme que `project_not_terminal`, comme `update`, qui n'a pas de condition propre. Écarté :
 `project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
 l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
 `test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
