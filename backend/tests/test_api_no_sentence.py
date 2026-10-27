@@ -51,6 +51,7 @@ DATA = {
     # of its filters, as its address writes them.
     "GridPreferences.sort.column": "a name of the front",
     "GridPreferences.hidden_columns": "names of the front",
+    "GridPreferences.known_columns": "names of the front",
     "GridPreferences.filters[*]": "values of the front",
     # The field of a request a refusal points at, and the address of a result to download.
     "FieldProblem.pointer": "a JSON pointer",

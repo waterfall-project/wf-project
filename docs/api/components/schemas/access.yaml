@@ -272,7 +272,7 @@ DisplayPreferences:
     Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
     (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de
     colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes
-    masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
+    masquées, 64 connues, 64 élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
     plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est
     refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
     défaut ; un nom trop long, au pointeur de l'objet qui le porte.
@@ -369,6 +369,24 @@ GridPreferences:
       type: array
       maxItems: 64
       items: { type: string, maxLength: 64 }
+      description: >-
+        Les clés des colonnes que l'utilisateur a masquées. Une colonne qu'elle nomme est masquée ;
+        une colonne qu'elle ne nomme pas est montrée si la grille la connaissait
+        (`known_columns`), et prend sinon ce que la grille lui donne par défaut.
+    known_columns:
+      type: array
+      maxItems: 64
+      items: { type: string, maxLength: 64 }
+      description: >-
+        Les clés des colonnes que la grille offrait quand ses préférences ont été écrites pour la
+        dernière fois — le front la récrit à chaque écriture de la grille, entière comme le reste.
+        Une colonne absente de cette liste est une colonne que la grille a reçue depuis : masquée
+        si la grille la masque par défaut, montrée sinon, sauf si `hidden_columns` la nomme. Une
+        colonne nouvelle masquée par défaut le reste ainsi pour un compte qui a déjà réglé la
+        grille, et une colonne que le compte a choisi d'afficher le reste (EP-16/US-0650, #1260).
+        Facultative : absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide, et
+        toute colonne masquée par défaut que `hidden_columns` ne nomme pas est masquée. Le serveur
+        la garde telle qu'elle est écrite, sans connaître les colonnes d'aucune grille.
     column_widths:
       type: object
       maxProperties: 64

@@ -68,7 +68,9 @@
       reconnexion (WF-INTF-0160), comme le nombre de lignes par page de chaque table plate
       (`GridPreferences.page_size`, WF-IHM-0060), la disposition de chaque chronologie en
       frise (`timelines`, WF-PLA-0140) et l'état replié ou déplié de chaque graphique
-      (`charts`, EP-15/US-0550).
+      (`charts`, EP-15/US-0550). Le front écrit avec une grille les colonnes qu'elle offrait
+      (`GridPreferences.known_columns`), pour qu'une colonne reçue depuis prenne ce que la
+      grille lui donne par défaut (EP-16/US-0650).
     requestBody:
       required: true
       content:
@@ -100,7 +102,7 @@
           100 (`GridPreferences`, C-351) : `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`,
           sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles, de
           cent chronologies ou de cent graphiques, un nom de grille, de colonne, de filtre, de
-          chronologie, de tâche ou de graphique de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées,
+          chronologie, de tâche ou de graphique de plus de 64 caractères, plus de 64 colonnes masquées ou connues, largeurs ou tâches placées,
           plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — :
           `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles,
           chronologies et graphiques bornent aussi ce que les préférences gardent, une fois la

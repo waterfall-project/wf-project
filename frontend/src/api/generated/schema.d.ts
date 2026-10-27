@@ -199,7 +199,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier mes préférences d'affichage
-         * @description Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans reconnexion (WF-INTF-0160), comme le nombre de lignes par page de chaque table plate (`GridPreferences.page_size`, WF-IHM-0060), la disposition de chaque chronologie en frise (`timelines`, WF-PLA-0140) et l'état replié ou déplié de chaque graphique (`charts`, EP-15/US-0550).
+         * @description Préférences personnelles, cantonnées à la présentation ; nul ne modifie celles d'un autre (WF-ADM-0040). La langue en fait partie et s'applique sans reconnexion (WF-INTF-0160), comme le nombre de lignes par page de chaque table plate (`GridPreferences.page_size`, WF-IHM-0060), la disposition de chaque chronologie en frise (`timelines`, WF-PLA-0140) et l'état replié ou déplié de chaque graphique (`charts`, EP-15/US-0550). Le front écrit avec une grille les colonnes qu'elle offrait (`GridPreferences.known_columns`), pour qu'une colonne reçue depuis prenne ce que la grille lui donne par défaut (EP-16/US-0650).
          */
         patch: operations["updateMyPreferences"];
         trace?: never;
@@ -1670,6 +1670,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Le nœud qui porte un numéro de ligne
+         * @description Le nœud que désigne un numéro de ligne dans la numérotation de toute la structure — celle de `Node.row_number`, ses tâches et ses lignes dans l'ordre du plan —, quels que soient la recherche, les filtres et le tri de la grille qui le demande : une lecture qui n'écrit rien. La colonne des prédécesseurs de la grille de planning nomme un prédécesseur par son numéro (WF-PLA-0080) ; un numéro que les lignes lues ne portent pas — une tâche que la recherche ou un filtre écarte — se résout ici en nœud, dont l'identifiant s'envoie à l'écriture (`PredecessorWrite.predecessor_node_id`, `setPredecessors`), qui reste seule juge de la liaison. La lecture rend la nature du nœud, si bien que le front refuse comme inconnu le numéro d'une ligne de devis, qui n'est pas une tâche.
+         *     Aucun nœud de la structure ne porte ce numéro — il dépasse sa dernière ligne — : 404 `NOT_FOUND`, sans paramètre, comme un objet inexistant. Sur la lecture d'un différentiel, la numérotation est celle que `listNodes` rend, où les nœuds que le différentiel retire comptent chacun pour sa ligne : le numéro d'un nœud retiré, qui n'est plus de la structure, répond aussi 404. Les droits et les autres refus sont ceux de `listNodes` : un projet, une révision ou une structure inexistants ou invisibles faute de la consultation du projet répondent 404 de même, sans rien distinguer (WF-ADM-0110). Un numéro qui n'est pas un entier d'au moins 1 est refusé par 422 `VALIDATION_FAILED`, au pointeur `/path/row_number`.
+         */
+        get: operations["resolveRowNumber"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
         parameters: {
             query?: never;
@@ -2882,7 +2903,10 @@ export interface components {
              * @enum {integer}
              */
             page_size?: 10 | 25 | 50 | 100;
+            /** @description Les clés des colonnes que l'utilisateur a masquées. Une colonne qu'elle nomme est masquée ; une colonne qu'elle ne nomme pas est montrée si la grille la connaissait (`known_columns`), et prend sinon ce que la grille lui donne par défaut. */
             hidden_columns?: string[];
+            /** @description Les clés des colonnes que la grille offrait quand ses préférences ont été écrites pour la dernière fois — le front la récrit à chaque écriture de la grille, entière comme le reste. Une colonne absente de cette liste est une colonne que la grille a reçue depuis : masquée si la grille la masque par défaut, montrée sinon, sauf si `hidden_columns` la nomme. Une colonne nouvelle masquée par défaut le reste ainsi pour un compte qui a déjà réglé la grille, et une colonne que le compte a choisi d'afficher le reste (EP-16/US-0650, #1260). Facultative : absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide, et toute colonne masquée par défaut que `hidden_columns` ne nomme pas est masquée. Le serveur la garde telle qu'elle est écrite, sans connaître les colonnes d'aucune grille. */
+            known_columns?: string[];
             /** @description La largeur de chaque colonne élargie, en points, par sa clé : au moins vingt, une largeur plus étroite étant refusée par 422, `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/column_widths/<colonne>`, `fields[].params.minimum` à `20`. */
             column_widths?: {
                 [key: string]: number;
@@ -2908,7 +2932,7 @@ export interface components {
             /** @description Replié (`true`) ou déplié (`false`). Exigé : un graphique qui retrouve l'état de son écran s'envoie à `null`, entier. */
             folded: boolean;
         };
-        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. La disposition de chaque chronologie l'est de même dans `timelines`, par chronologie (WF-PLA-0140, EP-15/US-0530) : une modification ne remplace que les chronologies qu'elle nomme, chacune entière, et une chronologie à `null` retrouve sa disposition automatique. L'état de chaque graphique l'est de même dans `charts`, par graphique (EP-15/US-0550) : une modification ne remplace que les graphiques qu'elle nomme, et un graphique à `null` retrouve l'état que son écran lui donne d'abord. Les préférences sont relues avec le compte à chaque requête : leur taille est bornée (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en défaut ; un nom trop long, au pointeur de l'objet qui le porte. */
+        /** @description Préférences personnelles, cantonnées à la présentation (WF-ADM-0040). Les réglages de grille y sont conservés par grille (WF-IHM-0060). Une modification ne change que les champs qu'elle porte ; dans `grids`, que les grilles qu'elle nomme, chacune remplacée entière, et une grille à `null` retrouve ses réglages par défaut. La disposition de chaque chronologie l'est de même dans `timelines`, par chronologie (WF-PLA-0140, EP-15/US-0530) : une modification ne remplace que les chronologies qu'elle nomme, chacune entière, et une chronologie à `null` retrouve sa disposition automatique. L'état de chaque graphique l'est de même dans `charts`, par graphique (EP-15/US-0550) : une modification ne remplace que les graphiques qu'elle nomme, et un graphique à `null` retrouve l'état que son écran lui donne d'abord. Les préférences sont relues avec le compte à chaque requête : leur taille est bornée (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes masquées, 64 connues, 64 élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en défaut ; un nom trop long, au pointeur de l'objet qui le porte. */
         DisplayPreferences: {
             /**
              * @description Langue de l'interface. `default` — ou, à la lecture, l'absence du champ — suit le navigateur, puis la langue par défaut de l'installation ; `fr` ou `en` prime dès qu'elle est choisie (WF-INTF-0160). C'est le seul champ de langue du compte : le front résout la langue à chaque requête, l'API n'en localise aucune réponse (WF-ARC-0110).
@@ -4532,6 +4556,13 @@ export interface components {
             /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
             structure_lock_version: components["schemas"]["LockVersion"];
         };
+        /** @description Le nœud qui porte un numéro de ligne dans la numérotation de toute la structure, quels que soient la recherche, les filtres et le tri de la grille qui le demande (`resolveRowNumber`, WF-PLA-0080) : son identifiant, que l'écriture d'un prédécesseur envoie (`PredecessorWrite.predecessor_node_id`), son numéro, son libellé — celui de la tâche ou de la ligne de devis — et sa nature, qui dit au front si le numéro désigne une tâche. */
+        RowNumberResolution: {
+            node_id: components["schemas"]["Uuid"];
+            row_number: number;
+            label: string;
+            kind: components["schemas"]["NodeKind"];
+        };
         /**
          * @description Champ d'un nœud dont le serveur calcule la valeur, pour ce nœud-ci ou pour tous : ceux que `computed_fields` peut nommer, et ceux qu'aucune écriture ne porte — les montants, la marge, l'avancement physique (WF-IHM-0030).
          * @enum {string}
@@ -5609,6 +5640,8 @@ export interface components {
         /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
         NodeFields: string[];
         StructureId: components["schemas"]["Uuid"];
+        /** @description Un numéro de ligne dans la numérotation de toute la structure, à partir de 1, comme `Node.row_number` (`resolveRowNumber`). */
+        RowNumber: number;
         NodeId: components["schemas"]["Uuid"];
         /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
@@ -5890,7 +5923,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description `VALIDATION_FAILED`, `fields` désignant le champ en défaut. Une largeur de colonne plus étroite que la plus petite admise, vingt points (`GridPreferences`) : `/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `20`, la seule borne franchie, comme toute borne d'une écriture (WF-IHM-0060). Un couloir de chronologie négatif (`TimelinePreferences`) : `/timelines/<chronologie>/lanes/<tâche>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0`. Un nombre de lignes par page autre que 10, 25, 50 ou 100 (`GridPreferences`, C-351) : `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`, sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles, de cent chronologies ou de cent graphiques, un nom de grille, de colonne, de filtre, de chronologie, de tâche ou de graphique de plus de 64 caractères, plus de 64 colonnes masquées, largeurs ou tâches placées, plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — : `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles, chronologies et graphiques bornent aussi ce que les préférences gardent, une fois la modification fusionnée à ce qu'elles étaient : une modification qui porterait `grids`, `timelines` ou `charts` au-delà de cent entrées est refusée sur `/grids`, `/timelines` ou `/charts` par `VALUE_TOO_LONG` (#1235) ; une modification qui ne les accroît pas ne l'est jamais pour leur taille. Rien n'est enregistré dans Waterfall. Une réserve : ce refus au-delà de cent entrées, qui se juge sur les préférences du compte verrouillé, vient après que la langue envoyée a été transmise au fournisseur d'identité (WF-INTF-0160), qui a pu la prendre ; choisir de nouveau la langue affichée répare le désaccord. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant le champ en défaut. Une largeur de colonne plus étroite que la plus petite admise, vingt points (`GridPreferences`) : `/grids/<grille>/column_widths/<colonne>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `20`, la seule borne franchie, comme toute borne d'une écriture (WF-IHM-0060). Un couloir de chronologie négatif (`TimelinePreferences`) : `/timelines/<chronologie>/lanes/<tâche>` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0`. Un nombre de lignes par page autre que 10, 25, 50 ou 100 (`GridPreferences`, C-351) : `/grids/<grille>/page_size` par `VALUE_OUT_OF_RANGE`, sans paramètre. Une préférence plus grande que ses bornes — plus de cent grilles, de cent chronologies ou de cent graphiques, un nom de grille, de colonne, de filtre, de chronologie, de tâche ou de graphique de plus de 64 caractères, plus de 64 colonnes masquées ou connues, largeurs ou tâches placées, plus de 20 filtres, un filtre de plus de 500 caractères (`DisplayPreferences`, #874) — : `VALUE_TOO_LONG`, un nom trop long au pointeur de l'objet qui le porte. Les cent grilles, chronologies et graphiques bornent aussi ce que les préférences gardent, une fois la modification fusionnée à ce qu'elles étaient : une modification qui porterait `grids`, `timelines` ou `charts` au-delà de cent entrées est refusée sur `/grids`, `/timelines` ou `/charts` par `VALUE_TOO_LONG` (#1235) ; une modification qui ne les accroît pas ne l'est jamais pour leur taille. Rien n'est enregistré dans Waterfall. Une réserve : ce refus au-delà de cent entrées, qui se juge sur les préférences du compte verrouillé, vient après que la langue envoyée a été transmise au fournisseur d'identité (WF-INTF-0160), qui a pu la prendre ; choisir de nouveau la langue affichée répare le désaccord. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -9837,6 +9870,44 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    resolveRowNumber: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                revision_id: components["parameters"]["RevisionId"];
+                structure_id: components["parameters"]["StructureId"];
+                /** @description Un numéro de ligne dans la numérotation de toute la structure, à partir de 1, comme `Node.row_number` (`resolveRowNumber`). */
+                row_number: components["parameters"]["RowNumber"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Le nœud qui porte le numéro. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RowNumberResolution"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Aucun nœud de la structure ne porte ce numéro, ou la structure est inexistante ou invisible : `NOT_FOUND`, sans paramètre (WF-ADM-0110). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

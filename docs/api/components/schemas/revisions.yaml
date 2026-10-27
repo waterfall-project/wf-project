@@ -815,6 +815,21 @@ DependencyRow:
     row_number: { type: integer, minimum: 1 }
     label: { type: string }
 
+RowNumberResolution:
+  type: object
+  required: [node_id, row_number, label, kind]
+  description: >-
+    Le nœud qui porte un numéro de ligne dans la numérotation de toute la structure, quels que
+    soient la recherche, les filtres et le tri de la grille qui le demande (`resolveRowNumber`,
+    WF-PLA-0080) : son identifiant, que l'écriture d'un prédécesseur envoie
+    (`PredecessorWrite.predecessor_node_id`), son numéro, son libellé — celui de la tâche ou de la
+    ligne de devis — et sa nature, qui dit au front si le numéro désigne une tâche.
+  properties:
+    node_id: { $ref: ../common.yaml#/Uuid }
+    row_number: { type: integer, minimum: 1 }
+    label: { type: string }
+    kind: { $ref: '#/NodeKind' }
+
 ComputedValueDependencies:
   type: object
   required: [node_id, field, depends_on, rows]

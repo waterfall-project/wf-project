@@ -1,0 +1,9 @@
+{
+  "summary": "Le numéro 10 de la structure principale du projet témoin, résolu le 3 juin 2026 : il désigne « Raccordement des borniers », une ligne de devis du câblage des armoires, non une tâche ; la colonne des prédécesseurs le refuse comme inconnu (WF-PLA-0080).",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000553",
+    "row_number": 10,
+    "label": "Raccordement des borniers",
+    "kind": "estimate_line"
+  }
+}
