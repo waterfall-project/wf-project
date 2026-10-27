@@ -137,6 +137,49 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
 });
 
+test("a page of the account clicked in the menu while its prefetch is on its way keeps its title (#1499)", async ({
+  page,
+}) => {
+  await compile(page.request, "/account/avatar");
+  // The prefetch of the page down to its loading boundary — an RSC request marked as a prefetch,
+  // for no segment — held on the network until the click has fallen, as the load of four workers
+  // holds it. Next 16.4.3 then kept the empty head of the pending prefetch, and the title of the
+  // page was lost for good (vercel/next.js#98684): the menu of the account no longer prefetches.
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/account/avatar*", async (route) => {
+    const headers = route.request().headers();
+    if (
+      headers.rsc === "1" &&
+      headers["next-router-prefetch"] === "1" &&
+      headers["next-router-segment-prefetch"] === undefined
+    ) {
+      await released;
+    }
+    await route.fallback();
+  });
+  await page.goto("/");
+  await openMenu(
+    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("menu"),
+  );
+  // Hovered first, as a pointer does, so that a link that prefetches has sent its prefetch before
+  // the click. Without the fix, it has in nearly every run at four workers (62 out of 64); in the
+  // others it goes out during the click, too late to be held across it, and the run passes.
+  await page.getByRole("menuitem", { name: "Changer l’avatar" }).hover();
+  await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
+    "aria-disabled",
+  );
+  await page.getByRole("menuitem", { name: "Changer l’avatar" }).click();
+  release();
+
+  await expect(page).toHaveURL("/account/avatar");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer l’avatar");
+  await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
+});
+
 test("the bar tells the refusal of a write whose screen was left by « Précédent » before it answered (#863)", async ({
   page,
 }) => {
