@@ -7782,8 +7782,8 @@ dit aussi ce que le lot (US-0620/L1) a fixé de forme, là où elle se taisait.
 - **Les exemples**, écrits à la main : `actual_cost_mapping`, la correspondance du témoin, premier
   exemple, déclarée par Camille Martin le 3 avril 2026 à 8 h 15, avant le premier import, avec les
   intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce », « Val./Devise
-  objet »), sans poste — « Poste » depuis US-0630 —, et les colonnes conservées du témoin, «
-  Fournisseur » et « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation
+  objet »), sans poste — « Poste » depuis US-0630 —, et les colonnes conservées du témoin,
+  « Fournisseur » et « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation
   neuve ; `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui,
   version 3 ; `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme
   doublant l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`,

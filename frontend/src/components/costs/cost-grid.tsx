@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The configuration of the grid of the actual costs (WF-CRE-0040): for each line of a page of the
- * list, its document — number, date —, its amount, signed, the sub-project it is charged to, or
+ * list, its document — number, item, date —, its amount, signed, the sub-project it is charged to, or
  * none (WF-CRE-0020), whether it is in the tracked scope, why it is excluded, and the columns of
  * the file kept for information (WF-CRE-0010). The same dense grid as the planning and the risks:
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
@@ -40,6 +40,7 @@ export type CostSortColumn = NonNullable<
 export const COST_FIELDS = [
   "cost_line_id",
   "document_number",
+  "document_item",
   "document_date",
   "amount",
   "subproject_code",
@@ -67,10 +68,18 @@ export interface CostRows {
  * sub-project, its audit do not cross to the browser with the rows.
  */
 export function costRow(line: ActualCostLine): CostRow {
-  const { cost_line_id, document_number, document_date, amount, is_in_tracked_scope } = line;
+  const {
+    cost_line_id,
+    document_number,
+    document_item,
+    document_date,
+    amount,
+    is_in_tracked_scope,
+  } = line;
   return {
     cost_line_id,
     document_number,
+    document_item,
     document_date,
     amount,
     subproject_code: line.subproject_code,
@@ -97,6 +106,15 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       pinned: true,
       contract: "document_number",
       value: (line) => line.document_number,
+    },
+    {
+      key: "document_item",
+      label: "documentItem",
+      format: "text",
+      width: 80,
+      contract: "document_item",
+      // Nullable: a line the extraction gave no item shows an empty cell.
+      value: (line) => line.document_item,
     },
     {
       key: "document_date",
