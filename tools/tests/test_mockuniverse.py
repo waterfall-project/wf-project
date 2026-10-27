@@ -725,7 +725,7 @@ def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() ->
     )
     # The consultation holds every line retained, the drawn invoices among them, in one page.
     consulted = fixture("actual_costs")
-    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 27
+    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 28
 
 
 def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() -> None:

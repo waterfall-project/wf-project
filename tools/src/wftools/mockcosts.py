@@ -307,8 +307,8 @@ def counts(entry: CostImport) -> tuple[int, int, int]:
     """Return the lines an import created, updated and ignored (WF-CRE-0050).
 
     A line whose document and item were already imported is updated, its exclusion kept; another
-    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected, and ignored
-    (WF-CRE-0020).
+    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected, and
+    ignored (WF-CRE-0020).
     """
     created = sum(1 for line in lines() if line.imports[0] is entry)
     updated = sum(1 for line in lines() if entry in line.imports[1:])
