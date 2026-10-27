@@ -1,6 +1,14 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { globSync, readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
+
+import { auditGrid } from "../audit/audit-columns";
+import { accessRoleGrid, userGrid } from "../admin/admin-grids";
+import { backupGrid } from "../admin/backup-columns";
+import { PROJECT_GRID } from "../portfolio/portfolio-grid";
+import { RISK_GRID } from "../risks/risk-grid";
 
 import { COST_GRID } from "../costs/cost-grid";
 import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
@@ -182,6 +190,8 @@ describe("the columns a grid records as known", () => {
     remaining: REMAINING_GRID,
     costs: COST_GRID,
     projects: PROJECT_LIST_GRID,
+    portfolio: PROJECT_GRID,
+    risks: RISK_GRID,
     breakdown: BREAKDOWN_GRID,
     subprojects: SUBPROJECT_GRID,
     contributors: CONTRIBUTOR_GRID,
@@ -190,12 +200,35 @@ describe("the columns a grid records as known", () => {
     orgNodes: orgNodeGrid(true),
     resourceRoles: resourceRoleGrid(true),
     calendars: calendarGrid(true),
+    users: userGrid(),
+    accessRoles: accessRoleGrid(true),
+    backups: backupGrid({ marks: true, downloads: true, restores: true }),
+    audit: auditGrid({ openable: [], functions: [], revision: true }),
   };
+
+  // The grids declared by a wrapper of another, which show the same columns once the reading
+  // they serve is given.
+  const wrappers = ["estimateGrid", "planningGrid", "remainingGrid", "costGrid"];
 
   it.each(Object.entries(grids))("of the grid %s fit the bounds of the contract", (_, grid) => {
     const { known } = gridShape(grid.columns);
     expect(known.length).toBeLessThanOrEqual(64);
     expect(known.filter((key) => key.length > 64)).toEqual([]);
     expect(new Set(known).size).toBe(known.length);
+  });
+
+  it("covers every grid the components export, so that a new one is added to the list", () => {
+    const declared = globSync("src/components/**/*.{ts,tsx}")
+      .filter((path) => !/\.test\.tsx?$/.test(path))
+      .flatMap((path) => {
+        const source = readFileSync(path, "utf8");
+        return [
+          ...source.matchAll(/^export const (\w+): GridConfig</gm),
+          ...source.matchAll(/^export function (\w+)\((?:[^()]|\([^()]*\))*\)\s*:\s*GridConfig</gm),
+        ].map((found) => found[1]);
+      });
+    // The grids of the list are named by what they build, the wrappers apart: 19 grids, 4 wrappers.
+    expect(declared.length).toBe(Object.keys(grids).length + wrappers.length);
+    expect(declared).toEqual(expect.arrayContaining(wrappers));
   });
 });
