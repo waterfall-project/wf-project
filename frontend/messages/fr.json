@@ -2860,7 +2860,7 @@
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
       "may_create_revision": "avoir la permission de créer une révision",
-      "restored_subproject_exists": "sous-projet rendu par l’annulation encore existant",
+      "restored_subproject_exists": "sous-projet rendu par l’annulation ou le rétablissement encore existant",
       "risk_not_cited": "risque cité par aucune révision marquée",
       "risk_not_occurred": "risque non survenu",
       "risk_identified": "risque identifié",

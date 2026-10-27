@@ -229,8 +229,9 @@ Problem:
         (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que
         portent des lignes de devis de la révision en cours
         (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`,
-        WF-DAT-0080) : ces lignes, chacune par sa structure, son nœud, son numéro de ligne et son
-        libellé (`structure_id`, `node_id`, `row_number`, `label`) ; `work_package_task` et
+        WF-DAT-0080) : ces lignes, chacune par sa structure, le libellé de celle-ci, son nœud, son
+        numéro de ligne et son libellé (`structure_id`, `structure_label`, `node_id`, `row_number`,
+        `label`) ; `work_package_task` et
         `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la
         tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170)
         : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure

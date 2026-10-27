@@ -1733,7 +1733,11 @@ UndoResult:
     provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la
     grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par
     409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
-    ne défont ni ne rétablissent rien (décision de l'auteur, #732).
+    ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
+    rétablissement qui recréeraient la ligne de provision d'un risque sur une structure
+    principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour
+    risques, sont refusés par `at_least_one_task` ou `active_provision_category`
+    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
   properties:
     undone:
       type: object
@@ -1820,7 +1824,16 @@ PasteRejection:
   required: [row, code]
   description: >-
     Le refus d'une ligne d'un bloc collé, que l'aperçu annonce et que la confirmation redit :
-    la ligne, et, quand il tient à une cellule, sa colonne, avec son motif (WF-IHM-0050). Une
+    la ligne, et, quand il tient à une cellule, sa colonne, avec son motif (WF-IHM-0050). La
+    confirmation en ajoute : le référentiel n'a pas de compteur, et elle juge de nouveau les lignes
+    acceptées par l'aperçu ; une ligne devenue invalide entre-temps — une catégorie ou un rôle
+    désactivés depuis l'aperçu, `INACTIVE_REFERENCE_OBJECT` — est refusée à son tour, sans être
+    écrite, et redite dans `PasteApplied.rejected` comme les refus de l'aperçu (EP-14/L42q, #747).
+    Une cellule qui nomme une catégorie ou un rôle désactivés n'est refusée, à l'aperçu comme à
+    la confirmation, que si elle change la catégorie ou le rôle de sa ligne : celle qui nomme la
+    catégorie ou le rôle que la ligne porte déjà, désactivés depuis, ne change rien et n'est pas
+    refusée, comme le parent d'un nœud, la catégorie d'un rôle ou celle d'un risque
+    (`updateOrgNode`, `updateResourceRole`, `updateRisk` ; EP-14/L42j, #747). Une
     cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis
     propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
     n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
@@ -1863,7 +1876,7 @@ PasteApplied:
     soit le compteur envoyé (`PasteApply`) : la structure est celle que l'aperçu a jugée. Le
     référentiel, lui, a pu changer — une catégorie ou un rôle désactivés entre-temps — : les lignes
     acceptées du plan sont donc jugées de nouveau, et une ligne devenue invalide passe dans
-    `rejected` avec son motif, sans être écrite. Sans aucune
+    `rejected` avec son motif, sans être écrite (`PasteRejection`). Sans aucune
     ligne valide, rien n'est écrit : `nodes`, `ancestors`, `rescheduled` et `reinflated` sont
     vides, le compteur de la structure reste celui qui a été envoyé, et aucune entrée d'annulation
     n'est créée (WF-IHM-0110).

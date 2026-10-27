@@ -308,10 +308,19 @@ def test_the_dependencies_name_the_rows_of_the_tree_by_their_number_and_label(
         ("dependencies_labour.json", LABOUR, "estimate_line.base_amount", "hourly_rate"),
         ("dependencies_provision.json", PROVISION, "estimate_line.quantity", "risk"),
         ("dependencies_manual_float.json", DESKS, "task.total_float", "manual_mode"),
+        # The subproject of a line of provision is its risk's, computed since EP-14/L42p (#764).
+        (
+            "dependencies_provision_subproject.json",
+            PROVISION,
+            "estimate_line.subproject_id",
+            "risk",
+        ),
     ):
         answer = readings[name]
         assert (answer["node_id"], answer["field"]) == (universe(number), field)
         assert (answer["depends_on"], answer["rows"]) == ([rule], [])
+    [provision] = [row.node for row in rows if row.number == PROVISION]
+    assert "estimate_line.subproject_id" in cast("list[str]", provision["computed_fields"])
     assert mockcore.dependencies(rows, BLOCKS, "estimate_line.base_amount")["depends_on"] == [
         "unit_disbursement"
     ]

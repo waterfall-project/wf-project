@@ -1,0 +1,114 @@
+{
+  "summary": "Les sous-projets du projet témoin dans la variante contrefactuelle de subproject_delete_estimated : la réception sur site, créée aujourd'hui sous le code SP-REC, délestée de la facture FA-2026-0295, à laquelle les lignes 10 et 11 de la structure principale, « Raccordement des borniers » et « Borniers », ont été passées ; aucune révision marquée ne la cite, aucun coût réel ne la charge, et sa suppression ne manque que du passage de ces lignes hors sous-projet ou à un autre. Les deux sous-projets du témoin restent tels que subprojects les lit (WF-DAT-0080, WF-PRJ-0050, WF-IHM-0090).",
+  "value": [
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000801",
+      "code": "SP-CMD",
+      "label": "Poste de commande",
+      "has_actual_costs": true,
+      "available_commands": [
+        {
+          "command": "update",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "delete",
+          "is_available": false,
+          "missing_conditions": [
+            "subproject_not_cited",
+            "subproject_without_actual_costs",
+            "subproject_without_estimate_lines"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000802",
+      "code": "SP-ESS",
+      "label": "Essais et mise en service",
+      "has_actual_costs": true,
+      "available_commands": [
+        {
+          "command": "update",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "delete",
+          "is_available": false,
+          "missing_conditions": [
+            "subproject_not_cited",
+            "subproject_without_actual_costs",
+            "subproject_without_estimate_lines"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2026-01-20T10:00:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-01-20T10:00:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    },
+    {
+      "subproject_id": "01926f3a-7c00-7000-8000-000000000803",
+      "code": "SP-REC",
+      "label": "Réception sur site",
+      "has_actual_costs": false,
+      "available_commands": [
+        {
+          "command": "update",
+          "is_available": true,
+          "missing_conditions": []
+        },
+        {
+          "command": "delete",
+          "is_available": false,
+          "missing_conditions": [
+            "subproject_without_estimate_lines"
+          ]
+        }
+      ],
+      "audit": {
+        "created_at": "2026-06-03T14:05:00Z",
+        "created_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        },
+        "updated_at": "2026-06-03T14:05:00Z",
+        "updated_by": {
+          "kind": "user",
+          "user_id": "01926f3a-7c00-7000-8000-000000000301",
+          "display_name": "Camille Martin"
+        }
+      },
+      "lock_version": 1
+    }
+  ]
+}

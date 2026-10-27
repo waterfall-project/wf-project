@@ -1,0 +1,26 @@
+{
+  "summary": "Le rattachement de la tâche « Câblage des armoires » au lot « Lot 1 » et au poste « Poste 1.1 » dans le même corps, refusé pour deux motifs à la fois : une tâche porte un lot ou un poste, jamais les deux — chacun refusé à son champ —, et le lot est déjà porté par la récapitulative « Poste de commande », nommée par son nœud et son libellé ; rien n'est écrit (WF-PLA-0170).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/work_package_id",
+        "code": "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
+      },
+      {
+        "pointer": "/work_package_id",
+        "code": "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED",
+        "params": {
+          "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000551",
+          "conflicting_object_label": "Poste de commande"
+        }
+      },
+      {
+        "pointer": "/order_item_id",
+        "code": "WORK_BREAKDOWN_ITEMS_EXCLUSIVE"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001553"
+  }
+}

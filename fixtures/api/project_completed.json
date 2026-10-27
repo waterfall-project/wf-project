@@ -11,7 +11,7 @@
     "win_probability": "1",
     "order_received_on": "2026-01-15",
     "reference_revision_id": "01926f3a-7c00-7000-8000-000000000101",
-    "current_revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "current_revision_id": null,
     "available_commands": [
       {
         "command": "update",
@@ -53,7 +53,6 @@
         "command": "create_revision",
         "is_available": false,
         "missing_conditions": [
-          "no_current_revision",
           "project_not_terminal"
         ]
       },
@@ -79,6 +78,20 @@
         ]
       },
       {
+        "command": "edit_risks",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
+      },
+      {
+        "command": "declare_risk",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal"
+        ]
+      },
+      {
         "command": "declare_risk_occurrence",
         "is_available": false,
         "missing_conditions": [
@@ -97,6 +110,14 @@
         "is_available": false,
         "missing_conditions": [
           "project_not_terminal"
+        ]
+      },
+      {
+        "command": "generate_skeleton",
+        "is_available": false,
+        "missing_conditions": [
+          "project_not_terminal",
+          "main_structure_without_tasks"
         ]
       },
       {

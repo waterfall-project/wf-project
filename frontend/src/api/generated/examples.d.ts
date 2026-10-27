@@ -144,7 +144,7 @@ export interface Examples {
     200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
-    200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
+    200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
@@ -168,7 +168,7 @@ export interface Examples {
     200: "state_transitions" | "state_transitions_exited";
   };
   "GET /projects/{project_id}/subprojects": {
-    200: "subprojects" | "subprojects_by_label" | "subprojects_completed" | "subprojects_with_actual_costs";
+    200: "subprojects" | "subprojects_by_label" | "subprojects_completed" | "subprojects_estimated" | "subprojects_with_actual_costs";
   };
   "GET /projects/{project_id}/timelines": {
     200: "timelines" | "timelines_empty";
@@ -333,7 +333,7 @@ export interface Examples {
     200: "nodes_indented" | "nodes_moved";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste": {
-    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial";
+    200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial" | "paste_applied_rejudged";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
     200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_subproject_held" | "paste_plan_unknown_category";

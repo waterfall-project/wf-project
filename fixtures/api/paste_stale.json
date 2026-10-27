@@ -1,0 +1,10 @@
+{
+  "summary": "Le bloc de paste_plan confirmé quand une autre écriture a changé la structure depuis l'aperçu : le plan, jugé sur la structure à la version 3, est refusé quel que soit le compteur envoyé, et la version courante, 4, est nommée ; rien n'est écrit (WF-IHM-0050, WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {"expected_lock_version":4},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001555"
+  }
+}

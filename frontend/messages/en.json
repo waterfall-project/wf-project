@@ -2860,7 +2860,7 @@
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
       "may_create_revision": "holding the permission to create a revision",
-      "restored_subproject_exists": "subproject the undo would restore still existing",
+      "restored_subproject_exists": "subproject restored by the undo or redo not deleted since",
       "risk_not_cited": "risk cited by no marked revision",
       "risk_not_occurred": "risk not occurred",
       "risk_identified": "risk identified",

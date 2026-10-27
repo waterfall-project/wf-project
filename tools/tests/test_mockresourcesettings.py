@@ -261,6 +261,13 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
         assert re.search(r"ne (?:recoupe|se recoupent) jamais", text), name
         assert "sur une tâche dont ce rôle est le seul" in text, name
         assert "aucune heure dans la semaine" in text, name
+    # Their sibling the calendar, which a role alone on its task may lose all its hours by (#795).
+    calendar = flat(_block("updateCalendar").split("'422':", 1)[1].split("content:", 1)[0])
+    assert "ne se recoupant plus aucun jour" in calendar
+    assert (
+        "sur une tâche dont un rôle est le seul, le calendrier de ce rôle n'ayant plus aucune heure"
+        " dans la semaine — `params.resource_role_ids` nommant alors ce seul rôle"
+    ) in calendar
 
 
 def _roles_by_task(structure: str) -> dict[str, set[str]]:

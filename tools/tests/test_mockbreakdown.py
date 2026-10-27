@@ -648,3 +648,72 @@ def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_i
         "`update_work_breakdown`",
     ):
         assert counter in said, counter
+
+
+# --- The refusals the contract described without an example (#803, #817) -----------------------
+
+
+def _cited_under(operation: str, status: str) -> list[str]:
+    """Return the examples a status of an operation of `projects.yaml` or `revisions.yaml` cites."""
+    for name in ("projects.yaml", "revisions.yaml"):
+        text = (PATHS / name).read_text(encoding="utf-8")
+        if f"operationId: {operation}\n" in text:
+            block = text.split(f"operationId: {operation}\n", 1)[1].split("operationId:", 1)[0]
+            answer = block.split(f"      '{status}':\n", 1)[1].split("\n      '", 1)[0]
+            return re.findall(r"fixtures/api/(\w+)\.json", answer)
+    message = f"{operation} is no operation of these paths"
+    raise AssertionError(message)
+
+
+def test_the_refusals_of_the_timelines_and_of_a_stale_breakdown_have_their_examples() -> None:
+    # The front tried them through an envelope it wrote; each is now an example, last under its
+    # status, so that the fake back still serves the first (#803).
+    label = fixture("timeline_label_required")
+    assert (label["status"], label["code"]) == (422, "VALIDATION_FAILED")
+    assert label["fields"] == [{"pointer": "/label", "code": "VALUE_REQUIRED"}]
+    assert _cited_under("createTimeline", "422")[-1] == "timeline_label_required"
+    terminal = fixture("timeline_delete_terminal")
+    assert (terminal["status"], terminal["code"]) == (403, "PROJECT_TERMINAL")
+    assert terminal["params"] == {"missing_condition": "project_not_terminal"}
+    assert fixture("project_completed")["state"] in TERMINAL
+    said = _summary("timeline_delete_terminal")
+    assert [each["label"] for each in fixture("timelines") if each["label"] in said] == [
+        "Revue client"
+    ]
+    assert "project_completed" in _summary("timeline_delete_terminal")
+    assert _cited_under("deleteTimeline", "403") == ["timeline_delete_terminal"]
+    stale = fixture("work_breakdown_stale")
+    assert (stale["status"], stale["code"]) == (412, "STALE_LOCK_VERSION")
+    assert (
+        fixture("work_breakdown")["lock_version"] < fixture("work_breakdown_saved")["lock_version"]
+    )
+    assert stale["params"] == {
+        "expected_lock_version": fixture("work_breakdown_saved")["lock_version"]
+    }
+    assert _cited_under("setWorkBreakdown", "412") == ["work_breakdown_stale"]
+
+
+def test_a_refusal_of_the_attachment_with_two_motives_names_each_on_its_field() -> None:
+    # Both motives the contract renders together: the lot and the post sent at once, the lot
+    # borne by another task (`TaskFacetUpdate`, #817 point 2b).
+    refused = fixture("task_attach_exclusive_attached")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    exclusive, attached, post = refused["fields"]
+    assert (exclusive["pointer"], exclusive["code"]) == (
+        "/work_package_id",
+        "WORK_BREAKDOWN_ITEMS_EXCLUSIVE",
+    )
+    assert (post["pointer"], post["code"]) == ("/order_item_id", "WORK_BREAKDOWN_ITEMS_EXCLUSIVE")
+    assert "params" not in exclusive
+    assert "params" not in post
+    pointer, code, params = TOLD["task_attach_refused"]
+    assert (attached["pointer"], attached["code"], attached["params"]) == (pointer, code, params)
+    # The task sent is in the subtree of the task of the lot: no post leaves it.
+    wiring = _core()[WIRING]
+    assert wiring["parent_id"] == CONTROL_STATION
+    assert wiring["task"].get("work_package_id") is None
+    assert wiring["task"].get("order_item_id") is None
+    assert "Câblage des armoires" in _summary("task_attach_exclusive_attached")
+    assert _cited_under("updateTaskFacet", "422")[-1] == "task_attach_exclusive_attached"
+    said = " ".join(_schemas("revisions.yaml").split("\nTaskFacetUpdate:\n", 1)[1].split())
+    assert "`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` rendus ensemble" in said

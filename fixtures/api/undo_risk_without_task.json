@@ -1,0 +1,11 @@
+{
+  "summary": "L'annulation du réexamen qui a écarté un risque du projet créé aujourd'hui, « Rénovation du poste de livraison », alors que sa structure principale a perdu sa seule tâche depuis : elle recréerait la ligne de provision du risque, redevenu identifié, sans tâche où la ranger ; refusée, la condition manquante nommée — au moins une tâche, comme au retour d'un risque écarté par un réexamen ; rien n'est défait. Une variante contrefactuelle : le témoin n'annule rien (WF-RIS-0010, WF-IHM-0110, #795).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "at_least_one_task"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001556"
+  }
+}

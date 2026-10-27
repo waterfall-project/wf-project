@@ -4294,9 +4294,9 @@ commande `delete` d'un sous-projet cité et chargé d'un projet clos manque alor
 listées `subproject_not_cited`, `subproject_without_actual_costs`, `project_not_terminal`, et le 409
 nomme la première qui manque. C'est l'ordre dans lequel le projet liste déjà les siennes : la
 condition propre à la commande d'abord, celle du projet ensuite — `update_win_probability` d'un
-projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`,
-`create_revision` de `no_current_revision` puis de `project_not_terminal` (`project_completed`) ;
-`update`, qui n'a pas de condition propre, ne nomme que `project_not_terminal`. Écarté :
+projet terminé manque de `project_before_in_progress` puis de `project_not_terminal`
+(`project_completed`) ; `create_revision` d'un projet terminé, qui n'a pas de révision en cours,
+ne nomme que `project_not_terminal`, comme `update`, qui n'a pas de condition propre. Écarté :
 `project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
 l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
 `test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
@@ -7915,6 +7915,125 @@ toute écriture de la grille enregistre (#1260, de #1232). Décisions de l'auteu
 
 Le front — la colonne des prédécesseurs qui résout un numéro hors des lignes lues, `grid/settings.ts`
 qui lit et écrit `known_columns` — est US-0650/L2.
+
+### Les exemples manquants et les descriptions du contrat (US-0640/L1, #1329)
+
+Les mineurs des relectures d'EP-14 (L42p, L42q, L42s, L44c, L44d, L53) reportés jusqu'ici : #764,
+#803, #817 point 2b, #747 points 2 à 9, #752 points 1 à 4, #795 ; et #1507. Chaque point a été relu
+sur le contrat qu'EP-15 a laissé ; les points devenus sans objet sont dits dans leur issue, et
+listés ici. Aucune opération nouvelle.
+
+Sans objet ou hors du lot :
+
+- #747 point 6, caduc : `risk_without_task.json` existait déjà, cité dans le 409 de `createRisk`.
+- #752 point 4, la part M2, écartée : `deleteSubproject` répond 204, aucune réponse ne rend le
+  risque modifié (voir le 412 du collage, ci-dessous).
+- #747 point 1 et #817 point 1, qui touchent le front : hors de ce lot.
+
+- **Le rejugement du collage** (#764, #747 points 7 et 8). `PasteRejection` dit les refus que la
+  confirmation ajoute en jugeant de nouveau les lignes acceptées, et la règle d'EP-14/L42j y vaut :
+  une cellule qui nomme une catégorie ou un rôle désactivés n'est refusée, à l'aperçu comme à la
+  confirmation, par `INACTIVE_REFERENCE_OBJECT`, que si elle change la catégorie ou le rôle de sa
+  ligne ; celle qui nomme ce que la ligne porte déjà n'est pas refusée, comme le parent d'un nœud,
+  la catégorie d'un rôle ou celle d'un risque. Écarté : refuser toute cellule qui nomme un objet
+  désactivé, qui refuserait de recoller une ligne telle qu'elle est. Exemple engendré,
+  `paste_applied_rejudged`, dernier des 200 d'`applyPaste`, variante contrefactuelle déclarée : le
+  bloc des parcours dont la deuxième ligne passe à « Ingénierie électrique », que la première garde,
+  désactivée entre l'aperçu et la confirmation — la deuxième refusée, la première écrite et signalée
+  (`uses_inactive_object`). Le bloc des parcours (`paste_plan`) nomme pour chaque ligne la catégorie
+  qu'elle porte déjà : il ne pouvait pas montrer ce refus.
+- **Le 412 du collage** (#752 points 3 et 4). La description d'`applyPaste` dit le compteur retenu à
+  l'aperçu, que seuls `PasteApply` et `PasteApplied` disaient. Exemple engendré, `paste_stale` : la
+  version que l'écriture d'après l'aperçu laisse, celle que `paste_applied` aurait prise ; le test
+  la confronte à la réponse au lieu des seules phrases. Le test de M2 — la désignation passée à nul
+  fait avancer le risque — reste un test de phrases : aucune réponse ne rend le risque modifié par
+  `deleteSubproject` (204), et le service d'EP-08 l'éprouvera.
+- **La dépendance du sous-projet d'une ligne de provision** (#764). Exemple engendré,
+  `dependencies_provision_subproject` : `estimate_line.subproject_id`, que la ligne de provision
+  calcule depuis EP-14/L42p, dépend de son risque.
+- **Les lignes nommées par le refus de suppression d'un sous-projet** (#764). Chaque élément de
+  `params.estimate_lines` porte `structure_label` : deux lignes de deux structures peuvent porter le
+  même numéro, et l'écran les distingue sans lire `listCostStructures`. Écarté, comme l'issue le
+  proposait : laisser l'écran lire les structures. `subproject_delete_estimated` le porte.
+- **Un sous-projet que les lignes seules retiennent** (#764). Exemple écrit à la main,
+  `subprojects_estimated`, dernier des 200 de `listSubprojects` : la variante de
+  `subproject_delete_estimated`, la réception sur site délestée de sa facture et portant les lignes
+  10 et 11, dont la suppression ne manque que de `subproject_without_estimate_lines`. Il remplace la
+  variante que les tests du front construisaient.
+- **Les refus des chronologies et du lotissement** (#803). Exemples, chacun en dernier sous son
+  statut : `timeline_label_required` (422, `/label` par `VALUE_REQUIRED`, écrit à la main),
+  `timeline_delete_terminal` (403 `PROJECT_TERMINAL`, écrit à la main), `work_breakdown_stale`
+  (412, engendré par `wftools.mocklists` : le compteur de `work_breakdown_saved`). Le 403 d'un projet
+  terminal porte `params.missing_condition` à `project_not_terminal`, comme le catalogue le dit des
+  403 (`ErrorCode`, `Forbidden`) : c'est le premier exemple de ce refus.
+- **Un refus du rattachement à deux motifs** (#817 point 2b). Exemple écrit à la main,
+  `task_attach_exclusive_attached`, dernier des 422 d'`updateTaskFacet` : « Câblage des armoires »
+  envoyée avec le lot et le poste à la fois, le lot porté par « Poste de commande » —
+  `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` sur chaque champ et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` sur le
+  lot, que `TaskFacetUpdate` dit rendus ensemble.
+- **La préséance des refus d'`updateRisk`** (#747 point 5). Le 409 `risk_identified` précède le 422
+  de la catégorie, comme à la déclaration : une autre catégorie envoyée pour un risque écarté est
+  refusée par l'état, qu'elle soit désactivée, inconnue ou d'un autre type.
+- **L'ordre de `restored_subproject_exists`** (#752 point 1). La description de `CommandCondition` la
+  dit après `may_create_revision`, où l'énumération et les catalogues la rangent ; son libellé
+  anglais devient « subproject restored by the undo or redo not deleted since » (point 2), et le
+  français « sous-projet rendu par l’annulation ou le rétablissement encore existant » : la condition
+  vaut pour l'un comme pour l'autre.
+- **Le projet terminal n'a pas de révision en cours** (#795 point 3). `project_completed` porte
+  `current_revision_id` à nul, et `edit_risks` puis `declare_risk` après `abandon`, indisponibles,
+  `project_not_terminal` seule manquant : la condition d'état vient avant `may_create_revision`, et
+  le témoin a des tâches et une catégorie de provision active. Un projet sans révision en cours
+  listant aussi `generate_skeleton`, avant les imports, le fichier le porte, indisponible,
+  `project_not_terminal` puis `main_structure_without_tasks`. `wftools.mockaudit` ne lit de ce
+  fichier que la date et l'auteur de la sortie.
+- **Le rôle seul d'une tâche, au refus d'`updateCalendar`** (#795 point 1). Le 422 dit le second cas,
+  comme ses routes sœurs depuis EP-14/L42s : le calendrier du seul rôle d'une tâche qui n'a plus
+  aucune heure dans la semaine.
+- **Une catégorie de provision passée à une nature d'un autre type** (#747 point 4). Une catégorie
+  que désigne un risque écarté, que plus aucune ligne n'emploie, peut être rattachée à une nature
+  d'un autre type (`cost_category_unused`, WF-REF-0030). `Risk.provision_cost_category_is_active`
+  devient vrai quand la catégorie est « active et de type provision pour risques », et
+  `RiskReviewWrite` comme `reviewRisk` reprennent la catégorie désignée à cette double condition,
+  et la demandent sinon : WF-RIS-0010 désigne la catégorie « parmi les catégories actives de type
+  provision pour risques », et WF-REF-0030 fait porter aux lignes de provision « la catégorie que
+  chaque risque désigne ». Le nom du champ reste : il ne se renomme pas pour un cas que la
+  désactivation couvrait déjà. Écarté : la seule activité, qui recréerait une ligne de provision
+  sur une catégorie qui n'est plus de provision. `is_active_provision` lit le type de la nature,
+  et un test l'éprouve sur la catégorie du témoin passée à « Débours ».
+- **L'annulation et le rétablissement qui recréeraient une provision** (#795 point 2).
+  `undoLastChange` et `redoLastUndo` sont refusés par 409 `STATE_FORBIDS_OPERATION` quand ils
+  recréeraient la ligne de provision d'un risque — l'annulation de la suppression d'un risque
+  identifié, du réexamen qui l'a écarté ou du changement de la catégorie de sa provision ; le
+  rétablissement de sa création, du réexamen qui l'a rendu identifié ou de ce changement — sur une
+  structure principale sans tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus
+  active et de type provision pour risques, `active_provision_category` : une annulation « subit
+  les mêmes règles » (motif de WF-IHM-0110), et WF-RIS-0010 refuse le retour d'un risque écarté à
+  l'état identifié dans ces deux cas. Aucune condition nouvelle, sur le modèle de
+  `restored_subproject_exists` ; les trois se jugent dans l'ordre de l'énumération,
+  `at_least_one_task`, `restored_subproject_exists`, `active_provision_category`, le refus nommant
+  la première. N'envoyant rien, l'annulation ne peut pas désigner une autre catégorie : le refus
+  vaut dès que la catégorie qu'elle rendrait n'est plus de provision active, même s'il en reste
+  une autre — `CommandCondition` l'étend ainsi, pour ces deux opérations seules. Écarté : recréer
+  la ligne sur la seule catégorie active restante, que l'utilisateur n'aurait pas choisie.
+  Exemples écrits à la main, aucun outil ne jouant l'annulation : `undo_risk_without_task` (409
+  d'`undoLastChange`, l'annulation du réexamen qui a écarté un risque d'un projet vidé de sa seule
+  tâche) et `redo_risk_category_deactivated` (409 de `redoLastUndo`, le rétablissement du retour
+  de `risk_reidentified` après la désactivation de sa catégorie). Le faux back ne joue pas ces
+  opérations ; aucun test du front ne fabriquait leur enveloppe.
+- **Le retour d'un risque écarté sur une structure principale sans tâche** (#787, que #795 point 2
+  suppose). La décision de l'auteur du 2026-10-11 (option A), intégrée à WF-RIS-0010 par C-354,
+  attendait encore le contrat : `reviewRisk` nomme `at_least_one_task` dans son 409, entre
+  `risk_not_occurred` et `active_provision_category`, comme `createRisk`, et `RiskReviewWrite` le
+  dit. Sans elle, l'annulation refusée par `at_least_one_task` aurait été plus stricte que le
+  réexamen qu'elle rejoue. La commande `review` reste disponible : elle confirme et écarte sans
+  tâche, et seul le retour est refusé, comme pour la catégorie. Exemple écrit à la main,
+  `risk_review_without_task`, dernier des 409 de `reviewRisk`.
+- **Les outils** (#747 points 2, 3 et 9 ; #1507). La docstring d'`is_active_provision` dit ce
+  qu'elle lit, et un test l'éprouve sur la nature désactivée, la valeur fausse n'étant portée par
+  aucun exemple ; celle de `_borne_by_the_current_revision` dit que l'univers ne tire aucune ligne
+  dans les devis propres ; `test_mockclientcode.py` tient `subproject_code_reserved`.
+
+**Corrélations** 1551 à 1558.
 
 ## Collage et annulation
 

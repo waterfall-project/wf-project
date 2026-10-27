@@ -1144,7 +1144,7 @@ donne en deux lignes.
 
 ## US-0640 — Les mineurs du contrat et du faux back
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : celles que les constats touchent, sans en ajouter — dont `applyPaste`,
   `createRisk`, `updateRisk`, `updateEstimateLine`, `updateCalendar`, `undoLastChange`,

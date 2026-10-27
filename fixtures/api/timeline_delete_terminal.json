@@ -1,0 +1,11 @@
+{
+  "summary": "La suppression de la chronologie « Revue client » du projet témoin terminé aujourd'hui (project_completed) : refusée, un projet terminal étant en lecture seule pour toute écriture ; rien n'est écrit (WF-CYC-0100, WF-PLA-0140).",
+  "value": {
+    "code": "PROJECT_TERMINAL",
+    "status": 403,
+    "params": {
+      "missing_condition": "project_not_terminal"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001552"
+  }
+}

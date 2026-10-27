@@ -33,7 +33,8 @@ screens ask them:
   without identifier, and the answer that gives it one; ``work_breakdown_label_required.json``,
   ``work_breakdown_unknown_item.json`` and ``work_breakdown_duplicate_item.json``, its refusals:
   the post added without a label, with the identifier of a deliverable, with that of a post the
-  write bears already;
+  write bears already; ``work_breakdown_stale.json``, its 412: the write sent with the counter of
+  its reading once another session saved the work breakdown (#803);
 - ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
   nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
   the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
@@ -822,6 +823,7 @@ def breakdowns() -> dict[str, JsonObject]:
     [kept] = cast("list[JsonObject]", entered["work_packages"])
     kept["order_items"] = [*cast("list[JsonValue]", kept["order_items"]), added(SECOND_ITEM)]
     [(deliverable, label)] = WORK_BREAKDOWN[0].order_items[0].deliverables
+    saved = breakdown_reading(SAVED_BREAKDOWN, 2, CORE)
     return {
         "work_breakdown_search.json": _example(
             f"Le lotissement du projet témoin cherché par « {SEARCHED_LABEL} », quels que soient "
@@ -878,7 +880,19 @@ def breakdowns() -> dict[str, JsonObject]:
             f"« {bearer['label']} » ; le poste « {SECOND_ITEM.label} » et son livrable "
             f"portent les identifiants que le serveur leur a donnés, aucune tâche ne le porte, "
             f"et le compteur suivant, jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110, #802).",
-            breakdown_reading(SAVED_BREAKDOWN, 2, CORE),
+            saved,
+        ),
+        "work_breakdown_stale.json": _example(
+            f"La saisie work_breakdown_entered, envoyée avec le compteur {read['lock_version']} "
+            f"de sa lecture quand une autre session a déjà enregistré le lotissement "
+            f"(work_breakdown_saved) : refusée, le compteur courant nommé, "
+            f"{saved['lock_version']} ; rien n'est écrit (WF-IHM-0110, #803).",
+            {
+                "code": "STALE_LOCK_VERSION",
+                "status": 412,
+                "params": {"expected_lock_version": saved["lock_version"]},
+                "correlation_id": universe(1554),
+            },
         ),
     }
 

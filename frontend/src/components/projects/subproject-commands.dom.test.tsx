@@ -600,6 +600,19 @@ describe("the deletion of a sub-project", () => {
     );
     expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
   });
+
+  it("presents unavailable the deletion of a sub-project that estimate lines bear, naming the one condition it lacks [WF-DAT-0080-A]", () => {
+    // Le sous-projet que portent des lignes de devis de la révision en cours ne se supprime pas :
+    // la lecture que le serveur en donne (`subprojects_estimated`) l'offre indisponible.
+    const rows = example("subprojects_estimated") as Subproject[];
+    serve();
+    render(list(AVAILABLE, rows));
+    const remove = within(grid()).getByRole("button", { name: "Supprimer «\u00a0SP-REC\u00a0»" });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    expect(remove).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: aucune ligne de devis de la révision en cours portant le sous-projet.",
+    );
+  });
 });
 
 describe("the commands a sub-project lists", () => {
