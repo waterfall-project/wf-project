@@ -7781,16 +7781,16 @@ dit aussi ce que le lot (US-0620/L1) a fixé de forme, là où elle se taisait.
   sien —, et le témoin le retire de ses colonnes conservées.
 - **Les exemples**, écrits à la main : `actual_cost_mapping`, la correspondance du témoin, premier
   exemple, déclarée par Camille Martin le 3 avril 2026 à 8 h 15, avant le premier import, avec les
-  intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce »,
-  « Val./Devise objet »), sans poste, et les colonnes conservées du témoin, « Fournisseur » et
-  « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation neuve ;
-  `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui, version 3 ;
-  `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme doublant
-  l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`, le
-  projet témoin dont la commande attend la correspondance, et
-  `import_actual_cost_mapping_incomplete`, le 409 d'`openImport`, variantes contrefactuelles sur
-  une installation à la correspondance vide ; `import_actual_costs_column_missing`, une extraction
-  sans montant ; `import_actual_costs_column_ignored`, l'extraction d'avril rejouée, variante
+  intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce », « Val./Devise
+  objet »), sans poste — « Poste » depuis US-0630 —, et les colonnes conservées du témoin, «
+  Fournisseur » et « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation
+  neuve ; `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui,
+  version 3 ; `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme
+  doublant l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`,
+  le projet témoin dont la commande attend la correspondance, et
+  `import_actual_cost_mapping_incomplete`, le 409 d'`openImport`, variantes contrefactuelles sur une
+  installation à la correspondance vide ; `import_actual_costs_column_missing`, une extraction sans
+  montant ; `import_actual_costs_column_ignored`, l'extraction d'avril rejouée, variante
   contrefactuelle qui porte aussi « Nom Matricule », ignorée.
 - **Le témoin**, engendré : « Élément d'OTP » quitte ses colonnes conservées
   (`mockwitnesscosts.PASSTHROUGH`), si bien que les consultations et les écritures de ses coûts
@@ -7799,6 +7799,56 @@ dit aussi ce que le lot (US-0620/L1) a fixé de forme, là où elle se taisait.
   résumé de `actual_costs` le nomme. `tools/tests/test_mockmapping.py` tient la correspondance du
   témoin et les colonnes conservées de ses lignes d'accord, chaque correspondance lue, la règle des
   doublons, les refus de l'import et les éléments d'OTP des exemples.
+
+### Le poste d'une ligne de coût (US-0630, #1322)
+
+WF-INTF-0140 et WF-CRE-0010 font porter à une ligne de coût le numéro de son poste dans la pièce,
+facultatif, et l'identifient par sa pièce et son poste : une facture ventilée sur deux éléments
+d'OTP donne deux lignes. Le contrat ne connaissait que le numéro de pièce. Décision D-4 de la
+reprise du 2026-10-22 : une ligne de coût est identifiée par le projet, le numéro de pièce et le
+numéro de poste ; la contrainte d'unicité, sa migration et l'idempotence de WF-DAT-0110 sur ce
+triplet sont le service, en EP-09.
+
+- **La lecture.** `ActualCostLine.document_item`, exigé et nullable, comme `subproject_code` : un
+  texte tel que l'extraction le porte, sans borne, comme le numéro de pièce ; nul quand
+  l'extraction n'en donne pas — la correspondance ne déclare pas le poste, ou la cellule est vide.
+  Un poste nul est une valeur comme une autre : deux lignes de la même pièce sans poste sont la
+  même ligne.
+- **Le tri.** `ActualCostColumn` et le `sort_by` de `listActualCosts` gagnent `document_item`,
+  comparé en texte comme le motif et les colonnes conservées, une ligne sans poste après les
+  autres dans l'ordre croissant. Comme le numéro de pièce, il identifie la ligne et n'est jamais un
+  champ d'un écart `updated` : un autre poste de la même pièce est une autre ligne.
+- **Le compte rendu.** `ImportDifference.document_item`, facultatif et nullable : pour une ligne de
+  coût, le poste de la pièce que nomme `label` ; nul ou absent pour tout autre objet. Choix de forme
+  du lot : un champ à côté de `label` plutôt qu'un libellé composé (« FA-2026-0412 / 10 »), que le
+  front n'aurait pu ni trier ni dire dans la langue du lecteur.
+- **Les lignes en double** : `DUPLICATE_COST_LINE`, nouveau code, motif d'un `ImportRejection`
+  d'une extraction de coûts réels. Chacune des lignes du fichier qui portent la même pièce et le
+  même poste, nul compris, est rejetée, `params.rows` nommant les rangs des autres dans l'ordre du
+  fichier : aucune n'est préférée, puisque rien ne dit laquelle l'ERP voulait. `sheet` est nul,
+  l'extraction n'ayant qu'un onglet. `applyImport` dit qu'un import insère ou met à jour sur la
+  pièce et le poste.
+- **Le témoin.** Avec la facture ventilée sur deux éléments d'OTP, la consultation des coûts passe
+  de 27 à 28 lignes ; l'entrée plus haut qui en compte 27 reste l'état d'alors.
+- **Les exemples.** Écrits à la main : la correspondance du témoin (`actual_cost_mapping`, et
+  `actual_cost_mapping_updated` qui la reprend) déclare le poste sous « Poste » depuis le 3 avril
+  2026, ses lignes en portant un — ce qui remplace « sans poste » de l'entrée d'US-0620 ;
+  `import_actual_costs_analysed` et `import_actual_costs_column_ignored` désignent l'avoir
+  AV-2026-0388, sans poste, et la facture FA-2026-0412, poste 10 ;
+  `import_actual_costs_duplicate_line`, l'extraction d'avril rejouée, variante contrefactuelle
+  dont le fichier porte aussi deux lignes de FA-2026-0417 sans poste, aux rangs 4 et 5, chacune
+  rejetée en nommant l'autre — cité par `getImport`. Engendrés : chaque ligne du témoin porte son
+  poste, 10 pour une pièce d'un poste — les factures des tâches tirées comprises
+  (`mockcosts.INVOICE_ITEM`) —, aucun pour l'avoir ; la facture de l'automate, FA-2026-0301, est
+  ventilée sur PRJ-001/SP-AUT et PRJ-001/SP-CAB en deux postes, 10 et 20, de 1 100,00 et 300,00,
+  si bien que ses 1 400,00, sa date et son imputation au seul projet ne changent pas, ni aucun
+  indicateur ni aucune courbe ; la consultation compte une ligne de plus, l'extraction de mars en
+  crée trois et la réextraction en met six à jour. `tools/tests/test_mockcostitem.py` tient le poste
+  de chaque ligne lue, la facture ventilée, la correspondance qui lit le poste, le compte rendu qui
+  désigne une ligne par sa pièce et son poste, et le rejet des lignes en double.
+
+Écarté : un rejet de la seule seconde ligne, qui aurait importé la première comme si l'ordre du
+fichier disait laquelle compte.
 
 ## Collage et annulation
 

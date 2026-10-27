@@ -320,7 +320,10 @@ Problem:
         Waterfall l'écrit (`createSubproject`, `updateSubproject`, WF-PRJ-0050 ; EP-16/US-0610) ;
         `duplicate_of`, dans `fields[].params`, le pointeur de l'intitulé qu'un intitulé de la
         correspondance de l'extraction des coûts réels double (`DUPLICATE_COLUMN_LABEL`,
-        `setActualCostMapping`, WF-REF-0190 ; EP-16/US-0620).
+        `setActualCostMapping`, WF-REF-0190 ; EP-16/US-0620) ;
+        `rows`, les rangs, en tableau d'entiers, des autres lignes du fichier qui portent la même
+        pièce et le même poste qu'une ligne d'une extraction de coûts réels rejetée
+        (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140 ; EP-16/US-0630).
     fields:
       type: array
       description: >-
@@ -586,6 +589,10 @@ ErrorCode:
     # WF-REF-0190 ; EP-16/US-0620) : au pointeur de l'intitulé en double,
     # `fields[].params.duplicate_of` le pointeur de celui qu'il double.
     - DUPLICATE_COLUMN_LABEL
+    # Une ligne d'une extraction de coûts réels dont une autre ligne du même fichier porte la même
+    # pièce et le même poste, nul compris (`ImportRejection`, WF-INTF-0140, D-4 ; EP-16/US-0630) :
+    # chacune est rejetée, `params.rows` nommant les rangs des autres.
+    - DUPLICATE_COST_LINE
     # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
     # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
     - COMPONENT_UNAVAILABLE

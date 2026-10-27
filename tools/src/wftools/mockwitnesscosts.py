@@ -43,14 +43,16 @@ MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY = (
 JOURNAL = (MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY)
 """The imports of actual costs of the witness, in their order: the extraction of March, that of
 April, a file without a period of which no line was the project's, a re-extraction up to 30 April,
-which brings back the five lines already imported, and the extraction of May, from 1 May."""
+which brings back the six lines already imported, and the extraction of May, from 1 May."""
 
 
 @dataclass(frozen=True, slots=True)
 class CostLine:
     """A line of actual cost of the witness: what the file of the ERP says of it (WF-CRE-0010).
 
-    Its number, 0xc0n; its document, dated, its signed amount; the code of subproject its element
+    Its number, 0xc0n; its document, the number of its item in the document — none when the
+    extraction gives none —, the two identifying the line in its project (D-4, EP-16/US-0630), its
+    date of document, its signed amount; the code of subproject its element
     of the work breakdown structure carries, if it has a subproject part, imputed to the
     subproject of that code if the project has one, to the project alone otherwise — as is a line
     without a subproject part (WF-CRE-0020); the columns kept of the file;
@@ -61,6 +63,7 @@ class CostLine:
 
     number: int
     document: str
+    item: str | None
     on: date
     amount: Decimal
     code: str | None
@@ -74,6 +77,7 @@ COSTS = (
     CostLine(
         0xC01,
         "FA-2026-0412",
+        "10",
         date(2026, 4, 21),
         Decimal("1800.00"),
         "SP-CAB",
@@ -84,6 +88,7 @@ COSTS = (
     CostLine(
         0xC02,
         "AV-2026-0388",
+        None,
         date(2026, 4, 8),
         Decimal("-200.00"),
         "SP-CAB",
@@ -94,16 +99,29 @@ COSTS = (
     CostLine(
         0xC03,
         "FA-2026-0301",
+        "10",
         date(2026, 3, 27),
-        Decimal("1400.00"),
+        Decimal("1100.00"),
         "SP-AUT",
         "Automatismes Durand",
         "Automate de sécurité",
         (MARCH, APRIL_AGAIN),
     ),
     CostLine(
+        0xC07,
+        "FA-2026-0301",
+        "20",
+        date(2026, 3, 27),
+        Decimal("300.00"),
+        "SP-CAB",
+        "Automatismes Durand",
+        "Câblage de l'automate de sécurité",
+        (MARCH, APRIL_AGAIN),
+    ),
+    CostLine(
         0xC04,
         "FA-2026-0295",
+        "10",
         date(2026, 3, 20),
         Decimal("650.00"),
         "SP-REC",
@@ -115,6 +133,7 @@ COSTS = (
     CostLine(
         0xC06,
         "FA-2026-0409",
+        "10",
         date(2026, 4, 10),
         Decimal("100000.00"),
         None,
@@ -125,6 +144,7 @@ COSTS = (
     CostLine(
         0xC05,
         "FA-2026-0521",
+        "10",
         date(2026, 5, 18),
         Decimal("2400.00"),
         "SP-CMD",
@@ -133,8 +153,11 @@ COSTS = (
         (MAY,),
     ),
 )
-"""The lines of actual cost of the witness today: the purchases of cables, a credit note on them and
-the safety controller, under codes of subproject the project does not have, imputed to it alone;
+"""The lines of actual cost of the witness today: the purchases of cables, a credit note on them,
+which bears no item, and the safety controller, under codes of subproject the project does not
+have, imputed to it alone — the invoice of the controller spread over two elements of the work
+breakdown structure, in two items of the same document, its wiring under the code of the cables,
+gives two lines (WF-INTF-0140, D-4) —;
 the reception of the customer, excluded from the tracked scope three days after its import; the
 invoice of the detailed studies, 100,000 of subcontracting dated the day they finished, without a
 subproject part, as their line 527 has none — its payment delay of thirty days shifts the

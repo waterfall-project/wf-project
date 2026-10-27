@@ -141,7 +141,7 @@ describe("the screen of the actual costs", () => {
     expect(page.startsWith(BANNER)).toBe(true);
     expect(queryOf(COSTS)).toEqual({});
     expect(queryOf(IMPORTS)).toEqual({});
-    expect(text(page)).toContain("Actual costs Help 27 lines retained");
+    expect(text(page)).toContain("Actual costs Help 28 lines retained");
   });
 
   it("leads from its head to the imports and exports of the project, where the actual costs are imported, in the same context", async () => {
@@ -167,13 +167,15 @@ describe("the screen of the actual costs", () => {
     // The most recent documents first: the invoices of the drawn tasks completed, those written by
     // hand among them at their dates (EP-14/L45a).
     const documents = handed?.costs.items.map((line) => line.document_number) ?? [];
-    expect(documents).toHaveLength(27);
+    expect(documents).toHaveLength(28);
     expect(documents.slice(0, 3)).toEqual(["FA-2026-1011", "FA-2026-1012", "FA-2026-1021"]);
-    expect(documents.slice(-6)).toEqual([
+    // The invoice FA-2026-0301 is split into two items, so it opens two lines (US-0630).
+    expect(documents.slice(-7)).toEqual([
       "FA-2026-1014",
       "FA-2026-0412",
       "FA-2026-0409",
       "AV-2026-0388",
+      "FA-2026-0301",
       "FA-2026-0301",
       "FA-2026-0295",
     ]);
@@ -247,7 +249,7 @@ describe("the screen of the actual costs", () => {
   it("shows the way to the next page when the server holds more lines than the page [WF-CRE-0040-A]", async () => {
     server.answers = { ...server.answers, [COSTS]: { example: "actual_costs_page", status: 200 } };
     const page = await costsAt({ offset: "1" });
-    expect(text(page)).toContain("Actual costs Help 27 lines retained");
+    expect(text(page)).toContain("Actual costs Help 28 lines retained");
     expect(page).toContain('aria-label="Pages of the actual costs"');
     expect(page).toContain(`href="${PATHNAME}?offset=2"`);
   });

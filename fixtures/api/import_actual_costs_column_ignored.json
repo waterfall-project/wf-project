@@ -18,6 +18,7 @@
           "target": "actual_cost_line",
           "lineage_id": null,
           "label": "AV-2026-0388",
+          "document_item": null,
           "predecessor_label": null,
           "fields": [
             "subproject"
@@ -28,6 +29,7 @@
           "target": "actual_cost_line",
           "lineage_id": null,
           "label": "FA-2026-0412",
+          "document_item": "10",
           "predecessor_label": null,
           "fields": [
             "amount",

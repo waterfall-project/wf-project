@@ -5,6 +5,7 @@ ActualCostLine:
   required:
     - cost_line_id
     - document_number
+    - document_item
     - document_date
     - amount
     - project_id
@@ -20,7 +21,18 @@ ActualCostLine:
     cost_line_id: { $ref: ../common.yaml#/Uuid }
     document_number:
       type: string
-      description: Numéro de pièce ; il identifie la ligne et fonde l'idempotence (WF-INTF-0140, WF-DAT-0110).
+      description: >-
+        Numéro de pièce ; avec le poste, il identifie la ligne dans son projet et fonde
+        l'idempotence (WF-INTF-0140, WF-DAT-0110 ; D-4, EP-16/US-0630).
+    document_item:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Numéro du poste de la ligne dans sa pièce, tel que l'extraction le porte (WF-CRE-0010) ;
+        nul quand l'extraction n'en donne pas — la correspondance ne déclare pas le poste, ou la
+        cellule est vide. Le projet, le numéro de pièce et le numéro de poste identifient la
+        ligne (D-4) : une facture ventilée sur deux éléments d'OTP, en deux postes de la même
+        pièce, donne deux lignes (WF-INTF-0140). Un poste nul est une valeur comme une autre :
+        deux lignes de la même pièce sans poste sont la même ligne.
     document_date: { $ref: ../common.yaml#/PlanningDate }
     amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
