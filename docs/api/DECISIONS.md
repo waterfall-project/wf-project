@@ -7781,16 +7781,16 @@ dit aussi ce que le lot (US-0620/L1) a fixé de forme, là où elle se taisait.
   sien —, et le témoin le retire de ses colonnes conservées.
 - **Les exemples**, écrits à la main : `actual_cost_mapping`, la correspondance du témoin, premier
   exemple, déclarée par Camille Martin le 3 avril 2026 à 8 h 15, avant le premier import, avec les
-  intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce »,
-  « Val./Devise objet »), sans poste — « Poste » depuis US-0630 —, et les colonnes conservées du
-  témoin, « Fournisseur » et « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation neuve ;
-  `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui, version 3 ;
-  `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme doublant
-  l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`, le
-  projet témoin dont la commande attend la correspondance, et
-  `import_actual_cost_mapping_incomplete`, le 409 d'`openImport`, variantes contrefactuelles sur
-  une installation à la correspondance vide ; `import_actual_costs_column_missing`, une extraction
-  sans montant ; `import_actual_costs_column_ignored`, l'extraction d'avril rejouée, variante
+  intitulés du Vérif (« Elément d'OTP », « Nº pièce référence », « Date de la pièce », « Val./Devise
+  objet »), sans poste — « Poste » depuis US-0630 —, et les colonnes conservées du témoin, «
+  Fournisseur » et « Texte de commande » ; `actual_cost_mapping_empty`, celle d'une installation
+  neuve ; `actual_cost_mapping_updated`, « Document d'achat » déclarée conservée aujourd'hui,
+  version 3 ; `actual_cost_mapping_duplicate`, « Élément d'OTP » déclarée conservée, refusée comme
+  doublant l'élément d'OTP ; `actual_cost_mapping_stale` ; `project_actual_cost_mapping_incomplete`,
+  le projet témoin dont la commande attend la correspondance, et
+  `import_actual_cost_mapping_incomplete`, le 409 d'`openImport`, variantes contrefactuelles sur une
+  installation à la correspondance vide ; `import_actual_costs_column_missing`, une extraction sans
+  montant ; `import_actual_costs_column_ignored`, l'extraction d'avril rejouée, variante
   contrefactuelle qui porte aussi « Nom Matricule », ignorée.
 - **Le témoin**, engendré : « Élément d'OTP » quitte ses colonnes conservées
   (`mockwitnesscosts.PASSTHROUGH`), si bien que les consultations et les écritures de ses coûts
@@ -7828,6 +7828,8 @@ triplet sont le service, en EP-09.
   fichier : aucune n'est préférée, puisque rien ne dit laquelle l'ERP voulait. `sheet` est nul,
   l'extraction n'ayant qu'un onglet. `applyImport` dit qu'un import insère ou met à jour sur la
   pièce et le poste.
+- **Le témoin.** Avec la facture ventilée sur deux éléments d'OTP, la consultation des coûts passe
+  de 27 à 28 lignes ; l'entrée plus haut qui en compte 27 reste l'état d'alors.
 - **Les exemples.** Écrits à la main : la correspondance du témoin (`actual_cost_mapping`, et
   `actual_cost_mapping_updated` qui la reprend) déclare le poste sous « Poste » depuis le 3 avril
   2026, ses lignes en portant un — ce qui remplace « sans poste » de l'entrée d'US-0620 ;

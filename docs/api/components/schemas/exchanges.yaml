@@ -500,17 +500,17 @@ ActualCostColumn:
   type: string
   description: >-
     Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de
-    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du
-    poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un
-    réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un
-    écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du
-    fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`,
-    comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce —
-    est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la
-    ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont
-    jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4).
-    Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes
-    du fichier.
+    `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste
+    dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP
+    (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte
+    rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne
+    conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme
+    `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le
+    fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro
+    de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre
+    servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`,
+    `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le
+    serveur déduit, ne sont pas des colonnes du fichier.
   anyOf:
     - type: string
       enum: [document_date, document_number, document_item, amount, subproject]

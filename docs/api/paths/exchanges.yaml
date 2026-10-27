@@ -391,12 +391,12 @@
       Écrit en une seule transaction ; un import interrompu laisse le projet inchangé
       (WF-INTF-0080). Les droits, la qualité de contributeur et l'état du projet sont
       revérifiés au moment de l'exécution (WF-ARC-0100) : un devis analysé sur la structure
-      principale n'est plus appliqué une fois le projet En cours (WF-INTF-0100). Un import de
-      coûts réels insère ou met à jour sur le numéro de pièce et le numéro de poste, sans toucher
-      aux exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030 ; D-4). Il s'applique tel qu'il a été analysé, même si
-      la correspondance de l'extraction a changé depuis l'analyse : le compte rendu confirmé est
-      ce qui s'applique (WF-INTF-0080), et une modification de la correspondance vaut pour les
-      imports suivants, sans changer aucune ligne déjà importée (WF-REF-0190).
+      principale n'est plus appliqué une fois le projet En cours (WF-INTF-0100). Un import de coûts
+      réels insère ou met à jour sur le numéro de pièce et le numéro de poste, sans toucher aux
+      exclusions (WF-INTF-0140, WF-DAT-0110, WF-CRE-0030 ; D-4). Il s'applique tel qu'il a été
+      analysé, même si la correspondance de l'extraction a changé depuis l'analyse : le compte rendu
+      confirmé est ce qui s'applique (WF-INTF-0080), et une modification de la correspondance vaut
+      pour les imports suivants, sans changer aucune ligne déjà importée (WF-REF-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId

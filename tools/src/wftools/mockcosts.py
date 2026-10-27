@@ -96,12 +96,11 @@ def brought_by(day: date) -> tuple[CostImport, ...]:
 def drawn() -> tuple[CostLine, ...]:
     """Return the lines of actual cost of the tasks drawn about the core, completed by today.
 
-    Each work task drawn and completed has received one invoice, dated the day it completed, for
-    the amount of the task at the reference year a few hundredths off, in the first item of its
-    document (``INVOICE_ITEM``), under the code of the
-    subproject of its lot — none for a lot of no subproject —, brought by the imports whose
-    period holds that day (WF-CRE-0010, WF-CRE-0020). A task not completed has received none
-    (EP-14/L45a, #528).
+    Each work task drawn and completed has received one invoice, dated the day it completed, for the
+    amount of the task at the reference year a few hundredths off, in the first item of its document
+    (``INVOICE_ITEM``), under the code of the subproject of its lot — none for a lot of no
+    subproject —, brought by the imports whose period holds that day (WF-CRE-0010, WF-CRE-0020). A
+    task not completed has received none (EP-14/L45a, #528).
     """
     codes = {entry["subproject_id"]: entry["code"] for entry in fixture("subprojects")}
     rows = mockcore.current()
