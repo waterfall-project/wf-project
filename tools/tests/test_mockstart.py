@@ -106,6 +106,9 @@ def test_the_skeleton_of_the_project_is_judged_on_the_revision_its_opening_would
             continue
         entry = _command(project, SKELETON)
         missing = [WITHOUT_TASKS] if project["project_id"] in WITH_TASKS else []
+        if project["state"] == "completed":
+            # A terminal project opens no revision: its state comes first (WF-CYC-0100).
+            missing = ["project_not_terminal", *missing]
         assert entry["missing_conditions"] == missing, name
         assert entry["is_available"] is (not missing), name
         seen.add(project["project_id"])

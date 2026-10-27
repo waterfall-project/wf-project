@@ -9282,7 +9282,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
-            /** @description Une condition de l'écriture manque, comme pour toute écriture du projet : sur un projet terminal, `PROJECT_TERMINAL`, `params.missing_condition` à `project_not_terminal` (WF-CYC-0100). Rien n'est écrit. */
+            /** @description Permission présente mais condition manquante, comme pour toute écriture du projet : `params.missing_permission` ou `params.missing_condition` la nomme (WF-ADM-0110) — `NOT_CONTRIBUTOR` à qui n'est pas contributeur, et sur un projet terminal `PROJECT_TERMINAL`, `params.missing_condition` à `project_not_terminal` (WF-CYC-0100). Rien n'est écrit. */
             403: {
                 headers: {
                     [name: string]: unknown;

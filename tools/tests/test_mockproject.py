@@ -541,6 +541,22 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     ]
 
 
+def test_a_terminal_project_has_no_current_revision_and_lists_the_risk_commands() -> None:
+    # The contract (`ProjectCommand`, `DECISIONS.md`, « Le risque déclaré sur une structure
+    # principale sans tâche »): a terminal project has no current revision, so it carries
+    # `edit_risks` and `declare_risk`, unavailable, naming `project_not_terminal` alone — the
+    # witness has tasks and an active provision category (#795).
+    completed = fixture("project_completed")
+    assert completed["state"] in TERMINAL
+    assert completed["current_revision_id"] is None
+    commands = _commands(completed)
+    names = [name for name, _, _ in commands]
+    assert names.index("declare_risk") == names.index("edit_risks") + 1
+    assert ("edit_risks", False, [NOT_TERMINAL]) in commands
+    assert ("declare_risk", False, [NOT_TERMINAL]) in commands
+    assert not any(available for _, available, _ in commands)
+
+
 def test_the_citation_by_a_marked_revision_is_a_condition_of_the_catalogue() -> None:
     conditions = enumeration(
         (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"

@@ -138,8 +138,8 @@ CommandCondition:
     ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
     de l'auteur, #732).
     Trois conditions tiennent à l'état d'un risque, et le risque les nomme
-    (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque
-    survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
+    (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à
+    la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
     au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas
     identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque
     qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ;
@@ -188,9 +188,9 @@ CommandCondition:
     risques, `project_not_terminal` puis `no_background_task_running`, et avant
     `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans
     révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks`
-    (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié sur une telle
-    structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category` (WF-RIS-0010 ;
-    décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
+    (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié
+    sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category`
+    (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
     qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche
     (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
     `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le

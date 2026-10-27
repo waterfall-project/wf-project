@@ -7920,8 +7920,15 @@ qui lit et écrit `known_columns` — est US-0650/L2.
 
 Les mineurs des relectures d'EP-14 (L42p, L42q, L42s, L44c, L44d, L53) reportés jusqu'ici : #764,
 #803, #817 point 2b, #747 points 2 à 9, #752 points 1 à 4, #795 ; et #1507. Chaque point a été relu
-sur le contrat qu'EP-15 a laissé ; les points devenus sans objet sont dits dans leur issue. Aucune
-opération nouvelle.
+sur le contrat qu'EP-15 a laissé ; les points devenus sans objet sont dits dans leur issue, et
+listés ici. Aucune opération nouvelle.
+
+Sans objet ou hors du lot :
+
+- #747 point 6, caduc : `risk_without_task.json` existait déjà, cité dans le 409 de `createRisk`.
+- #752 point 4, la part M2, écartée : `deleteSubproject` répond 204, aucune réponse ne rend le
+  risque modifié (voir le 412 du collage, ci-dessous).
+- #747 point 1 et #817 point 1, qui touchent le front : hors de ce lot.
 
 - **Le rejugement du collage** (#764, #747 points 7 et 8). `PasteRejection` dit les refus que la
   confirmation ajoute en jugeant de nouveau les lignes acceptées, et la règle d'EP-14/L42j y vaut :
@@ -7969,7 +7976,16 @@ opération nouvelle.
   refusée par l'état, qu'elle soit désactivée, inconnue ou d'un autre type.
 - **L'ordre de `restored_subproject_exists`** (#752 point 1). La description de `CommandCondition` la
   dit après `may_create_revision`, où l'énumération et les catalogues la rangent ; son libellé
-  anglais devient « subproject restored by the undo not deleted since » (point 2).
+  anglais devient « subproject restored by the undo or redo not deleted since » (point 2), et le
+  français « sous-projet rendu par l’annulation ou le rétablissement encore existant » : la condition
+  vaut pour l'un comme pour l'autre.
+- **Le projet terminal n'a pas de révision en cours** (#795 point 3). `project_completed` porte
+  `current_revision_id` à nul, et `edit_risks` puis `declare_risk` après `abandon`, indisponibles,
+  `project_not_terminal` seule manquant : la condition d'état vient avant `may_create_revision`, et
+  le témoin a des tâches et une catégorie de provision active. Un projet sans révision en cours
+  listant aussi `generate_skeleton`, avant les imports, le fichier le porte, indisponible,
+  `project_not_terminal` puis `main_structure_without_tasks`. `wftools.mockaudit` ne lit de ce
+  fichier que la date et l'auteur de la sortie.
 - **Le rôle seul d'une tâche, au refus d'`updateCalendar`** (#795 point 1). Le 422 dit le second cas,
   comme ses routes sœurs depuis EP-14/L42s : le calendrier du seul rôle d'une tâche qui n'a plus
   aucune heure dans la semaine.
