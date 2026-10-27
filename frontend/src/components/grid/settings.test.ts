@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
+import { COST_GRID } from "../costs/cost-grid";
+import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
+import { PROJECT_LIST_GRID } from "../projects/project-list-grid";
+import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
+import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
+import { REMAINING_GRID } from "./remaining";
 import { gridShape, initialSettings, keptPageSize, recordedPreferences } from "./settings";
 
 describe("the settings a grid starts from", () => {
@@ -164,5 +170,32 @@ describe("the preferences a grid records", () => {
   it("send back the sort as it came when the account kept none, and name none", () => {
     expect(recordedPreferences(kept, settings, undefined).sort).toEqual(kept.sort);
     expect(recordedPreferences(undefined, settings, undefined)).not.toHaveProperty("sort");
+  });
+});
+
+// aucune exigence : propre à l'US (US-0650, `known_columns` borné par le contrat à 64 clés de 64
+// caractères, que gridShape écrit sans les tronquer).
+describe("the columns a grid records as known", () => {
+  const grids = {
+    estimate: ESTIMATE_GRID,
+    planning: PLANNING_GRID,
+    remaining: REMAINING_GRID,
+    costs: COST_GRID,
+    projects: PROJECT_LIST_GRID,
+    breakdown: BREAKDOWN_GRID,
+    subprojects: SUBPROJECT_GRID,
+    contributors: CONTRIBUTOR_GRID,
+    costTypes: costTypeGrid(true),
+    costCategories: costCategoryGrid(true),
+    orgNodes: orgNodeGrid(true),
+    resourceRoles: resourceRoleGrid(true),
+    calendars: calendarGrid(true),
+  };
+
+  it.each(Object.entries(grids))("of the grid %s fit the bounds of the contract", (_, grid) => {
+    const { known } = gridShape(grid.columns);
+    expect(known.length).toBeLessThanOrEqual(64);
+    expect(known.filter((key) => key.length > 64)).toEqual([]);
+    expect(new Set(known).size).toBe(known.length);
   });
 });
