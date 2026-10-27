@@ -460,7 +460,11 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
       const now = latest.current;
       // The render bearing the waiting entry may not be committed yet: the entry is still the one
       // it was made from. Any other entry is a new one, left or entered anew meanwhile.
-      if ((now.draft === waiting || now.draft === entered) && !now.settle(text, move, true) && move === "none") {
+      if (
+        (now.draft === waiting || now.draft === entered) &&
+        !now.settle(text, move, true) &&
+        move === "none"
+      ) {
         now.abandon(false);
       }
     });
