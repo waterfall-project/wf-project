@@ -687,6 +687,23 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     expect(sentOf(client).asked).toEqual(["9"]);
   });
 
+  it("leaves no field waiting when the entry is left inside an asynchronous act", async () => {
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" });
+    render(grid(planning));
+    const field = await entered(reception, "predecessors");
+    await userEvent.clear(field);
+    await userEvent.type(field, "9");
+    // Left by a blur inside one asynchronous act.
+    await act(async () => {
+      cellAt(rowOf(planning, "Études"), "label").focus();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+    expect(document.querySelector("[aria-busy='true']")).toBeNull();
+  });
+
   it("says a number the server could not be asked, and asks again when validated anew", async () => {
     const client = serve({
       [ROW]: [{ problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } }, "row_number_task"],
