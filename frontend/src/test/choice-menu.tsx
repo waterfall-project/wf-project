@@ -30,7 +30,10 @@ import {
   type FakeTiming,
   fakeClient,
 } from "./fixtures";
+import { SHOWN } from "./grid-preferences";
 import { estimateReference } from "./reference";
+
+export { SHOWN };
 
 /** What the mocks of `@/api/server` and `next/navigation` of a test file read. */
 export const server: { client: ApiClient | undefined } = { client: undefined };
@@ -59,7 +62,6 @@ export const STEERING = "01926f3a-7c00-7000-8000-000000001000";
 export const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
 export const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
 export const TESTS = "01926f3a-7c00-7000-8000-000000000802";
-export const SHOWN = { hidden_columns: [] };
 
 export const planning = example("nodes_planning") as NodeList;
 export const estimate = example("nodes_estimate") as NodeList;

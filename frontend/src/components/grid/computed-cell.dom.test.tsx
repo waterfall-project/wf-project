@@ -18,6 +18,7 @@ import {
   unreachable,
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -90,7 +91,7 @@ function planningOf(nodes: NodeList) {
         structureVersion={1}
         filters={{}}
         query={NO_QUERY}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );
@@ -110,7 +111,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structure={STRUCTURE}
           structureVersion={1}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       ) : (
         <PlanningGrid
@@ -119,7 +120,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structureVersion={1}
           filters={{}}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       )}
     </NextIntlClientProvider>,
@@ -537,7 +538,7 @@ describe("a value of a grid the server computes", () => {
           totals={estimate.totals}
           totalsCaption={() => "Total"}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       </NextIntlClientProvider>,
     );

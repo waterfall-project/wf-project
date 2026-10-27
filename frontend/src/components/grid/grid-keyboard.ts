@@ -16,7 +16,8 @@
  * a double click enters it. Once validated, the cursor goes on (`CellEditor`): Tab along the row,
  * Enter to the row below, at the cell the row was started from. A value validated is read
  * (`cell-values.ts`) and leaves alone, by the action of its column (`useCellWrites`); a value
- * unchanged writes nothing.
+ * unchanged writes nothing. A row number the grid did not read is asked of the server before the
+ * value is validated (`EntryKind.ask`, the predecessors of a task, US-0650).
  *
  * A computed cell is traversed, never entered: Enter, F2 or a character typed on it — or a click —
  * opens its refusal, which names what its value depends on (WF-IHM-0030). The grid holds it, by the
@@ -53,7 +54,7 @@ import type { Locale } from "@/i18n/locale";
 import type { EntryMove } from "./cell-editor";
 import { type EntryProblem, parsedEntry, shownEntry, startingText } from "./cell-values";
 import type { CellWrites } from "./cell-writes";
-import type { CellEntry, GridConfig } from "./columns";
+import type { CellEntry, EntryKind, GridConfig } from "./columns";
 import { configColumn } from "./grid-table";
 
 /** The row of the header, before the first row of the answer. */
@@ -79,6 +80,8 @@ export interface CellDraft {
   /** The character typed that opened the entry, if one did: a list goes on searching from it. */
   readonly typed: string | undefined;
   readonly problem: EntryProblem | undefined;
+  /** Whether the entry waits for the server to name what it typed: its field is read only then. */
+  readonly asking?: boolean;
 }
 
 /** The cell whose refusal shows: its row, by its identity, and its column. */
@@ -109,6 +112,11 @@ export function positionOf(element: EventTarget | null): CellPosition | undefine
     return undefined;
   }
   return { row: Number(element.dataset.row), column: element.dataset.column };
+}
+
+/** The row numbers an entry names asked of the server, for an entry that asks any. */
+function askedOf(kind: EntryKind, rows: readonly number[]): Promise<void> | undefined {
+  return kind.type === "predecessors" ? kind.ask(rows) : undefined;
 }
 
 /** A number, within bounds. */
@@ -429,7 +437,48 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     const row = rows.findIndex((each) => config.rowKey(each) === entered.key);
     return row < 0 ? undefined : { row, column: entered.column };
   };
-  const validate = (text: string, move: EntryMove): boolean => {
+  // The entry validated last, which nothing validates again.
+  const closed = useRef<CellDraft>(undefined);
+  /**
+   * Wait for the rows an entry names to be asked of the server (`asking`), then validate it anew;
+   * none asked — asked already, and still unnamed —, say they could not be. Whether the entry is
+   * done: a blur leaves it to the answer.
+   */
+  const askFirst = (
+    entered: CellDraft,
+    text: string,
+    move: EntryMove,
+    asking: Promise<void> | undefined,
+  ): boolean => {
+    if (asking === undefined) {
+      setDraft({ ...entered, text, problem: "unresolvedRow", asking: false });
+      return false;
+    }
+    const waiting: CellDraft = { ...entered, text, problem: undefined, asking: true };
+    setDraft(waiting);
+    void asking.then(() => {
+      const now = latest.current;
+      // The render bearing the waiting entry may not be committed yet: the entry is still the one
+      // it was made from. Any other entry is a new one, left or entered anew meanwhile.
+      if (
+        (now.draft === waiting || now.draft === entered) &&
+        !now.settle(text, move, true) &&
+        move === "none"
+      ) {
+        now.abandon(false);
+      }
+    });
+    return move === "none";
+  };
+  /**
+   * Validate the text of the entry, once its rows were asked of the server if `asked`: whether the
+   * entry is done. Row numbers the grid did not read are asked first (`EntryKind.ask`), the entry
+   * waiting, its text read only; then it is validated anew — by the latest render, on the rows of
+   * then —, unless it was left or entered anew meanwhile. Left by a blur, it is validated where it
+   * is once they answer, or abandoned; still unnamed once asked — the server out of reach —, it is
+   * not validated.
+   */
+  const settle = (text: string, move: EntryMove, asked: boolean): boolean => {
     const at = draft === undefined ? undefined : draftAt(draft);
     const cell = at === undefined ? undefined : cellAt(at);
     if (draft === undefined || at === undefined || cell?.entry === undefined) {
@@ -438,10 +487,15 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     }
     const { entry } = cell;
     const parsed = parsedEntry(entry.kind, text, locale);
+    if ("unresolved" in parsed) {
+      const asking = asked ? undefined : askedOf(entry.kind, parsed.unresolved);
+      return askFirst(draft, text, move, asking);
+    }
     if ("problem" in parsed) {
-      setDraft({ ...draft, text, problem: parsed.problem });
+      setDraft({ ...draft, text, problem: parsed.problem, asking: false });
       return false;
     }
+    closed.current = draft;
     setDraft(undefined);
     if (parsed.value !== (entry.value(cell.row) ?? null)) {
       const shown = shownEntry(entry.kind, parsed.value, locale);
@@ -450,6 +504,23 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     moveAfter(at, move);
     return true;
   };
+  // An entry its rows' answer validated is done: the blur of its field, which the cursor moved on
+  // leaves before the render, validates nothing more.
+  const validate = (text: string, move: EntryMove): boolean =>
+    (draft !== undefined && draft === closed.current) || settle(text, move, false);
+  /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
+  const abandon = (refocus: boolean) => {
+    const at = draft === undefined ? undefined : draftAt(draft);
+    setDraft(undefined);
+    if (refocus && at !== undefined) {
+      focusCell(at);
+    }
+  };
+  // The entry as the latest render holds it, which the rows asked of the server go back to.
+  const latest = useRef({ draft, settle, abandon });
+  useLayoutEffect(() => {
+    latest.current = { draft, settle, abandon };
+  });
   /** Close the refusal, the focus left where it is. */
   const dismiss = () => {
     setRefusal((before) => ({ ...before, at: undefined }));
@@ -515,14 +586,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     /** The keyboard of the header: its cells moved along and left by the arrows. */
     header: { onKeyDown, onFocus },
     validate,
-    /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
-    abandon: (refocus: boolean) => {
-      const at = draft === undefined ? undefined : draftAt(draft);
-      setDraft(undefined);
-      if (refocus && at !== undefined) {
-        focusCell(at);
-      }
-    },
+    abandon,
     /** Close the refusal from the keyboard, the focus back on its cell. */
     closeRefusal: () => {
       const { at } = refusal;

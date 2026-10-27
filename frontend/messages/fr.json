@@ -235,7 +235,8 @@
       "notADuration": "Ce n’est pas une durée : saisissez un nombre suivi de son unité, comme « 2 j », « 1 sem », « 1 m » ou « 30 min ».",
       "notADate": "Ce n’est pas une date : saisissez-la comme {example}.",
       "notPredecessors": "Ce ne sont pas des prédécesseurs : saisissez des numéros de ligne, chacun avec son type de liaison et son décalage s’il y en a, séparés par des points-virgules, comme « 3FD+2 j ; 5DD ».",
-      "unknownRow": "Aucune ligne de la grille n’a l’un de ces numéros."
+      "unknownRow": "Aucune tâche de la structure ne porte l’un de ces numéros.",
+      "unresolvedRow": "L’un de ces numéros n’a pu être vérifié : validez à nouveau dans un instant."
     },
     "resize": "Largeur de la colonne {column}",
     "empty": "Aucune ligne ne répond à la demande.",

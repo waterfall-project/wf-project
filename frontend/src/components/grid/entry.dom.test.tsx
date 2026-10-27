@@ -18,6 +18,7 @@ import {
   unreachable,
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import type { EstimateReference } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
@@ -106,7 +107,7 @@ function grid(
         tasksEditable={tasksEditable}
         query={query}
         filters={filters}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );

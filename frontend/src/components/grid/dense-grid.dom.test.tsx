@@ -25,6 +25,7 @@ import {
   fakeClient,
   type FakeTiming,
 } from "@/test/fixtures";
+import { allShown, PREFERENCES, recordedAside } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
 
 import type { GridConfig } from "./columns";
@@ -57,7 +58,6 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(page.search),
 }));
 
-const PREFERENCES = "PATCH /me/preferences";
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The main structure of the current revision of the witness project, as the examples name it.
 const STRUCTURE = {
@@ -89,10 +89,9 @@ function serve(
   return client;
 }
 
-/** The bodies sent to record preferences. */
-function recorded(client: FakeClient): unknown[] {
-  return client.calls.filter((call) => call.route === PREFERENCES).map((call) => call.body);
-}
+// The grid knows every column of the estimate, and records them as known (US-0650): set aside.
+const SHOWN = allShown(ESTIMATE_GRID.columns);
+const recorded = (client: FakeClient) => recordedAside(client, ESTIMATE_GRID.columns);
 
 /** Render the grid of the estimate on an answer, in a language. */
 function renderGrid(
@@ -115,7 +114,7 @@ function renderGrid(
         structure={STRUCTURE}
         structureVersion={1}
         query={query}
-        preferences={options.preferences ?? { hidden_columns: [] }}
+        preferences={options.preferences ?? SHOWN}
       />
     </NextIntlClientProvider>
   );
@@ -592,14 +591,17 @@ describe("the sort, the search and the totals, asked of the server", () => {
 describe("the columns and their widths, a display preference of the account", () => {
   it("shows the columns and widths the session read, and records a column hidden, the rest of the grid as it came", async () => {
     const client = serve();
-    const settings = (
+    const kept = (
       example("me_grid_settings") as {
         display_preferences: { grids: { estimate: GridPreferences } };
       }
     ).display_preferences.grids.estimate;
+    // Set before the grid offered the sub-project, hidden by default, which stays hidden (US-0650).
+    const { known_columns: known, ...settings } = kept;
+    expect(known).not.toContain("subproject");
     // The account keeps a sort by the budgeted amount, which the grid no longer presents
     // (WF-DEV-0050): the page asks none.
-    const { container } = renderGrid(witness, { preferences: settings });
+    const { container } = renderGrid(witness, { preferences: kept });
     await expectAccessible(container);
     // The quantity was hidden, the label widened.
     expect(screen.queryByRole("columnheader", { name: /Qté/ })).toBeNull();
@@ -622,8 +624,8 @@ describe("the columns and their widths, a display preference of the account", ()
       expect(recorded(client)).toEqual([
         {
           grids: {
-            // Its width, its sort and any field it does not read (`known_columns`) as they came.
-            estimate: { ...settings, hidden_columns: ["hours"] },
+            // Its width and its sort as they came; the sub-project, which it did not know, hidden.
+            estimate: { ...settings, hidden_columns: ["subproject", "hours"] },
           },
         },
       ]);
@@ -838,7 +840,7 @@ describe("a grid configured without its options", () => {
           totals={witness.totals}
           totalsCaption={() => "—"}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       </NextIntlClientProvider>,
     );

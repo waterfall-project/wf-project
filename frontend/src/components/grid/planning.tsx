@@ -357,10 +357,12 @@ export interface PlanningWrites {
 /**
  * How the grid of the planning writes the predecessors of a task (US-0470/L2): the names of the
  * types of link and of the units of a lag in the language, the task a row number names among the
- * rows the grid read, and the write — the links to send in place of the task's, with the rows the
+ * rows the grid read or those the server was asked, the numbers the rows read do not name asked of
+ * the server (US-0650), and the write — the links to send in place of the task's, with the rows the
  * server answers, the tasks it redated among them.
  */
 export interface PlanningPredecessors extends PredecessorNames {
+  readonly ask: (rows: readonly number[]) => Promise<void>;
   readonly write: (
     node: PlanningNode,
     links: readonly PredecessorWrite[],
@@ -505,6 +507,7 @@ function predecessorsColumn(
         type: "predecessors",
         parse: (text, locale) => parsePredecessors(text, locale, predecessors),
         text: (value, locale) => predecessorsText(value, locale, predecessors),
+        ask: predecessors.ask,
       },
       in: (node) => node.task != null && node.editable_fields.includes("task.predecessors"),
       value: (node) => predecessorsValue(node.predecessors),

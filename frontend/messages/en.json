@@ -235,7 +235,8 @@
       "notADuration": "This is not a duration: enter a number followed by its unit, as “2 d”, “1 wk”, “1 mo” or “30 min”.",
       "notADate": "This is not a date: enter it as {example}.",
       "notPredecessors": "These are not predecessors: enter row numbers, each with its link type and its lag if any, separated by semicolons, as “3FS+2 d ; 5SS”.",
-      "unknownRow": "No row of the grid has one of these numbers."
+      "unknownRow": "No task of the structure has one of these numbers.",
+      "unresolvedRow": "One of these numbers could not be checked: validate again in a moment."
     },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",

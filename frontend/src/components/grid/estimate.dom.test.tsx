@@ -10,6 +10,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -65,7 +66,7 @@ function grid(nodes: NodeList) {
         tasksEditable
         query={NO_QUERY}
         filters={{}}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );

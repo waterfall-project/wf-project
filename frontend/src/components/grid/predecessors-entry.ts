@@ -9,8 +9,10 @@
  * duration of the predecessor: `3FD+2 j ; 5DD`, `4-50%`. The lag is read by `parseDuration`, whose
  * suffixes it shares (WF-PLA-0160), and kept in its unit, never converted.
  *
- * A row number is resolved to the task it names by the grid, which knows the rows it read: a number
- * it does not know is not entered (`unknownRow`). The value validated is neutral of language —
+ * A row number is resolved to the task it names by the grid, which knows the rows it read; a number
+ * they do not name — a task a search or a filter left out — is asked of the server first
+ * (`resolveRowNumber`, US-0650), in the numbering of the whole structure, and one that no task bears
+ * is not entered (`unknownRow`). The value validated is neutral of language —
  * each link by its row, its task, its type and its lag in the contract's terms — and goes back to
  * text by the same names (`predecessorsText`). Never through a float (WF-DAT-0100).
  */
@@ -32,8 +34,20 @@ export type PredecessorLink = components["schemas"]["Predecessor"];
 /** A link as the contract writes it, which `setPredecessors` takes. */
 export type PredecessorWrite = components["schemas"]["PredecessorWrite"];
 
-/** Why the text of the predecessors is not validated: no link of the form, no row of that number. */
-export type PredecessorsProblem = "notPredecessors" | "unknownRow";
+/**
+ * Why the text of the predecessors is not validated: no link of the form, no task of that number,
+ * or a number the server could not be asked.
+ */
+export type PredecessorsProblem = "notPredecessors" | "unknownRow" | "unresolvedRow";
+
+/**
+ * The text of the predecessors read: the value it validates — `null` for none —, why it does not, or
+ * the row numbers to ask the server before it can tell.
+ */
+export type PredecessorsParsed =
+  | { readonly value: string | null }
+  | { readonly problem: PredecessorsProblem }
+  | { readonly unresolved: readonly number[] };
 
 /**
  * What the column names in the language of the interface, and knows of the grid: the code of each
@@ -42,8 +56,11 @@ export type PredecessorsProblem = "notPredecessors" | "unknownRow";
 export interface PredecessorNames {
   readonly code: (link: LinkType) => string;
   readonly suffix: (unit: LagUnit) => string;
-  /** The identifier of the task of a row number the grid read; none for a number it did not. */
-  readonly resolve: (row: number) => string | undefined;
+  /**
+   * The identifier of the task of a row number, from the rows the grid read or the server asked;
+   * `null` for a number the server said no task bears, none for a number not known yet.
+   */
+  readonly resolve: (row: number) => string | null | undefined;
 }
 
 /** Every type of link, in the order of the contract: one it adds fails the type check here. */
@@ -122,12 +139,12 @@ function lagOf(
   };
 }
 
-/** A link typed, or why it is not one. */
+/** A link typed, why it is not one, or its row number not known yet. */
 function linkOf(
   text: string,
   locale: Locale,
   names: PredecessorNames,
-): PredecessorLink | PredecessorsProblem {
+): PredecessorLink | PredecessorsProblem | number {
   const typed = LINK.exec(text);
   if (typed === null) {
     return "notPredecessors";
@@ -146,8 +163,12 @@ function linkOf(
     return "notPredecessors";
   }
   const row = Number(number);
-  const task = names.resolve(row);
-  return task === undefined
+  // No row is numbered 0: none to ask.
+  const task = row < 1 ? null : names.resolve(row);
+  if (task === undefined) {
+    return row;
+  }
+  return task === null
     ? "unknownRow"
     : { predecessor_node_id: task, predecessor_row_number: row, link_type: type, lag };
 }
@@ -205,14 +226,16 @@ export function predecessorsWritten(links: readonly PredecessorLink[]): Predeces
 
 /**
  * The links typed, as the value an entry validates — `null` for a text without any link, which
- * empties the predecessors —, or why the text is not one.
+ * empties the predecessors —, why the text is not one, or the row numbers to ask the server: a text
+ * that is no link, or a number no task bears, prevails over them.
  */
 export function parsePredecessors(
   text: string,
   locale: Locale,
   names: PredecessorNames,
-): { readonly value: string | null } | { readonly problem: PredecessorsProblem } {
+): PredecessorsParsed {
   const links: PredecessorLink[] = [];
+  const unresolved = new Set<number>();
   for (const segment of text.split(SEPARATOR).map((each) => each.trim())) {
     if (segment === "") {
       continue;
@@ -221,9 +244,15 @@ export function parsePredecessors(
     if (typeof link === "string") {
       return { problem: link };
     }
-    links.push(link);
+    if (typeof link === "number") {
+      unresolved.add(link);
+    } else {
+      links.push(link);
+    }
   }
-  return { value: predecessorsValue(links) ?? null };
+  return unresolved.size > 0
+    ? { unresolved: [...unresolved] }
+    : { value: predecessorsValue(links) ?? null };
 }
 
 /** A lag written as it is typed: its sign, its value in the language, its unit. */

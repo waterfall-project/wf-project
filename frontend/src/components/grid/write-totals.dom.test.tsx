@@ -10,6 +10,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeFilters, NodeList, NodeSortColumn, NodesWritten } from "./nodes";
@@ -95,7 +96,7 @@ function grid(
         tasksEditable
         query={query}
         filters={filters}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );

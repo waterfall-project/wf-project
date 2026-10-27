@@ -21,7 +21,8 @@ import type { PredecessorsProblem } from "./predecessors-entry";
 
 /**
  * Why an entry is not validated: a cell that may not be emptied left blank, a text too long, no
- * number of the language, an amount with more than two decimals, no duration with a unit, no date.
+ * number of the language, an amount with more than two decimals, no duration with a unit, no date,
+ * no predecessors (`predecessors-entry.ts`).
  */
 export type EntryProblem =
   | "required"
@@ -157,8 +158,14 @@ function parsedTyped(
     : parsedNumber(kind.type, text, locale);
 }
 
-/** What an entry validates, or why it does not. */
-type Parsed = { readonly value: string | null } | { readonly problem: EntryProblem };
+/**
+ * What an entry validates, or why it does not; or the row numbers to ask the server first, which
+ * the rows of the grid do not name (`EntryKind.ask`).
+ */
+type Parsed =
+  | { readonly value: string | null }
+  | { readonly problem: EntryProblem }
+  | { readonly unresolved: readonly number[] };
 
 /** A duration or a date typed, not blank, as the contract writes it, or why it is not one. */
 function parsedTime(
