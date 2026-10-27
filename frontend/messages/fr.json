@@ -2504,6 +2504,10 @@
     "component": "Composant indisponible : {component}.",
     "expected_format": "Format attendu : {format}.",
     "expected_version": "Version attendue : {version}.",
+    "columns": "{count, plural, one {Colonne exigée sans intitulé} other {Colonnes exigées sans intitulé}} : {columns}.",
+    "missing_columns": "{count, plural, one {Colonne exigée absente du fichier} other {Colonnes exigées absentes du fichier}} : {columns}.",
+    "missingColumn": "{column} ({count, plural, one {intitulé déclaré} other {intitulés déclarés}} : {labels})",
+    "declaredLabel": "« {label} »",
     "work_package_task": "Tâche du lot : {task}.",
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
@@ -3361,7 +3365,9 @@
       "period": "Période extraite",
       "periodFrom": "Du",
       "periodTo": "Au",
-      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet."
+      "fileTooLarge": "Le fichier dépasse {max} Mio, la plus grande taille qu’un import admet.",
+      "mappingMissing": "{count, plural, one {Colonne exigée sans intitulé dans la correspondance} other {Colonnes exigées sans intitulé dans la correspondance}} : {columns}.",
+      "mappingLink": "Régler la correspondance de l’extraction"
     },
     "drop": {
       "title": "Zone de dépôt du fichier MS Project",
@@ -3396,6 +3402,9 @@
       "label": "Libellé",
       "fields": "Champs",
       "unnamed": "Sans libellé",
+      "ignored": "Éléments ignorés par l’import",
+      "ignoredItem": "{kind} ({count}) : {names}",
+      "ignoredCount": "{kind} ({count})",
       "apply": "Appliquer l’import",
       "abandon": "Abandonner l’import",
       "confirmTitle": "Confirmation de l’application",

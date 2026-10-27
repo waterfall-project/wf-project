@@ -1777,10 +1777,16 @@ avec les champs qu'ils changent, nommés par le catalogue de leurs colonnes (`No
 dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
 remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
 la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet
-import. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
+import. Le compte rendu nomme aussi ce que l'import ignore (`report.ignored`), les colonnes d'une extraction de coûts réels par leur intitulé tel que le fichier le porte. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
 `import_planning`, `import_estimate`, `import_remaining`, `import_actual_costs`, avec ou sans
 révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
-`may_create_revision` nommée. Un projet sans révision, qu'aucune adresse de révision n'atteint,
+`may_create_revision` nommée. Celui des coûts réels, indisponible faute de correspondance
+(`actual_cost_mapping_complete`), dit en plus les colonnes exigées sans intitulé et mène à la page de
+la correspondance (FBS-3.1.3) : les colonnes viennent de `getActualCostMapping`, que la page lit
+(`readMappingGap`) pour qui porte `cost_settings.read`, les autres lisant la condition seule. Les
+refus d'`openImport` — le 409 qui nomme les colonnes (`columns`), le 422 `FILE_FORMAT_UNREADABLE`
+qui nomme chaque colonne absente avec ses intitulés (`missing_columns`) — se disent par
+`problemMessage`. Un projet sans révision, qu'aucune adresse de révision n'atteint,
 offre les mêmes imports sur son propre écran (`ImportPart`), et y montre le compte rendu de l'import
 que son adresse nomme (#332). L'écran est gardé par les commandes qu'il exerce, et non par la seule
 lecture du planning (#521) : il se montre à une session qui lit le planning, dont il est la feuille,

@@ -14,7 +14,9 @@
  * (`/columns/<rank>/labels/<rank>`, `/kept_columns/<rank>`), the first one refused taking the focus,
  * a duplicate (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
  * refusal is told under the form — the version stale (412) with the offer to read the page anew,
- * which mounts the form again on what is read. The answer takes the place of the reading while it is
+ * which mounts the form again on what is read. The fields are held while the write is under way and
+ * lose the focus: with any answer that refuses no label, it goes back to the control that held it. The
+ * answer takes the place of the reading while it is
  * newer (`lock_version`).
  */
 "use client";
@@ -210,7 +212,7 @@ interface ListProps {
   readonly problems: ReadonlyMap<number, FieldProblem>;
   readonly sent: components["schemas"]["ActualCostMappingWrite"] | undefined;
   readonly register: (id: string, element: HTMLElement | null) => void;
-  readonly update: (change: (draft: Draft) => Draft, focus: string, forget?: number) => void;
+  readonly update: (change: (draft: Draft) => Draft, focus: string, removed?: number) => void;
   readonly retype: (scope: Scope, key: number, text: string) => void;
 }
 
@@ -364,10 +366,12 @@ function placed(
   const keys = new Map(pointers(sent));
   const rest = outcome.problem.fields.filter((problem) => {
     const key = keys.get(problem.pointer);
-    if (key !== undefined && !refused.has(key)) {
-      refused.set(key, problem);
+    // A second refusal of the same label stays in the rest, told under the form: none is lost.
+    if (key === undefined || refused.has(key)) {
+      return true;
     }
-    return key === undefined;
+    refused.set(key, problem);
+    return false;
   });
   if (refused.size === 0) {
     return { refused, told: outcome };
@@ -377,6 +381,14 @@ function placed(
     told:
       rest.length === 0 ? undefined : { ...outcome, problem: { ...outcome.problem, fields: rest } },
   };
+}
+
+/** The identifier of the command that saves, where the focus goes when no field holds it. */
+const SAVE = "save";
+
+/** The control of the form that holds the focus now, by the identifier it is registered under. */
+function activeControl(controls: ReadonlyMap<string, HTMLElement>): string {
+  return [...controls].find(([, element]) => element === document.activeElement)?.[0] ?? SAVE;
 }
 
 /** The form: a list of labels for each column read and one for the kept columns, sent whole. */
@@ -402,7 +414,7 @@ function MappingForm({
   const [focused, setFocused] = useState<{ readonly id: string }>();
   useEffect(() => {
     if (focused !== undefined) {
-      controls.current.get(focused.id)?.focus();
+      (controls.current.get(focused.id) ?? controls.current.get(SAVE))?.focus();
     }
   }, [focused]);
   const register = (id: string, element: HTMLElement | null) => {
@@ -445,6 +457,8 @@ function MappingForm({
     if (busy) {
       return;
     }
+    // The control that holds the focus, which the fields held lose: it takes it back with the answer.
+    const active = activeControl(controls.current);
     setBusy(true);
     setOutcome(undefined);
     const sentDraft = draft;
@@ -455,6 +469,7 @@ function MappingForm({
       if (answer.kind === "done") {
         setProblems(new Map());
         setSent(undefined);
+        setFocused({ id: active });
         onDone(answer.data);
         return;
       }
@@ -465,6 +480,8 @@ function MappingForm({
         if (first !== undefined) {
           setFocused({ id: `row-${String(first[1])}` });
         }
+      } else {
+        setFocused({ id: active });
       }
       setSent(body);
       setProblems(told.refused);
@@ -504,7 +521,14 @@ function MappingForm({
         }}
       />
       <div>
-        <Button type="submit" disabled={busy} aria-busy={busy}>
+        <Button
+          type="submit"
+          disabled={busy}
+          aria-busy={busy}
+          ref={(element) => {
+            register(SAVE, element);
+          }}
+        >
           <Save aria-hidden="true" />
           {busy ? t("saving") : t("save")}
         </Button>

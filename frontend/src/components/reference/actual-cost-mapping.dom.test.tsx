@@ -304,4 +304,57 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(screen.getAllByRole("status")[0]).toHaveTextContent("Colonnes exigées sans intitulé");
     await expectAccessible(container);
   });
+
+  it("gives the focus back to the control that held it after a write saved, and after a version stale (#1515) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: [
+        "actual_cost_mapping_updated",
+        { problem: example("actual_cost_mapping_stale") as Problem & { status: 412 } },
+      ],
+    });
+    shown(witness, true);
+    const field = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" });
+    await userEvent.click(field);
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
+    });
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" }),
+      ).toHaveFocus();
+    });
+    const save = screen.getByRole("button", { name: "Enregistrer la correspondance" });
+    await userEvent.click(save);
+    await screen.findByRole("button", { name: "Recharger" });
+    expect(save).toHaveFocus();
+  });
+
+  it("leaves the second refusal of a label in the notice under the form, the first being said at the label (#1516) [WF-REF-0190-A]", async () => {
+    const duplicate = example("actual_cost_mapping_duplicate") as Problem & { status: 422 };
+    const [first] = duplicate.fields ?? [];
+    serve({
+      [SET]: {
+        problem: {
+          ...duplicate,
+          fields: [first, { ...first, code: "VALIDATION_FAILED", params: {} }],
+        } as Problem & { status: 422 },
+      },
+    });
+    shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
+      "Élément d'OTP",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    const label = await screen.findByRole("textbox", {
+      name: "Intitulé de la colonne conservée 3",
+    });
+    await vi.waitFor(() => {
+      expect(label).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(label).toHaveAccessibleDescription(/Il double/);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
 });

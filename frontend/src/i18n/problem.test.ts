@@ -112,6 +112,20 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the columns of the correspondence without a label, and the columns a file lacks with the labels declared for them [WF-REF-0190-A]", () => {
+    const refused = example("import_actual_cost_mapping_incomplete") as ProblemText;
+    expect(say(refused, "en")).toBe(
+      "The current state does not allow this operation. Unmet condition: actual-cost extraction mapping complete. Required columns without a label: WBS element, Document no., Document date, Amount.",
+    );
+    const missing = example("import_actual_costs_column_missing") as ProblemText;
+    expect(say(missing, "en")).toContain(
+      "Required column missing from the file: Amount (declared label: \u201CVal./Devise objet\u201D).",
+    );
+    expect(say(missing, "fr")).toContain(
+      "Colonne exigée absente du fichier\u00A0: Montant (intitulé déclaré\u00A0: \u00AB\u00A0Val./Devise objet\u00A0\u00BB).",
+    );
+  });
+
   it("says the last administrator kept, by the condition her deactivation lacks, or by its own code for roles that would take her permissions away [WF-ADM-0120-A]", () => {
     const deactivation = example("user_deactivation_refused") as ProblemText;
     expect(say(deactivation, "fr")).toBe(

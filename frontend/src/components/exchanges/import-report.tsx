@@ -5,7 +5,8 @@
  * the import stands, when it was opened and until when its report applies; then, once analysed,
  * the lines read, the reasons that ask for an explicit confirmation, each line rejected by its
  * place in the file and its motive, and each difference with the existing data, with the fields it
- * changes named as the columns of their grid. Every sentence
+ * changes named as the columns of their grid, and what the import ignores — the columns of an
+ * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
  * is the catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code
  * and parameters, as a refusal is; the label of a line, which comes from the file or the project,
  * as it is. The front counts, sorts and filters nothing: the lists are in the order received.
@@ -182,6 +183,37 @@ export function Differences({
   );
 }
 
+/**
+ * What the import ignores, each kind by its name, its count and the names of what it ignores when
+ * the file gives them — for the columns of an extraction of actual costs, the labels as the file
+ * carries them (WF-REF-0190), left as they are.
+ */
+function Ignored({ ignored }: { readonly ignored: Report["ignored"] }) {
+  const t = useTranslations();
+  const format = useFormatter();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("exchanges.report.ignored")}</h3>
+      <ul className="list-inside list-disc text-sm">
+        {ignored.map(({ kind, count, labels }) => {
+          const name = t(`enums.ImportIgnoredKind.${kind}`);
+          return (
+            <li key={kind}>
+              {labels.length === 0
+                ? t("exchanges.report.ignoredCount", { kind: name, count })
+                : t("exchanges.report.ignoredItem", {
+                    kind: name,
+                    count,
+                    names: format.list(labels, { type: "conjunction" }),
+                  })}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 /** What the analysis found: lines read, reasons to confirm, lines rejected, differences. */
 function Findings({ report }: { readonly report: Report }) {
   const t = useTranslations();
@@ -203,6 +235,7 @@ function Findings({ report }: { readonly report: Report }) {
       )}
       <Rejections rejected={report.rejected} />
       <Differences differences={report.differences} />
+      {report.ignored.length === 0 ? null : <Ignored ignored={report.ignored} />}
     </div>
   );
 }

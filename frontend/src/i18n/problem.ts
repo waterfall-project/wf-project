@@ -169,6 +169,25 @@ function isNamedProject(value: unknown): value is NamedProject {
   return hasTexts(value, ["project_label"], ["project_code"]);
 }
 
+/** A column required that a file lacks, with the labels declared for it (`missing_columns`). */
+interface MissingColumn {
+  readonly column: string;
+  readonly labels: readonly string[];
+}
+
+/** Whether a value is a column a file lacks, by its identifier and its declared labels. */
+function isMissingColumn(value: unknown): value is MissingColumn {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "column" in value &&
+    typeof value.column === "string" &&
+    "labels" in value &&
+    Array.isArray(value.labels) &&
+    value.labels.every((each) => typeof each === "string")
+  );
+}
+
 /**
  * The projects the parameters of a refusal name (`projects`), in the order of the server; a
  * malformed one is left out.
@@ -348,6 +367,39 @@ const DETAILS: readonly Reader[] = [
     typeof expected_version === "string"
       ? ["expected_version", { version: expected_version }]
       : undefined,
+  // The columns of an extraction of actual costs the correspondence leaves without a label
+  // (`STATE_FORBIDS_OPERATION`, `actual_cost_mapping_complete`, WF-REF-0190), each by its name.
+  ({ columns }, label) => {
+    const named = itemsOf(columns, (item): item is string => typeof item === "string").flatMap(
+      (column) => label("enums.ActualCostSourceColumn", column) ?? [],
+    );
+    return named.length === 0
+      ? undefined
+      : ["columns", { count: named.length, columns: named.join(", ") }];
+  },
+  // The columns required that a file of actual costs lacks, each with the labels the correspondence
+  // declares for it (`FILE_FORMAT_UNREADABLE`, WF-REF-0190, WF-INTF-0070).
+  ({ missing_columns }, label, locale, say) => {
+    const named = itemsOf(missing_columns, isMissingColumn).flatMap(({ column, labels }) => {
+      const name = label("enums.ActualCostSourceColumn", column);
+      if (name === undefined) {
+        return [];
+      }
+      const declared = labels.map((each) => say("declaredLabel", { label: each }));
+      return declared.length === 0
+        ? [name]
+        : [
+            say("missingColumn", {
+              column: name,
+              count: declared.length,
+              labels: conjunction(declared, locale),
+            }),
+          ];
+    });
+    return named.length === 0
+      ? undefined
+      : ["missing_columns", { count: named.length, columns: conjunction(named, locale) }];
+  },
 ];
 
 /** A decimal of the contract — `Decimal`, `Money` —, which a bound may be written in. */

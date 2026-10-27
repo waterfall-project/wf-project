@@ -15,7 +15,13 @@ import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tra
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type Problem,
+} from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 import { tasksRegion } from "@/test/task-panel";
 
@@ -23,7 +29,7 @@ import { ExportForm } from "./export-form";
 import { ImportCommands } from "./import-commands";
 import { ImportList } from "./import-list";
 import { ImportReport } from "./import-report";
-import { exportOffers, importOffers } from "./offers";
+import { exportOffers, importOffers, type MappingGap } from "./offers";
 
 // The server of Next, as far as the exchanges need it: the fake back behind serverClient.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -84,9 +90,9 @@ function open(part: ReactNode, locale: "fr" | "en" = "fr") {
 }
 
 /** The commands of import a project of the contract offers. */
-function importCommands(project = "project") {
+function importCommands(project = "project", gap?: MappingGap) {
   const offers = importOffers(example(project) as Project);
-  return <ImportCommands projectId={PROJECT} offers={offers} start={START} />;
+  return <ImportCommands projectId={PROJECT} offers={offers} start={START} gap={gap} />;
 }
 
 /** The request of an export of a revision of the contract, as it offers its exports. */
@@ -308,6 +314,99 @@ describe("the first step of an import", () => {
     expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(routes(client)).toEqual([UPLOAD]);
     expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("the import of actual costs and the correspondence of the extraction", () => {
+  const GAP: MappingGap = {
+    columns: ["wbs_element", "document_number", "document_date", "amount"],
+    href: "/reference/costs/actual-cost-mapping",
+  };
+  const PROJECT_WAITING = "project_actual_cost_mapping_incomplete";
+
+  /** Send a file of actual costs, and give back the form that told the refusal. */
+  async function sendCosts() {
+    await userEvent.click(screen.getByRole("button", { name: "Importer des coûts réels" }));
+    const form = screen.getByRole("form", { name: "Importer des coûts réels" });
+    await userEvent.upload(
+      within(form).getByLabelText("Fichier à importer"),
+      new File(["x"], "couts.xlsx"),
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Analyser le fichier" }));
+    await settled(form);
+    return form;
+  }
+
+  it("says the unavailable command lacks the correspondence, names the columns without a label, and leads to the page of the correspondence [WF-REF-0190-A]", async () => {
+    serve({});
+    const { container } = open(importCommands(PROJECT_WAITING, GAP));
+    const costs = screen.getByRole("button", { name: "Importer des coûts réels" });
+    expect(costs).toHaveAttribute("aria-disabled", "true");
+    expect(costs).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: correspondance de l’extraction des coûts réels complète.",
+    );
+    expect(
+      screen.getByText(/Colonnes exigées sans intitulé dans la correspondance/),
+    ).toHaveTextContent(
+      "Colonnes exigées sans intitulé dans la correspondance : Élément d’OTP, N° de pièce, Date de pièce, Montant.",
+    );
+    expect(
+      screen.getByRole("link", { name: "Régler la correspondance de l’extraction" }),
+    ).toHaveAttribute("href", "/reference/costs/actual-cost-mapping");
+    await expectAccessible(container);
+  });
+
+  it("says the condition alone, with no link, to a session that may not read the correspondence [WF-REF-0190-A]", () => {
+    serve({});
+    open(importCommands(PROJECT_WAITING));
+    expect(
+      screen.getByRole("button", { name: "Importer des coûts réels" }),
+    ).toHaveAccessibleDescription(/correspondance de l’extraction des coûts réels complète/);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("adds no note while the import of actual costs is available [WF-REF-0190-A]", () => {
+    serve({});
+    open(importCommands("project", GAP));
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("tells the refusal of the analysis for want of the correspondence, with the columns without a label [WF-REF-0190-A]", async () => {
+    serve({
+      [UPLOAD]: { example: "file_upload", status: 201 },
+      [OPEN]: {
+        problem: example("import_actual_cost_mapping_incomplete") as Problem & { status: 409 },
+      },
+    });
+    open(importCommands());
+    const form = await sendCosts();
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "L’état actuel ne permet pas cette opération. Condition non remplie : correspondance de l’extraction des coûts réels complète. Colonnes exigées sans intitulé : Élément d’OTP, N° de pièce, Date de pièce, Montant.",
+    );
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("tells the refusal of a file that lacks a column required, with the labels declared for it [WF-REF-0190-A]", async () => {
+    serve({
+      [UPLOAD]: { example: "file_upload", status: 201 },
+      [OPEN]: {
+        problem: example("import_actual_costs_column_missing") as Problem & { status: 422 },
+      },
+    });
+    open(importCommands());
+    const form = await sendCosts();
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Colonne exigée absente du fichier : Montant (intitulé déclaré : « Val./Devise objet »).",
+    );
+  });
+
+  it("names in the report the columns of the file the import ignores, as the file carries them [WF-REF-0190-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_column_ignored") as Import));
+    expect(screen.getByRole("heading", { name: "Éléments ignorés par l’import" })).toBeVisible();
+    expect(screen.getByText(/Colonnes de l’extraction ni lues ni conservées/)).toHaveTextContent(
+      "Colonnes de l’extraction ni lues ni conservées (1) : Nom Matricule",
+    );
   });
 });
 

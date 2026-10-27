@@ -2504,6 +2504,10 @@
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}.",
+    "columns": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}.",
+    "missing_columns": "{count, plural, one {Required column missing from the file} other {Required columns missing from the file}}: {columns}.",
+    "missingColumn": "{column} ({count, plural, one {declared label} other {declared labels}}: {labels})",
+    "declaredLabel": "“{label}”",
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
@@ -3361,7 +3365,9 @@
       "period": "Period extracted",
       "periodFrom": "From",
       "periodTo": "To",
-      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
+      "mappingMissing": "{count, plural, one {Required column without a label in the mapping} other {Required columns without a label in the mapping}}: {columns}.",
+      "mappingLink": "Set the mapping of the extraction"
     },
     "drop": {
       "title": "Drop zone for the MS Project file",
@@ -3396,6 +3402,9 @@
       "label": "Label",
       "fields": "Fields",
       "unnamed": "No label",
+      "ignored": "Items the import ignores",
+      "ignoredItem": "{kind} ({count}): {names}",
+      "ignoredCount": "{kind} ({count})",
       "apply": "Apply the import",
       "abandon": "Abandon the import",
       "confirmTitle": "Confirmation of the application",
