@@ -7916,6 +7916,70 @@ toute écriture de la grille enregistre (#1260, de #1232). Décisions de l'auteu
 Le front — la colonne des prédécesseurs qui résout un numéro hors des lignes lues, `grid/settings.ts`
 qui lit et écrit `known_columns` — est US-0650/L2.
 
+### Les exemples manquants et les descriptions du contrat (US-0640/L1, #1329)
+
+Les mineurs des relectures d'EP-14 (L42p, L42q, L42s, L44c, L44d, L53) reportés jusqu'ici : #764,
+#803, #817 point 2b, #747 points 2 à 9, #752 points 1 à 4, #795 ; et #1507. Chaque point a été relu
+sur le contrat qu'EP-15 a laissé ; les points devenus sans objet sont dits dans leur issue. Aucune
+opération nouvelle.
+
+- **Le rejugement du collage** (#764, #747 points 7 et 8). `PasteRejection` dit les refus que la
+  confirmation ajoute en jugeant de nouveau les lignes acceptées, et la règle d'EP-14/L42j y vaut :
+  une cellule qui nomme une catégorie ou un rôle désactivés n'est refusée, à l'aperçu comme à la
+  confirmation, par `INACTIVE_REFERENCE_OBJECT`, que si elle change la catégorie ou le rôle de sa
+  ligne ; celle qui nomme ce que la ligne porte déjà n'est pas refusée, comme le parent d'un nœud,
+  la catégorie d'un rôle ou celle d'un risque. Écarté : refuser toute cellule qui nomme un objet
+  désactivé, qui refuserait de recoller une ligne telle qu'elle est. Exemple engendré,
+  `paste_applied_rejudged`, dernier des 200 d'`applyPaste`, variante contrefactuelle déclarée : le
+  bloc des parcours dont la deuxième ligne passe à « Ingénierie électrique », que la première garde,
+  désactivée entre l'aperçu et la confirmation — la deuxième refusée, la première écrite et signalée
+  (`uses_inactive_object`). Le bloc des parcours (`paste_plan`) nomme pour chaque ligne la catégorie
+  qu'elle porte déjà : il ne pouvait pas montrer ce refus.
+- **Le 412 du collage** (#752 points 3 et 4). La description d'`applyPaste` dit le compteur retenu à
+  l'aperçu, que seuls `PasteApply` et `PasteApplied` disaient. Exemple engendré, `paste_stale` : la
+  version que l'écriture d'après l'aperçu laisse, celle que `paste_applied` aurait prise ; le test
+  la confronte à la réponse au lieu des seules phrases. Le test de M2 — la désignation passée à nul
+  fait avancer le risque — reste un test de phrases : aucune réponse ne rend le risque modifié par
+  `deleteSubproject` (204), et le service d'EP-08 l'éprouvera.
+- **La dépendance du sous-projet d'une ligne de provision** (#764). Exemple engendré,
+  `dependencies_provision_subproject` : `estimate_line.subproject_id`, que la ligne de provision
+  calcule depuis EP-14/L42p, dépend de son risque.
+- **Les lignes nommées par le refus de suppression d'un sous-projet** (#764). Chaque élément de
+  `params.estimate_lines` porte `structure_label` : deux lignes de deux structures peuvent porter le
+  même numéro, et l'écran les distingue sans lire `listCostStructures`. Écarté, comme l'issue le
+  proposait : laisser l'écran lire les structures. `subproject_delete_estimated` le porte.
+- **Un sous-projet que les lignes seules retiennent** (#764). Exemple écrit à la main,
+  `subprojects_estimated`, dernier des 200 de `listSubprojects` : la variante de
+  `subproject_delete_estimated`, la réception sur site délestée de sa facture et portant les lignes
+  10 et 11, dont la suppression ne manque que de `subproject_without_estimate_lines`. Il remplace la
+  variante que les tests du front construisaient.
+- **Les refus des chronologies et du lotissement** (#803). Exemples, chacun en dernier sous son
+  statut : `timeline_label_required` (422, `/label` par `VALUE_REQUIRED`, écrit à la main),
+  `timeline_delete_terminal` (403 `PROJECT_TERMINAL`, écrit à la main), `work_breakdown_stale`
+  (412, engendré par `wftools.mocklists` : le compteur de `work_breakdown_saved`). Le 403 d'un projet
+  terminal porte `params.missing_condition` à `project_not_terminal`, comme le catalogue le dit des
+  403 (`ErrorCode`, `Forbidden`) : c'est le premier exemple de ce refus.
+- **Un refus du rattachement à deux motifs** (#817 point 2b). Exemple écrit à la main,
+  `task_attach_exclusive_attached`, dernier des 422 d'`updateTaskFacet` : « Câblage des armoires »
+  envoyée avec le lot et le poste à la fois, le lot porté par « Poste de commande » —
+  `WORK_BREAKDOWN_ITEMS_EXCLUSIVE` sur chaque champ et `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED` sur le
+  lot, que `TaskFacetUpdate` dit rendus ensemble.
+- **La préséance des refus d'`updateRisk`** (#747 point 5). Le 409 `risk_identified` précède le 422
+  de la catégorie, comme à la déclaration : une autre catégorie envoyée pour un risque écarté est
+  refusée par l'état, qu'elle soit désactivée, inconnue ou d'un autre type.
+- **L'ordre de `restored_subproject_exists`** (#752 point 1). La description de `CommandCondition` la
+  dit après `may_create_revision`, où l'énumération et les catalogues la rangent ; son libellé
+  anglais devient « subproject restored by the undo not deleted since » (point 2).
+- **Le rôle seul d'une tâche, au refus d'`updateCalendar`** (#795 point 1). Le 422 dit le second cas,
+  comme ses routes sœurs depuis EP-14/L42s : le calendrier du seul rôle d'une tâche qui n'a plus
+  aucune heure dans la semaine.
+- **Les outils** (#747 points 2, 3 et 9 ; #1507). La docstring d'`is_active_provision` dit ce
+  qu'elle lit, et un test l'éprouve sur la nature désactivée, la valeur fausse n'étant portée par
+  aucun exemple ; celle de `_borne_by_the_current_revision` dit que l'univers ne tire aucune ligne
+  dans les devis propres ; `test_mockclientcode.py` tient `subproject_code_reserved`.
+
+**Corrélations** 1551 à 1555.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

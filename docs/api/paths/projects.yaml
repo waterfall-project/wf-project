@@ -450,7 +450,16 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               background_task: { $ref: ../../../fixtures/api/work_breakdown_background_task.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          Le compteur envoyé n'est plus celui du lotissement : une autre saisie l'a avancé depuis
+          la lecture. `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant ;
+          rien n'est écrit (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/work_breakdown_stale.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ refusé : un compteur nul, celui
@@ -524,6 +533,7 @@
               by_label: { $ref: ../../../fixtures/api/subprojects_by_label.json }
               with_actual_costs: { $ref: ../../../fixtures/api/subprojects_with_actual_costs.json }
               completed: { $ref: ../../../fixtures/api/subprojects_completed.json }
+              estimated: { $ref: ../../../fixtures/api/subprojects_estimated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -687,10 +697,13 @@
           `subproject_without_estimate_lines`, que lève le passage de ces lignes hors sous-projet
           ou à un autre, puis `project_not_terminal`. Nommant
           `subproject_without_estimate_lines`, le refus nomme aussi ces lignes (Vérif de
-          WF-DAT-0080) : `params.estimate_lines`, toutes, chacune par sa structure, son nœud, son
-          numéro de ligne dans sa structure entière et son libellé (`structure_id`, `node_id`,
-          `row_number`, `label`), la structure principale d'abord, puis les autres dans l'ordre de
-          `listCostStructures`, chacune dans l'ordre du plan. La liste n'a pas de borne : un
+          WF-DAT-0080) : `params.estimate_lines`, toutes, chacune par sa structure, le libellé de
+          celle-ci, son nœud, son numéro de ligne dans sa structure entière et son libellé
+          (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`) — deux lignes de
+          deux structures peuvent porter le même numéro, et le libellé de la structure les
+          distingue sans que l'écran lise `listCostStructures` (#764) —, la structure principale
+          d'abord, puis les autres dans l'ordre de `listCostStructures`, chacune dans l'ordre du
+          plan. La liste n'a pas de borne : un
           sous-projet en porte au plus les lignes d'une révision, quelques milliers au §4.6.2, et
           l'utilisateur doit pouvoir toutes les déplacer. Rien n'est écrit.
         content:
@@ -921,6 +934,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              label_required: { $ref: ../../../fixtures/api/timeline_label_required.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines/{timeline_id}:
@@ -942,6 +957,15 @@
       '204':
         description: Chronologie supprimée ; les inscriptions le sont avec elle.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          Une condition de l'écriture manque, comme pour toute écriture du projet : sur un projet
+          terminal, `PROJECT_TERMINAL`, `params.missing_condition` à `project_not_terminal`
+          (WF-CYC-0100). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              terminal: { $ref: ../../../fixtures/api/timeline_delete_terminal.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

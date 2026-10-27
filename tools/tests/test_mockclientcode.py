@@ -170,6 +170,30 @@ def test_the_refusal_of_a_forbidden_character_names_the_characters_the_code_bear
     }
 
 
+def test_the_refusal_of_a_reserved_name_names_it_as_waterfall_writes_it() -> None:
+    # Its twin for the reserved names (#1507): the code of the summary, written in another case, is
+    # refused all the same, and the name is given as Waterfall writes its tab.
+    example = json.loads(
+        (mockwitness.FIXTURES / "subproject_code_reserved.json").read_text(encoding="utf-8")
+    )
+    refused = example["value"]
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    [field] = refused["fields"]
+    assert (field["pointer"], field["code"]) == ("/code", "SUBPROJECT_CODE_INVALID")
+    sent = "synthèse"
+    assert f"« {sent} »" in example["summary"]
+    assert not _accepted(sent)
+    assert field["params"] == {"reserved_name": "Synthèse"}
+    named = field["params"]["reserved_name"]
+    assert named.casefold() == sent.casefold()
+    assert named != sent
+    for operation in ("createSubproject", "updateSubproject"):
+        answer = " ".join(_answer(operation, "422").split())
+        assert "code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }" in (
+            answer
+        ), operation
+
+
 # --- The client of a project ---------------------------------------------------------------------
 
 

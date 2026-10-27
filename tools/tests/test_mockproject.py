@@ -115,12 +115,14 @@ TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
             "estimate_lines": [
                 {
                     "structure_id": universe(201),
+                    "structure_label": "Structure principale",
                     "node_id": universe(553),
                     "row_number": 10,
                     "label": "Raccordement des borniers",
                 },
                 {
                     "structure_id": universe(201),
+                    "structure_label": "Structure principale",
                     "node_id": universe(554),
                     "row_number": 11,
                     "label": "Borniers",
@@ -349,7 +351,9 @@ def _borne_by_the_current_revision() -> set[str]:
     The main structure whole — the core and the lots « Poste de commande » bear the control
     station, the lots « Ligne d'essais » the tests and commissioning —, the amendment 2, which bears
     them as the main structure does (#791), and the own estimates of the risks, a line of which
-    bears its subproject as any other (C-273); the subproject created today none.
+    would bear its subproject as any other (C-273) — but the universe draws none in them
+    (`_own_estimate`), so that the subprojects counted are those of the main structure and of
+    the amendment alone (#747, point 9); the subproject created today none.
     """
     current = fixture("project")["current_revision_id"]
     structures = [each for each in fixture("structures") if each["revision_id"] == current]
@@ -470,6 +474,33 @@ def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletio
     assert estimated == [("update", True, []), ("delete", False, [WITHOUT_LINES])]
 
 
+def test_the_subproject_borne_by_lines_alone_is_an_example_its_refused_deletion_follows() -> None:
+    # A subproject whose deletion misses the lines alone, as the listing reads it (#764): the
+    # variant of `subproject_delete_estimated`, the subprojects of the witness kept as they are.
+    cited = _cited_by_a_marked_revision()
+    *witness, estimated = _subprojects("subprojects_estimated")
+    assert witness == fixture("subprojects")
+    created = fixture("subproject_created")
+    assert {**estimated, "available_commands": None, "has_actual_costs": True} == {
+        **created,
+        "available_commands": None,
+    }
+    assert estimated["has_actual_costs"] is False
+    borne = {cast("str", estimated["subproject_id"])}
+    assert _commands(estimated) == _listed(estimated, cited, borne=borne)
+    assert _commands(estimated)[1] == ("delete", False, [WITHOUT_LINES])
+    refused = fixture("subproject_delete_estimated")
+    assert refused["params"]["missing_condition"] == WITHOUT_LINES
+    listing = mockwitness.FIXTURES / "subprojects_estimated.json"
+    summary = json.loads(listing.read_text(encoding="utf-8"))["summary"]
+    assert "subproject_delete_estimated" in summary
+    assert "variante contrefactuelle" in summary
+    text = (API / "paths" / "projects.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: listSubprojects\n", 1)[1].split("operationId:", 1)[0]
+    cited_examples = re.findall(r"fixtures/api/(\w+)\.json", block)
+    assert cited_examples[-1] == "subprojects_estimated"
+
+
 def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_closing() -> None:
     # The order the contract says, in the description of `SubprojectCommand` and in that of the
     # 409 of `deleteSubproject`, read there (#657): a change of either fails here, before the
@@ -586,6 +617,9 @@ def test_the_lines_a_refused_deletion_names_are_lines_of_the_current_revision() 
     rows = {row.node["node_id"]: row.node for row in mockcore.current()}
     for line in refused["params"]["estimate_lines"]:
         assert line["structure_id"] == main["structure_id"]
+        # Two lines of two structures may bear one number: the label of the structure tells them
+        # apart without reading the structures (#764).
+        assert line["structure_label"] == main["label"]
         node = cast("Entry", rows[line["node_id"]])
         assert node["kind"] == "estimate_line"
         assert (node["row_number"], node["estimate_line"]["label"]) == (
@@ -747,7 +781,13 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
         "calendar_default_refused",
     } <= named.keys()
     for name, refused in named.items():
-        assert (refused["status"], refused["code"]) == FORBIDDEN, name
+        if refused["status"] == 403:
+            # A terminal project refuses any write by 403, naming the condition as the 403 of the
+            # contract do (ErrorCode, `Forbidden`; #803).
+            assert refused["code"] == "PROJECT_TERMINAL", name
+            assert refused["params"] == {"missing_condition": NOT_TERMINAL}, name
+        else:
+            assert (refused["status"], refused["code"]) == FORBIDDEN, name
         assert "fields" not in refused, name
 
 

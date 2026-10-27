@@ -29,7 +29,12 @@ from wftools.mockwitness import CABLE_FITTER, CORE
 type Node = dict[str, Any]
 
 STUDIES, REVIEW, ACCEPTANCE, DESIGN_FILE = 521, 524, 525, 526
-VOLUME_WRITES = {"estimate_line_entered.json", "paste_applied.json", "paste_applied_partial.json"}
+VOLUME_WRITES = {
+    "estimate_line_entered.json",
+    "paste_applied.json",
+    "paste_applied_partial.json",
+    "paste_applied_rejudged.json",
+}
 CONTROL_STATION, WIRING, LABOUR, BLOCKS, MILESTONE = 551, 552, 553, 554, 556
 INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
     561,
@@ -428,6 +433,62 @@ def test_a_block_partly_refused_writes_its_valid_rows_and_says_the_refused_one_a
         assert node["estimate_line"] == written[node["node_id"]]["estimate_line"]
     assert partial["structure_lock_version"] == applied["structure_lock_version"]
     assert partial["totals"] == applied["totals"]
+
+
+def test_the_confirmation_refuses_a_row_moved_to_a_category_deactivated_since_the_preview() -> None:
+    # The reference has no counter: the confirmation judges the accepted rows again (#764). The
+    # row that moves its line to the deactivated category is refused; the one that names the
+    # category its line bears already changes nothing, and is written (#747, point 8).
+    categories, _ = mockwrites.known()
+    deactivated = categories[mockwrites.REJUDGED[0][1]]
+    plan = mockwrites.paste_plan(mockwrites.REJUDGED, mockwrites.PASTES[0])
+    assert plan == mockwrites.paste_plan(mockwrites.BLOCK, mockwrites.PASTES[0])
+    assert (plan["accepted"], plan["rejected"]) == (3, [])
+    lines = mockwrites.pasted_lines(mockwrites.REJUDGED)
+    assert lines[0].category == deactivated != lines[1].category
+    rejudged = cast("dict[str, Any]", _json(mockwrites.paste_applied_rejudged()))
+    assert rejudged["rejected"] == [
+        {"row": 1, "column": "cost_category", "code": "INACTIVE_REFERENCE_OBJECT"}
+    ]
+    written = [node["row_number"] for node in rejudged["nodes"]]
+    assert written == [mockwrites.ROW, mockwrites.ROW + 2]
+    assert [line.number for line in lines] == [mockwrites.LINE + each for each in range(3)]
+    assert [node["estimate_line"]["uses_inactive_object"] for node in rejudged["nodes"]] == [
+        True,
+        False,
+    ]
+    # The rows written are those a block without the refused row writes, its figures alike.
+    partial = cast("dict[str, Any]", _json(mockwrites.paste_applied(mockwrites.UNKNOWN_CATEGORY)))
+    for node, kept in zip(rejudged["nodes"], partial["nodes"], strict=True):
+        assert {**node["estimate_line"], "uses_inactive_object": False} == kept["estimate_line"]
+    assert rejudged["totals"] == partial["totals"]
+    assert rejudged["structure_lock_version"] == mockwrites.ENTERED_VERSION + 1
+    # A cell that names the category of its line is never refused, deactivated or not.
+    assert mockwrites.rejudged(mockwrites.BLOCK, deactivated) == []
+
+
+def test_a_paste_confirmed_after_its_structure_moved_on_is_refused_with_the_current_version() -> (
+    None
+):
+    # The 412 of the confirmation has its example (#752, point 4): the version it names is the
+    # one past the version the plan was judged on, the label entered (#421), whatever was sent.
+    stale = write("paste_stale")
+    applied = write("paste_applied")
+    assert stale == {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": mockwrites.ENTERED_VERSION + 1},
+        "correlation_id": mockids.universe(1555),
+    }
+    assert stale["params"]["expected_lock_version"] == applied["structure_lock_version"]
+    assert write("estimate_line_entered")["structure_lock_version"] == mockwrites.ENTERED_VERSION
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths.split("operationId: applyPaste\n", 1)[1].split("operationId:", 1)[0]
+    refused = operation.split("      '412':\n", 1)[1].split("      '422':", 1)[0]
+    assert "fixtures/api/paste_stale.json" in refused
+    assert "fixtures/api/paste_applied_rejudged.json" in operation.split("'400'", 1)[0]
+    said = " ".join(operation.split("    parameters:", 1)[0].split())
+    assert "le plan retient aussi le compteur de la structure lu à l'aperçu" in said
 
 
 def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_so() -> None:

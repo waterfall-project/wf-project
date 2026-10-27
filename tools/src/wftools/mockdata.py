@@ -41,7 +41,8 @@ And the named examples of ``listNodes`` and of ``getComputedValueDependencies``,
 ``nodes_estimate``, ``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by
 ``wftools.mocksort``), ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
 ``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
-``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float`` —:
+``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float``,
+``dependencies_provision_subproject`` —:
 readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
 dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
 lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
@@ -642,6 +643,12 @@ def readings() -> dict[str, JsonObject]:
             "Ce dont dépend la marge de la tâche en mode manuel du planning : son mode, qui ne "
             "lui en donne aucune (WF-IHM-0030, WF-PLA-0100).",
             mockcore.dependencies(rows, _DESKS, "task.total_float"),
+        ),
+        "dependencies_provision_subproject.json": _example(
+            "Ce dont dépend le sous-projet de la ligne de provision du devis : son risque, qui le "
+            "désigne ; la ligne en change par son risque (updateRisk), jamais par la grille "
+            "(WF-IHM-0030, WF-RIS-0010, WF-PRJ-0050).",
+            mockcore.dependencies(rows, _PROVISION, mockcore.PROVISION_SUBPROJECT),
         ),
     }
 

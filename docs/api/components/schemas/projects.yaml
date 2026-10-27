@@ -130,9 +130,15 @@ CommandCondition:
     déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
     risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) ; et pour une commande qui
     demande d'ouvrir la révision d'abord : la génération du squelette de planning
-    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). Trois
-    conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) :
-    `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque
+    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4).
+    `restored_subproject_exists` manque à toute annulation et à tout rétablissement
+    (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision
+    d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une
+    ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de
+    ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
+    de l'auteur, #732).
+    Trois conditions tiennent à l'état d'un risque, et le risque les nomme
+    (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque
     survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
     au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas
     identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque
@@ -209,12 +215,6 @@ CommandCondition:
     utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
     (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
     dans leur 409.
-    `restored_subproject_exists` manque à toute annulation et à tout rétablissement
-    (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision
-    d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une
-    ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de
-    ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
-    de l'auteur, #732).
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré

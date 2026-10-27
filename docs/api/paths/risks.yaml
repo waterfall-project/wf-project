@@ -208,8 +208,11 @@
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
           risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified`
           pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un
-          risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Rien
-          n'est écrit.
+          risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Ce 409
+          précède le 422, comme à la déclaration (`createRisk`) : une autre catégorie envoyée pour
+          un risque qui n'est pas identifié est refusée par `risk_identified`, qu'elle soit
+          désactivée, inconnue ou d'une nature d'un autre type, aucune n'étant valable tant que
+          la provision ne se change pas (#747). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

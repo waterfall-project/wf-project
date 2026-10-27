@@ -946,6 +946,7 @@
               task_amount: { $ref: ../../../fixtures/api/dependencies_task_amount.json }
               provision: { $ref: ../../../fixtures/api/dependencies_provision.json }
               manual_float: { $ref: ../../../fixtures/api/dependencies_manual_float.json }
+              provision_subproject: { $ref: ../../../fixtures/api/dependencies_provision_subproject.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -1050,6 +1051,7 @@
               attach_outside: { $ref: ../../../fixtures/api/task_attach_outside_work_package.json }
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
               attach_main_structure_only: { $ref: ../../../fixtures/api/task_attach_main_structure_only.json }
+              attach_exclusive_attached: { $ref: ../../../fixtures/api/task_attach_exclusive_attached.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
@@ -1528,10 +1530,14 @@
     description: >-
       Les lignes valides du plan sont écrites en une seule opération, et les lignes refusées ne le
       sont pas ; un collage abandonné laisse la grille inchangée (WF-IHM-0050 ; EP-14/L42q). Porte
-      le compteur de la structure, refusé par 412 s'il est périmé, et rend le compteur suivant avec
+      le compteur de la structure, refusé par 412 s'il est périmé ; le plan retient aussi le
+      compteur de la structure lu à l'aperçu, et la confirmation est refusée par 412 si la
+      structure a changé depuis, quel que soit le compteur envoyé (`PasteApply`,
+      `params.expected_lock_version` le compteur courant). Elle rend le compteur suivant avec
       les nœuds écrits, leurs ancêtres et les totaux, et les refus de l'aperçu, ligne par ligne,
-      que la confirmation n'a pas écrits (`PasteApplied`, WF-IHM-0110) : un succès partiel se lit
-      à ce que `rejected` n'est pas vide. Sur un différentiel, les nœuds qu'il retire, que le bloc
+      que la confirmation n'a pas écrits, avec ceux qu'elle ajoute en jugeant de nouveau les
+      lignes acceptées contre le référentiel (`PasteApplied`, `PasteRejection`, WF-IHM-0110) :
+      un succès partiel se lit à ce que `rejected` n'est pas vide. Sur un différentiel, les nœuds qu'il retire, que le bloc
       couvre, sont sautés sans refus et ne sont jamais écrits : les lignes du bloc écrivent les
       nœuds suivants, comme l'aperçu les a jugés (`PastePreview`, #1278).
     parameters:
@@ -1556,12 +1562,22 @@
               partial: { $ref: ../../../fixtures/api/paste_applied_partial.json }
               amendment: { $ref: ../../../fixtures/api/paste_applied_amendment.json }
               amendment_skipping: { $ref: ../../../fixtures/api/paste_applied_amendment_skipping.json }
+              rejudged: { $ref: ../../../fixtures/api/paste_applied_rejudged.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          Le compteur envoyé est périmé, ou la structure a changé depuis l'aperçu, quel que soit le
+          compteur envoyé (`PasteApply`) : `STALE_LOCK_VERSION`, `params.expected_lock_version` le
+          compteur courant de la structure ; rien n'est écrit (WF-IHM-0050, WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/paste_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

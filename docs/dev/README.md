@@ -2487,8 +2487,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
   (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les lectures des listes
   écrites à la main — les projets de l'accueil, les sous-projets et les contributeurs du témoin, les
-  comptes et les rôles d'habilitation — et du lotissement du témoin, triées, cherchées et filtrées
-  comme leurs écrans les demandent (`wftools.mocklists`, tenu par `tools/tests/test_mocklists.py`).
+  comptes et les rôles d'habilitation, les sauvegardes — et du lotissement du témoin, triées,
+  cherchées et filtrées comme leurs écrans les demandent, avec la saisie du lotissement, sa réponse
+  et ses refus (`wftools.mocklists`, tenu par `tools/tests/test_mocklists.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

@@ -14,7 +14,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockreference, mockwitness
+from wftools import REPOSITORY, mockdata, mockhistory, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
@@ -582,3 +582,58 @@ def test_the_undo_that_would_restore_a_deleted_subproject_is_refused_by_its_cond
         assert f"dont {'elle' if verb == 'défait' else 'il'} {verb} la création" in said
         assert "la modification ou la suppression" in said, operation
         assert "la suppression d'une ligne ou d'une tâche" in said, operation
+
+
+def test_the_category_of_a_risk_reads_inactive_once_its_nature_is_deactivated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A generator that wrote the flag true would pass on the witness alone, whose category is
+    # active: the reference read with the nature deactivated, as C-291 deactivates its
+    # categories, makes the same risk read inactive (#747, points 2 and 3).
+    [nature] = [n for n in fixture("cost_types")["items"] if n["kind"] == "provision"]
+    entries = [(universe(404), "Provisions pour risques")]
+    inactive = cast(
+        "list[Entry]",
+        mockdata.categories_of(entries, "PRV", "681", {**nature, "is_active": False}),
+    )
+    volume = fixture("volume/cost_categories")
+    items = [
+        inactive[0] if each["cost_category_id"] == universe(404) else each
+        for each in volume["items"]
+    ]
+    assert mockhistory.is_active_provision(universe(404)) is True
+
+    def read(name: str) -> Any:
+        return {**volume, "items": items} if name == "volume/cost_categories" else fixture(name)
+
+    monkeypatch.setattr(mockhistory, "fixture", read)
+    assert mockhistory.is_active_provision(universe(404)) is False
+    # The other categories keep their flag: only the one designated is judged.
+    assert mockhistory.is_active_provision(universe(402)) is True
+
+
+def test_the_change_of_a_provision_refused_by_its_state_precedes_the_refusal_of_its_value() -> None:
+    # Which refusal wins when a dismissed risk is sent another category that is itself refused:
+    # the 409, as at the declaration (#747, point 5).
+    said = _flat(_block("updateRisk", "409"))
+    assert "Ce 409 précède le 422, comme à la déclaration (`createRisk`)" in said
+    assert "qu'elle soit désactivée, inconnue ou d'une nature d'un autre type" in said
+    assert "Ce 409 précède le 422" in _flat(_block("createRisk", "409"))
+
+
+def test_the_condition_of_the_restored_subproject_is_said_where_its_enumeration_ranks_it() -> None:
+    # The description follows the order of the enumeration: after the creation of a revision,
+    # before the conditions of a risk (#752, point 1).
+    conditions = _enumeration(
+        (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
+    )
+    ranked = conditions.index("restored_subproject_exists")
+    assert conditions[ranked - 1 : ranked + 2] == [
+        "may_create_revision",
+        "restored_subproject_exists",
+        "risk_not_cited",
+    ]
+    general = _schema("projects.yaml", "CommandCondition")
+    said = general.index("`restored_subproject_exists` manque")
+    assert general.rindex("`may_create_revision` manque", 0, said) < said
+    assert said < general.index("Trois conditions tiennent à l'état d'un risque")
