@@ -21,7 +21,7 @@
 
 import { Plus, Save, Trash2 } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type SubmitEvent, useEffect, useId, useRef, useState, useTransition } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
 import { setActualCostMapping } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
@@ -207,10 +207,10 @@ interface ListProps {
   readonly rows: readonly Row[];
   /** The name of the list the label of a row and its commands carry. */
   readonly name: string;
-  readonly problems: ReadonlyMap<string, FieldProblem>;
+  readonly problems: ReadonlyMap<number, FieldProblem>;
   readonly sent: components["schemas"]["ActualCostMappingWrite"] | undefined;
   readonly register: (id: string, element: HTMLElement | null) => void;
-  readonly update: (change: (draft: Draft) => Draft, focus: string) => void;
+  readonly update: (change: (draft: Draft) => Draft, focus: string, forget?: number) => void;
   readonly retype: (scope: Scope, key: number, text: string) => void;
 }
 
@@ -255,8 +255,7 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
     <div className="grid gap-2">
       <ul className="grid gap-2">
         {rows.map(({ key, text }, rank) => {
-          const at = pointer(scope, rank);
-          const problem = problems.get(at);
+          const problem = problems.get(key);
           const own = `${id}-${String(key)}`;
           const label = kept
             ? t("keptLabel", { n: rank + 1 })
@@ -294,6 +293,7 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
                             before.filter((row) => row.key !== key),
                           ),
                         `add-${String(scope)}`,
+                        key,
                       );
                     }}
                   >
@@ -338,27 +338,36 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
   );
 }
 
+/** The pointer of every label of a draft, with the key of its row. */
+function pointers(draft: Draft): readonly (readonly [string, number])[] {
+  return [
+    ...draft.columns.flatMap(({ rows }, scope) =>
+      rows.map(({ key }, rank) => [pointer(scope, rank), key] as const),
+    ),
+    ...draft.kept.map(({ key }, rank) => [pointer("kept", rank), key] as const),
+  ];
+}
+
 /**
- * The refusals of the server by field the form says at a label, by pointer, and the outcome to tell
- * under the form: the refusal without the fields said already, none when every one is.
+ * The refusals of the server by field the form says at a label, by the key of its row — a pointer
+ * names a rank of the form sent, which a removal moves —, and the outcome to tell under the form: the
+ * refusal without the fields said already, none when every one is. The draft is the one sent.
  */
 function placed(
   outcome: Outcome<unknown>,
-  draft: Draft,
-): { readonly refused: Map<string, FieldProblem>; readonly told: Outcome<unknown> | undefined } {
-  const refused = new Map<string, FieldProblem>();
+  sent: Draft,
+): { readonly refused: Map<number, FieldProblem>; readonly told: Outcome<unknown> | undefined } {
+  const refused = new Map<number, FieldProblem>();
   if (!("problem" in outcome) || outcome.problem.fields === undefined) {
     return { refused, told: outcome };
   }
-  const shown = new Set([
-    ...draft.columns.flatMap(({ rows }, scope) => rows.map((_, rank) => pointer(scope, rank))),
-    ...draft.kept.map((_, rank) => pointer("kept", rank)),
-  ]);
+  const keys = new Map(pointers(sent));
   const rest = outcome.problem.fields.filter((problem) => {
-    if (shown.has(problem.pointer)) {
-      refused.set(problem.pointer, problem);
+    const key = keys.get(problem.pointer);
+    if (key !== undefined && !refused.has(key)) {
+      refused.set(key, problem);
     }
-    return !shown.has(problem.pointer);
+    return key === undefined;
   });
   if (refused.size === 0) {
     return { refused, told: outcome };
@@ -383,10 +392,11 @@ function MappingForm({
   const held = useHeldCommand();
   const noteRefusal = useNoteRefusal();
   const [draft, setDraft] = useState(() => draftOf(mapping));
-  const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
+  const [problems, setProblems] = useState<ReadonlyMap<number, FieldProblem>>(() => new Map());
   const [sent, setSent] = useState<components["schemas"]["ActualCostMappingWrite"]>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // A command in the page, no transition (#1484): busy from the press to the answer, in one update.
+  const [busy, setBusy] = useState(false);
   const controls = useRef(new Map<string, HTMLElement>());
   // What takes the focus after a change: the field of a label, a command, a new one each time.
   const [focused, setFocused] = useState<{ readonly id: string }>();
@@ -404,11 +414,25 @@ function MappingForm({
   };
   // The key of the next label, which a click on « add » focuses once it is rendered.
   const lastKey = draft.next - 1;
-  const update = (change: (before: Draft) => Draft, focus: string) => {
+  const forget = (key: number) => {
+    setProblems((before) => {
+      if (!before.has(key)) {
+        return before;
+      }
+      const rest = new Map(before);
+      rest.delete(key);
+      return rest;
+    });
+  };
+  const update = (change: (before: Draft) => Draft, focus: string, removed?: number) => {
     setDraft(change);
+    if (removed !== undefined) {
+      forget(removed);
+    }
     setFocused({ id: focus === "row-new" ? `row-${String(lastKey + 1)}` : focus });
   };
   const retype = (scope: Scope, key: number, text: string) => {
+    forget(key);
     setDraft((before) =>
       changed(before, scope, (rows) =>
         rows.map((row) => (row.key === key ? { ...row, text } : row)),
@@ -418,37 +442,33 @@ function MappingForm({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending) {
+    if (busy) {
       return;
     }
+    setBusy(true);
     setOutcome(undefined);
-    const body = written(draft, mapping.lock_version);
-    startTransition(async () => {
-      const answer = await held(setActualCostMapping(body), () => true);
-      startTransition(() => {
-        if (answer.kind === "done") {
-          setProblems(new Map());
-          setSent(undefined);
-          onDone(answer.data);
-          return;
+    const sentDraft = draft;
+    const body = written(sentDraft, mapping.lock_version);
+    void held(setActualCostMapping(body), () => true).then((answer) => {
+      // The answer and the fields active again, in one update.
+      setBusy(false);
+      if (answer.kind === "done") {
+        setProblems(new Map());
+        setSent(undefined);
+        onDone(answer.data);
+        return;
+      }
+      const told = placed(answer, sentDraft);
+      if (told.refused.size > 0) {
+        noteRefusal(answer, { parts: [told.told] });
+        const first = pointers(sentDraft).find(([, key]) => told.refused.has(key));
+        if (first !== undefined) {
+          setFocused({ id: `row-${String(first[1])}` });
         }
-        const told = placed(answer, draft);
-        if (told.refused.size > 0) {
-          noteRefusal(answer, { parts: [told.told] });
-          const first = [
-            ...draft.columns.flatMap(({ rows }, scope) =>
-              rows.map(({ key }, rank) => [key, pointer(scope, rank)] as const),
-            ),
-            ...draft.kept.map(({ key }, rank) => [key, pointer("kept", rank)] as const),
-          ].find(([, at]) => told.refused.has(at));
-          if (first !== undefined) {
-            setFocused({ id: `row-${String(first[0])}` });
-          }
-        }
-        setSent(body);
-        setProblems(told.refused);
-        setOutcome(told.told);
-      });
+      }
+      setSent(body);
+      setProblems(told.refused);
+      setOutcome(told.told);
     });
   };
 
@@ -457,12 +477,12 @@ function MappingForm({
     <form
       aria-label={t("form")}
       noValidate
-      aria-busy={pending}
+      aria-busy={busy}
       onSubmit={submit}
       className="grid gap-5"
     >
       {draft.columns.map(({ column: each, required, rows }, scope) => (
-        <fieldset key={each} className="grid gap-2">
+        <fieldset key={each} disabled={busy} className="grid gap-2">
           <legend className="mb-1 text-sm font-semibold">
             {column(each)}{" "}
             <span className="font-normal text-muted-foreground">
@@ -472,7 +492,7 @@ function MappingForm({
           <LabelList {...common} scope={scope} rows={rows} name={column(each)} />
         </fieldset>
       ))}
-      <fieldset className="grid gap-2">
+      <fieldset disabled={busy} className="grid gap-2">
         <legend className="mb-1 text-sm font-semibold">{t("kept")}</legend>
         <p className="text-xs text-muted-foreground">{t("keptHint")}</p>
         <LabelList {...common} scope="kept" rows={draft.kept} name={t("kept")} />
@@ -484,9 +504,9 @@ function MappingForm({
         }}
       />
       <div>
-        <Button type="submit" aria-busy={pending}>
+        <Button type="submit" disabled={busy} aria-busy={busy}>
           <Save aria-hidden="true" />
-          {pending ? t("saving") : t("save")}
+          {busy ? t("saving") : t("save")}
         </Button>
       </div>
     </form>

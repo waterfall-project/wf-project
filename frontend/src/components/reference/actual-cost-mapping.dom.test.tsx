@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,7 +9,15 @@ import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, fakeClient, type Problem } from "@/test/fixtures";
+import { atCommit } from "@/test/committed";
+import {
+  example,
+  type FakeAnswers,
+  fakeClient,
+  type FakeTiming,
+  held,
+  type Problem,
+} from "@/test/fixtures";
 
 import { ActualCostMapping } from "./actual-cost-mapping";
 
@@ -33,8 +41,8 @@ const witness = example("actual_cost_mapping") as Mapping;
 const empty = example("actual_cost_mapping_empty") as Mapping;
 
 /** Serve the fake back, and give it back to read its calls. */
-function serve(answers: FakeAnswers) {
-  const client = fakeClient(answers);
+function serve(answers: FakeAnswers, timing?: FakeTiming) {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -176,7 +184,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     ).not.toHaveAttribute("aria-invalid");
   });
 
-  it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110]", async () => {
+  it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {
     serve({
       [SET]: { problem: example("actual_cost_mapping_stale") as Problem & { status: 412 } },
     });
@@ -184,6 +192,104 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
     await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("takes the bar of the columns required from the answer of the write [WF-REF-0190-A]", async () => {
+    serve({ [SET]: "actual_cost_mapping_updated" });
+    shown(empty, true);
+    expect(screen.getAllByRole("status")[0]).toHaveTextContent("Colonnes exigées sans intitulé");
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await vi.waitFor(() => {
+      expect(screen.getAllByRole("status")[0]).toHaveTextContent("La correspondance est complète");
+    });
+  });
+
+  it("holds the fields and the commands while the write is under way, and sends it once [WF-REF-0190-A]", async () => {
+    const answer = held();
+    const client = serve({ [SET]: "actual_cost_mapping_updated" }, answer.timing);
+    const { container } = shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    const sending = screen.getByRole("button", { name: "Enregistrement…" });
+    expect(sending).toBeDisabled();
+    expect(sending).toHaveAttribute("aria-busy", "true");
+    expect(container.querySelector("form")).toHaveAttribute("aria-busy", "true");
+    for (const field of screen.getAllByRole("textbox")) {
+      expect(field).toBeDisabled();
+    }
+    expect(screen.getByRole("button", { name: "Déclarer une colonne conservée" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Retirer la colonne conservée 1" })).toBeDisabled();
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    answer.release();
+    await vi.waitFor(() => {
+      expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
+    });
+    expect(client.calls).toHaveLength(1);
+  });
+
+  it("is no longer busy in the commit that shows the refusal, nor in the one that says the correspondence saved [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: [
+        { problem: example("actual_cost_mapping_duplicate") as Problem & { status: 422 } },
+        "actual_cost_mapping_updated",
+      ],
+    });
+    const { container } = shown(witness, true);
+    const form = container.querySelector("form") as HTMLFormElement;
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
+      "Élément d'OTP",
+    );
+    const refusal = atCommit(
+      document.body,
+      () => document.querySelector("[aria-invalid]") !== null,
+      () => form.getAttribute("aria-busy"),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await vi.waitFor(() => {
+      expect(document.querySelector("[aria-invalid]")).not.toBeNull();
+    });
+    expect(refusal.stop()).toEqual(["false"]);
+    const saved = atCommit(
+      document.body,
+      () => screen.queryByText("Correspondance enregistrée.") !== null,
+      () => container.querySelector("form")?.getAttribute("aria-busy") ?? null,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
+    });
+    expect(saved.stop()).toEqual(["false"]);
+  });
+
+  it("keeps the refusal at its label when a label before it is removed, and drops it once the label is typed again [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: { problem: example("actual_cost_mapping_duplicate") as Problem & { status: 422 } },
+    });
+    shown(witness, true);
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
+      "Élément d'OTP",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    await vi.waitFor(() => {
+      expect(
+        screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
+      ).toHaveAttribute("aria-invalid", "true");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Retirer la colonne conservée 1" }));
+    const refused = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 2" });
+    expect(refused).toHaveValue("Élément d'OTP");
+    expect(refused).toHaveAttribute("aria-invalid", "true");
+    expect(refused).toHaveAccessibleDescription(/Il double/);
+    expect(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 1" }),
+    ).not.toHaveAttribute("aria-invalid");
+    await userEvent.type(refused, "s");
+    expect(refused).not.toHaveAttribute("aria-invalid");
+    expect(refused).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/Il double/)).toBeNull();
   });
 
   it("starts an empty correspondence with no label and the bar of the four columns required [WF-REF-0190-A]", async () => {
