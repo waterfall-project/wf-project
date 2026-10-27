@@ -28,6 +28,7 @@
  */
 import { Coins } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -35,6 +36,7 @@ import type { components } from "@/api/generated/schema";
 import { readEveryPage } from "@/api/every-page";
 import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { platformOffer } from "@/components/commands/offer";
 import {
   bounded,
@@ -89,9 +91,11 @@ import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid"
 import { InactiveSwitch } from "@/components/reference/reference-filters";
 import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
+import { leafOf } from "@/navigation/functions";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
 import { type Permission, requestSession } from "@/session/request";
@@ -105,6 +109,10 @@ type ReferenceSettings = components["schemas"]["ReferenceSettings"];
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.costSettings");
 }
+
+/** The leaf of the correspondence of the actual costs, which the screen leads to (`make screens`). */
+const MAPPING = leafOf("FBS-3.1.3");
+const MappingIcon = LEAF_ICONS["FBS-3.1.3"];
 
 /** The pages of the lists the server pages, which the switch of the deactivated objects resets. */
 const PAGES = [
@@ -288,7 +296,21 @@ function CostsHeader({
         density={FUNCTION_DENSITY.cost_settings}
         subtitle={t("reference.currency", { currency: settings.currency_code })}
         actions={
-          inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
+          <div className="flex flex-wrap items-center gap-2">
+            {inactive === undefined ? null : <InactiveSwitch shown={inactive} pages={PAGES} />}
+            <CommandTooltip
+              label={t(MAPPING.label)}
+              help={t("commands.openActualCostMapping.help")}
+            >
+              <Link
+                href={MAPPING.route}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <MappingIcon aria-hidden="true" />
+                {t(MAPPING.label)}
+              </Link>
+            </CommandTooltip>
+          </div>
         }
       />
       {writes ? (

@@ -149,7 +149,7 @@ describe("the navigation", () => {
         .map((link) => link.textContent),
     ).toEqual(["Projets"]);
     await openBlocks();
-    expect(within(nav).getAllByRole("link")).toHaveLength(5 + 7 + 4 + 1);
+    expect(within(nav).getAllByRole("link")).toHaveLength(5 + 7 + (4 + 1) + 1); // the settings: four functions and the leaf of the costs
     for (const block of ["Administration", "Portefeuille", "Paramètres applicatifs"]) {
       expect(within(nav).getByRole("button", { name: block })).toHaveAttribute(
         "aria-expanded",
@@ -187,7 +187,7 @@ describe("the navigation", () => {
       .map((h) => h.textContent);
     expect(headings).toEqual(["Plateforme", "Projet", "Révision en cours"]);
     const links = within(nav).getAllByRole("link");
-    expect(links).toHaveLength(16 + 1 + 3 + 6 + 5);
+    expect(links).toHaveLength(16 + 1 + 1 + 3 + 6 + 5); // 16 platform functions, the leaf of the costs
     for (const link of [...links, ...within(nav).getAllByRole("button")]) {
       expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
       expect(link.textContent).not.toBe("");
@@ -276,7 +276,9 @@ describe("the navigation", () => {
     expect(leaves.length).toBeGreaterThan(0);
     for (const leaf of leaves) {
       const route = leaf.route.replace("[projectId]", PROJECT).replace("[revisionId]", REVISION);
-      expect(href(nameOf(leaf)), leaf.code).toBe(`${route}${CONTEXT}`);
+      expect(href(nameOf(leaf)), leaf.code).toBe(
+        leaf.scope === "platform" ? route : `${route}${CONTEXT}`,
+      );
     }
   });
 

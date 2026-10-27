@@ -7,7 +7,8 @@
  * `updateReferenceObject`, `setActivation`); a calendar designated by default
  * (`designateDefaultCalendar`); the constants the units of duration convert by (`setDurationUnits`);
  * the risk matrix, or the thresholds of the indices and the delay
- * between two reviews, or the name of the company, written (`updateReferenceSettings`) —: the screen asks the server of Next, which calls the API (§4.3.1),
+ * between two reviews, or the name of the company, written (`updateReferenceSettings`); the
+ * correspondence of the extraction of the actual costs replaced whole (`setActualCostMapping`) —: the screen asks the server of Next, which calls the API (§4.3.1),
  * and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). Nothing is
  * deleted (WF-REF-0010).
  */
@@ -330,5 +331,20 @@ export async function setDurationUnits(
 ): Promise<Outcome<Schemas["DurationUnits"]>> {
   return readAnew(
     await decode(() => serverClient().PUT("/reference/duration-units", { body: write })),
+  );
+}
+
+/**
+ * Replace the correspondence of the extraction of the actual costs whole (WF-REF-0190): the labels of
+ * each of the five columns read and the labels of the columns kept, from the version read. The API
+ * answers it at its next version, with what it computes (`is_complete`, `missing_columns`), or
+ * refuses it — a label that doubles another, at its pointer (422 `DUPLICATE_COLUMN_LABEL`); the page
+ * is read anew. A modification changes no line already imported.
+ */
+export async function setActualCostMapping(
+  write: Schemas["ActualCostMappingWrite"],
+): Promise<Outcome<Schemas["ActualCostMapping"]>> {
+  return readAnew(
+    await decode(() => serverClient().PUT("/reference/actual-cost-mapping", { body: write })),
   );
 }

@@ -1115,6 +1115,15 @@
     "workload": {
       "help": "Ouvre le plan de charge de la révision, par rôle."
     },
+    "addMappingLabel": {
+      "help": "Ajoute un intitulé à la liste ; il ne s’enregistre qu’avec la correspondance."
+    },
+    "removeMappingLabel": {
+      "help": "Retire l’intitulé de la liste ; il ne s’efface qu’à l’enregistrement de la correspondance."
+    },
+    "openActualCostMapping": {
+      "help": "Ouvre la correspondance des colonnes de l’extraction des coûts réels."
+    },
     "kanban": {
       "help": "Ouvre le kanban des tâches à faire, en cours et terminées."
     },
@@ -2008,6 +2017,30 @@
       "saved": "Unités de durée enregistrées.",
       "effect": "Le changement vaut pour tous les projets : les plannings des révisions en cours sont recalculés ; une révision marquée garde les heures qu’elle a calculées."
     },
+    "actualCostMapping": {
+      "form": "Correspondance de l’extraction des coûts réels",
+      "summary": "Les intitulés sous lesquels l’extraction de l’ERP nomme les colonnes que Waterfall lit, et les colonnes qu’il conserve à titre d’information. Un intitulé se compare à l’en-tête du fichier, et aux autres intitulés, sans égard à la casse, aux accents ni aux espaces en bout.",
+      "complete": "La correspondance est complète : une extraction de coûts réels peut être importée.",
+      "missing": "{count, plural, one {Colonne exigée sans intitulé} other {Colonnes exigées sans intitulé}} : {columns}. L’import des coûts réels est refusé tant que la correspondance est incomplète.",
+      "required": "(exigée)",
+      "optional": "(facultative)",
+      "noLabel": "Aucun intitulé.",
+      "kept": "Colonnes conservées",
+      "keptHint": "Les colonnes de l’extraction que Waterfall conserve à titre d’information, restituées à la consultation des lignes importées. Une colonne lue ne se déclare pas aussi conservée.",
+      "noKept": "Aucune colonne conservée.",
+      "label": "Intitulé {n} de « {column} »",
+      "keptLabel": "Intitulé de la colonne conservée {n}",
+      "remove": "Retirer l’intitulé {n} de « {column} »",
+      "removeKept": "Retirer la colonne conservée {n}",
+      "add": "Ajouter un intitulé à « {column} »",
+      "addShort": "Ajouter un intitulé",
+      "addKept": "Déclarer une colonne conservée",
+      "doubles": "Il double l’intitulé « {label} » de la colonne « {column} ».",
+      "doublesKept": "Il double l’intitulé « {label} » d’une colonne conservée.",
+      "save": "Enregistrer la correspondance",
+      "saving": "Enregistrement…",
+      "saved": "Correspondance enregistrée."
+    },
     "companyForm": {
       "modify": "Modifier le nom de l’entreprise",
       "hint": "Le nom de l’entreprise figure sur les fichiers exportés ; il est obligatoire, de 200 caractères au plus.",
@@ -2340,6 +2373,7 @@
     "portfolioRisks": "Risques du portefeuille",
     "portfolioCostCurve": "Courbe en S du portefeuille",
     "portfolioPilotHealth": "Santé du pilotage",
+    "actualCostMapping": "Correspondance des coûts réels",
     "costSettings": "Paramètres de coûts",
     "resourceSettings": "Paramètres de ressources",
     "riskSettings": "Paramètres de risques",
