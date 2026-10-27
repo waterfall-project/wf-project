@@ -33,6 +33,7 @@ export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntr
     "FBS-3.3",
     "FBS-3.4",
   ].map((code) => [code, "US-0580/L4, #1139"] as const),
+  ...["FBS-3.1.3"].map((code) => [code, "US-0670/L3, #1451"] as const),
   ...[
     "FBS-4",
     "FBS-4.2",

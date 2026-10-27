@@ -1115,6 +1115,15 @@
     "workload": {
       "help": "Opens the workload of the revision, by role."
     },
+    "addMappingLabel": {
+      "help": "Adds a label to the list; it is saved only with the mapping."
+    },
+    "removeMappingLabel": {
+      "help": "Removes the label from the list; it is erased only when the mapping is saved."
+    },
+    "openActualCostMapping": {
+      "help": "Opens the mapping of the columns of the actual cost extraction."
+    },
     "kanban": {
       "help": "Opens the kanban of the tasks to do, in progress and done."
     },
@@ -2008,6 +2017,30 @@
       "saved": "Units of duration saved.",
       "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
+    "actualCostMapping": {
+      "form": "Mapping of the actual cost extraction",
+      "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
+      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
+      "required": "(required)",
+      "optional": "(optional)",
+      "noLabel": "No label.",
+      "kept": "Kept columns",
+      "keptHint": "The columns of the extraction that Waterfall keeps for information, given back when the imported lines are consulted. A column read is not also declared kept.",
+      "noKept": "No kept column.",
+      "label": "Label {n} of “{column}”",
+      "keptLabel": "Label of kept column {n}",
+      "remove": "Remove label {n} of “{column}”",
+      "removeKept": "Remove kept column {n}",
+      "add": "Add a label to “{column}”",
+      "addShort": "Add a label",
+      "addKept": "Declare a kept column",
+      "doubles": "It doubles the label “{label}” of column “{column}”.",
+      "doublesKept": "It doubles the label “{label}” of a kept column.",
+      "save": "Save the mapping",
+      "saving": "Saving…",
+      "saved": "Mapping saved."
+    },
     "companyForm": {
       "modify": "Modify the company name",
       "hint": "The company name appears on the exported files; it is required, of 200 characters at most.",
@@ -2340,6 +2373,7 @@
     "portfolioRisks": "Portfolio risks",
     "portfolioCostCurve": "Portfolio S-curve",
     "portfolioPilotHealth": "Project control health",
+    "actualCostMapping": "Actual cost mapping",
     "costSettings": "Cost settings",
     "resourceSettings": "Resource settings",
     "riskSettings": "Risk settings",

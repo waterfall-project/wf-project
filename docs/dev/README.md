@@ -130,16 +130,19 @@ son code, la clé de son libellé, sa route, sa portée et la permission qui la 
 consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
 pas. La table porte aussi les feuilles de la FBS, chacune adressée de l'une de deux façons. Une
 feuille qui a son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
-permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et l'arborescence de
-tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
-`…/exchanges`, `…/task-tree`), le plan de charge du projet,
-FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
-(`…/kanban`). La navigation la montre, en retrait sous sa
-fonction, dans une liste imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le
-même contexte ; l'écran de sa fonction y mène aussi. Le lien courant, `aria-current="page"`, est celui de la
-feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre ne
-montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la lit
-comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
+permission : la correspondance de l'extraction des coûts réels, FBS-3.1.3, sous les paramètres de
+coûts (`/reference/costs/actual-cost-mapping`, US-0620), les chronologies, FBS-4.3.1, les imports
+et exports, FBS-4.3.4, et l'arborescence de tâches, FBS-4.3.5, sous le planning
+(`/projects/[projectId]/revisions/[revisionId]/timelines`, `…/exchanges`, `…/task-tree`), le plan
+de charge du projet, FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le
+reste à engager (`…/kanban`). La navigation la montre, en retrait sous sa fonction, dans une liste
+imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le même contexte ; l'écran
+de sa fonction y mène aussi. Le menu de plateforme rend de même les feuilles de ses fonctions, la
+feuille courante marquée `aria-current`. Le lien courant, `aria-current="page"`, est celui de la
+feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre
+ne montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la
+lit comme sa fonction, et le fil d'Ariane la place après elle, y compris une feuille de portée
+`platform`, dans son bloc de la FBS. Une feuille
 que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
 (`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
 montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
@@ -1362,6 +1365,18 @@ sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle 
 tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
 par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
 service de son EPIC). La saisie d'un taux reste celle de la grille.
+
+La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
+`/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
+`leafOf("FBS-3.1.3")` (`components/reference/actual-cost-mapping.tsx`) : les intitulés admis de
+chacune des cinq colonnes lues et les colonnes conservées, en listes éditables, et une barre qui dit
+les colonnes exigées sans intitulé d'après `is_complete` et `missing_columns` du serveur, jamais
+recalculés. Sous `cost_settings.write`, un seul formulaire remplace la correspondance entière avec le
+`lock_version` lu (`setActualCostMapping`) ; sous `cost_settings.read` seul, les listes se lisent sans
+commande. Le serveur juge seul : un refus 422 se dit au champ par son pointeur
+(`/columns/<rang>/labels/<rang>`, `/kept_columns/<rang>`), le doublon (`DUPLICATE_COLUMN_LABEL`)
+nommant l'intitulé qu'il double (`params.duplicate_of`) ; la version périmée (412) se dit sous le
+formulaire, avec l'offre de relire.
 
 ### Les paramètres de ressources : organisation, rôles et calendriers
 

@@ -82,8 +82,19 @@ function functionSteps(
         : [label(parent.label, readable(parent) ? functionHref(parent, context) : undefined)];
     return [PROJECTS_STEP, projectStep(context), ...above, label(fn.label)];
   }
-  const block = blockOf(fn);
-  return block === undefined ? [label(fn.label)] : [label(block.label), label(fn.label)];
+  // A platform leaf sits after its function, a link to its screen for a session that may read it.
+  const granted = new Set<string>(permissions);
+  const above =
+    parent === undefined
+      ? []
+      : [
+          label(
+            parent.label,
+            granted.has(`${parent.permission}.read`) ? functionHref(parent, context) : undefined,
+          ),
+        ];
+  const block = blockOf(parent ?? fn);
+  return [...(block === undefined ? [] : [label(block.label)]), ...above, label(fn.label)];
 }
 
 /** The steps of the page of a project, or of a revision of it, which are no function. */

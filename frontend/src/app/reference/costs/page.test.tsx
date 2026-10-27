@@ -173,6 +173,15 @@ describe("the types of the natures the page hands the form of a category", () =>
   });
 });
 
+describe("the leaf of the correspondence of the actual costs", () => {
+  it("is led to by a link of the header, to its route [WF-REF-0190-A]", async () => {
+    const page = await costsAt();
+    expect(page).toMatch(
+      /<a [^>]*href="\/reference\/costs\/actual-cost-mapping"[^>]*>.*?Correspondance des coûts réels/,
+    );
+  });
+});
+
 describe("the name of the company beside the currency", () => {
   it("is read with the command that modifies it by a session that holds cost_settings.write", async () => {
     const page = await costsAt();
