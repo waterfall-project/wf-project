@@ -1102,7 +1102,7 @@ refus décrits.
 
 ## US-0650 — La résolution d'un numéro de ligne, et les colonnes connues d'une grille
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : `resolveRowNumber`, ajoutée au contrat ; `setPredecessors`, `getMe`,
   `updateMyPreferences`

@@ -207,6 +207,25 @@ def test_the_lines_per_page_of_a_table_are_found_again_without_changing_those_of
     }
 
 
+@pytest.mark.requirement("WF-IHM-0060-A")
+def test_the_columns_a_grid_knew_are_kept_with_its_hidden_ones_and_read_again(
+    api: ContractClient, database: Database, realm: TestRealm
+) -> None:
+    # « Les colonnes masquées et les largeurs choisies sont retrouvées à la réouverture » : with
+    # the columns the grid offered when it wrote them, that a column it gets since takes what the
+    # grid gives it by default (EP-16/US-0650, #1260). Kept as written, the grid replaced whole.
+    user_id, headers = person(database, realm, display_preferences={"grids": {"users": USERS_GRID}})
+    known = {**USERS_GRID, "known_columns": ["last_name", "email", "origin"]}
+    response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": known}})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"grids": {"users": known}}
+    assert api.get(ME, headers=headers).json()["display_preferences"]["grids"] == {"users": known}
+    # A grid written without it no longer holds it: absent, the list is read as empty.
+    response = api.patch(PREFERENCES, headers=headers, json={"grids": {"users": USERS_GRID}})
+    assert response.json() == {"grids": {"users": USERS_GRID}}
+    assert preferences_of(database, user_id) == {"grids": {"users": USERS_GRID}}
+
+
 @pytest.mark.requirement("WF-ADM-0040-A")
 def test_the_layout_of_a_timeline_is_kept_by_timeline_and_forgotten_when_sent_null(
     api: ContractClient, database: Database, realm: TestRealm
@@ -249,6 +268,7 @@ def test_the_state_of_a_chart_is_kept_by_chart_and_forgotten_when_sent_null(
         ({"theme": None}, "/theme"),
         ({"grids": None}, "/grids"),
         ({"grids": {"users": {"hidden_columns": None}}}, "/grids/users/hidden_columns"),
+        ({"grids": {"users": {"known_columns": None}}}, "/grids/users/known_columns"),
         ({"grids": {"a/b": {"filters": None}}}, "/grids/a~1b/filters"),
         ({"grids": {"users": {"page_size": None}}}, "/grids/users/page_size"),
         ({"timelines": None}, "/timelines"),
@@ -284,6 +304,14 @@ BOUNDS_PASSED: list[tuple[dict[str, Any], tuple[str, str]]] = [
     (
         {"grids": {"users": {"hidden_columns": [LONG]}}},
         ("/grids/users/hidden_columns/0", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"known_columns": [f"c{rank}" for rank in range(65)]}}},
+        ("/grids/users/known_columns", "VALUE_TOO_LONG"),
+    ),
+    (
+        {"grids": {"users": {"known_columns": ["c0", LONG]}}},
+        ("/grids/users/known_columns/1", "VALUE_TOO_LONG"),
     ),
     (
         {"grids": {"users": {"column_widths": {f"c{rank}": 40 for rank in range(65)}}}},
@@ -400,6 +428,7 @@ def test_preferences_at_their_bounds_are_written(
     name = "x" * 64
     grid = {
         "hidden_columns": [f"{rank:064d}" for rank in range(64)],
+        "known_columns": [f"{rank:064d}" for rank in range(64)],
         "column_widths": {f"{rank:064d}": 40 for rank in range(64)},
         "sort": {"column": name, "order": "asc"},
         "filters": {f"{rank:064d}": "y" * 500 for rank in range(20)},

@@ -1,0 +1,9 @@
+{
+  "summary": "Le numéro 9 de la structure principale du projet témoin, résolu le 3 juin 2026 : saisi comme prédécesseur dans la grille de planning du groupe « Études » (nodes_planning), qui ne rend pas cette ligne, il désigne « Câblage des armoires », une tâche du lot « Poste de commande », dont l'identifiant s'envoie à setPredecessors (WF-PLA-0080). Le faux back sert cette résolution quel que soit le numéro demandé.",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000552",
+    "row_number": 9,
+    "label": "Câblage des armoires",
+    "kind": "task"
+  }
+}

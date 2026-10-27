@@ -77,6 +77,15 @@ NodeId:
   required: true
   schema: { $ref: common.yaml#/Uuid }
 
+RowNumber:
+  name: row_number
+  in: path
+  required: true
+  description: >-
+    Un numéro de ligne dans la numérotation de toute la structure, à partir de 1, comme
+    `Node.row_number` (`resolveRowNumber`).
+  schema: { type: integer, minimum: 1 }
+
 NodeFields:
   name: fields
   in: query

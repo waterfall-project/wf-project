@@ -794,6 +794,58 @@
               after_not_sibling: { $ref: ../../../fixtures/api/node_create_after_not_sibling.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}:
+  get:
+    operationId: resolveRowNumber
+    tags: [revisions]
+    summary: Le nœud qui porte un numéro de ligne
+    description: >-
+      Le nœud que désigne un numéro de ligne dans la numérotation de toute la structure — celle
+      de `Node.row_number`, ses tâches et ses lignes dans l'ordre du plan —, quels que soient la
+      recherche, les filtres et le tri de la grille qui le demande : une lecture qui n'écrit rien.
+      La colonne des prédécesseurs de la grille de planning nomme un prédécesseur par son numéro
+      (WF-PLA-0080) ; un numéro que les lignes lues ne portent pas — une tâche que la recherche ou
+      un filtre écarte — se résout ici en nœud, dont l'identifiant s'envoie à l'écriture
+      (`PredecessorWrite.predecessor_node_id`, `setPredecessors`), qui reste seule juge de la
+      liaison. La lecture rend la nature du nœud, si bien que le front refuse comme inconnu le
+      numéro d'une ligne de devis, qui n'est pas une tâche.
+
+      Aucun nœud de la structure ne porte ce numéro — il dépasse sa dernière ligne — : 404
+      `NOT_FOUND`, sans paramètre, comme un objet inexistant. Sur la lecture d'un différentiel,
+      la numérotation est celle que `listNodes` rend, où les nœuds que le différentiel retire
+      comptent chacun pour sa ligne : le numéro d'un nœud retiré, qui n'est plus de la structure,
+      répond aussi 404. Les droits et les autres refus sont ceux de `listNodes` : un projet, une
+      révision ou une structure inexistants ou invisibles faute de la consultation du projet
+      répondent 404 de même, sans rien distinguer (WF-ADM-0110). Un numéro qui n'est pas un
+      entier d'au moins 1 est refusé par 422 `VALIDATION_FAILED`, au pointeur
+      `/path/row_number`.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+      - $ref: ../components/parameters.yaml#/RowNumber
+    responses:
+      '200':
+        description: Le nœud qui porte le numéro.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/RowNumberResolution }
+            examples:
+              task: { $ref: ../../../fixtures/api/row_number_task.json }
+              estimate_line: { $ref: ../../../fixtures/api/row_number_estimate_line.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404':
+        description: >-
+          Aucun nœud de la structure ne porte ce numéro, ou la structure est inexistante ou
+          invisible : `NOT_FOUND`, sans paramètre (WF-ADM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unknown: { $ref: ../../../fixtures/api/row_number_unknown.json }
+      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
   delete:
     operationId: deleteNode

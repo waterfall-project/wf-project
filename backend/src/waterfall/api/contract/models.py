@@ -487,6 +487,10 @@ class HiddenColumn(RootModel[str]):
     root: Annotated[str, Field(max_length=64)]
 
 
+class KnownColumn(RootModel[str]):
+    root: Annotated[str, Field(max_length=64)]
+
+
 type ColumnWidthsAdditionalProperty = Annotated[int, Field(ge=20)]
 
 
@@ -505,7 +509,20 @@ class GridPreferences(ContractModel):
             description="Le nombre de lignes par page d'une table plate, choisi parmi 10, 25, 50 et 100 ; absent, 50, le défaut de `limit` (WF-IHM-0060, C-351). Une grille arborescente ne l'offre pas. Une autre valeur est refusée par 422, `VALUE_OUT_OF_RANGE` sur `/grids/<grille>/page_size`, sans paramètre : les valeurs admises sont celles-ci."
         ),
     ] = None
-    hidden_columns: Annotated[list[HiddenColumn] | None, Field(max_length=64)] = None
+    hidden_columns: Annotated[
+        list[HiddenColumn] | None,
+        Field(
+            description="Les clés des colonnes que l'utilisateur a masquées. Une colonne qu'elle nomme est masquée ; une colonne qu'elle ne nomme pas est montrée si la grille la connaissait (`known_columns`), et prend sinon ce que la grille lui donne par défaut.",
+            max_length=64,
+        ),
+    ] = None
+    known_columns: Annotated[
+        list[KnownColumn] | None,
+        Field(
+            description="Les clés des colonnes que la grille offrait quand ses préférences ont été écrites pour la dernière fois — le front la récrit à chaque écriture de la grille, entière comme le reste. Une colonne absente de cette liste est une colonne que la grille a reçue depuis : masquée si la grille la masque par défaut, montrée sinon, sauf si `hidden_columns` la nomme. Une colonne nouvelle masquée par défaut le reste ainsi pour un compte qui a déjà réglé la grille, et une colonne que le compte a choisi d'afficher le reste (EP-16/US-0650, #1260). Facultative : absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide, et toute colonne masquée par défaut que `hidden_columns` ne nomme pas est masquée. Le serveur la garde telle qu'elle est écrite, sans connaître les colonnes d'aucune grille.",
+            max_length=64,
+        ),
+    ] = None
     column_widths: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], ColumnWidthsAdditionalProperty]
         | None,
@@ -3795,6 +3812,13 @@ class NodesWritten(ContractModel):
             description="Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110)."
         ),
     ]
+
+
+class RowNumberResolution(ContractModel):
+    node_id: Uuid
+    row_number: Annotated[int, Field(ge=1)]
+    label: str
+    kind: NodeKind
 
 
 class ComputedValueField(StrEnum):

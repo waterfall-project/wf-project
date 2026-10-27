@@ -7850,6 +7850,72 @@ triplet sont le service, en EP-09.
 Écarté : un rejet de la seule seconde ligne, qui aurait importé la première comme si l'ordre du
 fichier disait laquelle compte.
 
+### La résolution d'un numéro de ligne et les colonnes connues d'une grille (US-0650, #1326)
+
+Deux constats reportés d'EP-15. La colonne des prédécesseurs de la grille de planning refusait comme
+inconnu un numéro que les lignes lues ne portaient pas — une tâche écartée par la recherche ou un
+filtre —, l'écriture ne prenant que `predecessor_node_id` (#1288, de #1257 point 1). Une colonne
+masquée par défaut ne l'était que pour un compte qui n'avait jamais écrit `hidden_columns`, que
+toute écriture de la grille enregistre (#1260, de #1232). Décisions de l'auteur du 2026-10-21 et du
+2026-10-22, conception d'EP-16.
+
+- **La résolution.** `resolveRowNumber`, `GET
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}`, une
+  lecture qui rend `RowNumberResolution` : `node_id`, `row_number`, `label` et `kind`, tous exigés,
+  du nœud qui porte ce numéro dans la numérotation de toute la structure, celle de
+  `Node.row_number`, quels que soient la recherche, les filtres et le tri. L'écriture reste en
+  `predecessor_node_id` (`setPredecessors`), seule juge de la liaison. Choix du lot :
+  - `kind` est un `NodeKind`, le type que `Node.kind` porte déjà : le front y lit qu'un numéro
+    désigne une ligne de devis, qu'il refuse comme inconnu, puisque ce n'est pas une tâche ; la
+    lecture ne refuse pas elle-même une ligne, qui a son numéro comme une tâche ;
+  - `label`, celui de la tâche ou de la ligne, sans borne, comme `DependencyRow.label` : une
+    lecture, que le front montre avec le numéro ;
+  - un numéro qu'aucun nœud ne porte est un 404 `NOT_FOUND`, sans paramètre, comme un objet
+    inexistant (README, 404 contre 403) : le numéro nomme un objet par le chemin. Un numéro qui
+    n'est pas un entier d'au moins 1 est, lui, refusé par 422 `VALIDATION_FAILED` au pointeur
+    `/path/row_number`, comme tout paramètre de chemin autre qu'un identifiant (« Un identifiant de
+    chemin mal formé est un 404 ») ;
+  - sur un différentiel, la numérotation est celle de `listNodes`, où chaque nœud retiré compte pour
+    sa ligne ; le numéro d'un nœud retiré répond 404, ce nœud n'étant plus de la structure ;
+  - les droits et les autres refus sont ceux de `listNodes` : la consultation du projet, un
+    projet, une révision ou une structure invisibles répondant 404 sans rien distinguer ;
+  - le chemin, `…/structures/{structure_id}/rows/{row_number}`, à côté de `nodes` : un numéro
+    n'est pas un identifiant de nœud, et `nodes/{node_id}` le refuserait comme tel.
+- **Les colonnes connues.** `GridPreferences.known_columns` : les clés des colonnes que la grille
+  offrait à la dernière écriture de ses préférences, au plus 64, de 64 caractères au plus, comme
+  `hidden_columns`, refusées au-delà par 422 `VALUE_TOO_LONG` (#874) ; écrite par
+  `updateMyPreferences`, avec la grille remplacée entière, et lue par `getMe`. Une colonne masquée
+  par défaut et absente de cette liste est masquée ; une colonne absente de la liste et non masquée
+  par défaut est montrée. Choix du lot :
+  - une colonne que `hidden_columns` nomme est masquée, connue ou non : la liste ne fait que dire
+    ce que la grille connaissait, pour juger une colonne qu'elle ne nomme pas ;
+  - la liste est facultative, comme les autres réglages d'une grille, mais jamais nulle : envoyée à
+    `null`, elle est refusée par 422 `VALIDATION_FAILED` à son pointeur, comme `hidden_columns`
+    (`NEVER_NULL_IN_A_GRID` du service) ;
+  - absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide : toute colonne masquée
+    par défaut que `hidden_columns` ne nomme pas est masquée. Une colonne masquée par défaut qu'un
+    compte avait choisi d'afficher avant EP-16 se retrouve masquée une fois ; aucune installation ne
+    précède la version 1.0.0 du contrat. Écartée : une liste absente valant toutes les colonnes de
+    la grille, qui garderait le défaut constaté pour les comptes déjà réglés ;
+  - le serveur la garde telle qu'elle est écrite : il ne connaît les colonnes d'aucune grille.
+
+  Écartée : une liste des colonnes affichées, qui masquerait aussi une colonne nouvelle montrée par
+  défaut (conception d'EP-16).
+- **Les exemples**, écrits à la main : `row_number_task`, premier exemple, que le faux back sert
+  quel que soit le numéro — le numéro 9 de la structure principale du témoin, « Câblage des
+  armoires », une tâche que la grille de planning du groupe « Études » (`nodes_planning`) ne rend
+  pas — ; `row_number_estimate_line`, le numéro 10, « Raccordement des borniers », une ligne ;
+  `row_number_unknown`, le numéro 6001 d'une structure de 6 000 lignes, 404 (corrélation 1550).
+  Les grilles de `me_grid_settings`, `me_auditor` et `preferences_page_size` portent les colonnes
+  qu'elles offrent ; la grille de devis de `me_grid_settings`, réglée avant la colonne
+  « Sous-projet », masquée par défaut, ne la connaît pas, si bien qu'elle reste masquée.
+  `tools/tests/test_mockrownumber.py` tient chaque résolution au nœud que le premier exemple de
+  `listNodes` numérote ainsi, le refus au-delà de la dernière ligne, et les colonnes masquées et
+  élargies de chaque grille parmi celles qu'elle connaît.
+
+Le front — la colonne des prédécesseurs qui résout un numéro hors des lignes lues, `grid/settings.ts`
+qui lit et écrit `known_columns` — est US-0650/L2.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

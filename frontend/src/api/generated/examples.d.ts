@@ -146,6 +146,9 @@ export interface Examples {
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
+    200: "row_number_estimate_line" | "row_number_task";
+  };
   "GET /projects/{project_id}/risks": {
     200: "risks" | "risks_empty";
   };

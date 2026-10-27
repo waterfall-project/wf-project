@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**162 opérations sur 126 chemins, dans 13 familles.**
+**163 opérations sur 127 chemins, dans 13 familles.**
 Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -152,7 +152,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 29 opérations
+`paths/revisions.yaml` — 30 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -171,6 +171,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0170, WF-REV-0050, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0070, WF-PLA-0100, WF-PLA-0170 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
