@@ -2470,7 +2470,7 @@
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
     "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
-    "DUPLICATE_COST_LINE": "Une autre ligne du fichier porte la même pièce et le même poste : chaque couple pièce et poste ne figure qu’une fois.",
+    "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, nul compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",
     "INTERNAL_ERROR": "Erreur inattendue du service.",
     "ACCOUNT_DEACTIVATED": "Ce compte est désactivé ; contactez un administrateur.",
