@@ -5,7 +5,14 @@ import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
-import { type FakeAnswers, type FakeClient, fakeClient, type FakeTiming } from "@/test/fixtures";
+import type { components } from "@/api/generated/schema";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+} from "@/test/fixtures";
 import {
   APPLY,
   BLOCK,
@@ -25,6 +32,8 @@ import {
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+
+type Problem = components["schemas"]["Problem"];
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/navigation", async (original) => ({
@@ -141,13 +150,12 @@ describe("a paste applied", () => {
     expect(screen.queryByText(/^Collage appliqué/)).toBeNull();
   });
 
-  it("tells a row the confirmation refuses that the preview accepted, read from what it answers", async () => {
-    // The server judges the accepted rows again at the confirmation (EP-14/L42q). A counterfactual
-    // pairing of two examples: the plan that refuses none (`paste_plan`) confirmed by the answer
-    // that refuses the second row (`paste_applied_partial`), which confirms another plan — the
-    // contract has no example of a refusal the confirmation alone gives (#764). The refusal is told
-    // as it is answered, never from the plan.
-    serve({ [PREVIEW]: "paste_plan" });
+  it("tells a row the confirmation refuses for a category deactivated since the preview, read from what it answers [WF-IHM-0050-A]", async () => {
+    // The server judges the accepted rows again at the confirmation, the reference data having no
+    // counter (`paste_applied_rejudged`): the plan refuses none (`paste_plan`), the confirmation
+    // refuses the second row, which the preview accepted. The refusal is told as it is answered,
+    // never from the plan.
+    serve({ [PREVIEW]: "paste_plan", [APPLY]: "paste_applied_rejudged" });
     renderGrid();
     await pasteOn(cell(FIRST, "label"), copied(BLOCK));
     const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
@@ -158,13 +166,13 @@ describe("a paste applied", () => {
     });
     expect(told()).toHaveTextContent("2 lignes ont été écrites.");
     expect(within(refusals()).getByRole("listitem")).toHaveTextContent(
-      "Ligne 2 du bloc — Catégorie de coût inconnue.",
+      "Ligne 2 du bloc — Cet élément du référentiel est désactivé.",
     );
     expect(within(refusals()).getByText("Mise en service")).toBeVisible();
   });
 
   it("refused for a structure changed since its preview offers to read it anew, the grid left as it was", async () => {
-    serve({ [APPLY]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
+    serve({ [APPLY]: { problem: example("paste_stale") as Problem & { status: 412 } } });
     renderGrid();
     await pasteAndApply(UNKNOWN);
     const refusal = screen.getByRole("alert");

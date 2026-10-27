@@ -483,12 +483,9 @@ describe("the sentence of a refusal", () => {
     expect(say({ code: "SUBPROJECT_CODE_INVALID", fields: forbidden.fields }, "fr")).toBe(
       "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
     );
-    const reserved: ProblemText = {
-      code: "SUBPROJECT_CODE_INVALID",
-      params: { reserved_name: "synthèse" },
-    };
-    expect(say(reserved, "fr")).toMatch(/ «\u00A0synthèse\u00A0» est un nom réservé/);
-    expect(say(reserved, "en")).toMatch(/ “synthèse” is a reserved name/);
+    const reserved = example("subproject_code_reserved") as ProblemText;
+    expect(say(reserved, "fr")).toMatch(/ «\u00A0Synthèse\u00A0» est un nom réservé/);
+    expect(say(reserved, "en")).toMatch(/ “Synthèse” is a reserved name/);
     // Neither a list of characters that is empty, nor a name that is no text, says anything.
     expect(
       say(
@@ -604,7 +601,7 @@ describe("the sentence of a refusal", () => {
     };
     expect(say(problem, "en")).toBe("The current state does not allow this operation.");
     // A lock version, the one parameter of a refusal of a stale version, names nothing either.
-    const stale = { code: "STALE_LOCK_VERSION", params: { expected_lock_version: 4 } } as const;
+    const stale = example("paste_stale") as ProblemText;
     expect(say(stale, "en")).toBe(
       "Someone changed this data in the meantime; reload it to see its latest version.",
     );

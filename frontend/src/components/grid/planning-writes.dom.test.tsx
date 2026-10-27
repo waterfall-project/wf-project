@@ -243,10 +243,7 @@ describe("the attachment of a task in the grid of the planning", () => {
       name: "task_attach_refused",
       title: "a lot another task bears, naming that task [WF-PLA-0170-A]",
       id: LOT,
-      said: [
-        "Ce lot ou ce poste est déjà porté par une autre tâche.",
-        "Objet en conflit : Poste de commande.",
-      ],
+      said: ["Objet en conflit : Poste de commande."],
       described:
         /^Ce lot ou ce poste est déjà porté par une autre tâche\.\s+Objet en conflit\s:\sPoste de commande\.$/,
     },
@@ -256,6 +253,16 @@ describe("the attachment of a task in the grid of the planning", () => {
       id: POST,
       said: ["Une tâche porte un lot ou un poste, jamais les deux."],
       described: /^Une tâche porte un lot ou un poste, jamais les deux\.$/,
+    },
+    {
+      name: "task_attach_exclusive_attached",
+      title: "a lot and a post at once, the lot being borne by another task [WF-PLA-0170-A]",
+      id: LOT,
+      said: [
+        "Une tâche porte un lot ou un poste, jamais les deux.",
+        "Objet en conflit : Poste de commande.",
+      ],
+      described: /^Une tâche porte un lot ou un poste, jamais les deux\..*Poste de commande\.$/s,
     },
     {
       name: "task_attach_main_structure_only",

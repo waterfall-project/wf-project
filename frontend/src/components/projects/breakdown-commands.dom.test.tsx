@@ -444,11 +444,9 @@ describe("the work breakdown edited in its grid", () => {
     expect(screen.getByRole("dialog")).toBe(dialog);
   });
 
-  it("says the version stale under the dialog, with the offer to read the page anew", async () => {
+  it("says the version stale under the dialog, with the offer to read the page anew [WF-IHM-0110-A]", async () => {
     serve({
-      [SET]: {
-        problem: { code: "STALE_LOCK_VERSION", status: 412, params: { expected_lock_version: 2 } },
-      },
+      [SET]: { problem: example("work_breakdown_stale") as Problem & { status: 412 } },
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));

@@ -445,10 +445,9 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on (EP-14/L42p)", async () => {
-    // The fake back answers what the quantity of the provision depends on
-    // (`dependencies_provision`): the contract has no answer for its sub-project (#764), and the
-    // test reads only the field asked, never the answer's.
-    const client = serve({ [DEPENDENCIES]: "dependencies_provision" });
+    // The fake back answers what the sub-project of the provision depends on, its risk
+    // (`dependencies_provision_subproject`).
+    const client = serve({ [DEPENDENCIES]: "dependencies_provision_subproject" });
     renderGrid("estimate");
     const provision = cell("Provision — risque de reprise du câblage", SUBPROJECT);
     // Out of any sub-project, computed all the same: shaded, marked Σ and named so.
