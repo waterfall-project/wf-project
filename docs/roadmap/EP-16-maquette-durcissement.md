@@ -670,6 +670,49 @@ et ses exemples.
   montée : `node_modules/next/dist/docs/` (`generate-metadata`, `streaming`, `htmlLimitedBots`).
   Part détachée d'US-0590, comme US-0590b, c et d : US-0590 reste `fini`, le lot ne la rouvre que
   par sa lettre. Écarté : le report vers EP-17, que la décision du 2026-10-26 interdit.
+- **US-0590f, la stabilité de `planning.spec.ts:23` sous charge** (#1522 ; décision de l'auteur du
+  2026-10-27 : la récidive, deux occurrences au palier complet local du front dans des lots qui ne
+  touchent pas le planning — US-0630/L1 #1323, puis US-0650/L1 #1326 —, ouvre le lot de stabilité ;
+  la stabilité relève d'EP-16, jamais d'EP-17). L'assertion de la ligne 43, `withinBox(grid, « Total
+  — 1 000 tâches »)`, reçoit `false`. Elle est prise d'un seul coup, juste après les `columnheader`
+  visibles, et le parcours passe seul (15 sur 15). Un lot, après US-0640/L1 et avant US-0640/L2,
+  sans dépendance de code.
+  - **La cause d'abord.** Reproduire avant tout correctif, à six workers, la charge du palier
+    complet local, puis dire la cause dans la pull request.
+  - **Une sonde déterministe.** Un test qui échoue sans le correctif et passe avec. Il ne dépend pas
+    de la charge : il force l'ordre des événements que la charge fait arriver par hasard (la
+    disposition de la grille retardée, la mesure prise avant). La pull request dit lequel des trois
+    porte la cause : test, environnement ou production.
+  - **Pistes à départager par la reproduction, aucune posée comme cause** :
+    - (a) la grille n'a pas fini de se disposer à la mesure, comme #1473 et #1479 (largeur apprise
+      par un effet après le montage) ;
+    - (b) un défaut du produit : une mise en page qui change après le premier rendu ;
+    - (c) la boîte de défilement ou la fenêtre encore en mouvement sous charge.
+  - **Le correctif tombe où la cause est.** Il ne passe ni par une attente allongée, ni par
+    `retries`, `fixme` ou un seuil baissé. Un `expect.poll` sur `withinBox` n'est admis que si la
+    pull request montre que l'état attendu est atteint puis tenu, et non une valeur qui passe un
+    instant.
+  - **L'audit borné.** Une fois la cause connue, le lot lit les sept autres fichiers qui mesurent
+    `withinBox` d'un seul coup, sans `expect.poll` : `grid.spec.ts`, `remaining.spec.ts:93`,
+    `portfolio.spec.ts:69`, `projects.spec.ts:70`, `reference.spec.ts:133`, `risks.spec.ts:50`,
+    `keyboard.spec.ts:145`. Il corrige ceux qui ont la même cause. Tout autre constat devient une
+    issue `[EP-16] e2e : …`, rattachée au lot, avec sa décision.
+  - **Le budget.** 90 minutes de reproduction au total, quelles que soient les hypothèses
+    essayées. Passé ce délai sans cause trouvée, le lot passe `question` dans son issue, avec ce
+    qui a été essayé, comme US-0590e avec #1505. Il ne livre aucun correctif au hasard et ne
+    reporte rien vers EP-17.
+  - **Décisions écartées.**
+    - Le report vers EP-17, que les décisions des 2026-10-25 et 2026-10-26 interdisent.
+    - Corriger sur l'hypothèse de #1473 et #1479, qui n'a pas été observée pour `:23`.
+    - Allonger une attente, `retries`, `fixme`, baisser un seuil : ils masquent la cause.
+    - `expect.poll` partout, d'office : sur une géométrie il peut passer à un instant où la boîte
+      n'est pas à sa place finale, et déplacer le défaut.
+    - Ne toucher que la ligne 43, ou réécrire tous les `withinBox` d'office : le premier laisse la
+      même cause ailleurs, le second grossit le lot au-delà de sa cause.
+    - Un plafond en nombre de passes : la charge se mesure en temps de poste.
+    - Quatre workers, comme US-0590e : les deux occurrences viennent du palier à six.
+    - Y rattacher #1529 et #1528 (tests unitaires du front, d'une autre nature, en sonnet) : ils
+      vont à US-0660/L3 #1458.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
@@ -682,7 +725,8 @@ et ses exemples.
    qui inverse l'ordre de US-0590b et US-0590c) ; **US-0590d** après US-0590c et US-0670/L1, avant
    les lots de contrat (le durcissement restant des tests, décision de l'auteur du 2026-10-26) ;
    **US-0590e** après US-0610/L2 et avant US-0620 (la stabilité d'un parcours sous charge, #1499,
-   décision de l'auteur du 2026-10-26).
+   décision de l'auteur du 2026-10-26) ; **US-0590f** après US-0640/L1 et avant US-0640/L2 (la
+   stabilité d'un second parcours sous charge, #1522, décision de l'auteur du 2026-10-27).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
    EP-16), quand l'auteur peut la relire.
@@ -833,6 +877,45 @@ charge, **afin que** la file de fusion ne rejette plus un lot sur un échec qui 
 
 **Hors périmètre.** #1500 (deux mineurs de rédaction de `docs/dev/typescript.md`), qui se corrige
 avec le prochain lot qui touche ce fichier ; #1230 : EP-17.
+
+---
+
+## US-0590f — La stabilité de `planning.spec.ts:23` sous charge
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1534
+
+**En tant que** développeur, **je veux** que la cellule « Total — 1 000 tâches » du parcours
+d'ouverture de la grille de planning soit mesurée dans la fenêtre sous charge, **afin que** le
+palier complet local du front et la file de fusion ne rejettent plus un lot sur un échec qui
+disparaît au rejeu (#1522).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause est écrite dans la pull request, après une reproduction qui la montre
+  — la charge, le nombre de workers, le test qui échoue —, avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec, sans dépendre de la charge ; le
+  test ou le code de production est corrigé à sa cause, et la pull request dit lequel des trois
+  (test, environnement, production) la porte ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front
+  TIER=full`), à six workers, voient `planning.spec.ts:23` vert, et la file de fusion verte du
+  premier coup ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé ; un
+  `expect.poll` sur `withinBox` n'est admis que si la pull request montre que l'état attendu est
+  atteint puis tenu ;
+- propre à l'US : les sept autres fichiers qui mesurent `withinBox` d'un seul coup sont audités
+  une fois la cause connue ; ceux qui ont la même cause sont corrigés, les autres constats
+  deviennent des issues rattachées au lot.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b à e) ; US-0590 reste `fini`.
+- Budget : 90 minutes de reproduction au total ; passé ce délai sans cause, le lot passe
+  `question` dans son issue, avec ce qui a été essayé.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1528 et #1529 : US-0660/L3 #1458 ; #1230 : EP-17.
 
 ---
 
