@@ -411,7 +411,7 @@ describe("the import of actual costs and the correspondence of the extraction", 
 });
 
 describe("the report of an import", () => {
-  it("says the motive of two lines of the file of the same document and item, each rejected, and designates a line by both [WF-QUA-0010]", () => {
+  it("says the motive of two lines of the file of the same document and item, each rejected, and designates a line by both [WF-INTF-0080-A]", () => {
     serve({});
     open(report(example("import_actual_costs_duplicate_line") as Import));
     const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
@@ -424,6 +424,13 @@ describe("the report of an import", () => {
     ).toEqual(["LigneMotif", `4${sentence}`, `5${sentence}`]);
     const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
     expect(differences).toHaveTextContent("Ligne de coût réelFA-2026-0412, poste 10");
+  });
+
+  it("says the motive of the duplicate lines of actual costs in English, blank item included [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_duplicate_line") as Import), "en");
+    const rejected = screen.getByRole("table", { name: "Rejected lines" });
+    expect(rejected).toHaveTextContent(/blank item included/);
   });
 
   it("lists the rejected lines with their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {

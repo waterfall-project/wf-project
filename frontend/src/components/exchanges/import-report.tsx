@@ -4,8 +4,9 @@
  * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
  * the import stands, when it was opened and until when its report applies; then, once analysed,
  * the lines read, the reasons that ask for an explicit confirmation, each line rejected by its
- * place in the file and its motive, and each difference with the existing data — a line of actual cost by its document and its item (US-0630) —, with the fields it
- * changes named as the columns of their grid, and what the import ignores — the columns of an
+ * place in the file and its motive, and each difference with the existing data — a line of
+ * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
+ * columns of their grid, and what the import ignores — the columns of an
  * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
  * is the catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code
  * and parameters, as a refusal is; the label of a line, which comes from the file or the project,

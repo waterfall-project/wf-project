@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The configuration of the grid of the actual costs (WF-CRE-0040): for each line of a page of the
- * list, its document — number, item, date —, its amount, signed, the sub-project it is charged to, or
- * none (WF-CRE-0020), whether it is in the tracked scope, why it is excluded, and the columns of
+ * list, its document — number, item, date —, its amount, signed, the sub-project it is charged to,
+ * or none (WF-CRE-0020), whether it is in the tracked scope, why it is excluded, and the columns of
  * the file kept for information (WF-CRE-0010). The same dense grid as the planning and the risks:
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
  * actual costs (EP-09). Every value is entered by the ERP, none computed here.

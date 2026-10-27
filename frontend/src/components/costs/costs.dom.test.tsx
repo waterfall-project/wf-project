@@ -141,7 +141,7 @@ describe("the grid of the actual costs", () => {
     ]);
   });
 
-  it("shows the item of a line next to its document number, and nothing for a line the extraction gave none [WF-QUA-0010]", () => {
+  it("shows the item of a line next to its document number, and nothing for a line the extraction gave none [WF-CRE-0040-A]", () => {
     // FA-2026-0301 is split into two items (US-0630); the credit note has none.
     render(costsGrid(costsOf("actual_costs")));
     const items = within(grid())
