@@ -143,6 +143,38 @@ describe("the screen of the imports and exports", () => {
     expect(text(await exchangesAt())).toContain("Import an estimate");
   });
 
+  it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, to a session that reads the cost settings [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+      "GET /reference/actual-cost-mapping": "actual_cost_mapping_empty",
+    };
+    const markup = await exchangesAt();
+    expect(text(markup)).toContain(
+      "Required columns without a label in the mapping: WBS element, Document no., Document date, Amount. Set the mapping of the extraction",
+    );
+    expect(links(markup)).toContain("/reference/costs/actual-cost-mapping");
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([
+      "/reference/actual-cost-mapping?",
+    ]);
+  });
+
+  it("reads and links no correspondence for a session that may not read the cost settings, the condition alone being said [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_auditor",
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+    };
+    const markup = await exchangesAt();
+    expect(links(markup)).not.toContain("/reference/costs/actual-cost-mapping");
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([]);
+  });
+
+  it("reads no correspondence while the import of actual costs is available [WF-REF-0190-A]", async () => {
+    await exchangesAt();
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([]);
+  });
+
   it("is not found for a session that neither reads the planning nor is listed an import (#521)", async () => {
     // A session of no role, and the project as one who may exercise none of its commands reads
     // it: no import listed. The pair is wanted: the universe has no realistic reader who neither

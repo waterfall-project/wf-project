@@ -36,6 +36,7 @@ vi.mock("next/headers", () => ({
 // The project in pricing, without a revision (`project_pricing.json`).
 const PRICING = "01926f3a-7c00-7000-8000-000000000002";
 const IMPORT = "01926f3a-7c00-7000-8000-000000000a11";
+const MAPPING_READ = "GET /reference/actual-cost-mapping";
 const IMPORT_READ = "GET /projects/{project_id}/imports/{import_id}";
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
@@ -107,6 +108,30 @@ describe("the imports on the screen of a project without revision", () => {
     };
     const page = await projectAt();
     expect(page).not.toContain('aria-label="Import a file"');
+  });
+
+  it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, reading it once [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+      "GET /reference/actual-cost-mapping": "actual_cost_mapping_empty",
+    };
+    const page = await projectAt();
+    expect(text(page)).toContain("Required columns without a label in the mapping:");
+    expect(page).toContain('href="/reference/costs/actual-cost-mapping"');
+    expect(routes().filter((route) => route === MAPPING_READ)).toHaveLength(1);
+  });
+
+  it("keeps the condition and the way to the correspondence when the correspondence cannot be read [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+      [MAPPING_READ]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await projectAt();
+    expect(text(page)).toContain("Unmet condition: actual-cost extraction mapping complete");
+    expect(page).toContain('href="/reference/costs/actual-cost-mapping"');
+    expect(text(page)).not.toContain("Required columns without a label");
   });
 
   it("offers an estimator the import of an estimate unavailable, lacking the permission to create the revision it would create", async () => {

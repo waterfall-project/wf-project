@@ -14,6 +14,7 @@
 "use client";
 
 import { FileSearch, X } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
@@ -30,6 +31,7 @@ import {
   IMPORT_MAX_BYTES,
   type ImportOffers,
   MEBIBYTE,
+  type MappingGap,
 } from "./offers";
 import { useOpenImport } from "./open-import";
 
@@ -42,10 +44,12 @@ export interface ImportCommandsProps {
   readonly offers: ImportOffers;
   /** The address of the screen, its context kept, from which the report of an import is shown. */
   readonly start: string;
+  /** What the correspondence of the extraction lacks, when the session may read it. */
+  readonly gap?: MappingGap | undefined;
 }
 
 /** The form of the file of an import: the kind chosen, and what closes the form. */
-interface FileFormProps extends Omit<ImportCommandsProps, "offers"> {
+interface FileFormProps extends Omit<ImportCommandsProps, "offers" | "gap"> {
   readonly id: string;
   readonly kind: ExchangeKind;
   readonly onClose: () => void;
@@ -196,8 +200,30 @@ function FileForm({ id, kind, projectId, start, onClose }: FileFormProps) {
   );
 }
 
+/**
+ * What the unavailable import of actual costs lacks of the correspondence: the columns required
+ * without a label, and the way to the page where they are declared (WF-REF-0190).
+ */
+function MappingNote({ gap }: { readonly gap: MappingGap }) {
+  const t = useTranslations("exchanges.import");
+  const column = useTranslations("enums.ActualCostSourceColumn");
+  return (
+    <p className="text-sm text-muted-foreground">
+      {gap.columns.length === 0
+        ? null
+        : `${t("mappingMissing", {
+            count: gap.columns.length,
+            columns: gap.columns.map((each) => column(each)).join(", "),
+          })} `}
+      <Link href={gap.href} className="underline underline-offset-2">
+        {t("mappingLink")}
+      </Link>
+    </p>
+  );
+}
+
 /** Offer the import of each kind of file, and open the choice of its file when pressed. */
-export function ImportCommands({ projectId, offers, start }: ImportCommandsProps) {
+export function ImportCommands({ projectId, offers, start, gap }: ImportCommandsProps) {
   const t = useTranslations("exchanges.import.kinds");
   const helps = useTranslations("commands");
   const form = useId();
@@ -232,6 +258,9 @@ export function ImportCommands({ projectId, offers, start }: ImportCommandsProps
           />
         ))}
       </div>
+      {gap === undefined || offers.actual_costs?.is_available !== false ? null : (
+        <MappingNote gap={gap} />
+      )}
       {open === undefined ? null : (
         <FileForm
           key={open}

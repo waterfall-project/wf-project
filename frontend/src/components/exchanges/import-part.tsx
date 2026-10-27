@@ -15,7 +15,7 @@ import type { ReactNode } from "react";
 import { ICON } from "@/components/projects/project-tables";
 
 import { ImportCommands } from "./import-commands";
-import { EXCHANGE_KINDS, type ImportOffers } from "./offers";
+import { EXCHANGE_KINDS, type ImportOffers, type MappingGap } from "./offers";
 
 /** A part of a screen under its title, named by it. */
 export function Part({
@@ -43,18 +43,21 @@ export function ImportPart({
   projectId,
   offers,
   start,
+  gap,
 }: {
   readonly projectId: string;
   readonly offers: ImportOffers;
   /** The address of the screen, its context kept, from which the report of an import is shown. */
   readonly start: string;
+  /** What the correspondence of the extraction of actual costs lacks, when the session may read it. */
+  readonly gap?: MappingGap | undefined;
 }) {
   const t = useTranslations("exchanges.import");
   const offered = EXCHANGE_KINDS.some((kind) => offers[kind] !== undefined);
   return (
     <Part title={t("title")} icon={<FileUp aria-hidden="true" className={ICON} />}>
       {offered ? (
-        <ImportCommands projectId={projectId} offers={offers} start={start} />
+        <ImportCommands projectId={projectId} offers={offers} start={start} gap={gap} />
       ) : (
         <p className="text-sm text-muted-foreground">{t("none")}</p>
       )}

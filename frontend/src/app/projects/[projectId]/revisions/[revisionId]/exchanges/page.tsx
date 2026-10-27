@@ -43,6 +43,7 @@ import {
   importOffers,
   listsAnImport,
 } from "@/components/exchanges/offers";
+import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { readShownImport } from "@/components/exchanges/shown-import";
 import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -155,6 +156,7 @@ export default async function ExchangesPage({
     notFound();
   }
   const offers = importOffers(reading.project);
+  const gap = await readMappingGap(offers, account?.permissions);
   const start = startOf(at, offset);
   const { projectId } = revision;
   return (
@@ -171,7 +173,7 @@ export default async function ExchangesPage({
             start={start}
           />
         )}
-        <ImportPart projectId={projectId} offers={offers} start={start} />
+        <ImportPart projectId={projectId} offers={offers} start={start} gap={gap} />
         {/* The pages of the list keep the import shown, and turn from the address last asked. */}
         <PendingAddress>
           <ImportList

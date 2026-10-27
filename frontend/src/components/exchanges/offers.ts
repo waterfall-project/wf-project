@@ -64,6 +64,16 @@ const EXPORT_COMMAND: Readonly<Record<ExportKind, RevisionCommand>> = {
   task_tree_image: "export_task_tree_image",
 };
 
+/**
+ * What the correspondence of the extraction of the actual costs lacks, which the import of actual
+ * costs unavailable says (WF-REF-0190): the columns required without a label, and the way to the
+ * page of the correspondence, for a session that may read it.
+ */
+export interface MappingGap {
+  readonly columns: readonly components["schemas"]["ActualCostSourceColumn"][];
+  readonly href: string;
+}
+
 /** The import of each kind, as the server offers it; `undefined` where it is not offered. */
 export type ImportOffers = Readonly<Record<ExchangeKind, CommandOffer | undefined>>;
 
