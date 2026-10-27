@@ -51,10 +51,8 @@ const ROW =
 const NO_ROW = { problem: example("row_number_unknown") as Problem & { readonly status: 404 } };
 // The server out of reach (WF-ARC-0110): the problem of an example of the contract that bears 503.
 const UNAVAILABLE = (
-  example("system_status_backup_failed") as {
-    readonly last_backup: { readonly problem: Problem & { readonly status: 503 } };
-  }
-).last_backup.problem;
+  example("system_status_backup_failed") as components["schemas"]["SystemStatus"]
+).last_backup?.problem as Problem & { readonly status: 503 };
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -693,7 +691,10 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     expect(sentOf(client).asked).toEqual(["9"]);
   });
 
-  it("leaves no field waiting when the entry is left inside an asynchronous act", async () => {
+  // aucune exigence : propre à l'US (US-0650). Garde l'état final seul — aucun champ en attente
+  // ne reste une fois la saisie quittée dans un act asynchrone —, sans prouver la garde de
+  // `askFirst` (grid-keyboard.ts), dont la course ne se reproduit pas par la grille entière.
+  it("keeps no field busy once the entry is left inside an asynchronous act", async () => {
     const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" });
     render(grid(planning));
     const field = await entered(reception, "predecessors");
