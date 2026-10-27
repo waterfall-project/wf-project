@@ -622,7 +622,7 @@ describe("the columns and their widths, a display preference of the account", ()
       expect(recorded(client)).toEqual([
         {
           grids: {
-            // Its width, its sort and the columns it knew as they came (`known_columns`, US-0650/L2).
+            // Its width, its sort and any field it does not read (`known_columns`) as they came.
             estimate: { ...settings, hidden_columns: ["hours"] },
           },
         },
