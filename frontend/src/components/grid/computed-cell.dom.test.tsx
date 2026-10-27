@@ -444,7 +444,7 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
   });
 
-  it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on (EP-14/L42p)", async () => {
+  it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on [WF-RIS-0010]", async () => {
     // The fake back answers what the sub-project of the provision depends on, its risk
     // (`dependencies_provision_subproject`).
     const client = serve({ [DEPENDENCIES]: "dependencies_provision_subproject" });

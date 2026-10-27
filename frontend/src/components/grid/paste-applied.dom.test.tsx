@@ -171,7 +171,7 @@ describe("a paste applied", () => {
     expect(within(refusals()).getByText("Mise en service")).toBeVisible();
   });
 
-  it("refused for a structure changed since its preview offers to read it anew, the grid left as it was", async () => {
+  it("refused for a structure changed since its preview offers to read it anew, the grid left as it was [WF-IHM-0050-A]", async () => {
     serve({ [APPLY]: { problem: example("paste_stale") as Problem & { status: 412 } } });
     renderGrid();
     await pasteAndApply(UNKNOWN);
