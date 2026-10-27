@@ -704,6 +704,24 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     expect(document.querySelector("[aria-busy='true']")).toBeNull();
   });
 
+  it("asks again a number when the rows were read anew while the server was answering", async () => {
+    const { until, release } = held();
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
+    const { rerender } = render(grid(planning));
+    await retype(await entered(reception, "predecessors"), "9");
+    expect(sentOf(client).asked).toEqual(["9"]);
+    // A reading anew between the question and the answer: the numbering may have changed.
+    rerender(grid({ ...planning, items: [...planning.items] }));
+    await act(async () => {
+      release();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(sentOf(client).asked).toEqual(["9", "9"]);
+    expect(screen.queryByText(/n’a pu être vérifié/)).toBeNull();
+  });
+
   it("says a number the server could not be asked, and asks again when validated anew", async () => {
     const client = serve({
       [ROW]: [{ problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } }, "row_number_task"],

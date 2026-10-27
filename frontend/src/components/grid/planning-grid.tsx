@@ -230,7 +230,7 @@ interface RowNames {
  * the grid, reading the rows of the reading committed last — the entry asks them in an event
  * handler, never while rendering — so that a reading anew does not build the configuration anew.
  * The numbers asked are forgotten with the reading and the version they were asked on, which a
- * write may have renumbered; an answer to a number asked before is dropped.
+ * write may have renumbered; an answer to a number asked before is dropped, and asked once more.
  */
 function useRowNames(
   rows: readonly PlanningNode[],
@@ -249,17 +249,24 @@ function useRowNames(
   );
   const ask = useCallback(
     async (numbers: readonly number[]) => {
-      const into = asked.current;
-      await Promise.all(
-        numbers.map(async (number) => {
-          const outcome = await resolveRowNumber(structure, number).catch(rejected);
-          if (outcome.kind === "done") {
-            into.set(number, outcome.data.kind === "task" ? outcome.data.node_id : null);
-          } else if (outcome.kind !== "unreachable" && outcome.problem.status === 404) {
-            into.set(number, null);
-          }
-        }),
-      );
+      // Asked once more if the reading or the version changed meanwhile: the numbering may have,
+      // and the answer then no longer holds.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const into = asked.current;
+        await Promise.all(
+          numbers.map(async (number) => {
+            const outcome = await resolveRowNumber(structure, number).catch(rejected);
+            if (outcome.kind === "done") {
+              into.set(number, outcome.data.kind === "task" ? outcome.data.node_id : null);
+            } else if (outcome.kind !== "unreachable" && outcome.problem.status === 404) {
+              into.set(number, null);
+            }
+          }),
+        );
+        if (into === asked.current) {
+          return;
+        }
+      }
     },
     [structure],
   );
