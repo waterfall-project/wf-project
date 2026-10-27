@@ -369,7 +369,10 @@ const DETAILS: readonly Reader[] = [
       : undefined,
   // The columns of an extraction of actual costs the correspondence leaves without a label
   // (`STATE_FORBIDS_OPERATION`, `actual_cost_mapping_complete`, WF-REF-0190), each by its name.
-  ({ columns }, label) => {
+  ({ columns, missing_condition }, label) => {
+    if (missing_condition !== "actual_cost_mapping_complete") {
+      return undefined;
+    }
     const named = itemsOf(columns, (item): item is string => typeof item === "string").flatMap(
       (column) => label("enums.ActualCostSourceColumn", column) ?? [],
     );

@@ -18,6 +18,18 @@ import {
 
 type ErrorCode = components["schemas"]["ErrorCode"];
 
+/**
+ * Every column of an extraction of actual costs the contract names: typed by the enumeration, so
+ * that a column added to it fails the type check here until the catalogue is told.
+ */
+const SOURCE_COLUMNS: Record<components["schemas"]["ActualCostSourceColumn"], true> = {
+  wbs_element: true,
+  document_number: true,
+  document_item: true,
+  document_date: true,
+  amount: true,
+};
+
 /** The first projects of the portfolio of the witness, as a refusal names them (`projects`). */
 function portfolioProjects(count: number) {
   const portfolio = example("volume/portfolio_projects") as {
@@ -124,6 +136,25 @@ describe("the sentence of a refusal", () => {
     expect(say(missing, "fr")).toContain(
       "Colonne exigée absente du fichier\u00A0: Montant (intitulé déclaré\u00A0: \u00AB\u00A0Val./Devise objet\u00A0\u00BB).",
     );
+  });
+
+  it("labels every column of the contract in both catalogues, so that none is dropped from a refusal unheard [WF-REF-0190-A]", () => {
+    const columns = Object.keys(SOURCE_COLUMNS).sort();
+    for (const locale of ["en", "fr"] as const) {
+      const catalogue = CATALOGUES[locale] as unknown as {
+        enums: { ActualCostSourceColumn: Record<string, string> };
+      };
+      expect(Object.keys(catalogue.enums.ActualCostSourceColumn).sort()).toEqual(columns);
+    }
+  });
+
+  it("names no columns of a refusal that is not the mapping incomplete, whatever its parameters [WF-REF-0190-A]", () => {
+    const refused = example("import_actual_cost_mapping_incomplete") as ProblemText;
+    const other = {
+      ...refused,
+      params: { ...refused.params, missing_condition: "may_create_revision" },
+    } as ProblemText;
+    expect(say(other, "en")).not.toContain("without a label");
   });
 
   it("says the last administrator kept, by the condition her deactivation lacks, or by its own code for roles that would take her permissions away [WF-ADM-0120-A]", () => {

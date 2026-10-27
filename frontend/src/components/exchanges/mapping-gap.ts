@@ -6,10 +6,11 @@
  * unavailable, naming `actual_cost_mapping_complete`; the columns without a label are the
  * correspondence's to say (`getActualCostMapping`, `missing_columns`), and only a session that may
  * read the cost settings (`cost_settings.read`) may read it — and be led to its page. Another reads
- * the condition alone, in the sentence of the unavailable command. A read the API refuses, or cannot
- * answer, is thrown for the pages of the shell to say.
+ * the condition alone, in the sentence of the unavailable command. A correspondence the API refuses
+ * or cannot answer leaves the gap without columns: the condition and the way to the page stay, the
+ * page of the correspondence saying the rest. Any other answer is thrown for the pages of the shell.
  */
-import { readOrFail } from "@/api/problem";
+import { readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { leafOf } from "@/navigation/functions";
 import type { Permission } from "@/session/request";
@@ -18,6 +19,9 @@ import type { ImportOffers, MappingGap } from "./offers";
 
 /** The page of the correspondence of the extraction of the actual costs (FBS-3.1.3). */
 const MAPPING_PAGE = leafOf("FBS-3.1.3");
+
+/** The refusals of the correspondence the screens do without: not readable, not found, or failing. */
+const UNREADABLE = [{ status: 403 }, { status: 404 }, { status: 500 }, { status: 503 }] as const;
 
 /**
  * The gap of the correspondence, when the import of actual costs is unavailable for want of it and
@@ -31,8 +35,8 @@ export async function readMappingGap(
   if (waits !== true || permissions?.includes("cost_settings.read") !== true) {
     return undefined;
   }
-  const mapping = await readOrFail("getActualCostMapping", () =>
+  const mapping = await readUnlessRefused("getActualCostMapping", UNREADABLE, () =>
     serverClient().GET("/reference/actual-cost-mapping"),
   );
-  return { columns: mapping.missing_columns, href: MAPPING_PAGE.route };
+  return { columns: mapping?.missing_columns ?? [], href: MAPPING_PAGE.route };
 }

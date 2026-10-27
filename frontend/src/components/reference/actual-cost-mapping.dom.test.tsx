@@ -330,6 +330,23 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(save).toHaveFocus();
   });
 
+  it("gives the focus to the command that saves when the control that held it is not one the form finds again (#1515) [WF-REF-0190-A]", async () => {
+    serve({ [SET]: "actual_cost_mapping_updated" });
+    shown(witness, true);
+    const remove = screen.getByRole("button", { name: "Retirer la colonne conservée 1" });
+    remove.focus();
+    expect(remove).toHaveFocus();
+    fireEvent.submit(
+      screen.getByRole("form", { name: "Correspondance de l’extraction des coûts réels" }),
+    );
+    await vi.waitFor(() => {
+      expect(screen.getByText("Correspondance enregistrée.")).toBeInTheDocument();
+    });
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "Enregistrer la correspondance" })).toHaveFocus();
+    });
+  });
+
   it("leaves the second refusal of a label in the notice under the form, the first being said at the label (#1516) [WF-REF-0190-A]", async () => {
     const duplicate = example("actual_cost_mapping_duplicate") as Problem & { status: 422 };
     const [first] = duplicate.fields ?? [];
