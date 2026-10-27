@@ -807,7 +807,7 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
 
 ## US-0590e — La stabilité d'un parcours sous charge
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1505
