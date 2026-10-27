@@ -49,6 +49,12 @@ const ROW =
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}";
 // No node bears the number asked: refused as an object that does not exist (WF-ADM-0110).
 const NO_ROW = { problem: example("row_number_unknown") as Problem & { readonly status: 404 } };
+// The server out of reach (WF-ARC-0110): the problem of an example of the contract that bears 503.
+const UNAVAILABLE = (
+  example("system_status_backup_failed") as {
+    readonly last_backup: { readonly problem: Problem & { readonly status: 503 } };
+  }
+).last_backup.problem;
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -724,7 +730,7 @@ describe("a predecessor whose number no row read bears, resolved by the server",
 
   it("says a number the server could not be asked, and asks again when validated anew", async () => {
     const client = serve({
-      [ROW]: [{ problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } }, "row_number_task"],
+      [ROW]: [{ problem: UNAVAILABLE }, "row_number_task"],
       [PREDECESSORS]: "predecessor_set",
     });
     render(grid(planning));
