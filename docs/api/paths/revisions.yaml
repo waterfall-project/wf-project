@@ -1616,10 +1616,23 @@
           suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
           suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
-          rien n'est défait (décision de l'auteur, #732).
+          rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de
+          provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen
+          qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure
+          principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie
+          qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une
+          nature d'un autre type depuis, `active_provision_category` : une annulation subit les
+          règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié
+          sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne
+          peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans
+          l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`,
+          `restored_subproject_exists`, `active_provision_category` —, le refus nommant la
+          première qui manque, et rien n'est défait (#795).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              risk_without_task: { $ref: ../../../fixtures/api/undo_risk_without_task.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/redo:
@@ -1649,10 +1662,22 @@
           à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une
           ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli
-          (décision de l'auteur, #732).
+          (décision de l'auteur, #732). Ou le rétablissement recréerait la ligne de provision d'un
+          risque — il rétablit sa création, le réexamen qui l'a rendu identifié ou le changement de
+          la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune
+          tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type
+          provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis,
+          `active_provision_category`, comme l'annulation (`undoLastChange`, WF-RIS-0010,
+          WF-IHM-0110). Ces conditions se jugent dans l'ordre de l'énumération
+          (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`,
+          `active_provision_category` —, le refus nommant la première qui manque, et rien n'est
+          rétabli (#795).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              risk_category_deactivated:
+                $ref: ../../../fixtures/api/redo_risk_category_deactivated.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/skeleton:

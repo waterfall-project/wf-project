@@ -7973,12 +7973,51 @@ opération nouvelle.
 - **Le rôle seul d'une tâche, au refus d'`updateCalendar`** (#795 point 1). Le 422 dit le second cas,
   comme ses routes sœurs depuis EP-14/L42s : le calendrier du seul rôle d'une tâche qui n'a plus
   aucune heure dans la semaine.
+- **Une catégorie de provision passée à une nature d'un autre type** (#747 point 4). Une catégorie
+  que désigne un risque écarté, que plus aucune ligne n'emploie, peut être rattachée à une nature
+  d'un autre type (`cost_category_unused`, WF-REF-0030). `Risk.provision_cost_category_is_active`
+  devient vrai quand la catégorie est « active et de type provision pour risques », et
+  `RiskReviewWrite` comme `reviewRisk` reprennent la catégorie désignée à cette double condition,
+  et la demandent sinon : WF-RIS-0010 désigne la catégorie « parmi les catégories actives de type
+  provision pour risques », et WF-REF-0030 fait porter aux lignes de provision « la catégorie que
+  chaque risque désigne ». Le nom du champ reste : il ne se renomme pas pour un cas que la
+  désactivation couvrait déjà. Écarté : la seule activité, qui recréerait une ligne de provision
+  sur une catégorie qui n'est plus de provision. `is_active_provision` lit le type de la nature,
+  et un test l'éprouve sur la catégorie du témoin passée à « Débours ».
+- **L'annulation et le rétablissement qui recréeraient une provision** (#795 point 2).
+  `undoLastChange` et `redoLastUndo` sont refusés par 409 `STATE_FORBIDS_OPERATION` quand ils
+  recréeraient la ligne de provision d'un risque — l'annulation de la suppression d'un risque
+  identifié, du réexamen qui l'a écarté ou du changement de la catégorie de sa provision ; le
+  rétablissement de sa création, du réexamen qui l'a rendu identifié ou de ce changement — sur une
+  structure principale sans tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus
+  active et de type provision pour risques, `active_provision_category` : une annulation « subit
+  les mêmes règles » (motif de WF-IHM-0110), et WF-RIS-0010 refuse le retour d'un risque écarté à
+  l'état identifié dans ces deux cas. Aucune condition nouvelle, sur le modèle de
+  `restored_subproject_exists` ; les trois se jugent dans l'ordre de l'énumération,
+  `at_least_one_task`, `restored_subproject_exists`, `active_provision_category`, le refus nommant
+  la première. N'envoyant rien, l'annulation ne peut pas désigner une autre catégorie : le refus
+  vaut dès que la catégorie qu'elle rendrait n'est plus de provision active, même s'il en reste
+  une autre — `CommandCondition` l'étend ainsi, pour ces deux opérations seules. Écarté : recréer
+  la ligne sur la seule catégorie active restante, que l'utilisateur n'aurait pas choisie.
+  Exemples écrits à la main, aucun outil ne jouant l'annulation : `undo_risk_without_task` (409
+  d'`undoLastChange`, l'annulation du réexamen qui a écarté un risque d'un projet vidé de sa seule
+  tâche) et `redo_risk_category_deactivated` (409 de `redoLastUndo`, le rétablissement du retour
+  de `risk_reidentified` après la désactivation de sa catégorie). Le faux back ne joue pas ces
+  opérations ; aucun test du front ne fabriquait leur enveloppe.
+- **Le retour d'un risque écarté sur une structure principale sans tâche** (#787, que #795 point 2
+  suppose). La décision de l'auteur du 2026-10-11 (option A), intégrée à WF-RIS-0010 par C-354,
+  attendait encore le contrat : `reviewRisk` nomme `at_least_one_task` dans son 409, entre
+  `risk_not_occurred` et `active_provision_category`, comme `createRisk`, et `RiskReviewWrite` le
+  dit. Sans elle, l'annulation refusée par `at_least_one_task` aurait été plus stricte que le
+  réexamen qu'elle rejoue. La commande `review` reste disponible : elle confirme et écarte sans
+  tâche, et seul le retour est refusé, comme pour la catégorie. Exemple écrit à la main,
+  `risk_review_without_task`, dernier des 409 de `reviewRisk`.
 - **Les outils** (#747 points 2, 3 et 9 ; #1507). La docstring d'`is_active_provision` dit ce
   qu'elle lit, et un test l'éprouve sur la nature désactivée, la valeur fausse n'étant portée par
   aucun exemple ; celle de `_borne_by_the_current_revision` dit que l'univers ne tire aucune ligne
   dans les devis propres ; `test_mockclientcode.py` tient `subproject_code_reserved`.
 
-**Corrélations** 1551 à 1555.
+**Corrélations** 1551 à 1558.
 
 ## Collage et annulation
 

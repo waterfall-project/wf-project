@@ -1733,7 +1733,11 @@ UndoResult:
     provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la
     grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par
     409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
-    ne défont ni ne rétablissent rien (décision de l'auteur, #732).
+    ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
+    rétablissement qui recréeraient la ligne de provision d'un risque sur une structure
+    principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour
+    risques, sont refusés par `at_least_one_task` ou `active_provision_category`
+    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
   properties:
     undone:
       type: object

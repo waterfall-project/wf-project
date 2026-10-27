@@ -4552,7 +4552,7 @@ class Risk(ContractModel):
     provision_cost_category_id: Annotated[
         Uuid,
         Field(
-            description="La catégorie de type provision pour risques que le risque a désignée pour sa provision — à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu identifié, sa ligne la reprend si elle est encore active, et sinon la catégorie est demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que `provision_cost_category_is_active` dit d'avance."
+            description="La catégorie de type provision pour risques que le risque a désignée pour sa provision — à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu identifié, sa ligne la reprend si elle est encore active et de type provision pour risques, et sinon la catégorie est demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que `provision_cost_category_is_active` dit d'avance."
         ),
     ]
     provision_cost_category_label: Annotated[
@@ -4564,7 +4564,7 @@ class Risk(ContractModel):
     provision_cost_category_is_active: Annotated[
         bool,
         Field(
-            description="Calculé à la lecture : vrai quand cette catégorie est active — sa nature l'est alors aussi, la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s, C-291). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans comparer la catégorie aux listes du référentiel."
+            description="Calculé à la lecture : vrai quand cette catégorie est active et que sa nature est de type provision pour risques — sa nature est alors active aussi, la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s, C-291). Faux pour une catégorie désactivée, ou rattachée depuis à une nature d'un autre type : une catégorie que plus aucune ligne n'emploie, celle d'un risque écarté, peut changer de nature (WF-REF-0030), et elle n'est plus alors « parmi les catégories actives de type provision pour risques » (WF-RIS-0010 ; #747). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans comparer la catégorie aux listes du référentiel."
         ),
     ]
     provision_subproject_id: Annotated[
@@ -4665,7 +4665,7 @@ class RiskReviewWrite(ContractModel):
     provision_cost_category_id: Annotated[
         Uuid | None,
         Field(
-            description="La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle qu'il désignait n'est plus active (`Risk.provision_cost_category_is_active` faux) : omise, elle est la seule catégorie active de type provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la catégorie désignée est encore active, ou quand le risque ne redevient pas identifié."
+            description="La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle qu'il désignait n'est plus active, ou n'est plus de type provision pour risques (`Risk.provision_cost_category_is_active` faux) : omise, elle est la seule catégorie active de type provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la catégorie désignée est encore active et de type provision pour risques, ou quand le risque ne redevient pas identifié."
         ),
     ] = None
     lock_version: LockVersion

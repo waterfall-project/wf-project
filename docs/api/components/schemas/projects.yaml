@@ -176,7 +176,11 @@ CommandCondition:
     supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
     `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la
     catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet
-    l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). `at_least_one_task` manque à la déclaration d'un
+    l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à
+    tout rétablissement qui recréeraient la ligne de provision d'un risque avec une catégorie qui
+    n'est plus active et de type provision pour risques, quelles que soient les autres :
+    n'envoyant rien, ils ne peuvent pas en désigner une autre (`undoLastChange`, `redoLastUndo` ;
+    #795). `at_least_one_task` manque à la déclaration d'un
     risque sur une révision dont la structure principale ne comporte aucune tâche : « La
     déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la
     condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se
@@ -184,7 +188,11 @@ CommandCondition:
     risques, `project_not_terminal` puis `no_background_task_running`, et avant
     `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans
     révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks`
-    (EP-14/L42s).
+    (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié sur une telle
+    structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category` (WF-RIS-0010 ;
+    décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
+    qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche
+    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
     `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
     fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
     offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).

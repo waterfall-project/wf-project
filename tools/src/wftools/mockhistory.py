@@ -343,16 +343,19 @@ def commands(risk: Risk) -> list[JsonValue]:
 
 
 def is_active_provision(category: str) -> bool:
-    """Whether the category a risk designates is active (`Risk.provision_cost_category_is_active`).
+    """Whether a risk's category is active and of the kind provision for risks.
 
-    Read from the flag of the category alone: deactivating a nature deactivates its categories
-    (WF-REF-0010; EP-14/L42s, C-291), so a category under a deactivated nature reads inactive, and
-    an active one is always under an active nature. The kind of the nature is not judged here
-    (#747, point 4, left to the author).
+    The flag `Risk.provision_cost_category_is_active`, read from the flag of the category and the
+    kind of its nature: deactivating a nature
+    deactivates its categories (WF-REF-0010; EP-14/L42s, C-291), so a category under a deactivated
+    nature reads inactive, and an active one is always under an active nature. A category no line
+    employs — that of a dismissed risk — may be moved to a nature of another kind (WF-REF-0030):
+    it is then no longer among « les catégories actives de type provision pour risques »
+    (WF-RIS-0010), and reads false (#747, point 4).
     """
     categories = cast("list[JsonObject]", fixture("volume/cost_categories")["items"])
     [entry] = [each for each in categories if each["cost_category_id"] == category]
-    return entry["is_active"] is True
+    return entry["is_active"] is True and entry["cost_type_kind"] == "provision"
 
 
 def _actor() -> JsonObject:
