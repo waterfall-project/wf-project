@@ -165,9 +165,11 @@ test("a page of the account clicked in the menu while its prefetch is on its way
     page.getByRole("button", { name: "Compte de Camille Martin" }),
     page.getByRole("menu"),
   );
-  // Hovered first, as a pointer does, so that a link that prefetches has sent its prefetch before
-  // the click. Without the fix, it has in nearly every run at four workers (62 out of 64); in the
-  // others it goes out during the click, too late to be held across it, and the run passes.
+  // Hovered first, as a pointer does. Next prefetches a link when it enters the viewport, and
+  // reschedules that prefetch at a higher priority on hover (not in a development build, which
+  // skips it): the hover is here to let a link that prefetches send its prefetch before the click.
+  // Without the fix, it has in nearly every run at four workers (62 out of 64); in the others it
+  // goes out during the click, too late to be held across it, and the run passes.
   await page.getByRole("menuitem", { name: "Changer l’avatar" }).hover();
   await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
     "aria-disabled",
