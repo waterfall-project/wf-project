@@ -205,12 +205,16 @@ test("enters a duration with its unit, then the predecessors « 18FD+2 j » of t
   await expect(commissioning.getByRole("gridcell").nth(at.start)).toContainText("23/12/2026");
   await expect(commissioning.getByRole("gridcell").nth(at.finish)).toContainText("05/01/2027");
 
-  // A number no row of the grid has is refused at the cell, which stays open, saying so.
+  // A number no task bears is refused at the cell, which stays open, saying so: row 0 is numbered by
+  // none, so the grid refuses it without asking the server, whose fake back would name a task for
+  // any number (the 404 of `resolveRowNumber` is proven on the examples by `planning-entry.dom.test.tsx`).
   await mounting.getByRole("gridcell").nth(at.predecessors).click();
   await page.keyboard.press("F2");
-  await grid.getByRole("textbox", { name: "Prédécesseurs" }).fill("99999");
+  await grid.getByRole("textbox", { name: "Prédécesseurs" }).fill("0");
   await page.keyboard.press("Enter");
-  await expect(page.getByText("Aucune ligne de la grille n’a l’un de ces numéros.")).toBeVisible();
+  await expect(
+    page.getByText("Aucune tâche de la structure ne porte l’un de ces numéros."),
+  ).toBeVisible();
   await expect(grid.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
     "aria-invalid",
     "true",
