@@ -583,7 +583,7 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("says nothing of what a reader cannot use, nor of a value it has no label for [WF-IHM-0050-A]", () => {
+  it("says nothing of what a reader cannot use, nor of a value it has no label for", () => {
     const problem: ProblemText = {
       code: "STATE_FORBIDS_OPERATION",
       params: {
