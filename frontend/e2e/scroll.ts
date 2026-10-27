@@ -71,15 +71,27 @@ export async function scrollToPosition(grid: Locator, position: number): Promise
  * the window: the cells of the header and of the totals are what sticks to that box, their rows
  * keeping their place in the table — and a box whose edge is below the window hides them all
  * the same.
+ *
+ * The box, the element and the window are read at one moment, in one task of the page: read one
+ * after the other, each could come from another layout. The grid of the planning lays out anew as it
+ * hydrates — the legend of its Gantt, held until the Gantt measures its column, goes, and the grid
+ * grows into its place —: under load, its box was read before and its totals after, each in place in
+ * its own layout, out of place against each other (#1522).
  */
 export async function withinBox(grid: Locator, element: Locator): Promise<boolean> {
-  const box = await scroller(grid).boundingBox();
-  const bounds = await element.boundingBox();
-  const viewport = element.page().viewportSize();
-  if (box === null || bounds === null || viewport === null) {
-    return false;
+  const frame = await scroller(grid).elementHandle();
+  try {
+    return await element.evaluate((target, box) => {
+      const outer = box.getBoundingClientRect();
+      const bounds = target.getBoundingClientRect();
+      if (!box.isConnected || (bounds.width === 0 && bounds.height === 0)) {
+        return false;
+      }
+      const top = Math.max(outer.top, 0);
+      const bottom = Math.min(outer.bottom, window.innerHeight);
+      return bounds.top >= top - 1 && bounds.bottom <= bottom + 1;
+    }, frame);
+  } finally {
+    await frame.dispose();
   }
-  const top = Math.max(box.y, 0);
-  const bottom = Math.min(box.y + box.height, viewport.height);
-  return bounds.y >= top - 1 && bounds.y + bounds.height <= bottom + 1;
 }
