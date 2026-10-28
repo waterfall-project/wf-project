@@ -58,7 +58,11 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 // The session of the contract, the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+const kept = vi.hoisted(
+  (): { grids: Record<string, { page_size?: number; filters?: Record<string, string> }> } => ({
+    grids: {},
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -252,6 +256,37 @@ describe("the screens of the portfolio", () => {
     });
     expect(markup).toMatch(/733,321\.89 h.*?aria-label="Alert".*?111\.34%/);
     expect(text(markup)).toContain("Ingénieur électricien 658,654 h");
+  });
+
+  it("leads an address that names none of the horizon, the threshold and the node to those the account kept, the perimeter carried over [WF-PTF-0060-A]", async () => {
+    kept.grids = {
+      portfolio_workload: {
+        filters: {
+          horizon_months: "12",
+          under_load_threshold: "0.5",
+          org_node_id: TECHNICAL_DIRECTION,
+        },
+      },
+    };
+    const refusal = await render(WorkloadPage, { states: "completed" }).catch(
+      (error: unknown) => error,
+    );
+    const { digest } = refusal as { digest: string };
+    expect(digest).toContain("NEXT_REDIRECT");
+    const target = digest.split(";")[2] ?? "";
+    expect(target.split("?")[0]).toBe("/portfolio/workload");
+    expect(Object.fromEntries(new URLSearchParams(target.split("?")[1]))).toEqual({
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+      org_node_id: TECHNICAL_DIRECTION,
+      states: "completed",
+    });
+  });
+
+  it("reads the address as it is when it names a setting, whatever the account kept [WF-PTF-0060-A]", async () => {
+    kept.grids = { portfolio_workload: { filters: { horizon_months: "12" } } };
+    await render(WorkloadPage, { under_load_threshold: "0.3" });
+    expect(queryOf("GET /portfolio/workload")).toEqual({ under_load_threshold: "0.3" });
   });
 
   it("heads its columns with the months of the horizon, and names the node the server retained", async () => {
