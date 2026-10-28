@@ -138,7 +138,7 @@ def _revisions() -> list[Inscription]:
         Inscription(
             merged,
             reference["audit"]["updated_by"],
-            "amendment_merge",
+            "structure_merge",
             "cost_structure",
             amendment["structure_id"],
             amendment["label"],
@@ -772,7 +772,7 @@ def searched(events: list[JsonObject], text: str) -> list[JsonObject]:
 
 def _merged(events: list[JsonObject]) -> list[JsonObject]:
     """Return the inscriptions of the request that merged the amendment 1, of one correlation."""
-    [merge] = [event for event in events if event["action"] == "amendment_merge"]
+    [merge] = [event for event in events if event["action"] == "structure_merge"]
     return [event for event in events if event["correlation_id"] == merge["correlation_id"]]
 
 

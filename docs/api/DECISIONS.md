@@ -2700,9 +2700,9 @@ consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscript
 la produit (EP-03, US-0410).
 
 - **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
-  corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un avenant inscrit
-  `amendment_merge` sur la structure du différentiel, puis `revision_mark` et `reference_designate`
-  sur la révision qui en résulte, que WF-REV-0050 marque et fait référence. Sans elles, le journal
+  corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un différentiel inscrit
+  `structure_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la
+  révision qui en résulte, que WF-REV-0050 marque et fait référence. Sans elles, le journal
   ne dirait ni le marquage ni la désignation de la référence en vigueur. `test_mockaudit.py` tient
   la complétude : chaque révision marquée a son `revision_mark` à son `marked_at`, et la référence
   son `reference_designate`.
@@ -2721,15 +2721,20 @@ la produit (EP-03, US-0410).
   non ce qu'un utilisateur choisit pour lui-même ; `test_mockaudit.py` le tient.
 
 - **Les actions** (`AuditAction`) suivent l'énumération de WF-SEC-0030, dans son ordre et dans les
-  mots du catalogue des permissions et des tâches de fond : `revision_mark`, `reference_designate`,
-  `amendment_merge` — la contractualisation d'un avenant, que la fusion de son différentiel réalise
-  (WF-REV-0050) —, `risk_occurrence`, `project_exit`, `cost_line_exclude` et `cost_line_reinstate`,
-  `import_apply`, `user_create`, `user_update`, `user_deactivate`, `user_reactivate`,
-  `password_link_create` — le lien de mot de passe, que `createPasswordSetupLink` disait déjà
-  inscrit, sans son jeton —, `access_role_create`, `access_role_update`, `access_role_delete`,
-  `user_access_roles_set` — l'attribution des rôles —, `backup` et `restore`. La suppression d'un
-  rôle est rangée avec sa modification, une désactivation de compte avec la sienne : WF-SEC-0030 dit
-  « la création et la modification ».
+  mots du catalogue des permissions et des tâches de fond : `project_create` et `revision_abandon`
+  (#1577, plus bas), `revision_mark`, `reference_designate`, `structure_merge` — la fusion d'un
+  différentiel (WF-REV-0050) —, `risk_occurrence`, `project_exit`, `cost_line_exclude` et
+  `cost_line_reinstate`, `import_apply`, `user_create`, `user_update`, `user_deactivate`,
+  `user_reactivate`, `password_link_create` — le lien de mot de passe, que `createPasswordSetupLink`
+  disait déjà inscrit, sans son jeton —, `access_role_create`, `access_role_update`,
+  `access_role_delete`, `user_access_roles_set` — l'attribution des rôles —, `backup` et `restore`.
+  La suppression d'un rôle est rangée avec sa modification, une désactivation de compte avec la
+  sienne : WF-SEC-0030 dit « la création et la modification ». La fusion s'est d'abord appelée
+  `amendment_merge`, « la contractualisation d'un avenant » : la revue du contrat avant le gel
+  (K-04, `2026-10-28-contrat-avant-gel.md`, US-0640/L6b #1594) l'a renommée `structure_merge`, à son
+  rang, quand la spécification eut retiré « avenant » de WF-SEC-0030 (le 2026-10-09) — le nom que la
+  permission et la tâche de fond lui donnaient déjà (EP-02/L29, #384) : un même geste ne porte plus
+  deux noms dans le contrat. Le back sert encore `amendment_merge` jusqu'à EP-04 (#1577, plus bas).
 - **Les filtres** se combinent : la période (`from` compris, `to` exclu), l'auteur (`user_id`), sa
   nature, un compte ou la plateforme (`actor_kind`, `AuditActorKind`), les actions (`actions`, une liste, au pluriel comme les autres filtres à plusieurs valeurs), le projet
   (`project_id`), la nature et l'identifiant de l'objet (`object_kind`, `object_id`) ; une période
@@ -8361,7 +8366,14 @@ adoptent sont d'US-0660/L3 et L4.
   la suite d'une écriture de `project_without_current_revision`, lue seule dans
   `audit_events_revision_abandoned`. Les inscriptions suivantes en prennent un numéro de plus :
   `audit_events_anonymized_object` et `audit_events_anonymized_actor`, écrits à la main, suivent
-  (inscriptions 41 et 42).
+  (inscriptions 41 et 42). Livré par US-0640/L6b (#1594), avec le renommage de K-04
+  (`structure_merge`, ci-dessus). Le back reste en retard sur le contrat jusqu'à EP-04, sans
+  migration dans EP-16 (décision de l'auteur du 2026-10-28, option b, sur #1457) : il ne sert ni
+  `project_create`, ni `revision_abandon`, ni `structure_merge`, et sert encore `amendment_merge` ;
+  `test_audit_journal.py` nomme ces écarts et échoue dès que le back en comble un. EP-04 servira
+  aussi le libellé nul d'une révision en cours abandonnée, qui n'a pas encore de nom de version : la
+  contrainte `OBJECT_LABELED` de la migration 0011 n'admet un libellé nul que pour une sauvegarde ou
+  un compte, et refuse une révision.
 - **Le délai de paiement, écart d'un différentiel** (#1566, WF-DEV-0020, WF-IND-0100).
   `NodeChange` gagne `payment_delay_days`, après les montants et avant le parent : une ligne dont
   seul le délai change est `modified`, quand aucun montant ne bouge, et ses tâches porteuses le sont

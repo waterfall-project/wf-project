@@ -81,7 +81,7 @@
         in: query
         description: >-
           Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a
-          déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le
+          déclenchée : toutes celles d'une même action, comme la fusion d'un différentiel, avec le
           marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une
           corrélation que le journal ne porte pas ne retient rien.
         schema:

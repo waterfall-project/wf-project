@@ -187,8 +187,24 @@ def test_an_object_without_a_label_but_a_backup_or_an_account_is_a_defect_said_f
         record(Session(), role_created(audited=audited))
 
 
+# The back lags behind the contract until EP-04, without a migration in EP-16 (decision of the
+# author of 2026-10-28 on #1577, option b): the actions the contract names that the back does not
+# serve yet — the creation of a project and the abandonment of a revision (#1577), the merge of a
+# differential under its new name (K-04) — and the one it still serves that the contract renamed.
+TO_SERVE_BY_EP04 = ("project_create", "revision_abandon", "structure_merge")
+SERVED_UNDER_AN_OLD_NAME = ("amendment_merge",)
+
+
 def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> None:
-    assert list(ACTIONS) == [action.value for action in models.AuditAction]
+    contract = [action.value for action in models.AuditAction]
+    assert set(TO_SERVE_BY_EP04) <= set(contract)
+    # A gap that the back has closed fails here, to be struck off the lists above.
+    assert not set(TO_SERVE_BY_EP04) & set(ACTIONS)
+    assert set(SERVED_UNDER_AN_OLD_NAME) <= set(ACTIONS)
+    assert not set(SERVED_UNDER_AN_OLD_NAME) & set(contract)
+    assert [action for action in ACTIONS if action not in SERVED_UNDER_AN_OLD_NAME] == [
+        action for action in contract if action not in TO_SERVE_BY_EP04
+    ]
     assert list(OBJECT_KINDS) == [kind.value for kind in models.AuditObjectKind]
 
 
