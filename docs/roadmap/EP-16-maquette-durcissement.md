@@ -14,7 +14,7 @@ issue: 1312
 EP-15 réalise les ajustements que la validation de l'auteur a décidés. EP-16 **fige le contrat**
 avant les EPIC de domaine, qui le serviront tel quel : tout ce qui touche le contrat, ou peut le
 toucher, y est soldé, et le reste sort (décision de l'auteur du 2026-10-22, au cadrage). Il y a
-quatre parts :
+cinq parts :
 - les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15, et les constats de contrat que
   les lots d'EP-15 ont relevés en livrant (#1345 à #1398) ;
 - ce que la reprise de la spécification du 2026-10-22 (#1306, constats C-366 à C-375, #1304)
@@ -26,7 +26,10 @@ quatre parts :
 - les aides en ligne des écrans que les cinq écrans clés d'EP-15 ne couvrent pas, et la recherche
   de l'aide, reprises d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : elles décrivent
   les écrans tels que les lots d'EP-16 les laissent, et leur relecture par l'auteur ne doit pas
-  tenir `epic/EP-15` ouverte.
+  tenir `epic/EP-15` ouverte ;
+- le contrat aligné sur la spécification 1.0.0 avant le gel, sur la revue du 2026-10-28
+  (`docs/api/2026-10-28-contrat-avant-gel.md`) : ses bloquants et ses majeurs, au contrat, au faux
+  back et aux écrans (recadrage du 2026-10-28).
 
 Recadré d'un bloc le 2026-10-25 (#1445), avec une règle qui prime : **ne reste dans EP-16 que ce qui
 concerne le durcissement ou le contrat ; tout le reste part à EP-17.**
@@ -62,7 +65,12 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   (#1383) — US-0680 ;
 - l'adresse de retour de la connexion durcie, une redirection ouverte (#1429) — US-0690 ;
 - le filtre des écarts d'un différentiel et de la comparaison, et le décompte de la matrice des
-  risques, au contrat puis aux écrans (#1398, part contrat de #1395) — US-0700.
+  risques, au contrat puis aux écrans (#1398, part contrat de #1395) — US-0700 ;
+- les bloquants et les majeurs de la revue du 2026-10-28 qui touchent le modèle, les règles de
+  calcul et les gestes du contrat, au contrat et au faux back — US-0701 ;
+- ceux qui touchent la forme des refus — une seule forme par refus, les codes et les conditions
+  morts, le 500, les refus sans code ni exemple, le compteur des écritures concurrentes — US-0702 ;
+- l'adoption par les écrans de ce qu'US-0701 et US-0702 écrivent au contrat — US-0703.
 
 ## Ce qui n'en fait pas partie
 
@@ -94,7 +102,14 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 - la version anglaise de l'aide en ligne : décidée par l'auteur au dernier lot d'US-0670, après la
   relecture de toutes les aides, elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
 - les navigateurs et les largeurs d'affichage (US-0290, #92), et les dépendances sans version
-  corrigée (#1291) : EP-13, reportés le 2026-10-22.
+  corrigée (#1291) : EP-13, reportés le 2026-10-22 ;
+- de la revue du 2026-10-28 (recadrage du 2026-10-28) :
+  - ses 87 mineurs, corrigibles sans rompre le contrat : après le gel, chacun en issue « contrat »
+    que l'auteur tranche — sauf ceux qui touchent un fichier qu'un lot d'US-0701 ou d'US-0702
+    modifie déjà, que ce lot corrige ;
+  - les filtres de colonnes de `listNodes` présentés dans les trois grilles (F-06) : EP-17 ; leurs
+    paramètres, eux, entrent au contrat avant le gel (US-0701) ;
+  - le service de ce que les trois US écrivent au contrat : l'EPIC de domaine de chaque opération.
 
 ## Exigences réalisées
 
@@ -119,6 +134,9 @@ Ajoutées au contrat :
 
 Leurs noms se fixent à la conception.
 
+Ajoutées par le recadrage du 2026-10-28 (US-0701) : `getIdentitySyncSchedule`,
+`setIdentitySyncSchedule` (A-02), `resendInvitation` (A-04), `updateCostStructure` (E-01).
+
 Modifiées :
 - `risks` : `declareRiskOccurrence` — les deux compteurs lus (US-0680) ; `listRisks` — la
   pagination (US-0640, #1367) ; `getProjectRiskMatrix`, `getPortfolioRisks` — le décompte de
@@ -138,7 +156,9 @@ Modifiées :
 - `me` : `updateMyPreferences`, `GridPreferences` — les colonnes connues (US-0650), et le choix
   d'états de la liste des projets de l'accueil (US-0640/L6, #1401) ;
 - les opérations que touchent les constats d'US-0640, sans en ajouter : la liste se fixe à la
-  conception.
+  conception ;
+- celles que touchent les bloquants et les majeurs de la revue du 2026-10-28 (US-0701, US-0702) :
+  la liste, par famille, est dans la conception.
 
 ## Préalables
 
@@ -294,6 +314,20 @@ Relevés par les revues des lots d'EP-16 et corrigés par US-0660/L3 #1458 (déc
 
 #1525 (le test de la colonne « Poste » cite WF-CRE-0040-A, dont le Vérif ne nomme pas les colonnes)
 est reporté à EP-09 #1340 (titre et label `EP-09`).
+
+Relevés par la revue du contrat avant le gel (2026-10-28,
+`docs/api/2026-10-28-contrat-avant-gel.md`, 174 constats : 4 bloquants, 83 majeurs, 87 mineurs), au
+recadrage du 2026-10-28 — US-0701, US-0702 et US-0703 :
+
+- les 4 bloquants (D-01, E-01, H-01, L-01) et les 83 majeurs, chacun sous l'US qui le règle (tableau
+  de la conception) ; ils ne sont pas des issues : la revue les numérote, et la pull request du lot
+  nomme ceux qu'elle solde ;
+- les 87 mineurs : après le gel, en issues « contrat » (« Ce qui n'en fait pas partie ») ;
+- trois points de la spécification que le recadrage laisse à l'auteur, en issues « Specification
+  finding » rattachées à l'EPIC : #1595, WF-IHM-0110, l'historique annulable tenu par le serveur
+  (E-06) ; #1596, WF-PLA-0130, la date de terminaison d'une tâche terminée par un import, qui est la
+  date de la revue que porte le fichier, comme WF-INTF-0120 et WF-INTF-0130 le disent (I-09) ;
+  #1597, WF-RAE-0020, le sens de la marge du reste à engager, que la décision #466 fixe (G-07).
 
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
 leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
@@ -812,6 +846,169 @@ et ses exemples.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
+### Le recadrage du 2026-10-28 : le contrat aligné sur la spécification 1.0.0
+
+La revue du 2026-10-28 (`docs/api/2026-10-28-contrat-avant-gel.md`) conclut que le contrat, une fois
+les quatre lots de contrat restants livrés, « ne peut pas être figé sans rompre avec la
+spécification 1.0.0 ». Le recadrage du même jour la reprend dans EP-16, avant le gel, par trois US :
+US-0701 (le modèle et les règles de calcul), US-0702 (la forme des refus), US-0703 (les écrans).
+Rien n'y touche une table ni un module du noyau : EP-16 n'écrit que le contrat, ses exemples, leurs
+générateurs (`tools/src/wftools/mock*.py`) et le front ; le service va aux EPIC de domaine.
+
+**Les décisions de l'auteur (2026-10-28).** Chacune réécrit dans `DECISIONS.md` la décision
+antérieure qu'elle contredit, en citant la date du changement de la spécification.
+
+- **Le tri** : les 4 bloquants et les 83 majeurs avant le gel ; les 87 mineurs après, en issues
+  « contrat », sauf ceux d'un fichier qu'un lot d'US-0701 ou d'US-0702 modifie déjà, que ce lot
+  corrige. Écartés : tout avant le gel (deux ou trois lots de plus, sans changement incompatible à
+  la clé) ; les seuls bloquants (les majeurs sont des changements incompatibles, qui reviendraient
+  un par un après le gel).
+- **La règle des autres majeurs** : quand la spécification est claire, la proposition de la revue
+  s'applique et la décision antérieure contredite est réécrite ; un lot ne pose une question que
+  s'il doit inventer une forme que ni la spécification ni la revue ne donnent. Écarté : une question
+  par majeur, une quinzaine de plus, sans choix réel.
+- **L'inflation (L-01)** : les montants budgété et réestimé sont « inflation comprise, à l'année de
+  consommation » (WF-DEV-0020, WF-DEV-0050, glossaire) ; `base_amount` reste le montant aux taux de
+  l'année de référence, avant inflation ; `inflated_amount` disparaît. Réécrit : EP-02/L7 (#235) et
+  EP-02/L29 (#352). Écarté : garder #235 et #352 et faire corriger la spécification — elle a tranché
+  les 10 et 22 octobre, et le glossaire, WF-RIS-0050 et le budget de référence en dépendent.
+- **La sortie (D-01, L-02)** : `ProjectExit` reçoit le sort de la révision en cours, exigé quand le
+  projet en porte une — marquer, avec nom de version et description, ou abandonner ; marquer rend
+  202 `BackgroundTaskRef`, la sortie s'appliquant quand la tâche réussit ; abandonner, ou sortir
+  sans révision en cours, rend 200 `Project`. Écartés : toujours 200, le marquage fait dans la
+  requête (contraire à WF-ARC-0090) ; toujours 202, quand rien n'est à calculer.
+- **Projet terminal et révision marquée (D-05, J-01, J-02)** : 409 `STATE_FORBIDS_OPERATION` et leur
+  `missing_condition` partout ; `PROJECT_TERMINAL` et `REVISION_MARKED` sortent d'`ErrorCode`.
+  Réécrits : L42k et US-0640/L1 #803. Écartés : 409 hors grille et 403 sur la grille (deux règles
+  pour un même fait) ; 403 partout (contraire à L42a, L42i, L42l et à la lecture commune des
+  conditions par le front).
+- **L'historique annulable (E-06, L-18)** : tenu par le serveur ; le contrat dit la session (le
+  jeton), une pile par révision et par utilisateur, sa fin au marquage et à l'abandon, et au moins
+  cinquante niveaux ; une issue de spécification demande de corriger WF-IHM-0110. Écarté : le front
+  qui rejoue l'inverse de chaque saisie — `undo` et `redo` retirés, et chaque écriture devant rendre
+  l'état antérieur.
+- **La date de terminaison par import (I-09)** : la date de la revue que porte le fichier
+  (WF-INTF-0120, WF-INTF-0130), connue dès l'analyse ; `ExportRequest` reçoit cette date, le jour
+  par défaut, pour l'export du reste à engager ; la fusion garde le jour de son application. Réécrit
+  : EP-02/L35. Issue de spécification sur WF-PLA-0130. Écarté : le jour de l'application.
+- **La marge du reste à engager (G-07)** : la décision #466 reste ; issue de spécification sur
+  WF-RAE-0020. Le contrat ne change pas. Écarté : suivre le Vérif et changer le signe.
+- **La date de début de planning (E-01)** : `CostStructure.planning_start_on`, exigé ;
+  `updateCostStructure` (`PATCH …/structures/{structure_id}`) l'écrit avec le libellé et le
+  `lock_version`, sous la commande de planification de la structure, rend 200 `NodesWritten` et
+  refuse un jour sans heure travaillée par 422 `NON_WORKING_DAY`. Écarté : la date seule sans le
+  libellé (un second PATCH viendrait pour le libellé).
+- **Les risques** : la probabilité ne s'écrit que par `reviewRisk` — `RiskUpdate` défini en propre,
+  sans `probability` (H-04 ; écarté : un réexamen implicite produit par `updateRisk`, deux chemins
+  pour la même grandeur) ; `Risk.provision_amount` d'un survenu ou d'un écarté est la provision de
+  la révision de référence, `0.00` s'il n'y était pas identifié, et `mockhistory` s'aligne (H-03 ;
+  écarté : un second champ) ; `Risk.occurrence_cost`, et la couverture le compare à la réserve
+  (H-01, H-02 ; réécrit : la décision du 2026-10-06 sur « le coût réestimé des lignes issues des
+  risques survenus ») ; `StructureCreate.kind` réduit à `amendment` (E-09 ; écarté : une règle pour
+  `risk_id`, deux chemins pour le même objet).
+- **La plateforme** : `getIdentitySyncSchedule` et `setIdentitySyncSchedule`, symétriques de
+  `BackupSchedule` (A-02 ; écarté : un paramètre d'exploitation, contraire à « choisie par un
+  utilisateur habilité ») ; `resendInvitation`, `POST /users/{user_id}/invitation` (A-04 ; écarté :
+  le renvoi par la console du fournisseur d'identité) ; `SystemStatus.operating_parameters`, chaque
+  paramètre que le §4.5.1 cite avec sa valeur par défaut, la liste relevée par le lot (A-03 ;
+  écarté : les cinq de la revue seulement) ; `AuditParams` reçoit `to_state` et `reason`
+  (`project_exit`), `backup_taken_at` (`restore`), `import_kind` (`import_apply`), et « jusqu'à
+  l'EPIC qui les réalise » disparaît (B-02 ; écarté : aucun paramètre) ; `AuditEvent` garde son nom,
+  et une décision assume `event` et `User` face à la table 10 (B-06 ; écarté : le renommage en
+  `audit_entry`, un chemin et un client changés sans gain de sens).
+- **La devise (C-02)** : `getReferenceSettings` lisible par toute session ouverte, sans 404 ;
+  l'écriture garde ses permissions par champ. Écarté : `Installation.currency_code`, lisible sans
+  session, quand la devise ne sert qu'à qui voit un montant.
+- **Le format d'un import (I-10)** : `openImport` lit l'en-tête — format, version, intitulés — avant
+  de mettre l'analyse en file, et refuse par 422 ; l'analyse ne refuse plus de format. Écarté : le
+  refus porté par l'échec de la tâche d'analyse, qui change les exemples et le front.
+- **Le compteur (E-13, E-24, « Doutes »)** : `lock_version` exigé et 412 sur `abandonRevision`,
+  `exitProject`, `designateReferenceRevision`, `deleteRisk`, `deleteSubproject` ; le `PUT` du
+  périmètre suivi reste idempotent, sans compteur, et l'exception s'écrit. Écartés : exigé partout
+  (l'idempotence de `tracked-scope` est déjà décidée) ; inchangé (contraire à la convention).
+- **Le portefeuille** : `horizon_months`, les mois à partir de celui de la date de calcul, 6 par
+  défaut ; la courbe en S les fait précéder des douze mois passés (G-04 ; écartés : le futur seul
+  partout, un paramètre de plus) ; `from` et `to` sur la structure des coûts et la courbe en S, avec
+  la règle de période et le 422 existants, et les projets terminés sans effet, dit, sur le plan de
+  charge et la santé du pilotage (G-05 ; écarté : la période sur les quatre vues).
+- **Les filtres de colonnes (F-06)** : leurs paramètres entrent au contrat et au faux back avant le
+  gel ; leur présentation dans les trois grilles va à EP-17, en constat reporté. Écartés : contrat
+  et grilles avant le gel (un lot de front de plus) ; tout après le gel.
+- **Les écrans** : US-0703 fait adopter par les écrans tout ce qu'US-0701 et US-0702 changent,
+  administration comprise ; les aides d'US-0670/L4 et L5 en dépendent. L'aide des écrans
+  d'administration, rédigée par US-0670/L2 déjà fusionné, est mise à jour par le lot d'US-0703 qui
+  change ces écrans. Écartés : les seuls écrans existants, les gestes nouveaux de l'administration
+  allant à EP-17 ; le front tenu au vert seulement (les aides décriraient des écrans qui changent).
+
+**Les constats, par US.** Les identifiants sont ceux de la revue ; un doublon (« aussi ») suit le
+constat qu'il double.
+
+| US | Bloquants et majeurs |
+|---|---|
+| US-0701 — plateforme | A-01, A-02, A-03, A-04, B-01, B-02, B-03, B-04, B-05, B-06, C-02, C-03, K-04 |
+| US-0701 — projets et révisions | D-01, D-02, D-06, D-07, E-01, E-02, E-03, E-04, E-06, E-08, E-09, E-10, E-11, L-01, L-05, L-14, L-16 |
+| US-0701 — arbre commun | F-01, F-02, F-06 (paramètres), F-07, F-08, F-09, F-10, F-13, F-14 |
+| US-0701 — risques | H-01, H-02, H-03, H-04, M-01, M-04, M-05 |
+| US-0701 — indicateurs et portefeuille | G-01, G-02, G-03, G-04, G-05, G-06, M-02, M-03, M-06, M-07, M-08, M-09, M-10, M-11 |
+| US-0701 — échanges | I-01, I-02, I-03, I-04, I-05, I-07, I-08, I-09, I-10, I-11 |
+| US-0702 | C-01, D-03, D-05, D-10, E-05, E-07, F-03, F-04, F-05, F-11, I-06, J-02, J-03, J-06, J-07, J-10, J-11 ; et, décidés avec eux, les mineurs E-12, E-13, E-14, E-24, H-08, I-17, A-05 |
+| US-0703 | la part écran de chacun des constats ci-dessus qui change ce qu'un écran montre ou demande |
+
+**Les modifications du contrat, par famille.**
+
+- `access`, `platform`, `system`, `audit` : les opérations de la périodicité et du renvoi ;
+  `SystemStatus.operating_parameters` ; `BackupSchedule` aux champs exigés et sa rétention sur
+  toutes les sauvegardes non marquées (B-04, B-05) ; `AuditProject.code` nullable (B-01) ;
+  `AuditParams` (B-02) ; ce qui fait mener une inscription au projet (B-03) ; `structure_merge` dans
+  `AuditAction` (K-04) ; le rôle prédéfini « Manager » du témoin (A-01).
+- `reference` : `getReferenceSettings` lisible par toute session (C-02) ; le code comptable non
+  blanc (C-03).
+- `projects` : `ProjectExit` et la réponse d'`exitProject` ; `lose` absente d'un projet En cours
+  (D-02) ; l'inscription d'un chef de projet par un non-contributeur (D-06) ; le code projet borné
+  (D-07).
+- `revisions` : les montants (L-01) ; `planning_start_on` et `updateCostStructure` (E-01) ; les deux
+  écarts de la comparaison (E-02) ; le taux d'inflation, la probabilité de gain et la révision
+  source lisibles sur la révision (E-03, L-05) ; la description de la fusion et ses grandeurs (E-04,
+  L-14) ; l'historique annulable dit et `UndoResult` qui rend `NodesWritten` (E-06, E-08) ;
+  `StructureCreate` (E-09) ; les images des taux conservés (E-11) ; le plan de charge sur une
+  révision marquée (L-16) ; les récapitulatives, la liaison en conflit, les colonnes, le libellé
+  composé, la catégorie tenue du rôle, la ligne de provision, le jalon terminé, le mode d'une
+  récapitulative (F-01 à F-14) ; les paramètres de filtre de `listNodes` (F-06).
+- `risks` : `occurrence_cost`, la couverture, `provision_amount`, `RiskUpdate`, la réserve cumulée,
+  l'abandon qui ramène l'évaluation, le placement des tâches fusionnées (H-01 à H-04, M-01, M-04,
+  M-05).
+- `analysis`, `indicators`, `portfolio` : les courbes au pas du mois, conservées au marquage ; les
+  indicateurs exigés ; l'évolution trimestrielle ; `horizon_months` ; la période des projets
+  terminés ; la couverture agrégée ; les décaissements ; la contribution d'une offre ; le reste à
+  engager d'une ligne non réestimée ; la revue précédente ; le diagramme temps/temps ; l'avancement
+  d'une récapitulative (G-01 à G-06, M-02, M-03, M-06 à M-11).
+- `exchanges` : le journal des imports, le rejet pour élément d'OTP, la date de début de planning et
+  la récapitulative manuelle au compte rendu, les lignes de provision, l'export stocké, la lecture
+  d'un import, la date de la revue, le format à l'ouverture, le libellé ambigu (I-01 à I-11).
+- Transversal (US-0702) : le README du contrat dit la règle unique des refus d'état ; `ErrorCode` et
+  `CommandCondition` sans valeur morte ; le 500 ; `fields` en 422 ; le compteur des cinq écritures.
+
+**Le faux back et le témoin.** Les exemples restent engendrés : L-01 change le calcul des montants
+au plus bas des générateurs (`mockstructure`), et tous les exemples qui portent un montant se
+régénèrent par `make mock-data` ; les courbes et indicateurs (`mockcurves`, `mockindicators`,
+`mockportfolio`, `mockportfoliotime`), les risques (`mockhistory`, `mockwitnessrisks`,
+`mockriskwrites`), l'audit (`mockaudit`) et les échanges (`mockexchanges`) suivent leurs constats.
+Aucun exemple n'est écrit à la main.
+
+**Le front.** Un lot de contrat ne casse pas la chaîne : il adapte le front que le client régénéré
+casse, sans rien présenter de nouveau. US-0703 présente ensuite le nouveau : la confirmation de
+sortie, la date de début de planning dans la grille de planning, les colonnes du devis
+(`components/grid/estimate.tsx`, `nodes.tsx`, `computed-nodes.ts`), le coût à la survenance et la
+modification du risque sans probabilité, la devise avec chaque montant (`formatMoney`, quatorze
+appels), l'administration (périodicité, renvoi, paramètres d'exploitation) et les messages des refus
+qui changent de forme.
+
+**L'ordre.** US-0701 se construit après US-0640/L6 #1457 et L6b #1594, qui touchent `risks`,
+`audit` et `revisions`, et après US-0680/L1 #1453, qui touche la survenance ; L-01 en premier, parce
+que tous les montants et tous les calculs en dépendent. US-0702 vient après US-0701, pour donner sa
+forme aux refus des opérations qu'US-0701 ajoute. Chaque lot d'US-0703 suit le lot de contrat qu'il
+adopte. US-0670/L3 à L5 suivent US-0703 ; le gel vient toujours en dernier.
+
 ### L'ordre de construction
 
 1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
@@ -830,24 +1027,30 @@ et ses exemples.
 3. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
    de contrat), US-0620 et US-0630 (la correspondance et le poste, qui touchent les mêmes schémas
    des échanges), US-0650, US-0680/L1, US-0700/L1.
-4. **US-0640**, les mineurs du contrat (L1 à L4, L6 ; L7, le front de la fusion, après L3), en parallèle des écrans : ils ne touchent pas
-   les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
+4. **US-0640**, les mineurs du contrat (L1 à L4, L6 ; L7, le front de la fusion, après L3), en
+   parallèle des écrans : ils ne touchent pas les mêmes schémas. Chaque point se relit d'abord sur
+   EP-15 livré.
 5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L4) en
    dernier des fronts, parce qu'elle peut faire revenir au contrat ; **US-0670/L6** (#1583, le plan
    de charge agrégé, correction de #1580) avant le gel, au cas où il touche le contrat des
    préférences.
 6. **US-0590g**, la stabilité du harnais sous charge (décision de l'auteur du 2026-10-28) : L1 (le
    parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1). Elle ne touche pas le
-   contrat ; elle se place après les lots d'écran et de contrat (US-0660/L3 #1458, US-0640/L6 #1457).
-7. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet : elles décrivent les écrans
-   tels que tous les lots les laissent, et ne touchent pas le contrat ; L5 porte la décision de la
-   langue et passe l'US `fini`. Leurs pull requests se fusionnent comme celles des autres lots :
-   l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du 2026-10-26, #1139).
-8. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
-   lots — US-0670/L3 à L5 et US-0690 compris (décision de l'auteur du 2026-10-28) : le contrat est
-   figé, `info.version` passe à `1.0.0`. La règle d'après s'écrit en tête de
-   `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de domaine passe par une issue
-   « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
+   contrat ; elle se place après les lots d'écran et de contrat (US-0660/L3 #1458, US-0640/L6
+   #1457).
+7. **US-0701, US-0702 puis US-0703**, le contrat aligné sur la spécification 1.0.0 (recadrage du
+   2026-10-28) : US-0701 après US-0640/L6 et L6b et US-0680/L1, L-01 en tête ; US-0702 après
+   US-0701 ; chaque lot d'US-0703 après le lot de contrat qu'il adopte.
+8. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet : elles suivent US-0703,
+   décrivent les écrans tels que tous les lots les laissent, et ne touchent pas le contrat ; L5
+   porte la décision de la langue et passe l'US `fini`. Leurs pull requests se fusionnent comme
+   celles des autres lots : l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du
+   2026-10-26, #1139).
+9. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
+   lots — US-0670/L3 à L5, US-0690 et US-0701 à US-0703 compris (décision de l'auteur du
+   2026-10-28) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après s'écrit en
+   tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de domaine passe par
+   une issue « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
 
 ---
 
@@ -1367,7 +1570,8 @@ refus décrits.
   `LINK_FORBIDDEN` avec leurs paramètres.
 - L5 #1333, qui fige le contrat (`info.version` à `1.0.0`), vient **en dernier**, à la fin de
   l'EPIC (décision de l'auteur du 2026-10-28) : il dépend de tous les autres lots, US-0670/L3 à L5,
-  US-0690, US-0590g, US-0660 et L6 et L7 compris.
+  US-0690, US-0590g, US-0660 et L6 et L7 compris, et, depuis le recadrage du 2026-10-28, ceux
+  d'US-0701, US-0702 et US-0703.
 
 ---
 
@@ -1517,8 +1721,9 @@ du recadrage (L3, le référentiel et les notions ; L5, les indicateurs et la la
 fusionnés d'US-0580 ayant dépassé leur estimation d'un facteur ≈ 1,7. L1 (la recherche et « Ses
 colonnes », code déjà écrit sur `lot/US-0580/L3b`, à rebaser sur `epic/EP-16`) vient juste après
 US-0590 ; L2 (l'administration et le portefeuille, écrans qu'EP-16 ne change pas) peut le suivre ;
-L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent et avant le gel du
-contrat (US-0640/L5), qui vient en dernier. L6 #1583 (décision de l'auteur du 2026-10-28) corrige
+L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent — ceux d'US-0703
+compris, depuis le recadrage du 2026-10-28 — et avant le gel du contrat (US-0640/L5), qui vient en
+dernier. L6 #1583 (décision de l'auteur du 2026-10-28) corrige
 #1580 : l'écran du plan de charge agrégé (`portfolio/workload/page.tsx`) conserve l'horizon, le
 seuil de sous-charge et le filtre en préférences d'affichage au lieu de paramètres de l'adresse
 (WF-PTF-0060-A, WF-ADM-0040, WF-IHM-0060), puis la phrase de `FBS-2.2.md` qui le décrit ; elle se
@@ -1630,3 +1835,166 @@ des cinq autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399,
 
 **Hors périmètre.** La pagination d'un différentiel, écartée par #1193 et #1201 ; tout filtre qui
 calculerait côté front.
+
+---
+
+## US-0701 — Le contrat rattrape la spécification 1.0.0
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : `getIdentitySyncSchedule`, `setIdentitySyncSchedule`, `resendInvitation`,
+  `updateCostStructure`, ajoutées au contrat ; celles que touchent les bloquants et les majeurs de
+  modèle et de calcul de la revue du 2026-10-28 — dont `exitProject`, `getSystemStatus`,
+  `getReferenceSettings`, `listAuditEvents`, `getBackupSchedule`, `setBackupSchedule`,
+  `setContributors`, `listRevisions`, `mergeCostStructure`, `createCostStructure`,
+  `compareRevisions`, `listNodes`, `createNode`, `updateEstimateLine`, `setPredecessors`,
+  `deleteNode`, `undoLastChange`, `redoLastUndo`, `updateRisk`, `declareRiskOccurrence`,
+  `getProjectRiskCoverage`, `getProjectIndicators`, `getProjectWorkload`, `openImport`,
+  `getImport`, `requestExport`, les vues du portefeuille ; la liste par famille est dans la
+  conception
+- **issue** : #1598
+
+**En tant que** développeur, **je veux** que le contrat dise, avant d'être figé, ce que la
+spécification 1.0.0 exige depuis ses passes des 9, 10 et 22 octobre, **afin que** les EPIC de
+domaine servent un contrat qui ne contredit pas la spécification, et qu'aucun changement de sens
+d'un champ existant ne vienne après le gel.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque bloquant et chaque majeur de la revue du 2026-10-28 rangé sous US-0701
+  dans la conception est soldé.
+  - Appliqué : dans `docs/api`, avec ses exemples, le faux back et le témoin régénérés.
+  - Ou écarté : avec sa raison, dans `DECISIONS.md`.
+  - Une décision de `DECISIONS.md` que la spécification contredit est réécrite, en citant la date
+    du changement de la spécification et la décision du recadrage.
+- propre à l'US (L-01, décision de l'auteur du 2026-10-28) : les montants budgété et réestimé
+  d'une ligne, d'une tâche, des totaux, des indicateurs et de la comparaison sont « inflation
+  comprise, à l'année de consommation » ; le montant aux taux de l'année de référence, avant
+  inflation, est le seul autre montant de la ligne, et `inflated_amount` disparaît. Les décisions
+  #235 et #352 sont réécrites. Sur le témoin, une ligne dont la tâche se place deux ans après
+  l'année de référence, avec une inflation de 2 %, a un montant réestimé supérieur de 4,04 % à son
+  montant aux taux de l'année de référence (WF-DEV-0050).
+- propre à l'US (D-01) : la sortie d'un projet qui porte une révision en cours reçoit le sort de
+  cette révision — la marquer, avec un nom de version, ou l'abandonner — et la refuse sans lui ;
+  marquer rend 202 et une tâche de fond, abandonner rend 200. L'exemple de la sortie montre que
+  « après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa
+  dernière révision marquée » (WF-CYC-0090).
+- propre à l'US (E-01) : chaque structure porte sa date de début de planning, que
+  `updateCostStructure` écrit et qui redate les tâches automatiques sans prédécesseur ; un exemple
+  montre qu'« avancer cette date d'une semaine l'avance d'autant, ainsi que ses successeurs
+  automatiques » (WF-PLA-0020). L'import MS Project la lit et le compte rendu présente son
+  changement (I-03, K-05).
+- propre à l'US (H-01, H-02, M-01, H-03) : le risque survenu porte son coût à la survenance, et la
+  couverture le compare à la réserve ; sur le témoin, « la terminaison des tâches issues d'un risque
+  survenu ne change ni le coût des survenus ni l'écart de couverture » (WF-RIS-0050). La provision
+  d'un risque survenu ou écarté est celle qu'il portait dans la révision de référence, nulle s'il
+  n'y était pas identifié.
+- propre à l'US (H-04) : la probabilité d'un risque ne s'écrit que par le réexamen ; la
+  modification d'un risque ne la reçoit plus.
+- propre à l'US (A-02, A-03, A-04, C-02) : la périodicité de la lecture des comptes se lit et se
+  règle, quotidienne par défaut ; l'écran d'état reçoit les paramètres d'exploitation du §4.5.1,
+  dont la durée de validité du cache ; le courriel de fixation du mot de passe se renvoie ; la
+  devise se lit par toute session ouverte.
+- propre à l'US (E-06) : l'historique annulable reste tenu par le serveur ; le contrat dit sa
+  session (le jeton), sa pile par révision et par utilisateur, sa fin au marquage et à l'abandon, et
+  au moins cinquante niveaux.
+- propre à l'US (I-09) : la date de terminaison d'une tâche terminée par un import est la date de la
+  revue que porte le fichier, connue dès l'analyse ; l'export du reste à engager reçoit cette date,
+  le jour par défaut ; la fusion garde le jour de son application.
+- propre à l'US (F-06) : `listNodes` se filtre sur chaque colonne des trois grilles, par les bornes
+  et les périodes de la convention du README du contrat.
+
+**Notes de réalisation.**
+- Les décisions du recadrage du 2026-10-28 sont écrites dans la conception, « Le recadrage du
+  2026-10-28 » ; pour tout majeur où la spécification est claire, la règle est de la suivre et de
+  réécrire la décision antérieure contredite.
+- K-04 (`amendment_merge` devient `structure_merge`) touche l'énumération qu'US-0640/L6b #1594
+  modifie : il se fait dans ce lot, ou après lui, selon le plan de lots.
+- Les mineurs ne sont pas de l'US, sauf ceux d'un fichier qu'un lot modifie déjà.
+
+**Hors périmètre.** Les écrans (US-0703) ; la forme des refus (US-0702) ; le service.
+
+---
+
+## US-0702 — Une seule forme pour chaque refus
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : toutes celles qui déclarent un refus d'état, un code d'`ErrorCode` ou un compteur
+  — dont `createTimeline`, `deleteTimeline`, `generatePlanningSkeleton`, `exitProject`,
+  `markRevision`, `abandonRevision`, `createRevision`, `designateReferenceRevision`,
+  `createCostStructure`, `deleteNode`, `setTaskProgress`, `setNodeTracking`,
+  `declareRiskOccurrence`, `deleteRisk`, `deleteSubproject`, `requestExport`,
+  `getBackgroundTaskResult`, `setActualCostTrackedScope`, `undoLastChange`, et les trois listes du
+  référentiel sans le 403 d'`include_inactive`
+- **issue** : #1599
+
+**En tant que** développeur, **je veux** qu'un même refus ait partout le même statut, le même code
+et ses paramètres, avec un exemple, **afin que** le service et le front n'aient qu'un chemin par
+refus, et que le gel ne fige pas un catalogue qui porte des codes que rien ne rend.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque bloquant et chaque majeur de la revue rangé sous US-0702 dans la
+  conception est soldé, comme pour US-0701.
+- propre à l'US (D-05, J-01, J-02, décision de l'auteur du 2026-10-28) : un projet terminal et une
+  révision marquée se refusent partout par 409 `STATE_FORBIDS_OPERATION` et leur
+  `missing_condition` ; `PROJECT_TERMINAL` et `REVISION_MARKED` sortent du catalogue ; les décisions
+  L42k et US-0640/L1 #803 sont réécrites.
+- propre à l'US (J-03, J-11) : chaque code d'`ErrorCode` et chaque `CommandCondition` est rendu par
+  au moins une opération, avec un exemple, ou retiré.
+- propre à l'US (E-07) : l'annulation d'une modification reprise depuis est refusée par un code qui
+  nomme l'objet en conflit ; un exemple montre que « l'annulation d'une modification qu'un autre
+  contributeur a depuis reprise est refusée en nommant l'objet en conflit » (WF-IHM-0110).
+- propre à l'US (J-07, J-10) : le 500 est déclaré, avec son `correlation_id` ; une propriété
+  inconnue de `fields` se refuse comme les autres paramètres de requête, par 422.
+- propre à l'US : les refus que la revue relève sans code, condition ni exemple ont les trois (D-03,
+  E-05, E-12 à E-14, F-03 à F-05, F-11, H-08, I-06, I-17, A-05, C-01).
+- propre à l'US (décision de l'auteur du 2026-10-28) : `abandonRevision`, `exitProject`,
+  `designateReferenceRevision`, `deleteRisk` et `deleteSubproject` exigent le `lock_version` et
+  déclarent le 412 ; le `PUT` du périmètre suivi des coûts réels reste idempotent, sans compteur,
+  et cette exception est écrite.
+
+**Notes de réalisation.** La règle de L42a — « le refus d'une commande qu'un état rend indisponible
+est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat ; le README du contrat la dit.
+
+**Hors périmètre.** Les messages des refus aux écrans (US-0703).
+
+---
+
+## US-0703 — Les écrans adoptent le contrat aligné
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : celles qu'US-0701 et US-0702 ajoutent ou modifient, côté front
+- **issue** : #1600
+
+**En tant que** chef de projet, manager ou administrateur, **je veux** que les écrans montrent et
+demandent ce que le contrat aligné décrit, **afin que** la maquette figée avec le contrat soit celle
+que les EPIC de domaine serviront, et que les aides des derniers lots d'US-0670 décrivent des écrans
+qui ne changeront plus.
+
+**Critères d'acceptation.**
+
+- propre à l'US : la confirmation de la sortie d'un projet qui porte une révision en cours demande
+  de la marquer, avec un nom de version, ou de l'abandonner ; une sortie qui marque suit sa tâche de
+  fond comme un marquage.
+- propre à l'US : la grille de planning présente et fait saisir la date de début de planning de la
+  structure ; le compte rendu d'un import MS Project dit son changement.
+- propre à l'US : la grille de devis présente le montant aux taux de l'année de référence et le
+  montant réestimé inflation comprise, et ne présente pas le montant budgété ; les totaux, les
+  indicateurs et la comparaison suivent le sens nouveau des montants.
+- propre à l'US : la fiche et le registre des risques disent le coût à la survenance d'un survenu ;
+  la modification d'un risque ne fait plus saisir sa probabilité, que seul le réexamen change.
+- propre à l'US : la devise s'affiche avec chaque montant, pour toute session.
+- propre à l'US : l'administration fait régler la périodicité de la lecture des comptes et renvoyer
+  le courriel de fixation du mot de passe ; l'écran d'état présente les paramètres d'exploitation,
+  dont la durée de validité du cache.
+- propre à l'US : chaque refus qu'US-0702 change de forme se dit à l'écran par son code et ses
+  paramètres, sur un exemple du contrat, et aucun test ne garde une enveloppe disparue.
+- propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
+
+**Notes de réalisation.** Les aides d'US-0670/L4 et L5 décrivent les écrans qu'US-0703 laisse :
+elles en dépendent. Les filtres de colonnes des grilles (F-06) ne sont pas de l'US : EP-17.
+
+**Hors périmètre.** Les filtres de colonnes des trois grilles (EP-17) ; les mineurs de la revue.
