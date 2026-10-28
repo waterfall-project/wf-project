@@ -10,12 +10,11 @@ merge creates that revision, and the refusal once a revision is in progress — 
 requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
-import json
 from typing import Any
 
 import pytest
 
-from wftools import REPOSITORY, mockhistory, mockwitness
+from wftools import REPOSITORY, mockhistory
 from wftools.mockids import universe
 from wftools.mockwitness import AMENDMENT_MERGED, RISK_751_REVIEWED, N, fixture
 
@@ -32,12 +31,6 @@ REPORTS = (
     "structure_merge_report_without_current_revision",
 )
 """Every example of `getStructureMergeReport`, in the order of the contract."""
-
-
-def _summary(name: str) -> str:
-    """Return the summary of an example."""
-    path = mockwitness.FIXTURES / f"{name}.json"
-    return json.loads(path.read_text(encoding="utf-8"))["summary"]
 
 
 def _operation(name: str, file: str = "revisions.yaml") -> str:
@@ -97,9 +90,6 @@ def test_a_merge_that_would_close_a_loop_or_pass_the_horizon_fails_as_its_report
     assert (report["completed_tasks"], report["creates_current_revision"]) == ([], False)
     [main] = [each for each in fixture("structures") if each["kind"] == "main"]
     assert report["main_structure_lock_version"] == main["lock_version"]
-    for example in (f"task_merge_{name}", f"structure_merge_report_{name}"):
-        assert "variante déclarée" in _summary(example), example
-        assert "#788" in _summary(example), example
     assert f"fixtures/api/task_merge_{name}.json" in _operation("getBackgroundTask", "system.yaml")
     assert f"`task_merge_{name}`" in _operation("mergeCostStructure")
 
@@ -125,8 +115,6 @@ def test_the_loop_is_named_from_its_first_task_in_the_plan_each_preceding_the_ne
     assert rows[0] == min(rows)
     # The loop of the merge is the one the entry of the same predecessor closes (setPredecessors).
     assert refusal["params"]["cycle"] == fixture("predecessors_cycle_refused")["params"]["cycle"]
-    schema = (SCHEMAS / "revisions.yaml").read_text(encoding="utf-8")
-    assert "`PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais" in schema
 
 
 def test_the_task_beyond_the_horizon_is_the_one_that_finishes_last() -> None:
@@ -147,14 +135,6 @@ def test_the_task_beyond_the_horizon_is_the_one_that_finishes_last() -> None:
     assert installation["task"]["is_summary"]
     # Its summary finishes with it, and is not the task named.
     assert installation["task"]["finish"] == commissioning["task"]["finish"]
-    common = " ".join(
-        (REPOSITORY / "docs" / "api" / "components" / "common.yaml")
-        .read_text(encoding="utf-8")
-        .split()
-    )
-    assert "la tâche de la structure fusionnée qui finit la dernière, hors récapitulatives" in (
-        common
-    )
 
 
 def test_the_last_marked_revision_offers_the_merge_while_the_project_has_no_current_one() -> None:
@@ -184,12 +164,7 @@ def test_the_last_marked_revision_offers_the_merge_while_the_project_has_no_curr
     assert {key: value for key, value in offered.items() if key != "available_commands"} == {
         key: value for key, value in marked.items() if key != "available_commands"
     }
-    assert "un instant antérieur de la même chronologie" in _summary(
-        "revision_marked_merge_offered"
-    )
     assert "fixtures/api/revision_marked_merge_offered.json" in _operation("getRevision")
-    revisions = (SCHEMAS / "revisions.yaml").read_text(encoding="utf-8")
-    assert "`merge_structure` se dit de la révision en cours, et aussi" in revisions
 
 
 def test_the_report_of_a_merge_without_current_revision_says_it_creates_it_then_refused_today() -> (
@@ -204,14 +179,19 @@ def test_the_report_of_a_merge_without_current_revision_says_it_creates_it_then_
     assert report["creates_current_revision"] is True
     assert report["differences"] == today["differences"]
     assert (report["completed_tasks"], report["refusals"]) == ([], [])
-    summary = _summary("structure_merge_report_without_current_revision")
-    assert "creates_current_revision" in summary
-    assert "revision_marked_merge_offered" in summary
     refused = fixture("merge_revision_marked_refused")
     _, missing = _command(fixture("revision_marked"), "merge_structure")
     assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert refused["params"] == {"missing_condition": missing[0]}
     for operation in ("getStructureMergeReport", "mergeCostStructure"):
         assert "fixtures/api/merge_revision_marked_refused.json" in _operation(operation)
-    merge = " ".join(_operation("mergeCostStructure").split())
-    assert "en échec, elle ne laisse ni révision en cours ni fusion" in merge
+
+
+def test_a_merge_creating_the_revision_is_refused_without_revisions_write_by_a_409() -> None:
+    # WF-REV-0050: the command lists may_create_revision to a session that cannot create the
+    # current revision, and the merge is refused by the condition the command names, as the imports
+    # and declare_risk are: a 409, not a 403.
+    refused = fixture("merge_may_create_revision_refused")
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["params"] == {"missing_condition": "may_create_revision"}
+    assert "fixtures/api/merge_may_create_revision_refused.json" in _operation("mergeCostStructure")

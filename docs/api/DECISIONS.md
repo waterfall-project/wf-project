@@ -8204,18 +8204,25 @@ Aucune opération nouvelle.
     taux de la nouvelle année, on la crée d'abord (`createRevision`), et la fusion se demande sur
     elle (WF-REV-0060, qui le dit mot pour mot).
 
-  Exemples écrits à la main : `revision_marked_merge_offered` (`getRevision`), la référence le
-  1er février 2026, juste après son marquage par la fusion de l'avenant 1 et avant que le réexamen
-  du 2 février n'ouvre la révision 102 — un instant antérieur de la même chronologie, non une
-  variante — : la fusion de l'avenant 2, non fusionné, y est offerte ;
+  - *Sans `revisions.write`.* Sur la dernière révision marquée d'un projet sans révision en cours,
+    la fusion refusée à qui ne peut pas créer la révision l'est par ce même 409,
+    `params.missing_condition` à `may_create_revision`, non par un 403 : c'est la commande qui dit la
+    condition, comme pour les imports et `declare_risk`.
+
+  Exemples : `revision_marked_merge_offered` (`getRevision`), la référence le 1er février 2026,
+  juste après son marquage par la fusion de l'avenant 1 et avant que le réexamen du 2 février
+  n'ouvre la révision 102 — un instant antérieur de la même chronologie, non une variante — : la
+  fusion de l'avenant 2, non fusionné, y est offerte, engendré depuis `revision_marked`, la commande
+  seule changée (`wftools.mockamendment`) ; `merge_may_create_revision_refused`, engendré, le 409 de
+  cette fusion demandée sans `revisions.write` ; et, écrits à la main,
   `structure_merge_report_without_current_revision`, son compte rendu, `creates_current_revision`
-  vrai, les écarts de l'avenant que la révision 102 a repris avec lui ; et
+  vrai, les écarts de l'avenant que la révision 102 a repris avec lui, et
   `merge_revision_marked_refused`, le 409 de la même fusion demandée aujourd'hui sur la référence,
   la révision 102 étant en cours. `structure_merge_report`, engendré, et les trois comptes rendus
   écrits à la main portent `creates_current_revision` faux. Les tests d'outil sont dans
   `tools/tests/test_mockmerge.py`.
 
-**Corrélation** 1561 ; **tâches de fond** 952 et 953.
+**Corrélation** 1561 et 1562 ; **tâches de fond** 952 et 953.
 
 ## Collage et annulation
 

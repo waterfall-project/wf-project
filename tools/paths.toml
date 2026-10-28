@@ -367,6 +367,8 @@ paths = [
     "fixtures/api/comparison.json",
     "fixtures/api/comparison_moved.json",
     "fixtures/api/comparison_identical.json",
+    "fixtures/api/revision_marked_merge_offered.json",
+    "fixtures/api/merge_may_create_revision_refused.json",
     "fixtures/api/nodes_amendment.json",
     "fixtures/api/structure_merge_report.json",
     "fixtures/api/risks.json",

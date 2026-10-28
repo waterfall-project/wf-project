@@ -596,14 +596,20 @@
           différentiel d'une révision marquée qui
           n'est pas la dernière, ou d'un projet qui a une révision en cours : ainsi quand, depuis
           la lecture du compte rendu, une saisie ou un import a ouvert la révision en cours, ou
-          qu'une autre fusion a marqué une révision plus récente (WF-REV-0050 ; #790). Le
-          contrôle de l'état et le dépôt de la tâche se font sous le verrou du projet, qui tient
-          sa révision en cours.
+          qu'une autre fusion a marqué une révision plus récente (WF-REV-0050 ; #790). Sur la
+          dernière révision marquée d'un projet sans révision en cours, la fusion créerait la
+          révision en cours : à qui n'a pas `revisions.write`, la commande nomme alors
+          `may_create_revision`, après `unmerged_amendment_exists`, et la fusion est refusée de
+          même, `params.missing_condition` à `may_create_revision` — un 409 et non un 403, comme
+          pour les imports et `declare_risk`, la permission n'étant refusée que là où elle
+          créerait la révision (WF-REV-0050, WF-REV-0010). Le contrôle de l'état et le dépôt de
+          la tâche se font sous le verrou du projet, qui tient sa révision en cours.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
+              may_create_revision: { $ref: ../../../fixtures/api/merge_may_create_revision_refused.json }
       '412':
         description: >-
           La structure principale ou le différentiel ont changé depuis le compte rendu confirmé —
