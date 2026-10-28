@@ -638,7 +638,8 @@ et ses exemples.
   la provision et les refus, confirme avec les deux compteurs ou abandonne, remet la survenance à
   `TaskTracker`.
 - **US-0690** : `navigation/login.ts` refuse tout caractère de contrôle dans l'adresse de retour,
-  par la garde qu'`isScreen` (`held-writes.ts`) emploie déjà.
+  par la garde partagée `navigation/application-path.ts` (`isApplicationPath`), qu'emploient
+  `returnTarget` et `isScreen` (`components/notices/message-history.ts`).
 - **US-0700** : le filtre « Écarts seulement » dans l'adresse des grilles de planning et de devis
   d'un différentiel et de l'écran de comparaison, dit dans le bandeau des filtres actifs, absent sur
   la principale et le devis propre d'un risque.
@@ -1572,7 +1573,7 @@ EP-08.
 
 ## US-0690 — L'adresse de retour de la connexion durcie
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1449
