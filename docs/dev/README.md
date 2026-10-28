@@ -2477,7 +2477,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   signalée à l'import (`wftools.mocknonworking`, #1271) ; son
   histoire (`wftools.mockhistory`), ses révisions lues avant la désignation de l'offre, quand elle
   est encore proposée (`wftools.mockcycle`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
-  saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
+  saisies d'un risque, avec le devis propre du risque 751 et le compte rendu préalable de sa
+  survenance (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
   `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
   les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;

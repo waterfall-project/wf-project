@@ -9,6 +9,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 import functools
 import json
 import re
+from decimal import Decimal
 from typing import Any, cast
 
 from wftools import (
@@ -35,6 +36,10 @@ CITED = (
     ("risks.yaml", "declareRiskOccurrence", "202", "task_occurrence_queued"),
     ("risks.yaml", "createRisk", "422", "risk_provision_task_refused"),
     ("revisions.yaml", "moveNodes", "422", "nodes_move_provision_refused"),
+    ("revisions.yaml", "listNodes", "200", "nodes_risk_estimate"),
+    ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report"),
+    ("risks.yaml", "getRiskOccurrenceReport", "409", "risk_occurrence_not_identified"),
+    ("risks.yaml", "declareRiskOccurrence", "409", "risk_occurrence_not_identified"),
 )
 """Each example of the entries of a risk, under the answer of the operation that cites it."""
 
@@ -245,3 +250,125 @@ def test_a_line_of_provision_moved_in_the_grid_is_refused_and_names_its_risk() -
     assert line.parent == N.WIRING != mockriskwrites.PROVISION_MOVED_UNDER
     summary = example("nodes_move_provision_refused")["summary"]
     assert rows[mockriskwrites.PROVISION_MOVED_UNDER].label in summary
+
+
+# --- The report before the occurrence (US-0680, #1383) -----------------------------------------
+
+
+def _structures() -> list[dict[str, Any]]:
+    """Return the structures of the current revision, an example written by hand."""
+    return cast("list[dict[str, Any]]", mockwitness.fixture("structures"))
+
+
+def _structure(structure_id: str) -> dict[str, Any]:
+    [found] = [each for each in _structures() if each["structure_id"] == structure_id]
+    return found
+
+
+def test_the_own_estimate_of_the_rework_totals_its_severity_on_its_own_structure() -> None:
+    # The severity of a risk is the total of its own estimate (WF-RIS-0010): the structure 204,
+    # which `structures` lists as the rework's, totals the 1,250,000 the register reads.
+    estimate = example("nodes_risk_estimate")["value"]
+    risk = example("risk")["value"]
+    assert risk["risk_id"] == universe(mockwitnessrisks.REWORK.number)
+    assert estimate["totals"]["reestimated_amount"] == risk["severity"] == "1250000.00"
+    structure = _structure(risk["structure_id"])
+    assert (structure["kind"], structure["risk_id"]) == ("risk", risk["risk_id"])
+    assert risk["structure_id"] == universe(204)
+
+
+def test_the_own_estimate_is_read_unmarked_and_accepts_nothing_of_the_main_structure() -> None:
+    # WF-PLA-0170: neither a lot, nor a post, nor an inscription on an own estimate; and an own
+    # estimate is read against nothing (`Node.difference`).
+    items = example("nodes_risk_estimate")["value"]["items"]
+    assert [item["kind"] for item in items] == ["task", "estimate_line", "task", "estimate_line"]
+    for item in items:
+        assert "difference" not in item
+        assert not set(item["editable_fields"]) & set(mockamendment.MAIN_ONLY)
+    main = {row.number for row in mockcore.current()}
+    assert not {universe(number) for number in main} & {item["node_id"] for item in items}
+
+
+def _label(node: dict[str, Any]) -> str:
+    return cast("str", node[node["kind"]]["label"])
+
+
+def test_the_report_adds_the_own_estimate_modifies_the_bearer_and_removes_the_provision() -> None:
+    report = example("risk_occurrence_report")["value"]
+    items = example("nodes_risk_estimate")["value"]["items"]
+    added = [each for each in report["differences"] if each["change"] == "added"]
+    assert [(each["target"], each["label"]) for each in added] == [
+        (item["kind"], _label(item)) for item in items
+    ]
+    assert all(each["lineage_id"] is None and each["fields"] == [] for each in added)
+    rows = {row.number: row for row in mockcore.current()}
+    line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
+    bearer = rows[cast("int", line.parent)]
+    assert not cast("dict[str, Any]", bearer.node["task"])["is_milestone"]
+    *_, updated, removed = report["differences"]
+    assert (updated["change"], updated["target"], updated["label"]) == (
+        "updated",
+        "task",
+        bearer.label,
+    )
+    assert updated["lineage_id"] == bearer.node["lineage_id"]
+    assert (removed["change"], removed["target"], removed["label"]) == (
+        "removed",
+        "estimate_line",
+        line.label,
+    )
+    assert removed["lineage_id"] == line.node["lineage_id"]
+    assert len(report["differences"]) == len(added) + 2
+    assert report["refusals"] == []
+
+
+def test_the_bearer_is_changed_by_the_dates_it_comes_to_span() -> None:
+    # The bearer becomes the summary of the tasks merged under it, which keep the dates they had in
+    # the own estimate (WF-RIS-0060, WF-PLA-0040): a date it changes is a field of its `updated`.
+    report = example("risk_occurrence_report")["value"]
+    [updated] = [each for each in report["differences"] if each["change"] == "updated"]
+    tasks = [
+        item["task"]
+        for item in example("nodes_risk_estimate")["value"]["items"]
+        if item["kind"] == "task"
+    ]
+    rows = {row.number: row for row in mockcore.current()}
+    bearer = cast("dict[str, Any]", rows[N.WIRING].node["task"])
+
+    def instant(value: dict[str, str]) -> tuple[str, Decimal]:
+        return value["date"], Decimal(value["hours"])
+
+    start = min(instant(task["start"]) for task in tasks)
+    finish = max(instant(task["finish"]) for task in tasks)
+    assert ("start" in updated["fields"]) == (start != instant(bearer["start"]))
+    assert ("finish" in updated["fields"]) == (finish != instant(bearer["finish"]))
+    assert updated["fields"] == [
+        field for field in mockriskwrites.SCHEDULE if field in updated["fields"]
+    ]
+    assert updated["fields"]
+
+
+def test_the_report_withdraws_the_provision_and_returns_the_counters_read() -> None:
+    report = example("risk_occurrence_report")["value"]
+    risk = example("risk")["value"]
+    rows = {row.number: row for row in mockcore.current()}
+    line = rows[cast("int", mockwitnessrisks.REWORK.provision_line)]
+    facet = cast("dict[str, Any]", line.node["estimate_line"])
+    assert report["provision_amount"] == risk["provision_amount"] == facet["reestimated_amount"]
+    [main] = [each for each in _structures() if each["kind"] == "main"]
+    assert report["main_structure_lock_version"] == main["lock_version"]
+    assert report["risk_lock_version"] == risk["lock_version"]
+
+
+def test_the_occurrence_of_a_risk_not_identified_is_refused_by_the_condition_it_lacks() -> None:
+    refused = example("risk_occurrence_not_identified")["value"]
+    items = {item["risk_id"]: item for item in example("risks")["value"]["items"]}
+    risk = items[universe(mockriskwrites.NOT_IDENTIFIED.number)]
+    assert risk["state"] != "identified"
+    [command] = [
+        each for each in risk["available_commands"] if each["command"] == "declare_occurrence"
+    ]
+    assert command["missing_conditions"] == ["risk_identified"]
+    assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
+    assert refused["params"] == {"missing_condition": "risk_identified"}
+    assert risk["label"] in example("risk_occurrence_not_identified")["summary"]

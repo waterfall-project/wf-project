@@ -1,0 +1,18 @@
+{
+  "summary": "Le compte rendu préalable de la survenance de « Risque de reprise du câblage », risque identifié du témoin : « Diagnostic des défauts de câblage » et « Reprise du câblage des armoires », avec leurs lignes, ajoutées en dernière position sous le « Câblage des armoires », qui portait la ligne de provision et n'est pas un jalon (nodes_risk_estimate) ; le « Câblage des armoires » modifié par sa durée, son début et sa fin, devenu la récapitulative de ces tâches, dont il couvre les dates ; la ligne « Provision — risque de reprise du câblage » retirée, et sa provision de 500 000,00 retirée du reste à engager ; aucun motif de refus. Rien n'est écrit : la confirmation, qui renverra les compteurs lus — celui de la structure principale, 1, comme `structures` le dit, et celui du risque, 4, comme `risk` le dit —, est offerte (WF-RIS-0060, WF-IHM-0110, #1383).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "main_structure_lock_version": 1,
+    "risk_lock_version": 4,
+    "differences": [
+      {"change":"added","target":"task","lineage_id":null,"label":"Diagnostic des défauts de câblage","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"estimate_line","lineage_id":null,"label":"Recherche des défauts par le câbleur","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"task","lineage_id":null,"label":"Reprise du câblage des armoires","predecessor_label":null,"fields":[]},
+      {"change":"added","target":"estimate_line","lineage_id":null,"label":"Recâblage des armoires","predecessor_label":null,"fields":[]},
+      {"change":"updated","target":"task","lineage_id":"01926f3a-7c00-7000-8000-000000000652","label":"Câblage des armoires","predecessor_label":null,"fields":["duration","start","finish"]},
+      {"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000655","label":"Provision — risque de reprise du câblage","predecessor_label":null,"fields":[]}
+    ],
+    "provision_amount": "500000.00",
+    "refusals": []
+  }
+}

@@ -4764,6 +4764,36 @@ class RiskReviewWrite(ContractModel):
     lock_version: LockVersion
 
 
+class RiskOccurrenceReport(ContractModel):
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
+        ),
+    ]
+    risk_lock_version: Annotated[
+        LockVersion, Field(description="Le compteur du risque lu (`Risk.lock_version`), de même.")
+    ]
+    differences: Annotated[
+        list[ImportDifference],
+        Field(
+            description="Les écarts que la survenance ferait dans la structure principale, comme ceux d'une fusion (`ImportDifference`), dans cet ordre : les tâches et les lignes du devis propre, ajoutées (`added`) dans l'ordre de son plan — ses tâches de premier niveau en dernière position sous la tâche qui porte la ligne de provision, ou, quand c'est un jalon, immédiatement après lui, sous sa tâche parente ou au premier niveau ; un ajout n'a pas encore de lignée, et les liaisons internes du devis propre viennent avec ses tâches — ; la tâche porteuse modifiée (`updated`), devenue la récapitulative de ces tâches, `fields` nommant ce qui change d'elle, ses dates et sa durée couvrant désormais celles de ses subordonnées (WF-PLA-0040) — un jalon, qui reste un jalon sans sous-tâche, n'est pas modifié — ; la ligne de provision retirée (`removed`). Les tâches ajoutées gardent leurs subordonnées, leurs liaisons internes, leurs durées et leurs modes, une tâche sans prédécesseur dans le devis propre passant en mode manuel aux dates qu'elle y avait ; les lignes ajoutées portent un montant budgété nul (WF-RIS-0060)."
+        ),
+    ]
+    provision_amount: Annotated[
+        Money,
+        Field(
+            description="Le montant de la ligne de provision retirée, qui quitte le reste à engager — la provision du risque (`Risk.provision_amount`) ; le reste à engager augmente du total du devis propre, moins ce montant (WF-RIS-0060)."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="Les motifs qui refusent la survenance entière, chacun avec les paramètres qu'il porte quand la tâche de fond échoue (`ReportRefusal`) — ainsi `TASK_WITHOUT_WORKING_HOURS`, une tâche fusionnée dont une ligne de main-d'œuvre a un rôle sans aucune heure travaillée dans la semaine (WF-PLA-0010). Vide quand la survenance s'applique."
+        ),
+    ]
+
+
 class RiskOccurrence(ContractModel):
     confirmed: Literal[True]
 

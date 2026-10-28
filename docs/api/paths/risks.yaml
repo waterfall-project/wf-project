@@ -384,6 +384,49 @@
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:
+  get:
+    operationId: getRiskOccurrenceReport
+    tags: [risks]
+    summary: Compte rendu préalable de la survenance d'un risque
+    description: >-
+      Une lecture, qui n'écrit rien : ce que la survenance du risque ferait de la structure
+      principale de la révision en cours (WF-RIS-0060), présenté avant sa confirmation comme le
+      compte rendu d'une fusion (`RiskOccurrenceReport`, sur le modèle de
+      `getStructureMergeReport`) — les tâches et les lignes du devis propre ajoutées sous la tâche
+      qui porte la ligne de provision, ou après elle quand c'est un jalon, la ligne de provision
+      retirée, la tâche porteuse modifiée —, et la provision retirée du reste à engager. L'écart
+      est celui que le serveur calcule, comme pour un différentiel (C-361), et le front ne le
+      compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné.
+      Le compte rendu décrit la révision en cours à l'instant de la lecture, et la survenance
+      confirmée (`declareRiskOccurrence`) porte les compteurs qu'il a lus : une saisie faite
+      entre-temps dans la structure principale, ou sur le risque, la fait refuser par 412
+      (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne s'applique pas, et l'écran
+      n'en offre pas la confirmation. Refusée par 409 pour un risque qui n'est pas identifié, comme
+      sa survenance.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '200':
+        description: Ce que la survenance ferait, et ce qui la refuse.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrenceReport }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_occurrence_report.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Le risque n'est pas identifié — survenu ou écarté — : seul un risque identifié survient
+          (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`,
+          la condition que la commande `declare_occurrence` du risque dit manquer.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: declareRiskOccurrence
     tags: [risks]
@@ -419,7 +462,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
+          condition qui manque, comme la commande `declare_occurrence` du risque la dit — ainsi
+          `risk_identified` pour un risque survenu ou écarté, seul un risque identifié survenant
+          (WF-RIS-0020), comme au compte rendu.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

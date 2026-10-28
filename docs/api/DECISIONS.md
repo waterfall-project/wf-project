@@ -8240,6 +8240,54 @@ Aucune opération nouvelle.
 
 **Corrélation** 1561 et 1562 ; **tâches de fond** 952, 953 et 954.
 
+### Le compte rendu préalable de la survenance d'un risque (US-0680/L1, #1453)
+
+US-0520 veut que « Déclarer survenu » présente, avant confirmation, ce que la survenance ferait de la
+structure principale, dans les marques `+`, `-`, `M` ; le contrat n'avait que la mise en file,
+`declareRiskOccurrence`, sans compteur lu, et aucun exemple ne décrivait le devis propre d'un risque
+identifié du témoin (#1383). Décision du recadrage d'EP-16 (2026-10-25, #1445), option (a) :
+l'écart est calculé par le serveur, comme pour un différentiel (C-361). Écartée : (b), le front
+compose le compte rendu depuis `listNodes` et `getRisk`, qui ne montre ni la tâche porteuse modifiée
+ni le cas du jalon.
+
+- **La lecture.** `getRiskOccurrenceReport` (`GET /projects/{project_id}/risks/{risk_id}/occurrence`),
+  une lecture qui n'écrit rien, sur le modèle de `getStructureMergeReport` : sans 403, comme toute
+  lecture du projet. Elle rend `RiskOccurrenceReport`.
+- **Le compte rendu** (`RiskOccurrenceReport`) : `main_structure_lock_version` et
+  `risk_lock_version`, les compteurs lus ; `differences`, des `ImportDifference`, dans cet ordre —
+  les tâches et les lignes du devis propre ajoutées dans l'ordre de son plan, la tâche porteuse
+  modifiée, la ligne de provision retirée — ; `provision_amount`, le montant de la ligne retirée du
+  reste à engager ; `refusals`, des `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux
+  tableaux sont toujours rendus. Choix de forme du lot, là où la conception se taisait :
+  - un ajout n'a pas de lignée, et les liaisons internes du devis propre ne sont pas des écarts à
+    part : elles viennent avec ses tâches, comme celles des tâches qu'un différentiel ajoute
+    (`structure_merge_report`) ;
+  - la tâche porteuse, devenue la récapitulative des tâches placées sous elle, est un `updated`
+    dont `fields` nomme ce qui change de ses dates et de sa durée (`duration`, `start`, `finish`,
+    dans l'ordre de `NodeColumn`) : elle couvre désormais les dates de ses subordonnées
+    (WF-PLA-0040), qui gardent celles du devis propre (WF-RIS-0060). Les tâches que ce changement
+    redate ailleurs ne sont pas des écarts, comme au compte rendu d'une fusion ;
+  - un jalon porteur reste un jalon sans sous-tâche (Vérif de WF-RIS-0060) : il n'est pas modifié,
+    et les tâches sont ajoutées après lui.
+- **Le refus.** Un risque qui n'est pas identifié — survenu ou écarté — : 409
+  `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, la condition que nomme
+  déjà la commande `declare_occurrence` du risque, au compte rendu comme à la survenance.
+- **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
+  décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
+  « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du
+  câblage des armoires » à sa suite, sous-traitées, 250 000,00 et 1 000 000,00 — 1 250 000,00, la
+  gravité du risque. Sa provision est portée par le « Câblage des armoires », qui n'est pas un jalon.
+- **Les exemples**, engendrés par `wftools.mockriskwrites` : `nodes_risk_estimate`, dernier exemple
+  de `listNodes`, le devis propre lu, que le faux back n'aiguille pas sur la structure 204 (les
+  parcours qui y jouent lisent le premier exemple) ; `risk_occurrence_report`, les deux tâches et
+  leurs lignes ajoutées sous le « Câblage des armoires », celui-ci modifié par sa durée, son début et
+  sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4 ; `risk_occurrence_not_identified`,
+  le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
+  opérations. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et
+  la structure principale.
+
+**Corrélation** 1591.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

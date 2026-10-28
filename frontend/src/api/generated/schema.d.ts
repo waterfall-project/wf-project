@@ -2254,7 +2254,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Compte rendu préalable de la survenance d'un risque
+         * @description Une lecture, qui n'écrit rien : ce que la survenance du risque ferait de la structure principale de la révision en cours (WF-RIS-0060), présenté avant sa confirmation comme le compte rendu d'une fusion (`RiskOccurrenceReport`, sur le modèle de `getStructureMergeReport`) — les tâches et les lignes du devis propre ajoutées sous la tâche qui porte la ligne de provision, ou après elle quand c'est un jalon, la ligne de provision retirée, la tâche porteuse modifiée —, et la provision retirée du reste à engager. L'écart est celui que le serveur calcule, comme pour un différentiel (C-361), et le front ne le compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné. Le compte rendu décrit la révision en cours à l'instant de la lecture, et la survenance confirmée (`declareRiskOccurrence`) porte les compteurs qu'il a lus : une saisie faite entre-temps dans la structure principale, ou sur le risque, la fait refuser par 412 (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne s'applique pas, et l'écran n'en offre pas la confirmation. Refusée par 409 pour un risque qui n'est pas identifié, comme sa survenance.
+         */
+        get: operations["getRiskOccurrenceReport"];
         put?: never;
         /**
          * Déclarer un risque survenu
@@ -4370,7 +4374,7 @@ export interface components {
          * @enum {string}
          */
         ImportDifferenceField: "parent";
-        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s). */
+        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s), ou ce que la survenance d'un risque ferait de la structure principale (`RiskOccurrenceReport`, WF-RIS-0060 ; US-0680). */
         ImportDifference: {
             /**
              * @description Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`.
@@ -4399,7 +4403,7 @@ export interface components {
             /** @description Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué. */
             completed_on: components["schemas"]["PlanningDate"] | null;
         };
-        /** @description Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
+        /** @description Un motif qui refuse un import, une fusion ou la survenance d'un risque entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050, WF-RIS-0060 ; EP-14/L42s, `RiskOccurrenceReport`) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
         ReportRefusal: {
             code: components["schemas"]["ErrorCode"];
             params?: components["schemas"]["ProblemParams"];
@@ -5123,6 +5127,19 @@ export interface components {
             /** @description La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle qu'il désignait n'est plus active, ou n'est plus de type provision pour risques (`Risk.provision_cost_category_is_active` faux) : omise, elle est la seule catégorie active de type provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la catégorie désignée est encore active et de type provision pour risques, ou quand le risque ne redevient pas identifié. */
             provision_cost_category_id?: components["schemas"]["Uuid"];
             lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Compte rendu de la survenance d'un risque, présenté avant sa confirmation (WF-RIS-0060 ; US-0680, #1383) : ce qu'elle ferait de la structure principale de la révision en cours, et du reste à engager. Il reprend les éléments du compte rendu de la fusion d'un différentiel (`StructureMergeReport`), et se lit de même. Les deux tableaux sont toujours rendus, vides quand il n'y a rien à dire ; la survenance ne s'applique que si `refusals` est vide. Il rend les compteurs lus, que la confirmation renvoie (`RiskOccurrence`). */
+        RiskOccurrenceReport: {
+            /** @description Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412. */
+            main_structure_lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur du risque lu (`Risk.lock_version`), de même. */
+            risk_lock_version: components["schemas"]["LockVersion"];
+            /** @description Les écarts que la survenance ferait dans la structure principale, comme ceux d'une fusion (`ImportDifference`), dans cet ordre : les tâches et les lignes du devis propre, ajoutées (`added`) dans l'ordre de son plan — ses tâches de premier niveau en dernière position sous la tâche qui porte la ligne de provision, ou, quand c'est un jalon, immédiatement après lui, sous sa tâche parente ou au premier niveau ; un ajout n'a pas encore de lignée, et les liaisons internes du devis propre viennent avec ses tâches — ; la tâche porteuse modifiée (`updated`), devenue la récapitulative de ces tâches, `fields` nommant ce qui change d'elle, ses dates et sa durée couvrant désormais celles de ses subordonnées (WF-PLA-0040) — un jalon, qui reste un jalon sans sous-tâche, n'est pas modifié — ; la ligne de provision retirée (`removed`). Les tâches ajoutées gardent leurs subordonnées, leurs liaisons internes, leurs durées et leurs modes, une tâche sans prédécesseur dans le devis propre passant en mode manuel aux dates qu'elle y avait ; les lignes ajoutées portent un montant budgété nul (WF-RIS-0060). */
+            differences: components["schemas"]["ImportDifference"][];
+            /** @description Le montant de la ligne de provision retirée, qui quitte le reste à engager — la provision du risque (`Risk.provision_amount`) ; le reste à engager augmente du total du devis propre, moins ce montant (WF-RIS-0060). */
+            provision_amount: components["schemas"]["Money"];
+            /** @description Les motifs qui refusent la survenance entière, chacun avec les paramètres qu'il porte quand la tâche de fond échoue (`ReportRefusal`) — ainsi `TASK_WITHOUT_WORKING_HOURS`, une tâche fusionnée dont une ligne de main-d'œuvre a un rôle sans aucune heure travaillée dans la semaine (WF-PLA-0010). Vide quand la survenance s'applique. */
+            refusals: components["schemas"]["ReportRefusal"][];
         };
         /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, les lignes fusionnées portant un montant budgété nul et leur montant du devis propre en réestimé ; la ligne de provision est retirée. Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif. */
         RiskOccurrence: {
@@ -11278,6 +11295,41 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getRiskOccurrenceReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                risk_id: components["parameters"]["RiskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ce que la survenance ferait, et ce qui la refuse. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskOccurrenceReport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Le risque n'est pas identifié — survenu ou écarté — : seul un risque identifié survient (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, la condition que la commande `declare_occurrence` du risque dit manquer. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     declareRiskOccurrence: {
         parameters: {
             query?: never;
@@ -11307,7 +11359,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la condition qui manque, comme la commande `declare_occurrence` du risque la dit — ainsi `risk_identified` pour un risque survenu ou écarté, seul un risque identifié survenant (WF-RIS-0020), comme au compte rendu. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

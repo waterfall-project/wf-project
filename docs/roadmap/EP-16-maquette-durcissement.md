@@ -1536,7 +1536,7 @@ révèlent, qui deviennent des constats (#1438 → EP-17).
 
 ## US-0680 — Déclarer survenu un risque avec son compte rendu préalable
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre ; le service clôt WF-RIS-0060 en EP-08
 - **opérations** : `getRiskOccurrenceReport`, ajoutée au contrat ; `declareRiskOccurrence`,
   `getRisk`, `listNodes`
