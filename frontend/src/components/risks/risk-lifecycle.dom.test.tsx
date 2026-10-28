@@ -41,6 +41,7 @@ vi.mock("next/navigation", async (original) => ({
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const DELETE = "DELETE /projects/{project_id}/risks/{risk_id}";
 const OCCURRENCE = "POST /projects/{project_id}/risks/{risk_id}/occurrence";
+const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence";
 
 const IDENTIFIED = example("risk") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
@@ -172,6 +173,7 @@ describe("« Supprimer le risque »", () => {
 describe("« Déclarer survenu »", () => {
   it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks", async () => {
     const client = serve({
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
     });
     render(detail(IDENTIFIED));
@@ -189,13 +191,20 @@ describe("« Déclarer survenu »", () => {
       }),
     );
     await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(1);
+      expect(client.calls).toHaveLength(2);
     });
-    expect(client.calls[0]?.route).toBe(OCCURRENCE);
-    expect(client.calls[0]?.path).toBe(
-      `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`,
-    );
-    expect(client.calls[0]?.body).toEqual({ confirmed: true });
+    // The stopgap of US-0680/L1: the report is read just before, and its two counters are carried
+    // by the confirmation (WF-IHM-0110).
+    const path = `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`;
+    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
+    expect(client.calls[0]?.path).toBe(path);
+    expect(client.calls[1]?.route).toBe(OCCURRENCE);
+    expect(client.calls[1]?.path).toBe(path);
+    expect(client.calls[1]?.body).toEqual({
+      confirmed: true,
+      main_structure_lock_version: 1,
+      risk_lock_version: 4,
+    });
     expect(
       await screen.findAllByText(/La survenance de « Risque de reprise du câblage » est confiée/),
     ).not.toHaveLength(0);
