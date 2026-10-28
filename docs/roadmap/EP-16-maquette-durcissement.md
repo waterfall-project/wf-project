@@ -559,8 +559,9 @@ et ses exemples.
   `RiskMatrix.cells` dit que le décompte par case ne compte que les risques identifiés, comme les
   bulles ; `totals` reste sur les trois états (WF-RIS-0040 ; #1395, part contrat).
 - **La version du contrat** : `info.version` passe de `1.0.0-draft` à `1.0.0` par le dernier lot
-  de contrat d'EP-16 (US-0640/L5), après tous les lots qui touchent le contrat ou peuvent y revenir ;
-  les lots de rédaction de l'aide et US-0690 peuvent le suivre.
+  de contrat d'EP-16 (US-0640/L5), qui vient en dernier, à la fin de l'EPIC, après tous les autres
+  lots — les lots de rédaction de l'aide (US-0670/L3 à L5) et US-0690 compris — (décision de l'auteur
+  du 2026-10-28).
 
 ### Le faux back et le témoin
 
@@ -823,24 +824,29 @@ et ses exemples.
    stabilité d'un second parcours sous charge, #1522, décision de l'auteur du 2026-10-27).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
-   EP-16), quand l'auteur peut la relire.
+   EP-16), qui se fusionne comme les autres lots : l'auteur relit après coup (décision du
+   2026-10-26, #1139).
 3. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
    de contrat), US-0620 et US-0630 (la correspondance et le poste, qui touchent les mêmes schémas
    des échanges), US-0650, US-0680/L1, US-0700/L1.
-4. **US-0640**, les mineurs du contrat (L1 à L4, L6), en parallèle des écrans : ils ne touchent pas
+4. **US-0640**, les mineurs du contrat (L1 à L4, L6 ; L7, le front de la fusion, après L3), en parallèle des écrans : ils ne touchent pas
    les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
 5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L4) en
-   dernier des fronts, parce qu'elle peut faire revenir au contrat.
-6. **US-0590g**, la stabilité du harnais sous charge, juste avant le gel (décision de l'auteur du
-   2026-10-28) : L1 (le parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1).
-   Elle ne touche pas le contrat, et ne précède pas US-0670/L3 à L5.
-7. **Le gel** (US-0640/L5) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après
-   s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
-   domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans
-   `DECISIONS.md`.
-8. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet, en fin d'EPIC : elles
-   décrivent les écrans tels que tous les lots les laissent, et ne touchent pas le contrat ; L5
-   porte la décision de la langue et passe l'US `fini`.
+   dernier des fronts, parce qu'elle peut faire revenir au contrat ; **US-0670/L6** (#1583, le plan
+   de charge agrégé, correction de #1580) avant le gel, au cas où il touche le contrat des
+   préférences.
+6. **US-0590g**, la stabilité du harnais sous charge (décision de l'auteur du 2026-10-28) : L1 (le
+   parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1). Elle ne touche pas le
+   contrat ; elle se place après les lots d'écran et de contrat (US-0660/L3 #1458, US-0640/L6 #1457).
+7. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet : elles décrivent les écrans
+   tels que tous les lots les laissent, et ne touchent pas le contrat ; L5 porte la décision de la
+   langue et passe l'US `fini`. Leurs pull requests se fusionnent comme celles des autres lots :
+   l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du 2026-10-26, #1139).
+8. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
+   lots — US-0670/L3 à L5 et US-0690 compris (décision de l'auteur du 2026-10-28) : le contrat est
+   figé, `info.version` passe à `1.0.0`. La règle d'après s'écrit en tête de
+   `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de domaine passe par une issue
+   « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
 
 ---
 
@@ -1059,8 +1065,8 @@ la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1
 **Notes de réalisation.**
 - Part détachée d'US-0590 (deux lots, comme US-0590b et d) ; US-0590 reste `fini`.
 - Décision de l'auteur du 2026-10-28 (#1312) : #1540 et #1541 forment un lot de stabilité du
-  harnais d'EP-16, placé en fin d'EPIC, avant le gel du contrat (US-0640/L5 #1333), sans dépendance
-  de code. Le placement ne précède pas US-0670/L3 à L5.
+  harnais d'EP-16, placé avant le gel du contrat (US-0640/L5 #1333), qui vient en dernier, sans
+  dépendance de code.
 - Budget de reproduction de #1541 : 90 minutes au total, comme US-0590f. Passé ce délai sans cause,
   le lot passe `question` dans son issue, avec ce qui a été essayé, sans correctif au hasard ni
   report vers EP-17.
@@ -1353,6 +1359,14 @@ refus décrits.
   du 2026-10-28), parmi ses constats de contrat : une clé de `grids`, son exemple et son entrée
   dans `DECISIONS.md` (« Les modifications du contrat »). Si le lot devient trop gros à la
   lecture, le livreur le dit dans l'issue plutôt que de le découper.
+- L3 #1331 écrit la fusion sans révision en cours (#790) au contrat et dans le témoin ; sa part front
+  est **L7 #1584** (décision de l'auteur du 2026-10-28, dépend de L3) : la commande `merge_structure`
+  offerte sur le différentiel de la dernière révision marquée, le compte rendu qui dit
+  `creates_current_revision`, et les échecs `LINK_CYCLE`, `PROJECT_HORIZON_EXCEEDED` et
+  `LINK_FORBIDDEN` avec leurs paramètres.
+- L5 #1333, qui fige le contrat (`info.version` à `1.0.0`), vient **en dernier**, à la fin de
+  l'EPIC (décision de l'auteur du 2026-10-28) : il dépend de tous les autres lots, US-0670/L3 à L5,
+  US-0690, US-0590g, US-0660 et L6 et L7 compris.
 
 ---
 
@@ -1493,8 +1507,8 @@ suis.
   correspondance (US-0620), le client (US-0610), le poste (US-0630), le nom de l'entreprise
   (US-0600), les colonnes nouvelles (US-0650), le compte rendu de survenance (US-0680), le filtre des
   écarts (US-0700) ;
-- propre à l'US : la pull request d'un lot de rédaction ne se fusionne qu'après la relecture de
-  l'auteur, dite dans son issue.
+- propre à l'US : les lots de rédaction (L2 à L5) se fusionnent comme les autres ; l'auteur relit
+  après coup, à 18 h 30, et ouvre des issues (décision de l'auteur du 2026-10-26, #1139).
 
 **Notes de réalisation.** Reprise d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : les
 lots US-0580/L3b, L4 et L5 deviennent US-0670/L1, L2 et L4, et deux lots s'y ajoutent par la coupe
@@ -1502,7 +1516,13 @@ du recadrage (L3, le référentiel et les notions ; L5, les indicateurs et la la
 fusionnés d'US-0580 ayant dépassé leur estimation d'un facteur ≈ 1,7. L1 (la recherche et « Ses
 colonnes », code déjà écrit sur `lot/US-0580/L3b`, à rebaser sur `epic/EP-16`) vient juste après
 US-0590 ; L2 (l'administration et le portefeuille, écrans qu'EP-16 ne change pas) peut le suivre ;
-L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent. La conception d'EP-15
+L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent et avant le gel du
+contrat (US-0640/L5), qui vient en dernier. L6 #1583 (décision de l'auteur du 2026-10-28) corrige
+#1580 : l'écran du plan de charge agrégé (`portfolio/workload/page.tsx`) conserve l'horizon, le
+seuil de sous-charge et le filtre en préférences d'affichage au lieu de paramètres de l'adresse
+(WF-PTF-0060-A, WF-ADM-0040, WF-IHM-0060), puis la phrase de `FBS-2.2.md` qui le décrit ; elle se
+place avant le gel, au cas où `DisplayPreferences` n'aurait pas où ranger ces préférences, et
+dépend d'US-0670/L2. La conception d'EP-15
 (« L'aide en ligne et les infobulles ») fait foi pour la mécanique. Un lot d'EP-16 qui ajoute un
 code à la table des fonctions l'inscrit dans `SCREENS_TO_COME` avec le lot de cette US qui l'écrit
 (US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue.
