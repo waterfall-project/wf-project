@@ -68,6 +68,14 @@
         ]
       },
       {
+        "command": "apply_rate_update",
+        "is_available": false,
+        "missing_conditions": [
+          "rate_update_available",
+          "no_background_task_running"
+        ]
+      },
+      {
         "command": "mark",
         "is_available": false,
         "missing_conditions": [

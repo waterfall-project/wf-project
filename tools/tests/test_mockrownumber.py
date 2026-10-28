@@ -26,7 +26,12 @@ RESOLVED = {"row_number_task": "task", "row_number_estimate_line": "estimate_lin
 """The resolutions written by hand, and the kind of the node each names."""
 UNKNOWN = 6001
 """The number the refusal asks: the one after the last row of the witness structure."""
-PREFERENCES = ("me_grid_settings", "me_auditor", "preferences_page_size")
+PREFERENCES = (
+    "me_grid_settings",
+    "me_auditor",
+    "preferences_page_size",
+    "preferences_project_states",
+)
 """The examples whose grids the front wrote, each with the columns it offered."""
 
 

@@ -759,7 +759,9 @@
         description: >-
           Colonne du tri ; absente, les chefs de projet d'abord, puis le nom de famille et le
           prénom du compte, comme les comptes (`listUsers`). Le nom affiché se compare dans
-          l'ordre des points de code Unicode ; la qualité, dans l'ordre de `ContributorKind`,
+          l'ordre des points de code Unicode ; un compte anonymisé, qui n'a plus ni nom ni nom
+          affiché (`Contributor.display_name` nul), vient après les noms dans l'ordre croissant —
+          sans tri, après les autres comptes de sa qualité (WF-ADM-0060, #870) ; la qualité, dans l'ordre de `ContributorKind`,
           les chefs de projet d'abord dans l'ordre croissant ; l'état du compte, les actifs
           avant les désactivés dans l'ordre croissant. À égalité, l'ordre de la liste sans tri,
           puis l'identifiant du compte (WF-IHM-0060).
@@ -778,6 +780,7 @@
               by_name: { $ref: ../../../fixtures/api/contributors_by_name.json }
               search: { $ref: ../../../fixtures/api/contributors_search.json }
               inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
+              anonymized: { $ref: ../../../fixtures/api/contributors_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }

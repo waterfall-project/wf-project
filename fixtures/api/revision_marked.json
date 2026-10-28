@@ -53,6 +53,13 @@
         ]
       },
       {
+        "command": "apply_rate_update",
+        "is_available": false,
+        "missing_conditions": [
+          "revision_draft"
+        ]
+      },
+      {
         "command": "mark",
         "is_available": false,
         "missing_conditions": [

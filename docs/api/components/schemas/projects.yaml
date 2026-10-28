@@ -102,15 +102,16 @@ CommandCondition:
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
     Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
     saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque
-    (`declare_risk`), l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de
-    la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la
+    (`declare_risk`), l'ouverture d'un différentiel, sa fusion, la mise à jour des taux, le
+    marquage, la désignation de la référence et l'abandon, et les imports du projet qui y
+    écriraient — ses exports, qui la
     lisent, restent disponibles.
     Pendant l'application d'un import de planning, de devis ou de reste à engager
     (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
     qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
     dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`,
     `edit_remaining`, `edit_risks`, `declare_risk`, `create_structure`, `merge_structure`,
-    `mark`, `abandon` —,
+    `apply_rate_update`, `mark`, `abandon` —,
     la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles.
     Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage,
     fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement
@@ -271,7 +272,11 @@ CommandCondition:
     `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
     différentiel de la révision n'est à fusionner, et la révision la nomme
     (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
-    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). Deux tiennent
+    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211).
+    `rate_update_available` manque à la mise à jour des taux (`apply_rate_update`) d'une révision
+    en cours dont la proposition ne présente aucune catégorie — son année de référence est celle
+    de la révision dont elle est la copie, ou chaque catégorie présentée a déjà été acceptée
+    (WF-REV-0060) — ; la révision la nomme, et `applyRateUpdate` dans son 409 (#1351). Deux tiennent
     à la désignation de la référence (`designate_reference`), après `revision_marked`, qui
     manque à une révision en cours :
     `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
@@ -304,6 +309,7 @@ CommandCondition:
     - reference_correctable
     - revision_has_tasks_and_lines
     - unmerged_amendment_exists
+    - rate_update_available
     - task_not_completed
     - task_is_milestone
     - task_not_milestone
@@ -849,7 +855,14 @@ Contributor:
     n'est pas contributeur (WF-PRJ-0060).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    display_name: { type: string }
+    display_name:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le nom affiché du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un
+        compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne
+        rendant ni son nom (WF-ADM-0060) ni une phrase (WF-ARC-0110), comme `ActorRef.display_name`
+        (#870). Le tri le range après les noms dans l'ordre croissant (`listContributors`), et
+        la recherche sur le nom ne le retient jamais.
     kind: { $ref: '#/ContributorKind' }
     is_active:
       type: boolean
@@ -918,7 +931,12 @@ ContributorSuggestion:
     dise pourquoi il est proposé sans relire le référentiel (WF-ARC-0020).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    display_name: { type: string }
+    display_name:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le nom affiché du compte, nullable comme `Contributor.display_name`, pour que la
+        proposition confirmée prenne place dans la liste telle quelle : un compte anonymisé est
+        désactivé, et n'est donc jamais proposé (WF-ADM-0060, #870).
     is_active:
       type: boolean
       description: >-

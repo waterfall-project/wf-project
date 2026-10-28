@@ -102,7 +102,14 @@ OPERATIONS = {
         "200",
         ["estimate_line_updated_amendment", "estimate_line_payment_delay_amendment"],
     ),
-    "previewPaste": ("200", ["paste_plan_amendment", "paste_plan_amendment_skipping"]),
+    "previewPaste": (
+        "200",
+        [
+            "paste_plan_amendment",
+            "paste_plan_amendment_skipping",
+            "paste_plan_amendment_target_removed",
+        ],
+    ),
     "applyPaste": ("200", ["paste_applied_amendment", "paste_applied_amendment_skipping"]),
 }
 REFUSALS = {

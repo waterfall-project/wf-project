@@ -73,6 +73,7 @@ RevisionCommand:
     - declare_risk
     - create_structure
     - merge_structure
+    - apply_rate_update
     - mark
     - designate_reference
     - abandon
@@ -84,7 +85,7 @@ RevisionCommand:
     Commandes portées par la révision : saisir le planning, le devis, le reste à
     engager, les risques — une commande par fonction, chacune gardée par sa permission
     (WF-ADM-0100) —, ouvrir un différentiel (WF-REV-0100) et le fusionner (WF-REV-0050),
-    la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
+    y appliquer la mise à jour des taux (WF-REV-0060), la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
     WF-REV-0040) — la fusion, le marquage, la désignation et l'abandon chacun gardés par
     sa permission propre, `structure_merge`, `revision_mark`, `reference_designate`,
     `revision_abandon` : un rôle qui marque sans fusionner voit `mark` et non
@@ -148,6 +149,22 @@ RevisionCommand:
     révision, que l'opération applique à sa structure principale. Tant que le projet n'a pas de
     révision en cours, c'est le projet qui la porte (`ProjectCommand.generate_skeleton`), la
     révision s'ouvrant d'abord (EP-15/US-0490/L4).
+
+    `apply_rate_update` dit d'avance si la mise à jour des taux s'appliquerait
+    (`applyRateUpdate`, WF-REV-0060) : « la présentation reste proposée depuis la révision en
+    cours tant qu'elle n'est pas marquée, et une mise à jour refusée peut y être acceptée
+    ensuite ». Une écriture de la révision, comme son marquage, et non une saisie de grille :
+    elle est gardée par la permission de la gestion des révisions, `revisions.write` — celle de
+    `createRevision`, qui l'applique à la création (`RevisionCreate.apply_rate_update`) —, et
+    non par celle du devis, qui ne se saisit plus sur la structure principale d'un projet En
+    cours quand la mise à jour s'y accepte encore. Sur la révision en cours, sa condition propre
+    d'abord, `rate_update_available`, quand la proposition ne présente aucune catégorie
+    (`getRateUpdateProposal`) — l'année de référence de la révision est celle de la révision
+    dont elle est la copie, ou chaque catégorie présentée a déjà été acceptée —, puis
+    `no_background_task_running` pendant un marquage, l'application d'un import, le traitement
+    d'une survenance ou une fusion. Sur une révision marquée, elle ne manque que de
+    `revision_draft`, la proposition n'y étant pas jugée : une révision marquée garde les taux
+    qu'elle a calculés (WF-REF-0130, WF-DAT-0020 ; #1351).
 
 RevisionCommandAvailability:
   type: object
@@ -578,13 +595,15 @@ NodeDifference:
 
 NodeChange:
   type: string
-  enum: [dates, duration, progress, budgeted_amount, reestimated_amount, parent]
+  enum:
+    [dates, duration, progress, budgeted_amount, reestimated_amount, payment_delay_days, parent]
   description: >-
     Ce qui change d'un nœud présent des deux côtés (WF-REV-0080) : pour une tâche, ses dates, sa
     durée, son état d'avancement et son parent — « Une tâche déplacée sous une autre
     récapitulative est présentée modifiée » — ; pour une ligne de devis, ses montants budgété et
-    réestimé, qui disent ses grandeurs, et son parent, la tâche qui la porte. Le montant d'une
-    tâche est celui de ses lignes, qui le disent.
+    réestimé, qui disent ses grandeurs, son délai de paiement, qui déplace ses décaissements sans
+    changer aucun montant (WF-DEV-0020, WF-IND-0100 ; #1566), et son parent, la tâche qui la
+    porte. Le montant d'une tâche est celui de ses lignes, qui le disent.
 
 KanbanTask:
   description: >-
@@ -1512,7 +1531,10 @@ TaskFacetWrite:
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
     saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100). Le rattachement à un lot ou à un poste est accepté de toute tâche de la
+    (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la tâche —
+    sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée, nommant le
+    jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
+    (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute tâche de la
     structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée
     (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot.
   properties:
@@ -1809,7 +1831,12 @@ PastePreview:
     d'après — un bloc de deux lignes collé sur la ligne qui précède une ligne retirée écrit cette
     ligne, puis le nœud qui suit la ligne retirée (décision de l'auteur du 2026-10-22, #1278).
     `PastePlan.accepted` et `PasteRejection.row` comptent les lignes du bloc, jamais les nœuds
-    sautés. Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne
+    sautés. Un bloc dont la cellule visée est elle-même sur un nœud retiré, qui n'accepte aucun
+    champ (`editable_fields` vide), est refusé entier : `PastePlan.accepted` à `0`, et une seule
+    `PasteRejection`, `row` à `0`, `column` la colonne visée, `code` à `PASTE_TARGET_REMOVED`,
+    aucune autre ligne n'étant jugée ; l'ancre n'est pas reportée au nœud suivant, qui écrirait
+    ailleurs que là où l'utilisateur a cliqué (décision de l'auteur, recadrage d'EP-16, #1361).
+    Aucune cellule n'est décalée : une cellule qui tombe sur une colonne que sa ligne
     n'accepte pas est refusée, la ligne et la colonne nommées (`PastePlan.rejected`), sauf si
     elle est vide, qui n'écrit rien — un champ calculé pour ce nœud par `COMPUTED_VALUE`, un
     champ que sa nature refuse ou une colonne qu'aucune écriture ne porte, comme les montants,

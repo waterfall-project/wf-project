@@ -17,6 +17,7 @@
       {"command":"edit_remaining","is_available":false,"missing_conditions":["revision_draft"]},
       {"command":"create_structure","is_available":false,"missing_conditions":["revision_draft"]},
       {"command":"merge_structure","is_available":true,"missing_conditions":[]},
+      {"command":"apply_rate_update","is_available":false,"missing_conditions":["revision_draft"]},
       {"command":"mark","is_available":false,"missing_conditions":["revision_draft"]},
       {"command":"designate_reference","is_available":false,"missing_conditions":["reference_correctable"]},
       {"command":"abandon","is_available":false,"missing_conditions":["revision_draft"]},

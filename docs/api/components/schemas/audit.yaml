@@ -4,8 +4,9 @@ AuditAction:
   type: string
   description: >-
     Ce qu'une inscription du journal d'audit consigne : chacune des actions irréversibles ou
-    structurantes que WF-SEC-0030 énumère, dans son ordre — le marquage d'une révision, la
-    désignation de la révision de référence, la contractualisation d'un avenant, qui fusionne
+    structurantes que WF-SEC-0030 énumère, dans son ordre — la création d'un projet, le marquage
+    d'une révision, l'abandon d'une révision en cours (#1577), la désignation de la révision de
+    référence, la contractualisation d'un avenant, qui fusionne
     son différentiel (`amendment_merge`, WF-REV-0050), la déclaration d'un risque survenu, la
     sortie du cycle de vie d'un projet, l'exclusion et la réintégration d'une ligne de coût,
     l'application d'un import, la création et la modification des comptes — dont leur
@@ -14,7 +15,9 @@ AuditAction:
     des rôles aux comptes, la sauvegarde et la restauration. Une action nouvelle est une
     modification du contrat.
   enum:
+    - project_create
     - revision_mark
+    - revision_abandon
     - reference_designate
     - amendment_merge
     - risk_occurrence
@@ -45,8 +48,8 @@ AuditActorKind:
 AuditObjectKind:
   type: string
   description: >-
-    La nature de l'objet qu'une inscription concerne : le projet d'une sortie du cycle de vie,
-    la révision marquée ou désignée, le différentiel d'un avenant, le risque survenu, la ligne
+    La nature de l'objet qu'une inscription concerne : le projet créé ou sorti du cycle de vie,
+    la révision marquée, abandonnée ou désignée, le différentiel d'un avenant, le risque survenu, la ligne
     de coût exclue ou réintégrée, l'import appliqué, le compte, le rôle, la sauvegarde prise
     ou restaurée, et le dépôt d'une sauvegarde copiée hors de la plateforme qu'une
     restauration remet en place (`external_backup_upload`, l'identifiant du dépôt,
@@ -81,7 +84,8 @@ AuditObject:
         Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le
         numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché
         d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a
-        pas : sa date est celle de l'inscription ; nul pour un compte anonymisé, dont
+        pas : sa date est celle de l'inscription ; nul pour une révision en cours abandonnée, qui
+        n'a pas encore de nom de version (WF-REV-0010) ; nul pour un compte anonymisé, dont
         l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule
         modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente
         sous le libellé neutre de son catalogue.
@@ -179,8 +183,14 @@ AuditParams:
     lecteur (WF-ARC-0110), et le journal dit ainsi qui a donné quel droit (WF-SEC-0030, #706). Un
     objet vide pour une action qui n'a rien à dire de plus que son objet — la désactivation, la
     réactivation et l'anonymisation d'un compte, le lien qui fixe un mot de passe, la suppression
-    d'un rôle — et, jusqu'à l'EPIC qui les réalise, pour les actions d'un projet, de la sauvegarde
-    et de la restauration. Un paramètre nouveau est une modification du contrat.
+    d'un rôle — ; pour la création d'un projet (`project_create`), que l'inscription désigne
+    déjà par son code et son libellé du moment (`AuditEvent.project`, et son libellé dans
+    `AuditObject.label`) ; pour l'abandon d'une révision en cours (`revision_abandon`), que
+    l'inscription désigne par son identifiant et par son projet, une révision en cours n'ayant
+    pas encore de nom de version (`AuditObject.label` nul, WF-REV-0010), ses lignes supprimées
+    avec elle (#1577) ; et, jusqu'à l'EPIC qui les réalise, pour les autres actions d'un projet,
+    de la sauvegarde et de la restauration. Un paramètre nouveau est une modification du
+    contrat.
   properties:
     origin:
       allOf: [{ $ref: access.yaml#/UserOrigin }]

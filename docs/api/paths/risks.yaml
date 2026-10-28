@@ -7,10 +7,14 @@
       Libellé, probabilité, gravité, provision, état et date du dernier réexamen, avec la
       case de matrice et les totaux de provisions (WF-RIS-0040), tels que la révision lue
       les porte (`revision_id`, WF-RIS-0030). Le tri et les filtres sont faits par le
-      serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130).
+      serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130) : de tous les risques
+      que les filtres et la recherche retiennent, non de la seule page lue. Le registre est une
+      table plate, paginée comme toute autre (`limit`, `offset`, `meta` ; WF-IHM-0060, #1367).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
+      - $ref: ../components/parameters.yaml#/Limit
+      - $ref: ../components/parameters.yaml#/Offset
       - name: states
         in: query
         schema:
@@ -39,12 +43,13 @@
           application/json:
             schema:
               type: object
-              required: [items, totals]
+              required: [items, totals, meta]
               properties:
                 items:
                   type: array
                   items: { $ref: ../components/schemas/risks.yaml#/Risk }
                 totals: { $ref: ../components/schemas/risks.yaml#/ProvisionTotals }
+                meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/risks.json }
               empty: { $ref: ../../../fixtures/api/risks_empty.json }
@@ -162,6 +167,9 @@
             examples:
               witness: { $ref: ../../../fixtures/api/risk.json }
               occurred: { $ref: ../../../fixtures/api/risk_occurred_detail.json }
+              dismissed_category_deactivated:
+                $ref: ../../../fixtures/api/risk_dismissed_category_deactivated.json
+              uncited: { $ref: ../../../fixtures/api/risk_uncited.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
