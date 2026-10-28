@@ -713,6 +713,39 @@ et ses exemples.
     - Quatre workers, comme US-0590e : les deux occurrences viennent du palier à six.
     - Y rattacher #1529 et #1528 (tests unitaires du front, d'une autre nature, en sonnet) : ils
       vont à US-0660/L3 #1458.
+- **US-0590g, la stabilité du harnais sous charge** (#1540, #1541 ; décision de l'auteur du
+  2026-10-28 : la stabilité des tests relève d'EP-16, jamais d'EP-17). Deux lots, après les lots
+  qui touchent le contrat ou y reviennent et avant US-0640/L5. Aucune table, aucune opération, aucun
+  fichier du contrat : seuls `frontend/e2e/` et le guide changent.
+  - **L1, le parcours au Tab (#1540).** La durée de `walkByTab` est proportionnelle au nombre de
+    contrôles d'un écran et à la latence d'un aller-retour, que la charge multiplie. Il en fait deux
+    par élément : la touche, puis `focusNow`. La mesure passe dans la page.
+    - La sonde (`focus-probe.ts`) écoute la touche Tab au `keyup`, quand le focus a déjà bougé, et
+      range dans la page le relevé que `focus()` donnait, par le même code. Le parcours presse un lot
+      de touches, puis lit les relevés d'un seul `evaluate`. Il reste un aller-retour par élément,
+      celui de la touche, que le clavier réel impose.
+    - La page cesse d'enregistrer quand le focus revient au premier élément. Les touches de la fin
+      d'un lot ne changent rien à `Walk`, et le décompte (`take`, `Tally`) reste côté test.
+    - Ce que le parcours dit ne change pas, ni `Walk`, ni `faults`, ni `lost`, ni l'ordre des
+      relevés. Le lot le prouve de deux façons : les cas de `tab-walk.spec.ts` rendent les mêmes
+      résultats, et un cas nouveau compte les appels à `evaluate` d'une page de fixture.
+    - Le lot choisit la taille du lot de touches et la dit dans la pull request avec sa mesure, sans
+      charge puis sous charge.
+    - Écartée : `focusin`, qui ne se déclenche ni quand le focus reste sur l'élément — le piège que
+      le parcours doit voir —, ni quand il quitte le document. Écartée aussi : relever le délai du
+      test, que l'issue interdit, et réduire les écrans parcourus, qui retire de la vérification.
+  - **L2, le rejeu de #1541.** Il commence par rejouer `projects.spec.ts:103`, `planning.spec.ts:400`
+    et `undo.spec.ts:20` sous la charge de #1540 sur `epic/EP-16`, L1 fusionné : le parcours au Tab
+    est le test le plus long du palier, et sa durée fait une part de la charge que subissent les
+    autres. Ce qui suit dépend du rejeu.
+    - Un test qui tombe encore : reproduire, dire la cause, sonde déterministe, correction à la cause
+      — la méthode d'US-0590f, avec son budget de 90 minutes.
+    - Un test qui ne tombe plus : #1541 le dit « non reproduit », avec les passages rejoués.
+    - La charge n'est pas outillée dans le dépôt : elle tient au poste (nombre de cœurs), et un
+      outil de plus à entretenir pour un lot ne vaut pas sa reproductibilité. La pull request dit la
+      charge réelle. Écartée : une cible `make`.
+    - Le `compile(...)` de `projects.spec.ts` et ses semblables, vestiges du serveur de
+      développement, ne sont retirés que si la cause les désigne.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
@@ -737,11 +770,14 @@ et ses exemples.
    les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
 5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L3) en dernier
    des fronts, parce qu'elle peut faire revenir au contrat.
-6. **Le gel** (US-0640/L5) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après
+6. **US-0590g**, la stabilité du harnais sous charge, juste avant le gel (décision de l'auteur du
+   2026-10-28) : L1 (le parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1).
+   Elle ne touche pas le contrat, et ne précède pas US-0670/L3 à L5.
+7. **Le gel** (US-0640/L5) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après
    s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
    domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans
    `DECISIONS.md`.
-7. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet, en fin d'EPIC : elles
+8. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet, en fin d'EPIC : elles
    décrivent les écrans tels que tous les lots les laissent, et ne touchent pas le contrat ; L5
    porte la décision de la langue et passe l'US `fini`.
 
@@ -916,6 +952,62 @@ disparaît au rejeu (#1522).
 - Voir la conception, « Le harnais (US-0590) ».
 
 **Hors périmètre.** #1528 et #1529 : US-0660/L3 #1458 ; #1230 : EP-17.
+
+---
+
+## US-0590g — La stabilité du harnais sous charge : le parcours au Tab et trois parcours non examinés
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1543
+
+**En tant que** développeur, **je veux** que le parcours au Tab d'`accessibility.spec.ts` tienne ses
+90 s sous la charge du palier complet local, et que `projects.spec.ts:103`, `planning.spec.ts:400`
+et `undo.spec.ts:20` ne tombent plus sous charge, **afin que** le palier complet local du front et
+la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1541).
+
+**Critères d'acceptation.**
+
+- propre à l'US (#1540, la mesure) : le parcours au Tab ne fait plus qu'un aller-retour vers le
+  navigateur par élément atteint, celui de la touche : la mesure de l'élément n'a plus le sien, la
+  page la garde et le parcours la lit par lots. Un test de `tab-walk.spec.ts` le vérifie sans
+  dépendre de la charge. Ce que le parcours vérifie ne change pas : `faults(walk)`, `lost` et les
+  rubriques de `Walk` ;
+- propre à l'US (#1540, la tenue) : sous la charge artificielle qu'a relevée #1540 (six workers,
+  `make e2e WORKERS=6 E2E_BUILT=1`, douze à dix-huit boucles actives), trois passages successifs
+  voient le parcours au Tab de FBS-1.2, de FBS-2.7 et de FBS-4.8 sous les 90 s du test ;
+- propre à l'US (#1541, le rejeu) : avant tout correctif, `projects.spec.ts:103`,
+  `planning.spec.ts:400` et `undo.spec.ts:20` sont rejoués sous cette charge sur `epic/EP-16`, et
+  l'issue du lot dit lesquels échouent encore.
+  - Pour chacun qui échoue : la reproduction (la charge, le nombre de workers, le test), la cause,
+    un test qui échoue sans le correctif et passe avec sans dépendre de la charge, et le lieu de la
+    cause — test, environnement ou production.
+  - Pour chacun qui ne tombe plus : #1541 le ferme « non reproduit », sans correctif, avec les
+    passages rejoués consignés dans l'issue ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé, aucun
+  délai de test relevé ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à six workers, voient ces quatre parcours verts, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (deux lots, comme US-0590b et d) ; US-0590 reste `fini`.
+- Décision de l'auteur du 2026-10-28 (#1312) : #1540 et #1541 forment un lot de stabilité du
+  harnais d'EP-16, placé en fin d'EPIC, avant le gel du contrat (US-0640/L5 #1333), sans dépendance
+  de code. Le placement ne précède pas US-0670/L3 à L5.
+- Budget de reproduction de #1541 : 90 minutes au total, comme US-0590f. Passé ce délai sans cause,
+  le lot passe `question` dans son issue, avec ce qui a été essayé, sans correctif au hasard ni
+  report vers EP-17.
+- Pistes pour #1541, aucune tenue pour cause :
+  - `planning.spec.ts:400` et `undo.spec.ts:20` s'ouvrent déjà par `openHydrated` : si la cause est
+    un écran hydraté après le shell, ils passent peut-être déjà ;
+  - `projects.spec.ts:103` s'ouvre par `page.goto` et un clic de menu, sans `openHydrated`, après un
+    `compile(...)` hérité du serveur de développement.
+- Le rejeu sous charge est une exécution lourde : elle attend son tour derrière `HEAVY_LOCK`.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1539 (le Gantt) ; #1263 et les durcissements restants : EP-17 ; ajouter ou
+retirer un écran du parcours d'accessibilité.
 
 ---
 
