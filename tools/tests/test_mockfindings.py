@@ -82,8 +82,9 @@ def test_the_update_of_the_rates_is_a_command_of_each_revision_its_conditions_in
         example = json.loads(path.read_text(encoding="utf-8"))
         for revision in _revisions(example["value"]):
             names = [each["command"] for each in revision["available_commands"]]
-            # Hypothesis: no command is guarded by revisions.write alone; the mock gives it to the
-            # roles that hold `mark` (`revision_mark`), so the update is offered where `mark` is.
+            # Hypothesis, not read from the fixtures: `apply_rate_update` is guarded by
+            # `revisions.write` alone, but in the roles of the examples whoever holds it also
+            # holds `revision_mark`, so `mark` present means the update of the rates is offered.
             if "mark" not in names:
                 assert RATE_UPDATE not in names, path.name
                 continue

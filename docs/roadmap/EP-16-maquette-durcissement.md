@@ -558,9 +558,9 @@ et ses exemples.
   entrée dans `DECISIONS.md` ; le serveur garde le filtre tel qu'il est écrit, comme pour toute
   grille. `getPortfolioProjects` et `PortfolioStates` ne changent pas.
 - **Les actions du journal d'audit** (#1577, décision de l'auteur du 2026-10-28 ; écrit par
-  US-0640/L6b #1594) : `AuditAction` gagne `project_create` (avant `revision_mark`) et `revision_abandon`
-  (après `revision_mark`), dans l'ordre de WF-SEC-0030, avec leurs `params` (le code et le libellé
-  du projet ; la révision abandonnée par son projet). `AuditObjectKind` ne change pas.
+  US-0640/L6b #1594) : `AuditAction` gagne `project_create` (avant `revision_mark`) et
+  `revision_abandon` (après `revision_mark`), dans l'ordre de WF-SEC-0030, avec leurs `params` (le
+  code et le libellé du projet ; la révision abandonnée par son projet). `AuditObjectKind` ne change pas.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
   « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle. Les constats des lots
   d'EP-15 (US-0640/L6) : `RevisionCommand.apply_rate_update` avec ses conditions et un exemple
