@@ -127,11 +127,13 @@ const ONE_USE = { connection: "close" };
 const OPENS = new Set<PropertyKey>(["context", "url"]);
 
 /**
- * A page whose screen is let hydrate, by `release`, at the first moment it is read once `armed`
- * says so: what opens the page or reads its cookies does not read the screen. The page is opened
- * from its first response on: its load waits for the scripts the screen is held by.
+ * A page whose screen is let hydrate, by `release`, at the first moment it is read: what opens
+ * the page or reads its cookies does not read the screen. The page is opened from its first
+ * response on — its load waits for the scripts the screen is held by — and `held` is awaited
+ * before `goto` returns, so that what opens the page starts its own bound only then, whole for the
+ * hydration alone, whatever the load took to hold the scripts.
  */
-function releasedAtRead(page: Page, armed: () => boolean, release: () => void): Page {
+function releasedAtRead(page: Page, held: () => Promise<void>, release: () => void): Page {
   return new Proxy(page, {
     get(target, property): unknown {
       const value: unknown = Reflect.get(target, property, target);
@@ -140,15 +142,17 @@ function releasedAtRead(page: Page, armed: () => boolean, release: () => void): 
       }
       const method = value as (...args: unknown[]) => unknown;
       if (property === "goto") {
-        return (address: string) => target.goto(address, { waitUntil: "commit" });
+        return async (address: string) => {
+          const response = await target.goto(address, { waitUntil: "commit" });
+          await held();
+          return response;
+        };
       }
       if (OPENS.has(property)) {
         return method.bind(target);
       }
       return (...args: unknown[]): unknown => {
-        if (armed()) {
-          release();
-        }
+        release();
         return method.apply(target, args);
       };
     },
@@ -197,18 +201,20 @@ test("opens the screen hydrated, though the shell has written its cookie before 
     }
     await route.fulfill({ status: response.status(), headers: response.headers(), body });
   });
-  let armed = false;
-  const opening = releasedAtRead(page, () => armed, release);
-  const opened = openHydrated(opening, SCREEN).then(() => page.evaluate(chartCommands));
-  try {
+  // The page as the load left it: scripts held, cookie written, no button hydrated.
+  const heldScreen = async (): Promise<void> => {
     await expect.poll(() => held, { timeout: WORKING }).toBeGreaterThan(0);
     const cookies = await page.context().cookies();
     expect(cookies.map(({ name }) => name)).toContain("wf_last_project");
-    // The screen as the server streams it, in the bound `openHydrated` gives it.
     await expect
       .poll(() => page.evaluate(chartCommands), { timeout: WORKING })
       .toEqual({ shown: 3, hydrated: 0 });
-    armed = true;
+  };
+  const opening = releasedAtRead(page, heldScreen, release);
+  const opened = openHydrated(opening, SCREEN).then(() => page.evaluate(chartCommands));
+  // A late rejection, if the test fails before `opened` is awaited, must not hide that failure.
+  void opened.catch(() => undefined);
+  try {
     expect(await opened).toEqual({ shown: 3, hydrated: 3 });
   } finally {
     release();
