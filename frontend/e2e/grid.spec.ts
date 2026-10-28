@@ -172,13 +172,26 @@ test.describe("on a low window", () => {
     expect(await withinBox(grid(page), totals)).toBe(true);
     // The last of the six thousand rows is in view, between the header and the totals.
     expect(await withinBox(grid(page), last)).toBe(true);
-    const [over, row, under] = await Promise.all([
-      header.boundingBox(),
-      last.boundingBox(),
-      totals.boundingBox(),
-    ]);
-    expect(row?.y ?? 0).toBeGreaterThanOrEqual((over?.y ?? 0) + (over?.height ?? 0) - 1);
-    expect((row?.y ?? 0) + (row?.height ?? 0)).toBeLessThanOrEqual((under?.y ?? 0) + 1);
+    // The three boxes read at one moment, in one task of the page, as `withinBox` reads its own:
+    // read one after the other, each could come from another layout (#1522).
+    const [over, under] = await Promise.all([header.elementHandle(), totals.elementHandle()]);
+    try {
+      const { row, headerBottom, totalsTop } = await last.evaluate(
+        (target, [above, below]) => {
+          const bounds = target.getBoundingClientRect();
+          return {
+            row: { top: bounds.top, bottom: bounds.bottom },
+            headerBottom: above.getBoundingClientRect().bottom,
+            totalsTop: below.getBoundingClientRect().top,
+          };
+        },
+        [over, under] as const,
+      );
+      expect(row.top).toBeGreaterThanOrEqual(headerBottom - 1);
+      expect(row.bottom).toBeLessThanOrEqual(totalsTop + 1);
+    } finally {
+      await Promise.all([over.dispose(), under.dispose()]);
+    }
   });
 
   test("sizes its rows by the root font: enlarged, the rows grow with it and the header and totals stay in view", async ({

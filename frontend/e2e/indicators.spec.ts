@@ -116,3 +116,53 @@ test("draws the cumulative costs, and shifts them by the payment delays at the s
   await page.getByRole("link", { name: "Décaler des délais de paiement" }).click();
   await expect(page).toHaveURL(/payment_delays=true/);
 });
+
+/** What the page says of the hydration of its charts, read by the journey below. */
+interface ChartsWitness {
+  /** Whether the commands of the charts — the screen's own — are hydrated now. */
+  readonly chartsHydrated: () => boolean;
+  /** Whether they were when the shell wrote its cookie; unset before. */
+  screenAtCookie?: boolean;
+}
+
+test("opens the screen hydrated, which React hydrates after the shell has written its cookie", async ({
+  page,
+}) => {
+  // The shell writes its cookie from an effect, once it has hydrated; the screen hydrates in the
+  // boundary of its `loading.tsx`, on its own, after it. Under load, the cookie came seconds before
+  // the screen, and a chart awaited from it for five seconds was never drawn (#1537). What the page
+  // has hydrated is read here at the moment the cookie is written.
+  await page.addInitScript(() => {
+    const cookie = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+    const witness = window as unknown as ChartsWitness;
+    Object.assign(witness, {
+      chartsHydrated: () => {
+        const commands = [...document.querySelectorAll("figure button")];
+        return (
+          commands.length > 0 &&
+          commands.every((command) =>
+            Object.keys(command).some((key) => key.startsWith("__reactProps$")),
+          )
+        );
+      },
+    });
+    Object.defineProperty(Document.prototype, "cookie", {
+      configurable: true,
+      get(this: Document) {
+        return cookie?.get?.call(this) as string;
+      },
+      set(this: Document, value: string) {
+        if (value.startsWith("wf_last_project=")) {
+          witness.screenAtCookie ??= witness.chartsHydrated();
+        }
+        cookie?.set?.call(this, value);
+      },
+    });
+  });
+  await openHydrated(page, SCREEN);
+  const seen = await page.evaluate(() => {
+    const witness = window as unknown as ChartsWitness;
+    return { atCookie: witness.screenAtCookie, opened: witness.chartsHydrated() };
+  });
+  expect(seen).toEqual({ atCookie: false, opened: true });
+});

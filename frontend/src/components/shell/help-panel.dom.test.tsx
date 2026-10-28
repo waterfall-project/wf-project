@@ -6,7 +6,15 @@
  * as it reads them in production; a link shows another page in the panel, a search finds the pages
  * by their titles; Escape closes it and gives the focus back. The action is spied, so that a page
  * with raw HTML, a failure and a late answer can be served.
+ *
+ * The renderer of the Markdown, which the panel loads lazily, is loaded with this file, before any
+ * test: its first loading compiles `react-markdown` and its plugins, which took more than the
+ * second a query waits on a loaded workstation, and failed the first test to open the panel
+ * (#1537). Its loading is made slower than that second here, so that a test that paid it would
+ * fail every time.
  */
+import "./help-markdown";
+
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -29,6 +37,12 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("@/api/actions/help", async (original) => {
   const actual = await original<typeof import("@/api/actions/help")>();
   return { readHelp: vi.fn(actual.readHelp) };
+});
+
+vi.mock("./help-markdown", async (original) => {
+  const { getConfig } = await import("@testing-library/react");
+  await new Promise((resolve) => setTimeout(resolve, getConfig().asyncUtilTimeout));
+  return original<typeof import("./help-markdown")>();
 });
 
 const real = vi.mocked(readHelp).getMockImplementation();
