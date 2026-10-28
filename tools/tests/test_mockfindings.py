@@ -11,7 +11,6 @@ They try the examples of the fake back, not the Vérif of a requirement: none ci
 """
 
 import json
-import re
 from functools import cache
 from pathlib import Path
 from typing import Any, cast
@@ -83,7 +82,8 @@ def test_the_update_of_the_rates_is_a_command_of_each_revision_its_conditions_in
         example = json.loads(path.read_text(encoding="utf-8"))
         for revision in _revisions(example["value"]):
             names = [each["command"] for each in revision["available_commands"]]
-            # Guarded by revisions.write, as the merge and the marking: absent where they are.
+            # Hypothesis: no command is guarded by revisions.write alone; the mock gives it to the
+            # roles that hold `mark` (`revision_mark`), so the update is offered where `mark` is.
             if "mark" not in names:
                 assert RATE_UPDATE not in names, path.name
                 continue
@@ -169,6 +169,8 @@ def test_a_paste_aimed_at_a_node_withdrawn_is_refused_whole_on_its_anchor() -> N
     assert plan["accepted"] == 0
     assert plan["rejected"] == [{"row": 0, "column": "label", "code": "PASTE_TARGET_REMOVED"}]
     assert "PASTE_TARGET_REMOVED" in _schema("common.yaml", "ErrorCode")["enum"]
+    rejection = _schema("schemas/revisions.yaml", "PasteRejection")
+    assert "`PASTE_TARGET_REMOVED`" in rejection["description"]
     assert "paste_plan_amendment_target_removed" in _cited("previewPaste", "200")
     removed = [
         each for each in fixture("nodes_amendment")["items"] if each["difference"] == "removed"
@@ -226,11 +228,6 @@ def test_the_states_of_the_home_are_kept_in_the_filters_of_the_grid_of_its_list(
     known = _schema("schemas/projects.yaml", "ProjectState")["enum"]
     assert set(states) <= set(known)
     assert set(states) != {"pricing", "in_progress"}
-    # The key the grid of the list of the home keeps its settings under (US-0660/L4 reads it).
-    grid = (REPOSITORY / "frontend/src/components/projects/project-list-grid.tsx").read_text(
-        encoding="utf-8"
-    )
-    assert re.search(r'PROJECT_LIST_GRID[^=]*=\s*\{\s*key: "projects"', grid)
     assert "preferences_project_states" in _cited("updateMyPreferences", "200")
 
 

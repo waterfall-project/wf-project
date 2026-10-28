@@ -85,11 +85,11 @@ RevisionCommand:
     Commandes portées par la révision : saisir le planning, le devis, le reste à
     engager, les risques — une commande par fonction, chacune gardée par sa permission
     (WF-ADM-0100) —, ouvrir un différentiel (WF-REV-0100) et le fusionner (WF-REV-0050),
-    y appliquer la mise à jour des taux (WF-REV-0060), la marquer, la désigner comme référence, l'abandonner (WF-REV-0010, WF-REV-0020,
-    WF-REV-0040) — la fusion, le marquage, la désignation et l'abandon chacun gardés par
-    sa permission propre, `structure_merge`, `revision_mark`, `reference_designate`,
-    `revision_abandon` : un rôle qui marque sans fusionner voit `mark` et non
-    `merge_structure` (WF-ADM-0100) ; en exporter le planning MS Project, le devis, le reste à engager ou
+    y appliquer la mise à jour des taux (WF-REV-0060), la marquer, la désigner comme
+    référence, l'abandonner (WF-REV-0010, WF-REV-0020, WF-REV-0040) — la fusion, le marquage,
+    la désignation et l'abandon chacun gardés par sa permission propre, `structure_merge`,
+    `revision_mark`, `reference_designate`, `revision_abandon` : un rôle qui marque sans
+    fusionner voit `mark` et non `merge_structure` (WF-ADM-0100) ; en exporter le planning MS Project, le devis, le reste à engager ou
     l'image de l'arborescence de tâches — une commande par nature d'export
     (`ExportRequest.kind`), dans l'ordre de l'énumération (WF-INTF-0050, WF-INTF-0110,
     WF-INTF-0130, WF-PLA-0120). Un export se dit de la révision qu'il lit, marquée
@@ -1531,12 +1531,13 @@ TaskFacetWrite:
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
     saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la tâche —
-    sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée, nommant le
-    jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
-    (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute tâche de la
-    structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée
-    (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot.
+    (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la
+    tâche — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée,
+    nommant le jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
+    (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute
+    tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la
+    tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son
+    lot.
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
@@ -1908,7 +1909,9 @@ PasteRejection:
     nommant le sous-projet que la ligne ne peut pas quitter (`subproject_id`, `label`), comme
     `updateEstimateLine` ; une cellule qui nomme le sous-projet de la ligne ne la déplace pas, et
     n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ;
-    C-359, #1152).
+    C-359, #1152). Un collage dont la cellule visée est sur un nœud retiré par le différentiel est
+    refusé entier par `PASTE_TARGET_REMOVED`, un seul refus, à la ligne `0`, sur la colonne
+    visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361).
   properties:
     row:
       type: integer

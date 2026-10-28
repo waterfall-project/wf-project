@@ -104,8 +104,7 @@ CommandCondition:
     saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque
     (`declare_risk`), l'ouverture d'un différentiel, sa fusion, la mise à jour des taux, le
     marquage, la désignation de la référence et l'abandon, et les imports du projet qui y
-    écriraient — ses exports, qui la
-    lisent, restent disponibles.
+    écriraient — ses exports, qui la lisent, restent disponibles.
     Pendant l'application d'un import de planning, de devis ou de reste à engager
     (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
     qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient

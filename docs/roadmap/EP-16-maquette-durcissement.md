@@ -217,8 +217,8 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
   US-0640/L6. EP-04 sert le champ tel que le contrat figé le dit, et le front le nomme par
   `useAccountNaming` (US-0930 d'EP-04) ;
 - #1577 — contrat : `AuditAction` sans `project_create` ni `revision_abandon` (WF-SEC-0030), relevé
-  au cadrage d'EP-04. Décision de l'auteur du 2026-10-28 : corrigé par US-0640/L6 #1457, avant le
-  gel (US-0640/L5 #1333) ;
+  au cadrage d'EP-04. Décision de l'auteur du 2026-10-28 : corrigé par US-0640/L6b #1594, avant
+  le gel (US-0640/L5 #1333) ;
 - #1352 — contrat : la révision 101 à la version 2 sous deux états, l'ordre de `revisions.json` —
   US-0640/L4 ;
 - #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
@@ -558,7 +558,7 @@ et ses exemples.
   entrée dans `DECISIONS.md` ; le serveur garde le filtre tel qu'il est écrit, comme pour toute
   grille. `getPortfolioProjects` et `PortfolioStates` ne changent pas.
 - **Les actions du journal d'audit** (#1577, décision de l'auteur du 2026-10-28 ; écrit par
-  US-0640/L6) : `AuditAction` gagne `project_create` (avant `revision_mark`) et `revision_abandon`
+  US-0640/L6b #1594) : `AuditAction` gagne `project_create` (avant `revision_mark`) et `revision_abandon`
   (après `revision_mark`), dans l'ordre de WF-SEC-0030, avec leurs `params` (le code et le libellé
   du projet ; la révision abandonnée par son projet). `AuditObjectKind` ne change pas.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
@@ -617,7 +617,7 @@ et ses exemples.
   #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367) ; un
   contributeur anonymisé porte un `display_name` nul (#870, US-0640/L6) ; le journal du témoin
   (`mockaudit`) reçoit les inscriptions `project_create` (création de PRJ-001, le 6 octobre 2025) et
-  `revision_abandon` (#1577, US-0640/L6).
+  `revision_abandon` (#1577, US-0640/L6b #1594).
 
 ### Le front
 
@@ -1556,9 +1556,10 @@ refus décrits.
   2026-10-28) : `Contributor.display_name` et `ContributorSuggestion.display_name` nullables,
   avec un exemple et son entrée dans `DECISIONS.md` ; le lot que le pilote retient par défaut, l'auteur n'en
   ayant nommé aucun autre.
-- L6 #1457 écrit aussi `project_create` et `revision_abandon` dans `AuditAction` (#1577, décision de
-  l'auteur du 2026-10-28) : leurs `params`, les deux inscriptions de `mockaudit` et l'entrée de
-  `DECISIONS.md`. US-0640/L5 #1333, qui fige le contrat, en dépend.
+- L6b #1594, qui dépend de L6 #1457, écrit `project_create` et `revision_abandon` dans
+  `AuditAction` (#1577, décision de l'auteur du 2026-10-28) : leurs `params`, les deux
+  inscriptions de `mockaudit` et l'entrée de `DECISIONS.md`. US-0640/L5 #1333, qui fige le
+  contrat, dépend de L6b.
 - L6 #1457 écrit aussi la préférence d'états de la liste de l'accueil (#1401, décision de l'auteur
   du 2026-10-28), parmi ses constats de contrat : une clé de `grids`, son exemple et son entrée
   dans `DECISIONS.md` (« Les modifications du contrat »). Si le lot devient trop gros à la

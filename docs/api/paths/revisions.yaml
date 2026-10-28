@@ -283,6 +283,8 @@
       ensuite depuis la révision en cours, tant qu'elle n'est pas marquée, et la rechiffre au
       taux de son année de référence pour chaque catégorie acceptée (C-362) ; une révision
       marquée garde les taux et les montants qu'elle a calculés (WF-REF-0130, WF-DAT-0020).
+      Refusée en 403 à qui n'a pas la permission `revisions.write`, celle de la gestion des
+      révisions (`RevisionCommand`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
