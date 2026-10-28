@@ -129,7 +129,6 @@
               project: { $ref: ../../../fixtures/api/audit_events_project.json }
               exited: { $ref: ../../../fixtures/api/audit_events_exited.json }
               import_applied: { $ref: ../../../fixtures/api/audit_events_import_applied.json }
-              revision_abandoned: { $ref: ../../../fixtures/api/audit_events_revision_abandoned.json }
               empty: { $ref: ../../../fixtures/api/audit_events_empty.json }
               by_actor: { $ref: ../../../fixtures/api/audit_events_by_actor.json }
               by_object_label: { $ref: ../../../fixtures/api/audit_events_by_object_label.json }

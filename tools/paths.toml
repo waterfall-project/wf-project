@@ -430,7 +430,6 @@ paths = [
     "fixtures/api/audit_events_project.json",
     "fixtures/api/audit_events_exited.json",
     "fixtures/api/audit_events_import_applied.json",
-    "fixtures/api/audit_events_revision_abandoned.json",
     "fixtures/api/audit_events_empty.json",
     "fixtures/api/audit_events_by_actor.json",
     "fixtures/api/audit_events_by_object_label.json",

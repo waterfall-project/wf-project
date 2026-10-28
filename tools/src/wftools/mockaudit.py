@@ -3,10 +3,9 @@
 """The journal of audit of the universe, engendered from its chronology (EP-02/L42, #516).
 
 Each inscription is an action WF-SEC-0030 names that the universe has already done: read from the
-chronology of the witness (``mockwitness``) — the witness created, by its creator, at the instant
-its audit says (#1577), the offer marked, then designated reference, the amendment 1 merged, the
-occurrence of 752, the imports of actual costs applied, the reception of the customer excluded
-from the tracked scope — and from the examples written by hand that say when
+chronology of the witness (``mockwitness``) — the offer marked, then designated reference, the
+amendment 1 merged, the occurrence of 752, the imports of actual costs applied, the reception of
+the customer excluded from the tracked scope — and from the examples written by hand that say when
 each account, each access role and each backup came to be (``users``, ``access_roles``,
 ``backups``). Nothing is invented that another example does not say. An actor is read from an
 audit only where that audit was last updated by the action inscribed — the marking of the offer,
@@ -17,17 +16,16 @@ them; an import is by the actor its journal names; what the platform does by its
 platform. A label is the one the object bears in its example, and an object that lives in a
 revision names it — the risk that occurred, the amendment merged; the lines of cost and the imports
 of actual costs live in the project. And the immediate sequel of the exit of the witness from its
-lifecycle, confirmed today (``project_completed``), and that of the abandon of its revision in
-progress, today too (``project_without_current_revision``, #1577).
+lifecycle, confirmed today (``project_completed``).
 
 What the same command writes — the risks of ``mockhistory``, the journal of the imports of
 ``mockcosts`` — is read in memory, never from its file, so that one run reaches its fixed point;
 only examples written by hand are read from the disk. The answers of ``listAuditEvents`` are
 written from the one journal: the whole of it, the latest first; its second page of ten; the
-journal of the witness; that journal after its exit, after the estimate imported this morning
-is applied, and after its revision in progress is abandoned; a filter that retains nothing; the
-journal sorted by author; the inscriptions of one correlation; a search on the label of the
-object; and, a variant of its own, the administration of the accounts and the roles of today (#961).
+journal of the witness; that journal after its exit, and after the estimate imported this morning
+is applied; a filter that retains nothing; the journal
+sorted by author; the inscriptions of one correlation; a search on the label of the object; and,
+a variant of its own, the administration of the accounts and the roles of today (#961).
 The answer of ``listAuditFacets`` is read from the same journal: its authors and its projects
 (#550). Nothing here reads the clock.
 """
@@ -170,7 +168,7 @@ def _witness() -> list[Inscription]:
         for each in cast("list[JsonObject]", mockcosts.journal()["items"])
     }
     current = _current_revision()
-    found = [_created(), *_revisions()]
+    found = _revisions()
     found.extend(
         Inscription(
             risk.last.at,
@@ -212,24 +210,6 @@ def _witness() -> list[Inscription]:
         if line.excluded is not None
     )
     return [replace(each, on_witness=True) for each in found]
-
-
-def _created() -> Inscription:
-    """Return the creation of the witness: by its creator, at the instant its audit says (#1577).
-
-    The project is named by its code and its label of the moment, as every inscription on the
-    witness names it (`AuditEvent.project`): the creation has nothing more to say (`params`).
-    """
-    project = fixture("project")
-    audit = cast("JsonObject", project["audit"])
-    return Inscription(
-        _instant(cast("str", audit["created_at"])),
-        cast("JsonObject", audit["created_by"]),
-        "project_create",
-        "project",
-        cast("str", project["project_id"]),
-        cast("str", project["label"]),
-    )
 
 
 def _current_revision() -> tuple[str, str | None]:
@@ -446,39 +426,16 @@ def import_applied_today() -> Inscription:
     )
 
 
-def abandon_today() -> Inscription:
-    """Return the abandon of the revision in progress of the witness, today.
-
-    As `project_without_current_revision` says it: at its last update, by its author. The revision
-    is named by its identifier and by its project; in progress, it has no version name yet
-    (WF-REV-0010), and, a revision itself, it lives in none (`AuditObject.revision`). The abandon
-    has nothing more to say (`params`, #1577).
-    """
-    project = fixture("project_without_current_revision")
-    audit = cast("JsonObject", project["audit"])
-    revision, version = _current_revision()
-    return Inscription(
-        _instant(cast("str", audit["updated_at"])),
-        cast("JsonObject", audit["updated_by"]),
-        "revision_abandon",
-        "revision",
-        revision,
-        version,
-        on_witness=True,
-    )
-
-
 def _sequels() -> tuple[Inscription, ...]:
     """Return the actions that take effect just after today, each the sequel of a write of today.
 
-    Each is read alone, a variant of the journal: the exit of the witness, the application of the
-    estimate and the abandon of its revision in progress do not follow one another — a project
-    completed takes no import (WF-CYC-0100), and the estimate applies to the revision abandoned.
+    Each is read alone, a variant of the journal: the exit of the witness and the application of
+    the estimate do not follow one another — a project completed takes no import (WF-CYC-0100).
     """
-    return exit_today(), import_applied_today(), abandon_today()
+    return exit_today(), import_applied_today()
 
 
-EXIT, IMPORT, ABANDON = range(3)
+EXIT, IMPORT = range(2)
 """The sequels by their rank in ``_sequels``, which numbers them apart from one another."""
 
 
@@ -782,7 +739,6 @@ def examples() -> dict[str, JsonObject]:
     witness = _of_witness(events)
     exited = _of_witness(journal(sequel=EXIT))
     imported = _of_witness(journal(sequel=IMPORT))
-    abandoned = _of_witness(journal(sequel=ABANDON))
     day = mocktext.day(TODAY.date())
     counted = mocktext.count(len(events))
     return {
@@ -792,7 +748,7 @@ def examples() -> dict[str, JsonObject]:
             f"celle que {_backuper()['display_name']} a lancée, les imports de coûts réels "
             f"appliqués, l'exclusion d'une ligne de coût, la survenance du risque 752, la fusion "
             f"de l'avenant 1, qui marque la révision de référence et la désigne, la désignation de "
-            f"l'offre comme référence et son marquage, la création du projet témoin, les "
+            f"l'offre comme référence et son marquage, les "
             f"comptes créés ou désactivés, les rôles d'habilitation créés, ceux de "
             f"l'installation par la plateforme, et les rôles que le premier administrateur "
             f"s'est attribués. Chaque inscription a sa date, son auteur, son action, l'objet "
@@ -811,8 +767,7 @@ def examples() -> dict[str, JsonObject]:
             f"réception du client du périmètre suivi, la survenance du retard de livraison des "
             f"armoires, la fusion de l'avenant 1 avec le marquage et la désignation de la "
             f"révision de référence qu'elle produit, sous une seule corrélation, la désignation "
-            f"de l'offre comme référence et son marquage, et sa création par Camille Martin le "
-            f"6 octobre 2025 (WF-SEC-0030).",
+            f"de l'offre comme référence et son marquage (WF-SEC-0030).",
             _page(witness),
         ),
         "audit_events_exited.json": mocktext.example(
@@ -830,14 +785,6 @@ def examples() -> dict[str, JsonObject]:
             f"révision en cours où elle s'écrit, qui n'a pas encore de nom de version "
             f"(WF-INTF-0090) ; puis les mêmes inscriptions qu'avant elle (WF-SEC-0030).",
             _page(imported),
-        ),
-        "audit_events_revision_abandoned.json": mocktext.example(
-            f"Le journal d'audit du projet témoin juste après l'abandon de sa révision en cours, "
-            f"le {day} à 14 h 05 (project_without_current_revision) : l'abandon en tête, par "
-            f"Camille Martin, sur la révision désignée par son identifiant et par son projet, "
-            f"qui n'a pas encore de nom de version (WF-REV-0010) ; puis les mêmes inscriptions "
-            f"qu'avant lui (WF-SEC-0030, #1577).",
-            _page(abandoned),
         ),
         "audit_events_empty.json": mocktext.example(
             f"Les restaurations du journal d'audit le {day} (actions=restore) : la plateforme "

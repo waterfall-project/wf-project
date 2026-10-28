@@ -262,54 +262,6 @@ def test_a_contributor_anonymised_has_no_name_and_comes_after_the_others_of_its_
     assert "contributors_anonymized" in _cited("listContributors", "200")
 
 
-# --- #1577: the creation of a project and the abandon of a revision in the journal --------------
-
-
-def test_the_journal_inscribes_the_creation_of_the_witness_and_the_abandon_of_its_revision() -> (
-    None
-):
-    actions = _schema("schemas/audit.yaml", "AuditAction")["enum"]
-    assert actions[:3] == ["project_create", "revision_mark", "revision_abandon"]
-    project = fixture("project")
-    [created] = [
-        each for each in fixture("audit_events")["items"] if each["action"] == "project_create"
-    ]
-    assert (created["occurred_at"], created["actor"]) == (
-        project["audit"]["created_at"],
-        project["audit"]["created_by"],
-    )
-    assert created["object"] == {
-        "kind": "project",
-        "object_id": project["project_id"],
-        "label": project["label"],
-        "revision": None,
-    }
-    assert created["params"] == {}
-    abandoned = fixture("audit_events_revision_abandoned")["items"]
-    head, rest = abandoned[0], abandoned[1:]
-    after = fixture("project_without_current_revision")
-    assert head["action"] == "revision_abandon"
-    assert (head["occurred_at"], head["actor"]) == (
-        after["audit"]["updated_at"],
-        after["audit"]["updated_by"],
-    )
-    assert head["object"] == {
-        "kind": "revision",
-        "object_id": project["current_revision_id"],
-        "label": None,
-        "revision": None,
-    }
-    assert head["params"] == {}
-    assert rest == fixture("audit_events_project")["items"]
-    # A sequel of its own: neither its identifier nor its correlation is another sequel's.
-    others = [
-        fixture(name)["items"][0] for name in ("audit_events_exited", "audit_events_import_applied")
-    ]
-    assert head["audit_event_id"] not in {each["audit_event_id"] for each in others}
-    assert head["correlation_id"] not in {each["correlation_id"] for each in others}
-    assert "audit_events_revision_abandoned" in _cited("listAuditEvents", "200")
-
-
 # --- #1566: the delay of payment, a change of a differential ------------------------------------
 
 
