@@ -10,13 +10,23 @@ ne couvre aucune exigence »).
 
 import json
 import re
+from collections.abc import Iterator
 from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockdata, mockhistory, mockreference, mockwitness
+from wftools import REPOSITORY, mockcategories, mockdata, mockhistory, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
+
+
+@pytest.fixture(autouse=True)
+def _fresh_groups() -> Iterator[None]:
+    """Forget the categories by nature around each test: some of them change the natures read."""
+    mockcategories.groups.cache_clear()
+    yield
+    mockcategories.groups.cache_clear()
+
 
 type Entry = dict[str, Any]
 
@@ -590,23 +600,22 @@ def test_the_category_of_a_risk_reads_inactive_once_its_nature_is_deactivated(
     # A generator that wrote the flag true would pass on the witness alone, whose category is
     # active: the reference read with the nature deactivated, as C-291 deactivates its
     # categories, makes the same risk read inactive (#747, points 2 and 3).
-    [nature] = [n for n in fixture("cost_types")["items"] if n["kind"] == "provision"]
-    entries = [(universe(404), "Provisions pour risques")]
-    inactive = cast(
-        "list[Entry]",
-        mockdata.categories_of(entries, "PRV", "681", {**nature, "is_active": False}),
-    )
-    volume = fixture("volume/cost_categories")
-    items = [
-        inactive[0] if each["cost_category_id"] == universe(404) else each
-        for each in volume["items"]
-    ]
     assert mockhistory.is_active_provision(universe(404)) is True
 
     def read(name: str) -> Any:
-        return {**volume, "items": items} if name == "volume/cost_categories" else fixture(name)
+        value = fixture(name)
+        if name != "cost_types":
+            return value
+        return {
+            **value,
+            "items": [
+                {**each, "is_active": False} if each["kind"] == "provision" else each
+                for each in value["items"]
+            ],
+        }
 
-    monkeypatch.setattr(mockhistory, "fixture", read)
+    monkeypatch.setattr(mockcategories, "fixture", read)
+    mockcategories.groups.cache_clear()
     assert mockhistory.is_active_provision(universe(404)) is False
 
 
@@ -619,20 +628,13 @@ def test_the_category_of_a_risk_reads_false_once_moved_to_a_nature_of_another_ki
     # (#747, point 4).
     [other] = [n for n in fixture("cost_types")["items"] if n["kind"] == "non_labor"]
     assert other["is_active"] is True
-    moved = cast(
-        "list[Entry]",
-        mockdata.categories_of([(universe(404), "Provisions pour risques")], "PRV", "681", other),
-    )
-    assert moved[0]["is_active"] is True
-    volume = fixture("volume/cost_categories")
-    items = [
-        moved[0] if each["cost_category_id"] == universe(404) else each for each in volume["items"]
-    ]
+    nature_of = mockcategories.nature_of
 
-    def read(name: str) -> Any:
-        return {**volume, "items": items} if name == "volume/cost_categories" else fixture(name)
+    def moved(category: str) -> Any:
+        return other if category == universe(404) else nature_of(category)
 
-    monkeypatch.setattr(mockhistory, "fixture", read)
+    assert mockhistory.is_active_provision(universe(404)) is True
+    monkeypatch.setattr(mockcategories, "nature_of", moved)
     assert mockhistory.is_active_provision(universe(404)) is False
     # The kind is judged, not the flag alone: an active category of labour reads false as well.
     assert mockhistory.is_active_provision(universe(402)) is False

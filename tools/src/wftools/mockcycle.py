@@ -14,9 +14,9 @@ available.
 Nothing is written by hand here. The offer is the one ``revisions`` lists, at the same version,
 its designation alone available; the revision 101, then in progress, is the one
 ``rate_update_applied`` answers, at the same version — the last write it had received. The offer
-is so rendered at its version with one content. The 101 is not: it keeps its version 2 from
-before its marking to after it, ``draft`` here and in ``rate_update_applied``, ``marked`` in
-``revisions`` and ``revisions_marked`` — a known exemption of #421, followed by #1352.
+is so rendered at its version with one content. So is the 101: ``draft`` at its version 2 here
+and in ``rate_update_applied``, its marking bearing one version more, 3, in ``revisions`` and
+``revisions_marked`` (#421, #1352).
 """
 
 from __future__ import annotations
@@ -76,8 +76,8 @@ def examples() -> dict[str, JsonObject]:
             f"le 12 janvier, telle que l'a laissée la mise à jour des taux (rate_update_applied), "
             f"attend son marquage pour être désignée ; la révision courante 102 n'est pas encore "
             f"ouverte. La désignation qui suit est reference_designated. L'offre est celle que "
-            f"liste revisions, à la même version, sa désignation seule changée ; la 101 garde sa "
-            f"version 2 avant et après son marquage, exemption connue de #421 suivie par #1352.",
+            f"liste revisions, à la même version, sa désignation seule changée ; la 101, "
+            f"brouillon à sa version 2, voit son marquage porter la version 3 (#421, #1352).",
             revisions_designation_open(),
         ),
     }

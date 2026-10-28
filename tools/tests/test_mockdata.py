@@ -4,6 +4,7 @@
 
 import json
 import re
+import shutil
 from collections import Counter
 from decimal import Decimal
 from pathlib import Path
@@ -20,6 +21,7 @@ from wftools import (
     mockwitness,
     paths,
 )
+from wftools.mockstructure import JsonObject
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -33,6 +35,106 @@ def volumes() -> dict[str, Any]:
     return {
         name: json.loads(mockdata.render(example)) for name, example in mockdata.volumes().items()
     }
+
+
+def _written(directory: Path) -> dict[str, str]:
+    """Return the text of every example under a directory, by its path."""
+    return {
+        path.relative_to(directory).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(directory.rglob("*.json"))
+    }
+
+
+def test_two_runs_in_a_row_write_the_same_examples(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #792: the generator reads nothing it wrote itself — a run may not read the state the previous
+    # run left. The fixtures are copied without what ``make mock-data`` writes, the generator runs
+    # on the copy, then again on what it has just written: the two runs write the same text.
+    fixtures = tmp_path / "api"
+    shutil.copytree(mockwitness.FIXTURES, fixtures)
+    shutil.rmtree(fixtures / mockdata.VOLUME)
+    generated = mockdata.named().keys()
+    for name in generated:
+        (fixtures / name).unlink()
+    monkeypatch.setattr(mockwitness, "FIXTURES", fixtures)
+    mockdata.write(fixtures)
+    first = _written(fixtures)
+    assert {*generated} <= first.keys()
+    assert f"{mockdata.VOLUME}/cost_categories.json" in first
+    mockdata.write(fixtures)
+    assert _written(fixtures) == first
+
+
+@pytest.mark.parametrize("which", ["no_project", "none_in_progress"])
+def test_the_indices_of_a_portfolio_without_a_project_in_progress_are_not_computable(
+    which: str,
+) -> None:
+    # #777, WF-IND-0010: an indicator whose denominator is null is presented as not computable,
+    # never as zero nor as infinity — and never as an error. The reasons are the ones the contract
+    # names for the indices and the projection at the observed rate.
+    rows = (
+        []
+        if which == "no_project"
+        else [
+            row
+            for row in cast("list[Any]", mockportfolio.portfolio()["items"])
+            if row["state"] != "in_progress"
+        ]
+    )
+    assert which == "no_project" or rows
+    performance = cast("dict[str, Any]", mockportfolio.portfolio_performance(rows, []))
+    for index, reason in (("cost_index", "no_actual_cost"), ("schedule_index", "no_planned_value")):
+        assert performance[index] == {
+            "value": {"is_computable": False, "value": None, "reason": reason},
+            "zone": None,
+        }
+    projections = performance["projections"]
+    assert projections["at_observed_rate"] == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_actual_cost",
+    }
+    assert projections["variance_at_observed_rate"] is None
+    assert performance["reference_budget"] == "0.00"
+    assert all(entry["project_count"] == 0 for entry in performance["zone_distribution"])
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+@pytest.mark.requirement("WF-IND-0050-A")
+def test_a_portfolio_that_spent_without_earning_has_no_projection_at_the_observed_rate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-IND-0010, WF-IND-0050: with an actual cost and no earned value, the cost index is
+    # computable (0, as the indices are written), the projection at the observed rate is not —
+    # its reason is the earned value — and its variance is absent, never zero nor infinite.
+    rows: list[JsonObject] = [
+        {"state": "in_progress", "project_id": "p", "cost_index": None, "schedule_index": None}
+    ]
+
+    def spent_without_earning(_row: JsonObject) -> mockportfolio.Earned:
+        return mockportfolio.Earned(
+            budget=Decimal("1000.00"),
+            planned=Decimal("100.00"),
+            earned=Decimal(0),
+            actual=Decimal("200.00"),
+            projection=Decimal("1200.00"),
+        )
+
+    monkeypatch.setattr(mockportfolio, "earned", spent_without_earning)
+    performance = cast("dict[str, Any]", mockportfolio.portfolio_performance(rows, []))
+    assert performance["cost_index"]["value"] == {
+        "is_computable": True,
+        "value": "0",
+        "reason": None,
+    }
+    projections = performance["projections"]
+    assert projections["at_observed_rate"] == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_earned_value",
+    }
+    assert projections["variance_at_observed_rate"] is None
 
 
 def first_example(path: str, operation: str) -> str:

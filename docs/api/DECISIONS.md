@@ -6848,11 +6848,12 @@ v1.0 y liste `designate_reference` disponible, et c'est la seule révision marqu
 en cours, attend son marquage ; la 102 n'est pas ouverte. L'exemple est engendré par
 `wftools.mockcycle` : l'offre est celle que liste `revisions`, à la même version, sa seule
 désignation changée, et la 101 celle que rend `rate_update_applied`, sa dernière écriture.
-L'égalité de #421 — une révision rendue à une version n'a qu'un contenu — tient pour l'offre 100.
-Elle ne tient pas pour la 101 : elle garde sa version 2 avant et après son marquage, `draft` ici
-et dans `rate_update_applied`, `marked` dans `revisions` et `revisions_marked`. C'est une exemption
-connue, suivie par #1352. `test_mockcycle.py` le tient, et n'admet que cette exemption parmi les
-révisions qu'au moins deux exemples rendent à une même version ; `test_mockhistory.py` date la 101
+L'égalité de #421 — une révision rendue à une version n'a qu'un contenu — tient pour l'offre 100
+et pour la 101 : brouillon à sa version 2 ici et dans `rate_update_applied`, son marquage porte
+une version de plus, la 3, dans `revisions`, `revisions_marked` et `revision_marked` (#1352,
+US-0640/L4) ; `revisions` est trié de la plus récente à la plus ancienne, comme le dit le contrat.
+`test_mockversions.py` le tient pour toutes les révisions que les exemples rendent ;
+`test_mockhistory.py` date la 101
 de la mise à jour des taux, comme dans `rate_update_applied`. Écartée : une variante
 contrefactuelle du témoin aujourd'hui, qui aurait contredit ses coûts réels.
 

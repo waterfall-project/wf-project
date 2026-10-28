@@ -150,7 +150,7 @@ describe("the screen of the revisions of a project", () => {
     );
   });
 
-  it("lists the revisions in the order of the server, each with the attributes the API gives", async () => {
+  it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A]", async () => {
     const page = html(await RevisionsPage(at()));
     // The history is read whole, by the largest page the contract takes (#303).
     expect(Object.fromEntries(callTo("GET /projects/{project_id}/revisions")?.query ?? [])).toEqual(
@@ -158,8 +158,8 @@ describe("the screen of the revisions of a project", () => {
     );
     expect(table(page, "Historique des révisions")).toBe(
       "Version État Marquée le Description Consultation " +
-        "Référence Référence Marquée Ouvrir " +
         "Révision en cours En cours d’élaboration Non marquée Ouvrir " +
+        "Référence Référence Marquée Ouvrir " +
         "Offre v1.0 Marquée Offre remise au client avant la commande. Ouvrir",
     );
     // Each instant of marking, in the local time of the workstation, which the browser writes.
@@ -177,10 +177,10 @@ describe("the screen of the revisions of a project", () => {
       page,
     );
     expect(links(history?.[1] ?? "")).toEqual([
-      `${REVISIONS}?revision_id=${REFERENCE}&${filter}`,
-      `${REVISIONS}/${REFERENCE}?${filter}`,
       `${REVISIONS}?revision_id=${DRAFT}&${filter}`,
       `${REVISIONS}/${DRAFT}?${filter}`,
+      `${REVISIONS}?revision_id=${REFERENCE}&${filter}`,
+      `${REVISIONS}/${REFERENCE}?${filter}`,
       `${REVISIONS}?revision_id=${OFFER}&${filter}`,
       `${REVISIONS}/${OFFER}?${filter}`,
     ]);

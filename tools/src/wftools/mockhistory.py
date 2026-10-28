@@ -35,7 +35,7 @@ from dataclasses import replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockcore, mocktext
+from wftools import mockcategories, mockcore, mocktext
 from wftools.mockcalendar import START_TO_START
 from wftools.mockids import universe
 from wftools.mockstructure import (
@@ -351,10 +351,11 @@ def is_active_provision(category: str) -> bool:
     under an active nature. A category no line employs — that of a dismissed risk — may be moved
     to a nature of another kind (WF-REF-0030): it is then no longer among « les catégories
     actives de type provision pour risques » (WF-RIS-0010), and reads false (#747, point 4).
+    The nature is read from the generator in memory, never from ``volume/cost_categories``, which
+    the same run writes (#792).
     """
-    categories = cast("list[JsonObject]", fixture("volume/cost_categories")["items"])
-    [entry] = [each for each in categories if each["cost_category_id"] == category]
-    return entry["is_active"] is True and entry["cost_type_kind"] == "provision"
+    nature = mockcategories.nature_of(category)
+    return nature["is_active"] is True and nature["kind"] == "provision"
 
 
 def _actor() -> JsonObject:

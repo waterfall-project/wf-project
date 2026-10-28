@@ -171,7 +171,7 @@ describe("the screen of a project", () => {
 
   it("names each revision by its version name, and the draft without one the current revision, from its status", async () => {
     const page = html(await ProjectPage(at()));
-    expect(text(page)).toContain("Revisions Référence Current revision");
+    expect(text(page)).toContain("Revisions Current revision Référence");
   });
 
   it("opens each revision with the filters of its address, the revision it was read in left to the link", async () => {
