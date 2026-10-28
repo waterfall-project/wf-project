@@ -1505,7 +1505,9 @@ d'**utiliser Waterfall toute la journée sans que l'outil me coûte plus que le 
   les éditeurs qu'un geste ouvre ne sont parcourus que par les tests de composants —
   `expectAccessible`, sans contraste ni mise en page, et le focus que Radix rend —, à titre
   provisoire (décision de l'auteur du 2026-10-11, #782) : les écrans s'ajustent encore à la
-  validation de l'auteur, et l'extension du harnais est reportée → EP-15.
+  validation de l'auteur, et l'extension du harnais est reportée → EP-15. Levé par EP-17
+  (US-0710), qui étend le harnais aux dialogues, aux menus et aux éditeurs de cellule (#782,
+  option A ; cadrage du 2026-10-28).
 
 **Notes de réalisation.** Le contrôle de contraste est exécuté par la chaîne, sinon il n'est
 fait qu'une fois. Aucune conformité complète à un référentiel n'est visée ni déclarée
