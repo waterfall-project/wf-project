@@ -324,10 +324,10 @@ recadrage du 2026-10-28 — US-0701, US-0702 et US-0703 :
   nomme ceux qu'elle solde ;
 - les 87 mineurs : après le gel, en issues « contrat » (« Ce qui n'en fait pas partie ») ;
 - trois points de la spécification que le recadrage laisse à l'auteur, en issues « Specification
-  finding » rattachées à l'EPIC : WF-IHM-0110, l'historique annulable tenu par le serveur (E-06) ;
-  WF-PLA-0130, la date de terminaison d'une tâche terminée par un import, qui est la date de la
-  revue que porte le fichier, comme WF-INTF-0120 et WF-INTF-0130 le disent (I-09) ; WF-RAE-0020,
-  le sens de la marge du reste à engager, que la décision #466 fixe (G-07).
+  finding » rattachées à l'EPIC : #1595, WF-IHM-0110, l'historique annulable tenu par le serveur
+  (E-06) ; #1596, WF-PLA-0130, la date de terminaison d'une tâche terminée par un import, qui est la
+  date de la revue que porte le fichier, comme WF-INTF-0120 et WF-INTF-0130 le disent (I-09) ;
+  #1597, WF-RAE-0020, le sens de la marge du reste à engager, que la décision #466 fixe (G-07).
 
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
 leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
@@ -1852,7 +1852,7 @@ calculerait côté front.
   `getProjectRiskCoverage`, `getProjectIndicators`, `getProjectWorkload`, `openImport`,
   `getImport`, `requestExport`, les vues du portefeuille ; la liste par famille est dans la
   conception
-- **issue** : à ouvrir
+- **issue** : #1598
 
 **En tant que** développeur, **je veux** que le contrat dise, avant d'être figé, ce que la
 spécification 1.0.0 exige depuis ses passes des 9, 10 et 22 octobre, **afin que** les EPIC de
@@ -1927,7 +1927,7 @@ d'un champ existant ne vienne après le gel.
   `declareRiskOccurrence`, `deleteRisk`, `deleteSubproject`, `requestExport`,
   `getBackgroundTaskResult`, `setActualCostTrackedScope`, `undoLastChange`, et les trois listes du
   référentiel sans le 403 d'`include_inactive`
-- **issue** : à ouvrir
+- **issue** : #1599
 
 **En tant que** développeur, **je veux** qu'un même refus ait partout le même statut, le même code
 et ses paramètres, avec un exemple, **afin que** le service et le front n'aient qu'un chemin par
@@ -1967,7 +1967,7 @@ est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat ; le READM
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : celles qu'US-0701 et US-0702 ajoutent ou modifient, côté front
-- **issue** : à ouvrir
+- **issue** : #1600
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que les écrans montrent et
 demandent ce que le contrat aligné décrit, **afin que** la maquette figée avec le contrat soit celle
