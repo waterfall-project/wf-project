@@ -124,7 +124,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
-| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
+| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |

@@ -1,7 +1,7 @@
 ---
 id: EP-17
 titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs des écrans, lenteur du navigateur, cosmétique
-statut: à planifier
+statut: prêt
 depend_de: EP-16
 famille: front
 issue:
@@ -245,7 +245,205 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 
 ## Conception
 
-À écrire au cadrage.
+EP-17 est un EPIC du front et de son harnais : il ne crée **aucune table ni migration**, ne touche
+aucun module du noyau et **ne modifie pas le contrat** — ni opération, ni schéma, ni exemple ; le
+faux back et le témoin restent ceux qu'EP-16 a figés en 1.0.0. Ce qui suit fixe ce que chaque lot
+devrait sinon décider seul : les modules du front touchés, la forme du harnais étendu, l'ordre de
+construction, et les décisions prises avec leur option écartée. Validée par l'auteur le 2026-10-28.
+
+### Ce que le cadrage décide
+
+- **Le découpage par objet** (décision de l'auteur du 2026-10-28) : une US par écran ou famille de
+  composants, qui cite les exigences de domaine dont une phrase de Vérif tient côté front. Écarté :
+  quatre US par nature — harnais, ajustements, mineurs, cosmétique —, dont chacune aurait cité
+  toutes les exigences de tous les écrans, et dont les lots auraient touché les mêmes fichiers en
+  même temps.
+- **Aucune exigence close** : sept lignes « début — close en EP-nn » au tableau, et trois exigences
+  déjà closes (WF-IHM-0100-A, WF-IHM-0010-A, WF-IHM-0070-A) citées par une US avec tout leur Vérif,
+  sans ligne au tableau, parce que `make roadmap` ferme toute portée qui ne commence pas par
+  « début » et refuse une exigence close par deux EPIC. L'écart d'EP-14 sous WF-IHM-0100-A est noté
+  levé dans le fichier d'EP-14, sous US-0200, par la pull request du cadrage — la seule retouche
+  d'un EPIC livré. Écarté : ne rien écrire dans EP-14, où qui relit US-0200 ne saurait pas que
+  l'écart est levé.
+- **Ce qui sort** (décisions de l'auteur du 2026-10-28) : #1401 rendu à EP-16, parce que son point
+  à trancher — un choix d'états gardé en préférence — demande le contrat, et qu'EP-17 ne tranche
+  rien du contrat ; #1354 rendu à EP-16, avec US-0590g, par la règle « la stabilité des tests relève
+  d'EP-16, jamais d'EP-17 » ; #1518, #1524 et #1533 corrigés par US-0660/L3 ; #1525 reporté → EP-09.
+  Écarté pour #1401 : le garder ici en le bornant à l'adresse seule — ce qui aurait tranché, par
+  omission, une question de contrat que l'auteur se réserve avant le gel.
+- **#1209 reste ici** : 911 points est l'agrandissement de 150 % de WF-IHM-0100, pas une largeur de
+  WF-CMP-0010 (US-0290, EP-13 : 1366 et 360). Écarté : EP-13.
+- **Le harnais, option A, bornée** aux dialogues, aux menus et aux éditeurs de cellule, générique
+  sur chaque écran (décision de l'auteur du 2026-10-28). Écartés : les dialogues et les menus seuls
+  — les éditeurs de cellule sont ce que le clavier ouvre le plus souvent dans une grille — ; tout ce
+  que #782 liste, les popovers de refus, les `<details>` fermés et les états atteints par un geste
+  (`?import=`), qui demandent des parcours écrits un à un, et restent aux tests de composants, dits
+  dans la note du guide.
+- **Le parcours au clavier joue en sombre**, mesuré (#784, point 2) : la pull request donne la durée
+  du fichier avant et après ; une étape qui dépasserait 10 % du chemin critique de la chaîne se dit,
+  et l'auteur tranche (règle d'US-0590d). Écarté : écrire le manque, qui laisserait l'indicateur du
+  focus jamais vu en sombre, le mode que la charte peint autant que le clair.
+- **#1230 borné** comme US-0590f : la cause d'abord, 90 minutes de diagnostic, un correctif à la
+  cause ; passé le budget, `question`. Écartés : la mesure seule, qui ferait deux lots ; l'écart,
+  alors que `WORKING` à 15 s couvre une lenteur du produit que les parcours paient à chaque départ.
+- **Le cosmétique se corrige dans le lot de son écran**, et le fichier garde la marque. Écartés : un
+  lot à part, qui aurait touché dix fichiers de dix écrans en fin d'EPIC ; l'écart en bloc,
+  contraire à la définition de fini.
+- **Chaque lot qui change un écran retouche son aide** (`frontend/help/fr/<code>.md`), dans le même
+  lot, sans relecture bloquante de l'auteur : des retouches, non un premier jet. Écartés : la
+  relecture par l'auteur, le goulot d'US-0670, pour quelques phrases ; un lot d'aides en fin d'EPIC,
+  qui laisserait des aides fausses entre deux.
+- **#1400, sans révision lisible** : `/projects/P` mène à `/projects/P/revisions`. Écarté : garder
+  l'écran du projet sous sa forme d'aujourd'hui pour ce seul cas, deux formes à maintenir.
+- **#1396, l'adresse seule** : les filtres du Kanban vivent dans l'adresse, sans préférence.
+  Écarté : `GridPreferences.filters` sous une clé `kanban` — le contrat ne changerait pas de forme,
+  mais une lecture nouvelle du contrat s'y glisserait pendant qu'il est figé.
+- **#1438, un lien** : « Déclarer un risque », disponible, mène à l'écran des risques. Écarté :
+  `OfferedElsewhere`, qui retirerait de l'écran une commande que la révision liste.
+- **#1024, le message mène au journal d'audit**. Écarté : relire la tâche au retour, une lecture de
+  plus pour un cas rare.
+- **#963, point 2** : une inscription `access_role_update` sans changement reçoit une phrase, comme
+  l'attribution. Écarté : la cellule vide.
+
+### Le harnais (US-0710)
+
+Le harnais est celui d'EP-14 — `accessibility.spec.ts`, `axe.ts`, `tab-walk.ts`,
+`focus-probe.ts`, `hydration.ts` —, étendu après qu'US-0590g (EP-16) a fait lire à `focus-probe.ts`
+ses mesures par lots ; rien n'y est réécrit.
+
+- **Ce qu'un geste ouvre.** Un module nouveau, `frontend/e2e/opened.ts`, trouve sur une page ce que
+  le harnais doit ouvrir, et l'ouvre au clavier :
+  - les déclencheurs de dialogue et de menu — `[aria-haspopup="dialog"]`, `[aria-haspopup="menu"]`,
+    ce que Radix pose sur chaque `DialogTrigger` et `DropdownMenuTrigger` —, affichés et actifs,
+    chacun ouvert par Entrée depuis le focus ; ce qui s'ouvre est le `[role="dialog"]` ou le
+    `[role="menu"]` qui apparaît, attendu visible ;
+  - les éditeurs de cellule : dans chaque `[role="grid"]` ou `[role="treegrid"]`, la première
+    cellule saisissable — `[aria-readonly="false"]` ou ce que `DenseGrid` marque d'une cellule qui
+    s'édite (`data-editable`, posé par le lot si rien ne la distingue encore) — reçoit le focus et
+    F2 ; ce qui s'ouvre est l'éditeur qui prend le focus dans la cellule.
+  - Chaque ouverture est un test à elle, nommé par l'écran et le déclencheur, en clair et en sombre,
+    aux deux largeurs : un parcours au Tab borné à ce qui s'est ouvert (`walkByTab`, dont le piège
+    voulu du modal est le retour au premier élément du dialogue, non de la page), un audit d'axe de
+    la page entière, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
+    se parcourt aux flèches, pas au Tab : le test y vérifie l'entrée du focus, l'audit, et le
+    retour.
+  - Les déclencheurs se découvrent à l'ouverture de l'écran, et le test les joue l'un après l'autre
+    dans un seul test par écran — un test par déclencheur ferait découvrir la page autant de fois
+    qu'elle a de déclencheurs —, chaque échec dit à part (`expect.soft`, nommé par le déclencheur).
+- **Ce qui reste hors du harnais**, écrit dans la note de l'US-0200 (EP-14, « Ce que les tests ne
+  prouvent pas »), que le lot réécrit, et dans le guide (« L'accessibilité minimale de chaque
+  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint.
+- **Le mode sombre** : le test du parcours au Tab reçoit `test.use({ colorScheme })` comme celui
+  d'axe, un `describe` par mode ; la durée se relève par `--reporter=json` sur le fichier, avant et
+  après, et s'écrit dans la pull request.
+- **Les mineurs de #784** : un seul sélecteur des éléments atteignables, partagé par `hydration.ts`
+  et `focus-probe.ts` (point 3) ; `untabbable` étendu aux rôles `button`, `link`, `checkbox` (point
+  10) ; les résultats « incomplete » des autres règles d'axe annotés (point 8) ; l'écran de panne
+  (`error.tsx`, `global-error.tsx`) ajouté à la note (point 11) ; les points 5, 9 et 14 écrits
+  dans la note ; les points 1, 4, 6, 7, 12 et 13, cosmétiques, corrigés en passant.
+- **#819, point 1** : `dense-grid.tsx` distingue le focus d'une cellule refusée par un second
+  trait — un anneau double, ou un contour en pointillé —, non par la seule couleur de l'anneau ; le
+  parcours au Tab (`unmarked`) ne le juge pas, un test DOM le tient.
+- **#1209** : sur le reste à engager, `remaining-summary.tsx` replie ses cartes en un résumé qui se
+  déplie (`details`/`summary`, replié sous 1024 points, ouvert au-dessus) ; sur les coûts réels, la
+  grille empilée reçoit un plafond de hauteur quand `max-h-svh` de `DenseGrid` ne suffit pas — la
+  hauteur de la fenêtre moins ce qui la précède, mesurée par `frame-width.ts` ou son pendant — ;
+  `grid-frame.spec.ts` remet 911 aux deux écrans (`CARD_SCREENS`), et son commentaire change.
+  Écarté : réduire la hauteur des cartes, qui ne rendrait pas les 476 points du reste à engager.
+
+### Le front
+
+- **US-0720, l'écran du projet** : `app/projects/[projectId]/page.tsx` devient un renvoi
+  (`redirect` de `next/navigation`, côté serveur) dès que `listRevisions` rend une révision :
+  `R` = `Project.current_revision_id`, sinon `reference_revision_id`, sinon la plus récente des
+  révisions marquées (`revisions.json` est trié du plus récent au plus ancien, US-0640/L4) ; une
+  lecture de `R` refusée (403, 404) mène à `/projects/P/revisions`. L'adresse gardée passe par
+  `contextAddress` (`navigation/context`). La page garde sa forme — `ProjectFacts`, `ProjectStart`,
+  `ImportPart` — pour un projet sans révision, la section `Revisions` retirée. `?import=` : la page
+  lit `readShownImport` avant de renvoyer ; un compte rendu d'un projet à révisions est renvoyé à
+  `revisions/R/exchanges?import=…`, qui le montre déjà ; `screens.test.ts` ne range pas la page
+  dans `REDIRECTS`, puisqu'elle ne fait pas que rediriger. Le chemin témoin (US-0080) et les
+  parcours qui ouvrent `/projects/P` (`projects.spec.ts`, `navigation.spec.ts`, `opening.spec.ts`)
+  attendent la révision. Les aides FBS-4 (le projet) et FBS-4.1 (les révisions) disent le renvoi.
+- **US-0730, le Kanban** : `remaining/address.ts` lit deux paramètres de plus, `q` (le libellé) et
+  `ready` (`1`) ; la page les passe à `Kanban`, qui filtre `columns` par `label` (insensible à la
+  casse et aux accents, comme la recherche des grilles) et, pour la colonne `not_started`, par
+  `predecessors_completed` ; un champ de recherche et une case « Tâches prêtes » au-dessus du
+  tableau écrivent l'adresse (`router.replace`), comme la recherche des grilles. L'en-tête d'une
+  colonne dont des cartes sont masquées dit « n sur N » dans son nom accessible. `CardTitle` porte
+  la marque « prête à démarrer » (icône `CircleCheck` et texte) pour toute tâche `not_started` à
+  `predecessors_completed`, à côté de celle du jalon. La sélection masquée est levée, `tabStop`
+  revenant à la première carte visible. #1356 : le tiret de `CardReading` devient un espacement ;
+  la région `status` est permanente, le bouton hors d'elle. L'aide FBS-4.5.3 décrit les filtres.
+- **US-0740, la matrice** : `risk-bubble-chart.tsx` ne colore plus les seize `markArea` (fond de la
+  charte), garde `ZONE_STROKE` et les noms ; `STATE_STYLE` disparaît au profit d'une forme par zone
+  (`palette.zones[point.zone]` pour la couleur, un symbole par zone) ; `shownPoints` ne garde que
+  `identified`, quels que soient `states` ; la légende des états disparaît. Les deux écrans
+  (`risks/page.tsx`, `portfolio/risks/page.tsx`) passent la matrice telle quelle. #1386 : le test
+  du refus nomme le bouton par le catalogue, l'import est rangé, `useKeptWriter` reçoit `writeNow`.
+  Cette US attend US-0700/L2 (EP-16) fusionné, qui met `cells` au compte des seuls identifiés. Les
+  aides FBS-4.6 et celle de la vue des risques du portefeuille suivent.
+- **US-0750, les grilles du projet** : `projectNodes` (`grid/nodes.tsx`) reçoit `kinds` et écarte
+  les nœuds d'un autre type avant `projectNode`, appelé par `grid-screen.ts` pour toute lecture qui
+  passe `kinds` — le planning, le planning d'un différentiel, la comparaison (`comparison-rows.ts`)
+  —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
+  gauche (`ROW` par ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le
+  plus long, bornée), comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la
+  légende jusqu'au signal de mesure de l'axe (#1421, et #1539 s'il y vient). `frame-width.ts` est
+  éprouvé par un `setViewportSize` dans `grid-frame.spec.ts` (#1144). Le lotissement (#806) :
+  `breakdown-edits.ts` n'envoie rien quand l'élément visé manque et le dit, attribue un refus pointé
+  sur l'élément même ; `settings-grid.tsx` dit « Aucun poste » ; les tests manquants s'écrivent.
+  #819 : la grille sous une recherche sans résultat (point 4), la lecture du lotissement dans le
+  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). Les aides FBS-4.3 et
+  FBS-4.3.1 disent l'export.
+- **US-0760, le faux back dit** : `docs/dev/README.md` reçoit « Ce que le faux back ne fait pas »
+  sous « Le faux back », et les mentions des lignes 984 et 1228 y renvoient. `MockupNotice` reçoit
+  une prop `lists?: boolean` : posée par les pages de listes et de grilles, elle ajoute la phrase
+  `mockup.notFiltered` à la note existante — une seule note par écran, sous l'en-tête. Écarté : une
+  seconde note par écran.
+- **US-0770, les commandes** : `confirmed-command.tsx` passe `offer` indisponible pendant l'écriture
+  (`busy`, l'état local d'US-0590d/L3) ; `risk-detail.tsx` garde le dernier refus de « Modifier »
+  par identifiant de risque, dans un état du détail et non de l'instance affichée ;
+  `role-commands.tsx`, `permission-matrix.tsx`, `user-commands.tsx` passent par `useHeldCommand` ou
+  `list.held` ; `held-writes.ts` et `commands/held.ts` : un refus dit par la barre est marqué dit,
+  et l'écran revenu par « Suivant » ne le redit pas (#1476, point 1), le guide gagne sa phrase
+  (point 2), `shell.spec.ts` son commentaire (point 3) ; `say(...)` sans objet instruit un à un
+  (#1430) ; `cell-writes.ts` fait passer `clear` par `current` (#1432) ; `reactivation.tsx` purge
+  `reported` à chaque génération (#901) ; `held()` partout (#781) ; `reference-form.tsx` reçoit une
+  prop `icon` et un libellé par cas, sans ternaire (#1384, point 2).
+- **US-0780, l'administration** : `user-dialogs.tsx` et les catalogues
+  (`admin.users.anonymizationFinal`) pour #942 ; `user-cells.tsx` (`StateSwitch`) lit
+  `writes.linking` pour #949 ; `UserWrites.run` dit le refus d'une ligne occupée (#941) ;
+  `audit-filters.tsx` lit par `getUser` l'auteur choisi absent (#1010) ; `session/request.ts` passe
+  par `accountRefusalOf` de `problem-kind.ts` (#1005) ; l'effacement de `wf_messages` et
+  `wf_background_tasks` se fait dans un seul endroit, appelé à la déconnexion comme à toute fin de
+  session constatée — `signed_out` reçu, ou un compte différent de celui qui a écrit (l'identifiant
+  du compte gardé avec les magasins) — (#1180) ; `maintenance.tsx` mène au journal (#1024) ;
+  `restoration.tsx` ne rend pas « en attente » en phase `failed` (#1023) ; les tests et le parcours
+  du service (#984, #847, #1021, #963, #967) ; `admin/users/page.tsx` renomme `PERIOD_REFUSED`
+  (#1012). Les aides de l'administration touchées suivent.
+- **US-0790** : `commands/object-commands.tsx` rend `declare_risk` par un `Link` vers
+  `functionHref(functionOf("risks"), context)` quand il est disponible, indisponible sinon avec sa
+  condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap sur le champ
+  (`onKeyDown`, `event.preventDefault()` quand `query` n'est pas vide), avant que Radix ne le
+  prenne (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
+  `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` (#905) ; #846 et #888.
+- **US-0800** : la mesure se prend au Performance panel ou par `page.evaluate(performance.now)`
+  autour de la navigation, sur le planning de mille tâches ; les pistes — le démontage de
+  `DenseGrid` (mille lignes de cellules, chacune avec ses gestionnaires), le recalcul des styles au
+  retrait de la feuille de la grille, le payload RSC gardé par le routeur — se départagent par la
+  mesure, aucune n'est posée comme cause ; `workload.spec.ts` et `screens.spec.ts` ne changent
+  qu'après.
+
+### L'ordre de construction
+
+1. **US-0710 en tête** : le harnais étendu garde ensuite chaque lot d'écran, comme en EP-14 ; son
+   premier lot est le harnais, son second #1209 et #819.1.
+2. **Les ajustements de la validation** : US-0720, US-0730, US-0740 (après US-0700/L2 d'EP-16, ce
+   qui est acquis à la livraison d'EP-16), US-0750, US-0760, dans cet ordre, chacun sous le harnais.
+3. **Les mineurs** : US-0770 puis US-0780, qui touchent des composants partagés et des écrans que
+   les lots précédents ne touchent pas ; US-0790 en parallèle.
+4. **US-0800 en dernier**, quand les grilles ne bougent plus, pour mesurer sur ce qui sera livré.
 
 ---
 
