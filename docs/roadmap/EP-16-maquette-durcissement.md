@@ -199,14 +199,18 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
   (décision de l'auteur du 2026-10-25) ;
 - #1444 — outillage : les agents suppriment la branche locale et le worktree d'un lot — US-0590 ;
 - #1401 — contrat, front : la liste des projets filtrée par défaut sur Chiffrage et En cours. Rendu à
-  EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28, #1312) : son point à trancher — un
-  choix d'états différent du défaut, gardé en préférence comme « Lignes par page » — demande le
-  contrat (`GridPreferences` n'a pas d'entrée pour la liste de l'accueil), et EP-17 ne touche pas le
-  contrat. **À trancher avant le gel** (US-0640/L5 #1333), par l'auteur : une préférence (une entrée
-  de `GridPreferences` ou une clé `grids`, à écrire avant US-0640/L5) ou l'adresse seule. Dans les
-  deux cas, la part front (le filtre par défaut, « Tous les états » dans l'adresse, les totaux)
-  demande un lot d'écran que ce fichier ne nomme pas encore : un lot de plus d'US-0660 (L4) ou une
-  US nouvelle (US-0810), à trancher aussi ;
+  EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28, #1312) : le choix d'états différent
+  du défaut, gardé en préférence comme « Lignes par page », demande le contrat, et EP-17 ne touche
+  pas le contrat. Décisions de l'auteur du 2026-10-28 : **le choix d'états est une préférence**
+  — une entrée de `GridPreferences` ou une clé `grids` pour la liste de l'accueil, à écrire au
+  contrat avant le gel (US-0640/L5 #1333) — et **la part front** (le filtre par défaut, « Tous les
+  états » dans l'adresse, les totaux) **est US-0660/L4 #1571** ;
+- #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation (relevé par
+  US-0590f). Décision de l'auteur du 2026-10-28 : corrigé par le prochain lot d'EP-16 qui touche le
+  Gantt du planning ; si aucun ne le touche, US-0750/L1 d'EP-17 (#1560) le prend ;
+- #1512 — front : retirer `prefetch={false}` du menu du compte à la montée vers Next 16.5
+  (relevé par US-0590e). Décision de l'auteur du 2026-10-28 : reporté à EP-13 (dépendances), listé
+  dans son fichier ;
 - #1354 — tests : `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx`, instables sous
   charge dans la suite front. Rendu à EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28 :
   la stabilité des tests relève d'EP-16) — repris par le rejeu sous charge d'US-0590g/L2 #1545 ;
@@ -584,7 +588,9 @@ et ses exemples.
   contrat. Puis (L3) ce qu'US-0640/L6 écrit : `revision-commands.tsx` offre « Appliquer la mise à
   jour des taux » comme la révision la liste (#1351) ; le registre des risques reçoit `ListPages` et
   `PageSizeChoice` (#1367) ; le refus `NON_WORKING_DAY` d'une tâche créée se dit à la cellule par
-  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384).
+  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384). Puis (L4 #1571) la liste des projets de
+  l'accueil : le filtre d'état par défaut, son adresse (`navigation/home.ts`), ses totaux, et la
+  préférence que le contrat écrit pour elle (#1401).
 - **US-0670, l'aide** : la conception d'EP-15 (« L'aide en ligne et les infobulles ») fait foi —
   `frontend/help/fr/<code>.md`, la structure fixe de #1075, `functions.json` pour clé, les
   définitions des colonnes dans les catalogues, `SCREENS_TO_COME` et `NOTIONS_TO_COME`
@@ -792,7 +798,7 @@ et ses exemples.
    des échanges), US-0650, US-0680/L1, US-0700/L1.
 4. **US-0640**, les mineurs du contrat (L1 à L4, L6), en parallèle des écrans : ils ne touchent pas
    les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
-5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L3) en dernier
+5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L4) en dernier
    des fronts, parce qu'elle peut faire revenir au contrat.
 6. **US-0590g**, la stabilité du harnais sous charge, juste avant le gel (décision de l'auteur du
    2026-10-28) : L1 (le parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1).
@@ -1038,7 +1044,8 @@ la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1
 - Le rejeu sous charge est une exécution lourde : elle attend son tour derrière `HEAVY_LOCK`.
 - Voir la conception, « Le harnais (US-0590) ».
 
-**Hors périmètre.** #1539 (le Gantt) ; #1263 et les durcissements restants : EP-17 ; ajouter ou
+**Hors périmètre.** #1539 (le Gantt : le prochain lot d'EP-16 qui touche le Gantt du planning, sinon
+US-0750/L1 d'EP-17 #1560) ; #1263 et les durcissements restants : EP-17 ; ajouter ou
 retirer un écran du parcours d'accessibilité.
 
 ---
@@ -1368,11 +1375,23 @@ déjà, **afin que** chaque refus et chaque indisponibilité me nomment ce qui l
   registre des risques reçoit « Lignes par page » et sa pagination, ses totaux restant ceux de tous
   les risques retenus (#1367) ; le refus d'une tâche créée avec une date manuelle un jour chômé se dit
   à la cellule (#1345) ; les tests du risque lisent les exemples nouveaux du contrat (#1384) ;
+- propre à l'US (L4 #1571, #1401 ; décision de l'auteur du 2026-10-23, complétée le 2026-10-28) : la liste
+  des projets s'ouvre filtrée sur **Chiffrage et En cours** :
+  - le filtre par défaut se dit comme le filtre « contributeur », visible tant qu'il s'applique ; il
+    se lève par « Tous les états » et se change comme aujourd'hui ;
+  - une adresse sans `states` vaut le défaut ; « Tous les états » a son expression dans l'adresse
+    et se lit au serveur sans filtre ; les liens du filtre gardent le reste de l'adresse ;
+  - un choix d'états différent du défaut se garde en préférence, comme « Lignes par page », par ce
+    que le contrat écrit avant le gel ;
+  - les totaux suivent les états retenus (WF-IHM-0130) ; « Voir tous les projets » ne change pas ;
 - propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
 
 **Notes de réalisation.** Ces constats ne demandent que le front, mais ils peuvent révéler un
 manque du contrat, comme EP-15 l'a souvent constaté : c'est ce qui les garde en EP-16 (principe de
 l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 2026-10-25.
+- L4 #1571 (décision de l'auteur du 2026-10-28) porte la part front de #1401 : la liste des projets de
+  l'accueil s'ouvre filtrée sur Chiffrage et En cours. Son contrat — le choix d'états en préférence
+  de la liste de l'accueil — s'écrit avant le gel (US-0640/L5 #1333).
 - L3 #1458 corrige aussi trois constats des revues de lots : #1518 (la liste des statuts d'une
   lecture facultative, écrite deux fois), #1524 (le détail d'une ligne de coût sans son poste) et
   #1533 (un refus à deux motifs sur le même champ, que `byField` ne dit qu'à moitié). #1525 est
