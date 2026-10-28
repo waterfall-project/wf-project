@@ -1645,6 +1645,7 @@
     "title": "Report of the merge",
     "reading": "Reading the report…",
     "counts": "Differences by object",
+    "createsRevision": "The project has no revision in progress: the merge first creates it by copying the last marked revision, merges the differential into it and marks it, in the same background task. If it fails, no revision is created.",
     "targets": {
       "task": "Tasks",
       "estimate_line": "Estimate lines",
@@ -2665,6 +2666,8 @@
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
     "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
     "cycle": "Loop of links, in order: {tasks}.",
+    "link": "Link concerned, the summary first: {tasks}.",
+    "horizon_task": "Task that ends the project beyond the horizon: {task}.",
     "taskName": "“{label}”"
   },
   "permissions": {

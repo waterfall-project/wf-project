@@ -7,7 +7,9 @@
  * removed, in the marks `+`, `-`, `M` of the diff of the grids; the tasks started that the merge will
  * complete; the motives that refuse it, with which the merge is not offered —, then asks the version
  * name the revision produced bears, and confirms with the two counters the report read
- * (`mergeCostStructure`). Abandoning sends nothing: the report is a read. A report gone stale (412)
+ * (`mergeCostStructure`); a merge asked of the last revision marked, the project having none in
+ * progress, says it first creates the revision in progress by copy (`creates_current_revision`, #790).
+ * Abandoning sends nothing: the report is a read. A report gone stale (412)
  * offers to read it anew, and the form keeps the name typed. The merge is handed to the worker: the
  * tracker of the shell follows it (WF-IHM-0080), and once it has succeeded the screen says which
  * revision is the reference now.
@@ -97,6 +99,7 @@ function ReportBody({ report }: { readonly report: Report }) {
   const messages = useMessages();
   return (
     <div className="space-y-3">
+      {report.creates_current_revision ? <p role="note">{t("createsRevision")}</p> : null}
       <Counts report={report} />
       {report.completed_tasks.length === 0 ? null : (
         <div className="space-y-1">

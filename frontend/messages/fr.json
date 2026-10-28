@@ -1645,6 +1645,7 @@
     "title": "Compte rendu de la fusion",
     "reading": "Lecture du compte rendu…",
     "counts": "Écarts par objet",
+    "createsRevision": "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée, y fusionne le différentiel et la marque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
     "targets": {
       "task": "Tâches",
       "estimate_line": "Lignes de devis",
@@ -2665,6 +2666,8 @@
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
     "non_working_day": "Le {date} n’est pas travaillé sur le calendrier de la tâche ; saisis le {next}.",
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
+    "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",
+    "horizon_task": "Tâche qui finit le projet au-delà de l’horizon : {task}.",
     "taskName": "« {label} »"
   },
   "permissions": {

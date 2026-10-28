@@ -357,6 +357,20 @@ describe("the structure the planning reads", () => {
     expect(await planning()).not.toContain("Contractualise the amendment");
   });
 
+  it("offers the merge on the amendment of the last revision marked, the project having none in progress, as it lists the command [WF-REV-0050-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked_merge_offered",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    const page = await planning({ structure: "01926f3a-7c00-7000-8000-000000000213" });
+    const command = /<button(?:(?!<button).)*?Contractualise the amendment<\/button>/.exec(
+      page,
+    )?.[0];
+    expect(command).toBeDefined();
+    expect(command).not.toContain(" aria-disabled=");
+  });
+
   it("lists every differential of the revision, two coexisting in it [WF-REV-0100-A]", async () => {
     // Deux structures différentielles coexistent dans une même révision : the reference revision
     // (`structures_amendments`) bears the amendment 1, merged, and the amendment 2, not merged, and

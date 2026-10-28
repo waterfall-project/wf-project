@@ -593,6 +593,36 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it.each([
+    {
+      example: "structure_merge_report_link_forbidden",
+      fr: "Cette liaison n’est pas permise. Liaison en cause, la récapitulative d’abord\u00A0: «\u00A0Installation sur site\u00A0» et «\u00A0Montage des armoires sur site\u00A0».",
+      en: "This link is not allowed. Link concerned, the summary first: “Installation sur site” and “Montage des armoires sur site”.",
+    },
+    {
+      example: "structure_merge_report_horizon_exceeded",
+      fr: "La durée du projet dépasserait quinze ans. Tâche qui finit le projet au-delà de l’horizon\u00A0: «\u00A0Mise en service\u00A0».",
+      en: "The duration of the project would exceed fifteen years. Task that ends the project beyond the horizon: “Mise en service”.",
+    },
+  ])(
+    "names the tasks a refusal of the merge report gives, in the reader's language [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",
+    ({ example: name, fr, en }) => {
+      const report = example(name) as { refusals: [ProblemText] };
+      const [refusal] = report.refusals;
+      expect(say(refusal, "fr")).toBe(fr);
+      expect(say(refusal, "en")).toBe(en);
+    },
+  );
+
+  it("says nothing of a link or a task without labels", () => {
+    expect(say({ code: "LINK_FORBIDDEN", params: { link: [{ node_id: "n" }] } }, "en")).toBe(
+      "This link is not allowed.",
+    );
+    expect(
+      say({ code: "PROJECT_HORIZON_EXCEEDED", params: { task: { node_id: "n" } } }, "en"),
+    ).toBe("The duration of the project would exceed fifteen years.");
+  });
+
   it("names the format and the version a file was expected in [WF-INTF-0070-A]", () => {
     const problem = example("import_format_unreadable") as ProblemText;
     expect(say(problem, "fr")).toBe(
