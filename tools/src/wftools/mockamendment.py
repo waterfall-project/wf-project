@@ -232,7 +232,8 @@ def structure_merge_report() -> JsonObject:
     The tasks and the lines added, the link of the commissioning moved from the mounting to the
     rework, the commissioning moved under the trials on site and its duration changed, the hours
     of its line changed, the line withdrawn; no started task withdrawn, none completed; nothing
-    refusing it. The counters of the two structures read, as `structures` lists them.
+    refusing it. The counters of the two structures read, as `structures` lists them; the merge
+    applies to the current revision, which it does not create (#790).
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
@@ -252,6 +253,7 @@ def structure_merge_report() -> JsonObject:
     return {
         "main_structure_lock_version": structure("main")["lock_version"],
         "amendment_lock_version": structure("amendment")["lock_version"],
+        "creates_current_revision": False,
         "differences": differences,
         "completed_tasks": [],
         "refusals": [],

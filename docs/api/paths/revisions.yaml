@@ -119,6 +119,7 @@
               marking: { $ref: ../../../fixtures/api/revision_marking.json }
               importing: { $ref: ../../../fixtures/api/revision_importing.json }
               without_tasks: { $ref: ../../../fixtures/api/revision_without_tasks.json }
+              merge_without_current_revision: { $ref: ../../../fixtures/api/revision_marked_merge_offered.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -485,8 +486,13 @@
       confirmation par 412, les compteurs que le compte rendu a lus ayant avancé ; ce qui change
       hors des deux arbres — un calendrier du référentiel, le lotissement — et la rendrait refusée
       fait échouer la tâche de fond sur le motif du refus. Seul un
-      différentiel non fusionné de la révision en cours a un compte rendu ; une autre structure
-      est refusée par 409, comme sa fusion (EP-14/L42s).
+      différentiel non fusionné de la révision en cours a un compte rendu — ou, tant que le
+      projet n'a pas de révision en cours, un différentiel non fusionné de la dernière révision
+      marquée, dont la fusion crée d'abord la révision en cours par copie (WF-REV-0050,
+      WF-REV-0010 ; `StructureMergeReport.creates_current_revision`, #790) ; ses écarts sont
+      alors ceux du différentiel avec la structure principale de cette révision marquée, que la
+      copie reprend telle quelle. Une autre structure est refusée par 409, comme sa fusion
+      (EP-14/L42s).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -502,9 +508,21 @@
               started_task: { $ref: ../../../fixtures/api/structure_merge_report_started_task.json }
               refused: { $ref: ../../../fixtures/api/structure_merge_report_refused.json }
               provision_moved: { $ref: ../../../fixtures/api/structure_merge_report_provision_moved.json }
+              link_cycle: { $ref: ../../../fixtures/api/structure_merge_report_link_cycle.json }
+              horizon_exceeded: { $ref: ../../../fixtures/api/structure_merge_report_horizon_exceeded.json }
+              without_current_revision: { $ref: ../../../fixtures/api/structure_merge_report_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          Cette structure n'a pas de compte rendu de fusion : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui manque, comme au 409 de sa fusion
+          (`mergeCostStructure`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: mergeCostStructure
@@ -526,11 +544,28 @@
       échoue de même sans rien fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
       `params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des postes
       qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme
-      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Le compte
-      rendu préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la
+      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion
+      qui fermerait une boucle de liaisons dans la structure principale échoue de même,
+      `problem.code` à `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ;
+      `task_merge_link_cycle`) ; une fusion qui porterait la durée du projet au-delà de quinze
+      ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en cause
+      (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure
+      principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute
+      (`Problem.params` ; #788). Le compte rendu
+      préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la
       confirmation, qui porte les compteurs des deux structures qu'il a lus : refusée par 412 si
       l'une a changé depuis, elle n'applique jamais un compte rendu que personne n'a vu
-      (EP-14/L42s).
+      (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au
+      préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de la dernière
+      révision marquée, qui porte alors la commande `merge_structure`, et la même tâche de
+      fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux
+      conservés, projetés (WF-REV-0060), y fusionne la copie du différentiel et la marque ; la
+      révision marquée n'est pas modifiée. La tâche est une seule opération : en échec, elle ne
+      laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790).
+      Pour chiffrer la révision aux taux de la nouvelle année, on la crée d'abord
+      (`createRevision`), et la fusion se demande sur elle. Sur une révision marquée plus
+      ancienne, ou sur la dernière une fois qu'une révision est en cours, la fusion est refusée
+      par 409, comme le compte rendu.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -552,7 +587,23 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          L'état interdit la fusion de cette structure : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui manque, dans l'ordre où la commande
+          `merge_structure` de la révision les nomme — `unmerged_amendment_exists` pour une
+          structure qui n'est pas un différentiel non fusionné, `revision_draft` pour un
+          différentiel d'une révision marquée qui
+          n'est pas la dernière, ou d'un projet qui a une révision en cours : ainsi quand, depuis
+          la lecture du compte rendu, une saisie ou un import a ouvert la révision en cours, ou
+          qu'une autre fusion a marqué une révision plus récente (WF-REV-0050 ; #790). Le
+          contrôle de l'état et le dépôt de la tâche se font sous le verrou du projet, qui tient
+          sa révision en cours.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
       '412':
         description: >-
           La structure principale ou le différentiel ont changé depuis le compte rendu confirmé —
