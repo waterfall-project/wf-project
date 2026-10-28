@@ -882,7 +882,7 @@ avec le prochain lot qui touche ce fichier ; #1230 : EP-17.
 
 ## US-0590f — La stabilité de `planning.spec.ts:23` sous charge
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1534

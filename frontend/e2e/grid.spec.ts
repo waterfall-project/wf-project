@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import {
+  edgesBetween,
   rowAt,
   scrollPageToGrid,
   scroller,
@@ -172,13 +173,10 @@ test.describe("on a low window", () => {
     expect(await withinBox(grid(page), totals)).toBe(true);
     // The last of the six thousand rows is in view, between the header and the totals.
     expect(await withinBox(grid(page), last)).toBe(true);
-    const [over, row, under] = await Promise.all([
-      header.boundingBox(),
-      last.boundingBox(),
-      totals.boundingBox(),
-    ]);
-    expect(row?.y ?? 0).toBeGreaterThanOrEqual((over?.y ?? 0) + (over?.height ?? 0) - 1);
-    expect((row?.y ?? 0) + (row?.height ?? 0)).toBeLessThanOrEqual((under?.y ?? 0) + 1);
+    // The three boxes read at one moment (#1522).
+    const row = await edgesBetween(last, header, totals);
+    expect(row.top).toBeGreaterThanOrEqual(row.headerBottom - 1);
+    expect(row.bottom).toBeLessThanOrEqual(row.totalsTop + 1);
   });
 
   test("sizes its rows by the root font: enlarged, the rows grow with it and the header and totals stay in view", async ({

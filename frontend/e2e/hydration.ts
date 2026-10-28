@@ -19,8 +19,9 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * anew, overran five seconds under load: measures in #500, which is still to be decided. The
  * settings of the costs, read anew for a nature chosen, took from two to seven seconds under six
  * workers on four processors — the read of the server and the commit of the page up to four each
- * (EP-02/L41g). Any other screen keeps the five seconds of an assertion; the helpers below give
- * a page that long to hydrate.
+ * (EP-02/L41g). The probe of `openHydrated` (`indicators.spec.ts`) gives it the same bound to wait
+ * for three chart buttons rendered and none hydrated, and to hold its scripts. Any other screen
+ * keeps the five seconds of an assertion; the helpers below give a page that long to hydrate.
  */
 export const WORKING = 15_000;
 
@@ -28,10 +29,37 @@ export const WORKING = 15_000;
 const WITNESS = "wf_last_project";
 
 /**
- * Open a screen of a project by its address, and wait until the shell has hydrated: the shell
- * writes the context it shows in its cookie from an effect, so after hydration alone. The cookie
- * of an earlier page is forgotten first, so that it cannot answer for this one; the context of a
- * project is the path of its screen, whatever it was sorted or searched by.
+ * Whether React has hydrated every element of the page the keyboard can reach, read in the page:
+ * React marks each element it hydrates with its props (`__reactProps$…`), a detail of its own, read
+ * by the paths alone. The tools of the development server of Next live in a shadow root of their
+ * own, out of reach of the search; the guards of the focus that Radix puts at the edges of the
+ * document while a modal is open — the panel of the tasks, opened on a refused result — are
+ * written by Radix itself, never by React, and left aside.
+ */
+function reachableHydrated(): boolean {
+  const reachable = [
+    ...document.querySelectorAll(
+      ":is(a[href], button, input, select, textarea, [tabindex]):not([data-radix-focus-guard])",
+    ),
+  ];
+  return (
+    reachable.length > 0 &&
+    reachable.every((element) =>
+      Object.keys(element).some((key) => key.startsWith("__reactProps$")),
+    )
+  );
+}
+
+/**
+ * Open a screen of a project by its address, and wait until the shell and the screen have
+ * hydrated. The shell writes the context it shows in its cookie from an effect, so after its
+ * hydration alone; the cookie of an earlier page is forgotten first, so that it cannot answer for
+ * this one, and the context of a project is the path of its screen, whatever it was sorted or
+ * searched by. The screen hydrates after the shell: it is rendered in the boundary of its
+ * `loading.tsx`, which React hydrates on its own, once the chunks of the screen are loaded: under
+ * load, the screen of the indicators hydrated up to six seconds after its title showed, and a chart
+ * awaited for five seconds from the cookie was never drawn (#1537). Every element the keyboard
+ * reaches, hydrated, says the screen hydrated too.
  */
 export async function openHydrated(page: Page, address: string): Promise<void> {
   await page.context().clearCookies({ name: WITNESS });
@@ -42,38 +70,26 @@ export async function openHydrated(page: Page, address: string): Promise<void> {
       async () => {
         const cookies = await page.context().cookies();
         const witness = cookies.find(({ name }) => name === WITNESS)?.value;
-        return witness === undefined ? undefined : decodeURIComponent(witness).split("?")[0];
+        const context =
+          witness === undefined ? undefined : decodeURIComponent(witness).split("?")[0];
+        return { context, screen: await page.evaluate(reachableHydrated) };
       },
-      { message: `the shell hydrated on ${shown}`, timeout: WORKING },
+      { message: `the shell and the screen hydrated on ${shown}`, timeout: WORKING },
     )
-    .toBe(shown);
+    .toEqual({ context: shown, screen: true });
 }
 
 /**
  * Wait until React has hydrated every element of the page the keyboard can reach, on any screen,
- * of a project or not: React marks each element it hydrates with its props (`__reactProps$…`), a
- * detail of its own, read by the paths alone. A walk by the keyboard needs it: an element that
- * hydration renders anew drops the focus to the document, and the walk would start over. The
- * tools of the development server of Next live in a shadow root of their own, out of reach of the
- * search.
+ * of a project or not (`reachableHydrated`). A walk by the keyboard needs it: an element that
+ * hydration renders anew drops the focus to the document, and the walk would start over.
  */
 export async function untilHydrated(page: Page): Promise<void> {
   await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const reachable = [
-            ...document.querySelectorAll("a[href], button, input, select, textarea, [tabindex]"),
-          ];
-          return (
-            reachable.length > 0 &&
-            reachable.every((element) =>
-              Object.keys(element).some((key) => key.startsWith("__reactProps$")),
-            )
-          );
-        }),
-      { message: `React hydrated ${new URL(page.url()).pathname}`, timeout: WORKING },
-    )
+    .poll(() => page.evaluate(reachableHydrated), {
+      message: `React hydrated ${new URL(page.url()).pathname}`,
+      timeout: WORKING,
+    })
     .toBe(true);
 }
 
