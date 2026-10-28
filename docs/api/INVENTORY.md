@@ -167,8 +167,8 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
-| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0050 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0170, WF-REV-0050, WF-SEC-0030 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |

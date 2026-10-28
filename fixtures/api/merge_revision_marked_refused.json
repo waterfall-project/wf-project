@@ -1,0 +1,11 @@
+{
+  "summary": "La fusion de l'avenant 2 demandée aujourd'hui sur la référence, comme elle l'était le 1er février quand le projet n'avait pas de révision en cours (structure_merge_report_without_current_revision) : la révision courante est ouverte depuis le 2 février, et la fusion se demande sur elle, qui porte la copie de l'avenant (structure_merge_report). Refusée par la condition que la commande merge_structure de la référence dit manquer (revision_marked) : rien n'est fusionné, et aucune révision n'est créée (WF-REV-0050, WF-REV-0010, WF-IHM-0090, #790).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "revision_draft"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001561"
+  }
+}

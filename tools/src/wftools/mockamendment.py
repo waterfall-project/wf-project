@@ -232,7 +232,8 @@ def structure_merge_report() -> JsonObject:
     The tasks and the lines added, the link of the commissioning moved from the mounting to the
     rework, the commissioning moved under the trials on site and its duration changed, the hours
     of its line changed, the line withdrawn; no started task withdrawn, none completed; nothing
-    refusing it. The counters of the two structures read, as `structures` lists them.
+    refusing it. The counters of the two structures read, as `structures` lists them; the merge
+    applies to the current revision, which it does not create (#790).
     """
     nodes = marked()
     by_id = {cast("str", node["node_id"]): node for node in nodes}
@@ -252,6 +253,7 @@ def structure_merge_report() -> JsonObject:
     return {
         "main_structure_lock_version": structure("main")["lock_version"],
         "amendment_lock_version": structure("amendment")["lock_version"],
+        "creates_current_revision": False,
         "differences": differences,
         "completed_tasks": [],
         "refusals": [],
@@ -278,6 +280,42 @@ def _said(nodes: list[JsonObject], mark: str) -> str:
     )
 
 
+MERGE = "merge_structure"
+
+
+def revision_marked_merge_offered() -> JsonObject:
+    """Return the reference as ``revision_marked`` reads it, its merge offered.
+
+    The project has no current revision then: the merge lacks no draft (WF-REV-0050, #790).
+    """
+    reference = fixture("revision_marked")
+    commands = cast("list[JsonObject]", reference["available_commands"])
+    return {
+        **reference,
+        "available_commands": [
+            {**each, "is_available": True, "missing_conditions": []}
+            if each["command"] == MERGE
+            else each
+            for each in commands
+        ],
+    }
+
+
+def merge_may_create_revision_refused() -> JsonObject:
+    """Return the refusal of a merge that would create the current revision, for a reader.
+
+    The refusal of ``merge_revision_marked_refused``, the condition being the one the command
+    ``merge_structure`` lists after ``unmerged_amendment_exists`` to a session without
+    ``revisions.write`` (WF-REV-0050).
+    """
+    refused = fixture("merge_revision_marked_refused")
+    return {
+        **refused,
+        "params": {"missing_condition": "may_create_revision"},
+        "correlation_id": universe(1562),
+    }
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the examples of the amendment 2, by file name."""
     reading = nodes_amendment()
@@ -299,6 +337,27 @@ def examples() -> dict[str, JsonObject]:
     amendment_id = structure("amendment")["structure_id"]
     report = structure_merge_report()
     return {
+        "revision_marked_merge_offered.json": mocktext.example(
+            "La révision de référence du projet le 1er février 2026, juste après son marquage par "
+            "la fusion de l'avenant 1, et avant que le réexamen d'un risque n'ouvre le lendemain "
+            "la révision courante : un instant antérieur de la même chronologie. Le projet n'a "
+            "pas de révision en cours, et la référence, dernière révision marquée, porte "
+            "l'avenant 2 « reprise des essais », non fusionné : sa fusion y est offerte, qui "
+            "créera la révision en cours par copie de la référence, y fusionnera la copie de "
+            "l'avenant et la marquera (structure_merge_report_without_current_revision). Ses "
+            "autres commandes de modification restent indisponibles, la révision étant marquée "
+            "(WF-REV-0050, WF-REV-0010, WF-REV-0100, #790).",
+            revision_marked_merge_offered(),
+        ),
+        "merge_may_create_revision_refused.json": mocktext.example(
+            "La fusion de l'avenant 2 demandée le 1er février 2026 sur la référence, quand le "
+            "projet n'a pas de révision en cours (revision_marked_merge_offered), par une "
+            "session sans la permission d'écrire dans les révisions (`revisions.write`) : la "
+            "fusion créerait la révision en cours, et la commande merge_structure nomme alors "
+            "may_create_revision, après unmerged_amendment_exists. Rien n'est fusionné, et "
+            "aucune révision n'est créée (WF-REV-0050, WF-REV-0010, WF-IHM-0090, #790).",
+            merge_may_create_revision_refused(),
+        ),
         "nodes_amendment.json": mocktext.example(
             f"L'installation sur site lue sur le différentiel « {LABEL} » de la révision "
             f"courante (structure {amendment_id}, subtree_of) le {mocktext.day(mockcore.READ_ON)}, "

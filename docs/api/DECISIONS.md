@@ -5233,7 +5233,8 @@ la structure principale de la révision comporte une tâche ; elle vient la prem
 propre d'abord, puis celles de toute saisie de la révision en cours — `no_background_task_running`
 pendant un marquage, un import, le traitement d'une survenance de risque ou une fusion, comme
 `merge_structure` après `unmerged_amendment_exists` ; sur une révision marquée, la commande ne
-manque que de `revision_draft`, comme `merge_structure`. Le 409 de `generatePlanningSkeleton` est
+manque que de `revision_draft`, comme `merge_structure` (hors de la dernière révision marquée d'un
+projet sans révision en cours, depuis EP-16/US-0640/L3). Le 409 de `generatePlanningSkeleton` est
 `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première qui manque ; une révision
 marquée ou un projet terminal restent des 403, comme toute saisie. Ni différentiel ni devis propre
 d'un risque : la commande est de la révision, et l'opération, qui ne nomme aucune structure,
@@ -6398,6 +6399,9 @@ un déplacement ne change une date qu'en changeant le calendrier d'une tâche, e
 témoin ne porte si loin. Les refus sont engendrés avec les succès, pour que leurs libellés soient ceux
 des lectures ; la conception d'EP-15 les disait écrits à la main. La part « fusion » de #788 — le
 refus de l'horizon et du cycle par `mergeCostStructure` et son compte rendu — reste à EP-16.
+
+*Complété par EP-16/US-0640/L3 : la fusion échoue sur une boucle et sur l'horizon, son compte rendu
+le dit, section « La fusion : cycle, horizon, et fusion sans révision en cours ».*
 
 **Le suivi temps/temps d'une tâche qui n'est pas un jalon n'a pas encore d'exemple.** La conception
 nomme `node_tracking_milestone_refused`, un 422, sans dire le code ni le pointeur, que le catalogue
@@ -8127,6 +8131,113 @@ Sans objet :
   tests de la page qui les lisent sont du front (#1514).
 
 **Corrélations** 1559 et 1560 ; **import** `…0a19`.
+
+### La fusion : cycle, horizon, et fusion sans révision en cours (US-0640/L3, #1331)
+
+Les constats #788, part « fusion », et #790 des relectures d'EP-14/L42s, relus sur le contrat
+qu'EP-15 a laissé ; la conception d'EP-16 tranche le second (« Une fusion sans révision en cours »).
+Aucune opération nouvelle.
+
+- **La fusion échoue sur une boucle de liaisons et sur l'horizon** (#788 ; WF-REV-0050 cite
+  WF-PLA-0030 et WF-PLA-0150 parmi les motifs de refus d'une fusion ; WF-PLA-0150 : « le refus nomme
+  la tâche en cause »). Sur le modèle de `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche de fond de
+  `mergeCostStructure` finit en échec sans rien fusionner, `problem.code` à `LINK_CYCLE` ou
+  `PROJECT_HORIZON_EXCEEDED`, et le compte rendu préalable porte le même motif, avec les mêmes
+  paramètres (`ReportRefusal`). Chaque tâche est nommée par son nœud de la structure principale et
+  son libellé, le nœud nul pour une tâche que le différentiel ajoute, comme `params.task` le disait
+  déjà d'un différentiel. `params.cycle` nomme la boucle que porterait la structure fusionnée, de sa
+  première tâche dans l'ordre du plan à celle qui la précède, chacune précédant la suivante ; la plus
+  courte quand il y en a plusieurs, puis celle dont la première tâche vient d'abord. Ce n'est pas la
+  règle d'une saisie, qui part de la tâche saisie : une fusion n'a pas de tâche saisie, et le
+  différentiel peut fermer la boucle par une liaison comme par un déplacement. `params.task` nomme la
+  tâche de la structure fusionnée qui finit la dernière, hors récapitulatives, qui tirent leurs dates
+  de leurs subordonnées (WF-PLA-0040) — sans quoi la récapitulative de premier niveau, première dans
+  le plan, serait toujours nommée —, puis la première dans l'ordre du plan. Une boucle laisse les
+  dates sans calcul : l'horizon n'est alors pas jugé, et les deux motifs ne vont jamais ensemble.
+  `cycle` reste un paramètre ouvert de `ProblemParams`, comme pour `setPredecessors` et `moveNodes` :
+  la conception ne l'a pas compté parmi les paramètres typés. Exemples écrits à la main, variantes
+  déclarées : `structure_merge_report_link_cycle` et `task_merge_link_cycle` (tâche de fond 952), un
+  différentiel qui donne la « Mise en service » pour prédécesseur à la « Réception usine », la boucle
+  étant celle de `predecessors_cycle_refused` ; `structure_merge_report_horizon_exceeded` et
+  `task_merge_horizon_exceeded` (tâche de fond 953), la « Mise en service » allongée de deux cents
+  mois de travail, comme `predecessors_horizon_exceeded`.
+- **Une fusion sans révision en cours** (#790, WF-REV-0050 : « Lorsque le projet ne comporte pas de
+  révision en cours, elle en crée une au préalable » ; conception d'EP-16). Elle se demande sur le
+  différentiel de la dernière révision marquée, par le même chemin et le même corps : la commande
+  `merge_structure` de cette révision y est disponible, et `mergeCostStructure` crée la révision en
+  cours par copie (WF-REV-0010), y fusionne la copie du différentiel et la marque, dans la même
+  tâche de fond ; la révision marquée ne change pas. Écarté par la conception : exiger d'ouvrir
+  d'abord une révision, contraire à WF-REV-0050. Ce que la conception laissait au lot :
+  - *Le compte rendu le dit* par `StructureMergeReport.creates_current_revision`, un booléen exigé,
+    faux pour un différentiel de la révision en cours. Il ne nomme pas la révision créée : elle
+    n'existe pas encore, et elle prendra le nom de version que la confirmation porte
+    (`StructureMerge.version_name`) ; sa source est la révision du chemin. Ses écarts et ses refus
+    se jugent sur la structure principale de la révision marquée, que la copie reprend telle quelle,
+    et ses compteurs sont ceux de ses structures, que le marquage a figés. Écartés : un objet
+    décrivant la révision à créer, qui ne dirait rien de plus que le chemin et la confirmation ; une
+    lecture à part, sur le projet.
+  - *Les conditions de la commande.* Sur la dernière révision marquée d'un projet sans révision en
+    cours, `merge_structure` nomme, dans cet ordre, `project_not_terminal`,
+    `no_background_task_running` pendant un traitement qui crée la révision en cours — un import
+    appliqué, une survenance, une autre fusion de cette révision —, `unmerged_amendment_exists`,
+    puis `may_create_revision` à qui n'a pas `revisions.write`, comme les autres commandes qui
+    créent la révision en cours (imports, `edit_risks`, `declare_risk`, `declare_occurrence`).
+    Partout ailleurs sur une révision marquée — une plus ancienne, ou celle-ci dès qu'une révision
+    est en cours —, elle ne manque que de `revision_draft`, comme avant. La fusion qui court crée une
+    révision invisible jusqu'à sa fin : le projet nomme `no_background_task_running` aux commandes
+    qui créeraient ou ouvriraient la révision en cours, comme pendant un import ou une survenance.
+  - *Le 409.* Le compte rendu et la fusion d'une structure que la commande ne dit pas fusionnable
+    sont refusés par `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition
+    qui manque — `revision_draft` quand une révision a été ouverte, ou une révision plus récente
+    marquée, depuis la lecture du compte rendu. C'est le refus d'`applyRateUpdate` sur une révision
+    marquée (`rate_update_revision_marked`) : une écriture de la révision, comme son marquage, non
+    une saisie de grille, qu'une révision marquée refuse par 403. Le contrôle et le dépôt de la
+    tâche se font sous le verrou du projet, qui tient sa révision en cours. Les compteurs d'une
+    révision marquée ne bougent pas : c'est ce 409, et non le 412, qui dit qu'un compte rendu lu sans
+    révision en cours ne vaut plus.
+  - *L'échec après la création.* La tâche est une seule opération, comme la fusion que WF-REV-0050
+    dit appliquée « en une seule opération », et comme le marquage (§ « Le marquage d'une
+    révision ») : en échec, sur un cycle, l'horizon ou tout autre motif, elle ne laisse ni révision en
+    cours ni fusion, et le projet reste sans révision en cours. Écarté : garder la révision créée,
+    qu'aucun utilisateur n'a demandée et qu'il faudrait abandonner.
+  - *Les taux.* La révision créée est chiffrée aux taux conservés, projetés ; pour la chiffrer aux
+    taux de la nouvelle année, on la crée d'abord (`createRevision`), et la fusion se demande sur
+    elle (WF-REV-0060, qui le dit mot pour mot).
+
+  - *Sans `revisions.write`.* Sur la dernière révision marquée d'un projet sans révision en cours,
+    la fusion refusée à qui ne peut pas créer la révision l'est par ce même 409,
+    `params.missing_condition` à `may_create_revision`, non par un 403 : c'est la commande qui dit la
+    condition, comme pour les imports et `declare_risk`.
+
+  Exemples : `revision_marked_merge_offered` (`getRevision`), la référence le 1er février 2026,
+  juste après son marquage par la fusion de l'avenant 1 et avant que le réexamen du 2 février
+  n'ouvre la révision 102 — un instant antérieur de la même chronologie, non une variante — : la
+  fusion de l'avenant 2, non fusionné, y est offerte, engendré depuis `revision_marked`, la commande
+  seule changée (`wftools.mockamendment`) ; `merge_may_create_revision_refused`, engendré, le 409 de
+  cette fusion demandée sans `revisions.write` ; et, écrits à la main,
+  `structure_merge_report_without_current_revision`, son compte rendu, `creates_current_revision`
+  vrai, les écarts de l'avenant que la révision 102 a repris avec lui, et
+  `merge_revision_marked_refused`, le 409 de la même fusion demandée aujourd'hui sur la référence,
+  la révision 102 étant en cours. `structure_merge_report`, engendré, et les trois comptes rendus
+  écrits à la main portent `creates_current_revision` faux. Les tests d'outil sont dans
+  `tools/tests/test_mockmerge.py`.
+
+- **La fusion échoue sur une liaison entre une récapitulative et sa subordonnée** (#1582, décision de
+  l'auteur du 2026-10-28, option 1 ; WF-PLA-0030 refuse ce lien, WF-REV-0050 cite ses refus parmi
+  ceux d'une fusion). À l'image de `LINK_CYCLE` : la tâche de fond de `mergeCostStructure` finit en
+  échec sans rien fusionner, `problem.code` à `LINK_FORBIDDEN`, et le compte rendu préalable porte le
+  même motif, avec les mêmes paramètres. `params.link` nomme les deux tâches, la récapitulative
+  puis sa subordonnée, chacune par son nœud de la structure principale et son libellé, le nœud nul
+  pour une tâche que le différentiel ajoute. Une saisie ou un déplacement refusés par ce code restent
+  sans paramètre. Écarté : le traiter comme une boucle, `LINK_CYCLE` (option 2), qui ne dirait pas
+  la raison du refus. Écarté aussi : `tasks`, propriété typée de `ProblemParams`, dont chaque élément
+  exige un projet et un nœud non nul (`ProblemTask`) quand la fusion nomme une tâche ajoutée par un
+  nœud nul et ne porte pas de projet ; `link` reste ouvert, comme `cycle` et `task`. Exemples écrits
+  à la main, variantes déclarées : `structure_merge_report_link_forbidden` et
+  `task_merge_link_forbidden` (tâche de fond 954), un différentiel qui donne à l'« Installation sur
+  site » le « Montage des armoires sur site », l'une de ses subordonnées, pour prédécesseur.
+
+**Corrélation** 1561 et 1562 ; **tâches de fond** 952, 953 et 954.
 
 ## Collage et annulation
 

@@ -171,7 +171,7 @@ def test_the_skeleton_follows_the_entry_of_the_planning_and_lacks_a_main_structu
         [(_, available, missing)] = [c for c in commands if c[0] == SKELETON]
         [(_, _, entry)] = [c for c in commands if c[0] == "edit_planning"]
         if revision["status"] == "marked":
-            # As `merge_structure`: a marked revision lacks its draft alone.
+            # As `create_structure`: a marked revision lacks its draft alone.
             assert missing == ["revision_draft"], name
         else:
             # The condition proper first, then those of any entry of the current revision; the

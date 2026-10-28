@@ -112,6 +112,18 @@ RevisionCommand:
     La déclaration de survenance n'en relève pas : c'est une commande du projet et du risque
     (`ProjectCommand.declare_risk_occurrence`, `RiskCommand.declare_occurrence`).
 
+    `merge_structure` se dit de la révision en cours, et aussi, tant que le projet n'a pas de
+    révision en cours, de la dernière révision marquée : « Lorsque le projet ne comporte pas de
+    révision en cours, elle en crée une au préalable » (WF-REV-0050) : la fusion se demande sur
+    le différentiel de cette révision, et crée la révision en cours par copie de celle-ci
+    (WF-REV-0010 ; #790).
+    Ses conditions y sont, dans cet ordre, `project_not_terminal`, `no_background_task_running`
+    pendant l'application d'un import, le traitement d'une survenance ou une autre fusion, qui
+    créent la révision en cours, `unmerged_amendment_exists`, puis `may_create_revision` à qui n'a
+    pas la permission de créer une révision (`revisions.write`), comme toute commande qui la crée.
+    Sur toute autre révision marquée, et sur celle-ci dès qu'une révision est en cours, elle ne
+    manque que de `revision_draft`.
+
     `declare_risk` dit d'avance si la déclaration d'un risque (`createRisk`) aboutirait,
     toujours listée juste après `edit_risks`, là où elle l'est et sous la même permission,
     `risks.write` (EP-14/L42s), ses conditions dans l'ordre où le 409 de `createRisk` les juge :
@@ -131,7 +143,7 @@ RevisionCommand:
     comporte une tâche, `main_structure_without_tasks` manquante, la condition propre d'abord,
     puis celles de toute saisie de la révision en cours — `no_background_task_running` pendant
     un marquage, un import, le traitement d'une survenance de risque ou une fusion. Sur une
-    révision marquée, elle ne manque que de `revision_draft`, comme `merge_structure`. Elle ne
+    révision marquée, elle ne manque que de `revision_draft`, comme `create_structure`. Elle ne
     se dit d'aucun différentiel ni d'aucun devis propre d'un risque : c'est une commande de la
     révision, que l'opération applique à sa structure principale. Tant que le projet n'a pas de
     révision en cours, c'est le projet qui la porte (`ProjectCommand.generate_skeleton`), la
@@ -361,7 +373,10 @@ StructureMerge:
     Fusionne le différentiel dans la structure principale : la fusion ne touche que
     les montants budgétés des lignes qu'il désigne. Elle s'applique à la révision en
     cours et la marque dans la même opération, d'où le nom de version exigé, et la
-    révision produite devient la référence (WF-REV-0050). Confiée au worker. La confirmation
+    révision produite devient la référence (WF-REV-0050) ; sur un projet sans révision en cours,
+    elle crée d'abord cette révision par copie de la dernière révision marquée, dans la même
+    opération (WF-REV-0010 ; #790), et le nom de version est celui de la révision créée et
+    marquée. Confiée au worker. La confirmation
     suit le compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la
     refuserait, et porte les deux compteurs qu'il a lus : la structure principale ou le
     différentiel changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce
@@ -387,6 +402,7 @@ StructureMergeReport:
   required:
     - main_structure_lock_version
     - amendment_lock_version
+    - creates_current_revision
     - differences
     - completed_tasks
     - refusals
@@ -409,6 +425,17 @@ StructureMergeReport:
     amendment_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: Le compteur du différentiel lu (`CostStructure.lock_version`), de même.
+    creates_current_revision:
+      type: boolean
+      description: >-
+        Vrai quand le projet n'a pas de révision en cours : le différentiel est celui de la
+        dernière révision marquée, et la fusion crée d'abord la révision en cours par copie de
+        celle-ci, chiffrée aux taux conservés, projetés, y fusionne la copie du différentiel et
+        la marque, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en
+        cours, elle en crée une au préalable » (WF-REV-0050, WF-REV-0010, WF-REV-0060 ; #790).
+        Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la
+        révision marquée, que la copie reprend telle quelle, et ses compteurs sont ceux de ses
+        structures, que le marquage a figés. Faux pour un différentiel de la révision en cours.
     differences:
       type: array
       description: >-
@@ -429,7 +456,9 @@ StructureMergeReport:
       description: >-
         Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150,
         WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue
-        (`ReportRefusal`). Vide quand la fusion s'applique.
+        (`ReportRefusal`). Vide quand la fusion s'applique. Une boucle de liaisons (`LINK_CYCLE`)
+        laisse les dates de la structure sans calcul : l'horizon n'est alors pas jugé, et
+        `PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais (#788).
       items: { $ref: exchanges.yaml#/ReportRefusal }
 
 NodeKind:

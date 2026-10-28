@@ -117,18 +117,22 @@ CommandCondition:
     (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la
     révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s).
     Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule
-    transaction (WF-INTF-0080), et le traitement d'une survenance créent la révision en cours
-    qu'ils écrivent (WF-INTF-0090, WF-RIS-0060), invisible jusqu'à leur fin. Pendant ce temps, le
+    transaction (WF-INTF-0080), le traitement d'une survenance et la fusion d'un différentiel de
+    la dernière révision marquée créent la révision en cours qu'ils écrivent (WF-INTF-0090,
+    WF-RIS-0060, WF-REV-0050 ; #790), invisible jusqu'à leur fin. Pendant ce temps, le
     projet nomme la condition aux commandes qu'il porte et qui créeraient ou ouvriraient cette
-    révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4).
+    révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4) —,
+    et la dernière révision marquée à sa fusion (`RevisionCommand.merge_structure`).
     L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et
     l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010,
     WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas
     de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`)
     pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à
     engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
-    déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
-    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) ; et pour une commande qui
+    déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s), la déclaration d'un
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) et la fusion d'un
+    différentiel de la dernière révision marquée (`RevisionCommand.merge_structure`,
+    WF-REV-0050 ; #790) ; et pour une commande qui
     demande d'ouvrir la révision d'abord : la génération du squelette de planning
     (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4).
     `restored_subproject_exists` manque à toute annulation et à tout rétablissement
@@ -417,8 +421,9 @@ ProjectCommand:
     révision que la création rend (`generatePlanningSkeleton`), qui liste à son tour
     `generate_skeleton`. Ses conditions, dans l'ordre de `declare_risk` : celles de l'état
     d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre (WF-CYC-0100), puis
-    `no_background_task_running` pendant l'application d'un import ou le traitement d'une
-    survenance, qui créent la révision en cours ; puis `main_structure_without_tasks`, jugée sur
+    `no_background_task_running` pendant l'application d'un import, le traitement d'une
+    survenance ou la fusion d'un différentiel de la dernière révision marquée, qui créent la
+    révision en cours ; puis `main_structure_without_tasks`, jugée sur
     la révision que l'ouverture créerait — une copie de la dernière révision marquée, sans tâche
     si le projet n'en a aucune — ; puis `may_create_revision` à qui n'a pas la permission de
     l'ouvrir (`revisions.write`). Sur la révision, la condition propre vient d'abord

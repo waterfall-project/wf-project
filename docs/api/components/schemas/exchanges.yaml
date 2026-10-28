@@ -410,10 +410,11 @@ ReportRefusal:
     principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie
     du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks`
     (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans,
-    `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`, sur
-    lequel sa tâche de fond échoue déjà (WF-PLA-0010). Un cycle de liaisons (WF-PLA-0030) et
-    l'horizon, que WF-REV-0050 cite parmi les motifs de refus d'une fusion, n'ont pas encore
-    l'échec de la fusion décrit : #788.
+    `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`
+    (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait,
+    `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative
+    et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion
+    échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788).
   properties:
     code: { $ref: ../common.yaml#/ErrorCode }
     params: { $ref: ../common.yaml#/ProblemParams }
