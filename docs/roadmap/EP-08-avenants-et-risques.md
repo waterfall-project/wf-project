@@ -107,7 +107,12 @@ avenant.
 
 ## Constats reçus
 
-Aucun. #763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
+- #1363 — faux back : l'avenant que crée « Préparer un avenant » (structure 213) ne s'ouvre pas ;
+  #1369 — faux back : la structure du risque créé (208) n'est pas listée. Relevés par EP-15, la
+  limite d'un faux back sans état que le service des structures différentielles et des devis
+  propres lève ici ; reportés d'EP-04 au cadrage du 2026-10-28 (décision de l'auteur).
+
+#763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
 2026-10-18 (décision de l'auteur) : le parcours du risque est montré dans la maquette pour
 validation (#1062, US-0520) ; le comportement réel — provision, réserve, fusion à la survenance —
 reste ici.

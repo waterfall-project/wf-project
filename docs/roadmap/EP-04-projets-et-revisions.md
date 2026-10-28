@@ -225,13 +225,10 @@ gel, et un écart devient une « Interface contract issue » que l'auteur tranch
   propre, et la règle 404/403 par une propriété déclarée de la permission plutôt que par son
   suffixe. Reporté d'EP-03 le 2026-10-11.
 - #870 [EP-03] le nom d'un contributeur anonymisé — relevé par la revue d'US-0360/L2b :
-  `Contributor.display_name` et `ContributorSuggestion.display_name` sont des chaînes non nulles
-  au contrat, et un compte désactivé reste listé comme contributeur ; anonymisé, le contrat
-  obligerait le service à rendre son nom (contre WF-ADM-0060-A) ou une phrase (contre
-  WF-ARC-0110). EP-04, qui sert les contributeurs, rend ces deux champs nullables comme
-  `ActorRef.display_name`, et le front les nomme par `useAccountNaming`, avec un exemple de
-  contributeur anonymisé et le test de la branche nulle d'`Actor` (`project-tables.tsx`).
-  Reporté d'EP-03 le 2026-10-11.
+  `Contributor.display_name` et `ContributorSuggestion.display_name` sont des chaînes non nulles au
+  contrat, et un compte désactivé reste listé comme contributeur ; anonymisé, le contrat obligerait
+  le service à rendre son nom (contre WF-ADM-0060-A) ou une phrase (contre WF-ARC-0110). Reporté
+  d'EP-03 le 2026-10-11 ; rendu à EP-16 le 2026-10-28, une modification du contrat (ci-dessous).
 - #927 [EP-03] les facettes du journal nomment un projet par sa dernière inscription, non par
   son libellé du jour — relevé par la revue d'US-0410/L2, tour 1 : le contrat veut, pour
   `AuditFacets.projects`, le code et le libellé du jour de chaque projet, et ceux de la dernière
@@ -264,8 +261,9 @@ Rendus ou renvoyés au cadrage du 2026-10-28 (décisions de l'auteur) :
 
 - #870 — contrat : le nom d'un contributeur anonymisé. Rendre `Contributor.display_name` et
   `ContributorSuggestion.display_name` nullables est une modification du contrat, qu'EP-16 fige :
-  rendu à EP-16, titre et label `EP-16`, à trancher avant le gel (US-0640/L5) ; EP-04 sert le
-  champ tel que le contrat figé le dit, et le front le nomme par `useAccountNaming` (US-0930) ;
+  rendu à EP-16, titre et label `EP-16`, rattaché à #1312, à trancher avant le gel (US-0640/L5)
+  avec #1577 ; EP-04 sert le champ tel que le contrat figé le dit, et le front le nomme par
+  `useAccountNaming` (US-0930) ;
 - #1363 et #1369 — faux back : l'avenant créé qui ne s'ouvre pas, la structure du risque créé non
   listée (titres `[EP-15]`, label EP-04) : le service des structures différentielles et des devis
   propres est d'EP-08, qui les reçoit — titre `[EP-08]`, label EP-08, listés dans son fichier.
@@ -311,11 +309,11 @@ Décisions de l'auteur du 2026-10-28, chacune avec l'option écartée :
   hachage en N partitions fixes, où une partition mêle plusieurs projets et où la Vérif ne se tient
   que par le plan d'exécution.
 - **`AuditAction` manque `project_create` et `revision_abandon`**, que WF-SEC-0030 énumère et dont
-  sa Vérif exige l'inscription : une issue « contrat » est ouverte à EP-16, rattachée à #1312, à
-  trancher par l'auteur avant le gel. EP-04 inscrit ces deux actions si le contrat les porte à sa
-  livraison, et ne les inscrit pas sinon — sa définition de fini le dit, et EP-13, qui clôt
-  WF-SEC-0030, en dépend. Écarté : les inscrire sous une action que le contrat n'a pas, ou lever
-  le manque après le gel.
+  sa Vérif exige l'inscription : une issue « contrat », #1577, est ouverte à EP-16, rattachée à
+  #1312, à trancher par l'auteur avant le gel. EP-04 inscrit ces deux actions si le contrat les
+  porte à sa livraison, et ne les inscrit pas sinon — sa définition de fini le dit, et EP-13, qui
+  clôt WF-SEC-0030, en dépend. Écarté : les inscrire sous une action que le contrat n'a pas, ou
+  lever le manque après le gel.
 - **#870 est rendu à EP-16** avant le gel : `Contributor.display_name` nullable est une
   modification du contrat. EP-04 sert le champ tel que le contrat figé le dit. Écarté : la première
   « Interface contract issue » du contrat figé, portée par EP-04.
