@@ -519,6 +519,7 @@ def readings() -> dict[str, JsonObject]:
         "risks": {
             "items": [risk_item(risk, budget) for risk in REGISTER],
             "totals": totals(rows),
+            "meta": {"limit": mocktext.PAGE, "offset": 0, "total": len(REGISTER)},
         },
         "risk_matrix": matrix(rows, budget),
         "risk_coverage": coverage(today, rows),
@@ -721,6 +722,31 @@ def examples() -> dict[str, JsonObject]:
             f"référence reste comptée dans la réserve pour risques (WF-RIS-0050, WF-RIS-0060). "
             f"{_risk_commands_text(items[1])}",
             items[1],
+        ),
+        "risk_dismissed_category_deactivated.json": mocktext.example(
+            f"Variante contrefactuelle : « {engineer.label} », écarté le "
+            f"{_day(engineer.last.at.date())}, tel que le registre le lit, la catégorie de sa "
+            f"provision, « {items[2]['provision_cost_category_label']} », désactivée depuis : "
+            f"le risque la nomme encore, mais ne la dit plus active et de type provision pour "
+            f"risques (provision_cost_category_is_active), si bien que son retour à l'état "
+            f"identifié en demande une autre (WF-RIS-0010, WF-REF-0030, #1384). La provision "
+            f"pour risques du témoin est active.",
+            {**items[2], "provision_cost_category_is_active": False},
+        ),
+        "risk_uncited.json": mocktext.example(
+            f"Variante contrefactuelle : « {rework.label} », identifié, tel que le registre le "
+            f"lit, qu'aucune révision marquée ne citerait : sa suppression est disponible, rien "
+            f"ne lui manquant, et emporterait son devis propre et sa ligne de provision "
+            f"(WF-RIS-0020, #1384). Le témoin le cite depuis le marquage de la référence.",
+            {
+                **items[0],
+                "available_commands": [
+                    {**each, "is_available": True, "missing_conditions": []}
+                    if each["command"] == "delete"
+                    else each
+                    for each in cast("list[JsonObject]", items[0]["available_commands"])
+                ],
+            },
         ),
         "risk_matrix.json": mocktext.example(
             f"La matrice des risques de la révision courante : {len(probabilities) + 1} niveaux "

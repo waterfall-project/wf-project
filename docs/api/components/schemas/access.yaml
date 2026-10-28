@@ -411,7 +411,12 @@ GridPreferences:
       type: object
       description: >-
         La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
-        paramètre sous son nom, avec sa valeur en texte.
+        paramètre sous son nom, avec sa valeur en texte. Le serveur les garde tels qu'ils sont
+        écrits, sans connaître les paramètres d'aucune grille. Ainsi la liste des projets de
+        l'accueil, la grille `projects`, garde sous `states` les états choisis, séparés par des
+        virgules comme l'adresse les écrit (`states=pricing,in_progress,completed`) ; un compte
+        qui n'en a rien écrit prend le défaut de l'écran, Chiffrage et En cours, que le contrat ne
+        porte pas (WF-PTF-0030, WF-IHM-0060 ; #1401).
       maxProperties: 20
       propertyNames: { maxLength: 64 }
       additionalProperties: { type: string, maxLength: 500 }

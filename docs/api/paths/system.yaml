@@ -195,6 +195,7 @@
               restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
               interrupted_by_restore: { $ref: ../../../fixtures/api/task_interrupted_by_restore.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
+              import_analysis_failed: { $ref: ../../../fixtures/api/task_import_analysis_failed.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
               restore_verification_failed: { $ref: ../../../fixtures/api/task_restore_verification_failed.json }

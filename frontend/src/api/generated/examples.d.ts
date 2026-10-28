@@ -78,7 +78,7 @@ export interface Examples {
     200: "actual_costs" | "actual_costs_after_exclusion" | "actual_costs_empty" | "actual_costs_page" | "actual_costs_subproject";
   };
   "GET /projects/{project_id}/contributors": {
-    200: "contributors" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
+    200: "contributors" | "contributors_anonymized" | "contributors_by_name" | "contributors_inactive" | "contributors_search";
   };
   "GET /projects/{project_id}/contributors/suggestions": {
     200: "contributor_suggestions" | "contributor_suggestions_empty";
@@ -123,13 +123,13 @@ export interface Examples {
     200: "startable_tasks" | "startable_tasks_milestone";
   };
   "GET /projects/{project_id}/revisions": {
-    200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked";
+    200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked" | "revisions_project_created";
   };
   "GET /projects/{project_id}/revisions/comparison": {
     200: "comparison" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
-    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_reader" | "revision_without_tasks";
+    200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_rate_update_offered" | "revision_reader" | "revision_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/rate-update": {
     200: "rate_update" | "rate_update_none";
@@ -159,7 +159,7 @@ export interface Examples {
     200: "risk_matrix";
   };
   "GET /projects/{project_id}/risks/{risk_id}": {
-    200: "risk" | "risk_occurred_detail";
+    200: "risk" | "risk_dismissed_category_deactivated" | "risk_occurred_detail" | "risk_uncited";
   };
   "GET /projects/{project_id}/risks/{risk_id}/reviews": {
     200: "risk_reviews" | "risk_reviews_reviewed";
@@ -219,7 +219,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_analysis_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";
@@ -234,7 +234,7 @@ export interface Examples {
     200: "backup_released" | "backup_retained";
   };
   "PATCH /me/preferences": {
-    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_risk_matrix_unfolded" | "preferences_timeline_lanes";
+    200: "preferences" | "preferences_dark" | "preferences_page_size" | "preferences_project_states" | "preferences_risk_matrix_unfolded" | "preferences_timeline_lanes";
   };
   "PATCH /projects/{project_id}": {
     200: "project_updated";
@@ -336,7 +336,7 @@ export interface Examples {
     200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial" | "paste_applied_rejudged";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
+    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
   };
   "POST /projects/{project_id}/risks": {
     201: "risk_created";

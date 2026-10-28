@@ -1,0 +1,11 @@
+{
+  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, dont le devis se saisit quel que soit l'état du projet (WF-DEV-0050), le même bloc collé sur le libellé de la ligne « Assistance aux essais de câblage », que l'avenant retire, que la grille montre à sa place en lecture seule et qui n'accepte aucun champ : la cellule visée est sur un nœud retiré, et le collage est refusé entier — une seule fois, sur la première ligne du bloc et la colonne visée —, aucune ligne acceptée ; rien ne sera écrit. L'ancre n'est pas reportée au nœud suivant, qui écrirait ailleurs que là où l'utilisateur a cliqué (WF-IHM-0050, #1361).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "paste_id": "01926f3a-7c00-7000-8000-000000000996",
+    "accepted": 0,
+    "rejected": [
+      {"row":0,"column":"label","code":"PASTE_TARGET_REMOVED"}
+    ]
+  }
+}

@@ -80,6 +80,7 @@ from wftools import (
     REPOSITORY,
     mockamendment,
     mockamendmentwrites,
+    mockanonymized,
     mockaudit,
     mockcategories,
     mockcomparisons,
@@ -289,7 +290,8 @@ def named() -> dict[str, JsonObject]:
     portfolio over time that sum it with the other projects (``mockportfoliotime``); the
     journal of audit of the universe (``mockaudit``); the readings of the lists of the
     reference written by hand (``mockreference``), and those of the projects, the subprojects
-    and the contributors (``mocklists``).
+    and the contributors (``mocklists``), the contributors once an account is anonymised
+    (``mockanonymized``).
     """
     return {
         **readings(),
@@ -310,6 +312,7 @@ def named() -> dict[str, JsonObject]:
         **mockaudit.examples(),
         **mockreference.named(),
         **mocklists.examples(),
+        **mockanonymized.examples(),
     }
 
 

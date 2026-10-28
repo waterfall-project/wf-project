@@ -36,6 +36,7 @@ import { User, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components, operations } from "@/api/generated/schema";
+import { KeptName } from "@/components/account/anonymized-name";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
@@ -254,7 +255,7 @@ function ContributorName({ contributor }: { readonly contributor: Contributor })
   return (
     <span className="inline-flex items-center gap-1.5">
       <User aria-hidden="true" className={ICON} />
-      {contributor.display_name}
+      <KeptName name={contributor.display_name} />
     </span>
   );
 }

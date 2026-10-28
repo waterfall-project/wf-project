@@ -108,13 +108,15 @@ inscribes the application of an import, at the instant its task succeeds (EP-02/
 _BEFORE_MARKING = {
     "rate_update_applied.json": RATES_UPDATED,
     "revisions_designation_open.json": RATES_UPDATED,
+    "revision_rate_update_offered.json": mockhistory.REVISIONS[mockhistory.REFERENCE][0],
 }
 """The examples of a revision of the witness read before its marking, an earlier instant of the
 chronology, and the instant of the last write it had received: the rates of 2026 accepted from the
-revision 101 in progress (C-362, EP-15/US-0490), and the history read on 15 January before the
-offer is designated, where the 101 is still the one that update left (US-0490/L2). A revision
-of such an example marked before that instant says its marking as any other; each renders at least
-one revision still in progress at that instant."""
+revision 101 in progress (C-362, EP-15/US-0490), the history read on 15 January before the
+offer is designated, where the 101 is still the one that update left (US-0490/L2), and the 101 at
+its opening, before any write, the update of its rates offered (#1351). A revision of such an
+example marked before that instant says its marking as any other; each renders at least one
+revision still in progress at that instant."""
 
 
 @pytest.fixture(scope="module")
@@ -197,7 +199,7 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
                 if before is not None and marked is not None and before.instant < marked.instant:
                     # An earlier instant of the chronology: the revision still in progress.
                     written = before.instant
-                    assert created.instant < written, path.name
+                    assert created.instant <= written, path.name
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                     assert audit["updated_at"] == mockhistory.stamp(written), path.name
                     in_progress[path.name] += 1

@@ -250,25 +250,26 @@ LINE = {
     "row_number": 2,
     "label": "Essais",
 }
-SHAPES = {
-    "resource_roles": [ROLE],
-    "tasks": [TASK],
-    "tasks_imported": [IMPORTED],
-    "estimate_lines": [LINE],
-    "subproject": {"subproject_id": str(UUID(int=6)), "label": "Poste"},
-    "missing_columns": [{"column": "amount", "labels": ["Montant", "Amount"]}],
-    "columns": ["wbs_element", "document_number"],
-}
+SHAPES: list[tuple[str, Any]] = [
+    ("columns", ["wbs_element", "document_number"]),
+    ("estimate_lines", [LINE]),
+    ("missing_columns", [{"column": "amount", "labels": ["Montant", "Amount"]}]),
+    ("resource_roles", [ROLE]),
+    ("subproject", {"subproject_id": str(UUID(int=6)), "label": "Poste"}),
+    ("tasks", [TASK]),
+    ("tasks", [IMPORTED]),
+]
+"""Each typed parameter by its name and a value of a shape the contract gives: `tasks` twice, a task
+named by its node and a task imported, named by its lineage (`ProblemImportedTask`)."""
 
 
 @pytest.mark.requirement("WF-ARC-0110-A")
-@pytest.mark.parametrize("shape", sorted(SHAPES))
+@pytest.mark.parametrize(("name", "value"), SHAPES)
 def test_a_valid_typed_parameter_leaves_the_envelope_as_it_was_given(
-    app: FastAPI, shape: str
+    app: FastAPI, name: str, value: Any
 ) -> None:
-    name = "tasks" if shape == "tasks_imported" else shape
-    response = TestClient(app).post("/refusals", json={name: SHAPES[shape]})
-    assert (response.status_code, response.json()["params"]) == (422, {name: SHAPES[shape]})
+    response = TestClient(app).post("/refusals", json={name: value})
+    assert (response.status_code, response.json()["params"]) == (422, {name: value})
 
 
 INVALID_SHAPES: list[dict[str, Any]] = [

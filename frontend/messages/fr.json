@@ -2632,7 +2632,8 @@
     "UNKNOWN_ORG_NODE": "Ce nœud d’organisation n’existe pas.",
     "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
     "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
-    "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas."
+    "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas.",
+    "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
@@ -3001,6 +3002,7 @@
       "no_current_revision": "aucune révision en cours d’élaboration",
       "revision_draft": "révision en cours d’élaboration",
       "revision_marked": "révision marquée",
+      "rate_update_available": "une mise à jour des taux disponible",
       "reference_correctable": "référence encore corrigeable",
       "revision_has_tasks_and_lines": "révision portant au moins une tâche et une ligne de devis",
       "unmerged_amendment_exists": "un avenant non fusionné",
@@ -3079,6 +3081,7 @@
       "edit_remaining": "Réestimer le reste à engager",
       "edit_risks": "Modifier les risques",
       "declare_risk": "Déclarer un risque",
+      "apply_rate_update": "Appliquer la mise à jour des taux",
       "create_structure": "Préparer un avenant",
       "merge_structure": "Contractualiser l’avenant",
       "mark": "Marquer la révision",
@@ -3107,6 +3110,7 @@
       "progress": "Avancement",
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
+      "payment_delay_days": "Délai de paiement",
       "parent": "Rattachement"
     },
     "NodeDifference": {

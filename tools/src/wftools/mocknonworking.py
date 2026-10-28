@@ -11,7 +11,9 @@ on the calendar of the task —, so that the front says the entry refused and th
 report by one sentence. The day is judged on the applicable calendar of the commissioning, as
 ``mockdating`` dates it, never written by hand: the entry on the Saturday before its start, and
 the same date in a planning exported today and imported back, the commissioning made manual in
-it, which the report keeps and signals.
+it, which the report keeps and signals. A task created in manual mode with the same start is
+refused alike (#1345): « une date saisie » is not bound to the modification, and a task created
+without any labour line is judged on the default calendar (WF-PLA-0010).
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 from wftools import mockcore, mockdating, mocktext
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import described
-from wftools.mockwitness import N, fixture
+from wftools.mockwitness import N, default_calendar, fixture
 
 if TYPE_CHECKING:
     from wftools.mockcalendar import Calendar
@@ -35,6 +37,10 @@ SATURDAY = date(2026, 12, 19)
 it starts on today."""
 
 REFUSED_CORRELATION = universe(1542)
+CREATED_CORRELATION = universe(1563)
+
+CREATED_LABEL = "Réception provisoire sur site"
+"""The task created in manual mode with its start on SATURDAY, under the installation on site."""
 
 _WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 
@@ -49,20 +55,21 @@ def calendar() -> Calendar:
     return mockdating.schedule(described())[N.COMMISSIONING].calendar
 
 
-def judged(day: date) -> JsonObject | None:
+def judged(day: date, on: Calendar | None = None) -> JsonObject | None:
     """Return the parameters of the motive a date carries, or None on a day of work.
 
     A day the calendar of the task grants no hour of work names the next one that grants some:
-    the day the entry may take (WF-PLA-0020, WF-PLA-0010).
+    the day the entry may take (WF-PLA-0020, WF-PLA-0010). The calendar is the commissioning's
+    unless another is given.
     """
-    on = calendar()
+    on = calendar() if on is None else on
     if on.hours_on(day) > 0:
         return None
     return {"date": day.isoformat(), "next_working_day": on.next_working_day(day).isoformat()}
 
 
-def _judged(day: date) -> JsonObject:
-    params = judged(day)
+def _judged(day: date, on: Calendar | None = None) -> JsonObject:
+    params = judged(day, on)
     if params is None:
         message = f"{day} is a day of work on the calendar of the commissioning"
         raise ValueError(message)
@@ -80,6 +87,27 @@ def task_date_non_working_day() -> JsonObject:
         "status": 422,
         "fields": [{"pointer": "/start/date", "code": CODE, "params": _judged(SATURDAY)}],
         "correlation_id": REFUSED_CORRELATION,
+    }
+
+
+def node_create_non_working_day() -> JsonObject:
+    """Return what createNode answers to a task created in manual mode with its start on SATURDAY.
+
+    The task has no labour line yet: its applicable calendar is the default one (WF-PLA-0010),
+    which grants no hour on a Saturday either. Refused on the field of the facet sent, the next
+    working day named; nothing is created (#1345).
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/task/start/date",
+                "code": CODE,
+                "params": _judged(SATURDAY, default_calendar()),
+            }
+        ],
+        "correlation_id": CREATED_CORRELATION,
     }
 
 
@@ -212,11 +240,14 @@ def import_planning_non_working_day() -> JsonObject:
 
 
 def examples() -> dict[str, JsonObject]:
-    """Return the refusal of the date entered and the import that keeps it, by file name."""
+    """Return the refusals of a date entered and of a task created, and the import, by name."""
     refused = task_date_non_working_day()
     [field] = cast("list[dict[str, dict[str, str]]]", refused["fields"])
     following = date.fromisoformat(field["params"]["next_working_day"])
     commissioning = {row.number: row.label for row in mockcore.current()}[N.COMMISSIONING]
+    created = node_create_non_working_day()
+    [creation] = cast("list[dict[str, dict[str, str]]]", created["fields"])
+    created_following = date.fromisoformat(creation["params"]["next_working_day"])
     imported = import_planning_non_working_day()
     report = cast("dict[str, list[dict[str, Any]]]", imported["report"])
     [ignored] = report["ignored"]
@@ -227,6 +258,15 @@ def examples() -> dict[str, JsonObject]:
             f"est refusée sur son champ, et le refus nomme le jour travaillé suivant, "
             f"{said(following)} ; rien n'est écrit (WF-PLA-0020, WF-PLA-0010, #1271).",
             refused,
+        ),
+        "node_create_non_working_day.json": mocktext.example(
+            f"Une tâche « {CREATED_LABEL} » créée en mode manuel sous l'« Installation sur "
+            f"site », son début envoyé {said(SATURDAY)} : sans ligne de main-d'œuvre, la tâche "
+            f"est sur le calendrier par défaut, qui n'accorde aucune heure ce jour-là. La date "
+            f"est refusée sur son champ, comme à la modification (task_date_non_working_day), et "
+            f"le refus nomme le jour travaillé suivant, {said(created_following)} ; rien n'est "
+            f"créé (WF-PLA-0020, WF-PLA-0010, #1345).",
+            created,
         ),
         "import_planning_non_working_day.json": mocktext.example(
             f"L'import d'un planning MS Project lu aujourd'hui à {mocktext.hour(SUBMITTED)} et "

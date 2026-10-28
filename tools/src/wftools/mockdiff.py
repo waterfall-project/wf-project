@@ -13,8 +13,9 @@ its content changes. A node
 removed holds its row: the rows and the ranks count the tree rendered, the nodes removed with
 them, and a predecessor is named by the row it is rendered at.
 
-A task is changed by its dates, its duration, its progress or its parent; a line by its amounts or
-its parent: the amount of a task is its lines', said by them (``wftools.mockhistory``, #287).
+A task is changed by its dates, its duration, its progress or its parent; a line by its amounts,
+its delay of payment (#1566) or its parent: the amount of a task is its lines', said by them
+(``wftools.mockhistory``, #287).
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ _TASK_CHANGES = (
 _LINE_CHANGES = (
     ("budgeted_amount", ("budgeted_amount",)),
     ("reestimated_amount", ("reestimated_amount",)),
+    ("payment_delay_days", ("payment_delay_days",)),
 )
 
 

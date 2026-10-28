@@ -84,7 +84,8 @@ type OfferedElsewhere =
   | `edit_${string}`
   | "generate_skeleton"
   | "merge_structure"
-  | "designate_reference";
+  | "designate_reference"
+  | "apply_rate_update";
 
 /** Whether a command of a revision is an export, which the screen of the exchanges offers. */
 function isExport(command: RevisionCommand): boolean {
@@ -94,14 +95,16 @@ function isExport(command: RevisionCommand): boolean {
 /**
  * Whether a command of a revision is offered by a screen of its own — an entry, by its grid; the
  * skeleton, by the empty grid of the planning; the designation of the reference, by the history of
- * the revisions, on the marked revision it designates —, which the list of the commands leaves out.
+ * the revisions, on the marked revision it designates; the application of the rates, by the
+ * proposal it applies —, which the list of the commands leaves out.
  */
 function isOfferedByItsScreen(command: RevisionCommand): boolean {
   return (
     command.startsWith("edit_") ||
     command === "generate_skeleton" ||
     command === "merge_structure" ||
-    command === "designate_reference"
+    command === "designate_reference" ||
+    command === "apply_rate_update"
   );
 }
 

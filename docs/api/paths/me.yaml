@@ -70,7 +70,10 @@
       frise (`timelines`, WF-PLA-0140) et l'état replié ou déplié de chaque graphique
       (`charts`, EP-15/US-0550). Le front écrit avec une grille les colonnes qu'elle offrait
       (`GridPreferences.known_columns`), pour qu'une colonne reçue depuis prenne ce que la
-      grille lui donne par défaut (EP-16/US-0650).
+      grille lui donne par défaut (EP-16/US-0650). Le choix d'états de la liste des projets de
+      l'accueil, différent du défaut de l'écran — Chiffrage et En cours —, se garde dans la
+      grille de cette liste, `projects`, comme tout filtre d'une grille : `filters.states`, les
+      états choisis tels que l'adresse les écrit (`GridPreferences.filters` ; #1401).
     requestBody:
       required: true
       content:
@@ -86,6 +89,7 @@
               witness: { $ref: ../../../fixtures/api/preferences.json }
               dark: { $ref: ../../../fixtures/api/preferences_dark.json }
               page_size: { $ref: ../../../fixtures/api/preferences_page_size.json }
+              project_states: { $ref: ../../../fixtures/api/preferences_project_states.json }
               timeline_lanes: { $ref: ../../../fixtures/api/preferences_timeline_lanes.json }
               risk_matrix_unfolded: { $ref: ../../../fixtures/api/preferences_risk_matrix_unfolded.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }

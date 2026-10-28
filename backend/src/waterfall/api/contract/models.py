@@ -50,6 +50,7 @@ class ErrorCode(StrEnum):
     HOURLY_RATE_MISSING = "HOURLY_RATE_MISSING"
     PROJECT_CODE_REQUIRED = "PROJECT_CODE_REQUIRED"
     PASTE_TOO_WIDE = "PASTE_TOO_WIDE"
+    PASTE_TARGET_REMOVED = "PASTE_TARGET_REMOVED"
     FILE_FORMAT_UNREADABLE = "FILE_FORMAT_UNREADABLE"
     TASK_WITHOUT_WORKING_HOURS = "TASK_WITHOUT_WORKING_HOURS"
     VALUE_REQUIRED = "VALUE_REQUIRED"
@@ -630,7 +631,7 @@ class GridPreferences(ContractModel):
     filters: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], FiltersAdditionalProperty] | None,
         Field(
-            description="La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte.",
+            description="La recherche et les filtres de la grille, tels que son adresse les écrit : chaque paramètre sous son nom, avec sa valeur en texte. Le serveur les garde tels qu'ils sont écrits, sans connaître les paramètres d'aucune grille. Ainsi la liste des projets de l'accueil, la grille `projects`, garde sous `states` les états choisis, séparés par des virgules comme l'adresse les écrit (`states=pricing,in_progress,completed`) ; un compte qui n'en a rien écrit prend le défaut de l'écran, Chiffrage et En cours, que le contrat ne porte pas (WF-PTF-0030, WF-IHM-0060 ; #1401).",
             max_length=20,
         ),
     ] = None
@@ -796,6 +797,7 @@ class CommandCondition(StrEnum):
     reference_correctable = "reference_correctable"
     revision_has_tasks_and_lines = "revision_has_tasks_and_lines"
     unmerged_amendment_exists = "unmerged_amendment_exists"
+    rate_update_available = "rate_update_available"
     task_not_completed = "task_not_completed"
     task_is_milestone = "task_is_milestone"
     task_not_milestone = "task_not_milestone"
@@ -2511,7 +2513,12 @@ class ContributorKind(StrEnum):
 
 class Contributor(ContractModel):
     user_id: Uuid
-    display_name: str
+    display_name: Annotated[
+        str | None,
+        Field(
+            description="Le nom affiché du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne rendant ni son nom (WF-ADM-0060) ni une phrase (WF-ARC-0110), comme `ActorRef.display_name` (#870). Le tri le range après les noms dans l'ordre croissant (`listContributors`), et la recherche sur le nom ne le retient jamais."
+        ),
+    ]
     kind: ContributorKind
     is_active: Annotated[
         bool,
@@ -2548,7 +2555,12 @@ class ContributorsWrite(ContractModel):
 
 class ContributorSuggestion(ContractModel):
     user_id: Uuid
-    display_name: str
+    display_name: Annotated[
+        str | None,
+        Field(
+            description="Le nom affiché du compte, nullable comme `Contributor.display_name`, pour que la proposition confirmée prenne place dans la liste telle quelle : un compte anonymisé est désactivé, et n'est donc jamais proposé (WF-ADM-0060, #870)."
+        ),
+    ]
     is_active: Annotated[
         bool,
         Field(
@@ -2598,6 +2610,7 @@ class RevisionCommand(StrEnum):
     declare_risk = "declare_risk"
     create_structure = "create_structure"
     merge_structure = "merge_structure"
+    apply_rate_update = "apply_rate_update"
     mark = "mark"
     designate_reference = "designate_reference"
     abandon = "abandon"
@@ -3167,6 +3180,7 @@ class NodeChange(StrEnum):
     progress = "progress"
     budgeted_amount = "budgeted_amount"
     reestimated_amount = "reestimated_amount"
+    payment_delay_days = "payment_delay_days"
     parent = "parent"
 
 

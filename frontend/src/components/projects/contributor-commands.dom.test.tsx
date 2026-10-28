@@ -179,6 +179,16 @@ describe("the modification of the contributors of a project", () => {
     ]);
   });
 
+  it("names an anonymised contributor by the neutral label alone at its row of the editor [WF-ADM-0060-A]", async () => {
+    serve();
+    const anonymized = example("contributors_anonymized") as ContributorReading;
+    render(list(AVAILABLE, anonymized, anonymized));
+    const form = await modify();
+    const marked = form.querySelectorAll("th[scope='row'] [data-anonymized]");
+    expect([...marked].map((each) => each.textContent)).toEqual(["Compte anonymisé"]);
+    expect(form.textContent).not.toMatch(/null/);
+  });
+
   it("inscribes a contributor proposed only once the project manager confirms it, the list unchanged until then [WF-PRJ-0070-A]", async () => {
     const client = serve();
     render(list());

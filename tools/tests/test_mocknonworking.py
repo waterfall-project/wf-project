@@ -54,8 +54,10 @@ def test_the_contract_cites_the_refusal_and_the_import_under_their_answers() -> 
         _answers("exchanges.yaml", "getImport"), "200"
     )
     examples = mocknonworking.examples()
+    assert "node_create_non_working_day" in _cited(_answers("revisions.yaml", "createNode"), "422")
     assert set(examples) == {
         "task_date_non_working_day.json",
+        "node_create_non_working_day.json",
         "import_planning_non_working_day.json",
     }
     assert set(examples) <= set(mockdata.named())
