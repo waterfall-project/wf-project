@@ -204,6 +204,11 @@ ImportReport:
       items: { $ref: '#/ReportRefusal' }
     differences:
       type: array
+      description: >-
+        Les écarts du fichier avec les données existantes (`ImportDifference`). La ligne de
+        provision d'un risque dont un planning retire la tâche porteuse passe sur une autre tâche,
+        et le compte rendu le signale par un écart `updated` de la ligne sur `parent`
+        (WF-RIS-0010, WF-INTF-0040 ; #789).
       items: { $ref: '#/ImportDifference' }
     ignored:
       type: array
@@ -350,9 +355,7 @@ ImportSignal:
         Le motif du signalement, un code d'erreur pour que la saisie et l'import se disent d'une
         même phrase : `NON_WORKING_DAY` seul, tant qu'aucun autre signalement n'existe ; un
         signalement nouveau élargit cette liste, par une modification du contrat.
-    params:
-      type: object
-      additionalProperties: true
+    params: { $ref: ../common.yaml#/ProblemParams }
 
 ImportRejection:
   type: object
@@ -362,9 +365,12 @@ ImportRejection:
     l'utilisateur la retrouve dans son fichier, deux onglets pouvant porter une ligne au même
     rang (#1162). Parmi les motifs :
     une ligne de main-d'œuvre qui laisserait sa tâche sans heure travaillée
-    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), ses `params` nommant les rôles et la tâche en
-    cause comme ceux d'une saisie d'une révision (`resource_role_ids`, `tasks`, chaque tâche par
-    `project_id`, `node_id` et `label`), une ligne de devis d'une catégorie de type provision
+    (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010), ses `params` nommant les rôles en cause par leur
+    identifiant, leur code et leur libellé (`resource_roles` : `resource_role_id`, `code`,
+    `label`), actifs ou désactivés, comme les refus des coûts — le compte rendu se lit sans
+    relire les rôles —, et la tâche par sa lignée et son libellé (`tasks` : `lineage_id`,
+    `label`), comme `ImportDifference` nomme les objets d'un import, la révision importée
+    pouvant n'avoir encore aucun nœud (WF-INTF-0090 ; #768, points 1 et 2), une ligne de devis d'une catégorie de type provision
     pour risques, que seule la déclaration d'un risque crée (`PROVISION_CATEGORY_RESERVED`,
     WF-DEV-0020), chacun avec les paramètres qu'il porte dans un refus ; une ligne existante dont
     la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, que le
@@ -392,9 +398,7 @@ ImportRejection:
         réels (WF-INTF-0040, WF-INTF-0140) — (#1162).
     row: { type: integer, minimum: 1 }
     code: { $ref: ../common.yaml#/ErrorCode }
-    params:
-      type: object
-      additionalProperties: true
+    params: { $ref: ../common.yaml#/ProblemParams }
 
 ReportRefusal:
   type: object
@@ -412,9 +416,7 @@ ReportRefusal:
     l'échec de la fusion décrit : #788.
   properties:
     code: { $ref: ../common.yaml#/ErrorCode }
-    params:
-      type: object
-      additionalProperties: true
+    params: { $ref: ../common.yaml#/ProblemParams }
 
 ImportDifference:
   type: object
@@ -481,7 +483,12 @@ ImportDifference:
         fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent
         — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne
         ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre
-        récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194).
+        récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194). Ainsi la ligne
+        de provision d'un risque dont l'import d'un planning ou la fusion retire la tâche
+        porteuse : elle passe sur la tâche parente de celle-ci, ou, pour une tâche de premier
+        niveau, sur la première tâche de premier niveau restante, et « la confirmation ou le
+        compte rendu le signale » par cet écart, à côté du retrait de la tâche (WF-RIS-0010 ;
+        #789).
       items:
         anyOf:
           - $ref: revisions.yaml#/NodeColumn

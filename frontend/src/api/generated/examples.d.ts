@@ -96,7 +96,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_analysed" | "import_analysing" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked";
@@ -138,7 +138,7 @@ export interface Examples {
     200: "structures" | "structures_amendments" | "structures_estimator" | "structures_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
-    200: "structure_merge_report" | "structure_merge_report_refused" | "structure_merge_report_started_task";
+    200: "structure_merge_report" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
@@ -240,7 +240,7 @@ export interface Examples {
     200: "project_updated";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
+    200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_attached" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";

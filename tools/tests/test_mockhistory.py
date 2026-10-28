@@ -810,10 +810,9 @@ def test_a_line_of_provision_offers_no_payment_delay_it_does_not_carry() -> None
         encoding="utf-8"
     )
     # The motive of every field a node does not accept, neither entered nor computed for it — but
-    # the payment delay of a line of labour, which the specification wants entered: not codified,
-    # followed by #785 (relecture 1).
+    # the payment delay of a line of labour, which the specification wants entered (#785).
     assert "le débours ou le délai de paiement d'une ligne de main-d'œuvre" not in said
-    assert "Le délai de paiement d'une ligne de main-d'œuvre" in said.split("#785", 1)[0]
+    assert "Le délai de paiement se saisit sur une ligne de main-d'œuvre" in said
     paths = (api / "paths" / "revisions.yaml").read_text(encoding="utf-8")
     update = paths.split("operationId: updateEstimateLine\n", 1)[1].split("operationId:", 1)[0]
     for name, text in (

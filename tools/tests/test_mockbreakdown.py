@@ -536,6 +536,56 @@ def test_the_report_before_a_merge_says_what_it_would_do_and_what_refuses_it() -
         assert "variante déclarée" in _summary(name), name
 
 
+def test_a_provision_line_whose_task_is_removed_is_said_moved_to_the_parent_task() -> None:
+    # WF-RIS-0010 : when the task that bears the line of provision is removed by the import of a
+    # planning or the merge of a differential, the line passes onto the parent task, « et la
+    # confirmation ou le compte rendu le signale » — an `updated` of the line on `parent`, as a
+    # line moved under another task (#1194), beside the removal of the task (#789).
+    lines = {
+        node["lineage_id"]: node
+        for node in fixture("nodes_core")["items"]
+        if node["kind"] == "estimate_line"
+    }
+    tasks = {node["lineage_id"]: node for node in _core().values()}
+    mounting = _core()[universe(mockwitness.N.MOUNTING)]
+    assert mounting["task"]["progress"] == "not_started"
+    merged = fixture("structure_merge_report_provision_moved")
+    imported = fixture("import_planning_provision_moved")["report"]
+    assert merged["differences"] == imported["differences"]
+    for report in (merged, imported):
+        [moved] = [each for each in report["differences"] if each["change"] == "updated"]
+        provision = lines[moved["lineage_id"]]
+        assert provision["estimate_line"]["cost_category_id"] == mockwitness.PROVISIONS
+        assert (moved["target"], moved["label"]) == (
+            "estimate_line",
+            provision["estimate_line"]["label"],
+        )
+        assert moved["fields"] == ["parent"]
+        removed = [each for each in report["differences"] if each["change"] == "removed"]
+        [task] = [each for each in removed if each["target"] == "task"]
+        assert (task["lineage_id"], task["label"]) == (
+            mounting["lineage_id"],
+            mounting["task"]["label"],
+        )
+        borne = {
+            lineage for lineage, line in lines.items() if line["parent_id"] == mounting["node_id"]
+        }
+        assert {each["lineage_id"] for each in removed if each["target"] == "estimate_line"} == (
+            borne
+        )
+        [link] = [each for each in removed if each["target"] == "link"]
+        assert (tasks[link["lineage_id"]]["task"]["label"], link["predecessor_label"]) == (
+            "Mise en service",
+            mounting["task"]["label"],
+        )
+        assert (report["completed_tasks"], report["refusals"]) == ([], [])
+    for name in ("structure_merge_report_provision_moved", "import_planning_provision_moved"):
+        summary = _summary(name)
+        assert "variante déclarée" in summary, name
+        assert "« Installation sur site »" in summary, name
+        assert mounting["parent_id"] == universe(mockwitness.N.INSTALLATION), name
+
+
 def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> None:
     # The user confirms what he read: the counters of the main structure and of the amendment the
     # report read, required by the confirmation, refused by 412 if either changed (WF-REV-0050,
@@ -574,6 +624,7 @@ def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> N
         "structure_merge_report",
         "structure_merge_report_started_task",
         "structure_merge_report_refused",
+        "structure_merge_report_provision_moved",
     ):
         report = fixture(name)
         assert report["main_structure_lock_version"] == main["lock_version"], name

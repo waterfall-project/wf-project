@@ -142,15 +142,10 @@ Problem:
       minimum: 400
       maximum: 599
     params:
-      type: object
-      additionalProperties: true
-      properties:
-        state_enum: { $ref: '#/StateEnumeration' }
-      dependentRequired:
-        state: [state_enum]
-        state_enum: [state]
+      allOf: [{ $ref: '#/ProblemParams' }]
       description: >-
-        Paramètres du code, selon le cas : `missing_permission` (un `PermissionCode`),
+        Paramètres du code, selon le cas — ceux que plusieurs refus partagent sont typés par
+        `ProblemParams`, les autres restent ouverts : `missing_permission` (un `PermissionCode`),
         `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
         `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412
         `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une
@@ -205,7 +200,8 @@ Problem:
         leurs seuls identifiants, que
         la session d'une modification du référentiel peut nommer, lisant tous les rôles
         (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes
-        (`resource_role_label`) ; `resource_roles` quand
+        (`resource_role_label`) — non le motif d'une ligne importée, que le compte rendu lit sans
+        relire les rôles, et qui les nomme par `resource_roles` (#768, point 1) ; `resource_roles` quand
         `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role`
         (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou
         désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
@@ -221,7 +217,9 @@ Problem:
         `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou
         importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) :
         les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`,
-        `node_id`, `label`), l'auteur de la saisie consultant son projet ; `projects` pour une
+        `node_id`, `label`), l'auteur de la saisie consultant son projet — au motif d'une ligne
+        importée, par sa lignée et son libellé (`lineage_id`, `label`), comme le compte rendu nomme
+        ses objets (#768, point 2) ; `projects` pour une
         modification du référentiel qui produirait le même effet (`updateCalendar`,
         `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son
         libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans
@@ -615,8 +613,158 @@ FieldProblem:
         qu'un seul champ, quelle que soit l'opération.
     code: { $ref: '#/ErrorCode' }
     params:
-      type: object
-      additionalProperties: true
+      allOf: [{ $ref: '#/ProblemParams' }]
+      description: >-
+        Les paramètres du motif de ce champ, ceux de `Problem.params` (convention #293), typés de
+        même (`ProblemParams`).
+
+ProblemParams:
+  type: object
+  additionalProperties: true
+  description: >-
+    Les paramètres d'un refus (`Problem.params`), d'un motif par champ (`FieldProblem.params`), et
+    du motif d'une ligne collée ou importée, d'un refus d'un compte rendu ou d'un signalement
+    (`PasteRejection.params`, `ImportRejection.params`, `ReportRefusal.params`,
+    `ImportSignal.params`), qui portent les paramètres de leur code dans un refus pour que la
+    saisie, le collage et l'import se disent d'une même phrase (WF-ARC-0110). Ceux que plusieurs
+    refus partagent sont déclarés ici, facultatifs et typés, chacun dans la forme que ses refus lui
+    donnent ; les autres restent ouverts, décrits par `Problem.params` (#768, point 3 ; EP-16). Un
+    schéma par code d'erreur a été écarté : il doublerait le catalogue (`ErrorCode`). `state` et
+    `state_enum` voyagent toujours ensemble.
+  properties:
+    state_enum: { $ref: '#/StateEnumeration' }
+    resource_roles:
+      type: array
+      description: >-
+        Les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son
+        libellé, que l'auteur lise ou non les rôles (`STATE_FORBIDS_OPERATION`,
+        `cost_type_without_role`, `cost_category_without_role`, WF-REF-0030, WF-REF-0040 ;
+        EP-14/L42r) ; et ceux d'une ligne importée qui laisserait sa tâche sans heure travaillée
+        (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection.params`, WF-PLA-0010 ; #768).
+      items: { $ref: '#/ProblemResourceRole' }
+    projects:
+      type: array
+      description: >-
+        Les projets qu'une modification du référentiel laisserait avec une tâche sans heure
+        travaillée, chacun par son libellé et son code, sans identifiant ni tâche
+        (`TASK_WITHOUT_WORKING_HOURS`, `updateCalendar`, `setDefaultCalendar`,
+        `updateResourceRole`, WF-PLA-0010, WF-ADM-0110).
+      items: { $ref: '#/ProblemProject' }
+    tasks:
+      type: array
+      description: >-
+        Les tâches qu'une saisie d'une révision, une fusion, une ligne collée ou importée
+        laisseraient sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : par leur
+        projet, leur nœud et leur libellé pour une saisie, un collage ou une fusion ; par leur
+        lignée et leur libellé au compte rendu d'un import, qui nomme ses objets ainsi
+        (`ImportDifference`) et peut porter sur un projet sans révision en cours, dont aucun nœud
+        n'existe encore (WF-INTF-0090 ; #768, point 2).
+      items:
+        anyOf:
+          - $ref: '#/ProblemTask'
+          - $ref: '#/ProblemImportedTask'
+    estimate_lines:
+      type: array
+      description: >-
+        Les lignes de devis de la révision en cours qui portent un sous-projet dont la suppression
+        est refusée (`STATE_FORBIDS_OPERATION`, `subproject_without_estimate_lines`, WF-DAT-0080).
+      items: { $ref: '#/ProblemEstimateLine' }
+    subproject:
+      allOf: [{ $ref: '#/ProblemSubproject' }]
+      description: >-
+        Le sous-projet qu'une ligne d'une tâche démarrée ou terminée ne peut pas quitter, parce
+        qu'il a reçu des coûts réels (`SUBPROJECT_HAS_ACTUAL_COSTS`, dans `fields[].params`, le
+        motif d'une cellule collée ou d'une ligne importée, WF-PRJ-0050).
+    columns:
+      type: array
+      description: >-
+        Les colonnes exigées de la correspondance de l'extraction des coûts réels qui n'ont aucun
+        intitulé, dans l'ordre de la correspondance (`STATE_FORBIDS_OPERATION`,
+        `actual_cost_mapping_complete`, `openImport`, WF-REF-0190).
+      items: { $ref: schemas/reference.yaml#/ActualCostSourceColumn }
+    missing_columns:
+      type: array
+      description: >-
+        Les colonnes exigées qu'une extraction de coûts réels ne porte sous aucun de leurs
+        intitulés, dans l'ordre de la correspondance (`FILE_FORMAT_UNREADABLE`, `openImport`,
+        WF-REF-0190).
+      items: { $ref: '#/ProblemMissingColumn' }
+  dependentRequired:
+    state: [state_enum]
+    state_enum: [state]
+
+ProblemResourceRole:
+  type: object
+  required: [resource_role_id, code, label]
+  description: Un rôle de ressource nommé par un refus, actif ou désactivé (`ProblemParams.resource_roles`).
+  properties:
+    resource_role_id: { $ref: '#/Uuid' }
+    code: { type: string }
+    label: { type: string }
+
+ProblemProject:
+  type: object
+  required: [project_label, project_code]
+  description: Un projet nommé par un refus, sans identifiant (`ProblemParams.projects`).
+  properties:
+    project_label: { type: string }
+    project_code:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: Nul pour un projet sans code.
+
+ProblemTask:
+  type: object
+  required: [project_id, node_id, label]
+  description: >-
+    Une tâche nommée par le refus d'une saisie, d'un collage ou d'une fusion, l'auteur consultant
+    son projet (`ProblemParams.tasks`).
+  properties:
+    project_id: { $ref: '#/Uuid' }
+    node_id: { $ref: '#/Uuid' }
+    label: { type: string }
+
+ProblemImportedTask:
+  type: object
+  required: [lineage_id, label]
+  description: >-
+    Une tâche nommée par le motif d'une ligne importée (`ImportRejection.params.tasks`), par sa
+    lignée, comme `ImportDifference` nomme les objets d'un import (#768, point 2).
+  properties:
+    lineage_id: { $ref: '#/Uuid' }
+    label: { type: string }
+
+ProblemEstimateLine:
+  type: object
+  required: [structure_id, structure_label, node_id, row_number, label]
+  description: >-
+    Une ligne de devis nommée par un refus (`ProblemParams.estimate_lines`) : sa structure et le
+    libellé de celle-ci, son nœud, son numéro de ligne et son libellé.
+  properties:
+    structure_id: { $ref: '#/Uuid' }
+    structure_label: { type: string }
+    node_id: { $ref: '#/Uuid' }
+    row_number: { type: integer, minimum: 1 }
+    label: { type: string }
+
+ProblemSubproject:
+  type: object
+  required: [subproject_id, label]
+  description: Un sous-projet nommé par un refus (`ProblemParams.subproject`).
+  properties:
+    subproject_id: { $ref: '#/Uuid' }
+    label: { type: string }
+
+ProblemMissingColumn:
+  type: object
+  required: [column, labels]
+  description: >-
+    Une colonne exigée qu'une extraction de coûts réels ne porte pas, avec les intitulés que la
+    correspondance déclare pour elle (`ProblemParams.missing_columns`).
+  properties:
+    column: { $ref: schemas/reference.yaml#/ActualCostSourceColumn }
+    labels:
+      type: array
+      items: { type: string }
 
 SortOrder:
   type: string

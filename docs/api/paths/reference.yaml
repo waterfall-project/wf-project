@@ -1889,4 +1889,6 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               duplicate: { $ref: ../../../fixtures/api/actual_cost_mapping_duplicate.json }
+              labels_refused: { $ref: ../../../fixtures/api/actual_cost_mapping_labels_refused.json }
+              kept_columns_too_many: { $ref: ../../../fixtures/api/actual_cost_mapping_kept_columns_too_many.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

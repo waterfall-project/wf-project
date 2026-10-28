@@ -343,6 +343,7 @@ paths = [
     "fixtures/api/estimate_line_completed_refused.json",
     "fixtures/api/nodes_move_completed_refused.json",
     "fixtures/api/estimate_line_updated_amendment.json",
+    "fixtures/api/estimate_line_payment_delay_amendment.json",
     "fixtures/api/paste_plan_amendment.json",
     "fixtures/api/paste_applied_amendment.json",
     "fixtures/api/paste_plan_amendment_skipping.json",

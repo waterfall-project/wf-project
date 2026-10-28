@@ -1,0 +1,25 @@
+{
+  "summary": "La correspondance du témoin envoyée aujourd'hui avec trois intitulés refusés à la fois, chacun désigné dans l'ordre du corps : un second intitulé vide pour le numéro de pièce (/columns/1/labels/1), une colonne conservée de 201 caractères, au-delà des 200 admis (/kept_columns/1), et « fournisseur » déclarée conservée en quatrième (/kept_columns/3), qui, comparée sans égard à la casse, double « Fournisseur », la première colonne conservée : le doublon nomme la colonne conservée qu'il double. Rien n'est écrit (WF-REF-0190 ; #1514).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/columns/1/labels/1",
+        "code": "VALUE_REQUIRED"
+      },
+      {
+        "pointer": "/kept_columns/1",
+        "code": "VALUE_TOO_LONG"
+      },
+      {
+        "pointer": "/kept_columns/3",
+        "code": "DUPLICATE_COLUMN_LABEL",
+        "params": {
+          "duplicate_of": "/kept_columns/0"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001559"
+  }
+}

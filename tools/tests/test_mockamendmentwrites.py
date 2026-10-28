@@ -235,6 +235,31 @@ def test_the_hours_entered_on_the_amendment_rewrite_its_line_and_climb_to_its_an
     assert updated["structure_lock_version"] == amendment["lock_version"] + 1
 
 
+def test_the_payment_delay_entered_on_a_labour_line_changes_neither_amount_nor_date(
+    read: dict[str, Node], totals: dict[str, Any]
+) -> None:
+    # #785: the payment delay is « saisissable sur toute ligne autre qu'une ligne de provision »
+    # (WF-DEV-0020), labour included: the line names it among the fields it accepts, and the
+    # entry rewrites the delay alone, one version further, no amount and no date moving.
+    delayed = gesture("estimate_line_payment_delay_amendment")
+    [line] = delayed["nodes"]
+    was = read[own(mockamendmentwrites.DELAYED_LINE)]
+    assert was["estimate_line"]["resource_role_id"] is not None
+    assert "estimate_line.payment_delay_days" in was["editable_fields"]
+    assert (line["node_id"], line["lock_version"]) == (was["node_id"], was["lock_version"] + 1)
+    facet, before = line["estimate_line"], was["estimate_line"]
+    assert (before["payment_delay_days"], facet["payment_delay_days"]) == (
+        0,
+        mockamendmentwrites.DELAYED_DAYS,
+    )
+    assert {key for key in facet if facet[key] != before[key]} == {"payment_delay_days"}
+    assert (delayed["rescheduled"], delayed["reinflated"]) == ([], [])
+    assert delayed["totals"] == totals
+    for name in ("estimate_line_updated_amendment", "paste_applied_amendment"):
+        written = {node["node_id"] for node in gesture(name)["nodes"]}
+        assert line["node_id"] not in written, name
+
+
 def test_the_block_pasted_on_the_amendment_writes_the_rows_under_its_line_in_the_grid() -> None:
     # #1277: the rows of the block write the rows of the grid at the same distance under the line
     # pasted on, as the installation is read on the differential (`nodes_amendment`): the rows 7

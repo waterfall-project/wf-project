@@ -66,11 +66,25 @@ DATA = {
     # The name of a file deposited, as the person chose it (#350).
     "ChunkedUpload.filename": "a name of a file",
     "FileUpload.filename": "a name of a file",
+    # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
+    # project, a task, a line and its structure, a subproject, and the labels of a column of the
+    # extraction of actual costs, as the mapping declares them (``ProblemParams``, #768).
+    "ProblemResourceRole.code": "a code",
+    "ProblemResourceRole.label": "a label",
+    "ProblemProject.project_label": "a label",
+    "ProblemProject.project_code": "a code",
+    "ProblemTask.label": "a label",
+    "ProblemImportedTask.label": "a label",
+    "ProblemEstimateLine.structure_label": "a label",
+    "ProblemEstimateLine.label": "a label",
+    "ProblemSubproject.label": "a label",
+    "ProblemMissingColumn.labels": "labels of the extraction",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
-# refusal, and of each field it refuses, which name its condition by codes and values. Any other
-# — ``AuditParams`` reopened — fails the test.
-OPEN = {"Problem.params", "FieldProblem.params"}
+# refusal, and of each field it refuses, which name its condition by codes and values, the ones
+# several refusals share typed (``ProblemParams``, #768). Any other — ``AuditParams`` reopened —
+# fails the test.
+OPEN = {"ProblemParams"}
 
 
 class Texts:
