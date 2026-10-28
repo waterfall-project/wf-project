@@ -1429,6 +1429,155 @@
       "matrixCell": {
         "help": "Case de la matrice de risques où tombent sa probabilité et sa gravité, et la zone qui la colore."
       }
+    },
+    "users": {
+      "lastName": {
+        "help": "Nom de famille du titulaire du compte ; un compte anonymisé n’en a plus."
+      },
+      "firstName": {
+        "help": "Prénom du titulaire du compte."
+      },
+      "email": {
+        "help": "Adresse électronique du compte, par laquelle il se connecte et reçoit son invitation."
+      },
+      "origin": {
+        "help": "D’où vient le compte : créé dans Waterfall, importé de l’annuaire ou créé par le fournisseur d’identité."
+      },
+      "attachment": {
+        "help": "Nœud d’organisation auquel le compte est rattaché."
+      },
+      "accessRoles": {
+        "help": "Rôles d’habilitation que porte le compte : ils lui donnent ses permissions."
+      },
+      "state": {
+        "help": "État du compte : un compte désactivé reste listé, mais ne peut plus se connecter."
+      },
+      "password_link": {
+        "help": "Lien par lequel le titulaire d’un compte local fixe son mot de passe."
+      },
+      "anonymize": {
+        "help": "Anonymisation d’un compte désactivé : ses nom, prénom et adresse sont effacés, définitivement."
+      }
+    },
+    "accessRoles": {
+      "label": {
+        "help": "Libellé du rôle d’habilitation."
+      },
+      "roleKind": {
+        "help": "Nature du rôle : prédéfini à l’installation, ou composé par un administrateur."
+      },
+      "holders": {
+        "help": "Nombre de comptes qui portent le rôle."
+      },
+      "delete": {
+        "help": "Suppression du rôle, possible tant qu’aucun compte ne le porte."
+      }
+    },
+    "audit": {
+      "createdAt": {
+        "help": "Date et heure de la création de la ligne, à l’heure de ce poste."
+      },
+      "createdBy": {
+        "help": "Compte qui a créé la ligne, ou la plateforme pour un traitement automatique."
+      },
+      "updatedAt": {
+        "help": "Date et heure de la dernière modification de la ligne, à l’heure de ce poste."
+      },
+      "updatedBy": {
+        "help": "Compte qui a modifié la ligne en dernier, ou la plateforme pour un traitement automatique."
+      }
+    },
+    "auditLog": {
+      "occurredAt": {
+        "help": "Date et heure de l’action inscrite, à l’heure de ce poste."
+      },
+      "author": {
+        "help": "Compte qui a agi, sous le nom qu’il portait alors, ou la plateforme."
+      },
+      "action": {
+        "help": "Action inscrite au journal, et sous elle ce qu’elle a fait à son objet."
+      },
+      "objectKind": {
+        "help": "Nature de l’objet sur lequel porte l’action."
+      },
+      "object": {
+        "help": "Objet sur lequel porte l’action, sous le nom qu’il portait alors."
+      },
+      "objectHistory": {
+        "help": "Toutes les inscriptions qui portent sur le même objet."
+      },
+      "project": {
+        "help": "Projet de l’objet, ou « Hors projet »."
+      },
+      "correlation": {
+        "help": "Identifiant de la requête qui a produit l’inscription : il relie les inscriptions d’une même requête."
+      }
+    },
+    "backups": {
+      "takenAt": {
+        "help": "Date et heure de la sauvegarde, à l’heure de ce poste."
+      },
+      "size": {
+        "help": "Taille de la sauvegarde."
+      },
+      "verification": {
+        "help": "Vérification de la sauvegarde : en attente, vérifiée ou échouée. Seule une sauvegarde vérifiée se télécharge et se restaure."
+      },
+      "origin": {
+        "help": "Déclenchement de la sauvegarde : manuelle ou planifiée."
+      },
+      "retention": {
+        "help": "Marque de conservation : une sauvegarde marquée à conserver échappe à la rotation."
+      },
+      "download": {
+        "help": "Téléchargement de l’archive de la sauvegarde."
+      },
+      "restore": {
+        "help": "Restauration de la plateforme entière depuis la sauvegarde."
+      }
+    },
+    "portfolioProjects": {
+      "label": {
+        "help": "Libellé du projet ; un lien l’ouvre quand vous pouvez le consulter."
+      },
+      "code": {
+        "help": "Code du projet."
+      },
+      "state": {
+        "help": "État du projet dans son cycle de vie."
+      },
+      "referenceBudget": {
+        "help": "Budget de référence du projet."
+      },
+      "currentEstimate": {
+        "help": "Devis courant d’un projet en chiffrage."
+      },
+      "winProbability": {
+        "help": "Probabilité de gain d’un projet en chiffrage."
+      },
+      "projectManagerProjection": {
+        "help": "Projection à terminaison du chef de projet, pour un projet en cours."
+      },
+      "deltaToReference": {
+        "help": "Écart de la projection du chef de projet au budget de référence."
+      },
+      "costIndex": {
+        "help": "Indice de coût du projet, et sa zone."
+      },
+      "scheduleIndex": {
+        "help": "Indice de délai du projet, et sa zone."
+      },
+      "lastMarkedAt": {
+        "help": "Date de la dernière révision marquée du projet."
+      }
+    },
+    "referenceCommands": {
+      "state": {
+        "help": "État de l’objet, actif ou désactivé, et la commande qui le change."
+      },
+      "modify": {
+        "help": "Modification de l’objet, dans son formulaire."
+      }
     }
   },
   "help": {
