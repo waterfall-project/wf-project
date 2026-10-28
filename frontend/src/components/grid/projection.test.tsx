@@ -258,9 +258,12 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
 // place a node beside another (US-0460/L3, #1188), weighs about a hundredth of each answer: 0.655,
 // 0.475 and 0.63 before it. The calendar of the task, which the Gantt tints the days off of
 // (US-0530/L5), adds 118 400 characters to the planning rows, 1 000 tasks of it: 3.41 to 3.53
-// million characters of the 7.24 of the volume, 0.471 to 0.488; the bound was 0.485 before it.
+// million characters of the 7.24 of the volume, 0.471 to 0.488; the bound was 0.485 before it. The
+// payment delay a line of labour now accepts (`editable_fields`, #785) adds it to what the 2 770
+// lines of labour of the volume accept, which the planning rows keep: 3.63 million characters of the
+// 7.34 of the volume, 0.495; the bound was 0.49 before it.
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.49);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.5);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
