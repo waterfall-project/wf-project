@@ -192,6 +192,74 @@ def test_the_refusal_of_a_double_names_the_label_doubled_and_the_one_it_doubles(
     assert "DUPLICATE_COLUMN_LABEL" in _schemas("../common.yaml")["ErrorCode"]["enum"]
 
 
+LABEL_BOUND = 200
+"""The most characters a label admits (`ActualCostColumnLabel`)."""
+
+
+def _refused(body: Entry) -> list[Entry]:
+    """Return the refusals by field of the labels of a body, in its order (`setActualCostMapping`).
+
+    A label empty, by `VALUE_REQUIRED`; longer than 200 characters, by `VALUE_TOO_LONG`; one that
+    doubles another, by `DUPLICATE_COLUMN_LABEL`, naming the one it doubles.
+    """
+    doubles = dict(_doubles(body))
+    found: list[Entry] = []
+    for pointer in [
+        f"/columns/{rank}/labels/{index}"
+        for rank, column in enumerate(body["columns"])
+        for index in range(len(column["labels"]))
+    ] + [f"/kept_columns/{index}" for index in range(len(body["kept_columns"]))]:
+        label = _pointed(body, pointer)
+        if not label:
+            found.append({"pointer": pointer, "code": "VALUE_REQUIRED"})
+        elif len(label) > LABEL_BOUND:
+            found.append({"pointer": pointer, "code": "VALUE_TOO_LONG"})
+        elif pointer in doubles:
+            found.append(
+                {
+                    "pointer": pointer,
+                    "code": "DUPLICATE_COLUMN_LABEL",
+                    "params": {"duplicate_of": doubles[pointer]},
+                }
+            )
+    return found
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
+def test_several_labels_refused_at_once_are_each_named_in_the_order_of_the_body() -> None:
+    # #1514: the refusals the page of the mapping reads besides the double of a column read — a
+    # label empty, one too long, and a double of a kept column —, in one answer, in the order of
+    # the body, so that the first takes the focus; nothing is written.
+    witness = fixture("actual_cost_mapping")
+    columns = [
+        {"column": column["column"], "labels": column["labels"]} for column in witness["columns"]
+    ]
+    columns[1]["labels"] = [*columns[1]["labels"], ""]
+    first, second = witness["kept_columns"]
+    sent = {"columns": columns, "kept_columns": [first, "x" * 201, second, first.lower()]}
+    refused = fixture("actual_cost_mapping_labels_refused")
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == _refused(sent)
+    assert [field["code"] for field in refused["fields"]] == [
+        "VALUE_REQUIRED",
+        "VALUE_TOO_LONG",
+        "DUPLICATE_COLUMN_LABEL",
+    ]
+    [double] = [field for field in refused["fields"] if "params" in field]
+    assert double["params"]["duplicate_of"].startswith("/kept_columns/")
+
+
+@pytest.mark.requirement("WF-REF-0190-A")
+def test_too_many_kept_columns_are_refused_on_the_list_and_not_on_one_of_them() -> None:
+    # #1514: a pointer the form presents on no line of its own — the list of the kept columns,
+    # beyond its 50 — is said under the form.
+    bound = _schemas("reference.yaml")["ActualCostMappingWrite"]["properties"]["kept_columns"]
+    assert len(fixture("actual_cost_mapping")["kept_columns"]) < bound["maxItems"]
+    refused = fixture("actual_cost_mapping_kept_columns_too_many")
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [{"pointer": "/kept_columns", "code": "VALUE_TOO_LONG"}]
+
+
 @pytest.mark.requirement("WF-REF-0190-A")
 def test_labels_compare_without_regard_to_case_accents_or_spaces_at_the_ends() -> None:
     assert normalized("  NOM MATRICULE ") == normalized("Nom Matricule")

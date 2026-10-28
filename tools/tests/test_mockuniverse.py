@@ -440,7 +440,11 @@ def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_
         [aimed] = {found for found in identifier.findall(example["summary"]) if found in kinds}
         assert kinds[aimed] != "main", path.name
         read[path.name] = value["import_id"]
-    assert set(read) == {"import_analysed.json", "import_analysing.json"}
+    assert set(read) == {
+        "import_analysed.json",
+        "import_analysing.json",
+        "import_estimate_task_without_hours.json",
+    }
     assert listed
     assert listed <= set(read.values())
 

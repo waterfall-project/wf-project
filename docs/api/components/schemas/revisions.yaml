@@ -414,7 +414,9 @@ StructureMergeReport:
       description: >-
         Les écarts du différentiel avec la structure principale, tâches, lignes de devis et
         liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée
-        dans la structure principale.
+        dans la structure principale. La ligne de provision d'un risque dont le différentiel
+        retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un
+        écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789).
       items: { $ref: exchanges.yaml#/ImportDifference }
     completed_tasks:
       type: array
@@ -495,8 +497,10 @@ Node:
       description: >-
         Champs de la facette que ce nœud-ci accepte en écriture, symétrique de
         `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne
-        hors main-d'œuvre le débours unitaire et le délai de paiement — nul pour la
-        main-d'œuvre (§3.2.5, WF-DEV-0020) —, une ligne de provision ni les uns ni les autres, ni
+        hors main-d'œuvre le débours unitaire, l'une et l'autre le délai de paiement — nul par
+        défaut pour la main-d'œuvre, et « saisissable sur toute ligne autre qu'une ligne de
+        provision » (WF-DEV-0020, WF-IND-0100 ; #785) —, une ligne de provision ni les uns ni les
+        autres, ni
         son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
         (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou
         terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle
@@ -1591,8 +1595,9 @@ EstimateLineUpdate:
     main-d'œuvre, le rôle ou la charge d'une autre, le délai de paiement d'une ligne de
     provision, qui n'en porte pas (WF-DEV-0020, WF-IND-0100 ; EP-14/L42s) — est refusé par 422
     `VALIDATION_FAILED`, `fields` sur son champ, motif `FIELD_NOT_ACCEPTED`, et le nœud dit
-    lesquels il accepte (`editable_fields`). Le délai de paiement d'une ligne de main-d'œuvre,
-    que la spécification veut saisissable et que le nœud n'offre pas encore, est suivi par #785.
+    lesquels il accepte (`editable_fields`). Le délai de paiement se saisit sur une ligne de
+    main-d'œuvre comme sur une ligne hors main-d'œuvre, nul par défaut pour la première
+    (WF-DEV-0020 ; #785).
   properties:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     cost_category_id: { $ref: ../common.yaml#/Uuid }
@@ -1862,9 +1867,7 @@ PasteRejection:
         La colonne de la cellule refusée ; absente quand le refus porte sur la ligne
         entière.
     code: { $ref: ../common.yaml#/ErrorCode }
-    params:
-      type: object
-      additionalProperties: true
+    params: { $ref: ../common.yaml#/ProblemParams }
 
 PasteApplied:
   description: >-

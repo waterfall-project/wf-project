@@ -98,7 +98,7 @@ afterEach(() => {
 });
 
 describe("the sub-project, the payment delay and the deactivated object of a line (#349)", () => {
-  it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, the sub-project being chosen from the menu of the cell", async () => {
+  it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, on a line of labour as on a disbursement, the sub-project being chosen from the menu of the cell [WF-DEV-0020-A]", async () => {
     const client = serve();
     const read = structuredClone(estimate);
     const disbursement = read.items[DISBURSEMENT]?.estimate_line;
@@ -110,10 +110,10 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     expect(cell(PROVISION, "subproject")).toHaveTextContent(/^$/);
     expect(cell(DISBURSEMENT, "payment_delay_days")).toHaveTextContent(/^30$/);
     expect(cell(LABOUR, "payment_delay_days")).toHaveTextContent(/^0$/);
-    // A line of labour shows the delay the server gives, nought, without entering it — its node
-    // does not accept it —; a disbursement takes one, a whole number of days, which the contract
-    // takes as an integer.
-    expect(cell(LABOUR, "payment_delay_days")).toHaveAttribute("aria-readonly", "true");
+    // A line of labour takes a delay as a disbursement does, its node accepting it (#785): the cell
+    // follows `editable_fields`, with no rule of its own; a delay is a whole number of days, which
+    // the contract takes as an integer.
+    expect(cell(LABOUR, "payment_delay_days")).not.toHaveAttribute("aria-readonly");
     cell(DISBURSEMENT, "payment_delay_days").focus();
     await userEvent.keyboard("{Enter}");
     const field = screen.getByRole("textbox", { name: "Délai de paiement (j)" });
@@ -134,6 +134,14 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
       expect(written(client)).toHaveLength(1);
     });
     expect(written(client)).toEqual([{ payment_delay_days: 45, lock_version: 1 }]);
+    // The same on a line of labour: the delay is entered and sent as the node accepts it.
+    cell(LABOUR, "payment_delay_days").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.keyboard("20{Enter}");
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)[1]).toMatchObject({ payment_delay_days: 20 });
   });
 
   it("marks the lines that bear a deactivated role, as the server says it, and keeps them readable [WF-REF-0010-A]", async () => {

@@ -429,8 +429,9 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
 def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
-    A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
-    another takes its unit disbursement and its payment delay; a provision computes its
+    A labour line takes its role and its hours, another its unit disbursement; both take their
+    payment delay, nought by default for labour and « saisissable sur toute ligne autre qu'une
+    ligne de provision » (WF-DEV-0020, WF-IND-0100, #785); a provision computes its
     quantity and its unit disbursement from its risk, and takes neither, nor its category
     (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered. Its subproject is the
     one its risk designates, computed too: the line does not rewrite the designation of the risk,
@@ -454,13 +455,8 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
             ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
         )
     else:
-        editable.extend(
-            [
-                "estimate_line.quantity",
-                "estimate_line.unit_disbursement",
-                "estimate_line.payment_delay_days",
-            ]
-        )
+        editable.extend(["estimate_line.quantity", "estimate_line.unit_disbursement"])
+    editable.append("estimate_line.payment_delay_days")
     if not is_held:
         editable.append("estimate_line.subproject_id")
     return Fields([], editable)

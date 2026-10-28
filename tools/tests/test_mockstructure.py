@@ -482,6 +482,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line.resource_role_id",
         "estimate_line.quantity",
         "estimate_line.hours",
+        "estimate_line.payment_delay_days",
         "estimate_line.subproject_id",
     ]
     # Row 39, of the critical path, not started, after the factory acceptance of row 18; row 311,

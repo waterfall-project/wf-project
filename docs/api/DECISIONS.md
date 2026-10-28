@@ -8035,6 +8035,99 @@ Sans objet ou hors du lot :
 
 **Corrélations** 1551 à 1558.
 
+### Les comptes rendus et les paramètres des refus (US-0640/L2, #1330)
+
+Les constats #768, #789 et #785 des relectures d'EP-14, relus sur le contrat qu'EP-15 a laissé, et
+#1514, confié à ce lot par l'auteur le 2026-10-27. Aucune opération nouvelle.
+
+Sans objet :
+
+- #789, la tâche rangée ailleurs, caduc : `ImportDifference.fields` nomme `parent` depuis #1194
+  (`ImportDifferenceField`), et `structure_merge_report` présente déjà la « Mise en service »
+  déplacée sous les « Essais sur site » par un écart `updated` sur `duration` et `parent`. Les deux
+  exemples que le constat visait ne s'en servaient pas encore : `structure_merge_report_refused` et
+  `import_planning_rejected`, qui rangent « Câblage des armoires » sous « Installation sur site »,
+  présentent désormais la tâche modifiée par son parent, à côté du motif qui les refuse.
+
+- **Les paramètres des refus reçoivent un schéma** (#768, point 3 ; décision du cadrage d'EP-16).
+  `ProblemParams` déclare, facultatifs et typés, ceux que plusieurs refus partagent, chacun dans la
+  forme que ses refus et ses exemples lui donnaient déjà : `resource_roles`
+  (`ProblemResourceRole` : `resource_role_id`, `code`, `label`), `projects` (`ProblemProject` :
+  `project_label`, `project_code` nul pour un projet sans code), `tasks` (`ProblemTask` :
+  `project_id`, `node_id`, `label`, ou `ProblemImportedTask` au motif d'une ligne importée,
+  ci-dessous), `estimate_lines` (`ProblemEstimateLine` : `structure_id`, `structure_label`,
+  `node_id`, `row_number`, `label`), `subproject` (`ProblemSubproject` : `subproject_id`, `label`),
+  `columns` (des `ActualCostSourceColumn`) et `missing_columns` (`ProblemMissingColumn` : `column`,
+  `labels`), avec `state_enum` et la règle qui le lie à `state`. Il reste ouvert aux autres
+  (`additionalProperties: true`), que la description de `Problem.params` continue de dire. Il est
+  le schéma de `Problem.params`, et aussi de `FieldProblem.params`, `PasteRejection.params`,
+  `ImportRejection.params`, `ReportRefusal.params` et `ImportSignal.params` : chacun « porte les
+  paramètres de son code dans un refus », que le front lit d'une même fonction
+  (`i18n/problem.ts`), et `subproject` n'existe que dans les paramètres d'un champ, d'une cellule
+  ou d'une ligne. Le client les reçoit typés, non plus en `unknown`. Écarté par le cadrage : un
+  schéma par code d'erreur (`oneOf`), qui doublerait le catalogue. Le service range ses paramètres
+  dans `ProblemParams` et laisse absent ce que l'erreur ne donne pas, sans écrire `null` : un nul
+  que les paramètres portent, le code d'un projet qui n'en a pas, n'est plus retiré de l'enveloppe
+  (`waterfall.api.problems`) ; une propriété typée donnée à `None` est laissée absente, et une forme
+  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du modèle engendré change avec le schéma (`Params` devient
+  `ProblemParams`), et les objets ouverts que le test « aucune phrase » admet se réduisent à lui.
+- **Le compte rendu d'import nomme le rôle et la tâche d'une ligne rejetée** (#768, points 1 et 2).
+  Une ligne de main-d'œuvre importée qui laisserait sa tâche sans heure travaillée
+  (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection`) nomme ses rôles par `resource_roles`, chacun
+  par son identifiant, son code et son libellé, actifs ou désactivés, comme les refus des coûts
+  depuis EP-14/L42r : le compte rendu se lit sans relire les rôles, qu'un utilisateur sans
+  `resource_settings.read` ne lit pas. Elle nomme sa tâche par sa lignée et son libellé (`tasks`,
+  `ProblemImportedTask` : `lineage_id`, `label`), comme `ImportDifference` nomme les objets d'un
+  import : un import sur un projet sans révision en cours n'a encore aucun nœud de la révision qu'il
+  écrira (WF-INTF-0090). Le refus d'une saisie, d'un collage et d'une fusion garde
+  `resource_role_ids` et les tâches par leur nœud : l'auteur y consulte son projet et en lit les
+  rôles d'après ses lignes. Aucune situation du témoin ne laisse une tâche sans heure travaillée
+  par une ligne importée, les calendriers de l'univers se recoupant tous du lundi au jeudi : l'exemple
+  est une variante déclarée, écrite à la main comme `structure_merge_report_refused`,
+  `import_estimate_task_without_hours` (`getImport`, dernier des 200). Il reprend l'import du devis
+  de `import_analysed` et rejette sa quatrième ligne de l'onglet « Hors lot » : `resource_roles` y
+  nomme le monteur câbleur et le technicien de mise en service, `tasks` le « Câblage des armoires »
+  par sa lignée. Un test d'outil le recoupe avec les rôles et le cœur du témoin, un test du back le
+  fait lire en entier par le modèle engendré.
+- **La ligne de provision déplacée, au compte rendu** (#789, WF-RIS-0010). Quand l'import d'un
+  planning ou la fusion d'un différentiel retire la tâche qui porte une ligne de provision, la ligne
+  passe sur la tâche parente — ou, pour une tâche de premier niveau, sur la première tâche de
+  premier niveau restante —, « et la confirmation ou le compte rendu le signale ». Le compte rendu le
+  dit par un écart `updated` de la ligne (`target` à `estimate_line`) sur `parent`, le mécanisme
+  d'une ligne déplacée sous une autre tâche (#1194), à côté du retrait de la tâche : aucun schéma
+  nouveau, et la ligne se lit comme toute ligne du compte rendu, par sa lignée et son libellé.
+  Écarté : un écart propre à la provision, ou le nom de la tâche qui la reçoit, que le compte rendu
+  ne donne pour aucune ligne déplacée. Exemples écrits à la main, variantes déclarées : la ligne de
+  provision du « Risque de reprise du câblage » portée par le « Montage des armoires sur site », non
+  démarré, au lieu du « Câblage des armoires », démarré, dont le retrait serait conservé
+  (`kept`) — `structure_merge_report_provision_moved`, dernier des 200 de
+  `getStructureMergeReport`, la fusion d'un « Avenant 4 » qui retire le montage, et
+  `import_planning_provision_moved`, dernier des 200 de `getImport`, un planning qui ne le porte
+  plus ; l'un et l'autre présentent la tâche retirée, ses deux lignes, sa liaison à la « Mise en
+  service », et la ligne de provision passée sur « Installation sur site ».
+- **Le délai de paiement d'une ligne de main-d'œuvre** (#785, WF-DEV-0020). WF-DEV-0020 le veut
+  « saisissable sur toute ligne autre qu'une ligne de provision », nul par défaut pour la
+  main-d'œuvre, et le Vérif de WF-IND-0100 le saisit « sur toutes les lignes, main-d'œuvre
+  comprise ». `editable_fields` d'une ligne de main-d'œuvre nomme `estimate_line.payment_delay_days`,
+  après sa charge et avant son sous-projet (`wftools.mockstructure.line_fields`) ; la description
+  d'`EstimateLineUpdate` ne le dit plus suivi. `EstimateLineWrite` et `EstimateLineUpdate`
+  portaient déjà le champ : seuls la ligne et ses exemples changent, régénérés. La cellule du devis
+  suit `editable_fields`, sans code propre (US-0640). Exemple engendré,
+  `estimate_line_payment_delay_amendment`, dernier des 200 d'`updateEstimateLine` : sur l'avenant 2,
+  le délai du « Raccordement des borniers » saisi à 30 jours, aucun montant ni aucune date ne
+  changeant ; le témoin des parcours (`test_the_marks_the_journeys_read`) nomme le champ sur la
+  ligne 28.
+- **Les refus de la correspondance des coûts réels** (#1514). Deux exemples écrits à la main,
+  derniers des 422 de `setActualCostMapping` : `actual_cost_mapping_labels_refused`, trois
+  intitulés refusés à la fois, dans l'ordre du corps — un intitulé vide d'une colonne lue
+  (`VALUE_REQUIRED`), une colonne conservée de 201 caractères (`VALUE_TOO_LONG`) et un doublon
+  d'une colonne conservée (`DUPLICATE_COLUMN_LABEL`, `duplicate_of` à `/kept_columns/0`) — ; et
+  `actual_cost_mapping_kept_columns_too_many`, cinquante et une colonnes conservées, refusées au
+  pointeur de la liste (`/kept_columns`), qu'aucune ligne du formulaire ne présente seule. Les
+  tests de la page qui les lisent sont du front (#1514).
+
+**Corrélations** 1559 et 1560 ; **import** `…0a19`.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

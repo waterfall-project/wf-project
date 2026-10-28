@@ -183,11 +183,15 @@ describe("the sentence of a refusal", () => {
     }
   });
 
-  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have", () => {
+  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have, nor an enumeration named after a property every object inherits (#413)", () => {
     const { params, ...refused } = example("project_indicators_not_in_progress") as ProblemText;
     const bare = "The current state does not allow this operation.";
     expect(say({ ...refused, params: { state: params?.state } }, "en")).toBe(bare);
     expect(say({ ...refused, params: { ...params, state: "occurred" } }, "en")).toBe(bare);
+    for (const state_enum of ["toString", "__proto__"]) {
+      const forged = { ...params, state_enum } as NonNullable<ProblemText["params"]>;
+      expect(say({ ...refused, params: forged }, "en")).toBe(bare);
+    }
   });
 
   it("lists the missing prerequisites in the reader's language", () => {
@@ -238,19 +242,13 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("names only the well-formed lines a refusal gives, and none of an empty list", () => {
+  it("names no line of an empty list, the condition alone said", () => {
+    // The lines are typed by the contract (`ProblemParams.estimate_lines`, #768): a malformed one is
+    // a type error, no longer a case the sentence reads.
     const { params, ...refused } = example("subproject_delete_estimated") as ProblemText;
-    const given: unknown = params?.estimate_lines;
-    const first: unknown = Array.isArray(given) ? given[0] : undefined;
     const condition =
       "The current state does not allow this operation. Unmet condition: no estimate line of the " +
       "current revision bearing the subproject.";
-    // A line without its number as a number is left out, the other named.
-    const mixed = { ...params, estimate_lines: [first, { row_number: "11", label: "Borniers" }] };
-    expect(say({ ...refused, params: mixed }, "en")).toBe(
-      `${condition} Estimate lines of the current revision that bear the subproject: line 10 ` +
-        "“Raccordement des borniers”. A provision line changes subproject through its risk.",
-    );
     expect(say({ ...refused, params: { ...params, estimate_lines: [] } }, "en")).toBe(condition);
   });
 
@@ -264,6 +262,7 @@ describe("the sentence of a refusal", () => {
       .slice(0, LINES_IN_SENTENCE + 1)
       .map(({ node_id, row_number, estimate_line }) => ({
         structure_id: "01926f3a-7c00-7000-8000-000000000201",
+        structure_label: "Structure principale",
         node_id,
         row_number,
         label: estimate_line?.label ?? "",
@@ -294,10 +293,6 @@ describe("the sentence of a refusal", () => {
       "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le " +
         "sous-projet a reçu des coûts réels. Sous-projet qui a reçu des coûts réels, que la ligne " +
         "ne quitte pas : « Poste de commande ».",
-    );
-    // A sub-project without its label names nothing.
-    expect(say({ code: "VALIDATION_FAILED", params: { subproject: { label: 7 } } }, "en")).toBe(
-      "The data entered is not valid.",
     );
   });
 
@@ -378,8 +373,13 @@ describe("the sentence of a refusal", () => {
     );
     // A variant of `calendar_update_without_hours`: the project without a code, the one value
     // changed — an offer in pricing, which no code names yet.
-    const [project] = namedProjects(refused.params);
-    const uncoded = { ...refused.params, projects: [{ ...project, project_code: null }] };
+    const uncoded = {
+      ...refused.params,
+      projects: namedProjects(refused.params).map((project) => ({
+        ...project,
+        project_code: null,
+      })),
+    };
     expect(say({ ...refused, params: uncoded }, "fr")).toBe(
       `${hours} Projets en cause\u00A0: Modernisation du poste de commande.`,
     );
@@ -440,6 +440,26 @@ describe("the sentence of a refusal", () => {
         "poste de commande (PRJ-001).",
     );
     expect(told).not.toMatch(/rôle/);
+  });
+
+  it("names the roles of a line imported that would leave its task without hours by their labels and codes, from the rejection of the contract [WF-PLA-0010-A]", () => {
+    // The motive of a line imported names its roles itself (`resource_roles`); the example of the
+    // contract carries the task too (`tasks`), which the sentence does not read (#768).
+    const { report } = example("import_estimate_task_without_hours") as {
+      report: { rejected: [ProblemText] };
+    };
+    const [line] = report.rejected;
+    expect(line.code).toBe("TASK_WITHOUT_WORKING_HOURS");
+    expect(say(line, "fr")).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les " +
+        "calendriers ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Technicien " +
+        "de mise en service (TECH-MES).",
+    );
+  });
+
+  it("does not tell the hours of a task for roles that a refusal of another code names, whose condition it gives [WF-PLA-0010-A]", () => {
+    const refused = example("cost_category_role_kind_refused") as ProblemText;
+    expect(say(refused, "fr")).not.toMatch(/heure travaillée/);
   });
 
   it("names five projects in its sentence, and counts none", () => {
@@ -591,12 +611,10 @@ describe("the sentence of a refusal", () => {
         missing_permission: "planning.delete",
         missing_condition: 12,
         missing_prerequisites: "active_cost_category",
-        estimate_lines: [{ row_number: "10", label: "Borniers" }],
         max_columns: "12",
         component: "toString",
-        resource_roles: [{ resource_role_id: "01926f3a-7c00-7000-8000-000000000453" }],
         resource_role_ids: [453],
-        projects: [{ project_code: "PRJ-001" }],
+        work_package_task: { node_id: "01926f3a-7c00-7000-8000-000000000501" },
       },
     };
     expect(say(problem, "en")).toBe("The current state does not allow this operation.");

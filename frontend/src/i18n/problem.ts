@@ -21,7 +21,10 @@
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
  * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
  * its roles, which never overlap, named when the screen read them (`ProblemLanguage.names`), or,
- * none given, the default calendar of a task without a line of labour. The
+ * none given, the default calendar of a task without a line of labour — the refusal of a line
+ * imported names these roles itself (`resource_roles`, #768). The parameters several refusals
+ * share are typed by the contract (`ProblemParams`), read as they are; the others stay open, their
+ * shape checked before they are said. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
  * of the envelope: the smallest or the largest value a field admits (`minimum`, `maximum`) is said
  * with the refusal, and a form says the refusal of each field at the field, by the same sentence
@@ -70,9 +73,15 @@ type Detail = readonly [
 /** Write a sentence of `problemDetails` with its values: a part a reader names a value by. */
 export type Say = (key: Detail[0], values: Detail[1]) => string;
 
+/**
+ * The parameters of a refusal (`ProblemParams`): those several refusals share typed by the contract,
+ * the others open, which a reader checks the shape of before it says them.
+ */
+type Params = components["schemas"]["ProblemParams"];
+
 /** Read one parameter of the envelope: its sentence, or `undefined` when it has nothing to say. */
 type Reader = (
-  params: Readonly<Record<string, unknown>>,
+  params: Readonly<Params>,
   label: Label,
   locale: Locale,
   say: Say,
@@ -80,10 +89,7 @@ type Reader = (
 ) => Detail | undefined;
 
 /** A line of an estimate a refusal names (`estimate_lines`): its number and its label. */
-export interface NamedLine {
-  readonly row_number: number;
-  readonly label: string;
-}
+export type NamedLine = Pick<components["schemas"]["ProblemEstimateLine"], "row_number" | "label">;
 
 /**
  * How many lines — or projects — a refusal names in its sentence; beyond, the sentence counts them,
@@ -96,25 +102,12 @@ export function lineName({ row_number, label }: NamedLine, say: Say): string {
   return say("estimateLine", { row: String(row_number), label });
 }
 
-/** Whether a value is a line a refusal names, by its number and its label. */
-function isNamedLine(value: unknown): value is NamedLine {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "row_number" in value &&
-    typeof value.row_number === "number" &&
-    "label" in value &&
-    typeof value.label === "string"
-  );
-}
-
 /**
  * The lines the parameters of a refusal name (`estimate_lines`), each by its number in its whole
- * structure and its label, in the order of the server; a malformed one is left out.
+ * structure and its label, in the order of the server.
  */
-export function namedLines(params: Readonly<Record<string, unknown>> | undefined): NamedLine[] {
-  const lines = params?.estimate_lines;
-  return (Array.isArray(lines) ? lines : []).filter(isNamedLine);
+export function namedLines(params: Readonly<Params> | undefined): readonly NamedLine[] {
+  return params?.estimate_lines ?? [];
 }
 
 /** A list of names joined as the language of the reader joins them: « a, b et c ». */
@@ -127,75 +120,25 @@ function itemsOf<T>(value: unknown, shaped: (item: unknown) => item is T): T[] {
   return (Array.isArray(value) ? value : []).filter(shaped);
 }
 
-/** Whether a value is an object whose properties named hold texts — or null, for those allowed. */
-function hasTexts(value: unknown, texts: readonly string[], nullable: readonly string[] = []) {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const record = value as Readonly<Record<string, unknown>>;
-  return (
-    texts.every((key) => typeof record[key] === "string") &&
-    nullable.every((key) => record[key] === null || typeof record[key] === "string")
-  );
-}
-
-/** A role a refusal names by its code and its label (`resource_roles`, EP-14/L42r). */
-interface NamedRole {
-  readonly code: string;
-  readonly label: string;
-}
-
 /** A project a refusal names by its label and its code, null for one without (`projects`). */
-export interface NamedProject {
-  readonly project_label: string;
-  readonly project_code: string | null;
-}
+export type NamedProject = components["schemas"]["ProblemProject"];
 
 /**
- * Whether a value is an object a refusal names by its label: a task (`work_package_task`,
- * EP-14/L42s), a sub-project (`subproject`).
+ * Whether a value is an object a refusal names by its label: a task of a parameter the contract
+ * leaves open (`work_package_task`, `order_item_tasks`, `cycle` ; EP-14/L42s).
  */
 function isLabelled(value: unknown): value is { readonly label: string } {
-  return hasTexts(value, ["label"]);
-}
-
-/** Whether a value is a role a refusal names, by its code and its label. */
-function isNamedRole(value: unknown): value is NamedRole {
-  return hasTexts(value, ["code", "label"]);
-}
-
-/** Whether a value is a project a refusal names, by its label and its code, if any. */
-function isNamedProject(value: unknown): value is NamedProject {
-  return hasTexts(value, ["project_label"], ["project_code"]);
-}
-
-/** A column required that a file lacks, with the labels declared for it (`missing_columns`). */
-interface MissingColumn {
-  readonly column: string;
-  readonly labels: readonly string[];
-}
-
-/** Whether a value is a column a file lacks, by its identifier and its declared labels. */
-function isMissingColumn(value: unknown): value is MissingColumn {
   return (
     typeof value === "object" &&
     value !== null &&
-    "column" in value &&
-    typeof value.column === "string" &&
-    "labels" in value &&
-    Array.isArray(value.labels) &&
-    value.labels.every((each) => typeof each === "string")
+    "label" in value &&
+    typeof value.label === "string"
   );
 }
 
-/**
- * The projects the parameters of a refusal name (`projects`), in the order of the server; a
- * malformed one is left out.
- */
-export function namedProjects(
-  params: Readonly<Record<string, unknown>> | undefined,
-): NamedProject[] {
-  return itemsOf(params?.projects, isNamedProject);
+/** The projects the parameters of a refusal name (`projects`), in the order of the server. */
+export function namedProjects(params: Readonly<Params> | undefined): readonly NamedProject[] {
+  return params?.projects ?? [];
 }
 
 /** The name of a project a refusal names: its label and its code, its label alone without one. */
@@ -217,12 +160,14 @@ const STATES: Readonly<Record<StateEnumeration, { list: string; detail: Detail[0
   ProjectState: { list: "enums.ProjectState", detail: "projectState" },
 };
 
-/** How a refused state is told, when the envelope names an enumeration the contract has. */
-function stateIn(enumeration: unknown): (typeof STATES)[StateEnumeration] | undefined {
-  return typeof enumeration === "string" && Object.hasOwn(STATES, enumeration)
-    ? STATES[enumeration as StateEnumeration]
-    : undefined;
-}
+/**
+ * The conditions a nature or a category misses while roles keep it in labour (`resource_roles`,
+ * WF-REF-0030, WF-REF-0040), and the object the roles are to be attached away from.
+ */
+const KEPT_IN_LABOUR: Readonly<Record<string, "cost_type" | "cost_category">> = {
+  cost_type_without_role: "cost_type",
+  cost_category_without_role: "cost_category",
+};
 
 /** The parameters of the envelope a reader is told about, in the order they are told. */
 const DETAILS: readonly Reader[] = [
@@ -256,19 +201,27 @@ const DETAILS: readonly Reader[] = [
   },
   // The roles that keep a nature or a category in labour, to attach first to another category of
   // labour — outside the nature, for a nature — (WF-REF-0030, WF-REF-0040, WF-IHM-0090).
-  ({ resource_roles, missing_condition }, _label, locale, say) => {
-    const named = itemsOf(resource_roles, isNamedRole).map(({ code, label }) =>
-      say("codedName", { code, label }),
-    );
-    const of = missing_condition === "cost_type_without_role" ? "cost_type" : "cost_category";
-    return named.length === 0
+  ({ resource_roles = [], missing_condition }, _label, locale, say) => {
+    const of =
+      typeof missing_condition === "string" && Object.hasOwn(KEPT_IN_LABOUR, missing_condition)
+        ? KEPT_IN_LABOUR[missing_condition]
+        : undefined;
+    const named = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
+    return of === undefined || named.length === 0
       ? undefined
       : ["resource_roles", { roles: conjunction(named, locale), of }];
   },
-  // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap,
-  // given by their identifiers alone and named as the screen read them; none given, the default
-  // calendar of a task without a line of labour.
-  ({ resource_role_ids }, _label, locale, _say, names) => {
+  // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap —
+  // named by the refusal of a line imported (`resource_roles`, #768), or given by their identifiers
+  // alone and named as the screen read them (`resource_role_ids`); none given, the default calendar
+  // of a task without a line of labour.
+  ({ resource_roles, resource_role_ids, missing_condition }, _label, locale, say, names) => {
+    if (resource_roles !== undefined && missing_condition === undefined) {
+      const roles = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
+      return roles.length === 0
+        ? ["resource_role_ids_none", {}]
+        : ["resource_role_ids", { roles: conjunction(roles, locale), count: roles.length }];
+    }
     if (Array.isArray(resource_role_ids) && resource_role_ids.length === 0) {
       return ["resource_role_ids_none", {}];
     }
@@ -331,9 +284,12 @@ const DETAILS: readonly Reader[] = [
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>
-    isLabelled(subproject) ? ["subproject", { label: subproject.label }] : undefined,
+    subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
   ({ state, state_enum }, label) => {
-    const told = stateIn(state_enum);
+    const told =
+      typeof state_enum === "string" && Object.hasOwn(STATES, state_enum)
+        ? STATES[state_enum]
+        : undefined;
     const named = told === undefined ? undefined : label(told.list, state);
     return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
@@ -369,21 +325,19 @@ const DETAILS: readonly Reader[] = [
       : undefined,
   // The columns of an extraction of actual costs the correspondence leaves without a label
   // (`STATE_FORBIDS_OPERATION`, `actual_cost_mapping_complete`, WF-REF-0190), each by its name.
-  ({ columns, missing_condition }, label) => {
+  ({ columns = [], missing_condition }, label) => {
     if (missing_condition !== "actual_cost_mapping_complete") {
       return undefined;
     }
-    const named = itemsOf(columns, (item): item is string => typeof item === "string").flatMap(
-      (column) => label("enums.ActualCostSourceColumn", column) ?? [],
-    );
+    const named = columns.flatMap((column) => label("enums.ActualCostSourceColumn", column) ?? []);
     return named.length === 0
       ? undefined
       : ["columns", { count: named.length, columns: named.join(", ") }];
   },
   // The columns required that a file of actual costs lacks, each with the labels the correspondence
   // declares for it (`FILE_FORMAT_UNREADABLE`, WF-REF-0190, WF-INTF-0070).
-  ({ missing_columns }, label, locale, say) => {
-    const named = itemsOf(missing_columns, isMissingColumn).flatMap(({ column, labels }) => {
+  ({ missing_columns = [] }, label, locale, say) => {
+    const named = missing_columns.flatMap(({ column, labels }) => {
       const name = label("enums.ActualCostSourceColumn", column);
       if (name === undefined) {
         return [];

@@ -295,6 +295,29 @@ def estimate_line_updated_amendment() -> JsonObject:
     return amendment_write(entered_roots(), [ENTERED_LINE])
 
 
+DELAYED_LINE = N.LABOUR
+DELAYED_DAYS = 30
+"""The labour line whose payment delay the grid of estimate enters on the amendment, the
+connection of the terminal blocks, which no other write of the differential renders, and the
+delay entered: a month, as the terminal blocks of the same task, instead of the nought labour has
+by default (WF-DEV-0020, #785)."""
+
+
+def estimate_line_payment_delay_amendment() -> JsonObject:
+    """Return what updateEstimateLine answers to the payment delay of a labour line (#785).
+
+    « Saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020): the delay
+    changes no amount and no date, only when the curve of cash out pays the line (WF-IND-0100).
+    """
+
+    def delayed(each: Line) -> Line:
+        return (
+            replace(each, payment_delay_days=DELAYED_DAYS) if each.number == DELAYED_LINE else each
+        )
+
+    return amendment_write(amended(mockamendment.amendment(), line=delayed), [DELAYED_LINE])
+
+
 type Block = tuple[tuple[str, str, str, str], ...]
 """A block pasted: rows of four cells — label, category, role, quantity."""
 
@@ -613,8 +636,30 @@ def edit_examples() -> dict[str, JsonObject]:
             f"ligne refusée (WF-IHM-0050, WF-REV-0050, #1277).",
             applied,
         ),
+        "estimate_line_payment_delay_amendment.json": _delay_example(on),
         **skipping_examples(),
     }
+
+
+def _delay_example(on: str) -> JsonObject:
+    """Return the example of the payment delay entered on a labour line of the amendment."""
+    delayed = estimate_line_payment_delay_amendment()
+    [line] = _nodes(delayed)
+    facet = cast("Node", line["estimate_line"])
+    before = cast("Node", {row.number: row for row in mockamendment.rows()}[DELAYED_LINE].node)
+    return mocktext.example(
+        f"{on}, le délai de paiement de la ligne de main-d'œuvre « {facet['label']} » saisi à "
+        f"{facet['payment_delay_days']} jours au lieu de "
+        f"{cast('Node', before['estimate_line'])['payment_delay_days']}, celui de la "
+        f"main-d'œuvre par défaut : le délai se saisit sur toute ligne autre qu'une ligne de "
+        f"provision, et la ligne le nomme parmi ses champs saisissables (editable_fields). Une "
+        f"version de plus ; aucun montant ne change, ni aucune date : seule la courbe des "
+        f"décaissements paie la ligne un mois plus tard. Avec elle, ses ancêtres, "
+        f"{tasks_said(delayed, 'ancestors')}, {totals_said(delayed)}, et le compteur du "
+        f"différentiel passé à {delayed['structure_lock_version']} (WF-DEV-0020, WF-IND-0100, "
+        f"#785).",
+        delayed,
+    )
 
 
 def skipping_examples() -> dict[str, JsonObject]:

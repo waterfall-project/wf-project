@@ -530,10 +530,100 @@ def test_the_report_before_a_merge_says_what_it_would_do_and_what_refuses_it() -
     assert (completed["completed_on"], variant["refusals"]) == (None, [])
     refused = fixture("structure_merge_report_refused")
     [refusal] = refused["refusals"]
+    # The task of the cabling, put under the installation, is shown modified by its parent (#789),
+    # beside the motive that refuses the merge: its duration too (#1194).
+    [moved] = refused["differences"]
+    assert (moved["change"], moved["target"], moved["label"]) == (
+        "updated",
+        "task",
+        _core()[universe(mockwitness.N.WIRING)]["task"]["label"],
+    )
+    assert moved["fields"] == ["duration", "parent"]
     assert refusal == {"code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE", "params": OUTSIDE}
     assert refused["completed_tasks"] == []
     for name in ("structure_merge_report_started_task", "structure_merge_report_refused"):
         assert "variante déclarée" in _summary(name), name
+
+
+def test_a_provision_line_whose_task_is_removed_is_said_moved_to_the_parent_task() -> None:
+    # WF-RIS-0010 : when the task that bears the line of provision is removed by the import of a
+    # planning or the merge of a differential, the line passes onto the parent task, « et la
+    # confirmation ou le compte rendu le signale » — an `updated` of the line on `parent`, as a
+    # line moved under another task (#1194), beside the removal of the task (#789).
+    lines = {
+        node["lineage_id"]: node
+        for node in fixture("nodes_core")["items"]
+        if node["kind"] == "estimate_line"
+    }
+    tasks = {node["lineage_id"]: node for node in _core().values()}
+    mounting = _core()[universe(mockwitness.N.MOUNTING)]
+    assert mounting["task"]["progress"] == "not_started"
+    merged = fixture("structure_merge_report_provision_moved")
+    imported = fixture("import_planning_provision_moved")["report"]
+    assert merged["differences"] == imported["differences"]
+    for report in (merged, imported):
+        [moved] = [each for each in report["differences"] if each["change"] == "updated"]
+        provision = lines[moved["lineage_id"]]
+        assert provision["estimate_line"]["cost_category_id"] == mockwitness.PROVISIONS
+        assert (moved["target"], moved["label"]) == (
+            "estimate_line",
+            provision["estimate_line"]["label"],
+        )
+        assert moved["fields"] == ["parent"]
+        removed = [each for each in report["differences"] if each["change"] == "removed"]
+        [task] = [each for each in removed if each["target"] == "task"]
+        assert (task["lineage_id"], task["label"]) == (
+            mounting["lineage_id"],
+            mounting["task"]["label"],
+        )
+        borne = {
+            lineage for lineage, line in lines.items() if line["parent_id"] == mounting["node_id"]
+        }
+        assert {each["lineage_id"] for each in removed if each["target"] == "estimate_line"} == (
+            borne
+        )
+        [link] = [each for each in removed if each["target"] == "link"]
+        assert (tasks[link["lineage_id"]]["task"]["label"], link["predecessor_label"]) == (
+            "Mise en service",
+            mounting["task"]["label"],
+        )
+        assert (report["completed_tasks"], report["refusals"]) == ([], [])
+    for name in ("structure_merge_report_provision_moved", "import_planning_provision_moved"):
+        summary = _summary(name)
+        assert "variante déclarée" in summary, name
+        assert "« Installation sur site »" in summary, name
+        assert mounting["parent_id"] == universe(mockwitness.N.INSTALLATION), name
+
+
+def test_a_line_imported_for_want_of_working_hours_names_its_roles_and_its_task() -> None:
+    # WF-PLA-0010 : the line that would leave its task without a working hour is rejected at the
+    # report, which names the roles by identifier, code and label, and the task by its lineage
+    # and its label, the revision imported having no node yet (WF-INTF-0090; #768). A declared
+    # variant: no situation of the witness leaves a task so, its calendars all meeting from
+    # Monday to Thursday.
+    name = "import_estimate_task_without_hours"
+    assert "variante déclarée" in _summary(name)
+    imported = fixture(name)
+    assert imported["kind"] == "estimate"
+    [rejection] = imported["report"]["rejected"]
+    assert (rejection["sheet"], rejection["code"]) == ("Hors lot", "TASK_WITHOUT_WORKING_HOURS")
+    roles = {each["resource_role_id"]: each for each in fixture("resource_roles")["items"]}
+    named = rejection["params"]["resource_roles"]
+    assert [each["resource_role_id"] for each in named] == [
+        mockwitness.CABLE_FITTER,
+        mockwitness.COMMISSIONING_TECHNICIAN,
+    ]
+    for each in named:
+        role = roles[each["resource_role_id"]]
+        assert each == {key: role[key] for key in ("resource_role_id", "code", "label")}
+    [task] = rejection["params"]["tasks"]
+    cabling = _core()[universe(mockwitness.N.WIRING)]
+    assert task == {"lineage_id": cabling["lineage_id"], "label": cabling["task"]["label"]}
+    assert set(task) == {"lineage_id", "label"}
+    assert imported["report"]["read_count"] > len(imported["report"]["rejected"])
+    exchanges = (PATHS / "exchanges.yaml").read_text(encoding="utf-8")
+    getter = exchanges.split("operationId: getImport\n", 1)[1].split("operationId:", 1)[0]
+    assert f"fixtures/api/{name}.json" in getter
 
 
 def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> None:
@@ -574,6 +664,7 @@ def test_the_confirmation_of_a_merge_carries_the_counters_its_report_read() -> N
         "structure_merge_report",
         "structure_merge_report_started_task",
         "structure_merge_report_refused",
+        "structure_merge_report_provision_moved",
     ):
         report = fixture(name)
         assert report["main_structure_lock_version"] == main["lock_version"], name
@@ -590,6 +681,8 @@ def test_a_file_that_would_move_a_package_out_or_pass_the_horizon_is_rejected_wh
             assert report["refusals"] == [], path.name
     rejected = fixture("import_planning_rejected")["report"]
     commissioning = universe(mockwitness.N.COMMISSIONING)
+    changed = {each["label"]: each["fields"] for each in rejected["differences"]}
+    assert changed[_core()[universe(mockwitness.N.WIRING)]["task"]["label"]] == ["parent"]
     assert rejected["refusals"] == [
         {"code": "ORDER_ITEM_OUTSIDE_WORK_PACKAGE", "params": OUTSIDE},
         {"code": "PROJECT_HORIZON_EXCEEDED", "params": {"task": _named(commissioning)}},

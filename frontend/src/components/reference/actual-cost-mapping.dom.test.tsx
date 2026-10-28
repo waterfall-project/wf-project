@@ -182,6 +182,79 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     ).not.toHaveAttribute("aria-invalid");
   });
 
+  it("says each label refused at once at its own, an empty one and one too long, the focus on the first, and a duplicate of a kept column naming it (#1514) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: {
+        problem: example("actual_cost_mapping_labels_refused") as Problem & { status: 422 },
+      },
+    });
+    shown(witness, true);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ajouter un intitulé à « N° de pièce »" }),
+    );
+    // The longest label the field takes is the browser's bound: a change past it is the server's
+    // to refuse, as the example of the contract does.
+    fireEvent.change(screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 2" }), {
+      target: { value: "x".repeat(201) },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 3" }),
+      "Document d'achat",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer une colonne conservée" }));
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 4" }),
+      "fournisseur",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enregistrer la correspondance" }));
+    const empty = screen.getByRole("textbox", { name: "Intitulé 2 de « N° de pièce »" });
+    await vi.waitFor(() => {
+      expect(empty).toHaveFocus();
+    });
+    expect(empty).toHaveAttribute("aria-invalid", "true");
+    expect(empty).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_REQUIRED);
+    const long = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 2" });
+    expect(long).toHaveAttribute("aria-invalid", "true");
+    expect(long).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    const duplicate = screen.getByRole("textbox", { name: "Intitulé de la colonne conservée 4" });
+    expect(duplicate).toHaveAttribute("aria-invalid", "true");
+    expect(duplicate).toHaveAccessibleDescription(
+      `${CATALOGUES.fr.errors.DUPLICATE_COLUMN_LABEL} Il double l’intitulé « Fournisseur » d’une colonne conservée.`,
+    );
+    for (const name of [
+      "Intitulé 1 de « N° de pièce »",
+      "Intitulé de la colonne conservée 1",
+      "Intitulé de la colonne conservée 3",
+    ]) {
+      expect(screen.getByRole("textbox", { name })).not.toHaveAttribute("aria-invalid");
+    }
+    // Every refusal is said at its label: nothing is left to tell under the form.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  // The current behaviour, assumed: such a refusal is told by the sentence of its envelope alone,
+  // with no ceiling on the list it carries (the fifty columns of the contract); what the page
+  // should say beyond is followed by #1567.
+  it("tells under the form a refusal whose pointer designates no label shown, the list of the kept columns itself, and marks no label (#1514) [WF-REF-0190-A]", async () => {
+    serve({
+      [SET]: {
+        problem: example("actual_cost_mapping_kept_columns_too_many") as Problem & {
+          status: 422;
+        },
+      },
+    });
+    shown(witness, true);
+    const save = screen.getByRole("button", { name: "Enregistrer la correspondance" });
+    await userEvent.click(save);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.VALIDATION_FAILED);
+    expect(document.querySelector("[aria-invalid]")).toBeNull();
+    expect(save).toHaveFocus();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("tells the version stale under the form, and offers to read the page anew [WF-IHM-0110, WF-REF-0190-A]", async () => {
     serve({
       [SET]: { problem: example("actual_cost_mapping_stale") as Problem & { status: 412 } },

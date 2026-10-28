@@ -38,6 +38,7 @@ function borneLines(count: number) {
     .slice(0, count)
     .map(({ node_id, row_number, estimate_line }) => ({
       structure_id: "01926f3a-7c00-7000-8000-000000000201",
+      structure_label: "Structure principale",
       node_id,
       row_number,
       label: estimate_line?.label ?? "",

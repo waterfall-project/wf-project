@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from waterfall.api.contract.base import NUL_FAULT
-from waterfall.api.contract.models import ErrorCode, FieldProblem, Params, Problem
+from waterfall.api.contract.models import ErrorCode, FieldProblem, Problem, ProblemParams
 from waterfall.platform.correlation import HEADER, SCOPE_KEY
 from waterfall.platform.errors import FieldError, ServiceError, json_pointer
 from waterfall.platform.logs import get_logger
@@ -52,29 +52,47 @@ def problem_response(
     params: Mapping[str, Any] | None = None,
     fields: tuple[FieldError, ...] = (),
 ) -> JSONResponse:
-    """Build the envelope of an error. A code the contract does not know is a defect."""
+    """Build the envelope of an error. A code the contract does not know is a defect.
+
+    What is absent is left unset, never sent as null, so that the dump keeps a null the
+    parameters give — the code of a project without one (``ProblemProject``) — and drops
+    nothing else (#768).
+    """
     correlation_id: str = request.scope[SCOPE_KEY]
-    problem = Problem(
-        code=ErrorCode(code),
-        status=status,
-        params=Params.model_validate(dict(params)) if params else None,
-        fields=[
-            FieldProblem(
-                pointer=field.pointer,
-                code=ErrorCode(field.code),
-                params=dict(field.params) or None,
-            )
-            for field in fields
-        ]
-        or None,
-        correlation_id=correlation_id,
-    )
+    envelope: dict[str, Any] = {"code": ErrorCode(code), "status": status}
+    if params:
+        envelope["params"] = _typed_params(params)
+    if fields:
+        envelope["fields"] = [_field_problem(field) for field in fields]
+    problem = Problem(**envelope, correlation_id=correlation_id)
     return JSONResponse(
-        problem.model_dump(mode="json", exclude_none=True),
+        problem.model_dump(mode="json", exclude_unset=True),
         status_code=status,
         media_type=MEDIA_TYPE,
         headers={HEADER: correlation_id},
     )
+
+
+def _field_problem(field: FieldError) -> FieldProblem:
+    """Say the refusal of one field in the envelope, its parameters typed as the contract's."""
+    if not field.params:
+        return FieldProblem(pointer=field.pointer, code=ErrorCode(field.code))
+    params = _typed_params(field.params)
+    return FieldProblem(pointer=field.pointer, code=ErrorCode(field.code), params=params)
+
+
+def _typed_params(params: Mapping[str, Any]) -> ProblemParams:
+    """Range the parameters in the contract's schema, a typed property given as None left absent.
+
+    The properties the contract types are not nullable: dumped with what is set, a None would
+    leave as ``null``. A property it does not type is open, and its None travels (#768).
+    """
+    given = {
+        name: value
+        for name, value in params.items()
+        if value is not None or name not in ProblemParams.model_fields
+    }
+    return ProblemParams.model_validate(given)
 
 
 def _on_service_error(request: Request, error: Exception) -> JSONResponse:
