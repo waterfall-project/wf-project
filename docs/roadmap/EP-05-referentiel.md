@@ -1,7 +1,7 @@
 ---
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
-statut: à planifier
+statut: prêt
 depend_de: EP-16
 famille: front, back
 issue:
@@ -220,7 +220,274 @@ contrat figé ne se modifiant plus qu'ainsi.
 
 ## Conception
 
-À écrire au cadrage.
+EP-05 est le premier EPIC de domaine du back : il crée les tables du régime « référentiel » du
+§4.4.1, quatre modules du noyau, les routes des trente et une opérations de `reference`, complète
+l'amorçage, écrit la commande qui charge le témoin, et branche sur le service des écrans déjà
+écrits. Il **ne modifie pas le contrat**, figé en 1.0.0 : un manque que le service ou le
+branchement révèle devient une « Interface contract issue » que l'auteur tranche. Ce qui suit fixe
+ce que chaque lot devrait sinon décider seul. Validée par l'auteur le 2026-10-28.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-10-28, sur les questions du cadrage, chacune avec l'option écartée :
+
+- **WF-QUA-0040 démarre ici** (#1402), par la tranche du référentiel de l'univers témoin ; le
+  principe est écrit une fois dans le README de la roadmap. Écarté : EP-04, où il serait né sans
+  référentiel et d'un second générateur.
+- **Le chargeur est une commande du back**, `waterfall-api load-witness`, au sommet des couches
+  comme l'amorçage : elle lit la description du témoin et écrit par les interfaces des modules,
+  avec les identifiants du témoin. Écartés : un outil de `tools/` qui appellerait l'API, qui ne
+  peut imposer aucun identifiant ; des `INSERT`, qui passeraient à côté des règles ; un outil qui
+  produirait un fichier de chargement que le back lirait, deux pièces à tenir d'accord.
+- **Un identifiant s'impose par un paramètre des interfaces** (`identifier: UUID | None`), que
+  seule la commande passe ; l'API n'en passe jamais, et un identifiant déjà porté échoue.
+  Écartée : une table de correspondance entre identifiants du témoin et identifiants engendrés,
+  qui ferait relire chaque attendu des tests.
+- **Les dates et les auteurs des objets chargés sont ceux du chargement** : la plateforme,
+  `created_at` au moment du chargement (WF-DAT-0070). Écarté : imposer un `Stamp` du témoin, qui
+  tirerait ses comptes dans la tranche ; l'horloge du témoin se pose à EP-04.
+- **Les mêmes fichiers de parcours jouent dans les deux modes**, par une fixture commune.
+  Écarté : des parcours du service à part, comme EP-03, qui recopieraient les repères.
+- **Les assertions qui affirmaient la réponse du faux back à une écriture affirment ce qui a été
+  écrit** ; contre le faux back, l'assertion se borne à ce que les deux modes partagent. Écarté :
+  laisser les écritures au faux back et écrire chaque écriture à part.
+- **L'amorçage lit `WATERFALL_CURRENCY` et `WATERFALL_COMPANY_NAME`** de l'environnement, comme
+  l'adresse et la langue. Écarté : des arguments de la commande, deux façons de passer un réglage.
+- **Quatre modules, un par bloc FBS de second niveau** — `cost_settings`, `resource_settings`,
+  `risk_settings`, `indicator_settings` —, la table `reference_setting` possédée par
+  `cost_settings`, qui expose sa lecture et son écriture champ par champ aux deux autres.
+  Écartés : un seul module `reference`, qui déroge à la règle du guide ; deux modules, qui
+  laissent FBS-3.3 et FBS-3.4 sans module.
+- **Six exigences dites entières se closent en EP-07, EP-08 et EP-11** (WF-REF-0010, 0030, 0040 ;
+  0160 ; 0070, 0100) : une phrase de leur Vérif demande des lignes, un risque ou le plan de
+  charge agrégé. Écarté : les garder entières avec des écarts sans EPIC qui les clôt.
+- **Aucune inscription au journal d'audit pour le référentiel** : WF-SEC-0030 n'énumère ni la
+  désactivation ni la modification d'un objet du référentiel, et `AuditAction` du contrat, figé,
+  ne les porte pas ; les colonnes d'audit de chaque table disent qui a touché la ligne en dernier.
+  Écartée : une action nouvelle, qui serait une modification du contrat et irait au-delà de la
+  spécification. (Le critère qu'US-0880 portait à ce sujet au premier jet est retiré.)
+- **`include_inactive` et `is_active` faux relèvent de la permission de lecture de la partie**
+  (`cost_settings.read`, `resource_settings.read`), les écritures de sa permission de
+  modification (DECISIONS.md, « Le référentiel » ; #300, #351). Écarté : la permission de
+  modification pour les désactivés, qui priverait un lecteur du référentiel de ce que WF-REF-0150
+  lui promet.
+- **US-0810 crée toutes les tables en une fois**, pour que chaque US d'objet n'ait que son module,
+  ses routes et ses tests à écrire. Écarté : une migration par US, qui ferait six fois la revue
+  des droits du rôle du service.
+- **Le cadrage s'est fait sur le contrat d'`epic/EP-16` avant le gel** ; la liste des opérations
+  et des refus se relit à la fusion d'US-0640/L6 et L5 (« Préalables »). Écarté : attendre le
+  gel, qui aurait retardé EP-05 de plusieurs jours pour un contrat que nulle issue ouverte ne
+  touche dans le référentiel.
+
+### Tables et migrations
+
+Toutes du régime « référentiel » (§4.4.1) : jamais supprimées, désactivées par `is_active` ;
+UUID v7 engendrés par le service, ou imposés par le chargeur ; colonnes d'audit `created_at`,
+`created_by`, `updated_at`, `updated_by` (clé vers `user_account`, nulle pour la plateforme) et
+`lock_version` sur chaque table dont les lignes se modifient ; les textes triés en collation `C`,
+cherchés par `contains` (`unaccent`, `und-x-icu`) ; les règles SQL du guide pour le reste. Les
+codes et les libellés sont bornés comme le contrat les borne (20 et 200), jamais blancs
+(`\S`), par contrainte.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `reference_setting` | une seule ligne : `currency_code`, `company_name`, les trois bornes de probabilité et les trois de gravité (`numeric`, en fraction comme le contrat les écrit), les seize zones de la matrice (`risk_zones`, un tableau de seize valeurs d'`AlertZone`), les quatre seuils des indices (`numeric`), `max_weeks_between_reviews`, audit, `lock_version` | une seule ligne (`id = 1`) ; `currency_code` sur `^[A-Z]{3}$` ; `company_name` de 1 à 200, non blanc ; bornes strictement croissantes sur chaque axe ; seuils dans ]0, 1[ et chaque alerte < sa vigilance ; délai de 1 à 104 ; seize zones parmi les valeurs d'`AlertZone` ; écrite par l'amorçage, modifiée par le service (`SELECT`, `UPDATE`) |
+| `duration_unit` | une seule ligne : `hours_per_day`, `hours_per_week`, `days_per_month` (`numeric`), audit, `lock_version` propre (`DurationUnits.lock_version`) | une seule ligne ; chaque constante strictement positive ; 8, 40, 20 à l'amorçage |
+| `cost_type` | `code`, `label`, `kind`, `is_active`, audit, `lock_version` | `code` unique, désactivées comprises ; `kind` dans `labor`, `non_labor`, `provision` |
+| `cost_category` | `code`, `label`, `accounting_code`, `cost_type_id`, `is_active`, audit, `lock_version` | `code` et `accounting_code` uniques, désactivées comprises ; clé vers `cost_type` en refus |
+| `hourly_rate` | `cost_category_id`, `year`, `amount` (`numeric(12,2)`), audit, `lock_version` | unique sur (`cost_category_id`, `year`) ; `amount >= 0.01` ; `year` dans les bornes de `Year` du contrat ; clé vers `cost_category` en refus |
+| `org_node` | `code`, `label`, `parent_id`, `is_active`, audit, `lock_version` | `code` unique, désactivés compris ; `parent_id` clé vers `org_node`, nulle pour une racine, en refus ; `parent_id <> id` ; l'absence de boucle est tenue par le service, sous verrou |
+| `calendar` | `label`, `monday` … `sunday` (`numeric(4,2)`), `is_default`, `is_active`, audit, `lock_version` | `label` unique, désactivés compris ; chaque jour de 0 à 24 ; un seul `is_default` (index unique partiel) ; `is_default` implique `is_active` |
+| `resource_role` | `code`, `label`, `org_node_id`, `cost_category_id`, `calendar_id`, `monthly_hours`, `headcount` (`numeric`), `is_active`, audit, `lock_version` | `code` unique, désactivés compris ; trois clés en refus, non nulles ; `monthly_hours >= 0`, `headcount >= 0` |
+| `actual_cost_mapping` | une seule ligne : audit, `lock_version` | une seule ligne, vide à l'amorçage, version 1 |
+| `actual_cost_mapping_label` | un intitulé de la correspondance : `kind` (`read`, `kept`), `column` (une valeur d'`ActualCostSourceColumn`, nulle pour une colonne conservée), `position`, `label`, `folded` (l'intitulé sans casse, sans accents, sans espaces en bout) | `folded` unique sur toute la table — la règle des doublons de WF-REF-0190 — ; `column` non nul si `kind = read` et nul sinon ; `label` de 1 à 200, non blanc ; au plus 20 par colonne lue et 50 conservées, tenus par le service |
+| `user_account` | `org_node_id` ajouté | clé vers `org_node` en refus, nulle sans rattachement (WF-DAT-0090 ; EP-03, « Tables et migrations ») |
+
+- **Deux migrations** : `0015_reference_tables`, les dix tables et les droits du rôle du service
+  (`SELECT`, `INSERT`, `UPDATE` ; jamais `DELETE`, sauf sur `actual_cost_mapping_label`, que
+  l'écriture entière de la correspondance remplace ligne à ligne — une table qui ne porte qu'un
+  intitulé, comme une association) ; `0016_user_account_org_node`, la colonne et sa clé.
+  Aucune migration de données : les permissions du référentiel sont au catalogue depuis EP-03,
+  et les lignes uniques sont écrites par l'amorçage, jamais par une migration (guide,
+  « Migrations »).
+- **Les clés étrangères refusent** (`ON DELETE RESTRICT`) : aucune cascade, le référentiel ne
+  supprime rien.
+- Les tests : `test_migrations.py` (schéma, droits, `SERVICE_RIGHTS`), un test par contrainte
+  dans `test_database_constraints.py`, chacun citant son exigence.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.cost_settings` (FBS-3.1) | `cost_type`, `cost_category`, `hourly_rate`, `reference_setting`, `actual_cost_mapping`, `actual_cost_mapping_label` | les paramètres communs lus entiers et écrits champ par champ, chaque champ sous sa permission, avec le compteur commun ; les natures, les catégories et les taux — lecture, listes, création, modification, activation — ; le libellé et le type de nature d'une catégorie (`category_label`, pour un rôle) ; `labour_categories_exist()`, `provision_category_active()` (le référentiel minimal) ; `category_is_employed(id)`, toujours faux ici, qu'EP-07 remplit ; la correspondance lue et remplacée, et sa forme repliée (`folded`) pour EP-09 |
+| `waterfall.core.resource_settings` (FBS-3.2) | `org_node`, `resource_role`, `calendar`, `duration_unit` | l'arbre, les rôles, les calendriers et les unités — lecture, listes, création, modification, déplacement, activation, désignation par défaut — ; `node_label(id)` (pour un compte), `node_is_active(id)` (le rattachement d'un compte) ; `default_calendar_has_hours()`, `active_role_exists()` (le référentiel minimal) ; les calendriers des rôles pour EP-06 ; `calendar_change_is_admissible(...)`, toujours vrai ici, qu'EP-06 remplit (`TASK_WITHOUT_WORKING_HOURS`) |
+| `waterfall.core.risk_settings` (FBS-3.3) | aucune | la matrice lue et écrite, par `cost_settings` ; la zone d'un couple (probabilité, gravité) pour EP-08 |
+| `waterfall.core.indicator_settings` (FBS-3.4) | aucune | les seuils et le délai lus et écrits, par `cost_settings` ; la zone d'un indice pour EP-10 |
+
+- Les deux derniers modules n'ont pas de table : ils portent les règles de leur bloc — l'ordre
+  des bornes, l'ordre des seuils — et lisent la ligne par l'interface de `cost_settings`. Le
+  contrat d'import-linter les ajoute.
+- **Le référentiel minimal** (`getReferenceReadiness`) se compose dans la route, des quatre
+  questions que les deux premiers modules exposent, dans l'ordre de l'énumération.
+- **`users` reçoit le rattachement** : `change_account` écrit `org_node_id` après avoir demandé à
+  `resource_settings` si le nœud existe et est actif (422 sinon), et `read_account` nomme le nœud
+  par `node_label`. L'évaluation d'une action (`access_roles`) ne lit jamais le rattachement
+  (WF-ADM-0030).
+- **Les commandes d'un objet** (`available_commands`) se calculent dans le module, à partir des
+  permissions de l'acteur et de l'état de l'objet et de ses voisins — la nature d'une catégorie,
+  le nœud d'un rôle, le calendrier par défaut —, par les mêmes fonctions que les refus 409 : une
+  commande dite indisponible et l'appel refusé disent la même condition.
+- **Les listes** suivent `api/queries.py` (EP-03) : recherche par `contains`, filtres, tri par
+  colonne avec l'ordre de rupture du contrat (l'ordre sans tri, puis l'identifiant), pages
+  `limit`/`offset` et `meta.total` ; l'arbre des nœuds se lit entier, en profondeur, et ses
+  filtres rendent les ancêtres ; la grille des taux se construit en deux lectures, les années de
+  toute la grille puis la page des catégories.
+- **Les verrous** : une cascade (désactivation d'un nœud, d'une nature), une réactivation, un
+  déplacement de nœud et la désignation du calendrier par défaut prennent un verrou consultatif
+  de transaction, un par règle — l'arbre, les natures, les calendriers — avant de lire ; une
+  modification teste son `lock_version` dans l'écriture même (règles SQL, « Verrous »).
+
+### Le service d'API
+
+- Un routeur par module — `api/cost_settings.py`, `api/resource_settings.py`,
+  `api/risk_settings.py`, `api/indicator_settings.py` — et `api/reference.py` pour le référentiel
+  minimal, enregistrés dans `app.py` ; les modèles Pydantic du contrat existent déjà
+  (`api/contract/models.py`, engendrés).
+- Chaque route déclare ses permissions par `Requires(...)` comme le contrat les dit ; une lecture
+  qui demande `include_inactive` ou `is_active` faux ajoute la permission de lecture de la partie
+  par une dépendance qui lit la requête ; une écriture des paramètres communs juge la permission
+  de chaque champ porté avant d'écrire quoi que ce soit (403 au premier champ refusé) ;
+  `test_access_evaluation.py` reçoit chaque opération.
+- Les refus sont ceux que le contrat nomme, code par code (`ALREADY_EXISTS` avec
+  `conflicting_object_id` et, pour un nœud ou un rôle, `conflicting_object_label` ;
+  `STATE_FORBIDS_OPERATION` avec `missing_condition` ; `VALIDATION_FAILED` et ses codes de
+  champ ; `LABOUR_CATEGORY_REQUIRED` sans `fields` sur un taux ; `DUPLICATE_COLUMN_LABEL` avec
+  `duplicate_of`) ; chaque réponse d'un test passe par `ContractClient`.
+- `TASK_WITHOUT_WORKING_HOURS` (un calendrier ou un rôle qui laisserait une tâche sans heure) et
+  `cost_type_unused`, `cost_category_unused` (une catégorie employée) sont prévus par les
+  interfaces et ne surviennent jamais en EP-05 : EP-06 et EP-07 les remplissent sans toucher les
+  routes.
+
+### L'amorçage
+
+`waterfall-api install` (EP-03, « Amorçage ») ajoute à son étape 3, dans la même transaction que
+l'installation, et sous le même verrou :
+
+- `InstallationSettings` reçoit `currency` (`WATERFALL_CURRENCY`, trois lettres majuscules) et
+  `company_name` (`WATERFALL_COMPANY_NAME`, 1 à 200 caractères, jamais blanc), exigées ; un
+  réglage absent ou mal formé arrête la commande en le nommant (WF-SEC-0010), avant tout appel ;
+- la ligne `reference_setting` : la devise et le nom, les bornes 25 %, 50 %, 75 % et 1 %, 5 %,
+  10 %, les seize zones livrées (celles de l'exemple `reference_settings` du contrat), les seuils
+  0,9 et 0,8 pour chaque indice, six semaines ; la ligne `duration_unit` à 8, 40, 20 ; la ligne
+  `actual_cost_mapping`, vide ;
+- le calendrier par défaut, actif, huit heures du lundi au vendredi, zéro le week-end ; la nature
+  de type provision pour risques et sa catégorie, avec un code et un code comptable livrés — les
+  libellés de ces trois objets dans la langue par défaut, modifiables ensuite comme tout
+  libellé ;
+- relancée, elle ne crée rien de tout cela et dit ignorés une autre devise ou un autre nom
+  (`installation.currency_ignored`, `installation.company_name_ignored`), comme l'adresse.
+
+Le Compose de service (`install`), `make service-install`, le Compose de production et
+`production.env.example` passent les deux variables ; la famille `service` de `tools/paths.toml`
+les lit déjà par le Compose. Le libellé livré de chaque objet et les codes de la provision se
+fixent au lot, dans les deux langues, à côté des libellés des rôles prédéfinis.
+
+### Le chargeur du témoin
+
+- **La commande** : `waterfall-api load-witness`, troisième verbe du point d'entrée après
+  `install`, dans un module `waterfall.witness` au sommet des couches, importé par aucun ; elle
+  lit `WATERFALL_DATABASE_URL` du rôle du service (elle n'écrit que par les interfaces) et
+  `WATERFALL_WITNESS_PATH`, le répertoire de la description du témoin.
+- **Ce qu'elle lit** : les fichiers de `fixtures/api/` que `make mock-data` tient —
+  `reference_settings.json`, `duration_units.json`, `cost_types.json`,
+  `volume/cost_categories.json`, `volume/hourly_rate_grid.json`, `calendars.json`,
+  `org_nodes_with_inactive.json`, `resource_roles.json` (désactivés compris),
+  `actual_cost_mapping.json` —, validés par les modèles du contrat (`api/contract/models.py`) : le
+  témoin est lu dans la forme du contrat, et un fichier qui s'en écarte arrête la commande. Elle ne
+  recopie rien dans le paquet.
+- **Ce qu'elle écrit, dans l'ordre des dépendances** : les paramètres communs (la matrice, les
+  seuils, le délai du témoin, sous la permission de la plateforme ; la devise et le nom restent
+  ceux de l'amorçage), les unités, les natures, les catégories, les taux, les calendriers et le
+  calendrier par défaut du témoin, les nœuds — chacun sous son parent, puis la désactivation de
+  ceux que le témoin dit désactivés, en cascade —, les rôles, puis la désactivation des rôles
+  désactivés, la correspondance. La nature et la catégorie de provision de l'amorçage restent ;
+  celles du témoin s'ajoutent.
+- **L'identifiant imposé** passe aux interfaces ; une collision — le témoin déjà chargé, ou un
+  objet qui porte l'identifiant — arrête la commande en le disant, rien n'étant écrit : une seule
+  transaction, sous un verrou consultatif propre. Une seconde exécution sur une plateforme
+  chargée s'arrête avant d'écrire, avec succès, en disant que le témoin est là.
+- **Dans le Compose de service**, un service `witness` sur le modèle d'`install` (profil
+  `witness`, le répertoire `../../fixtures/api` monté en lecture seule), `make service-witness`
+  pour la main, et `make e2e-service` le lance après `install` ; le Compose de production ne
+  l'offre pas : une installation réelle ne porte pas le témoin.
+- **Dans la chaîne**, la famille `service` lit `fixtures/**` en plus (`tools/paths.toml`).
+- Ce que le guide écrit : la commande, ses variables, ce qu'elle charge et dans quel ordre, et
+  que `fixtures/api/` et Prism restent les exemples du contrat et le faux back des écrans que le
+  service ne sert pas.
+
+### Le front
+
+- **L'avis de la maquette** (`MockupNotice`) est retiré des cinq pages de `app/reference/` ; les
+  commentaires d'en-tête de ces pages et des composants de `components/reference/` qui le
+  nomment sont réécrits : un succès est ce que le service a gardé, relu.
+- **Le rattachement d'un compte** : `admin/user-cells.tsx` rend la colonne « Rattachement » en
+  cellule saisissable, une liste déroulante des nœuds actifs lus par `listOrgNodes` (sous
+  `resource_settings.read` ; sans elle, la colonne reste en lecture), écrite par `updateUser`
+  avec `org_node_id` et le compteur lu, comme les autres cellules de la table (#379) ; un nœud
+  désactivé auquel un compte reste rattaché se montre par `org_node_label` et n'est pas proposé.
+  La table se filtre sur le rattachement (`org_node_id`, que le contrat prévoit). Le catalogue
+  reçoit l'infobulle de la commande.
+- **Les aides** `frontend/help/fr/FBS-3*.md` retirent ce qu'elles disaient du faux back.
+- Rien d'autre : les écrans sont ceux d'EP-02/L43, d'EP-14 et d'EP-15.
+
+### Le harnais
+
+- **Une fixture commune**, `frontend/e2e/mode.ts`, exporte `test` (le `test` de Playwright
+  étendu) et `inService` : hors du service, rien ne change — le faux back accorde la session — ;
+  avec `WATERFALL_API_ADDRESS`, un `beforeEach` connecte, par `signIn` de `service/realm.ts`, un
+  compte de la course qui porte « manager », créé par l'administrateur de l'installation
+  (`accountAdministrator`), un par worker, et `heldToTheContract()` s'applique. Les parcours
+  partagés importent `test` de `./mode` et non de `@playwright/test`.
+- **Un projet Playwright `shared`** en mode service, après `installation` : `testMatch` sur la
+  liste des parcours partagés (`SHARED_PATHS` : `reference.spec.ts`, `admin.spec.ts`,
+  `navigation.spec.ts`), que le projet `chromium` continue de jouer contre le faux back ; la
+  liste grandit avec chaque EPIC qui branche un écran.
+- **Les assertions d'écriture** : le taux saisi est affirmé par `inService` ; contre le faux
+  back, la cellule répondue, non occupée et le focus passé. Les lectures sont inchangées : le
+  témoin chargé rend les mêmes libellés, codes, comptes et ordres que les exemples.
+- **Ce qui ne se rejoue pas**, écrit dans le guide (« Un parcours de bout en bout ») : les dates
+  d'audit, les parcours des écrans que le service ne sert pas.
+- `make e2e-service` charge le témoin (ci-dessus) ; `make e2e` ne change pas.
+
+### Les tests du back
+
+- Un fichier par module et par objet (`test_cost_settings_types.py`, `…_categories.py`,
+  `…_rates.py`, `test_resource_settings_nodes.py`, `…_roles.py`, `…_calendars.py`,
+  `test_reference_settings.py`, `test_actual_cost_mapping.py`, `test_reference_readiness.py`,
+  `test_witness.py`, `test_bootstrap_reference.py`), chaque test citant son exigence, chaque
+  réponse validée contre le contrat ; les exemples chiffrés des Vérif — 25/50/75, 1/5/10, 0,9/0,8,
+  six semaines, huit heures — sont des tests sans base quand ils le peuvent (`tests/examples`).
+- Les tests des listes lisent les exemples du contrat comme oracle : le témoin chargé dans une
+  base de test par la commande, les réponses du service comparées aux fixtures que le faux back
+  sert (`cost_types.json`, `org_nodes_with_inactive.json`, `hourly_rate_grid_by_rate.json`…),
+  aux colonnes d'audit près — c'est le principe du jeu de données : le calculé devient l'attendu.
+- Un test de concurrence par règle d'ensemble : la cascade, le calendrier par défaut, le code
+  unique sous deux créations.
+
+### L'ordre de construction
+
+1. **US-0810** : les tables et les migrations, les quatre modules à vide, les paramètres communs
+   et le référentiel minimal, l'amorçage complété ; les parcours du service existants passent
+   toujours.
+2. **US-0820, US-0860, US-0840**, dans cet ordre : les natures et catégories, les calendriers et
+   unités, l'arbre — ce dont un rôle a besoin — ; US-0830 (les taux) après US-0820, en parallèle
+   des deux autres.
+3. **US-0850** : les rôles et la cascade, qui demandent les trois.
+4. **US-0870** : la correspondance, indépendante, à tout moment après US-0810.
+5. **US-0880** : la désactivation transverse, quand les cinq listes existent.
+6. **US-0890** : la commande du témoin, le service `witness`, la fixture et le projet `shared`,
+   les parcours rejoués — dès qu'US-0850 est fusionnée ; elle sert ensuite à US-0900.
+7. **US-0900** en dernier : l'avis retiré, le parcours du manager, le rôle sur mesure.
 
 ---
 
@@ -750,17 +1017,15 @@ réactiver, **afin que** l'histoire des projets reste lisible et qu'une erreur s
   `revision_rate`, §4.4.1) ne sont pas d'EP-05 ;
 - écart : `WF-REF-0130-A` — « Après abaissement du seuil d'alerte, la zone de l'indice de coût
   d'une révision marquée peut changer, sa valeur non. » : EP-07 constate avec EP-10 ;
-- propre à l'US : le journal d'audit inscrit chaque désactivation et réactivation d'un objet du
-  référentiel, avec l'objet et l'auteur (WF-SEC-0030, action nouvelle de l'énumération, par
-  migration), et les colonnes d'audit de l'objet nomment l'auteur ;
+- propre à l'US : les colonnes d'audit de l'objet désactivé ou réactivé nomment l'auteur et le
+  moment (WF-DAT-0070) ; aucune inscription au journal d'audit, que WF-SEC-0030 n'énumère pas pour
+  le référentiel (« Conception ») ;
 - propre à l'US : les parcours de chaque écran du référentiel montrent, contre le service, les
   désactivés par le filtre de l'écran et les réactivent (`reference.spec.ts`, en mode service).
 
 **Notes de réalisation.** L'US ferme ce que chaque US d'objet a amorcé : elle ne crée aucune
 opération, et ses tests parcourent les cinq listes avec les trois sessions — sans permission du
-référentiel, lecture seule, modification. L'action du journal d'audit pour le référentiel
-(`reference_object_deactivated`, `reference_object_reactivated`, noms à fixer à la conception) est
-la seule migration de données de l'EPIC après les tables.
+référentiel, lecture seule, modification.
 
 **Hors périmètre.** Les lignes et les révisions qui emploient un objet (EP-07) ; le signalement
 dans les grilles (EP-07).
