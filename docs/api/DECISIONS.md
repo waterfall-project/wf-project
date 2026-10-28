@@ -8304,11 +8304,10 @@ adoptent sont d'US-0660/L3 et L4.
   engendré par `wftools.mockamendmentwrites`, `paste_plan_amendment_target_removed` (collage 996) :
   le bloc qui saute la ligne retirée, collé sur cette ligne même, l'« Assistance aux essais de
   câblage » de l'avenant 2.
-- **#1368 n'est pas écrit** : voir l'issue. La décision du recadrage fait dire à
-  `ProjectCommand.declare_risk` qu'elle exige `revision_in_progress`, une condition que le catalogue
-  n'a pas, alors que WF-RIS-0020 veut que « lorsque le projet n'en comporte pas, la saisie en crée
-  une au préalable » et que le projet porte `declare_risk` précisément quand il n'a pas de révision
-  en cours. La contradiction est rendue à l'auteur.
+- **#1368 est écarté sans changement de contrat** (WF-RIS-0020, décision de l'auteur du
+  2026-10-28). `ProjectCommand.declare_risk` n'exige pas de révision en cours : le projet la porte
+  précisément quand il n'en a pas, et la déclaration en crée une au préalable (« lorsque le projet
+  n'en comporte pas, la saisie en crée une au préalable »).
 - **Les exemples de l'encart et de l'analyse échouée** (#1379). Engendré par `wftools.mockcycle`,
   `revisions_project_created` (`listRevisions`) : la seule révision 103 du projet créé aujourd'hui,
   telle que la lit `revision_without_tasks`. Écrit à la main, `task_import_analysis_failed`
@@ -8322,7 +8321,8 @@ adoptent sont d'US-0660/L3 et L4.
   l'automaticien », écarté, la catégorie de sa provision désactivée depuis
   (`provision_cost_category_is_active` faux) ; `risk_uncited`, « Risque de reprise du câblage »,
   qu'aucune révision marquée ne citerait, sa suppression disponible. Le point 2, le libellé de
-  `ReferenceForm`, est à EP-17 (#1568).
+  `ReferenceForm`, est à EP-17 (#1568), et le point 3, `task_occurrence_succeeded`, l'y suit
+  (décision de l'auteur du 2026-10-28).
 - **Le choix d'états de la liste de l'accueil** (#1401, décision de l'auteur du 2026-10-28 : une
   préférence). Aucun schéma ne change : la clé de `grids` est `projects`, celle sous laquelle la
   grille de la liste des projets de l'accueil garde déjà ses réglages (`PROJECT_LIST_GRID.key`) — un
