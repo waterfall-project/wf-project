@@ -484,9 +484,11 @@ fixent au lot, dans les deux langues, à côté des libellés des rôles prédé
    des deux autres.
 3. **US-0850** : les rôles et la cascade, qui demandent les trois.
 4. **US-0870** : la correspondance, indépendante, à tout moment après US-0810.
-5. **US-0880** : la désactivation transverse, quand les cinq listes existent.
-6. **US-0890** : la commande du témoin, le service `witness`, la fixture et le projet `shared`,
-   les parcours rejoués — dès qu'US-0850 est fusionnée ; elle sert ensuite à US-0900.
+5. **US-0890** : la commande du témoin, le service `witness`, puis la fixture, le projet
+   `shared` et les parcours rejoués — dès qu'US-0830, US-0850 et US-0870 sont fusionnées.
+6. **US-0880** : la désactivation transverse, après US-0890 (décision de l'auteur du 2026-10-28,
+   au plan de lots) : son dernier critère joue les désactivés contre le service, par la fixture
+   qu'US-0890 écrit.
 7. **US-0900** en dernier : l'avis retiré, le parcours du manager, le rôle sur mesure.
 
 ---
