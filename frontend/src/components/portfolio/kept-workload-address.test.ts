@@ -28,24 +28,36 @@ describe("the address the aggregated workload leads to", () => {
     });
   });
 
-  it("leaves an address that names one of the three as it is [WF-PTF-0060-A]", () => {
-    expect(at("horizon_months=24")).toBeUndefined();
-    expect(at("under_load_threshold=0.3")).toBeUndefined();
-    expect(at("org_node_id=node-2")).toBeUndefined();
+  it("restores the settings an address leaves out, and keeps the node it names [WF-PTF-0060-A]", () => {
+    const query = new URLSearchParams(at("org_node_id=node-2")?.split("?")[1]);
+    expect(Object.fromEntries(query)).toEqual({ ...KEPT, org_node_id: "node-2" });
+    const threshold = new URLSearchParams(at("under_load_threshold=0.3")?.split("?")[1]);
+    expect(Object.fromEntries(threshold)).toEqual({ ...KEPT, under_load_threshold: "0.3" });
   });
 
-  it("leaves the address alone when nothing is kept, or when the reading was lifted [WF-PTF-0060-A]", () => {
+  it("leaves an address that names every setting as it is, and does not loop [WF-PTF-0060-A]", () => {
+    expect(at("horizon_months=24&under_load_threshold=0.3&org_node_id=node-2")).toBeUndefined();
+    const target = at("org_node_id=node-2") ?? "";
+    expect(at(target.split("?")[1] ?? "")).toBeUndefined();
+  });
+
+  it("takes a setting written empty, the default, as written [WF-PTF-0060-A]", () => {
+    expect(at("horizon_months=&under_load_threshold=0.3&org_node_id=n")).toBeUndefined();
+    const query = new URLSearchParams(at("horizon_months=")?.split("?")[1]);
+    expect(Object.fromEntries(query)).toEqual({ ...KEPT, horizon_months: "" });
+  });
+
+  it("leaves the address alone when nothing is kept for what it leaves out [WF-PTF-0060-A]", () => {
     expect(at("", null)).toBeUndefined();
     expect(at("", {})).toBeUndefined();
-    expect(at("horizon_months=")).toBeUndefined();
+    expect(at("horizon_months=24", { horizon_months: "12" })).toBeUndefined();
   });
 
-  it("says the horizon lifted when a change would leave the address naming none, so that the default can be chosen [WF-PTF-0060-A]", () => {
+  it("writes empty each setting a change would remove, so that the default is not restored [WF-PTF-0060-A]", () => {
     expect(spokenHref("/portfolio/workload?states=completed", WORKLOAD_KEPT)).toBe(
-      "/portfolio/workload?states=completed&horizon_months=",
+      "/portfolio/workload?states=completed&horizon_months=&under_load_threshold=&org_node_id=",
     );
-    expect(spokenHref("/portfolio/workload?org_node_id=n", WORKLOAD_KEPT)).toBe(
-      "/portfolio/workload?org_node_id=n",
-    );
+    const full = "/portfolio/workload?org_node_id=n&horizon_months=12&under_load_threshold=0.5";
+    expect(spokenHref(full, WORKLOAD_KEPT)).toBe(full);
   });
 });

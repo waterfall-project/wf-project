@@ -7,8 +7,9 @@
  * (WF-IHM-0070). The horizon and the threshold of under-load are parameters of the view, in the
  * address (`horizon_months`, `under_load_threshold`), as the node of organisation of its perimeter
  * (`org_node_id`): the three are display preferences kept from one consultation to the next, as the
- * settings of a grid are (WF-PTF-0060-A, WF-IHM-0060) — an address that names none leads to the
- * address of those kept (`restoredWorkload`) —; the server reads them, the front computes nothing.
+ * settings of a grid are (WF-PTF-0060-A, WF-IHM-0060) — a setting the address leaves out is
+ * restored, by the address that names it (`restoredWorkload`) —; the server reads them, the front
+ * computes nothing.
  * A threshold the address does not name shows as the server retained it.
  */
 import type { Metadata } from "next";
@@ -59,7 +60,7 @@ export default async function PortfolioWorkloadPage({
     requestSession(),
   ]);
   const preferences = session?.display_preferences?.grids?.[WORKLOAD_KEY] ?? undefined;
-  // An address that names none of the settings kept: those kept, before anything is read.
+  // A setting the address leaves out, and that is kept: restored before anything is read.
   const restored = restoredWorkload(search, preferences?.filters);
   if (restored !== undefined) {
     redirect(restored);

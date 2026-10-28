@@ -26,7 +26,7 @@ Le graphique :
 - **Exporter en PNG** enregistre le graphique en image, avec le périmètre, l’horizon, le nœud et la date de calcul ;
 - **Valeurs du graphique** déplie le total de chaque mois, en table.
 
-L’horizon, le seuil et le nœud d’organisation vivent dans l’adresse de la vue, et sont conservés d’une consultation à l’autre, comme les réglages d’une grille : une consultation qui n’en nomme aucun retrouve les derniers choisis.
+L’horizon, le seuil et le nœud d’organisation vivent dans l’adresse de la vue, et sont conservés d’une consultation à l’autre, comme les réglages d’une grille : un réglage que l’adresse ne nomme pas retrouve le dernier choisi, et « Par défaut » le retire.
 
 ## Ses colonnes et ses valeurs calculées
 

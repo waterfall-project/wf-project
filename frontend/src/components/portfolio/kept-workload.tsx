@@ -4,7 +4,7 @@
  * The horizon, the threshold and the node of the aggregated workload recorded with the preferences
  * of its key (WF-PTF-0060-A, WF-IHM-0060), as a dense grid records its filters: each time the page
  * shows settings that differ from those kept, those shown; the page finds them again, on the server,
- * when the address names none (`restoredWorkload`). What the account kept for the key besides is sent
+ * when the address leaves one out (`restoredWorkload`). What the account kept for the key besides is sent
  * back as it came. A write the service refuses is told where the screen stands, and may be dismissed.
  *
  * Every prop is data, never a function: a server component hands it over (défaut n° 12 de

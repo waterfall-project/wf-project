@@ -75,4 +75,19 @@ describe("the settings the aggregated workload records", () => {
     });
     expect(writes()[0]?.body).toEqual({ grids: { portfolio_workload: { filters: {} } } });
   });
+
+  it("records the node of an address restored, with the horizon and the threshold kept [WF-PTF-0060-A]", async () => {
+    page.search = "org_node_id=n2&horizon_months=12&under_load_threshold=0.5";
+    show({ horizon_months: "12", under_load_threshold: "0.5", org_node_id: "n1" });
+    await waitFor(() => {
+      expect(writes()).toHaveLength(1);
+    });
+    expect(writes()[0]?.body).toEqual({
+      grids: {
+        portfolio_workload: {
+          filters: { horizon_months: "12", under_load_threshold: "0.5", org_node_id: "n2" },
+        },
+      },
+    });
+  });
 });

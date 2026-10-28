@@ -283,10 +283,34 @@ describe("the screens of the portfolio", () => {
     });
   });
 
-  it("reads the address as it is when it names a setting, whatever the account kept [WF-PTF-0060-A]", async () => {
+  it("restores the settings the address leaves out, and keeps the one it names [WF-PTF-0060-A]", async () => {
+    kept.grids = {
+      portfolio_workload: { filters: { horizon_months: "12", under_load_threshold: "0.5" } },
+    };
+    const refusal = await render(WorkloadPage, { org_node_id: TECHNICAL_DIRECTION }).catch(
+      (error: unknown) => error,
+    );
+    const target = (refusal as { digest: string }).digest.split(";")[2] ?? "";
+    expect(Object.fromEntries(new URLSearchParams(target.split("?")[1]))).toEqual({
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+      org_node_id: TECHNICAL_DIRECTION,
+    });
+  });
+
+  it("reads the address as it is when it names every setting, whatever the account kept [WF-PTF-0060-A]", async () => {
     kept.grids = { portfolio_workload: { filters: { horizon_months: "12" } } };
-    await render(WorkloadPage, { under_load_threshold: "0.3" });
-    expect(queryOf("GET /portfolio/workload")).toEqual({ under_load_threshold: "0.3" });
+    await render(WorkloadPage, { horizon_months: "24", under_load_threshold: "0.3" });
+    expect(queryOf("GET /portfolio/workload")).toEqual({
+      horizon_months: "24",
+      under_load_threshold: "0.3",
+    });
+  });
+
+  it("asks no horizon, and restores none, for a horizon written empty, the default [WF-PTF-0060-A]", async () => {
+    kept.grids = { portfolio_workload: { filters: { horizon_months: "12" } } };
+    await render(WorkloadPage, { horizon_months: "" });
+    expect(queryOf("GET /portfolio/workload")).toEqual({});
   });
 
   it("heads its columns with the months of the horizon, and names the node the server retained", async () => {
