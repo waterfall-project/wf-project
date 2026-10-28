@@ -150,7 +150,7 @@ describe("the screen of the revisions of a project", () => {
     );
   });
 
-  it("lists the revisions in the order of the server, each with the attributes the API gives", async () => {
+  it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A]", async () => {
     const page = html(await RevisionsPage(at()));
     // The history is read whole, by the largest page the contract takes (#303).
     expect(Object.fromEntries(callTo("GET /projects/{project_id}/revisions")?.query ?? [])).toEqual(
