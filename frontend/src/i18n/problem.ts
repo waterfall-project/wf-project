@@ -266,6 +266,19 @@ const DETAILS: readonly Reader[] = [
     const named = itemsOf(cycle, isLabelled).map(({ label }) => say("taskName", { label }));
     return named.length === 0 ? undefined : ["cycle", { tasks: conjunction(named, locale) }];
   },
+  // The two tasks of a link a summary cannot bear to one of its subordinates, the summary first,
+  // each by its label (`LINK_FORBIDDEN`, WF-PLA-0030, #1582).
+  ({ link }, _label, locale, say) => {
+    const named = itemsOf(link, isLabelled).map(({ label }) => say("taskName", { label }));
+    return named.length === 0 ? undefined : ["link", { tasks: conjunction(named, locale) }];
+  },
+  // The task a write or a merge that would carry the project past the fifteen years it may last is
+  // refused for, by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788): the contract says
+  // only « the task concerned », which is not always the one that ends the project.
+  ({ task }, _label, _locale, say) =>
+    isLabelled(task)
+      ? ["horizon_task", { task: say("taskName", { label: task.label }) }]
+      : undefined,
   // The day a date entered falls on without an hour worked, and the working day that follows, both
   // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
   ({ date, next_working_day }, _label, locale) =>

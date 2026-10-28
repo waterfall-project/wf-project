@@ -360,6 +360,56 @@ describe("the contractualisation of an amendment", () => {
     expect(within(form).getByRole("textbox", { name: "Nom de version" })).toHaveValue("Avenant 2");
   });
 
+  it("is offered on the last revision marked when the project has none in progress, and its report says the merge creates it [WF-REV-0050-A]", async () => {
+    // Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable
+    // (conception d'EP-16, « Une fusion sans révision en cours », #790 : le Vérif de WF-REV-0050-A
+    // ne dit pas ce cas).
+    const client = serve({ [REPORT]: "structure_merge_report_without_current_revision" });
+    open(merging(false, "revision_marked_merge_offered"));
+    const form = await openMerge();
+    expect(await within(form).findByRole("note")).toHaveTextContent(
+      "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée",
+    );
+    expect(within(form).getByRole("list", { name: "Écarts par objet" })).toBeVisible();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Nom de version" }), "V3");
+    const confirm = within(form).getByRole("button", { name: "Confirmer la fusion" });
+    expect(confirm).not.toHaveAttribute("aria-disabled", "true");
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
+  });
+
+  it("says nothing of a revision created when the project has one in progress [WF-REV-0050-A]", async () => {
+    serve({ [REPORT]: "structure_merge_report" });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    expect(within(form).queryByRole("note")).toBeNull();
+  });
+
+  it.each([
+    {
+      example: "structure_merge_report_link_forbidden" as const,
+      sentence:
+        /Liaison en cause, la récapitulative d’abord : « Installation sur site » et « Montage des armoires sur site »/,
+    },
+    {
+      example: "structure_merge_report_horizon_exceeded" as const,
+      sentence: /Tâche en cause : « Mise en service »/,
+    },
+  ])(
+    "gives the tasks of a refusal with the motive, and does not offer the confirmation [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",
+    async ({ example: name, sentence }) => {
+      serve({ [REPORT]: name });
+      open(merging());
+      const form = await openMerge();
+      expect(await within(form).findByRole("alert")).toHaveTextContent(sentence);
+      await userEvent.type(within(form).getByRole("textbox", { name: "Nom de version" }), "V3");
+      expect(within(form).getByRole("button", { name: "Confirmer la fusion" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    },
+  );
+
   it("is not presented for an amendment already merged, and not at all without the offer", () => {
     serve({});
     const merged = open(merging(true));
