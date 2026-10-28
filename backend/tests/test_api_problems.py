@@ -110,6 +110,11 @@ def build_app(services: Services) -> FastAPI:
     def fail(kind: str) -> None:
         raise ERRORS[kind]
 
+    @app.post("/refusals")
+    def refuse(params: dict[str, Any]) -> None:
+        code = "TASK_WITHOUT_WORKING_HOURS"
+        raise UnprocessableError(code, params)
+
     @app.post("/entries")
     def enter(entry: Entry) -> Entry:
         return entry
@@ -215,6 +220,7 @@ def test_the_parameters_and_the_fields_of_an_exception_travel_in_the_envelope(
     ]
 
 
+@pytest.mark.requirement("WF-ARC-0110-A")
 def test_a_null_the_typed_parameters_carry_travels_and_nothing_absent_is_sent(
     app: FastAPI,
 ) -> None:
@@ -232,6 +238,70 @@ def test_a_null_the_typed_parameters_carry_travels_and_nothing_absent_is_sent(
     assert problem.params is not None
     assert problem.params.projects is not None
     assert problem.params.projects[0].project_code is None
+
+
+ROLE = {"resource_role_id": str(UUID(int=454)), "code": "MONT-CAB", "label": "Monteur"}
+TASK = {"project_id": str(UUID(int=1)), "node_id": str(UUID(int=2)), "label": "Câblage"}
+IMPORTED = {"lineage_id": str(UUID(int=3)), "label": "Câblage"}
+LINE = {
+    "structure_id": str(UUID(int=4)),
+    "structure_label": "Principale",
+    "node_id": str(UUID(int=5)),
+    "row_number": 2,
+    "label": "Essais",
+}
+SHAPES = {
+    "resource_roles": [ROLE],
+    "tasks": [TASK],
+    "tasks_imported": [IMPORTED],
+    "estimate_lines": [LINE],
+    "subproject": {"subproject_id": str(UUID(int=6)), "label": "Poste"},
+    "missing_columns": [{"column": "amount", "labels": ["Montant", "Amount"]}],
+    "columns": ["wbs_element", "document_number"],
+}
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize("shape", sorted(SHAPES))
+def test_a_valid_typed_parameter_leaves_the_envelope_as_it_was_given(
+    app: FastAPI, shape: str
+) -> None:
+    name = "tasks" if shape == "tasks_imported" else shape
+    response = TestClient(app).post("/refusals", json={name: SHAPES[shape]})
+    assert (response.status_code, response.json()["params"]) == (422, {name: SHAPES[shape]})
+
+
+INVALID_SHAPES: list[dict[str, Any]] = [
+    {"resource_roles": [{"code": "MONT-CAB"}]},
+    {"tasks": [{"label": "Câblage"}]},
+    {"subproject": "SP-1"},
+    {"missing_columns": [{"column": "unknown", "labels": []}]},
+    {"columns": ["unknown"]},
+]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize("params", INVALID_SHAPES)
+def test_a_typed_parameter_of_a_shape_the_contract_does_not_give_is_an_internal_error(
+    app: FastAPI, params: dict[str, Any]
+) -> None:
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/refusals", json=params, headers={"X-Correlation-ID": "trace-shape"}
+    )
+    problem = problem_of(response)
+    assert (response.status_code, problem.code.value) == (500, "INTERNAL_ERROR")
+    assert problem.correlation_id == "trace-shape"
+    assert problem.params is None
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_typed_parameter_given_as_none_is_left_out_but_an_open_one_travels(
+    app: FastAPI,
+) -> None:
+    response = TestClient(app).post(
+        "/refusals", json={"subproject": None, "tasks": None, "other": None, "columns": []}
+    )
+    assert response.json()["params"] == {"other": None, "columns": []}
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")

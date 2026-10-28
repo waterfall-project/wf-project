@@ -8068,7 +8068,8 @@ Sans objet :
   schéma par code d'erreur (`oneOf`), qui doublerait le catalogue. Le service range ses paramètres
   dans `ProblemParams` et laisse absent ce que l'erreur ne donne pas, sans écrire `null` : un nul
   que les paramètres portent, le code d'un projet qui n'en a pas, n'est plus retiré de l'enveloppe
-  (`waterfall.api.problems`). Le nom du modèle engendré change avec le schéma (`Params` devient
+  (`waterfall.api.problems`) ; une propriété typée donnée à `None` est laissée absente, et une forme
+  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du modèle engendré change avec le schéma (`Params` devient
   `ProblemParams`), et les objets ouverts que le test « aucune phrase » admet se réduisent à lui.
 - **Le compte rendu d'import nomme le rôle et la tâche d'une ligne rejetée** (#768, points 1 et 2).
   Une ligne de main-d'œuvre importée qui laisserait sa tâche sans heure travaillée
@@ -8080,9 +8081,14 @@ Sans objet :
   import : un import sur un projet sans révision en cours n'a encore aucun nœud de la révision qu'il
   écrira (WF-INTF-0090). Le refus d'une saisie, d'un collage et d'une fusion garde
   `resource_role_ids` et les tâches par leur nœud : l'auteur y consulte son projet et en lit les
-  rôles d'après ses lignes. Aucun exemple : aucune situation du témoin ne laisse une tâche sans
-  heure travaillée par une ligne importée, les calendriers de l'univers se recoupant tous du lundi au
-  jeudi, et il en faudrait un autre, inventé pour le seul exemple.
+  rôles d'après ses lignes. Aucune situation du témoin ne laisse une tâche sans heure travaillée
+  par une ligne importée, les calendriers de l'univers se recoupant tous du lundi au jeudi : l'exemple
+  est une variante déclarée, écrite à la main comme `structure_merge_report_refused`,
+  `import_estimate_task_without_hours` (`getImport`, dernier des 200). Il reprend l'import du devis
+  de `import_analysed` et rejette sa quatrième ligne de l'onglet « Hors lot » : `resource_roles` y
+  nomme le monteur câbleur et le technicien de mise en service, `tasks` le « Câblage des armoires »
+  par sa lignée. Un test d'outil le recoupe avec les rôles et le cœur du témoin, un test du back le
+  fait lire en entier par le modèle engendré.
 - **La ligne de provision déplacée, au compte rendu** (#789, WF-RIS-0010). Quand l'import d'un
   planning ou la fusion d'un différentiel retire la tâche qui porte une ligne de provision, la ligne
   passe sur la tâche parente — ou, pour une tâche de premier niveau, sur la première tâche de

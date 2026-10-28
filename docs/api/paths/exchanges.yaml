@@ -363,6 +363,7 @@
               remaining_subproject_held: { $ref: ../../../fixtures/api/import_remaining_subproject_held.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
+              estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
