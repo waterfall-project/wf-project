@@ -38,8 +38,9 @@ demande une référence qui porte des tâches et des lignes, et se clôt en EP-0
   leur datation, la lecture seule et la consultation des projets terminaux ;
 - l'autorité du serveur sur les révisions marquées, les projets terminaux et les
   non-contributeurs ;
-- le premier état du jeu de données de référence (WF-QUA-0040), qui grossit ensuite avec chaque
-  EPIC ;
+- sa tranche du jeu de données de référence (WF-QUA-0040) — projets, révisions, contributeurs,
+  sous-projets —, chargée après celle du référentiel (EP-05, #1402), et qui grossit ensuite avec
+  chaque EPIC ;
 - les écrans du projet, des révisions et des contributeurs de la maquette, branchés sur le
   service.
 
@@ -62,7 +63,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-CYC-0120-A` | Référentiel minimal requis pour créer un projet | entière | — |
+| `WF-CYC-0120-A` | Référentiel minimal requis pour créer un projet | fin — amorcée en EP-05 | — |
 | `WF-CYC-0010-A` | États du cycle de vie | entière | — |
 | `WF-CYC-0020-A` | Progression automatique | début — close en EP-07 | — |
 | `WF-CYC-0030-A` | Conditions du passage à En cours | début — close en EP-07, amorcée aussi en EP-15 | — |

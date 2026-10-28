@@ -66,6 +66,8 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | fin — amorcée en EP-02, EP-03, EP-15 | — |
 | `WF-IHM-0140-A` | Aide en ligne | fin — amorcée en EP-15, poursuivie en EP-16 | — |
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
+| `WF-REF-0070-A` | Arbre d'organisation | fin — amorcée en EP-05 | — |
+| `WF-REF-0100-A` | Capacité d'un rôle | fin — amorcée en EP-05 | — |
 
 ## Opérations du contrat
 

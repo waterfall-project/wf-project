@@ -84,6 +84,9 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-INTF-0110-A` | Export du devis (FLX-04) | entière | — |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | fin — amorcée en EP-02 | — |
 | `WF-DAT-0110-A` | Idempotence garantie par la base | début — close en EP-09 | — |
+| `WF-REF-0010-A` | Désactivation plutôt que suppression | fin — amorcée en EP-05 | — |
+| `WF-REF-0030-A` | Natures de coût | fin — amorcée en EP-05 | — |
+| `WF-REF-0040-A` | Catégories de coût | fin — amorcée en EP-05 | — |
 
 ## Opérations du contrat
 

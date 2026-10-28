@@ -69,6 +69,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
 | `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06 | — |
+| `WF-REF-0160-A` | Matrice de risques | fin — amorcée en EP-05 | — |
 
 ## Opérations du contrat
 
