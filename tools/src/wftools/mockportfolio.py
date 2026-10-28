@@ -380,24 +380,24 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
     value = sum((each.earned for each in sums), Decimal(0))
     actual = sum((each.actual for each in sums), Decimal(0))
     projection = sum((each.projection for each in sums), Decimal(0))
-    cost = (value / actual).quantize(CENT)
-    schedule = (value / planned).quantize(CENT)
     at_budget = actual + budget - value
-    at_rate = (actual + (budget - value) * actual / value).quantize(CENT)
+    at_rate = _at_observed_rate(budget, actual, value)
     return {
         "scope": _scope(rows, ["in_progress"], period=False),
         "reference_budget": money(budget),
-        "cost_index": _index(cost),
-        "schedule_index": _index(schedule),
+        "cost_index": _ratio_index(value, actual, "no_actual_cost"),
+        "schedule_index": _ratio_index(value, planned, "no_planned_value"),
         "cost_variance": money(value - actual),
         "schedule_variance": money(value - planned),
         "projections": {
             "at_budget": money(at_budget),
             "project_manager": money(projection),
-            "at_observed_rate": {"is_computable": True, "value": money(at_rate), "reason": None},
+            "at_observed_rate": at_rate,
             "variance_at_budget": money(at_budget - budget),
             "variance_project_manager": money(projection - budget),
-            "variance_at_observed_rate": money(at_rate - budget),
+            "variance_at_observed_rate": None
+            if at_rate["value"] is None
+            else money(Decimal(cast("str", at_rate["value"])) - budget),
         },
         "zone_distribution": [
             {"index": index, "zone": name, "project_count": count}
@@ -406,6 +406,33 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
         ],
         "quarterly": quarterly,
     }
+
+
+def _ratio_index(numerator: Decimal, denominator: Decimal, reason: str) -> JsonObject:
+    """Return an index of the portfolio: not computable, without a zone, on a null denominator.
+
+    « Présenté comme non calculable, jamais comme zéro ni comme infini » (WF-IND-0010): a
+    portfolio with no project in progress, or none that spent, planned or earned anything.
+    """
+    if denominator == 0:
+        return {"value": {"is_computable": False, "value": None, "reason": reason}, "zone": None}
+    return _index((numerator / denominator).quantize(CENT))
+
+
+def _at_observed_rate(budget: Decimal, actual: Decimal, value: Decimal) -> JsonObject:
+    """Return the projection at the observed rate: not computable without cost, or without value.
+
+    The reason is the first grandeur null (WF-IND-0050): the actual cost, which makes the cost
+    index not computable, else the earned value, which makes it null.
+    """
+    if actual == 0:
+        reason = "no_actual_cost"
+    elif value == 0:
+        reason = "no_earned_value"
+    else:
+        at_rate = (actual + (budget - value) * actual / value).quantize(CENT)
+        return {"is_computable": True, "value": money(at_rate), "reason": None}
+    return {"is_computable": False, "value": None, "reason": reason}
 
 
 def _zones(rows: list[JsonObject], name: str) -> dict[str, int]:

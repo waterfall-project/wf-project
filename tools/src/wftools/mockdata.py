@@ -81,6 +81,7 @@ from wftools import (
     mockamendment,
     mockamendmentwrites,
     mockaudit,
+    mockcategories,
     mockcomparisons,
     mockcore,
     mockcosts,
@@ -102,7 +103,7 @@ from wftools import (
     mockwrites,
     paths,
 )
-from wftools.mockids import CATEGORIES, identifier, universe
+from wftools.mockids import universe
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
     PROJECT_COUNT,
@@ -116,13 +117,10 @@ from wftools.mockportfolio import (
     portfolio_value,
 )
 from wftools.mockstructure import (
-    CATEGORY_LABELS,
     COMMISSIONING_RATE,
     ELECTRICAL_RATE,
     LABOR,
     LINES_PER_TASK,
-    NON_LABOR,
-    PROVISION,
     JsonObject,
     JsonValue,
     described,
@@ -139,21 +137,17 @@ from wftools.mockwitness import (
     CREATED_TIMELINE,
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
-    EQUIPMENT,
     FIRST_ITEM,
     FIRST_LOT,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
-    PROVISIONS,
     STEERING,
     STUDIES,
-    SUBCONTRACTING,
     TIMELINES,
     TODAY,
     WORK_BREAKDOWN,
     N,
-    fixture,
 )
 
 if TYPE_CHECKING:
@@ -169,8 +163,6 @@ VOLUME = "volume"
 """Where the volumes are written, under the fixtures: a directory the generator owns, entry by
 entry. The named examples of the witness are written beside it, file by file."""
 
-LABOR_CATEGORY_COUNT = 150
-CATEGORY_COUNT = 200
 RATE_YEARS = range(2012, 2027)
 """Fifteen years of rates, up to the reference year of the witness estimate."""
 
@@ -188,59 +180,13 @@ _AUDIT: JsonObject = {
 
 # --- The grid of hourly rates -------------------------------------------------------------
 
-_TRADES = (
-    "Ingénierie mécanique",
-    "Automatisme",
-    "Électricité",
-    "Instrumentation",
-    "Génie civil",
-    "Tuyauterie",
-    "Chaudronnerie",
-    "Informatique industrielle",
-    "Qualité",
-    "Méthodes",
-)
-_PURCHASES = (
-    "Matériel mécanique",
-    "Câbles",
-    "Instruments",
-    "Location d'engins",
-    "Transport",
-    "Essais en laboratoire",
-    "Études externes",
-)
-
 
 def categories() -> list[JsonValue]:
     """Return the answer of listCostCategories: the labour categories first, then the others."""
-    labor = [
-        (ELECTRICAL_ENGINEERING, CATEGORY_LABELS[ELECTRICAL_ENGINEERING]),
-        (COMMISSIONING, CATEGORY_LABELS[COMMISSIONING]),
-    ]
-    labor.extend(
-        (identifier(CATEGORIES, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
-        for n in range(LABOR_CATEGORY_COUNT - len(labor))
-    )
-    non_labor = [
-        (SUBCONTRACTING, CATEGORY_LABELS[SUBCONTRACTING]),
-        (EQUIPMENT, CATEGORY_LABELS[EQUIPMENT]),
-    ]
-    others = CATEGORY_COUNT - LABOR_CATEGORY_COUNT - 1
-    non_labor.extend(
-        (
-            identifier(CATEGORIES, LABOR_CATEGORY_COUNT + n),
-            f"{_PURCHASES[n % len(_PURCHASES)]} — lot {n // len(_PURCHASES) + 1}",
-        )
-        for n in range(others - len(non_labor))
-    )
-    # Each category names its nature, and its kind, as the natures of the universe do.
-    natures = {nature["cost_type_id"]: nature for nature in fixture("cost_types")["items"]}
     return [
-        *categories_of(labor, "MO", "641", natures[LABOR]),
-        *categories_of(non_labor, "ACH", "604", natures[NON_LABOR]),
-        *categories_of(
-            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])], "PRV", "681", natures[PROVISION]
-        ),
+        category
+        for entries, code, account, nature in mockcategories.groups()
+        for category in categories_of(entries, code, account, nature)
     ]
 
 

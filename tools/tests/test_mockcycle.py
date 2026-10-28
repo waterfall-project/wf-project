@@ -14,7 +14,7 @@ one alone bears the Vérif of a requirement, and cites it, WF-REV-0040-A — the
 
 import json
 from datetime import timedelta
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
@@ -82,14 +82,14 @@ def test_the_offer_is_designated_at_the_order_and_the_project_passes_in_progress
 def test_the_rates_are_accepted_from_the_reference_in_progress_before_its_marking() -> None:
     # C-362: the update, still proposed from the revision in progress, is accepted on the revision
     # 101 a quarter of an hour after its opening, for the categories its proposal presents; the
-    # version it leaves is the one its marked readings keep.
+    # version it leaves is the one its marking follows.
     applied = mockwitness.fixture("rate_update_applied")
     marked = mockwitness.fixture("revision_marked")
     assert applied["revision_id"] == marked["revision_id"] == mockhistory.REFERENCE
     assert applied["reference_year"] == mockwitness.fixture("rate_update")["target_year"]
-    # Opened at its first version, the revision 101 passes to 2 by the update, which its marked
-    # readings keep.
-    assert (applied["lock_version"], marked["lock_version"]) == (2, 2)
+    # Opened at its first version, the revision 101 passes to 2 by the update, its marking to 3
+    # (#1352).
+    assert (applied["lock_version"], marked["lock_version"]) == (2, 3)
     commands = {each["command"]: each for each in applied["available_commands"]}
     assert commands["designate_reference"]["missing_conditions"] == ["revision_marked"]
     assert commands["merge_structure"]["missing_conditions"] == ["unmerged_amendment_exists"]
@@ -303,35 +303,3 @@ def test_the_history_read_before_the_designation_offers_it_on_one_marked_revisio
     ]
     assert others[0] == others[1]
     assert items[0] == examples["rate_update_applied.json"]
-
-
-_ONE_VERSION_TWO_STATES = {(mockhistory.REFERENCE, 2)}
-"""The revisions rendered at one version in two states, a known exemption of #421 followed by
-#1352: the 101 keeps its version 2 from before its marking (``rate_update_applied``,
-``revisions_designation_open``) to after it (``revisions``, ``revisions_marked``)."""
-
-
-def _revisions(value: Any) -> list[dict[str, Any]]:
-    """Return every revision an example renders, however deep it lies."""
-    if isinstance(value, list):
-        return [found for each in cast("list[Any]", value) for found in _revisions(each)]
-    if not isinstance(value, dict):
-        return []
-    found_here = cast("dict[str, Any]", value)
-    keys = {"revision_id", "status", "lock_version", "marked_at"}
-    here = [found_here] if keys <= found_here.keys() else []
-    return here + [found for each in found_here.values() for found in _revisions(each)]
-
-
-def test_a_revision_rendered_at_one_version_by_two_examples_is_in_one_state(
-    examples: dict[str, Any],
-) -> None:
-    # A revision at one version has one content (#421): whichever examples render it, its status
-    # and its marking agree, but for the exemption #1352 names.
-    states: dict[tuple[str, int], set[tuple[str, str | None]]] = {}
-    for value in examples.values():
-        for each in _revisions(value):
-            key = (each["revision_id"], each["lock_version"])
-            states.setdefault(key, set()).add((each["status"], each["marked_at"]))
-    split = {key for key, found in states.items() if len(found) > 1}
-    assert split == _ONE_VERSION_TWO_STATES
