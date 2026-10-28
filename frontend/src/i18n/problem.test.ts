@@ -189,7 +189,8 @@ describe("the sentence of a refusal", () => {
     expect(say({ ...refused, params: { state: params?.state } }, "en")).toBe(bare);
     expect(say({ ...refused, params: { ...params, state: "occurred" } }, "en")).toBe(bare);
     for (const state_enum of ["toString", "__proto__"]) {
-      expect(say({ ...refused, params: { ...params, state_enum } }, "en")).toBe(bare);
+      const forged = { ...params, state_enum } as NonNullable<ProblemText["params"]>;
+      expect(say({ ...refused, params: forged }, "en")).toBe(bare);
     }
   });
 
