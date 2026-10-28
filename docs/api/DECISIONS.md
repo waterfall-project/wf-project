@@ -8074,8 +8074,9 @@ Sans objet :
   dans `ProblemParams` et laisse absent ce que l'erreur ne donne pas, sans écrire `null` : un nul
   que les paramètres portent, le code d'un projet qui n'en a pas, n'est plus retiré de l'enveloppe
   (`waterfall.api.problems`) ; une propriété typée donnée à `None` est laissée absente, et une forme
-  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du modèle engendré change avec le schéma (`Params` devient
-  `ProblemParams`), et les objets ouverts que le test « aucune phrase » admet se réduisent à lui.
+  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du
+  modèle engendré change avec le schéma (`Params` devient `ProblemParams`), et les objets ouverts
+  que le test « aucune phrase » admet se réduisent à lui.
 - **Le compte rendu d'import nomme le rôle et la tâche d'une ligne rejetée** (#768, points 1 et 2).
   Une ligne de main-d'œuvre importée qui laisserait sa tâche sans heure travaillée
   (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection`) nomme ses rôles par `resource_roles`, chacun
