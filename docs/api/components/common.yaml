@@ -274,7 +274,11 @@ Problem:
         la plus courte quand il y en a plusieurs, puis celle dont la première tâche vient d'abord
         dans l'ordre du plan. Une chaîne d'une seule
         liaison est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans
-        paramètre. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et
+        paramètre pour une saisie ou un déplacement ; pour une fusion qui ferait naître cette liaison
+        (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030 ; #1582), `link`
+        nomme les deux tâches, la récapitulative d'abord, chacune par son nœud de la structure
+        principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute —
+        `tasks` ne convient pas, qui exige un projet et un nœud. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et
         traverse la hiérarchie, une récapitulative couvrant ses subordonnées : d'une tâche
         atteinte à son début à l'une de ses subordonnées, que ce qui la précède précède, et d'une
         tâche à sa récapitulative, que ce qui la suit suit ; elle nomme chaque tâche qu'elle
@@ -435,7 +439,9 @@ ErrorCode:
     # création ne porte aucune liaison : `createNode` ne rend ni l'un ni l'autre (#1167).
     # `LINK_CYCLE` est aussi le code d'une fusion qui échoue sur une boucle de liaisons, et un
     # motif de son compte rendu préalable (`mergeCostStructure`, `StructureMergeReport.refusals`,
-    # WF-REV-0050 ; #788).
+    # WF-REV-0050 ; #788) ; `LINK_FORBIDDEN` de même pour une liaison qu'elle ferait naître
+    # entre une récapitulative et sa subordonnée, `params.link` nommant les deux tâches
+    # (WF-PLA-0030 ; #1582).
     - LINK_CYCLE
     - LINK_FORBIDDEN
     - RESOURCE_ROLE_REQUIRED

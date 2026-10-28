@@ -509,6 +509,7 @@
               refused: { $ref: ../../../fixtures/api/structure_merge_report_refused.json }
               provision_moved: { $ref: ../../../fixtures/api/structure_merge_report_provision_moved.json }
               link_cycle: { $ref: ../../../fixtures/api/structure_merge_report_link_cycle.json }
+              link_forbidden: { $ref: ../../../fixtures/api/structure_merge_report_link_forbidden.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/structure_merge_report_horizon_exceeded.json }
               without_current_revision: { $ref: ../../../fixtures/api/structure_merge_report_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
@@ -547,7 +548,9 @@
       `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion
       qui fermerait une boucle de liaisons dans la structure principale échoue de même,
       `problem.code` à `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ;
-      `task_merge_link_cycle`) ; une fusion qui porterait la durée du projet au-delà de quinze
+      `task_merge_link_cycle`) ; une fusion qui lierait une récapitulative à sa subordonnée,
+      `problem.code` à `LINK_FORBIDDEN`, `params.link` nommant les deux tâches, la récapitulative
+      d'abord (WF-PLA-0030 ; `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de quinze
       ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en cause
       (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure
       principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute

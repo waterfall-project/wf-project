@@ -1,0 +1,36 @@
+{
+  "summary": "Une variante déclarée, celle de task_merge_link_forbidden : un différentiel de la révision courante qui donne à l'« Installation sur site » le « Montage des armoires sur site » pour prédécesseur, alors que celui-ci est l'une de ses subordonnées. Le compte rendu préalable de sa fusion présente la liaison ajoutée, nommée par son successeur, et le motif qui la refuse : elle relierait une récapitulative à sa subordonnée, et le compte rendu en nomme les deux tâches par leur nœud et leur libellé, la récapitulative d'abord, comme l'échec de la fusion le ferait ; les dates de la structure ne se calculant pas, l'horizon n'est pas jugé ; la confirmation n'est pas offerte. Les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 1 (WF-REV-0050, WF-PLA-0030, #1582).",
+  "value": {
+    "main_structure_lock_version": 1,
+    "amendment_lock_version": 1,
+    "creates_current_revision": false,
+    "differences": [
+      {
+        "change": "added",
+        "target": "link",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000661",
+        "label": "Installation sur site",
+        "predecessor_label": "Montage des armoires sur site",
+        "fields": []
+      }
+    ],
+    "completed_tasks": [],
+    "refusals": [
+      {
+        "code": "LINK_FORBIDDEN",
+        "params": {
+          "link": [
+            {
+              "node_id": "01926f3a-7c00-7000-8000-000000000561",
+              "label": "Installation sur site"
+            },
+            {
+              "node_id": "01926f3a-7c00-7000-8000-000000000562",
+              "label": "Montage des armoires sur site"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

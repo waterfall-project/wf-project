@@ -138,7 +138,7 @@ export interface Examples {
     200: "structures" | "structures_amendments" | "structures_estimator" | "structures_without_tasks";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
-    200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
+    200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
     200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
@@ -219,7 +219,7 @@ export interface Examples {
     200: "tasks_none" | "tasks_running";
   };
   "GET /tasks/{task_id}": {
-    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
+    200: "identity_sync_succeeded" | "task_export_succeeded" | "task_failed" | "task_import_succeeded" | "task_interrupted_by_restore" | "task_mark_relaunched" | "task_merge_horizon_exceeded" | "task_merge_link_cycle" | "task_merge_link_forbidden" | "task_merge_outside_work_package" | "task_merge_running" | "task_merge_succeeded" | "task_restore_backup_newer_version" | "task_restore_verification_failed" | "task_running" | "task_succeeded";
   };
   "GET /users": {
     200: "users" | "users_anonymized" | "users_by_access_role" | "users_by_created_at" | "users_created_by_platform" | "users_inactive" | "users_page" | "users_search";

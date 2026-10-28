@@ -411,8 +411,9 @@ ReportRefusal:
     du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks`
     (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans,
     `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS`
-    (WF-PLA-0010) et `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait,
-    `params.cycle` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion
+    (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait,
+    `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative
+    et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion
     échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788).
   properties:
     code: { $ref: ../common.yaml#/ErrorCode }

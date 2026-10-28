@@ -90,6 +90,7 @@ _SEQUELS = {
     "task_export_succeeded.json",
     "task_merge_outside_work_package.json",
     "task_merge_link_cycle.json",
+    "task_merge_link_forbidden.json",
     "task_merge_horizon_exceeded.json",
     "task_merge_queued.json",
     "task_merge_running.json",

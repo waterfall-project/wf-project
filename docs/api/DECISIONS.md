@@ -8222,7 +8222,22 @@ Aucune opération nouvelle.
   écrits à la main portent `creates_current_revision` faux. Les tests d'outil sont dans
   `tools/tests/test_mockmerge.py`.
 
-**Corrélation** 1561 et 1562 ; **tâches de fond** 952 et 953.
+- **La fusion échoue sur une liaison entre une récapitulative et sa subordonnée** (#1582, décision de
+  l'auteur du 2026-10-28, option 1 ; WF-PLA-0030 refuse ce lien, WF-REV-0050 cite ses refus parmi
+  ceux d'une fusion). À l'image de `LINK_CYCLE` : la tâche de fond de `mergeCostStructure` finit en
+  échec sans rien fusionner, `problem.code` à `LINK_FORBIDDEN`, et le compte rendu préalable porte le
+  même motif, avec les mêmes paramètres. `params.link` nomme les deux tâches, la récapitulative
+  puis sa subordonnée, chacune par son nœud de la structure principale et son libellé, le nœud nul
+  pour une tâche que le différentiel ajoute. Une saisie ou un déplacement refusés par ce code restent
+  sans paramètre. Écarté : le traiter comme une boucle, `LINK_CYCLE` (option 2), qui ne dirait pas
+  la raison du refus. Écarté aussi : `tasks`, propriété typée de `ProblemParams`, dont chaque élément
+  exige un projet et un nœud non nul (`ProblemTask`) quand la fusion nomme une tâche ajoutée par un
+  nœud nul et ne porte pas de projet ; `link` reste ouvert, comme `cycle` et `task`. Exemples écrits
+  à la main, variantes déclarées : `structure_merge_report_link_forbidden` et
+  `task_merge_link_forbidden` (tâche de fond 954), un différentiel qui donne à l'« Installation sur
+  site » le « Montage des armoires sur site », l'une de ses subordonnées, pour prédécesseur.
+
+**Corrélation** 1561 et 1562 ; **tâches de fond** 952, 953 et 954.
 
 ## Collage et annulation
 

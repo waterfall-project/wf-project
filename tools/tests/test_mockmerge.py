@@ -27,6 +27,7 @@ REPORTS = (
     "structure_merge_report_refused",
     "structure_merge_report_provision_moved",
     "structure_merge_report_link_cycle",
+    "structure_merge_report_link_forbidden",
     "structure_merge_report_horizon_exceeded",
     "structure_merge_report_without_current_revision",
 )
@@ -75,6 +76,11 @@ def test_every_report_before_a_merge_says_whether_the_merge_creates_the_current_
             {"cycle": [_named(N.FACTORY_ACCEPTANCE), _named(N.MOUNTING), _named(N.COMMISSIONING)]},
         ),
         ("horizon_exceeded", "PROJECT_HORIZON_EXCEEDED", {"task": _named(N.COMMISSIONING)}),
+        (
+            "link_forbidden",
+            "LINK_FORBIDDEN",
+            {"link": [_named(N.INSTALLATION), _named(N.MOUNTING)]},
+        ),
     ],
 )
 def test_a_merge_that_would_close_a_loop_or_pass_the_horizon_fails_as_its_report_says(
@@ -115,6 +121,28 @@ def test_the_loop_is_named_from_its_first_task_in_the_plan_each_preceding_the_ne
     assert rows[0] == min(rows)
     # The loop of the merge is the one the entry of the same predecessor closes (setPredecessors).
     assert refusal["params"]["cycle"] == fixture("predecessors_cycle_refused")["params"]["cycle"]
+
+
+def test_the_link_of_a_summary_and_its_subordinate_names_both_tasks_the_summary_first() -> None:
+    # #1582 (WF-PLA-0030): the link the differential adds joins a summary to one of its
+    # subordinates; the refusal names both, the summary first, each by its node of the main
+    # structure and its label, and `link` is a parameter the contract says.
+    report = fixture("structure_merge_report_link_forbidden")
+    [link] = report["differences"]
+    summary, subordinate = (_core()[universe(n)] for n in (N.INSTALLATION, N.MOUNTING))
+    assert summary["task"]["is_summary"]
+    assert subordinate["parent_id"] == summary["node_id"]
+    assert (link["change"], link["target"], link["lineage_id"]) == (
+        "added",
+        "link",
+        summary["lineage_id"],
+    )
+    assert (link["label"], link["predecessor_label"]) == (
+        summary["task"]["label"],
+        subordinate["task"]["label"],
+    )
+    assert report["refusals"][0]["params"]["link"] == [_named(N.INSTALLATION), _named(N.MOUNTING)]
+    assert "`params.link`" in _operation("mergeCostStructure")
 
 
 def test_the_task_beyond_the_horizon_is_the_one_that_finishes_last() -> None:
