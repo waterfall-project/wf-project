@@ -66,11 +66,9 @@ const FRONT = "http://front.invalid";
 
 /**
  * The screen a `next` names, or the home page when it names none of this front or cannot be
- * read as an address at all — `//[`, `//a b`. `next` is refused at once when it is no path of
- * this front as written (`isApplicationPath`, the guard `isScreen` shares): a control character,
- * which a browser strips — `/\t/elsewhere` is `//elsewhere` to it —, a backslash, `//`. It is
- * then resolved as a browser would resolve it, and followed only when it stays on this front:
- * its path, its query and its fragment, never its origin.
+ * read as an address at all — `//[`, `//a b`. `next` must first be a path of this front as written
+ * (`isApplicationPath`); it is then resolved as a browser would, and followed only when it stays on
+ * this front: its path, its query and its fragment, never its origin.
  */
 export function returnTarget(next: string | null | undefined): string {
   if (typeof next !== "string" || !isApplicationPath(next) || !URL.canParse(next, FRONT)) {

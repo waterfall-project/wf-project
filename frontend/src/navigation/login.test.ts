@@ -62,7 +62,7 @@ describe("the way back from the sign-in page", () => {
     expect(returnTarget(next)).toBe("/");
   });
 
-  it.each(["//elsewhere", "/\\elsewhere"])(
+  it.each(["//elsewhere", "/\\elsewhere", "/a\\b"])(
     "still refuses the address of return %s [WF-SEC-0010-A]",
     (next) => {
       expect(returnTarget(next)).toBe("/");

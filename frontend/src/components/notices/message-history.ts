@@ -91,10 +91,8 @@ let noted = new WeakSet<object>();
 const listeners = new Set<() => void>();
 
 /**
- * Whether a value read back is a screen kept here: an address of the application, which a link leads
- * back to — never one of another site, `//elsewhere` or `/\elsewhere`, which a browser reads as such,
- * nor one with a control character, of which a browser strips the tabs and the line breaks:
- * `/\t/elsewhere` is `//elsewhere` to it. The guard is the one of the way back from the sign-in.
+ * Whether a value read back is a screen kept here: an address of the application
+ * (`isApplicationPath`, the guard of the way back from the sign-in).
  */
 export function isScreen(value: unknown): value is MessageScreen {
   if (typeof value !== "object" || value === null) {
