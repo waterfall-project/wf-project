@@ -83,15 +83,14 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   ou le contrat ; tout le reste part à EP-17 —, les constats du front ajoutés au label depuis le
   cadrage et les ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat :
   - les mineurs du front relevés par les derniers lots d'EP-15 : #1421, #1424, #1430, #1432, #1386,
-    #1364, #1377, et le point 2 de #1384 (le libellé de `ReferenceForm`) ;
+    #1364, #1377, et le point 2 de #1384 (le libellé de `ReferenceForm`), repris par #1568 ;
   - deux défauts visibles du front : #1438 (« Déclarer un risque » sur l'écran des révisions ne fait
     rien) et #1428 (l'export PNG du Gantt sans les noms des tâches) ;
   - les ajustements de la validation du 2026-10-23 qui ne demandent que le front ou le guide :
     #1396 (le Kanban filtré), #1397 (la projection sur `kinds`), #1399 (ce que le faux back
-    n'applique pas), #1400 (l'écran du projet mène à sa révision), #1401 (la liste des projets
-    filtrée par défaut), et la part front de #1395 (la matrice sur fond blanc, la couleur sur les
-    bulles, les seuls risques identifiés) — sa part contrat, le décompte de `cells`, reste ici
-    (US-0700) ;
+    n'applique pas), #1400 (l'écran du projet mène à sa révision), et la part front de #1395 (la
+    matrice sur fond blanc, la couleur sur les bulles, les seuls risques identifiés) — sa part
+    contrat, le décompte de `cells`, reste ici (US-0700) ;
 - la version anglaise de l'aide en ligne : décidée par l'auteur au dernier lot d'US-0670, après la
   relecture de toutes les aides, elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
 - les navigateurs et les largeurs d'affichage (US-0290, #92), et les dépendances sans version
@@ -136,7 +135,8 @@ Modifiées :
 - `exchanges` : `openImport`, `getImport` — le refus tant que la correspondance est incomplète, la
   colonne exigée absente, les colonnes ignorées, le poste (US-0620, US-0630) ;
 - `costs` : `listActualCosts` — le poste (US-0630) ;
-- `me` : `updateMyPreferences` — les colonnes connues (US-0650) ;
+- `me` : `updateMyPreferences`, `GridPreferences` — les colonnes connues (US-0650), et le choix
+  d'états de la liste des projets de l'accueil (US-0640/L6, #1401) ;
 - les opérations que touchent les constats d'US-0640, sans en ajouter : la liste se fixe à la
   conception.
 
@@ -190,7 +190,7 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1368 — question : « Identifier un risque » sans révision en cours — écarté, par US-0640/L6 ;
 - #1379 — contrat : les exemples de l'encart et de l'analyse échouée — US-0640/L6 ;
 - #1384 — front, contrat : deux risques dérivés d'exemples dans les tests (point 1) — US-0640/L6 ;
-  son point 2, le libellé de `ReferenceForm`, est d'EP-17 ;
+  son point 2, le libellé de `ReferenceForm`, repris par #1568 (EP-17, US-0770/L2) ;
 - #1352 — contrat : la révision 101 à la version 2 sous deux états, l'ordre de `revisions.json` —
   US-0640/L4 ;
 - #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
@@ -199,6 +199,25 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1342 — e2e : deux expressions de test trop larges, un en-tête à resserrer — US-0590, avec #1309
   (décision de l'auteur du 2026-10-25) ;
 - #1444 — outillage : les agents suppriment la branche locale et le worktree d'un lot — US-0590 ;
+- #1401 — contrat, front : la liste des projets filtrée par défaut sur Chiffrage et En cours. Rendu
+  à EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28, #1312) : le choix d'états
+  différent du défaut, gardé en préférence comme « Lignes par page », demande le contrat, et EP-17
+  ne touche pas le contrat. Décisions de l'auteur du 2026-10-28 : **le choix d'états est une
+  préférence** — une clé de `grids` pour la liste de l'accueil, écrite au contrat par US-0640/L6
+  #1457, avant le gel (US-0640/L5 #1333) — et **la part front** (le filtre par défaut, « Tous les
+  états » dans l'adresse, les totaux) **est US-0660/L4 #1571** ;
+- #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation (relevé
+  par US-0590f). Décision de l'auteur du 2026-10-28 : corrigé par le prochain lot qui touche le
+  Gantt du planning. Aucun lot restant d'EP-16 ne le touche (US-0700/L2 touche la grille d'un
+  différentiel, non le Gantt) : il est donc reporté → EP-17, US-0750/L1 #1560, au plus tard à la
+  livraison d'EP-16 (titre et label changés alors) ; un lot d'EP-16 qui toucherait le Gantt d'ici
+  là le corrige ;
+- #1512 — front : retirer `prefetch={false}` du menu du compte à la montée vers Next 16.5
+  (relevé par US-0590e). Décision de l'auteur du 2026-10-28 : reporté à EP-13 (dépendances), listé
+  dans son fichier ;
+- #1354 — tests : `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx`, instables sous
+  charge dans la suite front. Rendu à EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28 :
+  la stabilité des tests relève d'EP-16) — repris par le rejeu sous charge d'US-0590g/L2 #1545 ;
 - la stabilité restante des parcours, revenue d'EP-17 le 2026-10-25 (le durcissement) — US-0590b :
   #1263 (le rendu serveur du Kanban à 3,2 s, le parcours d'accessibilité d'`/admin/access-roles` à
   1 420 actions), #1145 (les cinq parcours qui échouaient au palier complet local), #776 (l'e2e « on
@@ -256,11 +275,24 @@ Relevés au cadrage d'EP-15 (2026-10-18) et reportés d'EP-14 — US-0660 :
 - #779 — front : le refus d'une saisie qui laisserait une tâche sans heure ne nomme ni les rôles ni
   la tâche.
 
+Relevés par les revues des lots d'EP-16 et corrigés par US-0660/L3 #1458 (décisions de l'auteur des
+2026-10-27 et 2026-10-28, cadrage d'EP-17) :
+
+- #1518 — front : la liste des statuts d'une lecture facultative est écrite deux fois (relevé par
+  US-0620/L3) ;
+- #1524 — front : le détail d'une ligne de coût la nomme par sa pièce seule, sans son poste (relevé
+  par US-0630/L2) ;
+- #1533 — front : un refus à deux motifs sur le même champ ne dit que le premier (`byField`).
+
+#1525 (le test de la colonne « Poste » cite WF-CRE-0040-A, dont le Vérif ne nomme pas les colonnes)
+est reporté à EP-09 #1340 (titre et label `EP-09`).
+
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
 leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
 2026-10-25 a fait de même pour les constats du front ajoutés au label depuis le 2026-10-22 et pour les
 ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat : titre `[EP-17]`, label
-`EP-17`, listés dans le fichier d'EP-17.
+`EP-17`, listés dans le fichier d'EP-17 — à l'exception de #1401, rendu ici le 2026-10-28 (voir
+ci-dessus).
 
 ## Conception
 
@@ -476,6 +508,13 @@ et ses exemples.
   `kind`, ou un 404 si aucun nœud ne porte ce numéro.
 - **Les colonnes connues** (US-0650) : `GridPreferences.known_columns`, au plus 64 clés, écrit par
   `updateMyPreferences`.
+- **Le choix d'états de la liste de l'accueil** (#1401, décision de l'auteur du 2026-10-28 : une
+  préférence ; écrit par US-0640/L6) : sans changer le schéma, une clé de `grids` nommée pour la
+  liste des projets de l'accueil, dont `filters.states` garde les états choisis sous le nom que
+  l'adresse leur donne ; le défaut — Chiffrage et En cours — reste celui de l'écran (US-0660/L4),
+  et un compte qui n'a rien écrit le prend. Le nom de la clé se fixe au lot, avec son exemple et son
+  entrée dans `DECISIONS.md` ; le serveur garde le filtre tel qu'il est écrit, comme pour toute
+  grille. `getPortfolioProjects` et `PortfolioStates` ne changent pas.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
   « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle. Les constats des lots
   d'EP-15 (US-0640/L6) : `RevisionCommand.apply_rate_update` avec ses conditions et un exemple
@@ -485,7 +524,7 @@ et ses exemples.
   dit le refus entier d'un collage ancré sur un nœud retiré (#1361) ; celle de
   `ProjectCommand.declare_risk` dit `revision_in_progress` (#1368) ; les exemples `revisions` portant
   0103 et `task_import_analysis_failed` (#1379), `risk_dismissed_category_deactivated` et
-  `risk_uncited` (#1384).
+  `risk_uncited` (#1384) ; avec la préférence d'états de la liste de l'accueil (#1401).
 - **La survenance d'un risque** (US-0680, #1383) : `getRiskOccurrenceReport`
   (`GET /projects/{project_id}/risks/{risk_id}/occurrence`), une lecture qui n'écrit rien et rend
   `RiskOccurrenceReport` — `main_structure_lock_version`, `risk_lock_version`, `differences`
@@ -560,7 +599,9 @@ et ses exemples.
   contrat. Puis (L3) ce qu'US-0640/L6 écrit : `revision-commands.tsx` offre « Appliquer la mise à
   jour des taux » comme la révision la liste (#1351) ; le registre des risques reçoit `ListPages` et
   `PageSizeChoice` (#1367) ; le refus `NON_WORKING_DAY` d'une tâche créée se dit à la cellule par
-  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384).
+  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384). Puis (L4 #1571)
+  la liste des projets de l'accueil : le filtre d'état par défaut, son adresse
+  (`navigation/home.ts`), ses totaux, et la préférence qu'US-0640/L6 écrit pour elle (#1401).
 - **US-0670, l'aide** : la conception d'EP-15 (« L'aide en ligne et les infobulles ») fait foi —
   `frontend/help/fr/<code>.md`, la structure fixe de #1075, `functions.json` pour clé, les
   définitions des colonnes dans les catalogues, `SCREENS_TO_COME` et `NOTIONS_TO_COME`
@@ -768,8 +809,8 @@ et ses exemples.
    des échanges), US-0650, US-0680/L1, US-0700/L1.
 4. **US-0640**, les mineurs du contrat (L1 à L4, L6), en parallèle des écrans : ils ne touchent pas
    les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
-5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L3) en dernier
-   des fronts, parce qu'elle peut faire revenir au contrat.
+5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L4) en
+   dernier des fronts, parce qu'elle peut faire revenir au contrat.
 6. **US-0590g**, la stabilité du harnais sous charge, juste avant le gel (décision de l'auteur du
    2026-10-28) : L1 (le parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1).
    Elle ne touche pas le contrat, et ne précède pas US-0670/L3 à L5.
@@ -985,6 +1026,11 @@ la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1
     cause — test, environnement ou production.
   - Pour chacun qui ne tombe plus : #1541 le ferme « non reproduit », sans correctif, avec les
     passages rejoués consignés dans l'issue ;
+- propre à l'US (#1354, le rejeu) : `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx`,
+  instables sous charge dans la suite front, sont rejoués de la même façon, avant tout correctif,
+  par L2 #1545 : un test qui tombe encore est corrigé à sa cause (l'attente qui dépend du temps
+  rendue déterministe), sans attente allongée ; un test qui ne tombe plus fait fermer #1354 « non
+  reproduit », avec les passages rejoués consignés dans l'issue ;
 - propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé, aucun
   délai de test relevé ;
 - propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
@@ -1003,11 +1049,14 @@ la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1
     un écran hydraté après le shell, ils passent peut-être déjà ;
   - `projects.spec.ts:103` s'ouvre par `page.goto` et un clic de menu, sans `openHydrated`, après un
     `compile(...)` hérité du serveur de développement.
+- #1354 (`restore-dialog.dom.test.tsx`, `backup-deposit.dom.test.tsx`) est rendu à EP-16 au cadrage
+  d'EP-17 (décision de l'auteur du 2026-10-28) et rattaché à cette US : il est repris par le rejeu
+  sous charge de L2 #1545, avec le même budget de 90 minutes.
 - Le rejeu sous charge est une exécution lourde : elle attend son tour derrière `HEAVY_LOCK`.
 - Voir la conception, « Le harnais (US-0590) ».
 
-**Hors périmètre.** #1539 (le Gantt) ; #1263 et les durcissements restants : EP-17 ; ajouter ou
-retirer un écran du parcours d'accessibilité.
+**Hors périmètre.** #1539 (le Gantt : EP-17, US-0750/L1 #1560, faute de lot d'EP-16 qui le
+touche) ; #1230 : EP-17 ; ajouter ou retirer un écran du parcours d'accessibilité.
 
 ---
 
@@ -1238,7 +1287,8 @@ donne en deux lignes.
 
 - **statut** : en cours
 - **exigences** : aucune en propre
-- **opérations** : celles que les constats touchent, sans en ajouter — dont `applyPaste`,
+- **opérations** : celles que les constats touchent, sans en ajouter — dont `updateMyPreferences`
+  (#1401), `applyPaste`,
   `createRisk`, `updateRisk`, `updateEstimateLine`, `updateCalendar`, `undoLastChange`,
   `redoLastUndo`, `createTimeline`, `deleteTimeline`, `setWorkBreakdown`, `getImport`,
   `getStructureMergeReport`, `mergeCostStructure`
@@ -1272,6 +1322,10 @@ refus décrits.
 - Les constats des lots d'EP-15 — #1345, #1351, #1352, #1361, #1367, #1368, #1379, #1384 (point 1) —
   sont tranchés dans « Ce que le cadrage décide » (recadrage du 2026-10-25) ; leur part front est
   d'US-0660.
+- L6 #1457 écrit aussi la préférence d'états de la liste de l'accueil (#1401, décision de l'auteur
+  du 2026-10-28), parmi ses constats de contrat : une clé de `grids`, son exemple et son entrée
+  dans `DECISIONS.md` (« Les modifications du contrat »). Si le lot devient trop gros à la
+  lecture, le livreur le dit dans l'issue plutôt que de le découper.
 
 ---
 
@@ -1336,11 +1390,28 @@ déjà, **afin que** chaque refus et chaque indisponibilité me nomment ce qui l
   registre des risques reçoit « Lignes par page » et sa pagination, ses totaux restant ceux de tous
   les risques retenus (#1367) ; le refus d'une tâche créée avec une date manuelle un jour chômé se dit
   à la cellule (#1345) ; les tests du risque lisent les exemples nouveaux du contrat (#1384) ;
+- propre à l'US (L4 #1571, #1401 ; décision de l'auteur du 2026-10-23, complétée le 2026-10-28) :
+  la liste des projets s'ouvre filtrée sur **Chiffrage et En cours** :
+  - le filtre par défaut se dit comme le filtre « contributeur », visible tant qu'il s'applique ; il
+    se lève par « Tous les états » et se change comme aujourd'hui ;
+  - une adresse sans `states` vaut le défaut ; « Tous les états » a son expression dans l'adresse
+    et se lit au serveur sans filtre ; les liens du filtre gardent le reste de l'adresse ;
+  - un choix d'états différent du défaut se garde en préférence, comme « Lignes par page », par ce
+    qu'US-0640/L6 écrit au contrat avant le gel ;
+  - les totaux suivent les états retenus (WF-IHM-0130) ; « Voir tous les projets » ne change pas ;
 - propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
 
 **Notes de réalisation.** Ces constats ne demandent que le front, mais ils peuvent révéler un
 manque du contrat, comme EP-15 l'a souvent constaté : c'est ce qui les garde en EP-16 (principe de
 l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 2026-10-25.
+- L4 #1571 (décision de l'auteur du 2026-10-28) porte la part front de #1401 : la liste des
+  projets de l'accueil s'ouvre filtrée sur Chiffrage et En cours. Son contrat — le choix d'états en
+  préférence de la liste de l'accueil — est écrit par US-0640/L6 #1457, avant le gel (US-0640/L5
+  #1333) ; L4 en dépend.
+- L3 #1458 corrige aussi trois constats des revues de lots : #1518 (la liste des statuts d'une
+  lecture facultative, écrite deux fois), #1524 (le détail d'une ligne de coût sans son poste) et
+  #1533 (un refus à deux motifs sur le même champ, que `byField` ne dit qu'à moitié). #1525 est
+  reporté à EP-09 #1340.
 
 ---
 
@@ -1505,9 +1576,9 @@ ses lignes à la main, et de lire une matrice qui ne se contredit pas.
 
 **Notes de réalisation.** Les décisions de l'auteur du 2026-10-23 dans #1398 et #1395 font foi ; les
 « à trancher au lot » qu'elles nomment — les totaux sous le filtre, la structure sans écart — se
-tranchent au lot de contrat et s'écrivent dans `DECISIONS.md`. La part front de #1395 et les cinq
-autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399, #1400, #1401) sont d'EP-17
-(règle du recadrage du 2026-10-25).
+tranchent au lot de contrat et s'écrivent dans `DECISIONS.md`. La part front de #1395 et quatre
+des cinq autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399, #1400) sont d'EP-17
+(règle du recadrage du 2026-10-25) ; le cinquième, #1401, est rendu à EP-16 (« Constats reçus »).
 
 **Hors périmètre.** La pagination d'un différentiel, écartée par #1193 et #1201 ; tout filtre qui
 calculerait côté front.
