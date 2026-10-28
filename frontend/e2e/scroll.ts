@@ -95,3 +95,41 @@ export async function withinBox(grid: Locator, element: Locator): Promise<boolea
     await frame.dispose();
   }
 }
+
+/** The top and bottom of an element, against the bottom of a header and the top of the totals. */
+export interface EdgesBetween {
+  readonly top: number;
+  readonly bottom: number;
+  readonly headerBottom: number;
+  readonly totalsTop: number;
+}
+
+/**
+ * The top and bottom of an element of a grid — a row, a cell —, against the bottom of a cell of its
+ * header and the top of a cell of its totals, read at one moment, in one task of the page, as
+ * `withinBox` reads its own: read one after the other, each could come from another layout, the
+ * grid laying out anew in between (#1522).
+ */
+export async function edgesBetween(
+  element: Locator,
+  header: Locator,
+  totals: Locator,
+): Promise<EdgesBetween> {
+  const [over, under] = await Promise.all([header.elementHandle(), totals.elementHandle()]);
+  try {
+    return await element.evaluate(
+      (target, [above, below]) => {
+        const bounds = target.getBoundingClientRect();
+        return {
+          top: bounds.top,
+          bottom: bounds.bottom,
+          headerBottom: above.getBoundingClientRect().bottom,
+          totalsTop: below.getBoundingClientRect().top,
+        };
+      },
+      [over, under] as const,
+    );
+  } finally {
+    await Promise.all([over.dispose(), under.dispose()]);
+  }
+}

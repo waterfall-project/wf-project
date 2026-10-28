@@ -10,7 +10,7 @@
  * The renderer of the Markdown, which the panel loads lazily, is loaded with this file, before any
  * test: its first loading compiles `react-markdown` and its plugins, which took more than the
  * second a query waits on a loaded workstation, and failed the first test to open the panel
- * (#1537). Its loading is made slower than that second here, so that a test that paid it would
+ * (#1537). Its loading is made twice as slow as that second here, so that a test that paid it would
  * fail every time.
  */
 import "./help-markdown";
@@ -41,7 +41,8 @@ vi.mock("@/api/actions/help", async (original) => {
 
 vi.mock("./help-markdown", async (original) => {
   const { getConfig } = await import("@testing-library/react");
-  await new Promise((resolve) => setTimeout(resolve, getConfig().asyncUtilTimeout));
+  // Twice the wait of a query: a test that paid it fails whatever the margin of the workstation.
+  await new Promise((resolve) => setTimeout(resolve, 2 * getConfig().asyncUtilTimeout));
   return original<typeof import("./help-markdown")>();
 });
 

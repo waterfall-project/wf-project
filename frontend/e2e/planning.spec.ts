@@ -116,9 +116,15 @@ test("holds the totals of the planning in the window as the grid lays out anew o
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
+  let held = 0;
   await page.route("**/_next/static/chunks/**", async (route) => {
-    const response = await page.request.get(route.request().url());
+    // On a connection of its own: one kept open across the held script was closed by the front as
+    // idle while the journey reused it (ECONNRESET, under load).
+    const response = await page.request.get(route.request().url(), {
+      headers: { connection: "close" },
+    });
     if ((await response.text()).includes("data-day-off")) {
+      held += 1;
       await released;
     }
     await route.fulfill({ response });
@@ -127,17 +133,27 @@ test("holds the totals of the planning in the window as the grid lays out anew o
   await page.goto(`${IN_REVISION}/planning`, { waitUntil: "commit" });
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const legend = page.getByRole("group", { name: "Légende du Gantt" });
-  await expect(legend).toBeVisible({ timeout: WORKING });
-  const totals = grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches$/ });
-  expect(await withinBox(grid, totals)).toBe(true);
-  // In the window before the grid lays out anew, and after; and when it does so once the box of the
-  // grid is read, before its totals are.
-  const hydratedAtFirstRead = changedAtFirstRead(totals, async () => {
+  try {
+    await expect(legend).toBeVisible({ timeout: WORKING });
+    // The script is held indeed: a script renamed or shared would let the grid lay out before it is
+    // read, and the journey pass on nothing.
+    await expect.poll(() => held, { timeout: WORKING }).toBeGreaterThan(0);
+    const totals = grid.getByRole("gridcell", { name: /^Total — 1\s000 tâches$/ });
+    expect(await withinBox(grid, totals)).toBe(true);
+    // In the window before the grid lays out anew, and after; and when it does so once the box of
+    // the grid is read, before its totals are — the legend still there when the box is read.
+    const hydratedAtFirstRead = changedAtFirstRead(totals, async () => {
+      await expect(legend).toHaveCount(1);
+      release();
+      await expect(legend).toHaveCount(0, { timeout: WORKING });
+    });
+    expect(await withinBox(grid, hydratedAtFirstRead)).toBe(true);
+    expect(await withinBox(grid, totals)).toBe(true);
+  } finally {
     release();
-    await expect(legend).toHaveCount(0, { timeout: WORKING });
-  });
-  expect(await withinBox(grid, hydratedAtFirstRead)).toBe(true);
-  expect(await withinBox(grid, totals)).toBe(true);
+    // The scripts the page loads once hydrated are still being fetched: the page waits for them.
+    await page.unrouteAll({ behavior: "wait" });
+  }
 });
 
 test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 » from its cell, by the letter typed, which the server answers, and says the fake back keeps nothing [WF-PLA-0170-A]", async ({

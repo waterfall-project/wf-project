@@ -4,7 +4,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
-import { rowAt, scroller, withinBox } from "./scroll";
+import { edgesBetween, rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2), which the journeys read by marks the generator writes
@@ -145,15 +145,11 @@ test("keeps the active cell in the window, clear of the header and the totals, f
     expect(await withinBox(grid, active)).toBe(true);
     await expect(header).toBeInViewport();
     await expect(totals).toBeInViewport();
-    // Neither under the header nor under the totals.
-    const [cell, top, foot] = await Promise.all([
-      active.boundingBox(),
-      header.boundingBox(),
-      totals.boundingBox(),
-    ]);
-    expect(cell?.y ?? 0).toBeGreaterThanOrEqual((top?.y ?? 0) + (top?.height ?? 0) - 1);
+    // Neither under the header nor under the totals, the three boxes read at one moment (#1522).
+    const cell = await edgesBetween(active, header, totals);
+    expect(cell.top).toBeGreaterThanOrEqual(cell.headerBottom - 1);
     // The border the last row and the totals share aside.
-    expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 2);
+    expect(cell.bottom).toBeLessThanOrEqual(cell.totalsTop + 2);
   }
   await press(page, "Control+End");
   await expect(cellAt(grid, 6000, at.inflated)).toBeFocused();
