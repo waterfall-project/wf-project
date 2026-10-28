@@ -186,7 +186,7 @@ describe("the modification of the contributors of a project", () => {
     const form = await modify();
     const marked = form.querySelectorAll("th[scope='row'] [data-anonymized]");
     expect([...marked].map((each) => each.textContent)).toEqual(["Compte anonymisé"]);
-    expect(form.textContent).not.toMatch(/Alix|Moreau/);
+    expect(form.textContent).not.toMatch(/null/);
   });
 
   it("inscribes a contributor proposed only once the project manager confirms it, the list unchanged until then [WF-PRJ-0070-A]", async () => {

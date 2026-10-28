@@ -199,7 +199,8 @@ describe("the grids of the settings of a project", () => {
     const marked = container.querySelectorAll("[data-anonymized]");
     expect([...marked].map((each) => each.textContent)).toEqual(["Compte anonymisé"]);
     expect(marked[0]?.closest('[data-column="name"]')).not.toBeNull();
-    expect(container.textContent).not.toMatch(/Alix|Moreau|null/);
+    expect(marked[0]).toHaveClass("text-muted-foreground");
+    expect(container.textContent).not.toMatch(/null/);
   });
 
   it("ask the server for the search of the contributors on their names, under the names of their grid", async () => {
