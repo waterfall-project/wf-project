@@ -112,6 +112,27 @@ La famille dit quels tests prouvent ce que l'EPIC clôt : une exigence close par
 la seule famille est `front` est prouvée par les tests du front ; close par un autre, elle
 ne l'est pas tant que seuls le front et le bout en bout la citent (`make requirements`).
 
+## Le jeu de données de référence
+
+Le jeu de données de référence de WF-QUA-0040 part de l'univers témoin que les exemples du contrat
+décrivent (`docs/api/DECISIONS.md`, « L'univers témoin » ; #1402, décision de l'auteur du
+2026-10-28). Il se charge par tranches : chaque EPIC du back nomme la sienne dans « Ce qui en fait
+partie » et la charge à son tour — le référentiel en EP-05, les projets et les révisions en EP-04,
+les tâches en EP-06, les lignes en EP-07, les coûts en EP-09, les avenants et les risques en EP-08,
+les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche suit :
+
+- **le saisi se charge, jamais par un `INSERT`** : par une commande du back qui passe par les
+  interfaces des modules du noyau, avec les identifiants du témoin imposés par cette seule voie,
+  pour que le chargement passe par les règles du métier et survive aux migrations ;
+- **le calculé devient l'attendu** : les fixtures de `fixtures/api/` sont les réponses attendues du
+  service sur le témoin chargé, et le code de calcul du faux back (`mockdating`, `mockcore`) n'est
+  jamais réemployé par le back — deux calculs indépendants, sinon le témoin ne vérifie plus rien ;
+- **la spécification arbitre** : en cas de désaccord entre le back et une fixture, c'est elle qui
+  tranche, et la fixture se corrige ;
+- **les parcours se réemploient** : un parcours écrit sur le faux back se rejoue contre le service,
+  le témoin chargé, sans réécriture de ses attendus de lecture ; ce qui dépend de l'horloge, ou
+  affirmait la réponse du faux back à une écriture, se réécrit ou se note comme non rejoué.
+
 ## Ordre des EPIC
 
 <!-- Un EPIC par ligne, dans l'ordre où ils se démarrent. -->
@@ -125,7 +146,7 @@ ne l'est pas tant que seuls le front et le bout en bout la citent (`make require
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
