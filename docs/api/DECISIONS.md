@@ -8272,6 +8272,10 @@ ni le cas du jalon.
 - **Le refus.** Un risque qui n'est pas identifié — survenu ou écarté — : 409
   `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, la condition que nomme
   déjà la commande `declare_occurrence` du risque, au compte rendu comme à la survenance.
+- **La confirmation.** `RiskOccurrence` exige les deux compteurs lus, comme `StructureMerge`
+  (WF-IHM-0110) : la structure principale ou le risque changés depuis, `declareRiskOccurrence` est
+  refusée par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
+  l'objet que le chemin nomme, même quand seule la structure principale a changé (#296).
 - **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
   décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
   « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du
@@ -8283,10 +8287,11 @@ ni le cas du jalon.
   leurs lignes ajoutées sous le « Câblage des armoires », celui-ci modifié par sa durée, son début et
   sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4 ; `risk_occurrence_not_identified`,
   le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
-  opérations. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et
-  la structure principale.
+  opérations ; `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du
+  2 mars. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
+  structure principale.
 
-**Corrélation** 1591.
+**Corrélation** 1591 et 1592.
 
 ## Collage et annulation
 

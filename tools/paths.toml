@@ -390,6 +390,7 @@ paths = [
     "fixtures/api/nodes_risk_estimate.json",
     "fixtures/api/risk_occurrence_report.json",
     "fixtures/api/risk_occurrence_not_identified.json",
+    "fixtures/api/risk_occurrence_report_stale.json",
     "fixtures/api/estimate_indicators.json",
     "fixtures/api/estimate_indicators_breakdown.json",
     "fixtures/api/estimate_indicators_missing_rates.json",

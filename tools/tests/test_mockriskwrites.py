@@ -40,6 +40,7 @@ CITED = (
     ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report"),
     ("risks.yaml", "getRiskOccurrenceReport", "409", "risk_occurrence_not_identified"),
     ("risks.yaml", "declareRiskOccurrence", "409", "risk_occurrence_not_identified"),
+    ("risks.yaml", "declareRiskOccurrence", "412", "risk_occurrence_report_stale"),
 )
 """Each example of the entries of a risk, under the answer of the operation that cites it."""
 
@@ -372,3 +373,10 @@ def test_the_occurrence_of_a_risk_not_identified_is_refused_by_the_condition_it_
     assert (refused["status"], refused["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert refused["params"] == {"missing_condition": "risk_identified"}
     assert risk["label"] in example("risk_occurrence_not_identified")["summary"]
+
+
+def test_a_stale_confirmation_returns_the_version_of_the_risk_the_path_names() -> None:
+    # #296: a 412 returns the current version of the object the path names, and nothing else.
+    refused = example("risk_occurrence_report_stale")["value"]
+    assert (refused["status"], refused["code"]) == (412, "STALE_LOCK_VERSION")
+    assert refused["params"] == {"expected_lock_version": example("risk")["value"]["lock_version"]}

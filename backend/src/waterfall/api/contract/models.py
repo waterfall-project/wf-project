@@ -4796,6 +4796,18 @@ class RiskOccurrenceReport(ContractModel):
 
 class RiskOccurrence(ContractModel):
     confirmed: Literal[True]
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale que le compte rendu a lu (`RiskOccurrenceReport.main_structure_lock_version`)."
+        ),
+    ]
+    risk_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`)."
+        ),
+    ]
 
 
 class RiskMatrixLevel(ContractModel):

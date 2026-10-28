@@ -327,17 +327,30 @@ RiskReviewWrite:
 
 RiskOccurrence:
   type: object
-  required: [confirmed]
+  required: [confirmed, main_structure_lock_version, risk_lock_version]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
     principale de la révision en cours, les lignes fusionnées portant un montant
     budgété nul et leur montant du devis propre en réestimé ; la ligne de provision
     est retirée. Ne marque aucune révision et ne déplace pas la référence
-    (WF-RIS-0060). Définitif.
+    (WF-RIS-0060). Définitif. La confirmation suit le compte rendu préalable
+    (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus : la structure principale
+    ou le risque changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce compte
+    rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel (`StructureMerge`,
+    WF-IHM-0110 ; US-0680).
   properties:
     confirmed:
       type: boolean
       const: true
+    main_structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure principale que le compte rendu a lu
+        (`RiskOccurrenceReport.main_structure_lock_version`).
+    risk_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`).
 
 RiskOccurrenceReport:
   type: object

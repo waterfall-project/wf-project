@@ -26,8 +26,9 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - and the occurrence of the rework of the wiring before its confirmation (US-0680, #1383): its own
   estimate, the structure 204, read (``nodes_risk_estimate``, WF-RIS-0030); the report of what its
   occurrence would make of the main structure of the current revision (``risk_occurrence_report``,
-  WF-RIS-0060); and the report and the occurrence refused for a risk not identified
-  (``risk_occurrence_not_identified``).
+  WF-RIS-0060); the report and the occurrence refused for a risk not identified
+  (``risk_occurrence_not_identified``), and the confirmation refused for a report gone stale
+  (``risk_occurrence_report_stale``, WF-IHM-0110).
 
 The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
 structure 208 or its line of provision 585 — the register, the structures and the grids read the
@@ -275,6 +276,7 @@ NOT_IDENTIFIED = AUTOMATION_ENGINEER
 dismissed on 2 February (WF-RIS-0020)."""
 
 NOT_IDENTIFIED_CORRELATION = universe(1591)
+STALE_CORRELATION = universe(1592)
 
 SCHEDULE = ("duration", "start", "finish")
 """What the occurrence may change of the task that bore the line of provision, in the order of
@@ -402,6 +404,21 @@ def risk_occurrence_not_identified() -> JsonObject:
     }
 
 
+def risk_occurrence_report_stale() -> JsonObject:
+    """Return the refusal of an occurrence confirmed with the counters of a stale report.
+
+    The report read before the review of the risk of 2 March, which advanced its counter: the
+    version returned is the risk's, the object the path names, and nothing else, as every 412
+    (#296, WF-IHM-0110). The main structure is at its first version: no earlier report read it.
+    """
+    return {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": risk_item(OCCURRING, _budget())["lock_version"]},
+        "correlation_id": STALE_CORRELATION,
+    }
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
@@ -507,6 +524,15 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"identifié survient, et la commande declare_occurrence du risque nomme la condition "
             f"qui manque (risks). Rien n'est lu ni écrit (WF-RIS-0020, WF-IHM-0090, #1383).",
             risk_occurrence_not_identified(),
+        ),
+        "risk_occurrence_report_stale.json": mocktext.example(
+            f"La survenance de « {OCCURRING.label} » confirmée aujourd'hui avec les compteurs "
+            f"d'un compte rendu lu avant son réexamen du "
+            f"{mocktext.day(OCCURRING.last.at.date())}, qui l'a fait avancer : le compte rendu "
+            f"est périmé, rien n'est fusionné, et la version courante du risque, l'objet que le "
+            f"chemin nomme, est rendue ; l'écran propose de relire le compte rendu (WF-RIS-0060, "
+            f"WF-IHM-0110, #1383).",
+            risk_occurrence_report_stale(),
         ),
     }
 

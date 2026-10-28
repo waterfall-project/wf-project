@@ -441,7 +441,10 @@
       survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique
       d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
       WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la
-      révision en cours sont indisponibles (`no_background_task_running`).
+      révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit
+      le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a
+      lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que
+      personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -473,6 +476,19 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+      '412':
+        description: >-
+          La structure principale ou le risque ont changé depuis le compte rendu confirmé : le
+          compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110).
+          `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
+          l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien
+          d'autre, comme tout 412 (#296) ; le client relit le compte rendu, qui rend l'un et
+          l'autre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              report_stale: { $ref: ../../../fixtures/api/risk_occurrence_report_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
