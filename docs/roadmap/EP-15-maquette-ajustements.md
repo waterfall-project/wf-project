@@ -104,9 +104,9 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-PLA-0030-A` | Liaisons entre tâches | début — close en EP-06 | US-0470 |
 | `WF-PLA-0160-A` | Unités de durée | début — close en EP-06 | US-0470 |
 | `WF-PLA-0060-A` | Inscription aux suivis | début — close en EP-10 | US-0480 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-04 | US-0480 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0480 |
 | `WF-PRJ-0030-A` | Squelette de planning | début — close en EP-06 | US-0490 |
-| `WF-REV-0010-A` | Unicité de la révision en cours | début — close en EP-04 | US-0490 |
+| `WF-REV-0010-A` | Unicité de la révision en cours | début — close en EP-07 | US-0490 |
 | `WF-REV-0040-A` | Désignation de la révision de référence | début — close en EP-08 | US-0490 |
 | `WF-CYC-0030-A` | Conditions du passage à En cours | début — close en EP-07 | US-0490 |
 | `WF-REV-0060-A` | Année de référence et mise à jour des taux à la création d’une révision | début — close en EP-07 | US-0490 |
@@ -124,7 +124,7 @@ service sont des écarts, qui nomment l'EPIC qui les clôt.
 | `WF-PTF-0060-A` | Plan de charge agrégé | début — close en EP-11 | US-0550 |
 | `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0550 |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0550, US-0570 |
-| `WF-IHM-0080-A` | Traitements longs | début — close en EP-04 | US-0560 |
+| `WF-IHM-0080-A` | Traitements longs | début — close en EP-09 | US-0560 |
 | `WF-OBS-0020-A` | Journaux structurés et corrélation | début — close en EP-13 | US-0560 |
 | `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-07 | US-0570 |
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0580 |

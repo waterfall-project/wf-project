@@ -68,6 +68,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-INTF-0150-A` | Liste fermée des échanges externes | entière | — |
 | `WF-REF-0070-A` | Arbre d'organisation | fin — amorcée en EP-05 | — |
 | `WF-REF-0100-A` | Capacité d'un rôle | fin — amorcée en EP-05 | — |
+| `WF-CYC-0130-A` | Datation des transitions | fin — amorcée en EP-04 | — |
 
 ## Opérations du contrat
 

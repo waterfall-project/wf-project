@@ -87,6 +87,15 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-REF-0010-A` | Désactivation plutôt que suppression | fin — amorcée en EP-05 | — |
 | `WF-REF-0030-A` | Natures de coût | fin — amorcée en EP-05 | — |
 | `WF-REF-0040-A` | Catégories de coût | fin — amorcée en EP-05 | — |
+| `WF-PRJ-0060-A` | Liste des contributeurs | fin — amorcée en EP-04 | — |
+| `WF-DAT-0010-A` | Copie complète des révisions | fin — amorcée en EP-04 | — |
+| `WF-DAT-0020-A` | Immuabilité garantie par la base | fin — amorcée en EP-04 | — |
+| `WF-DAT-0080-A` | Régimes de suppression | fin — amorcée en EP-03, EP-04 | — |
+| `WF-REV-0070-A` | Historique des révisions | fin — amorcée en EP-04 | — |
+| `WF-REV-0020-A` | Marquage d’une révision | fin — amorcée en EP-04 | — |
+| `WF-REV-0010-A` | Unicité de la révision en cours | fin — amorcée en EP-15, EP-04 | — |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05, EP-16, EP-04 | — |
+| `WF-PRJ-0080-A` | Attributs d’un projet | fin — amorcée en EP-16, EP-04 | — |
 
 ## Opérations du contrat
 

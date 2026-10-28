@@ -73,6 +73,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | fin — amorcée en EP-04 | — |
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04 | — |
 | `WF-DAT-0130-A` | Contenu et invalidation du cache | entière | — |
+| `WF-CYC-0090-A` | Confirmation des sorties | fin — amorcée en EP-04 | — |
 
 ## Opérations du contrat
 
