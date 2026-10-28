@@ -54,6 +54,7 @@ import { setContributors } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
+import { KeptName } from "@/components/account/anonymized-name";
 import { UnmetConditions, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
@@ -469,7 +470,7 @@ function ContributorEditor({
               return (
                 <tr key={row.user_id} className="align-top">
                   <th scope="row" className="py-1 pr-2 text-left font-normal">
-                    {naming.kept(row.display_name)}{" "}
+                    <KeptName name={row.display_name} />{" "}
                     {row.is_active ? null : <ActiveState active={false} />}
                     {problem === undefined ? null : (
                       <p id={said} className="text-destructive">
@@ -529,7 +530,7 @@ function ContributorEditor({
               {proposed.map((one) => (
                 <li key={one.user_id} className="flex items-center justify-between gap-2 text-sm">
                   <span>
-                    {naming.kept(one.display_name)}
+                    <KeptName name={one.display_name} />
                     <span className="block text-xs text-muted-foreground">
                       {t("proposedFrom", {
                         node: one.org_node_label,
