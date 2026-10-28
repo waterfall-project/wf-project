@@ -438,28 +438,24 @@ describe("the sentence of a refusal", () => {
     expect(told).not.toMatch(/rôle/);
   });
 
-  it("names the roles of a line imported that would leave its task without hours by their labels and codes, the task by its lineage, without reading the roles [WF-PLA-0010-A]", () => {
-    // The motive of a line imported names its roles itself (`resource_roles`) and its task by its
-    // lineage (`tasks`, `lineage_id`), the report being read without the roles (#768, points 1 and
-    // 2). The contract has no example of such a line: a variant of `calendar_update_without_hours`,
-    // its code kept, its parameters those of a line imported — the role of
-    // `cost_category_role_kind_refused`, the task « Câblage des armoires » of the witness.
-    const { code } = example("calendar_update_without_hours") as ProblemText;
-    const { params } = example("cost_category_role_kind_refused") as ProblemText;
-    const line: ProblemText = {
-      code,
-      params: {
-        resource_roles: params?.resource_roles ?? [],
-        tasks: [
-          { lineage_id: "01926f3a-7c00-7000-8000-000000000652", label: "Câblage des armoires" },
-        ],
-      },
+  it("names the roles of a line imported that would leave its task without hours by their labels and codes, from the rejection of the contract [WF-PLA-0010-A]", () => {
+    // The motive of a line imported names its roles itself (`resource_roles`); the example of the
+    // contract carries the task too (`tasks`), which the sentence does not read (#768).
+    const { report } = example("import_estimate_task_without_hours") as {
+      report: { rejected: ProblemText[] };
     };
-    expect(say(line, "fr")).toBe(
-      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
-        "n’a aucune heure\u00A0: Automaticien (AUTOM).",
+    const [line] = report.rejected;
+    expect(line?.code).toBe("TASK_WITHOUT_WORKING_HOURS");
+    expect(say(line as ProblemText, "fr")).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les " +
+        "calendriers ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Technicien " +
+        "de mise en service (TECH-MES).",
     );
-    expect(say(line, "en")).not.toMatch(/attach/);
+  });
+
+  it("does not tell the hours of a task for roles that a refusal of another code names, whose condition it gives [WF-PLA-0010-A]", () => {
+    const refused = example("cost_category_role_kind_refused") as ProblemText;
+    expect(say(refused, "fr")).not.toMatch(/heure travaillée/);
   });
 
   it("names five projects in its sentence, and counts none", () => {

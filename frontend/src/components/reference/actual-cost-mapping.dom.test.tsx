@@ -234,6 +234,9 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  // The current behaviour, assumed: such a refusal is told by the sentence of its envelope alone,
+  // with no ceiling on the list it carries (the fifty columns of the contract); what the page
+  // should say beyond is followed by #1567.
   it("tells under the form a refusal whose pointer designates no label shown, the list of the kept columns itself, and marks no label (#1514) [WF-REF-0190-A]", async () => {
     serve({
       [SET]: {

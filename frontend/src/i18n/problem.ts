@@ -286,7 +286,10 @@ const DETAILS: readonly Reader[] = [
   ({ subproject }) =>
     subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
   ({ state, state_enum }, label) => {
-    const told = state_enum === undefined ? undefined : STATES[state_enum];
+    const told =
+      typeof state_enum === "string" && Object.hasOwn(STATES, state_enum)
+        ? STATES[state_enum]
+        : undefined;
     const named = told === undefined ? undefined : label(told.list, state);
     return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
