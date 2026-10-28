@@ -194,7 +194,11 @@ describe("« Déclarer survenu »", () => {
       expect(client.calls).toHaveLength(2);
     });
     // The stopgap of US-0680/L1: the report is read just before, and its two counters are carried
-    // by the confirmation (WF-IHM-0110).
+    // by the confirmation.
+    const report = example("risk_occurrence_report") as {
+      main_structure_lock_version: number;
+      risk_lock_version: number;
+    };
     const path = `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`;
     expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
     expect(client.calls[0]?.path).toBe(path);
@@ -202,8 +206,8 @@ describe("« Déclarer survenu »", () => {
     expect(client.calls[1]?.path).toBe(path);
     expect(client.calls[1]?.body).toEqual({
       confirmed: true,
-      main_structure_lock_version: 1,
-      risk_lock_version: 4,
+      main_structure_lock_version: report.main_structure_lock_version,
+      risk_lock_version: report.risk_lock_version,
     });
     expect(
       await screen.findAllByText(/La survenance de « Risque de reprise du câblage » est confiée/),
@@ -213,6 +217,39 @@ describe("« Déclarer survenu »", () => {
       await within(tasks).findByText("Survenance d’un risque « Risque de reprise du câblage »"),
     ).toBeVisible();
     expect(within(tasks).getByText("En attente")).toBeVisible();
+  });
+
+  it("tells the refusal of the report read before the declaration, and sends nothing", async () => {
+    const client = serve({
+      [OCCURRENCE_REPORT]: {
+        problem: example("risk_occurrence_not_identified") as Problem & { status: 409 },
+      },
+    });
+    render(detail(IDENTIFIED));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    await userEvent.click(
+      within(screen.getByRole("form", { name: "Déclarer survenu" })).getByRole("button", {
+        name: "Déclarer le risque survenu",
+      }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
+  });
+
+  it("tells the stale report refused by the declaration, under a confirmation that stays open", async () => {
+    serve({
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
+      [OCCURRENCE]: {
+        problem: example("risk_occurrence_report_stale") as Problem & { status: 412 },
+      },
+    });
+    render(detail(IDENTIFIED));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    await userEvent.click(within(form).getByRole("button", { name: "Déclarer le risque survenu" }));
+    expect(await within(form).findByRole("alert")).toBeVisible();
+    expect(screen.getByRole("form", { name: "Déclarer survenu" })).toBe(form);
   });
 
   it("leaves a risk occurred with no command of entry, each saying why [WF-RIS-0020-A]", () => {
