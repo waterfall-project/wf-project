@@ -183,11 +183,14 @@ describe("the sentence of a refusal", () => {
     }
   });
 
-  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have", () => {
+  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have, nor an enumeration named after a property every object inherits (#413)", () => {
     const { params, ...refused } = example("project_indicators_not_in_progress") as ProblemText;
     const bare = "The current state does not allow this operation.";
     expect(say({ ...refused, params: { state: params?.state } }, "en")).toBe(bare);
     expect(say({ ...refused, params: { ...params, state: "occurred" } }, "en")).toBe(bare);
+    for (const state_enum of ["toString", "__proto__"]) {
+      expect(say({ ...refused, params: { ...params, state_enum } }, "en")).toBe(bare);
+    }
   });
 
   it("lists the missing prerequisites in the reader's language", () => {
