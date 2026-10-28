@@ -358,6 +358,8 @@ describe("the structure the planning reads", () => {
   });
 
   it("offers the merge on the amendment of the last revision marked, the project having none in progress, as it lists the command [WF-REV-0050-A]", async () => {
+    // Conception d'EP-16, « Une fusion sans révision en cours » (#790) : le Vérif de WF-REV-0050-A
+    // ne dit pas ce cas, la fusion crée alors la révision en cours.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked_merge_offered",

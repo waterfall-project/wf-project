@@ -2667,7 +2667,7 @@
     "non_working_day": "Le {date} n’est pas travaillé sur le calendrier de la tâche ; saisis le {next}.",
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",
-    "horizon_task": "Tâche qui finit le projet au-delà de l’horizon : {task}.",
+    "horizon_task": "Tâche en cause : {task}.",
     "taskName": "« {label} »"
   },
   "permissions": {

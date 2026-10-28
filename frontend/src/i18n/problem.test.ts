@@ -601,8 +601,8 @@ describe("the sentence of a refusal", () => {
     },
     {
       example: "structure_merge_report_horizon_exceeded",
-      fr: "La durée du projet dépasserait quinze ans. Tâche qui finit le projet au-delà de l’horizon\u00A0: «\u00A0Mise en service\u00A0».",
-      en: "The duration of the project would exceed fifteen years. Task that ends the project beyond the horizon: “Mise en service”.",
+      fr: "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Mise en service\u00A0».",
+      en: "The duration of the project would exceed fifteen years. Task concerned: “Mise en service”.",
     },
   ])(
     "names the tasks a refusal of the merge report gives, in the reader's language [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",
@@ -613,6 +613,16 @@ describe("the sentence of a refusal", () => {
       expect(say(refusal, "en")).toBe(en);
     },
   );
+
+  it("names the task a refused write gives, as the contract says it, in the reader's language [WF-PLA-0150-A]", () => {
+    const refusal = example("task_horizon_exceeded") as ProblemText;
+    expect(say(refusal, "fr")).toBe(
+      "La durée du projet dépasserait quinze ans. Tâche en cause : « Pupitres opérateurs ».",
+    );
+    expect(say(refusal, "en")).toBe(
+      "The duration of the project would exceed fifteen years. Task concerned: “Pupitres opérateurs”.",
+    );
+  });
 
   it("says nothing of a link or a task without labels", () => {
     expect(say({ code: "LINK_FORBIDDEN", params: { link: [{ node_id: "n" }] } }, "en")).toBe(

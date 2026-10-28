@@ -361,7 +361,9 @@ describe("the contractualisation of an amendment", () => {
   });
 
   it("is offered on the last revision marked when the project has none in progress, and its report says the merge creates it [WF-REV-0050-A]", async () => {
-    // Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable.
+    // Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable
+    // (conception d'EP-16, « Une fusion sans révision en cours », #790 : le Vérif de WF-REV-0050-A
+    // ne dit pas ce cas).
     const client = serve({ [REPORT]: "structure_merge_report_without_current_revision" });
     open(merging(false, "revision_marked_merge_offered"));
     const form = await openMerge();
@@ -391,7 +393,7 @@ describe("the contractualisation of an amendment", () => {
     },
     {
       example: "structure_merge_report_horizon_exceeded" as const,
-      sentence: /Tâche qui finit le projet au-delà de l’horizon : « Mise en service »/,
+      sentence: /Tâche en cause : « Mise en service »/,
     },
   ])(
     "gives the tasks of a refusal with the motive, and does not offer the confirmation [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",

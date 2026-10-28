@@ -272,8 +272,9 @@ const DETAILS: readonly Reader[] = [
     const named = itemsOf(link, isLabelled).map(({ label }) => say("taskName", { label }));
     return named.length === 0 ? undefined : ["link", { tasks: conjunction(named, locale) }];
   },
-  // The task that ends the project last once the write is made, past the fifteen years it may last,
-  // by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788).
+  // The task a write or a merge that would carry the project past the fifteen years it may last is
+  // refused for, by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788): the contract says
+  // only « the task concerned », which is not always the one that ends the project.
   ({ task }, _label, _locale, say) =>
     isLabelled(task)
       ? ["horizon_task", { task: say("taskName", { label: task.label }) }]

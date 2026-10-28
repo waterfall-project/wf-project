@@ -2667,7 +2667,7 @@
     "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
-    "horizon_task": "Task that ends the project beyond the horizon: {task}.",
+    "horizon_task": "Task concerned: {task}.",
     "taskName": "“{label}”"
   },
   "permissions": {
