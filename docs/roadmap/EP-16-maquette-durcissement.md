@@ -100,9 +100,9 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | US-0600 |
-| `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-04 | US-0610 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-04 | US-0610 |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-07 | US-0600 |
+| `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-07 | US-0610 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0610 |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | US-0620 |
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670 |
 
@@ -191,6 +191,11 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1379 — contrat : les exemples de l'encart et de l'analyse échouée — US-0640/L6 ;
 - #1384 — front, contrat : deux risques dérivés d'exemples dans les tests (point 1) — US-0640/L6 ;
   son point 2, le libellé de `ReferenceForm`, repris par #1568 (EP-17, US-0770/L2) ;
+- #870 — contrat : `Contributor.display_name` et `ContributorSuggestion.display_name` nullables,
+  pour le nom d'un contributeur anonymisé. Reporté à EP-04 le 2026-10-11, rendu à EP-16 au cadrage
+  d'EP-04 (décision de l'auteur du 2026-10-28) : une modification du contrat, qu'EP-16 fige —
+  US-0640/L6. EP-04 sert le champ tel que le contrat figé le dit, et le front le nomme par
+  `useAccountNaming` (US-0930 d'EP-04) ;
 - #1352 — contrat : la révision 101 à la version 2 sous deux états, l'ordre de `revisions.json` —
   US-0640/L4 ;
 - #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
@@ -525,6 +530,11 @@ et ses exemples.
   `ProjectCommand.declare_risk` dit `revision_in_progress` (#1368) ; les exemples `revisions` portant
   0103 et `task_import_analysis_failed` (#1379), `risk_dismissed_category_deactivated` et
   `risk_uncited` (#1384) ; avec la préférence d'états de la liste de l'accueil (#1401).
+- **Le nom d'un contributeur anonymisé** (#870, décision de l'auteur du 2026-10-28 ; écrit par
+  US-0640/L6) : `Contributor.display_name` et `ContributorSuggestion.display_name` deviennent
+  nullables, comme `ActorRef.display_name`, avec un exemple de contributeur anonymisé. Le nom nul
+  dit un compte anonymisé : le service, qui ne rend ni le nom (WF-ADM-0060) ni une phrase
+  (WF-ARC-0110), et le front qui le nomme (`useAccountNaming`) sont d'EP-04.
 - **La survenance d'un risque** (US-0680, #1383) : `getRiskOccurrenceReport`
   (`GET /projects/{project_id}/risks/{risk_id}/occurrence`), une lecture qui n'écrit rien et rend
   `RiskOccurrenceReport` — `main_structure_lock_version`, `risk_lock_version`, `differences`
@@ -562,7 +572,8 @@ et ses exemples.
   `mockriskwrites` engendre `risk_occurrence_report` et `nodes_risk_estimate` (US-0680).
 - Le marquage de la révision 101 porte une version de plus, le test de #421 s'étend aux révisions,
   `revisions.json` est trié du plus récent au plus ancien (#1352, US-0640/L4) ; les exemples de
-  #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367).
+  #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367) ; un
+  contributeur anonymisé porte un `display_name` nul (#870, US-0640/L6).
 
 ### Le front
 
@@ -1077,7 +1088,7 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
   et le catalogue des permissions. » : constaté par EP-03 (US-0420), livré ;
 - écart : `WF-EXP-0020-A` — « La création d'un projet est refusée et nomme les prérequis manquants,
   jusqu'à ce qu'une catégorie de coût de main-d'œuvre et un rôle de ressource aient été saisis. » :
-  le service du projet — EP-04, qui clôt l'exigence ;
+  le service du projet — EP-04 ; EP-07 clôt l'exigence ;
 - écart : `WF-EXP-0020-A` — « Une seconde exécution de l'installation ne crée ni compte, ni
   calendrier, ni nature supplémentaire ; elle produit un nouveau lien, qui remplace le précédent,
   tant que l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » : constaté par
@@ -1135,7 +1146,7 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
   - les transitions qui ne l'exigent pas : le service, EP-04 ;
   - la présentation du devis exporté : EP-07 ;
 - écart : `WF-PRJ-0050-A` — « Un projet se chiffre sans aucun sous-projet. » : constaté par EP-02 ;
-  EP-04 clôt ;
+  EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. » : le service — EP-04 ;
 - écart : `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de
@@ -1144,16 +1155,16 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
     (ci-dessous) ;
   - le refus par le service : EP-04 ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est refusée. » :
-  constaté par EP-14 contre le faux back ; EP-04 clôt ;
+  constaté par EP-14 contre le faux back ; EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet cité par une révision marquée est
-  refusée. » : constaté par EP-14/L42l ; EP-04 clôt ;
+  refusée. » : constaté par EP-14/L42l ; EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet que porte une ligne de devis de la
   révision en cours est refusée ; elle aboutit une fois cette ligne passée à un autre
   sous-projet. » : la seconde moitié demande le service — EP-04 ;
 - écart : `WF-PRJ-0050-A` — « Le passage à un autre sous-projet d'une ligne d'une tâche démarrée,
   dont le sous-projet a reçu des coûts réels, est refusé et nomme ce sous-projet ; celui d'une ligne
   d'une tâche non démarrée aboutit, comme celui de la ligne de provision d'un risque identifié. » :
-  constaté par EP-15 (US-0480) ; EP-04 clôt ;
+  constaté par EP-15 (US-0480) ; EP-09 clôt ;
 - propre à l'US : un projet porte le nom de son client, facultatif.
   - `createProject` et `updateProject` l'écrivent, `getProject` le lit.
   - Le formulaire de création et l'écran des paramètres du projet le saisissent et l'effacent, quel
@@ -1322,6 +1333,10 @@ refus décrits.
 - Les constats des lots d'EP-15 — #1345, #1351, #1352, #1361, #1367, #1368, #1379, #1384 (point 1) —
   sont tranchés dans « Ce que le cadrage décide » (recadrage du 2026-10-25) ; leur part front est
   d'US-0660.
+- L6 #1457 écrit aussi le nom nul d'un contributeur anonymisé (#870, décision de l'auteur du
+  2026-10-28) : `Contributor.display_name` et `ContributorSuggestion.display_name` nullables,
+  avec un exemple et son entrée dans `DECISIONS.md` ; le lot que le pilote retient par défaut, l'auteur n'en
+  ayant nommé aucun autre.
 - L6 #1457 écrit aussi la préférence d'états de la liste de l'accueil (#1401, décision de l'auteur
   du 2026-10-28), parmi ses constats de contrat : une clé de `grids`, son exemple et son entrée
   dans `DECISIONS.md` (« Les modifications du contrat »). Si le lot devient trop gros à la
