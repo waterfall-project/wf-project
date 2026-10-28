@@ -442,11 +442,11 @@ describe("the sentence of a refusal", () => {
     // The motive of a line imported names its roles itself (`resource_roles`); the example of the
     // contract carries the task too (`tasks`), which the sentence does not read (#768).
     const { report } = example("import_estimate_task_without_hours") as {
-      report: { rejected: ProblemText[] };
+      report: { rejected: [ProblemText] };
     };
     const [line] = report.rejected;
-    expect(line?.code).toBe("TASK_WITHOUT_WORKING_HOURS");
-    expect(say(line as ProblemText, "fr")).toBe(
+    expect(line.code).toBe("TASK_WITHOUT_WORKING_HOURS");
+    expect(say(line, "fr")).toBe(
       "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les " +
         "calendriers ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Technicien " +
         "de mise en service (TECH-MES).",
