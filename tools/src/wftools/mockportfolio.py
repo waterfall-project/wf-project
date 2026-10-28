@@ -381,7 +381,7 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
     actual = sum((each.actual for each in sums), Decimal(0))
     projection = sum((each.projection for each in sums), Decimal(0))
     at_budget = actual + budget - value
-    at_rate = _at_observed_rate(budget, actual, value)
+    at_rate, at_rate_total = _at_observed_rate(budget, actual, value)
     return {
         "scope": _scope(rows, ["in_progress"], period=False),
         "reference_budget": money(budget),
@@ -396,8 +396,8 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
             "variance_at_budget": money(at_budget - budget),
             "variance_project_manager": money(projection - budget),
             "variance_at_observed_rate": None
-            if at_rate["value"] is None
-            else money(Decimal(cast("str", at_rate["value"])) - budget),
+            if at_rate_total is None
+            else money(at_rate_total - budget),
         },
         "zone_distribution": [
             {"index": index, "zone": name, "project_count": count}
@@ -419,8 +419,12 @@ def _ratio_index(numerator: Decimal, denominator: Decimal, reason: str) -> JsonO
     return _index((numerator / denominator).quantize(CENT))
 
 
-def _at_observed_rate(budget: Decimal, actual: Decimal, value: Decimal) -> JsonObject:
-    """Return the projection at the observed rate: not computable without cost, or without value.
+def _at_observed_rate(
+    budget: Decimal, actual: Decimal, value: Decimal
+) -> tuple[JsonObject, Decimal | None]:
+    """Return the projection at the observed rate, and its amount: none when not computable.
+
+    Not computable without cost, or without value.
 
     The reason is the first grandeur null (WF-IND-0050): the actual cost, which makes the cost
     index not computable, else the earned value, which makes it null.
@@ -431,8 +435,8 @@ def _at_observed_rate(budget: Decimal, actual: Decimal, value: Decimal) -> JsonO
         reason = "no_earned_value"
     else:
         at_rate = (actual + (budget - value) * actual / value).quantize(CENT)
-        return {"is_computable": True, "value": money(at_rate), "reason": None}
-    return {"is_computable": False, "value": None, "reason": reason}
+        return {"is_computable": True, "value": money(at_rate), "reason": None}, at_rate
+    return {"is_computable": False, "value": None, "reason": reason}, None
 
 
 def _zones(rows: list[JsonObject], name: str) -> dict[str, int]:

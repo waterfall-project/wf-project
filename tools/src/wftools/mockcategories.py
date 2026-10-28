@@ -11,6 +11,8 @@ examples.
 
 from __future__ import annotations
 
+from functools import cache
+
 from wftools.mockids import CATEGORIES, identifier
 from wftools.mockstructure import (
     CATEGORY_LABELS,
@@ -58,6 +60,7 @@ type Group = tuple[list[tuple[str, str]], str, str, JsonObject]
 the nature itself."""
 
 
+@cache
 def groups() -> list[Group]:
     """Return the categories by nature: labour first, then the others, then the provisions."""
     labor = [

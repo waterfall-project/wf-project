@@ -21,6 +21,7 @@ from wftools import (
     mockwitness,
     paths,
 )
+from wftools.mockstructure import JsonObject
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -97,6 +98,43 @@ def test_the_indices_of_a_portfolio_without_a_project_in_progress_are_not_comput
     assert projections["variance_at_observed_rate"] is None
     assert performance["reference_budget"] == "0.00"
     assert all(entry["project_count"] == 0 for entry in performance["zone_distribution"])
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+@pytest.mark.requirement("WF-IND-0050-A")
+def test_a_portfolio_that_spent_without_earning_has_no_projection_at_the_observed_rate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-IND-0010, WF-IND-0050: with an actual cost and no earned value, the cost index is
+    # computable (0, as the indices are written), the projection at the observed rate is not —
+    # its reason is the earned value — and its variance is absent, never zero nor infinite.
+    rows: list[JsonObject] = [
+        {"state": "in_progress", "project_id": "p", "cost_index": None, "schedule_index": None}
+    ]
+
+    def spent_without_earning(_row: JsonObject) -> mockportfolio.Earned:
+        return mockportfolio.Earned(
+            budget=Decimal("1000.00"),
+            planned=Decimal("100.00"),
+            earned=Decimal(0),
+            actual=Decimal("200.00"),
+            projection=Decimal("1200.00"),
+        )
+
+    monkeypatch.setattr(mockportfolio, "earned", spent_without_earning)
+    performance = cast("dict[str, Any]", mockportfolio.portfolio_performance(rows, []))
+    assert performance["cost_index"]["value"] == {
+        "is_computable": True,
+        "value": "0",
+        "reason": None,
+    }
+    projections = performance["projections"]
+    assert projections["at_observed_rate"] == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_earned_value",
+    }
+    assert projections["variance_at_observed_rate"] is None
 
 
 def first_example(path: str, operation: str) -> str:

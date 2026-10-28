@@ -10,6 +10,7 @@ ne couvre aucune exigence »).
 
 import json
 import re
+from collections.abc import Iterator
 from typing import Any, cast
 
 import pytest
@@ -17,6 +18,15 @@ import pytest
 from wftools import REPOSITORY, mockcategories, mockdata, mockhistory, mockreference, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import fixture
+
+
+@pytest.fixture(autouse=True)
+def _fresh_groups() -> Iterator[None]:
+    """Forget the categories by nature around each test: some of them change the natures read."""
+    mockcategories.groups.cache_clear()
+    yield
+    mockcategories.groups.cache_clear()
+
 
 type Entry = dict[str, Any]
 
@@ -605,6 +615,7 @@ def test_the_category_of_a_risk_reads_inactive_once_its_nature_is_deactivated(
         }
 
     monkeypatch.setattr(mockcategories, "fixture", read)
+    mockcategories.groups.cache_clear()
     assert mockhistory.is_active_provision(universe(404)) is False
 
 
