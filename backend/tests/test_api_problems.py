@@ -209,10 +209,7 @@ def test_the_parameters_and_the_fields_of_an_exception_travel_in_the_envelope(
     }
     fields = problem_of(client.get("/fail/refused")).fields
     assert fields is not None
-    assert [
-        (f.pointer, f.code.value, params_of(f))
-        for f in fields
-    ] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in fields] == [
         ("/label", "VALUE_REQUIRED", None),
         ("/amount", "VALUE_OUT_OF_RANGE", {"minimum": 0}),
     ]

@@ -224,10 +224,10 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
     rejection = " ".join(
         exchanges.split("\nImportRejection:\n", 1)[1].split("properties:", 1)[0].split()
     )
-    assert (
-        "(`resource_role_ids`, `tasks`, chaque tâche par `project_id`, `node_id` et `label`)"
-        in (rejection)
-    )
+    # The report of an import names its roles by their code and label, and its task by its
+    # lineage, as it names its objects (#768, points 1 and 2).
+    assert "(`resource_roles` : `resource_role_id`, `code`, `label`)" in rejection
+    assert "(`tasks` : `lineage_id`, `label`)" in rejection
     projects = problem.split("`projects` pour une modification du référentiel", 1)[1]
     assert projects.startswith(
         " qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`,"
