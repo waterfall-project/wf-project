@@ -20,8 +20,8 @@ import { type Locator, type Page, expect } from "@playwright/test";
  * settings of the costs, read anew for a nature chosen, took from two to seven seconds under six
  * workers on four processors — the read of the server and the commit of the page up to four each
  * (EP-02/L41g). The probe of `openHydrated` (`indicators.spec.ts`) gives it the same bound to wait
- * for three chart buttons rendered and none hydrated, and to hold its scripts. Any other screen keeps the five seconds of an assertion; the helpers below give
- * a page that long to hydrate.
+ * for three chart buttons rendered and none hydrated, and to hold its scripts. Any other screen
+ * keeps the five seconds of an assertion; the helpers below give a page that long to hydrate.
  */
 export const WORKING = 15_000;
 
