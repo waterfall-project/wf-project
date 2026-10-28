@@ -2632,7 +2632,8 @@
     "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
     "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
     "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
-    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume."
+    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume.",
+    "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -3001,6 +3002,7 @@
       "no_current_revision": "no draft revision",
       "revision_draft": "draft revision",
       "revision_marked": "marked revision",
+      "rate_update_available": "a rate update available",
       "reference_correctable": "reference still correctable",
       "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
@@ -3079,6 +3081,7 @@
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",
       "declare_risk": "Declare a risk",
+      "apply_rate_update": "Apply the rate update",
       "create_structure": "Prepare an amendment",
       "merge_structure": "Contractualise the amendment",
       "mark": "Mark the revision",
@@ -3107,6 +3110,7 @@
       "progress": "Progress",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
+      "payment_delay_days": "Payment delay",
       "parent": "Parent"
     },
     "NodeDifference": {

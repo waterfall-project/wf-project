@@ -36,6 +36,7 @@ import { User, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { components, operations } from "@/api/generated/schema";
+import { useAccountNaming } from "@/components/account/account-name";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { prefixedAddress } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
@@ -251,10 +252,11 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
 
 /** The name of the account of a contributor, after the icon of a person. */
 function ContributorName({ contributor }: { readonly contributor: Contributor }) {
+  const naming = useAccountNaming();
   return (
     <span className="inline-flex items-center gap-1.5">
       <User aria-hidden="true" className={ICON} />
-      {contributor.display_name}
+      {naming.kept(contributor.display_name)}
     </span>
   );
 }

@@ -53,6 +53,7 @@ import {
 import { setContributors } from "@/api/actions/projects";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { useAccountNaming } from "@/components/account/account-name";
 import { UnmetConditions, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/offer";
@@ -280,6 +281,7 @@ function ModifyContributors({
 export function ContributorHead() {
   const t = useTranslations("projectLists.contributors");
   const locale = useLocale();
+  const naming = useAccountNaming();
   const commands = useContext(ContributorContext);
   if (commands === undefined) {
     return null;
@@ -303,7 +305,7 @@ export function ContributorHead() {
           {t("suggested", {
             count: proposed.length,
             names: new Intl.ListFormat(formatLocale(locale), { type: "conjunction" }).format(
-              proposed.map((suggestion) => suggestion.display_name),
+              proposed.map((suggestion) => naming.kept(suggestion.display_name)),
             ),
           })}
         </p>
@@ -342,6 +344,7 @@ function ContributorEditor({
   const form = useTranslations("reference.form");
   const kinds = useTranslations("enums.ContributorKind");
   const locale = useLocale();
+  const naming = useAccountNaming();
   const messages = useMessages();
   const [draft, setDraft] = useState<readonly Contributor[]>(opened.from);
   const [problems, setProblems] = useState<ReadonlyMap<string, FieldProblem>>(() => new Map());
@@ -466,11 +469,12 @@ function ContributorEditor({
               return (
                 <tr key={row.user_id} className="align-top">
                   <th scope="row" className="py-1 pr-2 text-left font-normal">
-                    {row.display_name} {row.is_active ? null : <ActiveState active={false} />}
+                    {naming.kept(row.display_name)}{" "}
+                    {row.is_active ? null : <ActiveState active={false} />}
                     {problem === undefined ? null : (
                       <p id={said} className="text-destructive">
                         {t("refusedFor", {
-                          name: row.display_name,
+                          name: naming.kept(row.display_name),
                           problem: problemMessage(problem, { locale, messages }),
                         })}
                       </p>
@@ -479,7 +483,7 @@ function ContributorEditor({
                   <td className="py-1 pr-2">
                     <NativeSelect
                       ref={index === 0 ? first : undefined}
-                      aria-label={t("kindOf", { name: row.display_name })}
+                      aria-label={t("kindOf", { name: naming.kept(row.display_name) })}
                       aria-invalid={problem === undefined ? undefined : true}
                       aria-describedby={problem === undefined ? undefined : said}
                       value={row.kind}
@@ -497,14 +501,14 @@ function ContributorEditor({
                   </td>
                   <td className="py-1">
                     <CommandTooltip
-                      label={t("withdraw", { name: row.display_name })}
+                      label={t("withdraw", { name: naming.kept(row.display_name) })}
                       help={helps("contributorWithdraw.help")}
                     >
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        aria-label={t("withdraw", { name: row.display_name })}
+                        aria-label={t("withdraw", { name: naming.kept(row.display_name) })}
                         onClick={() => {
                           setDraft(draft.filter((each) => each !== row));
                         }}
@@ -525,7 +529,7 @@ function ContributorEditor({
               {proposed.map((one) => (
                 <li key={one.user_id} className="flex items-center justify-between gap-2 text-sm">
                   <span>
-                    {one.display_name}
+                    {naming.kept(one.display_name)}
                     <span className="block text-xs text-muted-foreground">
                       {t("proposedFrom", {
                         node: one.org_node_label,
@@ -537,7 +541,7 @@ function ContributorEditor({
                     </span>
                   </span>
                   <CommandTooltip
-                    label={t("inscribe", { name: one.display_name })}
+                    label={t("inscribe", { name: naming.kept(one.display_name) })}
                     help={helps("contributorInscribe.help")}
                   >
                     <Button
@@ -559,7 +563,7 @@ function ContributorEditor({
                       }}
                     >
                       <UserPlus aria-hidden="true" />
-                      {t("inscribe", { name: one.display_name })}
+                      {t("inscribe", { name: naming.kept(one.display_name) })}
                     </Button>
                   </CommandTooltip>
                 </li>
