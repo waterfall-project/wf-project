@@ -1564,7 +1564,7 @@ export interface paths {
         put?: never;
         /**
          * Appliquer la mise à jour des taux
-         * @description Reporte les taux de l'année sur les lignes de la révision en cours, pour les catégories retenues (WF-REV-0060). Une mise à jour refusée à la création de la révision s'accepte ensuite depuis la révision en cours, tant qu'elle n'est pas marquée, et la rechiffre au taux de son année de référence pour chaque catégorie acceptée (C-362) ; une révision marquée garde les taux et les montants qu'elle a calculés (WF-REF-0130, WF-DAT-0020). Refusée en 403 à qui n'a pas la permission `revisions.write`, celle de la gestion des révisions (voir `RevisionCommandAvailability`, commande `apply_rate_update`).
+         * @description Reporte les taux de l'année sur les lignes de la révision en cours, pour les catégories retenues (WF-REV-0060). Une mise à jour refusée à la création de la révision s'accepte ensuite depuis la révision en cours, tant qu'elle n'est pas marquée, et la rechiffre au taux de son année de référence pour chaque catégorie acceptée (C-362) ; une révision marquée garde les taux et les montants qu'elle a calculés (WF-REF-0130, WF-DAT-0020). Refusée en 403 à qui n'a pas la permission `revisions.write`, celle de la gestion des révisions (voir `RevisionCommand`, commande `apply_rate_update`).
          */
         post: operations["applyRateUpdate"];
         delete?: never;
