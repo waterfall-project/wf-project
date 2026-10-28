@@ -8275,7 +8275,9 @@ ni le cas du jalon.
 - **La confirmation.** `RiskOccurrence` exige les deux compteurs lus, comme `StructureMerge`
   (WF-IHM-0110) : la structure principale ou le risque changés depuis, `declareRiskOccurrence` est
   refusée par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
-  l'objet que le chemin nomme, même quand seule la structure principale a changé (#296).
+  l'objet que le chemin nomme, même quand seule la structure principale a changé (#296). Le 412 ne
+  dit donc pas lequel des deux compteurs a avancé : le client ne rejoue pas avec
+  `expected_lock_version`, il relit le compte rendu et le remontre.
 - **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
   décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
   « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du

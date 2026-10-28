@@ -482,8 +482,8 @@
           compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110).
           `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
           l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien
-          d'autre, comme tout 412 (#296) ; le client relit le compte rendu, qui rend l'un et
-          l'autre.
+          d'autre, comme tout 412 (#296), si bien qu'il ne dit pas lequel des deux a avancé ; le
+          client ne rejoue pas avec ce compteur, il relit le compte rendu, qui rend l'un et l'autre.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
