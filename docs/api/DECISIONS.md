@@ -8250,7 +8250,7 @@ Aucune opération nouvelle.
 
 Les constats de contrat que les lots d'EP-15 ont relevés en livrant, tranchés au recadrage d'EP-16
 (« Ce que le cadrage décide », #1445), et ceux que l'auteur a confiés à ce lot le 2026-10-28 : #870,
-#1401, #1531, #1566 et #1573 (sa part back). Aucune opération nouvelle. Les écrans qui les
+#1401, #1531, #1566, #1573 (sa part back) et #1577. Aucune opération nouvelle. Les écrans qui les
 adoptent sont d'US-0660/L3 et L4.
 
 - **« Appliquer la mise à jour des taux » est une commande de la révision** (#1351, WF-REV-0060 : « la
@@ -8348,6 +8348,20 @@ adoptent sont d'US-0660/L3 et L4.
   `contributors_anonymized` : la liste du témoin une fois le compte d'Alix Moreau anonymisé
   (`users_anonymized`), son nom nul, en dernier, le compteur de la liste inchangé. Le service est
   d'EP-04.
+- **La création d'un projet et l'abandon d'une révision au journal d'audit** (#1577, WF-SEC-0030).
+  `AuditAction` gagne `project_create`, avant `revision_mark`, et `revision_abandon`, après lui,
+  dans l'ordre de WF-SEC-0030 ; `AuditObjectKind` ne change pas. Leurs `params` sont vides, et
+  `AuditParams` dit pourquoi : la création d'un projet le nomme déjà par son code et son libellé du
+  moment (`AuditEvent.project`, `AuditObject.label`) ; l'abandon nomme la révision par son
+  identifiant et par son projet, une révision en cours n'ayant pas de nom de version
+  (`AuditObject.label` nul). Écarté : répéter le code et le libellé du projet dans `params`, ce que
+  l'inscription dit deux fois déjà. Le journal du témoin (`wftools.mockaudit`) inscrit la création
+  de PRJ-001 par Camille Martin le 6 octobre 2025 à 9 h, à l'instant de son audit, après la création
+  du compte de Noé Vidal au même instant ; et l'abandon de sa révision 102, aujourd'hui à 14 h 05,
+  la suite d'une écriture de `project_without_current_revision`, lue seule dans
+  `audit_events_revision_abandoned`. Les inscriptions suivantes en prennent un numéro de plus :
+  `audit_events_anonymized_object` et `audit_events_anonymized_actor`, écrits à la main, suivent
+  (inscriptions 41 et 42).
 - **Le délai de paiement, écart d'un différentiel** (#1566, WF-DEV-0020, WF-IND-0100).
   `NodeChange` gagne `payment_delay_days`, après les montants et avant le parent : une ligne dont
   seul le délai change est `modified`, quand aucun montant ne bouge, et ses tâches porteuses le sont
