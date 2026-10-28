@@ -117,7 +117,7 @@ def test_a_grid_written_keeps_the_columns_it_hid_and_widened_among_those_it_knew
             assert set(settings.get("hidden_columns", [])) <= known, (name, grid)
             assert set(settings.get("column_widths", {})) <= known, (name, grid)
             grids += 1
-    assert grids == 5
+    assert grids == 6
 
 
 def test_a_column_the_grid_hides_by_default_and_did_not_know_is_hidden() -> None:
