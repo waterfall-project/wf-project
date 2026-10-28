@@ -232,6 +232,8 @@ describe("the screens the history keeps", () => {
     "/\t/elsewhere.example",
     "/\n/elsewhere.example",
     "/\r\n/elsewhere.example",
+    "/\u0000/elsewhere.example",
+    "/projects\u007f",
     "https://elsewhere.example",
     "projects",
   ])("keeps no address of another site, or none of the application: %s", (href) => {

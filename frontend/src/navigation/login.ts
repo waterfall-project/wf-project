@@ -12,6 +12,7 @@
  * `/login` is a route handler (`src/app/login/route.ts`), not a page: the identity provider
  * shows the screens of the sign-in, and Waterfall asks for no password (WF-ADM-0140).
  */
+import { isApplicationPath } from "./application-path";
 import { HOME } from "./home";
 
 /** The route that opens the session, and comes back to the screen aimed at. */
@@ -65,13 +66,14 @@ const FRONT = "http://front.invalid";
 
 /**
  * The screen a `next` names, or the home page when it names none of this front or cannot be
- * read as an address at all — `//[`, `//a b`. `next` is resolved as a browser would resolve
- * it — which drops tabs and line breaks, and reads `//host` or `/\host` as another site —, and
- * followed only when it stays on this front: its path, its query and its fragment, never its
- * origin.
+ * read as an address at all — `//[`, `//a b`. `next` is refused at once when it is no path of
+ * this front as written (`isApplicationPath`, the guard `isScreen` shares): a control character,
+ * which a browser strips — `/\t/elsewhere` is `//elsewhere` to it —, a backslash, `//`. It is
+ * then resolved as a browser would resolve it, and followed only when it stays on this front:
+ * its path, its query and its fragment, never its origin.
  */
 export function returnTarget(next: string | null | undefined): string {
-  if (next?.startsWith("/") !== true || !URL.canParse(next, FRONT)) {
+  if (typeof next !== "string" || !isApplicationPath(next) || !URL.canParse(next, FRONT)) {
     return HOME;
   }
   const target = new URL(next, FRONT);
@@ -81,7 +83,7 @@ export function returnTarget(next: string | null | undefined): string {
   // The path is normalised only once resolved: `/.//host` or `/a/..//host` come out as
   // `//host`, which a browser reads as another site. The path given back is checked again.
   const path = `${target.pathname}${target.search}${target.hash}`;
-  return path.startsWith("//") || path.startsWith("/\\") || !staysOnFront(path) ? HOME : path;
+  return !isApplicationPath(path) || !staysOnFront(path) ? HOME : path;
 }
 
 /** Whether a path, resolved as a browser would, stays on this front. */

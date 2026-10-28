@@ -1572,7 +1572,7 @@ EP-08.
 
 ## US-0690 — L'adresse de retour de la connexion durcie
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1449

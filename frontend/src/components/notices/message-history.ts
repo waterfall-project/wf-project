@@ -27,6 +27,8 @@
 
 import { useEffect } from "react";
 
+import { isApplicationPath } from "@/navigation/application-path";
+
 /** The key of the storage of the tab under which the messages are kept. */
 export const MESSAGES_KEY = "wf_messages";
 
@@ -91,8 +93,8 @@ const listeners = new Set<() => void>();
 /**
  * Whether a value read back is a screen kept here: an address of the application, which a link leads
  * back to — never one of another site, `//elsewhere` or `/\elsewhere`, which a browser reads as such,
- * nor one with a tabulation or a line break, which a browser strips from an address: `/\t/elsewhere`
- * is `//elsewhere` to it.
+ * nor one with a control character, of which a browser strips the tabs and the line breaks:
+ * `/\t/elsewhere` is `//elsewhere` to it. The guard is the one of the way back from the sign-in.
  */
 export function isScreen(value: unknown): value is MessageScreen {
   if (typeof value !== "object" || value === null) {
@@ -101,9 +103,7 @@ export function isScreen(value: unknown): value is MessageScreen {
   const screen = value as Partial<Record<keyof MessageScreen, unknown>>;
   return (
     typeof screen.href === "string" &&
-    screen.href.startsWith("/") &&
-    !screen.href.startsWith("//") &&
-    !/[\\\t\n\r]/.test(screen.href) &&
+    isApplicationPath(screen.href) &&
     (screen.project === undefined || typeof screen.project === "string")
   );
 }

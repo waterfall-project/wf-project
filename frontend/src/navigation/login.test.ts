@@ -49,6 +49,26 @@ describe("the way back from the sign-in page", () => {
     }
   });
 
+  it.each([
+    ["a tab", "/\t/elsewhere"],
+    ["a line feed", "/\n/elsewhere"],
+    ["a carriage return", "/\r/elsewhere"],
+    ["a null character", "/\u0000/elsewhere"],
+    ["a unit separator", "/\u001f/elsewhere"],
+    ["a delete", "/\u007f/elsewhere"],
+    ["a control character within a screen of the front", `${SCREEN}\u0001`],
+    ["a tab within the query of a screen", `${SCREEN}&sort=\tlabel`],
+  ])("refuses an address of return that holds %s [WF-SEC-0010-A]", (_, next) => {
+    expect(returnTarget(next)).toBe("/");
+  });
+
+  it.each(["//elsewhere", "/\\elsewhere"])(
+    "still refuses the address of return %s [WF-SEC-0010-A]",
+    (next) => {
+      expect(returnTarget(next)).toBe("/");
+    },
+  );
+
   it("keeps on the front a path whose slashes are encoded", () => {
     expect(returnTarget("/%2F%2Felsewhere.example")).toBe("/%2F%2Felsewhere.example");
   });
