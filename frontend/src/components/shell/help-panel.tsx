@@ -128,7 +128,8 @@ function HelpParts({
   readonly onFollow: (target: HelpTarget) => void;
 }) {
   const t = useTranslations("help");
-  // The title of the list is the interface's own: it stays out of the French page around it.
+  // The title of the list is the interface's own, the titles of its links the French of the help:
+  // each says its language, for a screen reader to speak it so (#1480).
   const locale = useLocale();
   const heading = useId();
   const parts = sectionsOf(code).flatMap((section) =>
@@ -138,13 +139,13 @@ function HelpParts({
     return null;
   }
   return (
-    <nav aria-labelledby={heading} lang={locale} className="space-y-1">
-      <h4 id={heading} className="font-medium">
+    <nav aria-labelledby={heading} className="space-y-1">
+      <h4 id={heading} lang={locale} className="font-medium">
         {t("sections")}
       </h4>
       <ul className="list-disc space-y-1 pl-5">
         {parts.map((entry) => (
-          <li key={fileOf(entry.target)}>
+          <li key={fileOf(entry.target)} lang={HELP_LANGUAGE}>
             <HelpLink target={entry.target} onFollow={onFollow}>
               {entry.title}
             </HelpLink>

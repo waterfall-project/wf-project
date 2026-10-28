@@ -1429,6 +1429,155 @@
       "matrixCell": {
         "help": "Cell of the risk matrix its probability and severity fall in, and the zone that colours it."
       }
+    },
+    "users": {
+      "lastName": {
+        "help": "Last name of the holder of the account; an anonymised account has none any more."
+      },
+      "firstName": {
+        "help": "First name of the holder of the account."
+      },
+      "email": {
+        "help": "Email address of the account, by which it signs in and receives its invitation."
+      },
+      "origin": {
+        "help": "Where the account comes from: created in Waterfall, imported from the directory or created by the identity provider."
+      },
+      "attachment": {
+        "help": "Node of the organisation the account is attached to."
+      },
+      "accessRoles": {
+        "help": "Access roles the account holds: they give it its permissions."
+      },
+      "state": {
+        "help": "State of the account: a deactivated account stays listed, but can no longer sign in."
+      },
+      "password_link": {
+        "help": "Link by which the holder of a local account sets their password."
+      },
+      "anonymize": {
+        "help": "Anonymisation of a deactivated account: its last name, first name and address are erased, for good."
+      }
+    },
+    "accessRoles": {
+      "label": {
+        "help": "Label of the access role."
+      },
+      "roleKind": {
+        "help": "Kind of the role: predefined at installation, or composed by an administrator."
+      },
+      "holders": {
+        "help": "Number of accounts that hold the role."
+      },
+      "delete": {
+        "help": "Deletion of the role, possible as long as no account holds it."
+      }
+    },
+    "audit": {
+      "createdAt": {
+        "help": "Date and time the row was created, in the time of this workstation."
+      },
+      "createdBy": {
+        "help": "Account that created the row, or the platform for an automatic process."
+      },
+      "updatedAt": {
+        "help": "Date and time the row was last modified, in the time of this workstation."
+      },
+      "updatedBy": {
+        "help": "Account that last modified the row, or the platform for an automatic process."
+      }
+    },
+    "auditLog": {
+      "occurredAt": {
+        "help": "Date and time of the action recorded, in the time of this workstation."
+      },
+      "author": {
+        "help": "Account that acted, under the name it bore then, or the platform."
+      },
+      "action": {
+        "help": "Action recorded in the journal, and under it what it did to its object."
+      },
+      "objectKind": {
+        "help": "Kind of the object the action concerns."
+      },
+      "object": {
+        "help": "Object the action concerns, under the name it bore then."
+      },
+      "objectHistory": {
+        "help": "Every entry that concerns the same object."
+      },
+      "project": {
+        "help": "Project of the object, or « No project »."
+      },
+      "correlation": {
+        "help": "Identifier of the request that produced the entry: it links the entries of one request."
+      }
+    },
+    "backups": {
+      "takenAt": {
+        "help": "Date and time of the backup, in the time of this workstation."
+      },
+      "size": {
+        "help": "Size of the backup."
+      },
+      "verification": {
+        "help": "Verification of the backup: pending, passed or failed. Only a verified backup downloads and restores."
+      },
+      "origin": {
+        "help": "What started the backup: manual or scheduled."
+      },
+      "retention": {
+        "help": "Mark of retention: a backup marked to be kept escapes the rotation."
+      },
+      "download": {
+        "help": "Download of the archive of the backup."
+      },
+      "restore": {
+        "help": "Restoration of the whole platform from the backup."
+      }
+    },
+    "portfolioProjects": {
+      "label": {
+        "help": "Label of the project; a link opens it when you may consult it."
+      },
+      "code": {
+        "help": "Code of the project."
+      },
+      "state": {
+        "help": "State of the project in its life cycle."
+      },
+      "referenceBudget": {
+        "help": "Reference budget of the project."
+      },
+      "currentEstimate": {
+        "help": "Current estimate of a project in pricing."
+      },
+      "winProbability": {
+        "help": "Probability of winning a project in pricing."
+      },
+      "projectManagerProjection": {
+        "help": "Projection at completion of the project manager, for a project in progress."
+      },
+      "deltaToReference": {
+        "help": "Variance of the project manager's projection to the reference budget."
+      },
+      "costIndex": {
+        "help": "Cost index of the project, and its zone."
+      },
+      "scheduleIndex": {
+        "help": "Schedule index of the project, and its zone."
+      },
+      "lastMarkedAt": {
+        "help": "Date of the last marked revision of the project."
+      }
+    },
+    "referenceCommands": {
+      "state": {
+        "help": "State of the object, active or deactivated, and the command that changes it."
+      },
+      "modify": {
+        "help": "Modification of the object, in its form."
+      }
     }
   },
   "help": {

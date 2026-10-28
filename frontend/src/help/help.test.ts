@@ -242,6 +242,11 @@ describe("the reading of the help", () => {
     ["FBS-4.5.2"],
     ["FBS-4.6"],
     ["FBS-4.6.1"],
+    ["FBS-1.1"],
+    ["FBS-1.2"],
+    ["FBS-1.4"],
+    ["FBS-1.5"],
+    ["FBS-2.1"],
   ])(
     "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
     async (code) => {
@@ -279,9 +284,9 @@ describe("the reading of the help", () => {
   );
 
   it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
-    expect(await readHelpPage({ kind: "screen", code: "FBS-1.1" })).toEqual({
+    expect(await readHelpPage({ kind: "screen", code: "FBS-3.1" })).toEqual({
       kind: "pending",
-      target: { kind: "screen", code: "FBS-1.1" },
+      target: { kind: "screen", code: "FBS-3.1" },
     });
     expect((await readHelpPage({ kind: "notion", name: "lotissement" })).kind).toBe("pending");
   });
@@ -304,6 +309,32 @@ describe("the reading of the help", () => {
     },
   );
 
+  it.each([
+    ["/admin/users", "FBS-1.1", "Gestion des utilisateurs"],
+    ["/admin/access-roles", "FBS-1.2", "Gestion des rôles d’habilitation"],
+    ["/system", "FBS-1.3", "Surveillance de l’état du système"],
+    ["/admin/backups", "FBS-1.4", "Sauvegarde et restauration"],
+    ["/admin/audit-log", "FBS-1.5", "Journal d’audit"],
+    ["/portfolio/projects", "FBS-2.1", "Portefeuille de projets"],
+    ["/portfolio/workload", "FBS-2.2", "Plan de charge agrégé"],
+    ["/portfolio/performance", "FBS-2.3", "Performance du portefeuille"],
+    ["/portfolio/cost-structure", "FBS-2.4", "Structure des coûts du portefeuille"],
+    ["/portfolio/risks", "FBS-2.5", "Risques du portefeuille"],
+    ["/portfolio/cost-curve", "FBS-2.6", "Courbe en S du portefeuille"],
+    ["/portfolio/pilot-health", "FBS-2.7", "Santé du pilotage"],
+  ])(
+    "opens, at %s, the help of the screen of the administration or the portfolio: %s, %s [WF-IHM-0140-A]",
+    async (pathname, code, title) => {
+      expect(helpCodeAt(pathname)).toBe(code);
+      expect(SCREENS_TO_COME[code]).toBeUndefined();
+      const page = await readHelpPage({ kind: "screen", code });
+      expect(page.kind).toBe("written");
+      if (page.kind === "written") {
+        expect(page.title).toBe(title);
+      }
+    },
+  );
+
   it("fails on a page that should be written and whose file is missing, and says a page to come [WF-IHM-0140-A]", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "waterfall-help-"));
     folders.push(root);
@@ -312,7 +343,7 @@ describe("the reading of the help", () => {
     // FBS-4.3 has a page, which this directory does not carry, as a standalone build that forgot it.
     await expect(readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow("FBS-4.3.md");
     await expect(readHelpPage({ kind: "notion", name: "indices" })).rejects.toThrow("indices.md");
-    expect((await readHelpPage({ kind: "screen", code: "FBS-1.1" })).kind).toBe("pending");
+    expect((await readHelpPage({ kind: "screen", code: "FBS-3.1" })).kind).toBe("pending");
   });
 
   it("fails the index on a page that should be written and is missing or untitled, and does not keep it [WF-IHM-0140-A]", async () => {
@@ -330,7 +361,9 @@ describe("the reading of the help", () => {
     writeFileSync(path.join(root, "help", "fr", "FBS-4.1.md"), "no heading\n");
     await expect(fresh.helpIndex()).rejects.toThrow("FBS-4.1.md has no title");
     writeFileSync(path.join(root, "help", "fr", "FBS-4.1.md"), "# Révisions\n");
-    expect((await fresh.helpIndex())[0]?.title).toBe("Révisions");
+    expect(
+      (await fresh.helpIndex()).find((entry) => fileOf(entry.target) === "FBS-4.1.md")?.title,
+    ).toBe("Révisions");
     vi.unstubAllEnvs();
   });
 
@@ -340,8 +373,8 @@ describe("the reading of the help", () => {
       HELP_CODES.filter((code) => written({ kind: "screen", code })).length + notions().length,
     );
     expect(index[0]).toEqual({
-      target: { kind: "screen", code: "FBS-4.1" },
-      title: "Gestion des révisions",
+      target: { kind: "screen", code: "FBS-1.1" },
+      title: "Gestion des utilisateurs",
     });
     expect(index.map((entry) => entry.title)).toContain("La valeur acquise");
   });

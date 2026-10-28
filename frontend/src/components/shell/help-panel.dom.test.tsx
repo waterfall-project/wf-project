@@ -183,11 +183,24 @@ describe("the panel of the help", () => {
     );
     expect(dialog.querySelectorAll('[lang="fr"]').length).toBeGreaterThan(1);
     expect(dialog.querySelector('[lang="fr"] h3')).not.toBeNull();
-    // What is the interface's own — the name of the list of parts — is not said French.
-    expect(
-      within(dialog).getByRole("navigation", { name: "The parts of the screen" }).closest("[lang]"),
-    ).toHaveAttribute("lang", "en");
     await expectAccessible(dialog);
+  });
+
+  it("says the title of the list of parts in the language of the interface, its French titles French [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planification");
+    const parts = await within(dialog).findByRole("navigation", {
+      name: "The parts of the screen",
+    });
+    // The name of the list is the interface's own; the titles of its links are the help's (#1480).
+    expect(within(parts).getByRole("heading", { level: 4 })).toHaveAttribute("lang", "en");
+    const links = within(parts).getAllByRole("link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.closest("[lang]")).toHaveAttribute("lang", "fr");
+    }
   });
 
   it("keeps the columns of the grid, the interface's own text, out of the French page [WF-IHM-0140-A]", async () => {
@@ -201,7 +214,7 @@ describe("the panel of the help", () => {
     expect(
       within(dialog).getAllByText("(value computed by the server)")[0]?.closest("[lang]"),
     ).toHaveAttribute("lang", "en");
-    // Under lang="fr", no grid definition, status nor alert (the parts list is #1480).
+    // Under lang="fr", no grid definition, status nor alert.
     for (const own of dialog.querySelectorAll("dl, [role='status'], [role='alert']")) {
       expect(own.closest("[lang]")?.getAttribute("lang")).not.toBe("fr");
     }

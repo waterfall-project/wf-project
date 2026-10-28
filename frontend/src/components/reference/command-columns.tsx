@@ -38,6 +38,7 @@ export function commandColumns<Row extends ReferenceObject, Sort extends string>
   const state: GridColumn<Row, Sort, null> = {
     key: "state",
     label: "state",
+    help: "referenceCommands.state",
     format: "text",
     width: STATE_WIDTH,
     ...(contract === undefined ? {} : { contract }),
@@ -47,6 +48,7 @@ export function commandColumns<Row extends ReferenceObject, Sort extends string>
   const modify: GridColumn<Row, Sort, null> = {
     key: "modify",
     label: "modify",
+    help: "referenceCommands.modify",
     format: "text",
     width: MODIFY_WIDTH,
     value: () => null,
