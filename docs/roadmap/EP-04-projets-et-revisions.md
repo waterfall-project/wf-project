@@ -1,7 +1,7 @@
 ---
 id: EP-04
 titre: Créer un projet, en figer des versions, et le mener d'un état à l'autre
-statut: à planifier
+statut: prêt
 depend_de: EP-05
 famille: front, back
 issue:
@@ -272,7 +272,241 @@ Rendus ou renvoyés au cadrage du 2026-10-28 (décisions de l'auteur) :
 
 ## Conception
 
-À écrire au cadrage.
+EP-04 est le second EPIC de domaine du back, et le premier qui écrit le révisionné : il crée les
+tables du projet et des révisions, partitionnées par projet, deux modules du noyau, les routes de
+ses vingt-quatre opérations, le premier traitement du métier confié au worker, les déclencheurs
+d'immuabilité, la tranche des projets du témoin et le branchement des écrans du projet. Il **ne
+modifie pas le contrat**, figé en 1.0.0 : ce que le cadrage y a trouvé manquant est rendu à EP-16
+avant le gel, et tout manque ultérieur devient une « Interface contract issue » que l'auteur
+tranche. Ce qui suit fixe ce que chaque lot devrait sinon décider seul. Validée par l'auteur le
+2026-10-28.
+
+### Ce que le cadrage décide
+
+Décisions de l'auteur du 2026-10-28, chacune avec l'option écartée :
+
+- **Dix-sept exigences se closent plus tard** (EP-06, EP-07, EP-09, EP-10, EP-11, EP-13) : une
+  phrase de leur Vérif demande des tâches, des lignes, un devis exporté, un import, des
+  indicateurs, le portefeuille ou les volumes. EP-04 écrit la mécanique et la prouve sur ce qu'il
+  a ; l'EPIC qui clôt la constate sur le reste. Écarté : les garder ici avec des écarts sans EPIC
+  qui les clôt.
+- **Le chargeur impose l'instant de chaque événement de la chronologie du témoin** (`Act.at`) pour
+  les projets, les révisions et les transitions — des données du métier (WF-CYC-0130), que les
+  parcours lisent — ; l'auteur reste la plateforme, et les dates du référentiel restent celles du
+  chargement (EP-05). Écarté : les dates du chargement, qui rendaient l'historique des états et
+  les marquages non rejouables.
+- **La tranche s'arrête au Chiffrage** : la désignation de la référence exige des tâches et des
+  lignes (`revision_has_tasks_and_lines`), et le chargeur ne contourne aucune règle (#1402). PRJ-001
+  est chargé en Chiffrage, code saisi, l'offre 100 et la « Référence » 101 marquées, la 102 en
+  cours, sans référence ; EP-07 charge les lignes et rejoue la désignation, qui mène En cours.
+  Écarté : poser l'état En cours autour des règles, qui ferait du témoin un état qu'aucune
+  commande ne peut produire.
+- **Les tables images d'une révision naissent avec les lignes, en EP-07** : ici, la copie d'une
+  révision ne porte que ses structures, par une fonction de l'interface qu'EP-06, EP-07 et EP-08
+  étendent table par table. Écarté : quatre tables vides dès EP-04, sans test possible.
+- **Une partition par projet, par liste**, créée dans la transaction de la création du projet par
+  une fonction `SECURITY DEFINER` du propriétaire des tables, à laquelle le rôle du service a
+  `EXECUTE` et rien d'autre — le service ne gagne aucun droit de DDL général (règles SQL, #701).
+  Chaque EPIC qui ajoute une table révisionnée remplace la fonction dans sa migration. Écarté : le
+  hachage en N partitions fixes, où une partition mêle plusieurs projets et où la Vérif ne se tient
+  que par le plan d'exécution.
+- **`AuditAction` manque `project_create` et `revision_abandon`**, que WF-SEC-0030 énumère et dont
+  sa Vérif exige l'inscription : une issue « contrat » est ouverte à EP-16, rattachée à #1312, à
+  trancher par l'auteur avant le gel. EP-04 inscrit ces deux actions si le contrat les porte à sa
+  livraison, et ne les inscrit pas sinon — sa définition de fini le dit, et EP-13, qui clôt
+  WF-SEC-0030, en dépend. Écarté : les inscrire sous une action que le contrat n'a pas, ou lever
+  le manque après le gel.
+- **#870 est rendu à EP-16** avant le gel : `Contributor.display_name` nullable est une
+  modification du contrat. EP-04 sert le champ tel que le contrat figé le dit. Écarté : la première
+  « Interface contract issue » du contrat figé, portée par EP-04.
+- **#1350 est repris ici**, par le parcours du cycle contre le service ; **#1363 et #1369 vont à
+  EP-08**, qui sert les structures différentielles et les devis propres. Écarté : les trois ici,
+  les deux dernières sans lot.
+- **La consultation d'un projet se décide par une règle propre** : la permission de la fonction et
+  la qualité de contributeur, ou `all_projects_read` ; la règle 404/403 vient d'une propriété
+  déclarée de chaque permission (`consultation`), non de son suffixe (#754). Écarté : étendre la
+  règle du suffixe, qui donnerait 403 à `all_projects_read`.
+- **Deux modules**, `projects` (FBS-4.2 et le cycle de vie du §3.3.2, qui n'a pas de bloc FBS) et
+  `revisions` (FBS-4.1). Écarté : un module `lifecycle` à part, sans table propre, qui aurait
+  coupé une transition de l'état du projet qu'elle écrit.
+- **`listContributorSuggestions` est servie ici, vide** tant qu'aucune ligne n'emploie un rôle :
+  l'écran la lit, et WF-PRJ-0070 reste à EP-07. Écarté : un 404 que l'écran devrait tolérer.
+- **Les contributeurs du témoin sont des comptes locaux de Waterfall seul**, créés par l'interface
+  des comptes sans fournisseur d'identité, qui ne se connectent jamais ; les parcours se
+  connectent par les comptes de la course, inscrits contributeurs par l'API. Écarté : des comptes
+  dans Keycloak, que le chargeur ne touche pas.
+- **US-0910 crée toutes les tables en une fois**, comme EP-05. Écarté : une migration par US.
+- **Le cadrage s'est fait sur le contrat d'`epic/EP-16` avant le gel** ; la liste des opérations et
+  des refus se relit au gel (« Préalables »).
+
+### Tables et migrations
+
+Régime « projet » (§4.4.1) pour `project`, `project_state_transition`, `contributor`,
+`subproject`, `work_package`, `order_item`, `deliverable`, `revision` ; régime « révisionné » pour
+`cost_structure`, partitionnée par projet. UUID v7 engendrés par le service, ou imposés par le
+chargeur ; colonnes d'audit et `lock_version` sur chaque table dont les lignes se modifient ;
+textes triés en collation `C`, cherchés par `contains` ; règles SQL du guide pour le reste.
+
+| Table | Contenu | Contraintes |
+|---|---|---|
+| `project` | `label`, `code` (nul tant qu'il n'est pas saisi), `description`, `client`, `state`, `inflation_rate`, `win_probability` (`numeric(5,4)`), `order_received_on` (`date`), `reference_revision_id`, `current_revision_id`, audit, `lock_version` | `code` unique dans l'installation, nul admis ; `state` dans les six valeurs de `ProjectState` ; `inflation_rate` et `win_probability` de 0 à 1 ; `label` de 1 à 300, `client` de 1 à 300 nul admis, `code` borné comme le contrat ; les deux clés vers `revision` en refus, `current_revision_id` nul sans révision en cours |
+| `project_state_transition` | `project_id`, `from_state` (nul à la création), `to_state`, `occurred_at`, `actor_user_id` (nul pour la plateforme), `reason` (nul pour une transition automatique) | états dans l'énumération ; jamais modifiée ni supprimée (`INSERT`, `SELECT` seuls) ; index sur (`project_id`, `occurred_at`) |
+| `contributor` | `project_id`, `user_account_id`, `kind` | clé primaire sur la paire ; `kind` dans `project_manager`, `contributor` ; clés en refus ; la liste porte son compteur dans `project.contributors_lock_version`, propre à elle |
+| `subproject` | `project_id`, `code`, `label`, audit, `lock_version` | `code` unique par projet ; `code` de 1 à 31 sans `: \ / ? * [ ]`, ni « Synthèse » ni « Hors sous-projet » — la forme par contrainte, les noms réservés par le service après normalisation (#1502) — ; supprimée physiquement tant que rien ne la cite |
+| `work_package`, `order_item`, `deliverable` | `project_id`, le parent, `label`, `position`, `deleted_at` (lot et poste : le marquage supprimé, nul ici), audit | clés en refus ; `position` unique sous son parent ; le lotissement porte son compteur dans `project.work_breakdown_lock_version` |
+| `revision` | `project_id`, `status`, `version_name`, `description`, `marked_at`, `reference_year`, `is_reference`, `lineage_id`, audit, `lock_version` | `status` dans `draft`, `marked` ; un seul `draft` par projet (index unique partiel) ; `version_name` unique parmi les révisions marquées d'un projet, non nul si marquée ; `marked_at` non nul si et seulement si marquée ; un seul `is_reference` par projet ; un déclencheur refuse le retour de `marked` à `draft` et toute modification d'une révision marquée hors `is_reference`, `lock_version` et ses colonnes d'audit |
+| `cost_structure` | `project_id` (clé de partition), `revision_id`, `kind` (`main` ici), `label`, `is_merged`, `lineage_id`, audit, `lock_version` | `PARTITION BY LIST (project_id)` ; clé primaire (`project_id`, `id`) ; une seule `main` par révision ; clé vers `revision` en refus ; un déclencheur refuse toute mise à jour et toute suppression d'une ligne dont la révision est marquée — sauf la suppression en cascade d'une révision abandonnée, jamais marquée |
+
+- **Deux migrations** : `0017_project_tables` (les huit tables du projet, la table révisionnée
+  partitionnée, la fonction `create_project_partitions(project_id)` du propriétaire avec `EXECUTE`
+  au rôle du service, les déclencheurs, les droits et `SERVICE_RIGHTS`) ; `0018_audit_actions`,
+  si le contrat porte `project_create` et `revision_abandon` au gel, qui étend la contrainte
+  `action_known` du journal, comme `0011` l'a fait. Aucune autre migration de données.
+- **La partition** : `create_project_partitions` crée `cost_structure_p_<uuid sans tirets>`
+  `FOR VALUES IN (project_id)` ; chaque EPIC qui ajoute une table révisionnée la remplace
+  (`CREATE OR REPLACE`) pour y ajouter la sienne, et sa migration crée les partitions des projets
+  existants. La fonction ne prend que l'identifiant, ne lit rien d'autre, et refuse un projet qui
+  a déjà ses partitions.
+- **L'immuabilité** : une fonction de déclencheur par table révisionnée, dans le module
+  `revisions`, qui lit l'état de la révision par `revision_id` (`FOR KEY SHARE`), sur le modèle
+  d'`audit_entry_refuse_row_change` ; propriétaire compris. Les tests écrivent la ligne en passant
+  autour du service, par le propriétaire (fixture `owner`).
+- Les tests : `test_migrations.py` (schéma, droits, partitions d'un projet créé),
+  `test_database_constraints.py` (une contrainte, un test), `test_revision_immutability.py`.
+
+### Modules
+
+| Module | Tables | Interface offerte |
+|---|---|---|
+| `waterfall.core.projects` (FBS-4.2, §3.3.2) | `project`, `project_state_transition`, `contributor`, `subproject`, `work_package`, `order_item`, `deliverable` | le projet lu, listé, créé (le créateur chef de projet, le lot et le poste par défaut, la transition `created`, les partitions), modifié ; `contributor_kind(project_id, user_id)` pour l'évaluation ; les contributeurs, les sous-projets et le lotissement — lecture, écriture, refus — ; le cycle de vie : `next_state(project)`, `advance(project, trigger)` (Créé → Chiffrage, Chiffrage → En cours), `exit(project, to_state, reason)`, les transitions ; les commandes du projet et leurs conditions ; `project_label(id)` et `project_code(id)` pour le journal (#927) ; `load_*` avec identifiant et instant imposés |
+| `waterfall.core.revisions` (FBS-4.1) | `revision`, `cost_structure` | l'historique, la révision lue, créée par `copy_revision(session, source, target)` — que chaque EPIC étend —, abandonnée (ses lignes supprimées), marquée (dans la tâche), désignée référence ; `revision_has_tasks_and_lines(revision_id)`, toujours faux ici, qu'EP-06 et EP-07 remplissent ; `compute_indicators(revision)`, sans effet ici, qu'EP-10 remplit ; les structures et leurs commandes ; `current_revision(project_id)` ; le refus d'une écriture sur une révision marquée (`revision_draft`) ; `load_*` |
+
+- **L'évaluation** (`waterfall.core.access_roles`) reçoit un second terme : `require_project(actor,
+  project_id, permission)`, qui lit `contributor_kind` par l'interface des projets et décide 404
+  sans la consultation, 403 `NOT_CONTRIBUTOR` sans la qualité pour une écriture, 403
+  `NOT_PROJECT_MANAGER` pour une action réservée aux chefs de projet ; `all_projects_read` ouvre
+  la consultation seule. Chaque permission du catalogue déclare si elle est une consultation
+  (`consultation`, une colonne de `permission` écrite par migration, ou une propriété de
+  `predefined.py`) ; la règle du suffixe disparaît.
+- **Le cycle de vie** est une fonction pure des faits : `next_state(state, has_revision,
+  has_reference, has_code)` rend le prochain état, son déclencheur et les conditions restantes,
+  et les transactions qui réalisent un fait — `createRevision`, `designateReferenceRevision`,
+  `updateProject` pour le code — appellent `advance` sous le verrou du projet, qui écrit l'état
+  et la transition, datée de l'instant de la transaction, l'auteur étant le compte qui a
+  réalisé le fait. Une sortie écrit de même, avec son motif, et refuse un projet qui porte une
+  révision en cours (`no_current_revision`).
+- **Les commandes** du projet, des sous-projets, des révisions et des structures se calculent par
+  les mêmes fonctions que les refus 409, dans l'ordre du contrat.
+- **Les verrous** : le projet (`FOR UPDATE` de sa ligne) pour toute transition, création de
+  révision, désignation, sortie et écriture de la liste des contributeurs ; la révision pour son
+  marquage et son abandon ; un `lock_version` testé dans l'écriture même.
+
+### Le service d'API
+
+- Trois routeurs — `api/projects.py`, `api/project_settings.py` (contributeurs, sous-projets,
+  lotissement, cycle), `api/revisions.py` — enregistrés dans `app.py` ; les modèles du contrat
+  existent (`api/contract/models.py`).
+- Chaque route d'un projet déclare la consultation par `RequiresProject(...)`, une dépendance
+  qui lit `project_id` du chemin et évalue avant la validation du corps, comme `Requires` ; la
+  création d'un projet par `Requires("projects.write")` et le référentiel minimal lu par
+  l'interface d'EP-05 sous son verrou.
+- Les refus sont ceux du contrat, code par code ; chaque réponse d'un test passe par
+  `ContractClient` ; `test_access_evaluation.py` reçoit chaque opération avec ses deux termes.
+- `markRevision` répond 202 avec la tâche déposée par `submit` dans la transaction de la requête,
+  sous `revision_mark` ; `getBackgroundTask` la suit.
+- `listAuditFacets` nomme les projets qui existent par leur code et leur libellé du jour, lus
+  par l'interface des projets (#927), et par leur dernière inscription sinon.
+
+### Le worker
+
+- Un gestionnaire `revision_mark` enregistré dans `handlers` (EP-03, « Worker, file et
+  planification ») : dans une seule transaction, sous le verrou de la révision, il vérifie
+  qu'elle est encore en cours et que le nom de version est libre, appelle `compute_indicators`
+  (sans effet ici), passe la révision `marked` avec `marked_at` et `version_name`, retire
+  `current_revision_id` du projet, inscrit `revision_mark` au journal avec l'auteur de la demande
+  (`requested_by`), et réussit ; une exception typée fait échouer la tâche avec son code
+  (`BackgroundTask.problem`), rien n'étant écrit, et un worker arrêté laisse la base inchangée
+  (la transaction unique d'EP-03).
+- Pendant la tâche, les commandes qui écriraient dans la révision ou la figeraient nomment
+  `no_background_task_running` : le projet lit les tâches en file ou en cours qui le visent par
+  `waterfall.platform.tasks`.
+- Le marquage d'une révision vide aboutit : rien n'exige une tâche ni une ligne pour marquer
+  (WF-REV-0020) ; c'est la désignation qui les exige.
+
+### L'amorçage et le chargeur
+
+- L'amorçage ne change pas : aucun projet à l'installation.
+- `waterfall-api load-witness` (EP-05) reçoit la tranche des projets, après celle du
+  référentiel : `make mock-data` écrit, à côté des exemples, `fixtures/witness/projects.json` (nom
+  à fixer au lot), la chronologie du témoin exportée de `wftools.mockwitness` — chaque événement
+  avec son instant et ce qu'il écrit —, pour que le back n'importe jamais `wftools`. La commande
+  lit les exemples du contrat pour les objets (`projects.json`, `project.json`, `revisions.json`,
+  `contributors.json`, `subprojects.json`, `work_breakdown.json`), validés par ses modèles, et
+  la chronologie pour l'ordre et les instants, et écrit par les interfaces : les comptes locaux
+  des contributeurs, PRJ-002 et PRJ-001 avec leur client, les contributeurs, les sous-projets, le
+  lotissement, puis les événements dans l'ordre — la révision 100 ouverte (Créé → Chiffrage), son
+  marquage « v1.0 », la 101 ouverte, la désignation de 100 tentée et refusée (notée dans la
+  sortie), le code saisi, la 101 marquée « Référence », la 102 ouverte. Les transitions portent
+  les instants du témoin.
+- Une collision d'identifiant, ou un témoin que les règles refusent ailleurs qu'à la désignation,
+  arrête la commande, rien n'étant écrit ; une seconde exécution sur une plateforme chargée
+  s'arrête avec succès.
+- Le guide dit ce que la tranche charge, où elle s'arrête, et ce que chaque EPIC y ajoute.
+
+### Le front
+
+- `MockupNotice` est retiré de l'accueil (`app/(home)/page.tsx`) et des paramètres du projet
+  (`app/projects/[projectId]/settings/page.tsx`) ; les commentaires d'en-tête des pages et des
+  composants qui le nomment sont réécrits.
+- `app/admin/audit-log/page.tsx` ne tolère plus le 404 de `listProjects` (#962) ; l'accueil
+  connecté lit `listProjects` et `getReferenceReadiness` servis (#1004).
+- Les contributeurs anonymisés sont nommés par `useAccountNaming` selon ce que le contrat figé
+  rend (#870, EP-16).
+- Les aides `frontend/help/fr/FBS-4.md`, `FBS-4.1.md`, `FBS-4.2*.md` retirent ce qu'elles
+  disaient du faux back.
+- Rien d'autre : les écrans sont ceux d'EP-02/L44, d'EP-14, d'EP-15 et d'EP-16. #1400 (EP-17)
+  touche le même écran du projet ; le dernier des deux EPIC fusionné reprend l'autre.
+
+### Le harnais
+
+- La fixture `frontend/e2e/mode.ts` et le projet `shared` d'EP-05 s'étendent : `SHARED_PATHS`
+  reçoit `project-start.spec.ts`, `projects.spec.ts`, `revisions.spec.ts`,
+  `revision-cycle.spec.ts`, `context.spec.ts` ; le compte de la course en mode service porte
+  « chef de projet » et « manager » et est inscrit chef de projet des projets du témoin par
+  `setContributors` au début de la course.
+- Ce qui ne se rejoue pas avant EP-07 — PRJ-001 En cours, sa référence, ses structures au-delà de
+  la principale, ses tâches et ses lignes — est marqué dans les parcours par `inService` et
+  listé dans le guide, chaque entrée nommant l'EPIC qui la lève ; EP-06 et EP-07 retirent leurs
+  entrées.
+- Le parcours du cycle contre le service (#1350) vit dans `revision-cycle.spec.ts`, en mode
+  service seul : créer, ouvrir, marquer, abandonner, rouvrir, saisir le code, sortir, et la
+  désignation refusée faute de tâches.
+
+### Les tests du back
+
+- Un fichier par objet et par règle (`test_projects.py`, `test_projects_lifecycle.py`,
+  `test_contributors.py`, `test_subprojects.py`, `test_work_breakdown.py`, `test_revisions.py`,
+  `test_revision_mark.py`, `test_revision_immutability.py`, `test_partitions.py`,
+  `test_witness_projects.py`), chaque test citant son exigence, chaque réponse validée contre
+  le contrat ; l'état En cours et une référence posés autour du service, par le propriétaire,
+  pour les règles qu'EP-04 écrit et que seuls des tâches et des lignes atteignent par l'API.
+- Les lectures du témoin chargé comparées aux exemples (`projects.json`, `revisions.json`,
+  `contributors.json`, `subprojects.json`, `project_state_transitions`), aux états près que la
+  tranche n'atteint pas, listés dans le test.
+- Un test de concurrence par règle d'ensemble : deux ouvertures de révision, deux désignations,
+  le dernier chef de projet, deux sorties.
+
+### L'ordre de construction
+
+1. **US-0910** : les tables, la partition et sa fonction, les modules à vide, l'évaluation à deux
+   termes ; les parcours du service existants passent toujours.
+2. **US-0920** : le projet, la liste, l'accueil, le journal.
+3. **US-0930, US-0940, US-0950** en parallèle sous US-0920 : contributeurs, sous-projets,
+   lotissement.
+4. **US-0960** : la révision en cours, la copie, l'abandon, l'historique.
+5. **US-0970** : le marquage par le worker et l'immuabilité.
+6. **US-0980** : la référence et le cycle de vie, qui demandent le marquage.
+7. **US-0990** : la tranche du témoin et les parcours rejoués ; **US-1000** en dernier.
 
 ---
 
@@ -861,8 +1095,8 @@ case à cocher.
   consulte le prochain état, son déclencheur et les conditions restantes, sans avoir tenté
   d'action. » : `getProjectNextState` — `pricing` et `first_revision_created` depuis Créé ;
   `in_progress`, `reference_designated_and_code_set` et les conditions restantes
-  (`reference_designated`, `project_code_set`) depuis Chiffrage ; nuls depuis En cours et les
-  états terminaux ;
+  (`reference_revision_designated`, `project_code_set`) depuis Chiffrage ; nuls depuis En cours et
+  les états terminaux ;
 - `WF-CYC-0060-A` — « Pour chaque état non terminal, le menu des sorties ne permet que les sorties
   permises depuis cet état. » : les commandes `complete`, `lose`, `abandon` du projet, listées et
   disponibles selon l'état — Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné depuis
