@@ -28,6 +28,12 @@ Tu lances tes sous-agents au premier plan (`run_in_background: false`), un à la
 arrière-plan, tu finirais ton tour dès leur lancement, et leurs résultats remonteraient au
 pilote au lieu de toi.
 
+Quand un sous-agent t'a été lancé — par toi ou par le harnais, même si tu l'avais voulu au premier
+plan — et que tu n'as pas son compte rendu, ne rends pas la main : sonde son worktree
+(`git status`, `git log`, `ps`) toutes les cinq minutes, une heure au plus, jusqu'à ce que le
+sous-agent ait rendu son compte rendu ou que l'arbre soit commité et au repos. Rends la main avant
+seulement si le harnais t'y oblige, en disant dans le relevé que le développeur travaille encore.
+
 ## Partir des issues
 
 - Le lot que tu livres est nommé par le message qui te lance. Sans lot nommé, prends le
