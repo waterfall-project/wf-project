@@ -106,6 +106,11 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
   - l'élément d'OTP : le code projet, préfixe compris, puis la barre oblique et le code
     sous-projet ; seule la barre oblique sépare les deux codes (WF-CRE-0020, C-373).
 
+- #1525 — front : le test de la colonne « Poste » cite WF-CRE-0040-A, dont le Vérif ne nomme pas
+  les colonnes de la grille (relevé par US-0630/L2, EP-16 ; reporté ici avec #1340, le service du
+  poste, par la décision de l'auteur du 2026-10-27, confirmée au cadrage d'EP-17 le 2026-10-28) :
+  la citation se corrige quand EP-09 réalise le poste.
+
 Le rattachement de WF-REF-0190 est réécrit au cadrage d'EP-16 (décision de l'auteur du
 2026-10-22). C-374 la rattachait entière ici ; EP-05 la commence en stockant la correspondance,
 EP-16 en écrit le contrat et la page, et EP-09 la clôt.

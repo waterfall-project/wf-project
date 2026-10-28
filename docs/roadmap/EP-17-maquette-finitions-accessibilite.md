@@ -4,7 +4,7 @@ titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs 
 statut: prêt
 depend_de: EP-16
 famille: front
-issue:
+issue: 1547
 ---
 
 # EP-17 — Maquette : finitions et accessibilité
@@ -58,7 +58,8 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
   - #1401 — la liste des projets filtrée par défaut sur Chiffrage et En cours : son point « à
     trancher au lot » — un choix d'états gardé en préférence — demande le contrat (`GridPreferences`
     n'a pas d'entrée pour la liste de l'accueil) ; il rend à EP-16 l'issue entière, titre et label
-    `EP-16`, comme issue « contrat » que l'auteur tranche avant le gel ; EP-17 ne le reprend pas ;
+    `EP-16`, rattachée à #1312 comme issue « contrat » que l'auteur tranche avant le gel ; EP-17 ne
+    le reprend pas ;
   - #1533 — un refus à deux motifs sur le même champ ne dit que le premier (`byField`) : l'adoption
     par l'écran d'un exemple que le contrat d'EP-16 écrit (#817, point 2b), corrigé par US-0660/L3
     #1458 ; de même #1518 et #1524, corrigés par US-0660/L3 (décisions de l'auteur du 2026-10-27,
@@ -67,7 +68,7 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
   2026-10-25, 26 et 27, US-0590b à US-0590g) : la stabilité restante des parcours (#1263, #1145,
   #776, #1264) y est revenue le 2026-10-25 ; #1354 (`restore-dialog.dom.test.tsx` et
   `backup-deposit.dom.test.tsx` instables sous charge), d'abord dit « en EP-17 avec #1145 » le
-  2026-10-23, y retourne au cadrage du 2026-10-28, titre et label `EP-16`, avec US-0590g
+  2026-10-23, y retourne au cadrage du 2026-10-28, titre et label `EP-16`, sous US-0590g #1543
   (décision de l'auteur du 2026-10-28) ;
 - les navigateurs et les largeurs d'affichage de WF-CMP-0010 (US-0290, 1366 et 360 points) : EP-13.
   Les 911 points de #1209 ne sont pas une largeur d'US-0290 mais l'agrandissement de 150 % de
@@ -112,7 +113,9 @@ du service, US-0780). Le diff de la branche de l'EPIC ne touche aucun fichier de
 
 ## Préalables
 
-EP-16 livré, le contrat en 1.0.0.
+EP-16 livré, le contrat en 1.0.0. Les issues sont ouvertes depuis le 2026-10-28 (#1547) ; l'EPIC
+reste `prêt` jusqu'à ce que l'auteur tire `epic/EP-17`, et passe alors `en cours` (décision de
+l'auteur du 2026-10-28, « Conception »).
 
 ## Définition de fini
 
@@ -200,8 +203,7 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #901 — front : la liste garde les refus des lectures passées ;
 - #781 — test : `held()` n'a pas remplacé toutes les retenues faites à la main ;
 - #1384, point 2 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer » (l'issue
-  reste en EP-16 pour ses points 1 et 3, et se ferme avec eux ; une issue `[EP-17]` reprend le point
-  à l'ouverture).
+  reste en EP-16 pour ses points 1 et 3, et se ferme avec eux ; #1568 reprend le point ici).
 
 **US-0780 — l'administration, la session et le journal d'audit.**
 
@@ -304,6 +306,10 @@ construction, et les décisions prises avec leur option écartée. Validée par 
   plus pour un cas rare.
 - **#963, point 2** : une inscription `access_role_update` sans changement reçoit une phrase, comme
   l'attribution. Écarté : la cellule vide.
+- **L'EPIC reste `prêt` après l'ouverture de ses issues** (décision de l'auteur du 2026-10-28) :
+  le README lie `en cours` aux issues ouvertes, mais ses lots ne peuvent se livrer qu'EP-16 livré ;
+  l'auteur le passe `en cours` quand il tire `epic/EP-17`. Écarté : `en cours` dès le cadrage, qui
+  ferait lire un EPIC en travail alors qu'aucun lot ne peut partir.
 
 ### Le harnais (US-0710)
 
@@ -452,7 +458,7 @@ ses mesures par lots ; rien n'y est réécrit.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #1548
 
 **En tant que** chef de projet, manager ou administrateur, **je veux** que ce qu'un geste ouvre —
 un dialogue, un menu, l'éditeur d'une cellule — se parcoure au clavier comme l'écran qui le porte,
@@ -497,7 +503,7 @@ d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la 
 - **statut** : à faire
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getProject`, `listRevisions`
-- **issue** :
+- **issue** : #1549
 
 **En tant que** chef de projet, **je veux** qu'ouvrir un projet m'amène à la révision sur laquelle
 je travaille, **afin de** ne pas m'arrêter à une fiche qui ne me sert pas (#1400).
@@ -535,7 +541,7 @@ défaut) n'est pas ici : rendu à EP-16, parce que son point à trancher demande
 - **statut** : à faire
 - **exigences** : `WF-RAE-0030-A`, `WF-IHM-0070-A`
 - **opérations** : `listStartableTasks`
-- **issue** :
+- **issue** : #1550
 
 **En tant que** chef de projet, **je veux** retrouver une tâche du Kanban par son libellé, ne voir
 que les tâches prêtes à démarrer quand je le demande, et reconnaître une tâche prête sans lire ses
@@ -592,7 +598,7 @@ contrat ne change pas.
 - **statut** : à faire
 - **exigences** : `WF-RIS-0040-A`, `WF-IHM-0070-A`
 - **opérations** : `getProjectRiskMatrix`, `getPortfolioRisks`
-- **issue** :
+- **issue** : #1551
 
 **En tant que** chef de projet ou manager, **je veux** lire la matrice des risques d'une révision et
 du portefeuille sans qu'un fond rouge sur neuf dixièmes de la surface la noie, chaque bulle portant
@@ -642,7 +648,7 @@ est partagé (`risk-bubble-chart.tsx`) entre les deux écrans. Cette US ne comme
 - **statut** : à faire
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`
 - **opérations** : `listNodes`, `compareRevisions`
-- **issue** :
+- **issue** : #1552
 
 **En tant que** chef de projet, **je veux** que la grille de planning ne montre que ses tâches,
 même contre un faux back qui rend plus que demandé, que l'image exportée du Gantt nomme ses tâches,
@@ -705,7 +711,7 @@ franchit.
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : aucune
-- **issue** :
+- **issue** : #1553
 
 **En tant que** chef de projet qui valide la maquette, **je veux** savoir, sur un écran de liste ou
 de grille de `make dev`, que les filtres, la recherche, le tri, la pagination et `kinds` n'y sont
@@ -734,7 +740,7 @@ back ne change pas ; une couche devant Prism est écartée.
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #1554
 
 **En tant que** chef de projet ou administrateur, **je veux** qu'une commande en cours d'écriture
 ne se rouvre pas, qu'un refus tardif me soit redit, et qu'une écriture retienne la navigation
@@ -779,7 +785,7 @@ du guide se relit à sa lumière.
 - **statut** : à faire
 - **exigences** : `WF-ADM-0060-A`
 - **opérations** : `getUser`, `deleteAccessRole`
-- **issue** :
+- **issue** : #1555
 
 **En tant qu'**administrateur, **je veux** que la confirmation d'anonymisation dise tout ce qu'elle
 fait et ne se taise jamais, que la désactivation et le lien d'un compte ne se contredisent pas, que
@@ -837,7 +843,7 @@ suivi des tâches.
 - **statut** : à faire
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre
-- **issue** :
+- **issue** : #1556
 
 **En tant que** chef de projet, **je veux** qu'une commande offerte fasse ce qu'elle promet, et
 qu'Échap dans la recherche de l'aide vide d'abord le champ, **afin de** ne pas rencontrer une
@@ -874,7 +880,7 @@ commande muette ni perdre le panneau d'un geste (#1438, #1481).
 - **statut** : à faire
 - **exigences** : aucune en propre
 - **opérations** : aucune
-- **issue** :
+- **issue** : #1557
 
 **En tant que** chef de projet, **je veux** quitter une grille de mille tâches sans que le
 navigateur se fige plusieurs secondes, **afin de** passer d'un écran à l'autre au rythme de mon
