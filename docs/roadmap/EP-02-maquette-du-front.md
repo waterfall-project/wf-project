@@ -84,7 +84,7 @@ modification du contrat aujourd'hui, et une migration de base dans deux ans.
 | `WF-IHM-0050-A` | Collage depuis un tableur | entière | US-0130 |
 | `WF-IHM-0060-A` | Lecture d'une grille | début — close en EP-07 | US-0110 |
 | `WF-IHM-0070-A` | Une échelle de signalement commune, lisible sans couleur | entière | US-0160 |
-| `WF-IHM-0080-A` | Traitements longs | début — close en EP-04 | US-0180 |
+| `WF-IHM-0080-A` | Traitements longs | début — close en EP-09 | US-0180 |
 | `WF-IHM-0090-A` | Refus et commandes indisponibles | entière | US-0170 |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | début — close en EP-06 | US-0140 |
 | `WF-IHM-0130-A` | Filtrage des tables et export des graphiques | début — close en EP-11 | US-0240 |

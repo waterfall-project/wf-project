@@ -93,6 +93,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ARC-0100-A` | Import en deux temps | entière | — |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | — |
 | `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | — |
+| `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03, EP-04 | — |
 
 WF-PLA-0080 et WF-PLA-0090 sont partiels avant cet EPIC : l'arbre pliable des grilles et le pliage
 commun de la grille et du Gantt sont faits par EP-02/L40, dans la maquette, sans qu'aucune US

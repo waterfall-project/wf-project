@@ -74,7 +74,7 @@ projet, une révision ou une vue sont des écarts, qui nomment l'EPIC qui les cl
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | US-0810 |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-07 | US-0810 |
 | `WF-CYC-0120-A` | Référentiel minimal requis pour créer un projet | début — close en EP-04 | US-0810 |
 | `WF-REF-0140-A` | Devise de l'installation | début — close en EP-07 | US-0810 |
 | `WF-REF-0160-A` | Matrice de risques | début — close en EP-08 | US-0810 |
@@ -523,13 +523,14 @@ référentiel existe avant tout projet et dise ce qui lui manque encore.
 - écart : `WF-EXP-0020-A` — « Le nom de l'entreprise saisi à l'installation figure sur un devis
   exporté ; modifié, il figure sur le suivant. » : saisi à l'installation, gardé par
   `reference_setting`, lu et modifié par `ReferenceSettings` sous `cost_settings.write` ; le devis
-  exporté est d'EP-07 ; EP-04 clôt l'exigence ;
+  exporté est d'EP-07, qui clôt l'exigence ;
 - écart : `WF-EXP-0020-A` — « Après installation, un administrateur fixe son mot de passe par le
   lien produit, se connecte, porte le rôle « administrateur », et trouve les trois rôles
   prédéfinis et le catalogue des permissions. » : constaté par EP-03 (US-0420), livré ;
 - écart : `WF-EXP-0020-A` — « La création d'un projet est refusée et nomme les prérequis manquants,
   jusqu'à ce qu'une catégorie de coût de main-d'œuvre et un rôle de ressource aient été saisis. » :
-  la création d'un projet est d'EP-04, qui clôt ; ici, `getReferenceReadiness` les nomme
+  la création d'un projet est d'EP-04, le devis exporté d'EP-07, qui clôt ; ici,
+  `getReferenceReadiness` les nomme
   (ci-dessous) ;
 - écart : `WF-EXP-0020-A` — « Le lien produit à l'installation est accepté plus d'une heure après
   sa production. » : constaté par EP-03 (US-0420) ;

@@ -74,6 +74,10 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0110-A` | Idempotence garantie par la base | fin — amorcée en EP-07 | — |
 | `WF-INTF-0120-A` | Import du reste à engager (FLX-05) | entière | — |
 | `WF-INTF-0130-A` | Export du reste à engager (FLX-06) | entière | — |
+| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15, EP-16, EP-04 | — |
+| `WF-CYC-0100-A` | Lecture seule des projets terminaux | fin — amorcée en EP-04 | — |
+| `WF-CYC-0110-A` | Consultation des projets terminaux | fin — amorcée en EP-04 | — |
+| `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15, EP-04 | — |
 
 ## Opérations du contrat
 
