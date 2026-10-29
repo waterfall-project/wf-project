@@ -2371,8 +2371,8 @@ quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des ris
 *Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre 2026,
 constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les sommes de
 celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est terminé, et
-l'exemple ne change pas (« Le portefeuille : horizon, projets terminés, couverture, offres », dans «
-Le contrat figé »).*
+l'exemple ne change pas (« Le portefeuille : horizon, projets terminés, couverture, offres »,
+dans « Le contrat figé »).*
 
 **La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
 semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
@@ -8587,9 +8587,10 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
   seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
   68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
-  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
-  réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
-  plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
+  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé,
+  change avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas) : 67 470 132,98 dans
+  l'état final, et le poste de commande, qui ne devait plus être dépassé que de la facture des
+  écrans, 2 400,00, l'est de 64 699,97.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
   l'année de référence) et celui de la provision de WF-DEV-0030.
 - **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et
