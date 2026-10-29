@@ -231,6 +231,8 @@ paths:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1comparison
   /projects/{project_id}/revisions/{revision_id}/structures:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures
+  /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}:
+    $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}
   /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
     $ref: ./paths/revisions.yaml#/~1projects~1{project_id}~1revisions~1{revision_id}~1structures~1{structure_id}~1merge
   /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:

@@ -6,6 +6,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000103",
       "kind": "main",
       "label": "Structure principale",
+      "planning_start_on": "2026-06-03",
       "is_merged": false,
       "available_commands": [
         {

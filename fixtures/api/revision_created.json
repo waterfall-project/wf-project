@@ -9,6 +9,10 @@
     "marked_at": null,
     "is_reference": false,
     "reference_year": 2026,
+    "inflation_rate": "0",
+    "win_probability": "0",
+    "source_revision_id": null,
+    "source_version_name": null,
     "available_commands": [
       {
         "command": "edit_planning",

@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**164 opérations sur 127 chemins, dans 13 familles.**
+**165 opérations sur 128 chemins, dans 13 familles.**
 Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -152,11 +152,11 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Révisions, structures et arbre commun
 
-`paths/revisions.yaml` — 30 opérations
+`paths/revisions.yaml` — 31 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-REV-0070, WF-REV-0090 |
+| GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-IHM-0020, WF-REV-0070, WF-REV-0090 |
 | POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-PLA-0170, WF-REV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010 |
@@ -166,9 +166,10 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Appliquer la mise à jour des taux | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Créer un différentiel ou un devis de risque | WF-REV-0100 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Ouvrir un différentiel | WF-REV-0100, WF-RIS-0030 |
+| PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modifier la date de début de planning et le libellé d'une structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |
@@ -183,7 +184,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0170 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview` | Aperçu d'un collage depuis un tableur | WF-DEV-0050, WF-IHM-0050, WF-PLA-0080, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste` | Appliquer un collage | WF-IHM-0050, WF-IHM-0110 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-IHM-0110, WF-RIS-0020 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-CRE-0030, WF-IHM-0110, WF-RIS-0020 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/redo` | Rétablir la dernière annulation | WF-IHM-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/skeleton` | Engendrer le squelette de planning depuis le lotissement | WF-CYC-0100, WF-DAT-0020, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0030 |
 

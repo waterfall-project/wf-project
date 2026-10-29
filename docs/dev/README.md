@@ -2474,7 +2474,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   (`wftools.mockexchanges`), et une date manuelle sur un jour chômé, refusée à la saisie et
   signalée à l'import (`wftools.mocknonworking`, #1271) ; son
   histoire (`wftools.mockhistory`), ses révisions lues avant la désignation de l'offre, quand elle
-  est encore proposée (`wftools.mockcycle`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
+  est encore proposée (`wftools.mockcycle`), ses révisions marquées lues avec leur instantané
+  (`wftools.mocksnapshot`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
   saisies d'un risque, avec le devis propre du risque 751 et le compte rendu préalable de sa
   survenance (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
   son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,

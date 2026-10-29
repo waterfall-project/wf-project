@@ -404,11 +404,17 @@ def org_subtree(org: str) -> set[str]:
     return found
 
 
+REMAINING = frozenset({"marked_remaining", "current_remaining"})
+"""The bases of the workload that are a remaining to commit (WF-DEV-0070)."""
+
+
 def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject:
     """Return the workload of the project by role and by month (`WorkloadPlan`, WF-DEV-0070).
 
     The hours of the labour lines, each spread over its task pro rata of its hours of work in
-    each month — on the remaining to commit, without the lines of the tasks completed —, each
+    each month — on the remaining to commit, of the current revision or of a marked one, without
+    the lines of the tasks completed, over the part of the task after the day of the calculation,
+    the marking for a marked revision —, each
     active role with its capacity beside, its monthly hours, all its people counted
     (WF-REF-0100); over its capacity, a month is in alert. No ratio of the load to the capacity:
     the plan of a project presents none, the capacity being that of the whole installation —
@@ -425,7 +431,7 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
             for line in reading.lines
             if reading.facet(line)["resource_role_id"] == role["resource_role_id"]
         ]
-        if basis == "current_remaining":
+        if basis in REMAINING:
             # What is left to work: never a month before the calculation (WF-DEV-0070).
             flows = [
                 ahead(reading, line, line.hours)
@@ -462,7 +468,8 @@ def workload(reading: Reading, basis: str, org: str | None = None) -> JsonObject
         )
     named = {node["org_node_id"]: node["label"] for node in fixture("org_nodes")}
     return {
-        "context": context(reading, at=TODAY),
+        # A marked revision is calculated at its marking (Vérif of WF-DEV-0070).
+        "context": context(reading, at=reading.at if basis == "marked_remaining" else TODAY),
         "basis": basis,
         "org_node_id": org,
         "org_node_label": None if org is None else named[org],

@@ -42,7 +42,7 @@ from wftools.mockstructure import (
 )
 from wftools.mockwitness import (
     CORE,
-    STUDIES_STARTED,
+    PLANNING_START,
     Line,
     Task,
     default_calendar,
@@ -94,26 +94,27 @@ def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
     return found
 
 
-def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
+def schedule(roots: Iterable[Task] = CORE, start: date = PLANNING_START) -> Mapping[int, Dated]:
     """Date the core from its links, by number of task, and find the latest finish of each.
 
-    Forward: each task in automatic mode starts where its links allow, at the start of the
-    studies without any, on the calendar of the roles of its labour lines (WF-PLA-0010,
-    WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates, on the
-    calendar of its own lines (WF-PLA-0040). The tasks are dated in the order of their links,
-    each after its predecessors, whatever their order in the plan. Backward: a task may finish
-    as late as its successors allow, at the finish of the core without any. A structure is dated
-    once: the readings of the indicators and of the curves date it again and again. A structure
-    whose links close a loop, or bind a summary to one of its subordinates, is not dated: the
-    server refuses it (``in_link_order``, ``wftools.mocklinks``).
+    Forward: each task in automatic mode starts where its links allow, at the planning start of
+    the structure without any — ``start``, the witness's by default —, on the calendar of the
+    roles of its labour lines (WF-PLA-0010, WF-PLA-0020, WF-PLA-0030); a task in manual mode keeps
+    its dates; a summary spans its subordinates, on the calendar of its own lines (WF-PLA-0040).
+    The tasks are dated in the order of their links, each after its predecessors, whatever their
+    order in the plan. Backward: a task may finish as late as its successors allow, at the finish
+    of the core without any. A structure is dated once: the readings of the indicators and of the
+    curves date it again and again. A structure whose links close a loop, or bind a summary to
+    one of its subordinates, is not dated: the server refuses it (``in_link_order``,
+    ``wftools.mocklinks``).
     """
-    return _schedule(tuple(roots))
+    return _schedule(tuple(roots), start)
 
 
 @functools.cache
-def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
+def _schedule(roots: tuple[Task, ...], planning_start: date) -> Mapping[int, Dated]:
     roles, default = role_calendars(), default_calendar()
-    origin = Instant(STUDIES_STARTED.on)
+    origin = Instant(planning_start)
     tasks = tasks_in_order(roots)
     linked = in_link_order(tasks)
     refuse_through_summaries(tasks)

@@ -55,9 +55,13 @@ def test_the_contract_cites_the_refusal_and_the_import_under_their_answers() -> 
     )
     examples = mocknonworking.examples()
     assert "node_create_non_working_day" in _cited(_answers("revisions.yaml", "createNode"), "422")
+    assert "structure_start_non_working_day" in _cited(
+        _answers("revisions.yaml", "updateCostStructure"), "422"
+    )
     assert set(examples) == {
         "task_date_non_working_day.json",
         "node_create_non_working_day.json",
+        "structure_start_non_working_day.json",
         "import_planning_non_working_day.json",
     }
     assert set(examples) <= set(mockdata.named())
@@ -93,6 +97,21 @@ def test_a_start_entered_on_a_saturday_is_refused_naming_the_next_monday() -> No
     summary = str(mocknonworking.examples()["task_date_non_working_day.json"]["summary"])
     assert "le samedi 19 décembre 2026" in summary
     assert "le lundi 21 décembre 2026" in summary
+
+
+def test_a_planning_start_on_a_saturday_is_refused_on_the_default_calendar() -> None:
+    # The structure has no calendar of its own: its planning start is judged on the default one,
+    # as the start of a task without a labour line is, and the refusal names the next Monday.
+    refused = _json(mocknonworking.structure_start_non_working_day())
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [
+        {
+            "pointer": "/planning_start_on",
+            "code": "NON_WORKING_DAY",
+            "params": {"date": SATURDAY.isoformat(), "next_working_day": MONDAY.isoformat()},
+        }
+    ]
+    assert mockwitness.default_calendar().hours_on(SATURDAY) == 0
 
 
 def test_a_day_of_work_is_not_judged_and_any_day_without_names_the_next_with() -> None:

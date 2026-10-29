@@ -21,6 +21,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   pushes a successor into the next year — its schedule, the amounts corrected of its lines and
   of itself, the summaries above and the totals, recalculated from the same lines
   (``wftools.mockwrites``);
+- ``structure_planning_start_advanced.json``, ``updateCostStructure``: the planning start of that
+  structure advanced a week, in a declared variant read before any task started — the tasks in
+  automatic mode it redates (``wftools.mockplanning``, WF-PLA-0020);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
   its second page of fifty;
@@ -94,9 +97,11 @@ from wftools import (
     mockkanban,
     mocklists,
     mocknonworking,
+    mockplanning,
     mockportfoliotime,
     mockreference,
     mockriskwrites,
+    mocksnapshot,
     mocksort,
     mocktext,
     mocktoday,
@@ -295,6 +300,7 @@ def named() -> dict[str, JsonObject]:
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``).
     """
+    marked = mocksnapshot.revisions(categories())
     return {
         **readings(),
         **mockwrites.writes(),
@@ -303,7 +309,8 @@ def named() -> dict[str, JsonObject]:
         **mockamendmentwrites.examples(),
         **mockexchanges.examples(),
         **mocknonworking.examples(),
-        **mockamendment.examples(),
+        **mockamendment.examples(marked["revision_marked"]),
+        **mocksnapshot.examples(marked),
         **mockhistory.examples(),
         **mockcycle.examples(),
         **mockcomparisons.examples(),
@@ -638,6 +645,7 @@ def volumes() -> dict[str, JsonObject]:
             "aux taux de l'année de référence inchangés (WF-PLA-0020, WF-DEV-0020, WF-DEV-0040).",
             mockwrites.task_lengthened(),
         ),
+        "structure_planning_start_advanced.json": mockplanning.example(),
         "estimate_indicators_volume.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
             f"mêmes lignes que la grille : {_amount(Decimal(cast('str', total['value'])))} au "

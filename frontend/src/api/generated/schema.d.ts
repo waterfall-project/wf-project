@@ -1470,7 +1470,7 @@ export interface paths {
         };
         /**
          * Historique des révisions
-         * @description Nom de version, description, état, date de marquage, année de référence et caractère de référence — les attributs d'une révision (WF-REV-0090) ; chacune est consultable dans son intégralité (WF-REV-0070).
+         * @description Nom de version, description, état, date de marquage, année de référence, taux d'inflation et probabilité de gain conservés, caractère de référence — les attributs d'une révision (WF-REV-0090) —, et la révision marquée dont chacune est la copie, qu'un écran nomme avec la révision en cours (WF-IHM-0020) ; chacune est consultable dans son intégralité (WF-REV-0070), l'instantané du référentiel par `getRevision` (`snapshot`, omis ici).
          */
         get: operations["listRevisions"];
         put?: never;
@@ -1494,7 +1494,7 @@ export interface paths {
         };
         /**
          * Une révision et son instantané
-         * @description Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030).
+         * @description Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030) : les valeurs du référentiel qu'une révision marquée a figées (`snapshot`), omis pour la révision en cours.
          */
         get: operations["getRevision"];
         put?: never;
@@ -1607,14 +1607,34 @@ export interface paths {
         get: operations["listCostStructures"];
         put?: never;
         /**
-         * Créer un différentiel ou un devis de risque
-         * @description Plusieurs différentiels peuvent coexister, et chacun est fusionné ou abandonné indépendamment (WF-REV-0100).
+         * Ouvrir un différentiel
+         * @description Plusieurs différentiels peuvent coexister, et chacun est fusionné ou abandonné indépendamment (WF-REV-0100). Le différentiel est une copie de la structure principale, sa date de début de planning comprise (`CostStructure.planning_start_on`). Le devis propre d'un risque naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui ; la structure principale existe dès la révision : ni l'un ni l'autre ne se crée ici.
          */
         post: operations["createCostStructure"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Modifier la date de début de planning et le libellé d'une structure
+         * @description Écrit la date de début de planning de la structure et son libellé (WF-PLA-0020, WF-REV-0100), sous sa commande de planification (`StructureCommand.edit_planning`) : gardée par `planning.write`, refusée comme elle sur une révision marquée ou pendant un traitement de fond. Seul ce qui est envoyé change, le compteur lu exigé (`StructureUpdate`). Une tâche en mode automatique sans prédécesseur commence à la date de début de planning, à la première heure travaillée de son calendrier applicable : la changer redate ces tâches et leurs successeurs automatiques — « avancer cette date d'une semaine l'avance d'autant, ainsi que ses successeurs automatiques » (WF-PLA-0020) —, les tâches en mode manuel ne bougeant pas. La réponse est celle d'une écriture de grille, sans nœud écrit (`NodesWritten`). La date se juge sur le calendrier par défaut, la structure n'ayant pas de calendrier propre : un jour sans aucune heure travaillée est refusé, et le refus nomme le jour travaillé suivant ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020). Une écriture de l'historique annulable de l'appelant (`undoLastChange`, `UndoneKind.structure_update`).
+         */
+        patch: operations["updateCostStructure"];
         trace?: never;
     };
     "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge": {
@@ -1632,7 +1652,7 @@ export interface paths {
         put?: never;
         /**
          * Fusionner un différentiel dans la structure principale
-         * @description La fusion ne touche que les montants budgétés des lignes que le différentiel désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle échoue de même sans rien fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des postes qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion qui fermerait une boucle de liaisons dans la structure principale échoue de même, `problem.code` à `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ; `task_merge_link_cycle`) ; une fusion qui lierait une récapitulative à sa subordonnée, `problem.code` à `LINK_FORBIDDEN`, `params.link` nommant les deux tâches, la récapitulative d'abord (WF-PLA-0030 ; `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de quinze ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en cause (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute (`Problem.params` ; #788). Le compte rendu préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la confirmation, qui porte les compteurs des deux structures qu'il a lus : refusée par 412 si l'une a changé depuis, elle n'applique jamais un compte rendu que personne n'a vu (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de la dernière révision marquée, qui porte alors la commande `merge_structure`, et la même tâche de fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux conservés, projetés (WF-REV-0060), y fusionne la copie du différentiel et la marque ; la révision marquée n'est pas modifiée. La tâche est une seule opération : en échec, elle ne laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790). Pour chiffrer la révision aux taux de la nouvelle année, on la crée d'abord (`createRevision`), et la fusion se demande sur elle. Sur une révision marquée plus ancienne, ou sur la dernière une fois qu'une révision est en cours, la fusion est refusée par 409, comme le compte rendu.
+         * @description La fusion donne aux lignes que le différentiel désigne les grandeurs de référence qu'il porte, d'où leur montant budgété est tiré ; une ligne désignée d'une tâche non démarrée, que personne n'a réestimée depuis la référence, prend aussi ces grandeurs pour grandeurs courantes ; les grandeurs courantes et le montant réestimé de toutes les autres lignes sont conservés (WF-REV-0050, WF-DEV-0020). La révision marquée reçoit le nom de version et la description de la confirmation, comme à tout marquage (WF-REV-0020). Une tâche déjà démarrée n'est jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle échoue de même sans rien fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des postes qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion qui fermerait une boucle de liaisons dans la structure principale échoue de même, `problem.code` à `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ; `task_merge_link_cycle`) ; une fusion qui lierait une récapitulative à sa subordonnée, `problem.code` à `LINK_FORBIDDEN`, `params.link` nommant les deux tâches, la récapitulative d'abord (WF-PLA-0030 ; `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de quinze ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en cause (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute (`Problem.params` ; #788). Le compte rendu préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la confirmation, qui porte les compteurs des deux structures qu'il a lus : refusée par 412 si l'une a changé depuis, elle n'applique jamais un compte rendu que personne n'a vu (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de la dernière révision marquée, qui porte alors la commande `merge_structure`, et la même tâche de fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux conservés, projetés (WF-REV-0060), y fusionne la copie du différentiel et la marque ; la révision marquée n'est pas modifiée. La tâche est une seule opération : en échec, elle ne laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790). Pour chiffrer la révision aux taux de la nouvelle année, on la crée d'abord (`createRevision`), et la fusion se demande sur elle. Sur une révision marquée plus ancienne, ou sur la dernière une fois qu'une révision est en cours, la fusion est refusée par 409, comme le compte rendu.
          */
         post: operations["mergeCostStructure"];
         delete?: never;
@@ -1922,7 +1942,7 @@ export interface paths {
         put?: never;
         /**
          * Annuler la dernière modification
-         * @description Annule les modifications de la session, une par une et dans l'ordre inverse, sur au moins cinquante niveaux : les saisies des grilles comme celles des risques — création, modification, réexamen, suppression d'un risque —, saisies de la révision en cours (WF-RIS-0020). Une annulation est une modification comme une autre : elle s'inscrit dans les colonnes d'audit et est refusée si une modification postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule un import appliqué, un marquage, une fusion, la désignation de la référence, une sortie du cycle de vie, la déclaration d'un risque survenu ni l'exclusion d'une ligne de coût.
+         * @description L'historique annulable est tenu par le serveur : une pile par révision et par utilisateur, qui vit le temps de sa session — le jeton `bearer` qui porte ses requêtes —, et ne survit ni à la fin de cette session, ni au marquage de la révision, ni à son abandon, la révision n'étant plus en cours (décision de l'auteur du 2026-10-28, E-06). Elle reçoit chacune de ses modifications de la révision en cours — les saisies des grilles, la date de début de planning et le libellé d'une structure, et celles des risques, création, modification, réexamen, suppression d'un risque (WF-RIS-0020) — et en garde au moins les cinquante dernières ; deux utilisateurs ont chacun la leur. L'annulation défait la dernière, une par une et dans l'ordre inverse. Une annulation est une modification comme une autre : elle rend ce qu'une écriture rend (`UndoResult.written`), s'inscrit dans les colonnes d'audit et est refusée si une modification postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule ce qui a sa propre commande inverse ou est définitif — un import appliqué, un marquage, l'abandon d'une révision en cours, une fusion, la désignation de la référence, une sortie du cycle de vie, la déclaration d'un risque survenu —, ni l'exclusion et la réintégration d'une ligne de coût, qui se défont par le geste inverse (WF-IHM-0110, WF-CRE-0030, C-363).
          */
         post: operations["undoLastChange"];
         delete?: never;
@@ -1942,7 +1962,7 @@ export interface paths {
         put?: never;
         /**
          * Rétablir la dernière annulation
-         * @description Rétablit la saisie que la dernière annulation avait défaite (WF-IHM-0110).
+         * @description Rétablit la saisie que la dernière annulation de l'appelant sur la révision avait défaite, dans le même historique que `undoLastChange` (WF-IHM-0110). La réponse a la forme de celle de l'annulation (`UndoResult`).
          */
         post: operations["redoLastUndo"];
         delete?: never;
@@ -2020,7 +2040,7 @@ export interface paths {
         };
         /**
          * Plan de charge du projet
-         * @description Par rôle et par mois, au choix sur les montants budgétés de la révision de référence, sur les montants réestimés d'une révision marquée, nommée par `revision_id`, ou sur ceux de la révision en cours, avec la capacité de chaque rôle en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la révision en cours est une base : les deux autres sont refusées (409, `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id` ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`). Le plan nomme le nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
+         * @description Par rôle et par mois, la charge des lignes de main-d'œuvre prise au choix dans la révision de référence, dans une révision marquée pour sa charge réestimée, nommée par `revision_id`, ou dans la révision en cours, avec la capacité de chaque rôle en regard (WF-DEV-0070). Sur un projet sans révision de référence, la base de la référence est absente : `reference_budget` est refusée (409, `STATE_FORBIDS_OPERATION`), comme `current_remaining` sur un projet sans révision en cours ; une révision marquée reste une base, en chiffrage comme en réalisation, et `marked_remaining` n'est refusée que sans `revision_id` ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`) — sur un projet sans aucune révision marquée, seule la révision en cours est donc une base. Sur une révision marquée, la date de calcul est sa date de marquage (`context.computed_at`). Le plan nomme le nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
          */
         get: operations["getProjectWorkload"];
         put?: never;
@@ -3981,17 +4001,21 @@ export interface components {
          * @enum {string}
          */
         RevisionStatus: "draft" | "marked";
+        /** @description Taux horaire d'une catégorie de main-d'œuvre pour une année, tel qu'une révision le conserve (WF-REV-0030, §4.4.1 « revision_rate ») : sa valeur seule, sans l'audit ni le compteur du taux du référentiel, qui bougent après le marquage sans rien changer à la révision (WF-REF-0130). */
+        HourlyRateImage: {
+            cost_category_id: components["schemas"]["Uuid"];
+            year: components["schemas"]["Year"];
+            amount: components["schemas"]["Money"];
+        };
         /** @description Images des objets du référentiel employés, figées au marquage (WF-REV-0030, WF-REF-0130) : sans les commandes qu'un objet lu aujourd'hui porte, qu'une image n'a pas. */
         EmployedReference: {
             resource_roles: components["schemas"]["ResourceRoleImage"][];
             calendars: components["schemas"]["CalendarImage"][];
             cost_categories: components["schemas"]["CostCategoryImage"][];
-            hourly_rates: components["schemas"]["HourlyRate"][];
+            hourly_rates: components["schemas"]["HourlyRateImage"][];
         };
-        /** @description Ce que la révision conserve de son contexte : les paramètres du projet qui ont servi à la calculer et les seules valeurs du référentiel qu'elle emploie (WF-REV-0030). */
+        /** @description Ce que la révision conserve du référentiel : les seules valeurs qu'elle emploie (WF-REV-0030). Les paramètres du projet qu'elle conserve — son année de référence, son taux d'inflation, sa probabilité de gain — sont des attributs de la révision, que l'historique lit sans l'instantané (`Revision.reference_year`, `inflation_rate`, `win_probability`, WF-REV-0090). */
         RevisionSnapshot: {
-            inflation_rate: components["schemas"]["Percent"];
-            win_probability: components["schemas"]["Percent"];
             employed_reference: components["schemas"]["EmployedReference"];
         };
         /**
@@ -4022,6 +4046,15 @@ export interface components {
             is_reference: boolean;
             /** @description Année de référence de la révision, un de ses attributs (WF-REV-0090) : l'année dont les taux horaires chiffrent ses lignes. Fixée par le serveur à la création de la révision, à l'année courante, conservée par la révision et son instantané (WF-REV-0060, WF-REV-0030), jamais saisie. C'est l'année pour laquelle le calcul exige un taux horaire de chaque catégorie employée (WF-DEV-0010, `getMissingRates`), celle des montants « aux taux de l'année de référence, avant inflation » de la grille de devis (`base_amount`, WF-DEV-0050), celle d'où l'inflation projette les montants budgété et réestimé, une fois par année écoulée (WF-DEV-0030), et celle que la mise à jour des taux vise (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026. */
             readonly reference_year: components["schemas"]["Year"];
+            /** @description Le taux d'inflation du projet que la révision conserve, un de ses attributs (WF-REV-0030, WF-REV-0090) : celui d'où ses montants budgété et réestimé sont projetés (WF-DEV-0030). Sur une révision marquée, celui de son marquage, que l'historique des révisions présente (WF-REV-0070) ; sur la révision en cours, celui du projet, qu'elle suit jusqu'à son marquage (`Project.inflation_rate`). Jamais saisi ici. */
+            readonly inflation_rate: components["schemas"]["Percent"];
+            /** @description La probabilité de gain du projet que la révision conserve, de même (WF-REV-0030, WF-REV-0090, WF-PRJ-0090) : celle de son marquage sur une révision marquée, celle du projet sur la révision en cours (`Project.win_probability`). Jamais saisie ici. */
+            readonly win_probability: components["schemas"]["Percent"];
+            /** @description La révision marquée dont la révision est la copie (WF-REV-0010), que tout écran nomme avec la révision en cours (WF-IHM-0020) ; nulle pour la première révision d'un projet, qui ne copie rien. Conservée une fois la révision marquée : l'historique dit d'où vient chaque révision. */
+            source_revision_id: components["schemas"]["Uuid"] | null;
+            /** @description Le nom de version de la révision source (`source_revision_id`), résolu à la lecture, pour que l'écran le nomme sans relire l'historique (WF-IHM-0020, WF-ARC-0020) ; nul avec elle. */
+            source_version_name: string | null;
+            /** @description Les valeurs du référentiel que la révision conserve (WF-REV-0030). Rendu par `getRevision` pour une révision marquée, qui les a figées à son marquage ; omis pour la révision en cours, dont les valeurs suivent le référentiel tant qu'elle n'est pas marquée, hors les taux qu'elle conserve (WF-REV-0060), et dans `listRevisions` comme dans la réponse d'une écriture, qui ne le lisent pas. */
             snapshot?: components["schemas"]["RevisionSnapshot"] | null;
             /** @description Commandes de la révision que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille dont la commande de saisie est absente ou indisponible se présente en lecture seule. */
             available_commands: components["schemas"]["RevisionCommandAvailability"][];
@@ -4351,87 +4384,29 @@ export interface components {
             revision_id: components["schemas"]["Uuid"];
             kind: components["schemas"]["StructureKind"];
             label: string;
+            /** @description La date de début de planning de la structure, saisie (`updateCostStructure`) : le jour de sa première création par défaut ; une structure reprise d'une révision marquée conserve la sienne (WF-PLA-0020, WF-REV-0100, WF-REV-0010), et un différentiel, copie de la structure principale à sa création, prend la sienne. Une tâche en mode automatique sans prédécesseur y commence, à la première heure travaillée de son calendrier applicable (WF-PLA-0020). L'import MS Project la lit dans la date de début du projet du fichier, et l'export l'y écrit (WF-INTF-0040, WF-INTF-0050). */
+            planning_start_on: components["schemas"]["PlanningDate"];
             /** @description Renseigné pour une structure de nature `risk` (WF-RIS-0030). */
             risk_id?: components["schemas"]["Uuid"] | null;
             /** @description Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060). */
             is_merged: boolean;
             /** @description Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est absente ou indisponible se présente en lecture seule. */
             available_commands: components["schemas"]["StructureCommandAvailability"][];
-            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence`). */
+            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même (`updateCostStructure`). C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence`). */
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Crée un différentiel ou le devis propre d'un risque. La structure principale n'est jamais créée ici : elle existe dès la création de la révision (WF-REV-0100). */
+        /** @description Crée un différentiel, pour préparer un avenant (WF-REV-0100). La structure principale n'est jamais créée ici : elle existe dès la création de la révision ; ni le devis propre d'un risque, qui naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui. */
         StructureCreate: {
             /** @enum {unknown} */
-            kind: "amendment" | "risk";
+            kind: "amendment";
             label: string;
-            risk_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier. */
-        ActualCostColumn: string | ("document_date" | "document_number" | "document_item" | "amount" | "subproject");
-        /**
-         * @description Champ d'un écart `updated` qu'aucune colonne ne présente (`ImportDifference.fields`) : le parent d'une tâche ou d'une ligne déplacée sous une autre récapitulative ou une autre tâche porteuse, comme `NodeChange.parent` (WF-REV-0080, WF-REV-0050 ; #1194).
-         * @enum {string}
-         */
-        ImportDifferenceField: "parent";
-        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s), ou ce que la survenance d'un risque ferait de la structure principale (`RiskOccurrenceReport`, WF-RIS-0060 ; US-0680). */
-        ImportDifference: {
-            /**
-             * @description Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`.
-             * @enum {string}
-             */
-            change: "added" | "removed" | "updated" | "kept";
-            /** @enum {string} */
-            target: "task" | "estimate_line" | "link" | "actual_cost_line";
-            /** @description La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien. */
-            lineage_id?: components["schemas"]["Uuid"] | null;
-            /** @description Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie avec son poste (`document_item` ; WF-INTF-0140, D-4) : ni `document_number` ni `document_item` ne figurent donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro, ou un autre poste de la même pièce, étant une autre ligne. */
-            label?: string | null;
-            /** @description Pour une ligne de coût (`actual_cost_line`), le numéro de son poste dans la pièce que nomme `label`, qui la désigne avec elle (`ActualCostLine.document_item`, WF-INTF-0140, D-4 ; EP-16/US-0630) ; nul pour une ligne sans poste, et nul ou absent pour tout autre objet. */
-            document_item?: string | null;
-            /** @description Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet. */
-            predecessor_label?: string | null;
-            /** @description Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k). */
-            work_breakdown_label?: string | null;
-            /** @description Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194). Ainsi la ligne de provision d'un risque dont l'import d'un planning ou la fusion retire la tâche porteuse : elle passe sur la tâche parente de celle-ci, ou, pour une tâche de premier niveau, sur la première tâche de premier niveau restante, et « la confirmation ou le compte rendu le signale » par cet écart, à côté du retrait de la tâche (WF-RIS-0010 ; #789). */
-            fields?: (components["schemas"]["NodeColumn"] | components["schemas"]["ActualCostColumn"] | components["schemas"]["ImportDifferenceField"])[];
-        };
-        /** @description Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120), ou qu'une fusion termine, le différentiel la retirant alors qu'elle est démarrée (WF-REV-0050, `StructureMergeReport`). */
-        ImportCompletedTask: {
-            lineage_id: components["schemas"]["Uuid"];
-            label: string;
-            /** @description Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué. */
-            completed_on: components["schemas"]["PlanningDate"] | null;
-        };
-        /** @description Un motif qui refuse un import, une fusion ou la survenance d'un risque entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050, WF-RIS-0060 ; EP-14/L42s, `RiskOccurrenceReport`) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
-        ReportRefusal: {
-            code: components["schemas"]["ErrorCode"];
-            params?: components["schemas"]["ProblemParams"];
-        };
-        /** @description Compte rendu de la fusion d'un différentiel, présenté avant son application (WF-REV-0050 ; EP-14/L42s) : ses écarts avec la structure principale — tâches et lignes ajoutées, modifiées, retirées —, les tâches démarrées qu'elle terminera, et les motifs qui la refusent. Il reprend les éléments du compte rendu d'un import, et se lit de même : une tâche démarrée ou terminée que le différentiel retire n'est jamais retirée, mais conservée et signalée (`kept`) ; la démarrée paraît aussi parmi `completed_tasks`, son reste à engager porté à zéro (`completed_on` nul tant que la fusion n'est pas appliquée). Les trois tableaux sont toujours rendus, vides quand il n'y a rien à dire ; la fusion ne s'applique que si `refusals` est vide. Il rend les compteurs des deux structures lues, que la confirmation renvoie (`StructureMerge`). */
-        StructureMergeReport: {
-            /** @description Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412. */
-            main_structure_lock_version: components["schemas"]["LockVersion"];
-            /** @description Le compteur du différentiel lu (`CostStructure.lock_version`), de même. */
-            amendment_lock_version: components["schemas"]["LockVersion"];
-            /** @description Vrai quand le projet n'a pas de révision en cours : le différentiel est celui de la dernière révision marquée, et la fusion crée d'abord la révision en cours par copie de celle-ci, chiffrée aux taux conservés, projetés, y fusionne la copie du différentiel et la marque, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050, WF-REV-0010, WF-REV-0060 ; #790). Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la révision marquée, que la copie reprend telle quelle, et ses compteurs sont ceux de ses structures, que le marquage a figés. Faux pour un différentiel de la révision en cours. */
-            creates_current_revision: boolean;
-            /** @description Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale. La ligne de provision d'un risque dont le différentiel retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789). */
-            differences: components["schemas"]["ImportDifference"][];
-            /** @description Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040). */
-            completed_tasks: components["schemas"]["ImportCompletedTask"][];
-            /** @description Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique. Une boucle de liaisons (`LINK_CYCLE`) laisse les dates de la structure sans calcul : l'horizon n'est alors pas jugé, et `PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais (#788). */
-            refusals: components["schemas"]["ReportRefusal"][];
-        };
-        /** @description Fusionne le différentiel dans la structure principale : la fusion ne touche que les montants budgétés des lignes qu'il désigne. Elle s'applique à la révision en cours et la marque dans la même opération, d'où le nom de version exigé, et la révision produite devient la référence (WF-REV-0050) ; sur un projet sans révision en cours, elle crée d'abord cette révision par copie de la dernière révision marquée, dans la même opération (WF-REV-0010 ; #790), et le nom de version est celui de la révision créée et marquée. Confiée au worker. La confirmation suit le compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la refuserait, et porte les deux compteurs qu'il a lus : la structure principale ou le différentiel changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que l'utilisateur a confirmé (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s). */
-        StructureMerge: {
-            /** @constant */
-            confirmed: true;
-            version_name: string;
-            /** @description Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`). */
-            main_structure_lock_version: components["schemas"]["LockVersion"];
-            /** @description Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`). */
-            amendment_lock_version: components["schemas"]["LockVersion"];
+        /** @description Modifie la structure elle-même : sa date de début de planning et son libellé (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé. */
+        StructureUpdate: {
+            /** @description La date de début de planning (`CostStructure.planning_start_on`), sur un jour qui a au moins une heure travaillée au calendrier par défaut (WF-PLA-0010, WF-PLA-0020). */
+            planning_start_on?: components["schemas"]["PlanningDate"];
+            label?: string;
+            lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Facette temps d'un nœud. Les valeurs calculées — dates en mode automatique, dates et durée d'une récapitulative, marge, criticité, avancement physique, fin dépassée — ne sont pas saisissables (WF-IHM-0030). La durée est portée dans l'unité de sa saisie (WF-PLA-0160) ; le début et la fin sont une date et les heures de travail écoulées ce jour-là (WF-DAT-0100). Une tâche, récapitulative ou feuille, peut porter le rattachement à un lot ou à un poste du lotissement (`work_package_id`, `order_item_id`, WF-PLA-0130, WF-PLA-0170) ; une tâche créée par un import MS Project garde l'identifiant que le fichier lui donnait (`external_id`, WF-INTF-0040). */
         TaskFacet: {
@@ -4548,6 +4523,111 @@ export interface components {
             /** @description Ce qui change du nœud lui-même, dans l'ordre de `NodeChange`, rendu avec `difference` : vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche marquée modifiée par son seul contenu — une ligne ou une subordonnée ajoutée, retirée, modifiée ou déplacée. */
             changes?: components["schemas"]["NodeChange"][];
         };
+        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste celui que la grille a lu (`LockVersion`). */
+        NodeSchedule: {
+            node_id: components["schemas"]["Uuid"];
+            start: components["schemas"]["WorkInstant"];
+            finish: components["schemas"]["WorkInstant"];
+            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
+            total_float: components["schemas"]["Duration"] | null;
+            /** @description Appartenance au chemin critique, une marge totale nulle ou négative (WF-PLA-0100) ; fausse pour une tâche en mode manuel. */
+            is_critical: boolean;
+            /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
+            finish_overdue: boolean;
+        };
+        /** @description Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des dates, inflation comprise, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`, `TaskFacet`), que les grilles de devis et de reste à engager présentent (WF-DEV-0020, WF-DEV-0040, WF-DEV-0050). Sans `lock_version`, comme `NodeSchedule` : un recalcul ne fait pas avancer le compteur du nœud (`LockVersion`). */
+        NodeInflation: {
+            node_id: components["schemas"]["Uuid"];
+            /** @description Le montant budgété, comme `EstimateLineFacet.budgeted_amount` pour une ligne et `TaskFacet.budgeted_amount` pour une tâche — la somme de ses lignes. Projeté sur l'année où la révision de référence consommait la ligne, il ne suit les dates que sur un projet sans révision de référence, où il est confondu avec le réestimé (WF-DEV-0050). */
+            budgeted_amount: components["schemas"]["Money"];
+            /** @description Le montant réestimé, comme `EstimateLineFacet.reestimated_amount` pour une ligne et `TaskFacet.reestimated_amount` pour une tâche — la somme de ses lignes. */
+            reestimated_amount: components["schemas"]["Money"];
+            /** @description L'année de consommation d'une ligne, comme `EstimateLineFacet.consumption_year` ; nulle pour une tâche, dont la facette n'en porte pas. */
+            consumption_year: components["schemas"]["Year"] | null;
+        };
+        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, les montants, inflation comprise, des autres lignes et tâches qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
+        NodesWritten: {
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud. */
+            nodes: components["schemas"]["Node"][];
+            /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
+            ancestors: components["schemas"]["Node"][];
+            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, les tâches automatiques sans prédécesseur et leurs successeurs que déplace la date de début de planning, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants, inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou l'autre. */
+            rescheduled: components["schemas"]["NodeSchedule"][];
+            /** @description Chaque nœud dont un montant, inflation comprise, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent les montants, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant aux taux de l'année de référence ne dépend pas des dates et ne change pas. */
+            reinflated: components["schemas"]["NodeInflation"][];
+            /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
+            totals: components["schemas"]["NodeTotals"];
+            /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
+            structure_lock_version: components["schemas"]["LockVersion"];
+        };
+        /** @description Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier. */
+        ActualCostColumn: string | ("document_date" | "document_number" | "document_item" | "amount" | "subproject");
+        /**
+         * @description Champ d'un écart `updated` qu'aucune colonne ne présente (`ImportDifference.fields`) : le parent d'une tâche ou d'une ligne déplacée sous une autre récapitulative ou une autre tâche porteuse, comme `NodeChange.parent` (WF-REV-0080, WF-REV-0050 ; #1194).
+         * @enum {string}
+         */
+        ImportDifferenceField: "parent";
+        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s), ou ce que la survenance d'un risque ferait de la structure principale (`RiskOccurrenceReport`, WF-RIS-0060 ; US-0680). */
+        ImportDifference: {
+            /**
+             * @description Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`.
+             * @enum {string}
+             */
+            change: "added" | "removed" | "updated" | "kept";
+            /** @enum {string} */
+            target: "task" | "estimate_line" | "link" | "actual_cost_line";
+            /** @description La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien. */
+            lineage_id?: components["schemas"]["Uuid"] | null;
+            /** @description Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie avec son poste (`document_item` ; WF-INTF-0140, D-4) : ni `document_number` ni `document_item` ne figurent donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro, ou un autre poste de la même pièce, étant une autre ligne. */
+            label?: string | null;
+            /** @description Pour une ligne de coût (`actual_cost_line`), le numéro de son poste dans la pièce que nomme `label`, qui la désigne avec elle (`ActualCostLine.document_item`, WF-INTF-0140, D-4 ; EP-16/US-0630) ; nul pour une ligne sans poste, et nul ou absent pour tout autre objet. */
+            document_item?: string | null;
+            /** @description Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet. */
+            predecessor_label?: string | null;
+            /** @description Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k). */
+            work_breakdown_label?: string | null;
+            /** @description Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194). Ainsi la ligne de provision d'un risque dont l'import d'un planning ou la fusion retire la tâche porteuse : elle passe sur la tâche parente de celle-ci, ou, pour une tâche de premier niveau, sur la première tâche de premier niveau restante, et « la confirmation ou le compte rendu le signale » par cet écart, à côté du retrait de la tâche (WF-RIS-0010 ; #789). */
+            fields?: (components["schemas"]["NodeColumn"] | components["schemas"]["ActualCostColumn"] | components["schemas"]["ImportDifferenceField"])[];
+        };
+        /** @description Une tâche qu'un import termine (WF-PLA-0130, WF-INTF-0120), ou qu'une fusion termine, le différentiel la retirant alors qu'elle est démarrée (WF-REV-0050, `StructureMergeReport`). */
+        ImportCompletedTask: {
+            lineage_id: components["schemas"]["Uuid"];
+            label: string;
+            /** @description Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué. */
+            completed_on: components["schemas"]["PlanningDate"] | null;
+        };
+        /** @description Un motif qui refuse un import, une fusion ou la survenance d'un risque entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050, WF-RIS-0060 ; EP-14/L42s, `RiskOccurrenceReport`) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
+        ReportRefusal: {
+            code: components["schemas"]["ErrorCode"];
+            params?: components["schemas"]["ProblemParams"];
+        };
+        /** @description Compte rendu de la fusion d'un différentiel, présenté avant son application (WF-REV-0050 ; EP-14/L42s) : ses écarts avec la structure principale — tâches et lignes ajoutées, modifiées, retirées —, les tâches démarrées qu'elle terminera, et les motifs qui la refusent. Il reprend les éléments du compte rendu d'un import, et se lit de même : une tâche démarrée ou terminée que le différentiel retire n'est jamais retirée, mais conservée et signalée (`kept`) ; la démarrée paraît aussi parmi `completed_tasks`, son reste à engager porté à zéro (`completed_on` nul tant que la fusion n'est pas appliquée). Les trois tableaux sont toujours rendus, vides quand il n'y a rien à dire ; la fusion ne s'applique que si `refusals` est vide. Il rend les compteurs des deux structures lues, que la confirmation renvoie (`StructureMerge`). */
+        StructureMergeReport: {
+            /** @description Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412. */
+            main_structure_lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur du différentiel lu (`CostStructure.lock_version`), de même. */
+            amendment_lock_version: components["schemas"]["LockVersion"];
+            /** @description Vrai quand le projet n'a pas de révision en cours : le différentiel est celui de la dernière révision marquée, et la fusion crée d'abord la révision en cours par copie de celle-ci, chiffrée aux taux conservés, projetés, y fusionne la copie du différentiel et la marque, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050, WF-REV-0010, WF-REV-0060 ; #790). Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la révision marquée, que la copie reprend telle quelle, et ses compteurs sont ceux de ses structures, que le marquage a figés. Faux pour un différentiel de la révision en cours. */
+            creates_current_revision: boolean;
+            /** @description Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale. La ligne de provision d'un risque dont le différentiel retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789). Un écart `updated` d'une ligne nomme les grandeurs que le différentiel lui donne (`fields`) : elles deviennent ses grandeurs de référence, et aussi ses grandeurs courantes quand sa tâche n'est pas démarrée et que personne ne l'a réestimée (WF-REV-0050) ; le compte rendu ne distingue pas les deux cas, l'état réestimé d'une ligne restant au serveur (US-0701/L1, M-08). */
+            differences: components["schemas"]["ImportDifference"][];
+            /** @description Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040). */
+            completed_tasks: components["schemas"]["ImportCompletedTask"][];
+            /** @description Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique. Une boucle de liaisons (`LINK_CYCLE`) laisse les dates de la structure sans calcul : l'horizon n'est alors pas jugé, et `PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais (#788). */
+            refusals: components["schemas"]["ReportRefusal"][];
+        };
+        /** @description Fusionne le différentiel dans la structure principale : la fusion donne aux lignes qu'il désigne les grandeurs de référence qu'il porte, d'où leur montant budgété est tiré ; une ligne désignée d'une tâche non démarrée, que personne n'a réestimée depuis la référence, prend aussi ces grandeurs pour grandeurs courantes ; les grandeurs courantes et le montant réestimé de toutes les autres lignes sont conservés (WF-REV-0050, WF-DEV-0020). Elle s'applique à la révision en cours et la marque dans la même opération, d'où le nom de version exigé et la description permise, comme à tout marquage (WF-REV-0020), et la révision produite devient la référence (WF-REV-0050) ; sur un projet sans révision en cours, elle crée d'abord cette révision par copie de la dernière révision marquée, dans la même opération (WF-REV-0010 ; #790), et le nom de version est celui de la révision créée et marquée. Confiée au worker. La confirmation suit le compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la refuserait, et porte les deux compteurs qu'il a lus : la structure principale ou le différentiel changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que l'utilisateur a confirmé (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s). */
+        StructureMerge: {
+            /** @constant */
+            confirmed: true;
+            version_name: string;
+            /** @description La description jointe à la révision marquée, comme au marquage (`RevisionMark.description`, WF-REV-0020, WF-REV-0090). */
+            description?: string | null;
+            /** @description Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`). */
+            main_structure_lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`). */
+            amendment_lock_version: components["schemas"]["LockVersion"];
+        };
         /** @description Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin, saisissables en mode manuel, sont une date et des heures de travail écoulées (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la tâche — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la tâche créée (`NodeCreate.parent_id`) disant si la tâche d'un poste reste sous celle de son lot. */
         TaskFacetWrite: {
             label: string;
@@ -4577,43 +4657,6 @@ export interface components {
             after_node_id?: components["schemas"]["Uuid"] | null;
             task?: components["schemas"]["TaskFacetWrite"];
             estimate_line?: components["schemas"]["EstimateLineWrite"];
-        };
-        /** @description Le calendrier d'une tâche non récapitulative qu'une écriture a redatée sans l'écrire (`NodesWritten.rescheduled`) : les valeurs que le planning recalcule à chaque modification d'une durée, d'une liaison ou de la structure (WF-PLA-0020), et que le chemin critique déplace (WF-PLA-0100), sous la forme des champs de même nom de la facette temps (`TaskFacet`). Les montants qui dépendent des dates n'y sont pas. Sans `lock_version` : un recalcul ne fait pas avancer le compteur de la tâche, qui reste celui que la grille a lu (`LockVersion`). */
-        NodeSchedule: {
-            node_id: components["schemas"]["Uuid"];
-            start: components["schemas"]["WorkInstant"];
-            finish: components["schemas"]["WorkInstant"];
-            /** @description Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. */
-            total_float: components["schemas"]["Duration"] | null;
-            /** @description Appartenance au chemin critique, une marge totale nulle ou négative (WF-PLA-0100) ; fausse pour une tâche en mode manuel. */
-            is_critical: boolean;
-            /** @description Fin dépassée : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul (WF-RAE-0040), comme `TaskFacet.finish_overdue`. */
-            finish_overdue: boolean;
-        };
-        /** @description Les montants d'une ligne de devis ou d'une tâche non récapitulative qu'une écriture a déplacée dans le temps sans l'écrire (`NodesWritten.reinflated`) : ceux qui dépendent des dates, inflation comprise, sous la forme des champs de même nom de sa facette (`EstimateLineFacet`, `TaskFacet`), que les grilles de devis et de reste à engager présentent (WF-DEV-0020, WF-DEV-0040, WF-DEV-0050). Sans `lock_version`, comme `NodeSchedule` : un recalcul ne fait pas avancer le compteur du nœud (`LockVersion`). */
-        NodeInflation: {
-            node_id: components["schemas"]["Uuid"];
-            /** @description Le montant budgété, comme `EstimateLineFacet.budgeted_amount` pour une ligne et `TaskFacet.budgeted_amount` pour une tâche — la somme de ses lignes. Projeté sur l'année où la révision de référence consommait la ligne, il ne suit les dates que sur un projet sans révision de référence, où il est confondu avec le réestimé (WF-DEV-0050). */
-            budgeted_amount: components["schemas"]["Money"];
-            /** @description Le montant réestimé, comme `EstimateLineFacet.reestimated_amount` pour une ligne et `TaskFacet.reestimated_amount` pour une tâche — la somme de ses lignes. */
-            reestimated_amount: components["schemas"]["Money"];
-            /** @description L'année de consommation d'une ligne, comme `EstimateLineFacet.consumption_year` ; nulle pour une tâche, dont la facette n'en porte pas. */
-            consumption_year: components["schemas"]["Year"] | null;
-        };
-        /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, les montants, inflation comprise, des autres lignes et tâches qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
-        NodesWritten: {
-            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre. */
-            nodes: components["schemas"]["Node"][];
-            /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. */
-            ancestors: components["schemas"]["Node"][];
-            /** @description Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants, inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou l'autre. */
-            rescheduled: components["schemas"]["NodeSchedule"][];
-            /** @description Chaque nœud dont un montant, inflation comprise, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent les montants, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant aux taux de l'année de référence ne dépend pas des dates et ne change pas. */
-            reinflated: components["schemas"]["NodeInflation"][];
-            /** @description Les totaux de la structure entière, sans filtre : ceux qu'une grille lue sans filtre affiche. Une grille filtrée les relit par `listNodes`. */
-            totals: components["schemas"]["NodeTotals"];
-            /** @description Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110). */
-            structure_lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Le nœud qui porte un numéro de ligne dans la numérotation de toute la structure, quels que soient la recherche, les filtres et le tri de la grille qui le demande (`resolveRowNumber`, WF-PLA-0080) : son identifiant, que l'écriture d'un prédécesseur envoie (`PredecessorWrite.predecessor_node_id`), son numéro, son libellé — celui de la tâche ou de la ligne de devis — et sa nature, qui dit au front si le numéro désigne une tâche. */
         RowNumberResolution: {
@@ -4752,14 +4795,23 @@ export interface components {
             /** @description Les refus de l'aperçu et ceux que la confirmation y ajoute en jugeant de nouveau les lignes acceptées, aucun écrit, dans l'ordre des lignes du bloc ; vide quand toutes les lignes du bloc sont écrites. */
             rejected: components["schemas"]["PasteRejection"][];
         };
-        /** @description Annule ou rétablit la dernière modification de la session. Une annulation est une modification comme une autre ; elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création, modification, réexamen, suppression — sont dans le même historique que celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). */
+        /**
+         * @description La nature de la modification annulée ou rétablie, que le front dit par son catalogue (WF-ARC-0110) : une cellule (`updateTaskFacet`, `updateEstimateLine`), une création ou une suppression de nœud, un déplacement, un collage, une liaison (`setPredecessors`), un avancement, une réestimation (`setLineRemaining`), une inscription aux suivis, la date de début de planning ou le libellé d'une structure (`updateCostStructure`) ; ou une saisie de risque — création, modification, réexamen, suppression (WF-RIS-0020).
+         * @enum {string}
+         */
+        UndoneKind: "cell" | "node_create" | "node_delete" | "node_move" | "paste" | "link" | "progress" | "remaining" | "tracking" | "structure_update" | "risk_create" | "risk_update" | "risk_review" | "risk_delete";
+        /** @description Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création, modification, réexamen, suppression — sont dans le même historique que celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). */
         UndoResult: {
             undone: {
-                kind?: string;
-                node_ids?: components["schemas"]["Uuid"][];
+                kind: components["schemas"]["UndoneKind"];
+                /** @description Les nœuds que l'annulation, ou le rétablissement, rend à leur état précédent ; vide pour une saisie de risque. */
+                node_ids: components["schemas"]["Uuid"][];
                 /** @description Les risques que l'annulation, ou le rétablissement, rend à leur état précédent (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles. */
-                risk_ids?: components["schemas"]["Uuid"][];
+                risk_ids: components["schemas"]["Uuid"][];
             };
+            /** @description Ce que l'annulation, ou le rétablissement, a écrit dans une structure, comme toute écriture de grille : nœuds rendus à leur état, ancêtres recalculés, tâches redatées, totaux et compteur de la structure, pour que la grille montre juste sans relire la structure et garde le compteur que sa saisie suivante portera (WF-IHM-0040, WF-IHM-0110). Nul pour une saisie de risque, qui n'écrit dans une structure que par la ligne de provision de son risque : la grille relit alors sa structure. */
+            written: components["schemas"]["NodesWritten"] | null;
+            /** @description Les modifications qui restent à annuler dans l'historique de l'appelant sur la révision, après celle-ci — pour le rétablissement, celles qui restent à rétablir. */
             remaining_depth: number;
         };
         /** @description Contexte du calcul, que tout écran doit pouvoir afficher (WF-IHM-0020). */
@@ -4810,11 +4862,11 @@ export interface components {
          * @enum {string}
          */
         WorkloadZone: "nominal" | "alert";
-        /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche au prorata des heures travaillées du calendrier de son rôle ; sur une base de reste à engager, la charge restante d'une tâche non terminée l'est sur la seule part de sa durée postérieure à la date de calcul, et portée au mois de la date de calcul quand sa fin est dépassée (WF-DEV-0070). */
+        /** @description Plan de charge par rôle et par mois, en heures : la charge d'une ligne est répartie sur la durée de sa tâche au prorata des heures travaillées du calendrier de son rôle. Sur une base de reste à engager — une révision marquée pour sa charge réestimée (`marked_remaining`) ou la révision en cours (`current_remaining`) —, la charge restante de chaque ligne d'une tâche non terminée l'est sur la seule part de la durée de sa tâche postérieure à la date de calcul (`context.computed_at`, la date de marquage pour une révision marquée), et portée au mois de la date de calcul quand la fin de la tâche est dépassée : une tâche non démarrée dont la date de début est antérieure à la date de calcul ne présente aucune charge sur les mois écoulés ; une tâche terminée n'en présente aucune (WF-DEV-0070, WF-IND-0010). */
         WorkloadPlan: {
             context: components["schemas"]["CalculationContext"];
             /**
-             * @description La base retenue : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070). `context.revision_id` nomme la révision lue.
+             * @description La base retenue : la charge de la révision de référence, la charge réestimée d'une révision marquée, ou celle de la révision en cours (WF-DEV-0070). `context.revision_id` nomme la révision lue.
              * @enum {string}
              */
             basis: "reference_budget" | "marked_remaining" | "current_remaining";
@@ -5736,7 +5788,7 @@ export interface components {
         NodeId: components["schemas"]["Uuid"];
         /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
-        /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
+        /** @description Base du plan de charge, où la charge des lignes de main-d'œuvre est prise : la révision de référence, une révision marquée pour sa charge réestimée — nommée par `revision_id` —, ou la révision en cours (WF-DEV-0070). Les deux dernières sont la base du reste à engager. */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
         /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours, ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la révision du calcul ; une révision marquée, le calcul à la date de son marquage : les indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai, sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
         IndicatorsRevision: components["schemas"]["Uuid"];
@@ -9792,6 +9844,50 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    updateCostStructure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                revision_id: components["parameters"]["RevisionId"];
+                structure_id: components["parameters"]["StructureId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StructureUpdate"];
+            };
+        };
+        responses: {
+            /** @description Structure modifiée : les tâches qu'elle redate, leurs montants, inflation comprise, quand elles changent d'année, les récapitulatives recalculées, les totaux et le compteur de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodesWritten"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            412: components["responses"]["PreconditionFailed"];
+            /** @description Une date de début de planning sur un jour sans aucune heure travaillée au calendrier par défaut : `fields` sur `/planning_start_on` par `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020, WF-PLA-0010). Ou, sans `fields`, une date qui porterait la durée du projet au-delà de quinze ans : `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé (WF-PLA-0150). Ou un libellé vide (`VALIDATION_FAILED`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     getStructureMergeReport: {
         parameters: {
             query?: never;
@@ -10560,7 +10656,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre, rien n'étant défait (`later_change` ; #1531) —, ou l'historique de la session est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé depuis — à la provision d'un risque dont elle défait la création, la modification ou la suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category` : une annulation subit les règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est défait (#795). */
+            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre, rien n'étant défait (`later_change` ; #1531) —, ou l'historique de l'appelant sur la révision est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé depuis — à la provision d'un risque dont elle défait la création, la modification ou la suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category` : une annulation subit les règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est défait (#795). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10713,7 +10809,7 @@ export interface operations {
     getProjectWorkload: {
         parameters: {
             query: {
-                /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
+                /** @description Base du plan de charge, où la charge des lignes de main-d'œuvre est prise : la révision de référence, une révision marquée pour sa charge réestimée — nommée par `revision_id` —, ou la révision en cours (WF-DEV-0070). Les deux dernières sont la base du reste à engager. */
                 basis: components["parameters"]["WorkloadBasis"];
                 /** @description La révision marquée dont les montants réestimés font la base ; exigée avec `marked_remaining`, ignorée sinon. */
                 revision_id?: components["schemas"]["Uuid"];
@@ -10739,7 +10835,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Projet sans révision de référence : seule la révision en cours est une base (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à `ProjectState`. */
+            /** @description `reference_budget` sur un projet sans révision de référence, ou `current_remaining` sur un projet sans révision en cours : la base est absente (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à `ProjectState`. */
             409: {
                 headers: {
                     [name: string]: unknown;

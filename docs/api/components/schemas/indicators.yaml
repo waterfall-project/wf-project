@@ -414,20 +414,24 @@ WorkloadPlan:
   type: object
   required: [context, basis, org_node_id, org_node_label, monthly_totals, roles]
   description: >-
-    Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de
-    sa tâche au prorata des heures travaillées du calendrier de son rôle ; sur une base de reste
-    à engager, la charge restante d'une tâche non terminée l'est sur la seule part de sa durée
-    postérieure à la date de calcul, et portée au mois de la date de calcul quand sa fin est
-    dépassée (WF-DEV-0070).
+    Plan de charge par rôle et par mois, en heures : la charge d'une ligne est répartie sur la
+    durée de sa tâche au prorata des heures travaillées du calendrier de son rôle. Sur une base
+    de reste à engager — une révision marquée pour sa charge réestimée (`marked_remaining`) ou la
+    révision en cours (`current_remaining`) —, la charge restante de chaque ligne d'une tâche non
+    terminée l'est sur la seule part de la durée de sa tâche postérieure à la date de calcul
+    (`context.computed_at`, la date de marquage pour une révision marquée), et portée au mois de
+    la date de calcul quand la fin de la tâche est dépassée : une tâche non démarrée dont la date
+    de début est antérieure à la date de calcul ne présente aucune charge sur les mois écoulés ;
+    une tâche terminée n'en présente aucune (WF-DEV-0070, WF-IND-0010).
   properties:
     context: { $ref: '#/CalculationContext' }
     basis:
       type: string
       enum: [reference_budget, marked_remaining, current_remaining]
       description: >-
-        La base retenue : les montants budgétés de la révision de référence, les montants
-        réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070).
-        `context.revision_id` nomme la révision lue.
+        La base retenue : la charge de la révision de référence, la charge réestimée d'une
+        révision marquée, ou celle de la révision en cours (WF-DEV-0070). `context.revision_id`
+        nomme la révision lue.
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-

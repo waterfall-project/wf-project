@@ -18,6 +18,10 @@ Revision:
     - status
     - is_reference
     - reference_year
+    - inflation_rate
+    - win_probability
+    - source_revision_id
+    - source_version_name
     - available_commands
     - audit
     - lock_version
@@ -51,8 +55,42 @@ Revision:
         par année écoulée (WF-DEV-0030), et celle que la mise à jour des taux vise
         (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision
         précédente, créée en 2026, garde 2026.
+    inflation_rate:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      readOnly: true
+      description: >-
+        Le taux d'inflation du projet que la révision conserve, un de ses attributs (WF-REV-0030,
+        WF-REV-0090) : celui d'où ses montants budgété et réestimé sont projetés (WF-DEV-0030).
+        Sur une révision marquée, celui de son marquage, que l'historique des révisions présente
+        (WF-REV-0070) ; sur la révision en cours, celui du projet, qu'elle suit jusqu'à son
+        marquage (`Project.inflation_rate`). Jamais saisi ici.
+    win_probability:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      readOnly: true
+      description: >-
+        La probabilité de gain du projet que la révision conserve, de même (WF-REV-0030,
+        WF-REV-0090, WF-PRJ-0090) : celle de son marquage sur une révision marquée, celle du
+        projet sur la révision en cours (`Project.win_probability`). Jamais saisie ici.
+    source_revision_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        La révision marquée dont la révision est la copie (WF-REV-0010), que tout écran nomme avec
+        la révision en cours (WF-IHM-0020) ; nulle pour la première révision d'un projet, qui ne
+        copie rien. Conservée une fois la révision marquée : l'historique dit d'où vient chaque
+        révision.
+    source_version_name:
+      anyOf: [{ type: string, maxLength: 100 }, { type: 'null' }]
+      description: >-
+        Le nom de version de la révision source (`source_revision_id`), résolu à la lecture, pour
+        que l'écran le nomme sans relire l'historique (WF-IHM-0020, WF-ARC-0020) ; nul avec elle.
     snapshot:
       anyOf: [{ $ref: '#/RevisionSnapshot' }, { type: 'null' }]
+      description: >-
+        Les valeurs du référentiel que la révision conserve (WF-REV-0030). Rendu par
+        `getRevision` pour une révision marquée, qui les a figées à son marquage ; omis pour la
+        révision en cours, dont les valeurs suivent le référentiel tant qu'elle n'est pas marquée,
+        hors les taux qu'elle conserve (WF-REV-0060), et dans `listRevisions` comme dans la
+        réponse d'une écriture, qui ne le lisent pas.
     available_commands:
       type: array
       description: >-
@@ -181,14 +219,14 @@ RevisionCommandAvailability:
 
 RevisionSnapshot:
   type: object
-  required: [inflation_rate, win_probability, employed_reference]
+  required: [employed_reference]
   description: >-
-    Ce que la révision conserve de son contexte : les paramètres du projet qui ont
-    servi à la calculer et les seules valeurs du référentiel qu'elle emploie
-    (WF-REV-0030).
+    Ce que la révision conserve du référentiel : les seules valeurs qu'elle emploie
+    (WF-REV-0030). Les paramètres du projet qu'elle conserve — son année de référence, son taux
+    d'inflation, sa probabilité de gain — sont des attributs de la révision, que l'historique lit
+    sans l'instantané (`Revision.reference_year`, `inflation_rate`, `win_probability`,
+    WF-REV-0090).
   properties:
-    inflation_rate: { $ref: ../common.yaml#/Percent }
-    win_probability: { $ref: ../common.yaml#/Percent }
     employed_reference: { $ref: '#/EmployedReference' }
 
 EmployedReference:
@@ -209,7 +247,7 @@ EmployedReference:
       items: { $ref: reference.yaml#/CostCategoryImage }
     hourly_rates:
       type: array
-      items: { $ref: reference.yaml#/HourlyRate }
+      items: { $ref: reference.yaml#/HourlyRateImage }
 
 RevisionCreate:
   type: object
@@ -296,12 +334,30 @@ StructureKind:
 
 CostStructure:
   type: object
-  required: [structure_id, revision_id, kind, label, is_merged, available_commands, lock_version]
+  required:
+    - structure_id
+    - revision_id
+    - kind
+    - label
+    - planning_start_on
+    - is_merged
+    - available_commands
+    - lock_version
   properties:
     structure_id: { $ref: ../common.yaml#/Uuid }
     revision_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/StructureKind' }
     label: { type: string, maxLength: 300 }
+    planning_start_on:
+      allOf: [{ $ref: ../common.yaml#/PlanningDate }]
+      description: >-
+        La date de début de planning de la structure, saisie (`updateCostStructure`) : le jour de
+        sa première création par défaut ; une structure reprise d'une révision marquée conserve
+        la sienne (WF-PLA-0020, WF-REV-0100, WF-REV-0010), et un différentiel, copie de la
+        structure principale à sa création, prend la sienne. Une tâche en mode automatique sans
+        prédécesseur y commence, à la première heure travaillée de son calendrier applicable
+        (WF-PLA-0020). L'import MS Project la lit dans la date de début du projet du fichier, et
+        l'export l'y écrit (WF-INTF-0040, WF-INTF-0050).
     risk_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: Renseigné pour une structure de nature `risk` (WF-RIS-0030).
@@ -322,14 +378,14 @@ CostStructure:
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
-        Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule,
-        un collage, un déplacement, une création, une suppression — comme à chaque
-        modification de la structure elle-même. C'est lui qu'un collage porte
+        Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un
+        collage, un déplacement, une création, une suppression — comme à chaque modification de la
+        structure elle-même (`updateCostStructure`). C'est lui qu'un collage porte
         (`PasteApply.lock_version`), et que toute écriture de grille rend
-        (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
-        (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures
-        fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa
-        survenance porte (`RiskOccurrence`).
+        (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110).
+        Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le
+        compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte
+        (`RiskOccurrence`).
 
 StructureCommand:
   type: string
@@ -380,36 +436,58 @@ StructureCreate:
   type: object
   required: [kind, label]
   description: >-
-    Crée un différentiel ou le devis propre d'un risque. La structure principale n'est
-    jamais créée ici : elle existe dès la création de la révision (WF-REV-0100).
+    Crée un différentiel, pour préparer un avenant (WF-REV-0100). La structure principale n'est
+    jamais créée ici : elle existe dès la création de la révision ; ni le devis propre d'un
+    risque, qui naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui.
   properties:
     kind:
       allOf: [{ $ref: '#/StructureKind' }]
-      enum: [amendment, risk]
+      enum: [amendment]
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
-    risk_id:
-      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+
+StructureUpdate:
+  type: object
+  required: [lock_version]
+  description: >-
+    Modifie la structure elle-même : sa date de début de planning et son libellé
+    (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé.
+  properties:
+    planning_start_on:
+      allOf: [{ $ref: ../common.yaml#/PlanningDate }]
+      description: >-
+        La date de début de planning (`CostStructure.planning_start_on`), sur un jour qui a au
+        moins une heure travaillée au calendrier par défaut (WF-PLA-0010, WF-PLA-0020).
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 StructureMerge:
   type: object
   required: [confirmed, version_name, main_structure_lock_version, amendment_lock_version]
   description: >-
-    Fusionne le différentiel dans la structure principale : la fusion ne touche que
-    les montants budgétés des lignes qu'il désigne. Elle s'applique à la révision en
-    cours et la marque dans la même opération, d'où le nom de version exigé, et la
-    révision produite devient la référence (WF-REV-0050) ; sur un projet sans révision en cours,
-    elle crée d'abord cette révision par copie de la dernière révision marquée, dans la même
-    opération (WF-REV-0010 ; #790), et le nom de version est celui de la révision créée et
-    marquée. Confiée au worker. La confirmation
-    suit le compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la
-    refuserait, et porte les deux compteurs qu'il a lus : la structure principale ou le
-    différentiel changés depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce
-    compte rendu que l'utilisateur a confirmé (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s).
+    Fusionne le différentiel dans la structure principale : la fusion donne aux lignes qu'il désigne
+    les grandeurs de référence qu'il porte, d'où leur montant budgété est tiré ; une ligne désignée
+    d'une tâche non démarrée, que personne n'a réestimée depuis la référence, prend aussi ces
+    grandeurs pour grandeurs courantes ; les grandeurs courantes et le montant réestimé de toutes
+    les autres lignes sont conservés (WF-REV-0050, WF-DEV-0020). Elle s'applique à la révision en
+    cours et la marque dans la même opération, d'où le nom de version exigé et la description
+    permise, comme à tout marquage (WF-REV-0020), et la révision produite devient la référence
+    (WF-REV-0050) ; sur un projet sans révision en cours, elle crée d'abord cette révision par copie
+    de la dernière révision marquée, dans la même opération (WF-REV-0010 ; #790), et le nom de
+    version est celui de la révision créée et marquée. Confiée au worker. La confirmation suit le
+    compte rendu préalable (`getStructureMergeReport`), qui dit d'avance ce qui la refuserait, et
+    porte les deux compteurs qu'il a lus : la structure principale ou le différentiel changés
+    depuis, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que
+    l'utilisateur a confirmé (WF-REV-0050, WF-IHM-0110 ; EP-14/L42s).
   properties:
     confirmed:
       type: boolean
       const: true
     version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        La description jointe à la révision marquée, comme au marquage
+        (`RevisionMark.description`, WF-REV-0020, WF-REV-0090).
     main_structure_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -467,7 +545,11 @@ StructureMergeReport:
         liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée
         dans la structure principale. La ligne de provision d'un risque dont le différentiel
         retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un
-        écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789).
+        écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789). Un écart `updated` d'une
+        ligne nomme les grandeurs que le différentiel lui donne (`fields`) : elles deviennent ses
+        grandeurs de référence, et aussi ses grandeurs courantes quand sa tâche n'est pas démarrée
+        et que personne ne l'a réestimée (WF-REV-0050) ; le compte rendu ne distingue pas les
+        deux cas, l'état réestimé d'une ligne restant au serveur (US-0701/L1, M-08).
       items: { $ref: exchanges.yaml#/ImportDifference }
     completed_tasks:
       type: array
@@ -994,7 +1076,8 @@ NodesWritten:
       type: array
       description: >-
         Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une
-        suppression, qui ne laisse rien à rendre.
+        suppression, qui ne laisse rien à rendre, et après l'écriture de la structure elle-même
+        (`updateCostStructure`), qui n'écrit aucun nœud.
       items: { $ref: '#/Node' }
     ancestors:
       type: array
@@ -1008,18 +1091,19 @@ NodesWritten:
     rescheduled:
       type: array
       description: >-
-        Les tâches non récapitulatives dont le début, la fin, la marge totale ou la
-        criticité ont changé par l'écriture sans être écrites — les successeurs d'une
-        liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020,
-        WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre
-        n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de
-        mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans
-        `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que
-        les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants,
-        inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`.
-        À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse
-        d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes
-        dates, et la grille peut lire l'une ou l'autre.
+        Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont
+        changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée
+        saisie, les tâches automatiques sans prédécesseur et leurs successeurs que déplace la date
+        de début de planning, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —,
+        chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection
+        de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les
+        récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni
+        les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`).
+        Les montants qui dépendent des dates — les montants, inflation comprise, l'année de
+        consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`,
+        une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture
+        redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou
+        l'autre.
       items: { $ref: '#/NodeSchedule' }
     reinflated:
       type: array
@@ -1803,29 +1887,34 @@ RemainingUpdate:
 
 UndoResult:
   type: object
-  required: [undone, remaining_depth]
+  required: [undone, written, remaining_depth]
   description: >-
-    Annule ou rétablit la dernière modification de la session. Une annulation est
-    une modification comme une autre ; elle est refusée par 409 si une modification
-    postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création,
-    modification, réexamen, suppression — sont dans le même historique que celles des
-    grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
-    Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la
-    provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la
-    grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par
-    409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et
-    ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
-    rétablissement qui recréeraient la ligne de provision d'un risque sur une structure
-    principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour
-    risques, sont refusés par `at_least_one_task` ou `active_provision_category`
-    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
+    Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision
+    (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une
+    autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une
+    modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque —
+    création, modification, réexamen, suppression — sont dans le même historique que celles des
+    grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute
+    annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision
+    d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la
+    suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne
+    défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
+    rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale
+    sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont
+    refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`,
+    `redoLastUndo` ; WF-RIS-0010, #795).
   properties:
     undone:
       type: object
+      required: [kind, node_ids, risk_ids]
       properties:
-        kind: { type: string }
+        kind: { $ref: '#/UndoneKind' }
         node_ids:
           type: array
+          description: >-
+            Les nœuds que l'annulation, ou le rétablissement, rend à leur état précédent ; vide
+            pour une saisie de risque.
           items: { $ref: ../common.yaml#/Uuid }
         risk_ids:
           type: array
@@ -1833,7 +1922,46 @@ UndoResult:
             Les risques que l'annulation, ou le rétablissement, rend à leur état précédent
             (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles.
           items: { $ref: ../common.yaml#/Uuid }
-    remaining_depth: { type: integer, minimum: 0 }
+    written:
+      anyOf: [{ $ref: '#/NodesWritten' }, { type: 'null' }]
+      description: >-
+        Ce que l'annulation, ou le rétablissement, a écrit dans une structure, comme toute
+        écriture de grille : nœuds rendus à leur état, ancêtres recalculés, tâches redatées,
+        totaux et compteur de la structure, pour que la grille montre juste sans relire la
+        structure et garde le compteur que sa saisie suivante portera (WF-IHM-0040,
+        WF-IHM-0110). Nul pour une saisie de risque, qui n'écrit dans une structure que par la
+        ligne de provision de son risque : la grille relit alors sa structure.
+    remaining_depth:
+      type: integer
+      minimum: 0
+      description: >-
+        Les modifications qui restent à annuler dans l'historique de l'appelant sur la révision,
+        après celle-ci — pour le rétablissement, celles qui restent à rétablir.
+
+UndoneKind:
+  type: string
+  enum:
+    - cell
+    - node_create
+    - node_delete
+    - node_move
+    - paste
+    - link
+    - progress
+    - remaining
+    - tracking
+    - structure_update
+    - risk_create
+    - risk_update
+    - risk_review
+    - risk_delete
+  description: >-
+    La nature de la modification annulée ou rétablie, que le front dit par son catalogue
+    (WF-ARC-0110) : une cellule (`updateTaskFacet`, `updateEstimateLine`), une création ou une
+    suppression de nœud, un déplacement, un collage, une liaison (`setPredecessors`), un
+    avancement, une réestimation (`setLineRemaining`), une inscription aux suivis, la date de
+    début de planning ou le libellé d'une structure (`updateCostStructure`) ; ou une saisie de
+    risque — création, modification, réexamen, suppression (WF-RIS-0020).
 
 PastePreview:
   type: object

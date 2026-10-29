@@ -1,5 +1,6 @@
 {
-  "summary": "L'offre v1.0 du projet, marquée le 15 décembre 2025 pendant le chiffrage, avant l'état En cours : son marquage n'a conservé que le total du devis (WF-REV-0020, WF-DAT-0040) ; créée en 2025, elle porte l'année de référence 2025 (WF-REV-0060).",
+  "summary": "L'offre v1.0 du projet, marquée le 15 décembre 2025 pendant le chiffrage, avant l'état En cours : son marquage n'a conservé que le total du devis (WF-REV-0020, WF-DAT-0040) ; créée en 2025, elle porte l'année de référence 2025 (WF-REV-0060) ; son instantané conserve les 3 rôles de ses lignes de main-d'œuvre, 2 calendriers — les leurs et celui par défaut —, les 4 catégories de ses lignes et les taux horaires de 2025 de ses 2 catégories de main-d'œuvre, 78,50 et 73,50 (WF-REV-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "revision_id": "01926f3a-7c00-7000-8000-000000000100",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -9,92 +10,28 @@
     "marked_at": "2025-12-15T16:00:00Z",
     "is_reference": false,
     "reference_year": 2025,
+    "inflation_rate": "0.03",
+    "win_probability": "1",
+    "source_revision_id": null,
+    "source_version_name": null,
     "available_commands": [
-      {
-        "command": "edit_planning",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "generate_skeleton",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "edit_estimate",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "edit_remaining",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "create_structure",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "merge_structure",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "apply_rate_update",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "mark",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      },
-      {
-        "command": "designate_reference",
-        "is_available": false,
-        "missing_conditions": [
-          "reference_correctable"
-        ]
-      },
-      {
-        "command": "abandon",
-        "is_available": false,
-        "missing_conditions": [
-          "revision_draft"
-        ]
-      }
+      {"command":"edit_planning","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"generate_skeleton","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"edit_estimate","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"edit_remaining","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"create_structure","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"merge_structure","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"apply_rate_update","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"mark","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"designate_reference","is_available":false,"missing_conditions":["reference_correctable"]},
+      {"command":"abandon","is_available":false,"missing_conditions":["revision_draft"]},
+      {"command":"export_planning","is_available":true,"missing_conditions":[]},
+      {"command":"export_estimate","is_available":true,"missing_conditions":[]},
+      {"command":"export_remaining","is_available":true,"missing_conditions":[]},
+      {"command":"export_task_tree_image","is_available":true,"missing_conditions":[]}
     ],
-    "audit": {
-      "created_at": "2025-11-03T08:30:00Z",
-      "created_by": {
-        "kind": "user",
-        "user_id": "01926f3a-7c00-7000-8000-000000000301",
-        "display_name": "Camille Martin"
-      },
-      "updated_at": "2025-12-15T16:00:00Z",
-      "updated_by": {
-        "kind": "user",
-        "user_id": "01926f3a-7c00-7000-8000-000000000301",
-        "display_name": "Camille Martin"
-      }
-    },
-    "lock_version": 1
+    "audit": {"created_at":"2025-11-03T08:30:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-12-15T16:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 1,
+    "snapshot": {"employed_reference":{"resource_roles":[{"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","code":"ING-ELEC","label":"Ingénieur électricien","org_node_id":"01926f3a-7c00-7000-8000-000000000471","org_node_label":"Bureau d'études électricité","cost_category_id":"01926f3a-7c00-7000-8000-000000000402","cost_category_label":"Ingénierie électrique","calendar_id":"01926f3a-7c00-7000-8000-000000000481","calendar_label":"Semaine standard","capacity":{"monthly_hours":"658654.00","headcount":"3800"},"is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"resource_role_id":"01926f3a-7c00-7000-8000-000000000452","code":"TECH-MES","label":"Technicien de mise en service","org_node_id":"01926f3a-7c00-7000-8000-000000000471","org_node_label":"Bureau d'études électricité","cost_category_id":"01926f3a-7c00-7000-8000-000000000405","cost_category_label":"Mise en service","calendar_id":"01926f3a-7c00-7000-8000-000000000481","calendar_label":"Semaine standard","capacity":{"monthly_hours":"485324.00","headcount":"2800"},"is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","code":"MONT-CAB","label":"Monteur câbleur","org_node_id":"01926f3a-7c00-7000-8000-000000000472","org_node_label":"Atelier de câblage","cost_category_id":"01926f3a-7c00-7000-8000-000000000402","cost_category_label":"Ingénierie électrique","calendar_id":"01926f3a-7c00-7000-8000-000000000482","calendar_label":"Semaine de quatre jours","capacity":{"monthly_hours":"216662.50","headcount":"1250"},"is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1}],"calendars":[{"calendar_id":"01926f3a-7c00-7000-8000-000000000481","label":"Semaine standard","weekly_hours":{"monday":"8","tuesday":"8","wednesday":"8","thursday":"8","friday":"8","saturday":"0","sunday":"0"},"is_default":true,"is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"calendar_id":"01926f3a-7c00-7000-8000-000000000482","label":"Semaine de quatre jours","weekly_hours":{"monday":"10","tuesday":"10","wednesday":"10","thursday":"10","friday":"0","saturday":"0","sunday":"0"},"is_default":false,"is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1}],"cost_categories":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000401","code":"ACH-001","label":"Sous-traitance","cost_type_id":"01926f3a-7c00-7000-8000-000000000462","cost_type_label":"Débours","cost_type_kind":"non_labor","cost_type_is_active":true,"accounting_code":"604001","is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","code":"MO-001","label":"Ingénierie électrique","cost_type_id":"01926f3a-7c00-7000-8000-000000000461","cost_type_label":"Main-d'œuvre","cost_type_kind":"labor","cost_type_is_active":true,"accounting_code":"641001","is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"cost_category_id":"01926f3a-7c00-7000-8000-000000000403","code":"ACH-002","label":"Matériel électrique","cost_type_id":"01926f3a-7c00-7000-8000-000000000462","cost_type_label":"Débours","cost_type_kind":"non_labor","cost_type_is_active":true,"accounting_code":"604002","is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},{"cost_category_id":"01926f3a-7c00-7000-8000-000000000405","code":"MO-002","label":"Mise en service","cost_type_id":"01926f3a-7c00-7000-8000-000000000461","cost_type_label":"Main-d'œuvre","cost_type_kind":"labor","cost_type_is_active":true,"accounting_code":"641002","is_active":true,"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1}],"hourly_rates":[{"cost_category_id":"01926f3a-7c00-7000-8000-000000000402","year":2025,"amount":"78.50"},{"cost_category_id":"01926f3a-7c00-7000-8000-000000000405","year":2025,"amount":"73.50"}]}}
   }
 }
