@@ -100,10 +100,11 @@ export async function deleteRisk(projectId: string, riskId: string): Promise<Set
  * structure to the worker and answers at once with the reference of the background task
  * (WF-ARC-0090), which the tracker of the shell follows. Final. The API refuses it (412,
  * `STALE_LOCK_VERSION`) when the main structure or the risk moved since the report it carries the
- * counters of (WF-IHM-0110, US-0680): that refusal reaches the screen like the others.
+ * counters of, or when a revision in progress was born — or vanished — since it was read, which
+ * `creates_current_revision` gives back as read (WF-IHM-0110, US-0680): that refusal reaches the screen like the others.
  *
  * A stopgap: the action reads the report of the occurrence (`getRiskOccurrenceReport`) just before
- * and sends the two counters it gives back, so that the confirmation still applies. The next lot
+ * and sends the two counters and `creates_current_revision` it gives back, so that the confirmation still applies. The next lot
  * (US-0680/L2, #1454) replaces it: the confirmation will carry the counters of the report the user
  * was shown, and this read goes away.
  */
@@ -126,6 +127,7 @@ export async function declareRiskOccurrence(
         confirmed: true,
         main_structure_lock_version: report.data.main_structure_lock_version,
         risk_lock_version: report.data.risk_lock_version,
+        creates_current_revision: report.data.creates_current_revision,
       },
     }),
   );

@@ -171,7 +171,7 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("« Déclarer survenu »", () => {
-  it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks", async () => {
+  it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
@@ -193,11 +193,12 @@ describe("« Déclarer survenu »", () => {
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(2);
     });
-    // The stopgap of US-0680/L1: the report is read just before, and its two counters are carried
-    // by the confirmation.
+    // The stopgap of US-0680/L1: the report is read just before, and its two counters and
+    // `creates_current_revision` are carried by the confirmation, as read.
     const report = example("risk_occurrence_report") as {
       main_structure_lock_version: number;
       risk_lock_version: number;
+      creates_current_revision: boolean;
     };
     const path = `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`;
     expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
@@ -208,6 +209,7 @@ describe("« Déclarer survenu »", () => {
       confirmed: true,
       main_structure_lock_version: report.main_structure_lock_version,
       risk_lock_version: report.risk_lock_version,
+      creates_current_revision: report.creates_current_revision,
     });
     expect(
       await screen.findAllByText(/La survenance de « Risque de reprise du câblage » est confiée/),
