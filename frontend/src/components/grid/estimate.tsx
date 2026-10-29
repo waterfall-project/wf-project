@@ -6,10 +6,10 @@
  * its nature; the label, the quantity, the effort, the unit disbursement, and the amount the
  * server computes and never lets anyone enter, of a line as of a task, summary included — the
  * amount at the year of reference, before inflation (`base_amount`, WF-DEV-0030) —, never the
- * budgeted nor the re-estimated amount (#235). The figures and the sub-project of a provision are computed too,
- * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the
- * answer: the hours and the two amounts of the lines retained, never the amounts of the tasks, which
- * would count them twice.
+ * budgeted nor the re-estimated amount (#235). The figures and the sub-project of a provision are
+ * computed too, from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals
+ * are those of the answer: the hours and the two amounts of the lines retained, never the amounts
+ * of the tasks, which would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category, the role and
  * the sub-project of a line are named by the labels the server resolves, the object active or

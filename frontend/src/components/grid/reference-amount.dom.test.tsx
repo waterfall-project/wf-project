@@ -33,6 +33,9 @@ const STRUCTURE = {
 };
 const CABLE_FITTER = "01926f3a-7c00-7000-8000-000000000454";
 
+// WF-DEV-0030: the amount at the rates of the year of reference (`base_amount`) does not follow the
+// dates: after a write that moves rows in time, the cell of the commissioning line keeps it.
+
 // The installation on site of the witness (`nodes_installation`), by the index of its rows: the
 // summary; the mounting of the cabinets, its wiring on site and its assistance to the tests; the
 // commissioning, which follows the mounting, and its line. The wiring on site given to the cable
@@ -72,8 +75,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("a write of the estimate that moves rows in time", () => {
-  it("leaves the amounts at the year of reference as they were when the server answers the rows a write moved in time", async () => {
+describe("the amount at the rates of the year of reference, after a write that moves rows in time", () => {
+  it("does not follow the dates: base_amount stays as it was when the server answers the rows a write moved in time", async () => {
     const client = serve();
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">

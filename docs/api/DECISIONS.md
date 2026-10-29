@@ -1895,7 +1895,7 @@ totaux sont ceux que rendent les écritures du cœur, et les tests de la grille 
 totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
 
 **Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
-`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
+`reference-amount.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
 et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
 porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
 
