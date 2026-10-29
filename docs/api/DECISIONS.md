@@ -813,8 +813,8 @@ rend alors une période nulle.
 2026-10-28) : l'évolution trimestrielle de la performance est une statistique de période, et la
 structure des coûts et la courbe en S prennent `from` et `to` pour leurs projets terminés, avec la
 même période par défaut et le même refus ; le plan de charge et la santé du pilotage ne prennent
-pas de période, un projet terminé y étant sans effet (« Le portefeuille : horizon, période des
-projets terminés, couverture et contribution d'une offre », dans « Le contrat figé »).*
+pas de période, un projet terminé y étant sans effet (« Le portefeuille : horizon, projets
+terminés, couverture, offres », dans « Le contrat figé »).*
 
 ## Le seuil de sous-charge retenu (US-0240/L5)
 
@@ -2281,8 +2281,8 @@ l'évolution trimestrielle porte un point par trimestre civil que la période to
 2026-T2 pour la période par défaut, que `scope.from` et `scope.to` rendent ; les deux premiers sont
 non calculables, et le dernier, lu à la date de calcul, égale les deux indices du jour, à quatre
 décimales (G-08) — le témoin y compte sa valeur planifiée du jour, que sa courbe, au pas du mois, ne
-porte pas (« Le portefeuille : horizon, période des projets terminés, couverture et contribution
-d'une offre », dans « Le contrat figé »).*
+porte pas (« Le portefeuille : horizon, projets terminés, couverture, offres », dans « Le contrat
+figé »).*
 
 **Le plan de charge agrégé, la courbe en S et la santé du pilotage sont engendrés** (C7 ;
 WF-PTF-0060, WF-PTF-0100, WF-PTF-0110). `wftools.mockportfoliotime` les somme sur les trois cents
@@ -2367,8 +2367,9 @@ quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des ris
 *Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre
 2026, constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les
 sommes de celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est
-terminé, et l'exemple ne change pas (« Le portefeuille : horizon, période des projets terminés,
-couverture et contribution d'une offre », dans « Le contrat figé »).*
+terminé, et l'exemple ne change pas
+(« Le portefeuille : horizon, projets terminés, couverture,
+offres », dans « Le contrat figé »).*
 
 **La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
 semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
@@ -8853,7 +8854,7 @@ passages d'EP-02/L24 (M-06), #466 (M-09), EP-02/L23 et EP-02/L24 (M-10), #245 (M
   structure déclarée, une provision sur la deuxième tâche, et celui de WF-RAE-0020, de WF-IND-0090
   et de WF-IND-0100 sur le témoin.
 
-### Le portefeuille : horizon, période des projets terminés, couverture et contribution d'une offre (US-0701/L6, #1606)
+### Le portefeuille : horizon, projets terminés, couverture, offres (US-0701/L6, #1606)
 
 La spécification du 9 octobre 2026 (constats C-122, C-199 et C-205 de sa revue) a dit ce qu'une
 offre et un projet terminé apportent au portefeuille ; la proposition de la revue du contrat

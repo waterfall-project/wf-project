@@ -404,7 +404,7 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
     actual = sum((each.actual for each in sums), Decimal(0))
     projection = sum((each.projection for each in sums), Decimal(0))
     at_budget = actual + budget - value
-    at_rate, at_rate_total = _at_observed_rate(budget, actual, value)
+    at_rate, at_rate_total = at_observed_rate(budget, actual, value)
     return {
         "scope": _scope(rows, ["in_progress"], period=True),
         "reference_budget": money(budget),
@@ -443,7 +443,7 @@ def _ratio_index(numerator: Decimal, denominator: Decimal, reason: str) -> JsonO
     return _index(share(numerator / denominator))
 
 
-def _at_observed_rate(
+def at_observed_rate(
     budget: Decimal, actual: Decimal, value: Decimal
 ) -> tuple[JsonObject, Decimal | None]:
     """Return the projection at the observed rate, and its amount: none when not computable.

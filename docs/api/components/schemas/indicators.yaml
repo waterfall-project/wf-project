@@ -70,26 +70,25 @@ NotComputableReason:
   type: string
   description: >-
     Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur
-    (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme
-    constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`,
-    la projection au rythme constaté quand l'indice de coût est nul, faute de valeur
-    acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ;
-    `no_reference_budget`, la consommation du budget et l'avancement physique du projet
-    (WF-IND-0040, WF-IND-0060), et la part de gravité d'un risque sur une assiette nulle, un
-    projet sans budget de référence dont le devis ne porte encore que des provisions
-    (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ; `no_budgeted_amount`, l'avancement physique d'une
-    récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ;
-    `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le
-    taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le
-    taux de transformation d'une période où aucune offre n'est passée de Chiffrage à En cours
-    ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050) ; `no_total`, la part d'un
-    montant dans une répartition dont le total est nul (`AmountByKey.share`,
-    `ComputableAmountByKey.share`, WF-IND-0010 ; #1633). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant
-    du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence
-    empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et
-    `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni
-    `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte :
-    « un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
+    (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant
+    qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme
+    constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ;
+    `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du
+    budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060), et la part de gravité d'un
+    risque sur une assiette nulle, un projet sans budget de référence dont le devis ne porte encore
+    que des provisions (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ;
+    `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte
+    aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier
+    (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ;
+    `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est passée
+    de Chiffrage à En cours ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050) ;
+    `no_total`, la part d'un montant dans une répartition dont le total est nul
+    (`AmountByKey.share`, `ComputableAmountByKey.share`, WF-IND-0010 ; #1633). Un motif n'est pas
+    une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre
+    sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt
+    que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ;
+    ni `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte : « un
+    lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
   enum:
     - no_actual_cost
     - no_earned_value

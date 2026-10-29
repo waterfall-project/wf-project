@@ -548,3 +548,21 @@ def test_the_quarterly_evolution_is_read_from_the_curves_of_the_projects(
     # The quarter of today is read at the day of calculation: today's indices, both.
     assert others[-1]["cost_index"] == performance["cost_index"]["value"]
     assert others[-1]["schedule_index"] == performance["schedule_index"]["value"]
+
+
+@pytest.mark.requirement("WF-PTF-0070-A")
+def test_the_projection_at_the_observed_rate_is_taken_on_the_aggregate_not_summed() -> None:
+    # Vérif : « sur deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel
+    # 500 et 500, la projection au rythme constaté agrégée vaut 2 222 et non 2 250 ». The
+    # aggregate has a budget of 2 000, an earned value of 900 and an actual cost of 1 000.
+    projection, amount = mockportfolio.at_observed_rate(Decimal(2000), Decimal(1000), Decimal(900))
+
+    assert amount is not None
+    assert amount.quantize(Decimal(1)) == Decimal(2222)
+    assert projection["value"] == "2222.22"
+    each = [
+        mockportfolio.at_observed_rate(Decimal(1000), Decimal(500), Decimal(value))
+        for value in (400, 500)
+    ]
+    summed = sum(Decimal(0) if one[1] is None else one[1] for one in each)
+    assert summed.quantize(Decimal(1)) == Decimal(2250)
