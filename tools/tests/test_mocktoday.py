@@ -188,13 +188,14 @@ def _parts(value: Any) -> list[Node]:
 
 def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[str, Any]) -> None:
     # EP-14/L45a: the estimate of the witness is that of its thousand tasks, the core's 621,034.56
-    # among them — the provision of 751 at the scale of the structure (EP-14/L45b).
+    # among them — the provision of 751 at the scale of the structure (EP-14/L45b) —, re-estimated
+    # inflation included, at the year of consumption of each line (WF-DEV-0020, US-0701/L1).
     estimate = today["estimate_indicators"]
     whole: Any = mockcore.whole(mockcore.current())["totals"]
     core: Any = mockcore.whole(mockcore.alone())["totals"]
     total = _amount(estimate["total"])
-    assert total == Decimal(whole["base_amount"]) == Decimal("66105223.89")
-    assert Decimal(core["base_amount"]) == Decimal("621034.56")
+    assert total == Decimal(whole["reestimated_amount"]) == Decimal("68923691.06")
+    assert Decimal(core["reestimated_amount"]) == Decimal("621034.56")
     for parts in (estimate["by_cost_type"], estimate["by_subproject"]):
         assert sum(_amount(part["amount"]) for part in parts) == total
         assert sum(_amount(part["share"]) for part in parts) == 1
@@ -207,11 +208,11 @@ def test_the_estimate_today_sums_the_lines_of_the_whole_structure(today: dict[st
     # subtree, which no drawn task is under.
     [lot] = estimate["by_work_package"]
     station: Any = mockcore.subtree(mockcore.current(), 551)["totals"]
-    assert _amount(lot["amount"]) == Decimal(station["base_amount"]) == Decimal("502434.56")
+    assert _amount(lot["amount"]) == Decimal(station["reestimated_amount"]) == Decimal("502434.56")
     assert estimate["provisions_identified"] == "500000.00"
     # The previous marked revision is the reference: its estimate held 850,060 of provisions, and
     # the same drawn lines at the same rates — one scale, the structure's (EP-14/L45b).
-    reference = sum(row.amounts.base for row in mockhistory.reference_rows() if row.parent)
+    reference = sum(row.amounts.reestimated for row in mockhistory.reference_rows() if row.parent)
     assert _amount(estimate["delta_to_reference"]) == total - reference == Decimal("-349860.00")
     assert estimate["delta_to_previous_revision"] == estimate["delta_to_reference"]
 
@@ -358,11 +359,11 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
         assert entry["is_over_budget"] is (Decimal(entry["variance"]) < 0)
         assert entry["zone"] == ("alert" if entry["is_over_budget"] else "nominal")
     # The invoice of the screens is the one cost of the control station, whose drawn lots follow
-    # the factory acceptance and have not started; its budget is overrun by the inflation of its
-    # remaining, projected on the years of consumption, and by the invoice.
+    # the factory acceptance and have not started; its budget is overrun by the invoice alone,
+    # its remaining and its budget both inflation included on the same years (WF-DEV-0020).
     assert (balances[CONTROL]["actual_cost"], balances[CONTROL]["variance"]) == (
         "2400.00",
-        "-1037316.10",
+        "-2400.00",
     )
     assert Decimal(balances[TESTS]["actual_cost"]) == sum(
         line.amount for line in mockcosts.drawn() if line.code == "SP-ESS"
@@ -427,7 +428,7 @@ def test_the_indicators_of_the_scopes_sum_to_those_of_the_project() -> None:
     # own; the occurrence earns nothing. The actual cost is the invoices of the tracked scope.
     assert project["earned_value"] == "1449858.33"
     assert project["actual_cost"] == "1412970.20"
-    assert project["reference_budget"] == "65430697.64"
+    assert project["reference_budget"] == "68241568.05"
     drawn = sum(
         line.amounts.budgeted
         for line in witness.lines
@@ -445,21 +446,17 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
         "scope": "project",
         "is_stored": True,
     }
-    # Nothing started: the budget of each line projected on its year of consumption — the core's
-    # in 2026, as the budget; the drawn tasks' up to 2029 — and the provisions of the three risks
-    # it bore, 850,060.
+    # Nothing started: the budget of each line, inflation included on its year of consumption —
+    # the core's in 2026; the drawn tasks' up to 2029 — and the provisions of the three risks it
+    # bore, 850,060.
     base = mockindicators.reference()
-    projected = sum(
-        mockstructure.inflated(
-            line.amounts.budgeted, cast("int", base.facet(line)["consumption_year"])
-        )
-        for line in mockindicators.budgeted(base)
-    )
+    projected = sum(line.amounts.budgeted for line in mockindicators.budgeted(base))
     reserve = mockhistory.reserve(mockhistory.reference_rows())
     assert reserve == Decimal("850060.00")
     assert Decimal(marked["remaining"]) == projected + reserve == Decimal("69091628.05")
-    assert Decimal(marked["remaining"]) > Decimal(marked["reference_budget"]) + reserve
-    assert marked["reference_budget"] == "65430697.64"
+    # The budget inflation included as the remaining is: nothing started, they agree.
+    assert Decimal(marked["remaining"]) == Decimal(marked["reference_budget"]) + reserve
+    assert marked["reference_budget"] == "68241568.05"
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
 
@@ -476,7 +473,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("67293028.72", "65430697.64", "1671458.13", "-221599.80", "0.8674", "1.0261")
+    ) == ("67293028.72", "68241568.05", "1671458.13", "-221599.80", "0.8674", "1.0261")
     assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
         "watch",
         "nominal",
@@ -513,7 +510,7 @@ def test_an_amendment_steps_the_budget_by_two_points_at_its_date(today: dict[str
         else:
             assert before == after == "0.00"
     assert [step["amount"] for step in curve["steps"]] == ["2865.00", "15000.00"]
-    assert budget[-1]["amount"] == "65445697.64"
+    assert budget[-1]["amount"] == "68256568.05"
 
 
 def test_the_amendment_of_the_curve_is_another_than_the_amendment_2_of_the_witness(

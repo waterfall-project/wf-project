@@ -207,8 +207,9 @@ def test_a_task_in_manual_mode_bounds_its_predecessors_whose_float_may_be_negati
     assert (tasks[2]["total_float"], tasks[2]["is_critical"]) == (None, False)
 
 
-def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
-    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount.
+def test_a_task_of_another_year_is_reestimated_inflation_included() -> None:
+    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount, its
+    # budget and its re-estimate alike (WF-DEV-0020).
     later = Task(
         591,
         "Plus tard",
@@ -219,12 +220,12 @@ def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
     )
     [task, line] = mockcore.core((later,))
     assert facet(line.node)["consumption_year"] == 2028
-    assert (facet(line.node)["base_amount"], facet(line.node)["inflated_amount"]) == (
-        "100.00",
-        "106.09",
-    )
-    assert facet(task.node)["inflated_amount"] == "106.09"
-    assert mockdating.price(later.lines[0], 2028).inflated == Decimal("106.09")
+    amounts = ("base_amount", "budgeted_amount", "reestimated_amount")
+    assert [facet(line.node)[key] for key in amounts] == ["100.00", "106.09", "106.09"]
+    assert facet(task.node)["reestimated_amount"] == "106.09"
+    assert mockdating.price(later.lines[0], 2028).reestimated == Decimal("106.09")
+    # The budget stays on the year the reference consumed the line, wherever its task goes.
+    assert mockdating.price(later.lines[0], 2028, budget_year=2026).budgeted == Decimal(100)
 
 
 def test_a_quantity_is_an_exact_decimal_in_the_amount_of_a_line() -> None:

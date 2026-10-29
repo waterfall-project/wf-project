@@ -2658,7 +2658,7 @@ class Revision(ContractModel):
     reference_year: Annotated[
         Year,
         Field(
-            description="Année de référence de la révision, un de ses attributs (WF-REV-0090) : l'année dont les taux horaires chiffrent ses lignes. Fixée par le serveur à la création de la révision, à l'année courante, conservée par la révision et son instantané (WF-REV-0060, WF-REV-0030), jamais saisie. C'est l'année pour laquelle le calcul exige un taux horaire de chaque catégorie employée (WF-DEV-0010, `getMissingRates`), celle des montants « à l'année de référence » de la grille de devis (`base_amount`, WF-DEV-0050), et celle que la mise à jour des taux vise (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026."
+            description="Année de référence de la révision, un de ses attributs (WF-REV-0090) : l'année dont les taux horaires chiffrent ses lignes. Fixée par le serveur à la création de la révision, à l'année courante, conservée par la révision et son instantané (WF-REV-0060, WF-REV-0030), jamais saisie. C'est l'année pour laquelle le calcul exige un taux horaire de chaque catégorie employée (WF-DEV-0010, `getMissingRates`), celle des montants « aux taux de l'année de référence, avant inflation » de la grille de devis (`base_amount`, WF-DEV-0050), celle d'où l'inflation projette les montants budgété et réestimé, une fois par année écoulée (WF-DEV-0030), et celle que la mise à jour des taux vise (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026."
         ),
     ]
     snapshot: RevisionSnapshot | None = None
@@ -2683,7 +2683,7 @@ class RevisionCreate(ContractModel):
 
 
 class RevisionMark(ContractModel):
-    version_name: Annotated[str, Field(max_length=100, min_length=1)]
+    version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     description: str | None = None
     lock_version: LockVersion
 
@@ -2758,7 +2758,6 @@ class NodeColumn(StrEnum):
     base_amount = "base_amount"
     budgeted_amount = "budgeted_amount"
     reestimated_amount = "reestimated_amount"
-    inflated_amount = "inflated_amount"
     previous_quantity = "previous_quantity"
     previous_hours = "previous_hours"
     previous_unit_disbursement = "previous_unit_disbursement"
@@ -2921,23 +2920,19 @@ class ComparedTaskFacet(ContractModel):
     base_amount: Annotated[
         Money | None,
         Field(
-            description="Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent."
+            description="Somme des montants aux taux de l'année de référence, avant inflation, des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : une valeur de lecture, que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les deux sommes qui suivent."
         ),
     ] = None
     budgeted_amount: Annotated[
         Money | None,
         Field(
-            description="Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020)."
+            description="Même somme, pour les montants budgétés, inflation comprise, à l'année de consommation de chaque ligne (WF-DEV-0020)."
         ),
     ] = None
     reestimated_amount: Annotated[
         Money | None,
-        Field(description="Même somme, pour les montants réestimés, à l'année de référence."),
-    ] = None
-    inflated_amount: Annotated[
-        Money | None,
         Field(
-            description="Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050)."
+            description="Même somme, pour les montants réestimés, inflation comprise, à l'année de consommation de chaque ligne (WF-DEV-0020, WF-DEV-0050)."
         ),
     ] = None
     tracking: Annotated[
@@ -3031,22 +3026,19 @@ class ComparedEstimateLineFacet(ContractModel):
     base_amount: Annotated[
         Money | None,
         Field(
-            description="Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050)."
+            description="Montant aux taux de l'année de référence, avant inflation, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030) ; une valeur de lecture, que la grille de devis présente à côté du réestimé (WF-DEV-0050)."
         ),
     ] = None
     budgeted_amount: Annotated[
         Money | None,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ] = None
     reestimated_amount: Annotated[
-        Money | None, Field(description="Montant réestimé, à l'année de référence.")
-    ] = None
-    inflated_amount: Annotated[
         Money | None,
         Field(
-            description="Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant."
+            description="Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) : le montant aux taux de l'année de référence projeté sur son année de consommation courante au taux d'inflation du projet, composé une fois par année écoulée depuis l'année de référence, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0030, WF-DEV-0040). Une ligne dont la tâche se place deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant aux taux de l'année de référence (WF-DEV-0050). Une ligne de provision n'est pas projetée."
         ),
     ] = None
     previous_quantity: Annotated[
@@ -3070,7 +3062,7 @@ class ComparedEstimateLineFacet(ContractModel):
     previous_reestimated_amount: Annotated[
         Money | None,
         Field(
-            description="Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue."
+            description="Montant réestimé au reste à engager précédent, inflation comprise, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue."
         ),
     ] = None
     consumption_year: Annotated[
@@ -3243,7 +3235,6 @@ class NodeTotals(ContractModel):
     base_amount: Money
     budgeted_amount: Money
     reestimated_amount: Money
-    inflated_amount: Money
 
 
 class NodeListMeta(ContractModel):
@@ -3521,7 +3512,7 @@ class StructureMergeReport(ContractModel):
 
 class StructureMerge(ContractModel):
     confirmed: Literal[True]
-    version_name: Annotated[str, Field(max_length=100, min_length=1)]
+    version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
     main_structure_lock_version: Annotated[
         LockVersion,
         Field(
@@ -3597,22 +3588,19 @@ class TaskFacet(ContractModel):
     base_amount: Annotated[
         Money,
         Field(
-            description="Somme des montants à l'année de référence des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : le montant que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les trois sommes qui suivent."
+            description="Somme des montants aux taux de l'année de référence, avant inflation, des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : une valeur de lecture, que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les deux sommes qui suivent."
         ),
     ]
     budgeted_amount: Annotated[
         Money,
         Field(
-            description="Même somme, pour les montants budgétés, à l'année de référence (WF-DEV-0020)."
+            description="Même somme, pour les montants budgétés, inflation comprise, à l'année de consommation de chaque ligne (WF-DEV-0020)."
         ),
     ]
     reestimated_amount: Annotated[
-        Money, Field(description="Même somme, pour les montants réestimés, à l'année de référence.")
-    ]
-    inflated_amount: Annotated[
         Money,
         Field(
-            description="Même somme, pour les montants corrigés de l'inflation (WF-DEV-0040, WF-DEV-0050)."
+            description="Même somme, pour les montants réestimés, inflation comprise, à l'année de consommation de chaque ligne (WF-DEV-0020, WF-DEV-0050)."
         ),
     ]
     tracking: Annotated[
@@ -3691,22 +3679,19 @@ class EstimateLineFacet(ContractModel):
     base_amount: Annotated[
         Money,
         Field(
-            description="Montant à l'année de référence, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030), avant toute inflation ; celui que la grille de devis présente (WF-DEV-0050)."
+            description="Montant aux taux de l'année de référence, avant inflation, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030) ; une valeur de lecture, que la grille de devis présente à côté du réestimé (WF-DEV-0050)."
         ),
     ]
     budgeted_amount: Annotated[
         Money,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), à l'année de référence, nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ]
     reestimated_amount: Annotated[
-        Money, Field(description="Montant réestimé, à l'année de référence.")
-    ]
-    inflated_amount: Annotated[
         Money,
         Field(
-            description="Montant corrigé de l'inflation, calculé : le montant à l'année de référence projeté sur son année de consommation au taux d'inflation du projet, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0040, WF-DEV-0050). Une ligne placée deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant."
+            description="Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) : le montant aux taux de l'année de référence projeté sur son année de consommation courante au taux d'inflation du projet, composé une fois par année écoulée depuis l'année de référence, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0030, WF-DEV-0040). Une ligne dont la tâche se place deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant aux taux de l'année de référence (WF-DEV-0050). Une ligne de provision n'est pas projetée."
         ),
     ]
     previous_quantity: Annotated[
@@ -3730,7 +3715,7 @@ class EstimateLineFacet(ContractModel):
     previous_reestimated_amount: Annotated[
         Money | None,
         Field(
-            description="Montant réestimé au reste à engager précédent, à l'année de référence, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue."
+            description="Montant réestimé au reste à engager précédent, inflation comprise, que la grille de reste à engager présente à côté du courant (WF-RAE-0040), avec les grandeurs dont il a été calculé (`previous_quantity`, `previous_hours`, `previous_unit_disbursement`) ; nul avant la première revue."
         ),
     ] = None
     consumption_year: Annotated[
@@ -3870,10 +3855,16 @@ class NodeSchedule(ContractModel):
 
 class NodeInflation(ContractModel):
     node_id: Uuid
-    inflated_amount: Annotated[
+    budgeted_amount: Annotated[
         Money,
         Field(
-            description="Le montant corrigé de l'inflation, comme `EstimateLineFacet.inflated_amount` pour une ligne et `TaskFacet.inflated_amount` pour une tâche — la somme de ses lignes."
+            description="Le montant budgété, comme `EstimateLineFacet.budgeted_amount` pour une ligne et `TaskFacet.budgeted_amount` pour une tâche — la somme de ses lignes. Projeté sur l'année où la révision de référence consommait la ligne, il ne suit les dates que sur un projet sans révision de référence, où il est confondu avec le réestimé (WF-DEV-0050)."
+        ),
+    ]
+    reestimated_amount: Annotated[
+        Money,
+        Field(
+            description="Le montant réestimé, comme `EstimateLineFacet.reestimated_amount` pour une ligne et `TaskFacet.reestimated_amount` pour une tâche — la somme de ses lignes."
         ),
     ]
     consumption_year: Annotated[
@@ -3900,13 +3891,13 @@ class NodesWritten(ContractModel):
     rescheduled: Annotated[
         list[NodeSchedule],
         Field(
-            description="Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — le montant corrigé de l'inflation, l'année de consommation — n'y sont pas : ils sont dans `reinflated`."
+            description="Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants, inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou l'autre."
         ),
     ]
     reinflated: Annotated[
         list[NodeInflation],
         Field(
-            description="Chaque nœud dont le montant corrigé de l'inflation, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent le montant corrigé, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant à l'année de référence ne dépend pas des dates et ne change pas."
+            description="Chaque nœud dont un montant, inflation comprise, ou l'année de consommation d'une ligne, a changé par l'écriture sans qu'il soit écrit : les lignes de devis d'une tâche écrite ou redatée, dont les dates ont bougé — un rôle changé change le calendrier de la tâche, donc ses dates (WF-PLA-0010, WF-DEV-0040) —, et les tâches non récapitulatives dont ces lignes changent les montants, redatées (`rescheduled`) ou non, hors celles que `ancestors` rend entières. Les récapitulatives restent dans `ancestors`. Chacun une fois, dans l'ordre du plan ; vide quand aucun n'a bougé. Une projection de leurs montants, non le nœud entier, comme `rescheduled` : le montant aux taux de l'année de référence ne dépend pas des dates et ne change pas."
         ),
     ]
     totals: Annotated[
@@ -3940,7 +3931,6 @@ class ComputedValueField(StrEnum):
     task_base_amount = "task.base_amount"
     task_budgeted_amount = "task.budgeted_amount"
     task_reestimated_amount = "task.reestimated_amount"
-    task_inflated_amount = "task.inflated_amount"
     estimate_line_quantity = "estimate_line.quantity"
     estimate_line_hours = "estimate_line.hours"
     estimate_line_unit_disbursement = "estimate_line.unit_disbursement"
@@ -3949,7 +3939,6 @@ class ComputedValueField(StrEnum):
     estimate_line_budgeted_amount = "estimate_line.budgeted_amount"
     estimate_line_reestimated_amount = "estimate_line.reestimated_amount"
     estimate_line_previous_reestimated_amount = "estimate_line.previous_reestimated_amount"
-    estimate_line_inflated_amount = "estimate_line.inflated_amount"
 
 
 class ComputedDependency(StrEnum):
@@ -4211,7 +4200,7 @@ class EstimateIndicators(ContractModel):
     delta_to_reference: Annotated[
         ComputableMoney | None,
         Field(
-            description="L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) : le devis en cours moins celui de la référence, positif quand il le dépasse ; nul quand le projet n'a pas de révision de référence."
+            description="L'écart entre le total du devis de la révision lue (`context.revision_id`) et celui de la révision de référence, lignes de provision comprises de part et d'autre (WF-DEV-0060) : le devis lu moins celui de la référence, positif quand il le dépasse ; nul quand le projet n'a pas de révision de référence."
         ),
     ]
     delta_to_previous_revision: Annotated[

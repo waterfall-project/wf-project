@@ -1073,8 +1073,9 @@
         description: >-
           Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
           les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
-          déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à
-          l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
+          déplace —, les montants, inflation comprise, des lignes et des tâches qu'elle déplace
+          d'une année à l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020,
+          WF-DEV-0040).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1136,14 +1137,15 @@
     tags: [estimate]
     summary: Modifier la facette argent d'une ligne de devis
     description: >-
-      Les montants sont calculés et non saisissables : celui à l'année de référence par la
-      ligne, le budgété par la référence, le réestimé par les revues, le corrigé de
-      l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une
-      ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est
+      Les montants sont calculés et non saisissables : celui aux taux de l'année de référence,
+      avant inflation, par la ligne, le budgété par la référence, le réestimé par les revues,
+      ces deux-là inflation comprise, à l'année de consommation de la ligne (WF-DEV-0020,
+      WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque, et n'est
+      pas projetée (WF-RIS-0010, WF-DEV-0030). Seul le compteur lu est
       exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
       (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
       (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
-      chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes
+      chaque ligne ou tâche non récapitulative dont un montant change d'année — les autres lignes
       qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches. Une ligne
       dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu des coûts
       réels, et ne nomme pas son sous-projet dans `editable_fields` ; celle d'une tâche non

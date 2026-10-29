@@ -710,7 +710,7 @@ def _entry_examples() -> dict[str, JsonObject]:
             f"(task_mode_changed), saisies {mocktext.span(_task(dated))}, où elles étaient "
             f"{mocktext.span(commissioning)} : la version que le changement de mode lui laissait "
             f"plus un, et {_version(dated)}. Consommée en {ENTERED_DATES[0].year}, sa ligne est "
-            f"corrigée de l'inflation (reinflated) ; son prédécesseur retrouve de la marge, "
+            f"réestimée inflation comprise (reinflated) ; son prédécesseur retrouve de la marge, "
             f"{_redated(dated)}. Avec elle, sa récapitulative et {totals_said(dated)} "
             f"(WF-PLA-0020, WF-DEV-0040).",
             dated,

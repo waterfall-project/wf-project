@@ -6005,7 +6005,7 @@
       {"node_id":"01926f3a-7c00-7000-8000-000100005999","row_number":5998,"level":4,"lock_version":1,"difference":"unchanged","changes":[],"kind":"estimate_line","estimate_line":{"label":"Transport et manutention"}},
       {"node_id":"01926f3a-7c00-7000-8000-000100006000","row_number":5999,"level":3,"lock_version":1,"difference":"unchanged","changes":[],"kind":"task","task":{"label":"Fin du lot 9.3"}}
     ],
-    "totals": {"task_count":997,"estimate_line_count":5000,"hours":"116270","base_amount":"66455083.89","budgeted_amount":"66280757.64","reestimated_amount":"66455083.89","inflated_amount":"69273551.06"},
+    "totals": {"task_count":997,"estimate_line_count":5000,"hours":"116270","base_amount":"66455083.89","budgeted_amount":"69091628.05","reestimated_amount":"69273551.06"},
     "meta": {"summary_depth":2,"scheduled_at":"2026-02-01T09:00:00Z"},
     "amount_deltas": [
       {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","delta":"177541.25"},

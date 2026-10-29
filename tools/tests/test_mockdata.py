@@ -177,8 +177,8 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "27 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
     total = volumes["estimate_indicators_volume.json"]["value"]["total"]
-    assert total == mockstructure.computable("66105223.89")
-    assert "66 105 223,89 au total" in volumes["estimate_indicators_volume.json"]["summary"]
+    assert total == mockstructure.computable("68923691.06")
+    assert "68 923 691,06 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
@@ -236,7 +236,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
     # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
     total = indicators["total"]
-    assert total == mockstructure.computable(nodes["totals"]["base_amount"])
+    assert total == mockstructure.computable(nodes["totals"]["reestimated_amount"])
     # The one provision is the core's, of the risk identified: none is drawn (WF-RIS-0010).
     provisions = [Decimal(line["base_amount"]) for line in lines if line["is_computed"]]
     assert provisions == [Decimal(indicators["provisions_identified"])] == [Decimal(500_000)]
@@ -252,7 +252,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
         mockstructure.computable("502434.56"),
     )
     unassigned = sum(
-        (Decimal(line["base_amount"]) for line in lines if not line["subproject_id"]),
+        (Decimal(line["reestimated_amount"]) for line in lines if not line["subproject_id"]),
         Decimal(0),
     )
     assert indicators["by_subproject"][-1] == {

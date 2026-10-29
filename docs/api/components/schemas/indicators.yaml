@@ -128,12 +128,12 @@ EstimateIndicators:
     nature, le sous-projet et le lot qui portent ses lignes, les écarts, et les parts qui
     se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories
     et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à
-    zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont à l'année de
-    référence de la révision — `total`, ses ventilations par nature, par sous-projet et par
-    lot, et les deux écarts —, `total` valant le `base_amount` des totaux de la structure :
-    seul le montant corrigé de l'inflation de la grille (`NodeTotals.inflated_amount`,
-    WF-DEV-0040, WF-DEV-0050) porte l'inflation, et les indicateurs n'en ont pas de second
-    total, la somme des parts ne valant cent que sur une même base (WF-DEV-0060).
+    zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont des montants
+    réestimés, inflation comprise, à l'année de consommation des lignes (WF-DEV-0020) —
+    `total`, ses ventilations par nature, par sous-projet et par lot, et les deux écarts —,
+    `total` valant le `reestimated_amount` des totaux de la structure ; aucun n'est au montant
+    avant inflation, valeur de lecture de la grille (`NodeTotals.base_amount`, WF-DEV-0050), et
+    la somme des parts vaut cent sur cette seule base (WF-DEV-0060).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: '#/ComputableMoney' }
@@ -161,9 +161,10 @@ EstimateIndicators:
     delta_to_reference:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
-        L'écart entre le devis en cours et celui de la révision de référence (WF-DEV-0060) :
-        le devis en cours moins celui de la référence, positif quand il le dépasse ; nul quand
-        le projet n'a pas de révision de référence.
+        L'écart entre le total du devis de la révision lue (`context.revision_id`) et celui de
+        la révision de référence, lignes de provision comprises de part et d'autre
+        (WF-DEV-0060) : le devis lu moins celui de la référence, positif quand il le dépasse ;
+        nul quand le projet n'a pas de révision de référence.
     delta_to_previous_revision:
       anyOf: [{ $ref: '#/ComputableMoney' }, { type: 'null' }]
       description: >-
@@ -194,7 +195,10 @@ RemainingIndicators:
   description: >-
     Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de
     provision des risques identifiés comprises, ses ventilations, ses écarts et la
-    couverture des risques. Le reste à engager parle de marge, au budget de référence
+    couverture des risques. Chaque montant est inflation comprise, à l'année de consommation
+    courante des lignes, comme le montant réestimé dont il est la somme, et le budget de
+    référence auquel la marge le compare (WF-DEV-0020) ; une ligne de provision n'est pas
+    projetée (WF-DEV-0030). Le reste à engager parle de marge, au budget de référence
     (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le
     budget moins la somme du coût réel et du reste à engager, positive quand il en reste,
     négative au-delà du budget — le sens de l'écart de couverture des risques
