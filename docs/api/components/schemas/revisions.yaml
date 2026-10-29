@@ -329,7 +329,7 @@ CostStructure:
         (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
         (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures
         fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa
-        survenance porte (`RiskOccurrence` ; décision de l'auteur, #1453).
+        survenance porte (`RiskOccurrence`).
 
 StructureCommand:
   type: string

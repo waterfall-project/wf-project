@@ -143,9 +143,9 @@ Risk:
         Compteur du risque. Il avance à chaque écriture du risque, et aussi à toute saisie dans
         son devis propre (`structure_id`) — une cellule, un collage, un déplacement, une
         création, une suppression —, dont il tient sa gravité (WF-RIS-0010) : le compte rendu de
-        sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`,
-        décision de l'auteur, #1453). Il avance de même à la suppression du sous-projet qu'il
-        désignait (`provision_subproject_id`, #732).
+        sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`). Il
+        avance de même à la suppression du sous-projet qu'il désignait
+        (`provision_subproject_id`, #732).
 
 ProvisionTask:
   type: object
@@ -335,20 +335,19 @@ RiskReviewWrite:
 
 RiskOccurrence:
   type: object
-  required: [confirmed, main_structure_lock_version, risk_lock_version]
+  required: [confirmed, main_structure_lock_version, risk_lock_version, creates_current_revision]
   description: >-
     Déclare le risque survenu : fusionne son devis propre dans la structure
     principale de la révision en cours, les lignes fusionnées portant un montant
     budgété nul et leur montant du devis propre en réestimé ; la ligne de provision
     est retirée. Ne marque aucune révision et ne déplace pas la référence
     (WF-RIS-0060). Définitif. La confirmation suit le compte rendu préalable
-    (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus : la structure principale
-    ou le risque changés depuis — et le risque change aussi à toute saisie dans son devis propre
-    (`Risk.lock_version`) —, elle est refusée par 412 et rien n'est fusionné — c'est ce compte
-    rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel (`StructureMerge`,
-    WF-IHM-0110 ; US-0680). Un compte rendu lu sans révision en cours est jugé sur la dernière
-    révision marquée : la confirmation est refusée par 412 dès qu'une révision en cours existe
-    (`RiskOccurrenceReport` ; décision de l'auteur, #1453).
+    (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus, et s'il créait la
+    révision en cours : la structure principale ou le risque changés depuis — et le risque change
+    aussi à toute saisie dans son devis propre (`Risk.lock_version`) —, ou une révision en cours
+    née depuis la lecture, ou disparue, elle est refusée par 412 et rien n'est fusionné — c'est ce
+    compte rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel
+    (`StructureMerge`, WF-IHM-0110 ; US-0680).
   properties:
     confirmed:
       type: boolean
@@ -364,12 +363,19 @@ RiskOccurrence:
       description: >-
         Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`),
         qui avance aussi à toute saisie dans son devis propre (`Risk.lock_version`).
+    creates_current_revision:
+      type: boolean
+      description: >-
+        Ce que le compte rendu a lu (`RiskOccurrenceReport.creates_current_revision`), renvoyé
+        tel que lu : vrai alors qu'une révision en cours est née depuis la lecture, ou faux alors
+        qu'il n'y en a plus, la confirmation est refusée par 412.
 
 RiskOccurrenceReport:
   type: object
   required:
     - main_structure_lock_version
     - risk_lock_version
+    - creates_current_revision
     - differences
     - provision_amount
     - refusals
@@ -379,15 +385,8 @@ RiskOccurrenceReport:
     reste à engager. Il reprend les éléments du compte rendu de la fusion d'un différentiel
     (`StructureMergeReport`), et se lit de même. Les deux tableaux sont toujours rendus, vides quand
     il n'y a rien à dire ; la survenance ne s'applique que si `refusals` est vide. Il rend les
-    compteurs lus, que la confirmation renvoie (`RiskOccurrence`). Tant que le projet n'a pas de
-    révision en cours, la survenance en créerait une par copie de la dernière révision marquée
-    (WF-RIS-0060, WF-REV-0010) : ses écarts et ses motifs de refus sont alors jugés sur la
-    structure principale de la révision marquée, que la copie reprend telle quelle, et
-    `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé — la règle
-    de la fusion d'un différentiel de la dernière révision marquée
-    (`StructureMergeReport.creates_current_revision`, #790), et la révision que lit le risque
-    (`getRisk`, `revision_id` absent). Une révision en cours née depuis la lecture fait refuser
-    la confirmation par 412 (décision de l'auteur, #1453).
+    compteurs lus, et s'il crée la révision en cours, que la confirmation renvoie
+    (`RiskOccurrence`).
   properties:
     main_structure_lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -401,7 +400,21 @@ RiskOccurrenceReport:
       description: >-
         Le compteur du risque lu (`Risk.lock_version`), de même. Il avance aussi à toute saisie
         dans le devis propre du risque, dont le compte rendu liste les tâches et les lignes : une
-        saisie qui l'écrit depuis rend le compte rendu périmé (décision de l'auteur, #1453).
+        saisie qui l'écrit depuis rend le compte rendu périmé.
+    creates_current_revision:
+      type: boolean
+      description: >-
+        Vrai quand le projet n'a pas de révision en cours : la survenance crée d'abord la révision
+        en cours par copie de la dernière révision marquée, chiffrée aux taux conservés, projetés,
+        puis y fusionne le devis propre, dans la même tâche de fond — « Lorsque le projet ne
+        comporte pas de révision en cours, elle en crée une au préalable » (WF-RIS-0060,
+        WF-REV-0010, WF-REV-0060). Ses écarts et ses motifs de refus sont alors jugés sur la
+        structure principale de la révision marquée, que la copie reprend telle quelle, et
+        `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé, comme
+        pour la fusion d'un différentiel (`StructureMergeReport.creates_current_revision`, #790)
+        et comme le risque se lit (`getRisk`, `revision_id` absent). Faux quand le projet a une
+        révision en cours. Une révision en cours née depuis la lecture fait refuser la
+        confirmation par 412.
     differences:
       type: array
       description: >-

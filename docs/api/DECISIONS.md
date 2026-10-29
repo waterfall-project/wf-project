@@ -8550,11 +8550,11 @@ ni le cas du jalon.
   une lecture qui n'écrit rien, sur le modèle de `getStructureMergeReport` : sans 403, comme toute
   lecture du projet. Elle rend `RiskOccurrenceReport`.
 - **Le compte rendu** (`RiskOccurrenceReport`) : `main_structure_lock_version` et
-  `risk_lock_version`, les compteurs lus ; `differences`, des `ImportDifference`, dans cet ordre —
-  les tâches et les lignes du devis propre ajoutées dans l'ordre de son plan, la tâche porteuse
-  modifiée, la ligne de provision retirée — ; `provision_amount`, le montant de la ligne retirée du
-  reste à engager ; `refusals`, des `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux
-  tableaux sont toujours rendus. Choix de forme du lot, là où la conception se taisait :
+  `risk_lock_version`, les compteurs lus ; `creates_current_revision` (ci-dessous) ;
+  `differences`, des `ImportDifference`, dans cet ordre — les tâches et les lignes du devis propre
+  ajoutées dans l'ordre de son plan, la tâche porteuse modifiée, la ligne de provision retirée — ;
+  `provision_amount`, le montant de la ligne retirée du reste à engager ; `refusals`, des
+  `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux tableaux sont toujours rendus. Choix de forme du lot, là où la conception se taisait :
   - un ajout n'a pas de lignée, et les liaisons internes du devis propre ne sont pas des écarts à
     part : elles viennent avec ses tâches, comme celles des tâches qu'un différentiel ajoute
     (`structure_merge_report`) ;
@@ -8594,13 +8594,24 @@ ni le cas du jalon.
   d'un différentiel de la dernière révision marquée (#790) : ses écarts et ses motifs de refus sur
   la structure principale de la révision marquée, que la copie reprend telle quelle, et
   `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé — la révision
-  aussi que lit le risque, `revision_id` absent (`getRisk`). La confirmation est refusée par 412
-  dès qu'une révision en cours existe, née entre la lecture et la confirmation
-  (`getRiskOccurrenceReport`, `declareRiskOccurrence`, `RiskOccurrence`,
-  `RiskOccurrenceReport`) : un 412 et non le 409 `revision_draft` de la fusion, le chemin de la
-  survenance nommant le risque et non une révision, et le compte rendu lu étant celui d'une
-  structure que la survenance ne fusionnerait plus. Écartée : (b), laisser la question ouverte
-  pour EP-08. Tenu par le service d'EP-08 ; sans exemple, le témoin ayant une révision en cours.
+  aussi que lit le risque, `revision_id` absent (`getRisk`). Écartée : (b), laisser la question
+  ouverte pour EP-08.
+- **`creates_current_revision`** (tour 2 de la même revue, question Q3, décision du 2026-10-29,
+  option (a), #1453). Les deux compteurs ne suffisaient pas à refuser une révision en cours née
+  depuis la lecture : si la copie qui la crée reprend le compteur de la structure marquée, rien
+  n'avance ; et « dès qu'une révision en cours existe », pris à la lettre, refusait aussi le cas
+  normal, un compte rendu lu avec la révision en cours. Pour la fusion, le chemin nomme la
+  révision marquée et le 409 `revision_draft` se décide sur lui ; ici le chemin nomme le risque, et
+  c'est le corps qui porte l'information. Le compte rendu rend `creates_current_revision`, comme
+  `StructureMergeReport` (#790), vrai quand il est jugé sur la dernière révision marquée ;
+  `RiskOccurrence` l'exige et le renvoie tel que lu ; vrai alors qu'une révision en cours est née
+  depuis la lecture, ou faux alors qu'il n'y en a plus, la confirmation est refusée par 412
+  `STALE_LOCK_VERSION`, comme un compteur périmé (`getRiskOccurrenceReport`,
+  `declareRiskOccurrence`, `RiskOccurrence`, `RiskOccurrenceReport`). Écartées : (b), une règle
+  de compteur — la révision en cours créée ouvre sa structure principale à un compteur supérieur
+  à celui de la marquée —, qui touche toute copie au-delà de la survenance ; (c), faire avancer le
+  compteur de chaque risque du projet à l'ouverture d'une révision, qui périme toutes les vues de
+  risques. Tenu par le service d'EP-08.
 - **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
   décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
   « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du
@@ -8610,8 +8621,10 @@ ni le cas du jalon.
   de `listNodes`, le devis propre lu, que le faux back n'aiguille pas sur la structure 204 (les
   parcours qui y jouent lisent le premier exemple) ; `risk_occurrence_report`, les deux tâches et
   leurs lignes ajoutées sous le « Câblage des armoires », celui-ci modifié par sa durée, son début et
-  sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4 ; `risk_occurrence_not_identified`,
-  le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
+  sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4, `creates_current_revision`
+  faux, le témoin ayant une révision en cours ; `risk_occurrence_sent`, la confirmation, exemple
+  du corps de `declareRiskOccurrence`, qui renvoie ces trois valeurs ;
+  `risk_occurrence_not_identified`, le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
   opérations ; `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du
   2 mars. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.

@@ -26,9 +26,10 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - and the occurrence of the rework of the wiring before its confirmation (US-0680, #1383): its own
   estimate, the structure 204, read (``nodes_risk_estimate``, WF-RIS-0030); the report of what its
   occurrence would make of the main structure of the current revision (``risk_occurrence_report``,
-  WF-RIS-0060); the report and the occurrence refused for a risk not identified
-  (``risk_occurrence_not_identified``), and the confirmation refused for a report gone stale
-  (``risk_occurrence_report_stale``, WF-IHM-0110).
+  WF-RIS-0060), and the confirmation that returns what it read (``risk_occurrence_sent``); the
+  report and the occurrence refused for a risk not identified (``risk_occurrence_not_identified``),
+  and the confirmation refused for a report gone stale (``risk_occurrence_report_stale``,
+  WF-IHM-0110).
 
 The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
 structure 208 or its line of provision 585 — the register, the structures and the grids read the
@@ -278,6 +279,9 @@ dismissed on 2 February (WF-RIS-0020)."""
 NOT_IDENTIFIED_CORRELATION = universe(1591)
 STALE_CORRELATION = universe(1592)
 
+READ = ("main_structure_lock_version", "risk_lock_version", "creates_current_revision")
+"""What the confirmation returns of the report, as it read it (`RiskOccurrence`)."""
+
 SCHEDULE = ("duration", "start", "finish")
 """What the occurrence may change of the task that bore the line of provision, in the order of
 `NodeColumn`: its dates and its duration, a summary spanning its subordinates (WF-PLA-0040)."""
@@ -366,8 +370,10 @@ def risk_occurrence_report() -> JsonObject:
     the order of its plan; that task modified, become their summary; the line of provision
     withdrawn, and its amount withdrawn from the remaining to commit; nothing refusing it. The
     counters read: the main structure's, as `structures` lists it, and the risk's, as the register
-    reads it. An added node has no lineage in the main structure yet; the links within the own
-    estimate come with its tasks, as those of the tasks an amendment adds (``mockamendment``).
+    reads it; the witness has a current revision, the 102, which the occurrence does not create
+    (WF-RIS-0060, WF-REV-0010). An added node has no lineage in the main structure yet; the links
+    within the own estimate come with its tasks, as those of the tasks an amendment adds
+    (``mockamendment``).
     """
     main = {row.number: row for row in mockcore.current()}
     differences: list[JsonValue] = [_difference("added", row, []) for row in risk_estimate()]
@@ -378,10 +384,21 @@ def risk_occurrence_report() -> JsonObject:
     return {
         "main_structure_lock_version": mockamendment.structure("main")["lock_version"],
         "risk_lock_version": risk["lock_version"],
+        "creates_current_revision": False,
         "differences": differences,
         "provision_amount": risk["provision_amount"],
         "refusals": [],
     }
+
+
+def risk_occurrence_sent() -> JsonObject:
+    """Return the confirmation of the occurrence of the rework, as its report read it.
+
+    It returns the two counters and ``creates_current_revision`` of ``risk_occurrence_report`` as
+    they were read (WF-IHM-0110).
+    """
+    report = risk_occurrence_report()
+    return {"confirmed": True, **{name: report[name] for name in READ}}
 
 
 def risk_occurrence_not_identified() -> JsonObject:
@@ -514,9 +531,20 @@ def _occurrence_examples() -> dict[str, JsonObject]:
             f"reste à engager ; aucun motif de refus. Rien n'est écrit : la confirmation, qui "
             f"renverra les compteurs lus — celui de la structure principale, "
             f"{report['main_structure_lock_version']}, comme `structures` le dit, et celui du "
-            f"risque, {report['risk_lock_version']}, comme `risk` le dit —, est offerte "
-            f"(WF-RIS-0060, WF-IHM-0110, #1383).",
+            f"risque, {report['risk_lock_version']}, comme `risk` le dit, et "
+            f"creates_current_revision faux, la révision en cours existant déjà —, est offerte "
+            f"(risk_occurrence_sent ; WF-RIS-0060, WF-IHM-0110, #1383).",
             report,
+        ),
+        "risk_occurrence_sent.json": mocktext.example(
+            f"La confirmation de la survenance de « {OCCURRING.label} », après son compte rendu "
+            f"(risk_occurrence_report) : elle renvoie ce qu'il a lu, tel quel — le compteur de "
+            f"la structure principale, {report['main_structure_lock_version']}, celui du risque, "
+            f"{report['risk_lock_version']}, et creates_current_revision faux, le projet ayant "
+            f"une révision en cours, que la survenance ne crée donc pas. Lu vrai, faute de "
+            f"révision en cours, il ferait refuser la confirmation par 412 si une révision en "
+            f"cours était née depuis la lecture (WF-RIS-0060, WF-REV-0010, WF-IHM-0110).",
+            risk_occurrence_sent(),
         ),
         "risk_occurrence_not_identified.json": mocktext.example(
             f"Le compte rendu de la survenance de « {NOT_IDENTIFIED.label} », écarté le "

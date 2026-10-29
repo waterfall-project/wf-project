@@ -3,7 +3,8 @@
 """Tests of the answers of the entries of a risk, and of the task its provision names (K5, #786).
 
 They try the simplifications of the fake back against the readings of the witness, not the Vérif
-of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »), but the
+two that hold what the contract says of the confirmation of an occurrence (US-0680).
 """
 
 import functools
@@ -12,6 +13,7 @@ import re
 from decimal import Decimal
 from typing import Any, cast
 
+import pytest
 import yaml
 
 from wftools import (
@@ -71,7 +73,9 @@ def _response(paths: str, operation: str, status: str) -> str:
 def test_each_entry_of_a_risk_is_an_example_the_contract_cites_under_its_answer() -> None:
     for paths, operation, status, name in CITED:
         assert f"fixtures/api/{name}.json" in _response(paths, operation, status), name
-    assert {f"{name}.json" for *_, name in CITED} == set(mockriskwrites.examples())
+    # The confirmation of an occurrence is cited under the body of its request, not an answer.
+    sent = "risk_occurrence_sent.json"
+    assert {f"{name}.json" for *_, name in CITED} | {sent} == set(mockriskwrites.examples())
 
 
 def test_the_task_of_a_provision_is_the_parent_of_its_line_while_the_risk_is_identified() -> None:
@@ -390,32 +394,52 @@ def _schema(file: str, name: str) -> dict[str, Any]:
     return cast("dict[str, Any]", yaml.safe_load(text)[name])
 
 
+def _occurrence() -> dict[str, Any]:
+    """Return the path of the occurrence of a risk, as the contract writes it."""
+    text = (REPOSITORY / "docs" / "api" / "paths" / "risks.yaml").read_text(encoding="utf-8")
+    paths = cast("dict[str, Any]", yaml.safe_load(text))
+    return cast("dict[str, Any]", paths["/projects/{project_id}/risks/{risk_id}/occurrence"])
+
+
+@pytest.mark.requirement("WF-RIS-0010-A")
+@pytest.mark.requirement("WF-IHM-0110-A")
 def test_a_write_in_the_own_estimate_advances_the_counter_the_confirmation_carries() -> None:
-    # Decision of the author, #1453, option (b): the report lists the own estimate, which no
-    # counter of the main structure guards; any write in it advances `Risk.lock_version`, one of
-    # the two counters the confirmation carries, so that the report it made stale is refused.
+    # The severity follows any change of the own estimate (WF-RIS-0010), which the report lists and
+    # no counter of the main structure guards: a write in it advances `Risk.lock_version`, which the
+    # report reads and the confirmation carries, so that a report it made stale is refused by 412.
     risk = _schema("schemas/risks.yaml", "Risk")["properties"]["lock_version"]
     structure = _schema("schemas/revisions.yaml", "CostStructure")["properties"]["lock_version"]
-    report = _schema("schemas/risks.yaml", "RiskOccurrenceReport")["properties"]
-    confirmation = _schema("schemas/risks.yaml", "RiskOccurrence")
-    assert "devis propre" in risk["description"]
+    assert "`RiskOccurrence`" in risk["description"]
     assert "`Risk.lock_version`" in structure["description"]
-    assert "devis propre" in report["risk_lock_version"]["description"]
-    assert "`Risk.lock_version`" in confirmation["properties"]["risk_lock_version"]["description"]
-    assert set(confirmation["required"]) == {
-        "confirmed",
-        "main_structure_lock_version",
-        "risk_lock_version",
-    }
-    assert "devis propre" in _response("risks.yaml", "declareRiskOccurrence", "412")
-
-
-def test_a_report_read_without_a_current_revision_is_judged_on_the_last_marked_one() -> None:
-    # Decision of the author, #1453, option (a): the rule of the merge of an amendment of the last
-    # marked revision (#790); a current revision born since the reading makes the confirmation
-    # refused by 412.
     report = _schema("schemas/risks.yaml", "RiskOccurrenceReport")
-    assert "`StructureMergeReport.creates_current_revision`" in report["description"]
-    counter = report["properties"]["main_structure_lock_version"]["description"]
-    assert "dernière révision marquée" in counter
-    assert "révision en cours" in _response("risks.yaml", "declareRiskOccurrence", "412")
+    confirmation = _schema("schemas/risks.yaml", "RiskOccurrence")
+    assert set(mockriskwrites.READ) <= set(report["required"])
+    assert set(confirmation["required"]) == {"confirmed", *mockriskwrites.READ}
+    witness = example("risk")["value"]
+    report_read = example("risk_occurrence_report")["value"]
+    assert report_read["risk_lock_version"] == witness["lock_version"]
+    stale = example("risk_occurrence_report_stale")["value"]
+    assert stale["params"]["expected_lock_version"] == witness["lock_version"]
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+@pytest.mark.requirement("WF-REV-0010-A")
+def test_the_confirmation_returns_whether_its_report_creates_the_current_revision() -> None:
+    # Without a current revision, the occurrence creates one (WF-RIS-0060) by copy of the last
+    # marked revision (WF-REV-0010): the report says so and the confirmation returns it as read,
+    # as the report of the merge of an amendment (#790), so that a current revision born since the
+    # reading, or gone, makes it refused by 412. The witness has a current revision.
+    for name in ("RiskOccurrenceReport", "RiskOccurrence"):
+        schema = _schema("schemas/risks.yaml", name)
+        assert "creates_current_revision" in schema["required"], name
+        assert schema["properties"]["creates_current_revision"]["type"] == "boolean", name
+    revisions = mockwitness.fixture("revisions")["items"]
+    assert [each["status"] for each in revisions].count("draft") == 1
+    report = example("risk_occurrence_report")["value"]
+    assert report["creates_current_revision"] is False
+    sent = example("risk_occurrence_sent")["value"]
+    assert sent == {"confirmed": True, **{name: report[name] for name in mockriskwrites.READ}}
+    post = _occurrence()["post"]
+    examples = post["requestBody"]["content"]["application/json"]["examples"]
+    assert examples == {"sent": {"$ref": "../../../fixtures/api/risk_occurrence_sent.json"}}
+    assert "`creates_current_revision`" in post["responses"]["412"]["description"]
