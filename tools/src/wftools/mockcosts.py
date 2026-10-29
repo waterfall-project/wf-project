@@ -307,12 +307,13 @@ def counts(entry: CostImport) -> tuple[int, int, int, int]:
 
     A line whose document and item were already imported is updated, its exclusion kept; another
     one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected
-    (WF-CRE-0020). The witness brings back no line as it was: each line an import brings again is
-    updated, as its audit says, and none is unchanged.
+    (WF-CRE-0020). A line an import brings again is updated, as its audit says, unless it comes back
+    as it was: the file without a period brings back the six lines already imported so, which the
+    audit does not mention.
     """
     created = sum(1 for line in lines() if line.imports[0] is entry)
     updated = sum(1 for line in lines() if entry in line.imports[1:])
-    return created, updated, 0, entry.rejected
+    return created, updated, entry.unchanged, entry.rejected
 
 
 def journal_entry(entry: CostImport) -> JsonObject:

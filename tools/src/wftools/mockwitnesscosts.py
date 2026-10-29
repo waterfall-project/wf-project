@@ -23,7 +23,9 @@ class CostImport:
     Its event, the instant it was applied; the import of the exchanges that applied it, by its
     number, opened and analysed a few minutes before; the period it extracted, each bound
     possibly missing; and the lines of other projects it read, rejected and signalled to its
-    report (WF-CRE-0020), which the journal counts among the lines rejected (WF-CRE-0050).
+    report (WF-CRE-0020), which the journal counts among the lines rejected (WF-CRE-0050); and
+    the lines it brought back as they already were, which an import leaves no trace of in the
+    audit and the journal counts apart (WF-CRE-0050).
     """
 
     number: int
@@ -31,19 +33,21 @@ class CostImport:
     exchange: int
     period: tuple[date | None, date | None]
     rejected: int = 0
+    unchanged: int = 0
 
 
 MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY = (
     CostImport(0xC11, COST_IMPORTS[0], 0xA06, (date(2026, 3, 1), date(2026, 3, 31))),
     CostImport(0xC12, COST_IMPORTS[1], 0xA07, (date(2026, 4, 1), date(2026, 4, 30)), 1),
-    CostImport(0xC13, COST_IMPORTS[2], 0xA08, (None, None), 37),
+    CostImport(0xC13, COST_IMPORTS[2], 0xA08, (None, None), 37, 6),
     CostImport(0xC14, COST_IMPORTS[3], 0xA09, (None, date(2026, 4, 30)), 12_345),
     CostImport(0xC15, COST_IMPORTS[4], 0xA14, (date(2026, 5, 1), None)),
 )
 JOURNAL = (MARCH, APRIL, UNDATED, APRIL_AGAIN, MAY)
 """The imports of actual costs of the witness, in their order: the extraction of March, that of
-April, a file without a period of which no line was the project's, a re-extraction up to 30 April,
-which brings back the six lines already imported, and the extraction of May, from 1 May."""
+April, a file without a period which brings back the six lines already imported as they were and
+no line of the project besides, a re-extraction up to 30 April, which brings back the same six
+lines, updated, and the extraction of May, from 1 May."""
 
 
 @dataclass(frozen=True, slots=True)
