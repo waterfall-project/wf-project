@@ -564,5 +564,5 @@ def test_the_projection_at_the_observed_rate_is_taken_on_the_aggregate_not_summe
         mockportfolio.at_observed_rate(Decimal(1000), Decimal(500), Decimal(value))
         for value in (400, 500)
     ]
-    summed = sum(Decimal(0) if one[1] is None else one[1] for one in each)
+    summed = sum((one[1] for one in each if one[1] is not None), start=Decimal(0))
     assert summed.quantize(Decimal(1)) == Decimal(2250)
