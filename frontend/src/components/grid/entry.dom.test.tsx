@@ -450,12 +450,12 @@ describe("the keyboard of a grid", () => {
     const client = serve();
     render(grid());
     // The category of a line of labour is computed, that of a disbursement is chosen.
-    const before = cell(DISBURSEMENT, "cost_category").textContent;
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
     cell(DISBURSEMENT, "cost_category").focus();
     await userEvent.keyboard("{Enter}Mise");
     expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveValue(COMMISSIONING);
     await userEvent.keyboard("{Escape}");
-    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(before);
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
     expect(written(client)).toEqual([]);
   });
 

@@ -347,13 +347,18 @@ describe("the grid of the planning", () => {
   it("shows in each column but the Gantt the column of the contract of the same name, whose value it reads", () => {
     // The name a paste on its cell is sent under, though the grid sorts none.
     // The progress names none: the state is a visual mark, not a column (WF-PLA-0080).
-    expect(PLANNING_GRID.columns.map((column) => column.contract)).toEqual([
-      ...PLANNING_GRID.columns
-        .filter((column) => !["timelines", "gantt"].includes(column.key))
-        .map((column) => (column.key === "progress" ? undefined : column.key)),
-      undefined,
-      undefined,
-    ]);
+    expect(
+      PLANNING_GRID.columns.find((column) => column.key === "progress")?.contract,
+    ).toBeUndefined();
+    const carrying = PLANNING_GRID.columns.filter(
+      (column) => !["progress", "timelines", "gantt"].includes(column.key),
+    );
+    expect(carrying.map((column) => column.contract)).toEqual(carrying.map((column) => column.key));
+    expect(
+      PLANNING_GRID.columns
+        .filter((column) => ["timelines", "gantt"].includes(column.key))
+        .map((column) => column.contract),
+    ).toEqual([undefined, undefined]);
     // The predecessors, the timelines and the Gantt, which their cells render, read no value.
     const milestone = planning.items[4];
     const columns = PLANNING_GRID.columns.filter(
