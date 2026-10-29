@@ -285,7 +285,7 @@ describe("the comparison of two revisions", () => {
       (delta) =>
         `${DIMENSIONS[delta.dimension]} ${
           delta.key === "unassigned" ? "Hors sous-projet" : (delta.label ?? unnamed)
-        } ${formatMoney(delta.delta, "fr")}`,
+        } ${formatMoney(delta.reestimated_delta, "fr")}`,
     );
     expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
     // Three natures of cost and two sub-projects, as the description of `comparison` lists them.

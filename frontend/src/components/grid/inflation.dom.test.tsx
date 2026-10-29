@@ -39,9 +39,7 @@ const CABLE_FITTER = "01926f3a-7c00-7000-8000-000000000454";
 // fitter, on the week of four days, puts the mounting on the days both its roles work: it finishes
 // in 2027, and the commissioning starts and is consumed there (`estimate_line_redated`).
 const SUMMARY = 0;
-const MOUNTING = 1;
 const ON_SITE = 2;
-const TESTS = 3;
 const COMMISSIONING = 4;
 const COMMISSIONING_LINE = 5;
 const installation = example("nodes_installation") as NodeList;
@@ -75,7 +73,7 @@ afterEach(() => {
 });
 
 describe("a write of the estimate that moves rows in time", () => {
-  it("shows the amounts corrected for inflation the server answered for the rows it moved, their amounts at the year of reference as they were", async () => {
+  it("leaves the amounts at the year of reference as they were when the server answers the rows a write moved in time", async () => {
     const client = serve();
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -92,10 +90,8 @@ describe("a write of the estimate that moves rows in time", () => {
         />
       </NextIntlClientProvider>,
     );
-    // Read in 2026, the year of reference: each amount is its own corrected.
+    // Read in 2026, the year of reference.
     expect(cell(COMMISSIONING_LINE, "base_amount")).toHaveTextContent(/^6\s000,00$/);
-    expect(cell(COMMISSIONING_LINE, "inflated_amount")).toHaveTextContent(/^6\s000,00$/);
-    expect(cell(COMMISSIONING, "inflated_amount")).toHaveTextContent(/^6\s000,00$/);
 
     // The role of the wiring on site, chosen from its list.
     cell(ON_SITE, "resource_role").focus();
@@ -114,17 +110,10 @@ describe("a write of the estimate that moves rows in time", () => {
     expect(redated.reinflated.map((each) => each.node_id)).toEqual(
       [COMMISSIONING, COMMISSIONING_LINE].map((row) => installation.items[row]?.node_id),
     );
-    expect(cell(COMMISSIONING_LINE, "inflated_amount")).toHaveTextContent(/^6\s180,00$/);
-    expect(cell(COMMISSIONING, "inflated_amount")).toHaveTextContent(/^6\s180,00$/);
     // The summary above, rendered whole (`ancestors`), sums them; the amounts at the year of
     // reference do not depend on the dates, and stay.
-    expect(cell(SUMMARY, "inflated_amount")).toHaveTextContent(/^18\s780,00$/);
     expect(cell(SUMMARY, "base_amount")).toHaveTextContent(/^18\s600,00$/);
     expect(cell(COMMISSIONING_LINE, "base_amount")).toHaveTextContent(/^6\s000,00$/);
     expect(cell(COMMISSIONING, "base_amount")).toHaveTextContent(/^6\s000,00$/);
-    // The mounting, still started in 2026, and its other line keep their year and amounts.
-    expect(cell(MOUNTING, "inflated_amount")).toHaveTextContent(/^12\s600,00$/);
-    expect(cell(TESTS, "inflated_amount")).toHaveTextContent(/^3\s000,00$/);
-    expect(cell(ON_SITE, "inflated_amount")).toHaveTextContent(/^9\s600,00$/);
   });
 });

@@ -219,10 +219,10 @@ test.describe("on a narrow window", () => {
       element.scrollLeft = element.scrollWidth;
     });
     await expect.poll(() => box.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
-    const inflated = grid(page).getByRole("columnheader", {
-      name: "Calculé Montant corrigé de l’inflation",
+    const last = grid(page).getByRole("columnheader", {
+      name: "Calculé Montant (année de réf.)",
     });
-    await expect(inflated).toBeInViewport();
+    await expect(last).toBeInViewport();
 
     // The label, its header and the caption of the totals stay at the start, beside the row
     // numbers, whatever is scrolled under them.

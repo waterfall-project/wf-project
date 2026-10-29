@@ -187,7 +187,7 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
               {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {formatMoney(delta.delta, locale)}
+              {formatMoney(delta.reestimated_delta, locale)}
             </TableCell>
           </TableRow>
         ))}

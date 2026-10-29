@@ -127,7 +127,7 @@ function lastAsked(): URLSearchParams {
 /** Sort the grid by its inflated amount, from the button of its header. */
 async function sortByInflation() {
   await userEvent.click(
-    within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
+    within(screen.getByRole("columnheader", { name: /réf\./ })).getByRole("button"),
   );
 }
 
@@ -201,7 +201,7 @@ describe("the address the banner and the grid of a screen ask from", () => {
     await sortByInflation();
     await chooseAmendment();
     expect(Object.fromEntries(lastAsked())).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
       structure: AMENDMENT,
     });
@@ -215,7 +215,7 @@ describe("the address the banner and the grid of a screen ask from", () => {
     await sortByInflation();
     expect(Object.fromEntries(lastAsked())).toEqual({
       structure: AMENDMENT,
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
     await arrive();
@@ -264,7 +264,7 @@ describe("the chip that lifts a filter of the banner", () => {
     await sortByInflation();
     await liftFilter();
     expect(Object.fromEntries(lastAsked())).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
     await arrive();

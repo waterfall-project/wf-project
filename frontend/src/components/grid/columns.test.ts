@@ -97,27 +97,24 @@ describe("the columns of the grid of the estimate", () => {
       "payment_delay_days",
       "inactive_object",
       "base_amount",
-      "inflated_amount",
     ]);
   });
 
-  it("present neither a budgeted amount nor a re-estimated amount, but the amount at the year of reference and the amount corrected for inflation [WF-DEV-0050-A]", () => {
+  it("present neither a budgeted amount nor a re-estimated amount, but the amount at the year of reference, before inflation [WF-DEV-0050-A]", () => {
     const amounts = ESTIMATE_GRID.columns.filter((column) => column.format === "money");
     expect(amounts.map((column) => [column.key, column.label])).toEqual([
       ["unit_disbursement", "unitDisbursement"],
       ["base_amount", "referenceAmount"],
-      ["inflated_amount", "inflatedAmount"],
     ]);
     const shown = ESTIMATE_GRID.columns.map((column) => column.contract);
     expect(shown).not.toContain("budgeted_amount");
     expect(shown).not.toContain("reestimated_amount");
   });
 
-  // The Vérif of WF-DEV-0050: the grid shows the amount corrected for inflation the server
+  // The Vérif of WF-DEV-0050: the grid shows the amount at the year of reference the server
   // computes, never its own — a line of the volume whose task is two years after the year of
-  // reference, 2026, at the inflation of the witness project, 3 % a year (the Vérif says 2 %, and
-  // 4.04 %: the rate is the project's, the rule the server's, WF-DEV-0030).
-  it("show a line two years after the year of reference at its amount and at its amount corrected for inflation, as the server gives them [WF-DEV-0050-A]", () => {
+  // reference, 2026.
+  it("show a line two years after the year of reference at its amount, as the server gives it [WF-DEV-0050-A]", () => {
     const volume = example("volume/nodes_thousand") as NodeList;
     const later = volume.items.find((node) => node.estimate_line?.consumption_year === 2028);
     if (later === undefined) {
@@ -127,41 +124,35 @@ describe("the columns of the grid of the estimate", () => {
       const column = ESTIMATE_GRID.columns.find((each) => each.key === key);
       return column === undefined ? undefined : formatCell("money", column.value(later), "fr");
     };
-    expect([shown("base_amount"), shown("inflated_amount")]).toEqual(["5 080,00", "5 389,37"]);
+    expect(shown("base_amount")).toBe("5\u202f080,00");
   });
 
-  it("show a summary, a task and the totals at their amount and at their amount corrected for inflation, as the server sums them [WF-DEV-0050-A]", () => {
+  it("show a summary, a task and the totals at their amount, as the server sums them [WF-DEV-0050-A]", () => {
     const volume = example("volume/nodes_thousand") as NodeList;
     const amounts = (node: (typeof volume.items)[number] | undefined) =>
-      ["base_amount", "inflated_amount"].map((key) => {
+      ["base_amount"].map((key) => {
         const column = ESTIMATE_GRID.columns.find((each) => each.key === key);
         return node === undefined ? undefined : formatCell("money", column?.value(node), "fr");
       });
     // Found by their labels, never by a number written here (#400).
     const row = (label: string) => volume.items.find((node) => node.task?.label === label);
     // « Génie civil », a summary whose lines run past the year of reference, and « Reprise
-    // 2.1.22 », a task of 2027: each shows two different amounts.
+    // 2.1.22 », a task of 2027.
     expect(row("Génie civil")?.task?.is_summary).toBe(true);
-    expect(amounts(row("Génie civil"))).toEqual([
-      "7\u202f828\u202f839,16",
-      "7\u202f847\u202f988,93",
-    ]);
+    expect(amounts(row("Génie civil"))).toEqual(["7\u202f828\u202f839,16"]);
     expect(row("Reprise 2.1.22")?.task?.start?.date).toBe("2027-01-06");
-    expect(amounts(row("Reprise 2.1.22"))).toEqual(["40\u202f758,82", "41\u202f981,58"]);
+    expect(amounts(row("Reprise 2.1.22"))).toEqual(["40\u202f758,82"]);
     const totals = ESTIMATE_GRID.columns
-      .filter((column) => column.key === "base_amount" || column.key === "inflated_amount")
+      .filter((column) => column.key === "base_amount")
       .map((column) => column.total?.(volume.totals));
-    expect(totals).toEqual(["66105223.89", "68923691.06"]);
+    expect(totals).toEqual(["66105223.89"]);
   });
 
-  it("have the label alone pinned, the two amounts computed whole, and the figures and the sub-project of a line where its node says so", () => {
+  it("have the label alone pinned, the amount computed whole, and the figures and the sub-project of a line where its node says so", () => {
     const keys = (keep: (column: (typeof ESTIMATE_GRID.columns)[number]) => boolean) =>
       ESTIMATE_GRID.columns.filter(keep).map((column) => column.key);
     expect(keys((column) => column.pinned === true)).toEqual(["label"]);
-    expect(keys((column) => column.computed?.whole === true)).toEqual([
-      "base_amount",
-      "inflated_amount",
-    ]);
+    expect(keys((column) => column.computed?.whole === true)).toEqual(["base_amount"]);
     expect(keys((column) => column.computed?.whole === false)).toEqual([
       "quantity",
       "hours",
@@ -189,7 +180,6 @@ describe("the columns of the contract", () => {
       "base_amount",
       "budgeted_amount",
       "reestimated_amount",
-      "inflated_amount",
       "previous_quantity",
       "previous_hours",
       "previous_unit_disbursement",

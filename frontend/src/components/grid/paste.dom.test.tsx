@@ -72,12 +72,6 @@ function totalAmount(): string | null | undefined {
   return row?.querySelectorAll("td")[10]?.textContent;
 }
 
-/** The total amount corrected for inflation, at the foot of the grid. */
-function totalInflated(): string | null | undefined {
-  const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
-  return row?.querySelectorAll("td")[11]?.textContent;
-}
-
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
@@ -179,7 +173,6 @@ describe("a block pasted from a spreadsheet", () => {
     ]);
     expect(cell(FIRST + 2, "quantity")).toHaveTextContent("24");
     expect(cell(FIRST + 2, "base_amount")).toHaveTextContent(/^42\s379,44/);
-    expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^42\s379,44/);
     // The tasks above them, recalculated, and the totals of the structure, as the server answered.
     expect(amounts([0, 1, 2])).toEqual([
       "7\u202f469\u202f299,12",
@@ -187,8 +180,6 @@ describe("a block pasted from a spreadsheet", () => {
       "63\u202f757,17",
     ]);
     expect(totalAmount()).toBe("66\u202f144\u202f071,71");
-    // The total corrected for inflation, as the server answered it: lines of later years in it.
-    expect(totalInflated()).toBe("68\u202f962\u202f538,88");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -252,7 +243,7 @@ describe("a block pasted from a spreadsheet", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
     expect(alert).toHaveTextContent(
-      "La grille accepte au plus 17 colonnes à partir de cette cellule.",
+      "La grille accepte au plus 16 colonnes à partir de cette cellule.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);

@@ -29,6 +29,13 @@ const [shrunk] = lengthened.rescheduled;
 const DESIGN_FILE = shrunk?.node_id ?? "";
 const FLOAT = shrunk?.total_float;
 
+/** The fields of a grid that reads the amounts a write may move in time. */
+const AMOUNTS = {
+  node: [],
+  task: ["budgeted_amount", "reestimated_amount"],
+  line: ["budgeted_amount", "reestimated_amount"],
+} as const satisfies AnyNodeFields;
+
 /** The rows of the witness planning, as the grid of the planning reads them. */
 const rows = projectNodes(volume, PLANNING_FIELDS).items;
 
@@ -73,8 +80,8 @@ describe("what a write answers, as a grid reads it", () => {
   const amountOf = new Map(lengthened.reinflated.map((each) => [each.node_id, each]));
 
   it("lays the amounts the server answered over the lines and the task a write moved into the next year, the rest of each as it was", () => {
-    const rows = projectNodes(volume, ESTIMATE_FIELDS).items;
-    const written = nodesWritten(lengthened, ESTIMATE_FIELDS, true);
+    const rows = projectNodes(volume, AMOUNTS).items;
+    const written = nodesWritten(lengthened, AMOUNTS, true);
     // The grid of the estimate reads no date: the amounts alone, the successor and its lines.
     expect(written.parts.map((part) => part.key)).toEqual([...amountOf.keys()]);
     expect(written.parts[0]?.key).toBe(SUCCESSOR);
@@ -83,11 +90,14 @@ describe("what a write answers, as a grid reads it", () => {
       if (before === undefined) {
         throw new Error(`no node ${part.key} in the volume`);
       }
-      const inflated_amount = amountOf.get(part.key)?.inflated_amount;
+      const { budgeted_amount, reestimated_amount } = amountOf.get(part.key) ?? {};
       expect(part.change(before)).toEqual(
         before.task === undefined || before.task === null
-          ? { ...before, estimate_line: { ...before.estimate_line, inflated_amount } }
-          : { ...before, task: { ...before.task, inflated_amount } },
+          ? {
+              ...before,
+              estimate_line: { ...before.estimate_line, budgeted_amount, reestimated_amount },
+            }
+          : { ...before, task: { ...before.task, budgeted_amount, reestimated_amount } },
       );
     }
   });
@@ -102,14 +112,14 @@ describe("what a write answers, as a grid reads it", () => {
   // A grid that reads both the schedule of a task and its amount corrected for inflation.
   const BOTH = {
     node: [],
-    task: ["start", "finish", "inflated_amount"],
-    line: ["inflated_amount"],
+    task: ["start", "finish", "budgeted_amount"],
+    line: ["budgeted_amount"],
   } as const satisfies AnyNodeFields;
   const bothRows = projectNodes(volume, BOTH).items;
   type BothRow = (typeof bothRows)[number];
   const moved = {
     start: lengthened.rescheduled.find((each) => each.node_id === SUCCESSOR)?.start,
-    inflated_amount: lengthened.reinflated[0]?.inflated_amount,
+    budgeted_amount: lengthened.reinflated[0]?.budgeted_amount,
   };
 
   it("lays both the schedule and the amount of a task one write answers in both lists", () => {

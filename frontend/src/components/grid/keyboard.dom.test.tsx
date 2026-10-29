@@ -186,12 +186,12 @@ describe("the keyboard of a grid", () => {
   // Each move from the cell it starts on, a test of its own: every key renders the grid anew, and
   // the whole tour in one test went past its time under load (EP-02/L46).
   it.each([
-    ["End", [1, "hours"], "{End}", [1, "inflated_amount"]],
-    ["Home", [1, "inflated_amount"], "{Home}", [1, "row_number"]],
-    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [MILESTONE, "inflated_amount"]],
+    ["End", [1, "hours"], "{End}", [1, "base_amount"]],
+    ["Home", [1, "base_amount"], "{Home}", [1, "row_number"]],
+    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [MILESTONE, "base_amount"]],
     [
       "Ctrl+Home, then Page Down",
-      [MILESTONE, "inflated_amount"],
+      [MILESTONE, "base_amount"],
       "{Control>}{Home}{/Control}{PageDown}",
       [MILESTONE, "row_number"],
     ],
@@ -243,16 +243,16 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("{ArrowUp}{PageUp}{Home}");
     expect(header("N°")).toHaveFocus();
     await userEvent.keyboard("{End}");
-    expect(header(/inflation/)).toHaveFocus();
+    expect(header(/réf\./)).toHaveFocus();
   });
 
   it("sorts a column from the header by Enter or Space [WF-IHM-0100-A]", async () => {
     serve();
     renderGrid();
-    header(/inflation/).focus();
+    header(/réf\./).focus();
     await userEvent.keyboard("{Enter}");
     expect(router.push).toHaveBeenLastCalledWith(
-      "/projects/p/revisions/r/estimate?sort_by=inflated_amount&sort_order=asc",
+      "/projects/p/revisions/r/estimate?sort_by=base_amount&sort_order=asc",
       { scroll: false },
     );
     await userEvent.keyboard("{ArrowLeft} ");
@@ -290,7 +290,7 @@ describe("the keyboard of a grid", () => {
     expect(header("Qté")).toHaveFocus();
     // Ctrl+End goes to the last cell of the rows.
     await userEvent.keyboard("{Control>}{End}{/Control}");
-    expect(cell(MILESTONE, "inflated_amount")).toHaveFocus();
+    expect(cell(MILESTONE, "base_amount")).toHaveFocus();
   });
 
   it("keeps its one stop of the tabulation in the header when the answer has no row", () => {
@@ -342,7 +342,7 @@ describe("the keyboard of a grid", () => {
     serve();
     renderGrid();
     cell(PROVISION, "unit_disbursement").focus();
-    await userEvent.keyboard("{End}{ArrowLeft}{F2}");
+    await userEvent.keyboard("{End}{F2}");
     expect(refusal()).toHaveTextContent(/Montant \(année de réf\.\) ne se saisit pas/);
   });
 

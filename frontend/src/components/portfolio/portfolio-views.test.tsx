@@ -43,7 +43,7 @@ describe("the shares of the portfolio, never « 0 % » when they are not nil (#6
     const said = text(
       <CostStructureView structure={{ ...structure, budget_by_cost_type: budget }} />,
     );
-    expect(said).toContain(`Provision 266,262,019.77 ${TINY}`);
+    expect(said).toContain(`Provision 266,543,106.80 ${TINY}`);
   });
 
   it("says a load too small to show below the smallest shown", () => {

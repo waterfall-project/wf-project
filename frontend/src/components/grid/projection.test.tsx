@@ -262,8 +262,11 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
 // payment delay a line of labour now accepts (`editable_fields`, #785) adds it to what the 2 770
 // lines of labour of the volume accept, which the planning rows keep: 3.63 million characters of the
 // 7.34 of the volume, 0.495; the bound was 0.49 before it.
+// The amounts inflation included (L-01) took the corrected amount out of the answer, 7.17 million
+// characters for the volume: the rows of the planning weigh 3.63 million, 0.506, bound 0.51; those
+// of the remaining to commit 4.95 million, 0.691, bound 0.7.
 holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
-holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.5);
+holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.51);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:
 // 3.80 million characters of the 6.51 of the volume, 0.584 (US-0230/L1); the figures at the previous
@@ -272,5 +275,5 @@ holdsWhatTheGridReads(
   "remaining to commit",
   remainingGrid({ line: unwritten }),
   REMAINING_FIELDS,
-  0.69,
+  0.7,
 );
