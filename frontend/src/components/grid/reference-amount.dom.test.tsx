@@ -33,7 +33,7 @@ const STRUCTURE = {
 };
 const CABLE_FITTER = "01926f3a-7c00-7000-8000-000000000454";
 
-// WF-DEV-0030: the amount at the rates of the year of reference (`base_amount`) does not follow the
+// The amount at the rates of the year of reference (`base_amount`) does not follow the
 // dates: after a write that moves rows in time, the cell of the commissioning line keeps it.
 
 // The installation on site of the witness (`nodes_installation`), by the index of its rows: the
