@@ -337,9 +337,9 @@ describe("the cumulative curves", () => {
       ["Amendment", "2026-03-10T00:00:00Z"],
     ]);
     // The step is vertical: the curve bears the budget before and after it at its date.
-    expect(lastSeries()[0]?.data?.slice(3, 5)).toEqual([
-      ["2026-02-28T00:00:00Z", "0.00"],
+    expect(lastSeries()[0]?.data?.slice(4, 6)).toEqual([
       ["2026-03-10T00:00:00Z", "23333.33"],
+      ["2026-03-10T00:00:00Z", "26833.33"],
     ]);
     // Its two rows in the table of the values are told apart by their heading (#290).
     expect(
