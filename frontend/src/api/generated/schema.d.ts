@@ -2080,7 +2080,7 @@ export interface paths {
         };
         /**
          * Indicateurs de valeur acquise
-         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une révision marquée nommée, celles de son marquage (WF-DAT-0040).
+         * @description Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager, avancements, indices avec leur zone, écarts et trois projections. Calculés à partir de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). Au jour courant, ceux de la révision en cours, ou, sur un projet qui n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, non conservés (WF-IND-0010) ; à une date passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une révision marquée nommée, celles de son marquage (WF-DAT-0040).
          */
         get: operations["getProjectIndicators"];
         put?: never;
@@ -2120,7 +2120,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040). Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -2140,7 +2140,7 @@ export interface paths {
         };
         /**
          * Courbes de valeur acquise
-         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes recalculées à la date de son marquage (`revision_id`), sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : elles peuvent différer des indicateurs conservés (WF-DAT-0040), `context.is_stored` faux.
+         * @description Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon les dates de pièce, jusqu'à la date de calcul, au pas du mois (WF-IND-0110). Pour une révision marquée nommée (`revision_id`), les courbes que son marquage a conservées avec ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040).
          */
         get: operations["getEarnedValueCurves"];
         put?: never;
@@ -2160,7 +2160,7 @@ export interface paths {
         };
         /**
          * Évolution des indices
-         * @description Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de marquage, tel que son marquage l'a conservé (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que `context.scope` nomme (WF-IND-0020).
+         * @description Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par révision marquée, à sa date de marquage, tel que son marquage l'a conservé (WF-DAT-0040), et le dernier point au jour courant (WF-IND-0010) — sur la révision en cours, ou, sur un projet qui n'en a pas, sur sa dernière révision marquée avec le coût réel du jour —, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que `context.scope` nomme (WF-IND-0020).
          */
         get: operations["getIndexHistory"];
         put?: never;
@@ -4769,7 +4769,7 @@ export interface components {
             computed_at: components["schemas"]["Timestamp"];
             /** @description `project`, `unassigned`, ou l'identifiant d'un sous-projet (WF-IND-0020). */
             scope: string;
-            /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
+            /** @description Vrai pour ce que le marquage d'une révision a conservé — ses indicateurs et ses courbes, invariables depuis son marquage, sur le coût réel connu alors (WF-DAT-0040, WF-IND-0010) ; faux pour la révision en cours, et pour le calcul au jour courant d'un projet sans révision en cours, sur sa dernière révision marquée avec le coût réel du jour. La zone d'un indice conservé se classe à la lecture (`IndexValue.zone`). */
             is_stored: boolean;
         };
         /** @description Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`. */
@@ -4965,7 +4965,7 @@ export interface components {
             past: components["schemas"]["Money"];
             forecast: components["schemas"]["Money"];
         };
-        /** @description Séries temporelles cumulées. Les changements du budget de référence y apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans point plutôt que de tracer un zéro. */
+        /** @description Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant, nulle ; la date de calcul est un point de plus sur les séries qui s'y arrêtent ou en partent (`actual_cost`, `earned_value`, `project_manager_projection`), et une marche d'avenant deux points à sa date, avant et après (`steps`). Les changements du budget de référence y apparaissent comme des marches datées. Les courbes d'une révision marquée sont conservées avec ses indicateurs et présentées au même pas (WF-DAT-0040). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans point plutôt que de tracer un zéro. */
         CurveSeries: {
             context: components["schemas"]["CalculationContext"];
             /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon. */
@@ -4989,7 +4989,7 @@ export interface components {
             /** @description Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon. */
             cash_out_by_month: components["schemas"]["CashOutMonth"][] | null;
         };
-        /** @description Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a conservés (WF-DAT-0040) ; au jour courant pour la révision en cours, dont `version_name` est nul (WF-IND-0130). */
+        /** @description Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a conservés (WF-DAT-0040), leur zone classée sur les seuils courants (WF-REF-0130) ; au jour courant, le dernier point, `version_name` nul et `revision_id` celui de la révision en cours, ou de la dernière révision marquée sur un projet qui n'en a pas, calculé avec le coût réel du jour (WF-IND-0010, WF-IND-0130). */
         IndexHistoryPoint: {
             at: components["schemas"]["Timestamp"];
             revision_id: components["schemas"]["Uuid"];
@@ -5006,7 +5006,7 @@ export interface components {
             /** @description Du plus ancien marquage au jour courant. */
             points: components["schemas"]["IndexHistoryPoint"][];
         };
-        /** @description Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque sous-projet : un point par révision marquée, à sa date de marquage, et le dernier au jour courant pour la révision en cours, avec les seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées, chaque courbe porte quatre points. */
+        /** @description Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque sous-projet : un point par révision marquée à partir de l'état En cours, à sa date de marquage, et le dernier au jour courant (WF-IND-0010) — sur la révision en cours, ou, sur un projet qui n'en a pas, sur sa dernière révision marquée avec le coût réel du jour —, avec les seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées à partir de l'état En cours, chaque courbe porte quatre points. */
         IndexHistory: {
             context: components["schemas"]["CalculationContext"];
             /** @description Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour (WF-REF-0130, WF-REF-0170). */
@@ -5397,7 +5397,7 @@ export interface components {
             /** @description Niveau retenu pour l'image d'arborescence (WF-PLA-0120). */
             depth?: number | null;
         };
-        /** @description Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010). */
+        /** @description Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010). Au jour courant, chaque projet y contribue par sa révision courante : la révision en cours, ou la dernière révision marquée quand il n'en a pas — un projet dont la revue vient d'être marquée contribue par elle (WF-PTF-0010, WF-IND-0010). */
         PortfolioScope: {
             states: components["schemas"]["ProjectState"][];
             as_of: components["schemas"]["PlanningDate"];
@@ -5726,9 +5726,9 @@ export interface components {
         Scope: ("project" | "unassigned") | components["schemas"]["Uuid"];
         /** @description Base du plan de charge : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la révision en cours (WF-DEV-0070). */
         WorkloadBasis: "reference_budget" | "marked_remaining" | "current_remaining";
-        /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+        /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours, ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la révision du calcul ; une révision marquée, le calcul à la date de son marquage : les indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai, sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
         IndicatorsRevision: components["schemas"]["Uuid"];
-        /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+        /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
         AsOf: components["schemas"]["PlanningDate"];
         /** @description Révision dont on lit les risques, chacune figeant la version de leur devis propre, de leur probabilité et de leur état (WF-RIS-0030) ; absente, la révision en cours, ou la dernière révision marquée quand aucune n'est en cours. La provision d'un risque survenu est celle qu'il avait dans la révision de référence (WF-RIS-0050). */
         RiskRevision: components["schemas"]["Uuid"];
@@ -10808,9 +10808,9 @@ export interface operations {
     getProjectIndicators: {
         parameters: {
             query?: {
-                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours, ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la révision du calcul ; une révision marquée, le calcul à la date de son marquage : les indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai, sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
@@ -10883,9 +10883,9 @@ export interface operations {
     getCostCurve: {
         parameters: {
             query?: {
-                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours, ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la révision du calcul ; une révision marquée, le calcul à la date de son marquage : les indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai, sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
@@ -10935,9 +10935,9 @@ export interface operations {
     getEarnedValueCurves: {
         parameters: {
             query?: {
-                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant ; une révision marquée, le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored` signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
+                /** @description La révision du calcul, pour les indicateurs du projet comme pour les courbes : absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours, ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la révision du calcul ; une révision marquée, le calcul à la date de son marquage : les indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai, sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`. */
                 revision_id?: components["parameters"]["IndicatorsRevision"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Maille de calcul : le projet entier, ou un sous-projet, l'ensemble « hors sous-projet » compris (WF-IND-0020). Un sous-projet que le projet n'a pas, ou un identifiant mal formé, est refusé par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/scope` par `UNKNOWN_SUBPROJECT`, comme le sous-projet des coûts réels : aucune lecture nulle ne tient lieu de refus. */
                 scope?: components["parameters"]["Scope"];
@@ -11957,7 +11957,7 @@ export interface operations {
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
@@ -12006,7 +12006,7 @@ export interface operations {
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
@@ -12037,7 +12037,7 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
@@ -12075,7 +12075,7 @@ export interface operations {
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
@@ -12106,7 +12106,7 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
@@ -12141,7 +12141,7 @@ export interface operations {
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
             };
             header?: never;
@@ -12170,7 +12170,7 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 horizon_months?: number;
                 /** @description Vrai, les séries sont celles des décaissements des projets, décalées des délais de paiement et portant les provisions des risques identifiés (WF-IND-0100, WF-PTF-0100). */
@@ -12202,7 +12202,7 @@ export interface operations {
             query?: {
                 /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au jour courant ; présente, ceux de la dernière révision marquée antérieure, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
+                /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
             };
             header?: never;

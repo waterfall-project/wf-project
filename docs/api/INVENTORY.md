@@ -202,7 +202,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0020, WF-IND-0090 |
 | GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100 |
 | GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0110 |
-| GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
+| GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 
 ## Risques et provisions
 

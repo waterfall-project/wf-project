@@ -1,12 +1,18 @@
 # Portefeuille (FBS-2). Aucune donnée en propre : ces vues somment ce que les
-# projets portent déjà, lisent les indicateurs conservés (WF-DAT-0040) et ne
-# permettent aucune saisie (WF-PTF-0030). Un indice de portefeuille est un rapport
+# projets portent déjà et ne permettent aucune saisie (WF-PTF-0030). Au jour courant,
+# chaque projet contribue par sa révision courante — la révision en cours, ou la
+# dernière marquée quand il n'en a pas, avec le coût réel du jour (WF-IND-0010,
+# WF-PTF-0010) ; à une date passée, par les indicateurs conservés (WF-DAT-0040). Un indice de portefeuille est un rapport
 # de sommes, jamais une moyenne d'indices (WF-PTF-0020).
 
 PortfolioScope:
   type: object
   required: [states, as_of, org_node_label, project_count]
-  description: Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010).
+  description: >-
+    Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010). Au jour courant,
+    chaque projet y contribue par sa révision courante : la révision en cours, ou la dernière
+    révision marquée quand il n'en a pas — un projet dont la revue vient d'être marquée
+    contribue par elle (WF-PTF-0010, WF-IND-0010).
   properties:
     states:
       type: array

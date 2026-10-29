@@ -1136,6 +1136,13 @@ recalculées. Exemple : `project_indicators_marked`, la référence marquée le 
 l'écran de cette révision, les indicateurs sont les siens, et l'évolution des indices, toujours
 calculée au jour sur la révision en cours, l'est sur une autre.
 
+*Remplacé en partie par US-0701/L5 (#1605, M-02 et M-03 ; WF-IND-0010 et WF-DAT-0040 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les courbes d'une révision marquée
+sont conservées avec ses indicateurs, `is_stored` vrai, sur les lignes de coût réel connues à son
+marquage telles qu'elles étaient — le point ouvert est clos par la spécification ; et, sans
+révision en cours, le calcul au jour courant se fait sur la dernière révision marquée avec le coût
+réel du jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
+
 **Les mois du plan de charge agrégé sont en tête de la réponse** (#326). `PortfolioWorkload.months`,
 exigé, porte les mois de l'horizon, croissants et sans trou ; chaque rôle porte un mois par mois de
 cette liste, dans le même ordre, un mois sans charge compris — comme les années de la grille des
@@ -1538,6 +1545,12 @@ un `anyOf` de ses quatre colonnes et du motif `^passthrough\..+$`, et le front n
 colonne comme le fichier la nomme ; `document_number`, qui identifie la ligne, est porté par
 `label` et jamais par `fields`. Exemple : `import_actual_costs_analysed`, le fournisseur de la
 facture. `listOrgNodes` cherche aussi sur le code.
+
+*Remplacé en partie par US-0701/L5 (#1605, M-02 ; WF-IND-0010 et WF-DAT-0040 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : WF-DAT-0040 conserve désormais les
+séries des courbes avec les indicateurs, au pas du mois, et le coût réel d'une révision marquée est
+celui connu à son marquage ; les courbes d'une révision marquée ne sont plus recalculées
+(« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
 
 ## Les constats de la seconde moitié d'EP-02 (EP-02/L35)
 
@@ -2051,6 +2064,9 @@ WF-REV-0050) : `steps` porte sa marche, 3 165,00, la différence des deux budget
 la série deux points à cette date, avant et après, nuls tous deux, rien n'étant encore prévu de
 dépenser. La série suit, à chaque jour, la référence en vigueur ce jour-là ; la valeur planifiée,
 elle, est recalculée entière sur la référence en vigueur (WF-DEV-0080), sans marche.
+*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100 et WF-IND-0110 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les séries se lisent au pas du mois,
+chaque point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
 `cost_curve_amendment`, variante gardée, devient un avenant 2 de 15 000 sur la ligne des études
 de détail au 10 mars : sa marche monte de 23 333,33 à 26 833,33, ce que la nouvelle référence
 prévoyait de plus à cette date. **Les délais de paiement sont décrits** : trente jours sur
@@ -2478,6 +2494,11 @@ d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; l
 risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
 électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
 ses indicateurs, et les vues du portefeuille la somment.
+
+*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100, WF-IND-0110 et WF-DAT-0040 des
+passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la règle d'EP-02/L24, un
+point par jour où un montant commence ou finit, n'est plus gardée ; les courbes sont au pas du mois,
+46 points pour le budget de référence du témoin (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
 
 *Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08 ; spécification des 10 et 22 octobre 2026,
 recadrage du 2026-10-28) : les montants sont inflation comprise, et
@@ -8665,6 +8686,54 @@ remplace le schéma qui n'existe pas (G-12) ; `IndexValue.value` est à quatre d
 les bornes des zones (la part `indicators.yaml` de M-13, WF-REF-0170) et qu'elle se classe à la
 lecture sur les seuils courants, pour un indice conservé aussi, comme `IndexHistory.thresholds`
 (M-14, WF-REF-0130). L-24 était déjà appliqué (`EstimateIndicators.delta_to_reference`).
+
+### Les courbes au pas du mois, conservées au marquage (US-0701/L5, #1605, G-01, M-02, M-03)
+
+Les passes de cohérence des 9 et 10 octobre 2026 ont écrit dans la spécification trois règles que
+le contrat ne suivait pas ; la proposition de la revue s'applique à chacune (décision de l'auteur du
+2026-10-28, « la règle des autres majeurs »), et les décisions antérieures qu'elles contredisent
+sont réécrites : #247 et #365 (EP-02/L18, EP-02/L35), EP-02/L24 deux fois.
+
+- **Le pas du mois** (G-01). « Les courbes se calculent et se présentent au pas du mois, chaque
+  point portant le cumul à la fin du mois ; la révision en cours et les révisions marquées sont
+  présentées au même pas » (WF-IND-0100, WF-IND-0110, WF-DAT-0040). `CurveSeries` le dit : la
+  première valeur à la fin du mois qui précède le premier montant, nulle ; la date de calcul, un
+  point de plus sur les séries qui s'y arrêtent ou en partent (`actual_cost`, `earned_value`,
+  `project_manager_projection`) ; une marche d'avenant, deux points à sa date, avant et après, comme
+  le voulait EP-02/L24. Une tâche terminée fait sa marche dans la valeur acquise au point du mois de
+  sa terminaison. La courbe en S du portefeuille, déjà au pas du mois, raconte désormais la même
+  histoire que celle du projet (WF-PTF-0100). Écarté : garder le point par jour pour la maquette,
+  contraire aux trois exigences, et un changement de nature des points après le gel.
+- **Les courbes d'une révision marquée sont conservées** (M-02). WF-IND-0010 : « Pour une révision
+  marquée, ce sont les lignes connues à son marquage, telles qu'elles étaient alors […]. Les courbes
+  d'une révision marquée sont conservées avec ses indicateurs ». `IndicatorsRevision`, `getCostCurve`
+  et `getEarnedValueCurves` perdent les phrases « connues aujourd'hui », et `is_stored` est vrai
+  pour ce que le marquage a conservé, indicateurs et courbes ; faux pour la révision en cours et
+  pour le calcul au jour courant d'un projet sans révision en cours. Le point ouvert de #247, des
+  courbes recalculées qui pouvaient s'écarter des indicateurs, est clos par la spécification.
+- **Les indicateurs du jour d'un projet sans révision en cours** (M-03). WF-IND-0010 : « ses
+  indicateurs au jour courant se calculent sur sa dernière révision marquée, avec le coût réel au
+  jour courant » ; WF-IND-0130 et WF-IND-0090 en tirent le dernier point, WF-PTF-0010 la
+  contribution au portefeuille (« Un projet dont la revue vient d'être marquée et qui n'a pas de
+  révision en cours contribue par cette revue »). `IndicatorsRevision`, `AsOf`, `getProjectIndicators`,
+  `getIndexHistory`, `IndexHistory`, `IndexHistoryPoint`, l'en-tête de `portfolio.yaml` et
+  `PortfolioScope` le disent : `is_stored` faux, `context.revision_id` nommant la révision marquée,
+  le dernier point de l'évolution `version_name` nul. Le risque avait déjà sa règle (`RiskRevision`,
+  US-0230/L2).
+- **Le témoin.** `mockcurves` lit chaque courbe aux fins de mois (`days_of`, `up_to`) : 46 points
+  pour le budget de référence de `cost_curve` au lieu de 756, du 31 janvier 2026 au 31 août 2029 ;
+  le coût réel et la valeur acquise s'arrêtent au 3 juin, d'où part la projection. Une lecture est
+  conservée quand elle est celle de sa révision à l'instant de son marquage
+  (`mockindicators.Reading.is_stored`), qui donne `is_stored` aux courbes comme aux indicateurs.
+  Exemple nouveau, `project_indicators_without_current_revision`, une variante contrefactuelle
+  déclarée : la révision 102 abandonnée ce matin, ses saisies défaites — terminaisons comprises —,
+  les indicateurs du jour se calculent sur la référence 101 avec le coût réel du jour, 1 412 970,20,
+  sans valeur acquise, d'où un indice de coût nul et une projection au rythme constaté non
+  calculable ; ceux que la référence a conservés (`project_indicators_marked`) ne changent pas.
+  `tools/tests/test_mockcurves.py` tient le pas du mois, la marche de la valeur acquise au point du
+  mois et les deux lectures d'un projet sans révision en cours (WF-IND-0100, WF-IND-0110,
+  WF-IND-0010). Aucun exemple ne lit une courbe d'une révision marquée : le témoin ne modélise pas
+  la date d'import d'une pièce, que la conservation demanderait.
 
 ## Collage et annulation
 

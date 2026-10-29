@@ -115,8 +115,11 @@ CalculationContext:
     is_stored:
       type: boolean
       description: >-
-        Vrai pour les indicateurs conservés d'une révision marquée, invariables
-        depuis son marquage (WF-DAT-0040).
+        Vrai pour ce que le marquage d'une révision a conservé — ses indicateurs et ses courbes,
+        invariables depuis son marquage, sur le coût réel connu alors (WF-DAT-0040,
+        WF-IND-0010) ; faux pour la révision en cours, et pour le calcul au jour courant d'un
+        projet sans révision en cours, sur sa dernière révision marquée avec le coût réel du
+        jour. La zone d'un indice conservé se classe à la lecture (`IndexValue.zone`).
 
 EstimateIndicators:
   type: object
@@ -496,8 +499,13 @@ CurveSeries:
   type: object
   required: [context, payment_delays, series, cash_out_by_month]
   description: >-
-    Séries temporelles cumulées. Les changements du budget de référence y
-    apparaissent comme des marches datées (WF-IND-0100, WF-IND-0110). Demandée avec
+    Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois
+    (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant,
+    nulle ; la date de calcul est un point de plus sur les séries qui s'y arrêtent ou en partent
+    (`actual_cost`, `earned_value`, `project_manager_projection`), et une marche d'avenant deux
+    points à sa date, avant et après (`steps`). Les changements du budget de référence y
+    apparaissent comme des marches datées. Les courbes d'une révision marquée sont conservées
+    avec ses indicateurs et présentées au même pas (WF-DAT-0040). Demandée avec
     les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses
     séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point
     n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune
@@ -584,10 +592,11 @@ IndexHistory:
   required: [context, thresholds, scopes]
   description: >-
     Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque
-    sous-projet : un point par révision marquée, à sa date de marquage, et le dernier au
-    jour courant pour la révision en cours, avec les seuils du référentiel à tracer
-    (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées, chaque
-    courbe porte quatre points.
+    sous-projet : un point par révision marquée à partir de l'état En cours, à sa date de
+    marquage, et le dernier au jour courant (WF-IND-0010) — sur la révision en cours, ou, sur un
+    projet qui n'en a pas, sur sa dernière révision marquée avec le coût réel du jour —, avec les
+    seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions
+    marquées à partir de l'état En cours, chaque courbe porte quatre points.
   properties:
     context: { $ref: '#/CalculationContext' }
     thresholds:
@@ -623,8 +632,10 @@ IndexHistoryPoint:
   required: [at, revision_id, version_name, cost_index, schedule_index]
   description: >-
     Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a
-    conservés (WF-DAT-0040) ; au jour courant pour la révision en cours, dont
-    `version_name` est nul (WF-IND-0130).
+    conservés (WF-DAT-0040), leur zone classée sur les seuils courants (WF-REF-0130) ; au jour
+    courant, le dernier point, `version_name` nul et `revision_id` celui de la révision en
+    cours, ou de la dernière révision marquée sur un projet qui n'en a pas, calculé avec le coût
+    réel du jour (WF-IND-0010, WF-IND-0130).
   properties:
     at: { $ref: ../common.yaml#/Timestamp }
     revision_id: { $ref: ../common.yaml#/Uuid }

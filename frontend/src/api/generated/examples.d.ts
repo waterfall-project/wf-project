@@ -99,7 +99,7 @@ export interface Examples {
     200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_analysed" | "import_analysing" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
-    200: "project_indicators" | "project_indicators_marked";
+    200: "project_indicators" | "project_indicators_marked" | "project_indicators_without_current_revision";
   };
   "GET /projects/{project_id}/indicators/cost-curve": {
     200: "cost_curve" | "cost_curve_amendment" | "cost_curve_payment_delays" | "cost_curve_subproject" | "cost_curve_subproject_empty" | "cost_curve_subproject_empty_payment_delays" | "cost_curve_subproject_unbudgeted";

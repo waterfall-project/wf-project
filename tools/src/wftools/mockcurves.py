@@ -6,9 +6,11 @@ The revisions are read in ``wftools.mockindicators``: here their amounts are spr
 the reference budget on the dates of the reference in force, stepped at each amendment, the
 actual cost at the dates of its documents, the remaining to commit on the dates of the current
 revision after today (WF-IND-0100, WF-IND-0110) — and their labour hours by month, against the
-capacity of each role (WF-DEV-0070). A curve is read at the day before its first amount, at the
-end of each month, at the days an amount starts or ends and at the day of the calculation, each
-value counting the work of its day; to be replaced by the kernel of EP-08 to EP-11.
+capacity of each role (WF-DEV-0070). A curve is read at the pace of the month, each point the
+cumulative amount at the end of its month, from the end of the month before its first amount
+(WF-IND-0100, WF-IND-0110, WF-DAT-0040); the day of the calculation is one point more on the series
+that stop or start there, and an amendment two at its day. Each value counts the work of its day;
+to be replaced by the kernel of EP-08 to EP-11.
 """
 
 from __future__ import annotations
@@ -187,23 +189,39 @@ def month_end(day: date) -> date:
     return following - timedelta(days=1)
 
 
-def days_of(flows: Sequence[Flow], extra: Iterable[date] = ()) -> list[date]:
-    """Return the days a curve of some flows is read at, from the day before the first.
+def month_before(day: date) -> date:
+    """Return the last day of the month before that of a day: the origin of a curve."""
+    return day.replace(day=1) - timedelta(days=1)
 
-    The day before each flow starts and the day it ends, the end of each month, and the days
-    asked that fall within.
-    """
-    first = min(flow.first for flow in flows) - timedelta(days=1)
-    last = max(flow.last for flow in flows)
-    found = {first, last}
-    for flow in flows:
-        found.update((flow.first - timedelta(days=1), flow.last))
-    end = month_end(first)
-    while end < last:
-        found.add(end)
+
+def month_ends(start: date, stop: date) -> list[date]:
+    """Return the ends of the months from that of a day to that of another, both included."""
+    found: list[date] = []
+    end = month_end(start)
+    while end <= month_end(stop):
+        found.append(end)
         end = month_end(end + timedelta(days=1))
-    found.update(day for day in extra if first <= day <= last)
-    return sorted(found)
+    return found
+
+
+def days_of(flows: Sequence[Flow], since: Iterable[date] = ()) -> list[date]:
+    """Return the days a curve of some flows is read at: the ends of their months (WF-IND-0100).
+
+    From the end of the month before the first flow begins — or before an earlier day given, the
+    step of an amendment —, where the curve starts at nought, to the end of the month the last is
+    spent whole, each point the cumulative amount at the end of its month.
+    """
+    first = month_before(min([*(flow.first for flow in flows), *since]))
+    return month_ends(first, max(flow.last for flow in flows))
+
+
+def up_to(origin: date, day: date) -> list[date]:
+    """Return the days a series that stops at the day of the calculation is read at.
+
+    Its origin, the end of each month after it and before the day, and the day itself, one point
+    more (WF-IND-0100, WF-IND-0110).
+    """
+    return sorted({origin, day, *(end for end in month_ends(origin, day) if origin < end < day)})
 
 
 def _points(values: Iterable[tuple[date, Decimal]]) -> list[JsonValue]:
@@ -227,15 +245,16 @@ def budget_series(
 ) -> list[JsonValue]:
     """Return the cumulative reference budget of a scope, by the reference in force at each day.
 
-    At the day of an amendment, two points: the budget of the reference before it, then that of
-    the reference it produced, a vertical step (DECISIONS, « Les exemples des courbes »). No point
-    for a scope no reference budgets a line of.
+    At the end of each month; at the day of an amendment, two points: the budget of the reference
+    before it, then that of the reference it produced, a vertical step (DECISIONS, « Les exemples
+    des courbes »). No point for a scope no reference budgets a line of.
     """
+    del day
     flows = [budget_flows(era.base, delays=delays, scope=scope) for era in eras]
     if not any(flows):
         return []
     steps = [era.since for era in eras[1:]]
-    found = sorted({*days_of([f for each in flows for f in each], [day]), *steps})
+    found = sorted({*days_of([f for each in flows for f in each], steps), *steps})
     spreads = [Spread.of(each) for each in flows]
     values: list[tuple[date, Decimal]] = []
     for each in found:
@@ -247,9 +266,12 @@ def budget_series(
 
 
 def actual_series(costs: list[Cost], origin: date, day: date) -> list[JsonValue]:
-    """Return the cumulative actual cost by date of document, up to the day (WF-IND-0100)."""
-    found = sorted({origin, day, *(cost.on for cost in costs if origin < cost.on <= day)})
-    return _points((each, actual(costs, each)) for each in found)
+    """Return the cumulative actual cost by date of document, month by month up to the day.
+
+    Each point the lines dated by the end of its month, the last the day of the calculation
+    (WF-IND-0100, WF-IND-0110).
+    """
+    return _points((each, actual(costs, each)) for each in up_to(origin, day))
 
 
 def in_scope(costs: Iterable[Cost], scope: str) -> list[Cost]:
@@ -285,14 +307,13 @@ def cost_curve(
     if budget_points:
         origin = date.fromisoformat(cast("str", cast("JsonObject", budget_points[0])["date"]))
     else:
-        origin = min((cost.on for cost in costs), default=day + timedelta(days=1))
-        origin = min(origin - timedelta(days=1), day)
+        origin = month_before(min((cost.on for cost in costs), default=day))
     spent = actual(costs, day)
     projection = [day, *(each for each in (days_of(flows) if flows else []) if each > day)]
     cash_out = (cash_out_by_month(flows, costs, day) if drawn else []) if delays else None
     left = Spread.of(flows)
     return {
-        "context": context(reading, at=TODAY, scope=scope),
+        "context": context(reading, stored=reading.is_stored, scope=scope),
         "payment_delays": delays,
         "series": [
             {"name": "reference_budget", "points": budget_points},
@@ -343,24 +364,18 @@ def cash_out_by_month(flows: list[Flow], costs: list[Cost], day: date) -> list[J
 def earned_value_curves(reading: Reading, base: Reading, costs: list[Cost]) -> JsonObject:
     """Return the curves of earned value (`CurveSeries`, WF-IND-0110).
 
-    The planned value on the reference in force, recomputed whole on it (WF-DEV-0080), to its
-    end; the earned value by date of completion and the actual cost by date of document, up to
-    today.
+    At the pace of the month (WF-IND-0110): the planned value on the reference in force,
+    recomputed whole on it (WF-DEV-0080), to its end; the earned value by date of completion —
+    a task completed steps it at the point of its month — and the actual cost by date of
+    document, up to today, one point more.
     """
     day = reading.day
     flows = budget_flows(base)
-    found = days_of(flows, [day])
-    completions = {
-        completed
-        for line in budgeted(reading)
-        if (completed := reading.completed_on(cast("int", line.parent))) is not None
-        and completed <= day
-        and line.amounts.budgeted != 0
-    }
-    earned_days = sorted({found[0], day, *completions})
+    found = days_of(flows)
+    earned_days = up_to(found[0], day)
     planned = Spread.of(flows)
     return {
-        "context": context(reading, at=TODAY),
+        "context": context(reading, stored=reading.is_stored),
         "payment_delays": False,
         "series": [
             {"name": "planned_value", "points": _points((d, planned.by(d)) for d in found)},

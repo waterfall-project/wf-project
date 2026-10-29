@@ -836,8 +836,9 @@ def test_a_scope_without_budget_draws_its_cost_and_its_projection(today: dict[st
     assert _series(curve, "reference_budget") == []
     assert curve["steps"] == []
     spent = _series(curve, "actual_cost")
-    # Drawn from the day before its first document, the invoice of the control station.
-    assert spent[0] == {"date": "2026-05-17", "amount": "0.00"}
+    # Drawn from the end of the month before its first document, the invoice of the control
+    # station of 18 May.
+    assert spent[0] == {"date": "2026-04-30", "amount": "0.00"}
     assert spent[-1] == _series(budgeted, "actual_cost")[-1]
     projection = _series(curve, "project_manager_projection")
     assert projection == _series(budgeted, "project_manager_projection")
@@ -881,7 +882,7 @@ def test_the_summaries_count_the_drawn_tasks_completed_and_the_curves_step_at_th
 ) -> None:
     # The indicators of the project and the curves of earned value say how many drawn tasks are
     # completed — those the invoices of the actual costs are of (EP-14/L45a) —, and the earned
-    # value steps at each day one completed, after the studies on 10 April.
+    # value steps at the point of the month of each one completed, after the studies on 10 April.
     invoices = mockcosts.drawn()
     assert len(invoices) == 21
     for name in ("project_indicators", "earned_value_curves"):
@@ -889,7 +890,8 @@ def test_the_summaries_count_the_drawn_tasks_completed_and_the_curves_step_at_th
         assert f"{len(invoices)} tâches tirées" in summary, name
     earned = _series(today["earned_value_curves"], "earned_value")
     days = {point["date"] for point in earned}
-    assert {line.on.isoformat() for line in invoices} | {"2026-04-10"} <= days
+    months = {mockcurves.month_end(line.on).isoformat() for line in invoices if line.on.month < 6}
+    assert months | {"2026-04-30", "2026-06-03"} <= days
     witness = mockindicators.today()
     for point in earned:
         day = date.fromisoformat(point["date"])

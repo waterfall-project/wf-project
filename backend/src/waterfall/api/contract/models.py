@@ -4156,7 +4156,7 @@ class CalculationContext(ContractModel):
     is_stored: Annotated[
         bool,
         Field(
-            description="Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040)."
+            description="Vrai pour ce que le marquage d'une révision a conservé — ses indicateurs et ses courbes, invariables depuis son marquage, sur le coût réel connu alors (WF-DAT-0040, WF-IND-0010) ; faux pour la révision en cours, et pour le calcul au jour courant d'un projet sans révision en cours, sur sa dernière révision marquée avec le coût réel du jour. La zone d'un indice conservé se classe à la lecture (`IndexValue.zone`)."
         ),
     ]
 
