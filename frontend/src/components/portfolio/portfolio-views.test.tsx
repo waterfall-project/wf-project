@@ -48,7 +48,7 @@ describe("the shares of the portfolio, never « 0 % » when they are not nil (#6
     expect(said).toContain(`Provision 151,044,403.35 ${TINY}`);
   });
 
-  it("says a share of a nil total not computable, with its reason [WF-QUA-0010]", () => {
+  it("says a share of a nil total not computable, with its reason [WF-IND-0010-A] [WF-PTF-0080-A]", () => {
     // A variant of `volume/portfolio_cost_structure`: the share of the provision, not computable.
     const structure = example(
       "volume/portfolio_cost_structure",

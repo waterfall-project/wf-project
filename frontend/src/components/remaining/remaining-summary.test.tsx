@@ -69,7 +69,7 @@ describe("the summary of the remaining to commit", () => {
     expect(text(renderSummary(indicators))).toContain("Provision: 500,000.00 (0.74%)");
   });
 
-  it("says a share of a nil total not computable, with its reason, rather than leaving it out [WF-QUA-0010]", () => {
+  it("says a share of a nil total not computable, with its reason, rather than leaving it out [WF-IND-0010-A] [WF-RAE-0020-A]", () => {
     // A variant of `remaining_indicators`: the share of the provision, not computable on a nil total.
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const nil = {

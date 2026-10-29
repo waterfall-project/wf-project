@@ -96,6 +96,7 @@ describe("the summary of the estimate", () => {
       "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 58 894 803,47 Provision 500 000,00",
     );
     expect(html).not.toContain("Total du devis 0,00");
+    expect(html).not.toContain("%");
   });
 
   it("leaves out a deviation the API does not give, rather than showing it as zero", () => {
@@ -184,7 +185,7 @@ describe("the summary of the estimate", () => {
     expect(html).not.toMatch(/01926f3a-/);
   });
 
-  it("leaves a share not computable out of a breakdown, which says its amount alone [WF-QUA-0010]", () => {
+  it("leaves a share not computable out of a breakdown, which says its amount alone [WF-IND-0010-A] [WF-DEV-0060-A]", () => {
     // A variant of `estimate_indicators_breakdown`: every share of the natures of cost, not computable.
     const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
     const share = { is_computable: false, value: null, reason: "no_total" as const };
@@ -196,7 +197,13 @@ describe("the summary of the estimate", () => {
         "en",
       ),
     );
-    expect(html).not.toContain("(Not computable");
+    // The section of the natures of cost alone, up to the next one.
+    const from = html.indexOf("By nature of cost");
+    const section = html.slice(from, html.indexOf("By subproject", from));
+    expect(section).toContain("By nature of cost");
+    expect(section).not.toContain("%");
+    expect(section).not.toContain("Not computable");
+    expect(section).not.toContain("The total is zero.");
   });
 
   it("leaves out a breakdown the API gives empty", () => {
