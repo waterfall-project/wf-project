@@ -21,6 +21,21 @@ from wftools import mockcore, mockdating, mockindicators, mockstructure, mockwit
 from wftools.mockstructure import CENT, REFERENCE_YEAR, Projection, described
 from wftools.mockwitness import Line, Task
 
+LINES_OF_2028 = 1_608
+"""The lines of estimate, none a provision, that the witness dates in 2028, two years after its
+reference year: the number the drawn structure gives, fixed by its seed."""
+
+PRICED_TWO_YEARS_ON = {
+    1002755: ("5080.00", "5389.37"),
+    1002756: ("4480.00", "4752.83"),
+    1002757: ("37741.92", "40040.40"),
+}
+"""Three of them, by number: their amount at the rates of 2026 and their re-estimate, 1.03 x 1.03
+as much, written out."""
+
+LABOUR_LINES_NOT_STARTED = 2_685
+"""The drawn labour lines of the tasks the witness has not started on 3 June 2026."""
+
 
 def _facet(row: mockcore.Row) -> dict[str, Any]:
     return cast("dict[str, Any]", row.node["estimate_line"])
@@ -42,12 +57,13 @@ def test_a_line_two_years_after_the_reference_year_is_reestimated_4_04_percent_a
         and _facet(row)["consumption_year"] == REFERENCE_YEAR + 2
         and not _facet(row)["is_computed"]
     ]
-    assert len(later) == 1_608
-    for row in later:
-        base = Decimal(_facet(row)["base_amount"])
-        assert Decimal(_facet(row)["reestimated_amount"]) == (base * Decimal("1.0609")).quantize(
-            CENT
-        )
+    assert len(later) == LINES_OF_2028
+    seen = {
+        row.number: (_facet(row)["base_amount"], _facet(row)["reestimated_amount"])
+        for row in later
+        if row.number in PRICED_TWO_YEARS_ON
+    }
+    assert seen == PRICED_TWO_YEARS_ON
     first = later[0]
     at_two = mockdating.price(
         lines[first.number], REFERENCE_YEAR + 2, projection=Projection(rate=Decimal("0.02"))
@@ -90,7 +106,7 @@ def test_a_task_not_started_counts_its_reestimate_at_the_rates_the_revision_keep
         and line.hours
         and reading.progress(line) == "not_started"
     ]
-    assert len(lines) == 2_685
+    assert len(lines) == LABOUR_LINES_NOT_STARTED
     for line in lines:
         facet = reading.facet(line)
         rate = mockstructure.LABOUR_RATES[cast("str", facet["cost_category_id"])]

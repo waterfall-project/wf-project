@@ -40,6 +40,15 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _lines_by_id(rows: list[mockcore.Row]) -> dict[str, Node]:
+    """Return the facets of the lines of a reading, by node identifier."""
+    return {
+        cast("str", row.node["node_id"]): cast("Node", row.node["estimate_line"])
+        for row in rows
+        if row.kind == mockcore.ESTIMATE_LINE
+    }
+
+
 def _summed(compared: Node) -> set[Decimal]:
     """Return the sums of the deltas of a comparison, by dimension and by amount, as a set."""
     return {
@@ -131,6 +140,33 @@ def test_a_line_whose_budget_alone_changes_presents_no_delta_of_its_reestimate()
     assert {(entry["budgeted_delta"], entry["reestimated_delta"]) for entry in deltas} == {
         ("750.00", "0.00")
     }
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amendment_changes(
+    whole: Node,
+) -> None:
+    # Vérif : « les montants réestimés n'y diffèrent que par les lignes que le différentiel ajoute
+    # ou retire, par celles des tâches démarrées qu'il termine et par celles dont il change l'année
+    # de consommation ; une ligne existante dont le différentiel ne modifie que le montant budgété
+    # ne présente aucun écart de montant réestimé ». From the offer 100 to the reference 101, the
+    # amendment changes the hours of one line alone, and keeps the budget of the others (#467): a
+    # line modified for its re-estimate alone bears the quantities it bore, and moves because its
+    # year of consumption changes or, for labour, because the revision keeps the rates of 2026.
+    offered = _lines_by_id(mockhistory.offer_rows())
+    marked = _lines_by_id(mockhistory.reference_rows())
+    lines = [node for node in whole["items"] if node["kind"] == "estimate_line"]
+    budget_changed = [node for node in lines if "budgeted_amount" in (node.get("changes") or [])]
+    assert [node["node_id"] for node in budget_changed] == [universe(N.LABOUR)]
+    assert budget_changed[0]["changes"] == ["budgeted_amount", "reestimated_amount"]
+    alone = [node for node in lines if node.get("changes") == ["reestimated_amount"]]
+    assert len(alone) == 2_768
+    for node in alone:
+        before, after = offered[node["node_id"]], marked[node["node_id"]]
+        for key in ("quantity", "hours", "unit_disbursement", "budgeted_amount"):
+            assert before[key] == after[key]
+        assert before["consumption_year"] != after["consumption_year"] or after["hours"] is not None
+        assert before["reestimated_amount"] != after["reestimated_amount"]
 
 
 def test_a_reading_with_fields_renders_what_it_names_besides_the_four() -> None:
