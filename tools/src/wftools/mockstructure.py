@@ -132,7 +132,9 @@ class Projection:
     """How a revision projects an amount on its year of consumption (WF-DEV-0030, WF-PRJ-0040).
 
     Compounded at the inflation rate of the project, once a year elapsed since the reference
-    year of the revision: the witness's, 3 % from 2026, by default. A simplification of
+    year of the revision: the witness's, 3 % from 2026, by default. Every revision of the witness
+    is projected from 2026, the offer of 2025 included: a declared simplification, for the author
+    to settle (#1628). A simplification of
     WF-DEV-0040: the whole line is projected on the year its task starts, not split across the
     years the task spans in proportion to its hours of work.
     """

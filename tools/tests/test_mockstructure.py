@@ -200,7 +200,8 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
 ) -> None:
     # WF-REV-0050, #467: the amendment 1 designated no drawn line, so a labour line keeps in the
     # reference the budget the offer fixed, its hours at the rate of 2025 of its category, and is
-    # re-estimated at the one rate of 2026 — as the two lines of the core the amendment did not
+    # re-estimated at the one rate of 2026 (the offer, projected from 2026 too, is a declared
+    # simplification left to the author, #1628) — as the two lines of the core the amendment did not
     # designate (EP-14/L45a). The offer, read at its marking, gives that very amount.
     offered = {
         row.number: row.amounts.base

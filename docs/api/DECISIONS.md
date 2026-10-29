@@ -8472,7 +8472,8 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
   Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
   simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
-  l'avenant 1 ne désigne pas (#467). Le devis du témoin vaut 68 923 691,06, son budget de référence
+  l'avenant 1 ne désigne pas (#467). Elle est à trancher par l'auteur (#1628) :
+  l'issue en donne les options. Le devis du témoin vaut 68 923 691,06, son budget de référence
   68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
   de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
   réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
