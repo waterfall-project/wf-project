@@ -2314,18 +2314,17 @@ par une variante déclarée en « si… » : si ses factures n'avaient pas encor
 seuls avoirs l'étant déjà. Chaque point est la somme des points des projets, ce que les
 tests éprouvent en sommant deux moitiés du portefeuille.
 
-*Remplacé en partie par US-0701/L6 (#1606, M-07 et G-04 ; WF-PTF-0080, WF-PTF-0090 et
-WF-PTF-0100 de la spécification du 9 octobre 2026, constats C-122 et C-199, recadrage du
-2026-10-28) : le choix déclaré ne tient plus. Une offre incluse apporte à la courbe en S les courbes
-de son devis courant pondérées par sa probabilité de gain, hors lignes de provision pour le budget
-de référence et provisions comprises pour la projection ; la structure des coûts suit la même règle,
-et la vue des risques compte ses risques sans pondération. `mockportfoliotime` tire pour chaque
-offre la part de son devis que portent ses lignes de provision, de 2 à 8 %. La courbe court sur les
-douze mois qui précèdent celui de la date de calcul, puis sur les `horizon_months` mois à partir de
-lui, six par défaut, et non plus sur six mois de part et d'autre : de juin 2025 à novembre 2026 ;
+*Remplacé en partie par US-0701/L6 (#1606, M-07 et G-04 ; WF-PTF-0080, WF-PTF-0090 et WF-PTF-0100 de
+la spécification du 9 octobre 2026, constats C-122 et C-199, recadrage du 2026-10-28) : le choix
+déclaré ne tient plus. Une offre incluse apporte à la courbe en S les courbes de son devis courant
+pondérées par sa probabilité de gain, hors lignes de provision pour le budget de référence et
+provisions comprises pour la projection ; la structure des coûts suit la même règle, et la vue des
+risques compte ses risques sans pondération. `mockportfoliotime` tire pour chaque offre la part de
+son devis que portent ses lignes de provision, de 2 à 8 %. La courbe court sur les douze mois qui
+précèdent celui de la date de calcul, puis sur les `horizon_months` mois à partir de lui, six par
+défaut, et non plus sur six mois de part et d'autre : de juin 2025 à novembre 2026 ;
 `portfolio_cost_curve_credit` est lue à un mois d'horizon, de décembre 2024 à décembre 2025 (« Le
-portefeuille : horizon, période des projets terminés, couverture et contribution d'une offre », dans
-« Le contrat figé »).*
+portefeuille : horizon, projets terminés, couverture, offres », dans « Le contrat figé »).*
 
 **La capacité d'un rôle est ses heures mensuelles, tout son effectif compris** (WF-REF-0100 ;
 décision du 2026-10-08 sur #375, revue à la revue du lot : la spécification fait foi). C'est
@@ -2364,12 +2363,11 @@ WF-RIS-0050) : la réserve de référence du témoin, 910, et celle de chaque au
 quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des risques identifiés.
 `matrix.totals.reserve` porte la même réserve. L'écart de couverture est la différence des sommes.
 
-*Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre
-2026, constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les
-sommes de celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est
-terminé, et l'exemple ne change pas
-(« Le portefeuille : horizon, projets terminés, couverture,
-offres », dans « Le contrat figé »).*
+*Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre 2026,
+constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les sommes de
+celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est terminé, et
+l'exemple ne change pas (« Le portefeuille : horizon, projets terminés, couverture, offres », dans «
+Le contrat figé »).*
 
 **La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
 semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
