@@ -4145,7 +4145,7 @@ class UndoResult(ContractModel):
 
 class CalculationContext(ContractModel):
     revision_id: Uuid
-    revision_status: RevisionStatus | None = None
+    revision_status: RevisionStatus
     computed_at: Timestamp
     scope: Annotated[
         str,
@@ -4154,11 +4154,11 @@ class CalculationContext(ContractModel):
         ),
     ]
     is_stored: Annotated[
-        bool | None,
+        bool,
         Field(
             description="Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040)."
         ),
-    ] = None
+    ]
 
 
 class ComputableMoney(ContractModel):
@@ -4254,7 +4254,7 @@ class Role(ContractModel):
     resource_role_id: Uuid
     label: str
     org_node_id: Uuid | None = None
-    capacity_monthly_hours: Hours | None = None
+    capacity_monthly_hours: Hours
     months: list[Month]
 
 
@@ -4392,8 +4392,18 @@ class NotStartedTask(KanbanTask):
 
 
 class IndexValue(ContractModel):
-    value: Computable
-    zone: AlertZone | None
+    value: Annotated[
+        Computable,
+        Field(
+            description="L'indice, rapport de deux grandeurs, à quatre décimales (README, « Une part… »)."
+        ),
+    ]
+    zone: Annotated[
+        AlertZone | None,
+        Field(
+            description="La zone de l'indice, classée par le serveur à la lecture d'après les seuils courants du référentiel : supérieur ou égal au seuil de vigilance, nominal ; inférieur à lui et supérieur ou égal au seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte — aux seuils 0,9 et 0,8, un indice de 0,9 est nominal, un de 0,8 en vigilance (WF-REF-0170). Un indice conservé l'est aussi : sa valeur ne change pas, sa zone peut changer avec les seuils (WF-REF-0130). Nulle quand l'indice ne se calcule pas."
+        ),
+    ]
 
 
 class Projections(ContractModel):
@@ -4401,23 +4411,23 @@ class Projections(ContractModel):
     project_manager: Money
     at_observed_rate: ComputableMoney
     variance_at_budget: Annotated[
-        Money | None,
+        Money,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`."
         ),
-    ] = None
+    ]
     variance_project_manager: Annotated[
-        Money | None,
+        Money,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`."
         ),
-    ] = None
+    ]
     variance_at_observed_rate: Annotated[
         Money | None,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas."
         ),
-    ] = None
+    ]
 
 
 class ProjectIndicators(ContractModel):
@@ -4426,7 +4436,7 @@ class ProjectIndicators(ContractModel):
     planned_value: Annotated[
         Money,
         Field(
-            description="Lignes comptées au budget de référence, étalées linéairement sur la durée de leur tâche dans la révision de référence (WF-DEV-0080)."
+            description="Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle que la révision de référence la date, au prorata des heures travaillées — du calendrier de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon (WF-DEV-0080)."
         ),
     ]
     earned_value: Annotated[
@@ -4438,32 +4448,32 @@ class ProjectIndicators(ContractModel):
     actual_cost: Annotated[
         Money,
         Field(
-            description="Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010)."
+            description="Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de calcul (WF-IND-0010)."
         ),
     ]
     remaining: Money
     financial_progress: Annotated[
-        Computable | None,
+        Computable,
         Field(
             description="Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la consommation du budget et l'avancement physique (README, « Une part… »)."
         ),
-    ] = None
-    budget_consumption: Computable | None = None
-    physical_progress: Computable | None = None
+    ]
+    budget_consumption: Computable
+    physical_progress: Computable
     cost_index: IndexValue
     schedule_index: IndexValue
     cost_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire)."
         ),
-    ] = None
+    ]
     schedule_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire)."
         ),
-    ] = None
+    ]
     projections: Projections
 
 
@@ -4574,7 +4584,12 @@ class IndexHistoryScope(ContractModel):
 
 class IndexHistory(ContractModel):
     context: CalculationContext
-    thresholds: IndexThresholds
+    thresholds: Annotated[
+        IndexThresholds,
+        Field(
+            description="Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour (WF-REF-0130, WF-REF-0170)."
+        ),
+    ]
     scopes: Annotated[
         list[IndexHistoryScope],
         Field(
@@ -5389,13 +5404,13 @@ class Month2(ContractModel):
         Computable,
         Field(description="La charge sur la capacité, à quatre décimales (README, « Une part… »)."),
     ]
-    zone: AlertZone | None = None
+    zone: AlertZone
 
 
 class Role1(ContractModel):
     resource_role_id: Uuid
     label: str
-    capacity_monthly_hours: Hours | None = None
+    capacity_monthly_hours: Hours
     months: Annotated[
         list[Month2],
         Field(
@@ -5452,21 +5467,21 @@ class QuarterlyItem(ContractModel):
 
 class PortfolioPerformance(ContractModel):
     scope: PortfolioScope
-    reference_budget: Money | None = None
+    reference_budget: Money
     cost_index: IndexValue
     schedule_index: IndexValue
     cost_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre."
         ),
-    ] = None
+    ]
     schedule_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre."
         ),
-    ] = None
+    ]
     projections: Projections
     zone_distribution: list[ZoneDistributionItem]
     quarterly: list[QuarterlyItem]

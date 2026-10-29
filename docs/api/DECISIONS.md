@@ -8631,6 +8631,41 @@ ni le cas du jalon.
 
 **Corrélation** 1591 et 1592.
 
+### Les indicateurs exigés (US-0701/L5, #1605, G-02)
+
+Des indicateurs que la spécification exige étaient facultatifs dans les schémas : une réponse
+conforme pouvait omettre l'avancement financier, les écarts, les écarts des projections, la
+capacité d'un rôle ou la zone d'un mois, et le client engendré les voyait facultatifs. Les rendre
+exigés après le gel resserrerait le contrat du côté du producteur ; la proposition de la revue
+s'applique (décision de l'auteur du 2026-10-28, « la règle des autres majeurs »), sur le précédent
+de `under_load_threshold` (US-0240/L5, plus haut). Sont exigés : dans `ProjectIndicators`,
+`financial_progress`, `budget_consumption`, `physical_progress`, `cost_variance` et
+`schedule_variance` (WF-IND-0040, WF-IND-0060 à WF-IND-0080) ; dans `Projections`, les trois écarts
+au budget, `variance_at_observed_rate` restant nul tant que sa projection ne se calcule pas
+(WF-IND-0050) ; dans `CalculationContext`, `revision_status` et `is_stored`, que toutes les
+descriptions prennent pour pivot ; la capacité d'un rôle dans `WorkloadPlan.roles[]` et
+`PortfolioWorkload.roles[]` (WF-DEV-0070, WF-PTF-0060), et la zone d'un mois du plan agrégé ; dans
+`PortfolioPerformance`, `reference_budget`, `cost_variance` et `schedule_variance` (WF-PTF-0070).
+Tous les exemples les portaient déjà : aucun ne change.
+
+**La part d'une répartition (`share`) reste facultative.** La revue la voulait exigée dans
+`AmountByKey` et `ComputableAmountByKey` ; mais la part d'un total nul n'est toujours pas dite
+(« La part d'un total nul, question ouverte », EP-14/L55), et le générateur l'omet alors. L'exiger
+demande une forme que ni la spécification ni la revue ne donnent — un motif de non-calcul pour un
+total nul, et `AmountByKey.share` passé en `Computable` — : la question est rendue à l'agent de
+livraison, sans être tranchée ici.
+
+**Les mineurs de ces fichiers** (règle du recadrage : un mineur d'un fichier qu'un lot modifie est
+corrigé par lui). `actual_cost` compte les pièces datées « antérieure ou égale » à la date de
+calcul (G-09, WF-IND-0010) ; la valeur planifiée et le plan de charge s'étalent « au prorata des
+heures travaillées », et non linéairement, la charge restante sur la part de la durée postérieure à
+la date de calcul (G-10, WF-DEV-0080, WF-DEV-0070) ; `PortfolioProjectRow.delta_to_reference`
+remplace le schéma qui n'existe pas (G-12) ; `IndexValue.value` est à quatre décimales (la part
+`indicators.yaml` de G-08 ; l'arrondi du portefeuille est à US-0701/L6), et `IndexValue.zone` dit
+les bornes des zones (la part `indicators.yaml` de M-13, WF-REF-0170) et qu'elle se classe à la
+lecture sur les seuils courants, pour un indice conservé aussi, comme `IndexHistory.thresholds`
+(M-14, WF-REF-0130). L-24 était déjà appliqué (`EstimateIndicators.delta_to_reference`).
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

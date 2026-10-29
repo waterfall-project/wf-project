@@ -102,7 +102,7 @@ NotComputableReason:
 
 CalculationContext:
   type: object
-  required: [revision_id, computed_at, scope]
+  required: [revision_id, revision_status, computed_at, scope, is_stored]
   description: >-
     Contexte du calcul, que tout écran doit pouvoir afficher (WF-IHM-0020).
   properties:
@@ -208,7 +208,7 @@ RemainingIndicators:
     du budget — le sens de l'écart de couverture des risques
     (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille
     et les projections parlent d'écart, positif au-delà du budget
-    (`PortfolioProject.delta_to_reference`, `Projections`).
+    (`PortfolioProjectRow.delta_to_reference`, `Projections`).
   properties:
     context: { $ref: '#/CalculationContext' }
     total: { $ref: ../common.yaml#/Money }
@@ -282,8 +282,13 @@ ProjectIndicators:
     - earned_value
     - actual_cost
     - remaining
+    - financial_progress
+    - budget_consumption
+    - physical_progress
     - cost_index
     - schedule_index
+    - cost_variance
+    - schedule_variance
     - projections
   description: >-
     Les indicateurs de valeur acquise. Calculés à partir de l'état En cours
@@ -294,14 +299,18 @@ ProjectIndicators:
     planned_value:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Lignes comptées au budget de référence, étalées linéairement sur la durée de
-        leur tâche dans la révision de référence (WF-DEV-0080).
+        Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle
+        que la révision de référence la date, au prorata des heures travaillées — du calendrier
+        de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon
+        (WF-DEV-0080).
     earned_value:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030).
     actual_cost:
       allOf: [{ $ref: ../common.yaml#/Money }]
-      description: Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010).
+      description: >-
+        Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de
+        calcul (WF-IND-0010).
     remaining: { $ref: ../common.yaml#/Money }
     financial_progress:
       allOf: [{ $ref: '#/Computable' }]
@@ -332,13 +341,29 @@ IndexValue:
   required: [value, zone]
   description: Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170).
   properties:
-    value: { $ref: '#/Computable' }
+    value:
+      allOf: [{ $ref: '#/Computable' }]
+      description: >-
+        L'indice, rapport de deux grandeurs, à quatre décimales (README, « Une part… »).
     zone:
       anyOf: [{ $ref: reference.yaml#/AlertZone }, { type: 'null' }]
+      description: >-
+        La zone de l'indice, classée par le serveur à la lecture d'après les seuils courants du
+        référentiel : supérieur ou égal au seuil de vigilance, nominal ; inférieur à lui et
+        supérieur ou égal au seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte
+        — aux seuils 0,9 et 0,8, un indice de 0,9 est nominal, un de 0,8 en vigilance
+        (WF-REF-0170). Un indice conservé l'est aussi : sa valeur ne change pas, sa zone peut
+        changer avec les seuils (WF-REF-0130). Nulle quand l'indice ne se calcule pas.
 
 Projections:
   type: object
-  required: [at_budget, project_manager, at_observed_rate]
+  required:
+    - at_budget
+    - project_manager
+    - at_observed_rate
+    - variance_at_budget
+    - variance_project_manager
+    - variance_at_observed_rate
   description: >-
     Les trois projections à terminaison, nommées par leur hypothèse sur le travail
     restant, présentées ensemble avec leur écart au budget (WF-IND-0050).
@@ -350,25 +375,28 @@ Projections:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`.
+        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`.
     variance_project_manager:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
         La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`.
+        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`.
     variance_at_observed_rate:
       anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
       description: >-
         La projection moins le budget de référence, positive quand elle le dépasse
-        (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la
+        (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference` ; nulle tant que la
         projection au rythme constaté ne se calcule pas.
 
 WorkloadPlan:
   type: object
   required: [context, basis, org_node_id, org_node_label, monthly_totals, roles]
   description: >-
-    Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la
-    durée de sa tâche par interpolation linéaire (WF-DEV-0070).
+    Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de
+    sa tâche au prorata des heures travaillées du calendrier de son rôle ; sur une base de reste
+    à engager, la charge restante d'une tâche non terminée l'est sur la seule part de sa durée
+    postérieure à la date de calcul, et portée au mois de la date de calcul quand sa fin est
+    dépassée (WF-DEV-0070).
   properties:
     context: { $ref: '#/CalculationContext' }
     basis:
@@ -410,7 +438,7 @@ WorkloadPlan:
       type: array
       items:
         type: object
-        required: [resource_role_id, label, months]
+        required: [resource_role_id, label, capacity_monthly_hours, months]
         properties:
           resource_role_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
@@ -562,7 +590,11 @@ IndexHistory:
     courbe porte quatre points.
   properties:
     context: { $ref: '#/CalculationContext' }
-    thresholds: { $ref: reference.yaml#/IndexThresholds }
+    thresholds:
+      allOf: [{ $ref: reference.yaml#/IndexThresholds }]
+      description: >-
+        Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour
+        (WF-REF-0130, WF-REF-0170).
     scopes:
       type: array
       description: >-

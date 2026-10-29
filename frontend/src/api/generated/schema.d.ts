@@ -4765,12 +4765,12 @@ export interface components {
         /** @description Contexte du calcul, que tout écran doit pouvoir afficher (WF-IHM-0020). */
         CalculationContext: {
             revision_id: components["schemas"]["Uuid"];
-            revision_status?: components["schemas"]["RevisionStatus"];
+            revision_status: components["schemas"]["RevisionStatus"];
             computed_at: components["schemas"]["Timestamp"];
             /** @description `project`, `unassigned`, ou l'identifiant d'un sous-projet (WF-IND-0020). */
             scope: string;
             /** @description Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040). */
-            is_stored?: boolean;
+            is_stored: boolean;
         };
         /** @description Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation (WF-REF-0140, WF-DAT-0100). Les ratios, les indices et les parts restent des `Computable`. */
         ComputableMoney: {
@@ -4810,7 +4810,7 @@ export interface components {
          * @enum {string}
          */
         WorkloadZone: "nominal" | "alert";
-        /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche par interpolation linéaire (WF-DEV-0070). */
+        /** @description Plan de charge par rôle et par mois, la charge d'une ligne étant répartie sur la durée de sa tâche au prorata des heures travaillées du calendrier de son rôle ; sur une base de reste à engager, la charge restante d'une tâche non terminée l'est sur la seule part de sa durée postérieure à la date de calcul, et portée au mois de la date de calcul quand sa fin est dépassée (WF-DEV-0070). */
         WorkloadPlan: {
             context: components["schemas"]["CalculationContext"];
             /**
@@ -4831,7 +4831,7 @@ export interface components {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
                 org_node_id?: components["schemas"]["Uuid"];
-                capacity_monthly_hours?: components["schemas"]["Hours"];
+                capacity_monthly_hours: components["schemas"]["Hours"];
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
@@ -4866,7 +4866,7 @@ export interface components {
             is_over_budget: boolean;
             zone: components["schemas"]["AlertZone"];
         };
-        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Chaque montant du reste à engager et du budget est inflation comprise, à l'année de consommation courante des lignes, comme le montant réestimé dont il est la somme, et le budget de référence auquel la marge le compare (WF-DEV-0020) ; une ligne de provision n'est pas projetée (WF-DEV-0030). Une ligne d'une tâche non terminée compte pour son montant réestimé, que sa tâche soit démarrée ou non et qu'elle ait été réestimée ou non : faute de réestimation, il se calcule depuis les grandeurs de la référence, aux taux conservés par la révision courante et sur son année de consommation courante (WF-RAE-0010, `EstimateLineFacet.reestimated_amount`) ; une ligne d'une tâche terminée ne compte pas. Le reste à engager parle de marge, au budget de référence (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le budget moins la somme du coût réel et du reste à engager, positive quand il en reste, négative au-delà du budget — le sens de l'écart de couverture des risques (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille et les projections parlent d'écart, positif au-delà du budget (`PortfolioProject.delta_to_reference`, `Projections`). */
+        /** @description Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Chaque montant du reste à engager et du budget est inflation comprise, à l'année de consommation courante des lignes, comme le montant réestimé dont il est la somme, et le budget de référence auquel la marge le compare (WF-DEV-0020) ; une ligne de provision n'est pas projetée (WF-DEV-0030). Une ligne d'une tâche non terminée compte pour son montant réestimé, que sa tâche soit démarrée ou non et qu'elle ait été réestimée ou non : faute de réestimation, il se calcule depuis les grandeurs de la référence, aux taux conservés par la révision courante et sur son année de consommation courante (WF-RAE-0010, `EstimateLineFacet.reestimated_amount`) ; une ligne d'une tâche terminée ne compte pas. Le reste à engager parle de marge, au budget de référence (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le budget moins la somme du coût réel et du reste à engager, positive quand il en reste, négative au-delà du budget — le sens de l'écart de couverture des risques (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le portefeuille et les projections parlent d'écart, positif au-delà du budget (`PortfolioProjectRow.delta_to_reference`, `Projections`). */
         RemainingIndicators: {
             context: components["schemas"]["CalculationContext"];
             total: components["schemas"]["Money"];
@@ -4906,7 +4906,9 @@ export interface components {
         };
         /** @description Indice et sa zone d'après les seuils du référentiel (WF-IND-0070, WF-IND-0080, WF-REF-0170). */
         IndexValue: {
+            /** @description L'indice, rapport de deux grandeurs, à quatre décimales (README, « Une part… »). */
             value: components["schemas"]["Computable"];
+            /** @description La zone de l'indice, classée par le serveur à la lecture d'après les seuils courants du référentiel : supérieur ou égal au seuil de vigilance, nominal ; inférieur à lui et supérieur ou égal au seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte — aux seuils 0,9 et 0,8, un indice de 0,9 est nominal, un de 0,8 en vigilance (WF-REF-0170). Un indice conservé l'est aussi : sa valeur ne change pas, sa zone peut changer avec les seuils (WF-REF-0130). Nulle quand l'indice ne se calcule pas. */
             zone: components["schemas"]["AlertZone"] | null;
         };
         /** @description Les trois projections à terminaison, nommées par leur hypothèse sur le travail restant, présentées ensemble avec leur écart au budget (WF-IND-0050). */
@@ -4914,34 +4916,34 @@ export interface components {
             at_budget: components["schemas"]["Money"];
             project_manager: components["schemas"]["Money"];
             at_observed_rate: components["schemas"]["ComputableMoney"];
-            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
-            variance_at_budget?: components["schemas"]["Money"];
-            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`. */
-            variance_project_manager?: components["schemas"]["Money"];
-            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas. */
-            variance_at_observed_rate?: components["schemas"]["Money"] | null;
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`. */
+            variance_at_budget: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`. */
+            variance_project_manager: components["schemas"]["Money"];
+            /** @description La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas. */
+            variance_at_observed_rate: components["schemas"]["Money"] | null;
         };
         /** @description Les indicateurs de valeur acquise. Calculés à partir de l'état En cours seulement ; avant, seuls les indicateurs de devis existent (WF-IND-0010). */
         ProjectIndicators: {
             context: components["schemas"]["CalculationContext"];
             reference_budget: components["schemas"]["Money"];
-            /** @description Lignes comptées au budget de référence, étalées linéairement sur la durée de leur tâche dans la révision de référence (WF-DEV-0080). */
+            /** @description Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle que la révision de référence la date, au prorata des heures travaillées — du calendrier de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon (WF-DEV-0080). */
             planned_value: components["schemas"]["Money"];
             /** @description Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030). */
             earned_value: components["schemas"]["Money"];
-            /** @description Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010). */
+            /** @description Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de calcul (WF-IND-0010). */
             actual_cost: components["schemas"]["Money"];
             remaining: components["schemas"]["Money"];
             /** @description Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la consommation du budget et l'avancement physique (README, « Une part… »). */
-            financial_progress?: components["schemas"]["Computable"];
-            budget_consumption?: components["schemas"]["Computable"];
-            physical_progress?: components["schemas"]["Computable"];
+            financial_progress: components["schemas"]["Computable"];
+            budget_consumption: components["schemas"]["Computable"];
+            physical_progress: components["schemas"]["Computable"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
             /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire). */
-            cost_variance?: components["schemas"]["Money"];
+            cost_variance: components["schemas"]["Money"];
             /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire). */
-            schedule_variance?: components["schemas"]["Money"];
+            schedule_variance: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
         };
         /** @description Diagramme temps/temps : pour chaque jalon inscrit, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage (WF-IND-0090). */
@@ -5007,6 +5009,7 @@ export interface components {
         /** @description Évolution de l'indice de coût et de l'indice de délai, pour le projet et pour chaque sous-projet : un point par révision marquée, à sa date de marquage, et le dernier au jour courant pour la révision en cours, avec les seuils du référentiel à tracer (WF-IND-0130, WF-REF-0170). Sur un projet de trois révisions marquées, chaque courbe porte quatre points. */
         IndexHistory: {
             context: components["schemas"]["CalculationContext"];
+            /** @description Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour (WF-REF-0130, WF-REF-0170). */
             thresholds: components["schemas"]["IndexThresholds"];
             /** @description Le projet d'abord, puis chaque sous-projet, puis « hors sous-projet » ; la seule maille demandée par `scope`. */
             scopes: components["schemas"]["IndexHistoryScope"][];
@@ -5452,27 +5455,27 @@ export interface components {
             roles: {
                 resource_role_id: components["schemas"]["Uuid"];
                 label: string;
-                capacity_monthly_hours?: components["schemas"]["Hours"];
+                capacity_monthly_hours: components["schemas"]["Hours"];
                 /** @description Un mois par mois de `months`, dans le même ordre, un mois sans charge compris. */
                 months: {
                     month: string;
                     hours: components["schemas"]["Hours"];
                     /** @description La charge sur la capacité, à quatre décimales (README, « Une part… »). */
                     load_ratio: components["schemas"]["Computable"];
-                    zone?: components["schemas"]["AlertZone"];
+                    zone: components["schemas"]["AlertZone"];
                 }[];
             }[];
         };
         /** @description Indices agrégés, répartition par zone et évolution trimestrielle (WF-PTF-0070). */
         PortfolioPerformance: {
             scope: components["schemas"]["PortfolioScope"];
-            reference_budget?: components["schemas"]["Money"];
+            reference_budget: components["schemas"]["Money"];
             cost_index: components["schemas"]["IndexValue"];
             schedule_index: components["schemas"]["IndexValue"];
             /** @description L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre. */
-            cost_variance?: components["schemas"]["Money"];
+            cost_variance: components["schemas"]["Money"];
             /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre. */
-            schedule_variance?: components["schemas"]["Money"];
+            schedule_variance: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
             zone_distribution: {
                 /** @enum {string} */
