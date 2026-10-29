@@ -315,11 +315,11 @@ décaissement est un schéma partagé (`CashOutMonth`), que la courbe en S du po
 réemploie (WF-PTF-0100, voir « Révision de la spécification du 2026-10-04 ») : le portefeuille
 somme ce que les projets rendent.
 
-*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : seuls le budget et la
-projection sont décalés, le coût réel ne l'est pas, une ligne de provision reste à la date de sa
-tâche, et le reste à engager s'étale sur la part de la durée postérieure à la date de calcul
-(« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
+*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10
+octobre 2026, recadrage du 2026-10-28) : seuls le budget et la projection sont décalés, le coût réel
+ne l'est pas, une ligne de provision reste à la date de sa tâche, et le reste à engager s'étale sur
+la part de la durée postérieure à la date de calcul (« Les décaissements, la revue précédente, le
+diagramme temps/temps et l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
 **L'évolution des indices est une lecture** (`getIndexHistory`, WF-IND-0130). Par maille — le
 projet, chaque sous-projet, « hors sous-projet » (WF-IND-0020) —, un point par révision
@@ -782,12 +782,13 @@ chaque indice en rapport des sommes, la valeur acquise, le coût réel et la val
 chaque projet tirés de son budget et de ses indices — ceux du projet témoin, de
 `project_indicators` —, la répartition par zone comptant chaque projet une fois par indice, le
 projet témoin compté nominal, et quatre trimestres d'évolution — de 2025-T3 à 2026-T2 depuis
-EP-02/L26 —, le premier non calculable, faute de coût réel et de valeur planifiée : aucun projet
-n'avait encore commencé, ce que la courbe en S tient aussi) ; la structure des coûts
-(`portfolio_cost_structure`, `getPortfolioCostStructure` : le budget et le reste à engager par
-nature, dont les parts somment à un, et la main-d'œuvre du bureau d'études électricité, le nœud
-des deux rôles qui travaillent sur les projets — le monteur câbleur, de l'atelier de câblage,
-n'en a pas) ; les risques (`portfolio_risks`,
+EP-02/L26, cinq de 2025-T2 à 2026-T2 depuis US-0701/L6 (G-03) —, le premier non calculable,
+faute de coût réel et de valeur planifiée : aucun projet n'avait encore commencé, ce que la courbe
+en S tient aussi) ; la structure des coûts (`portfolio_cost_structure`,
+`getPortfolioCostStructure` : le budget et le reste à engager par nature, dont les parts somment à
+un — le budget hors lignes de provision depuis US-0701/L6 (G-15) —, et la main-d'œuvre du bureau
+d'études électricité, le nœud des deux rôles qui travaillent sur les projets — le monteur câbleur,
+de l'atelier de câblage, n'en a pas) ; les risques (`portfolio_risks`,
 `getPortfolioRisks` : le registre du projet témoin et jusqu'à trois risques identifiés par autre
 projet en cours, chacun tiré d'abord dans une case de la matrice, puis sa probabilité et sa gravité
 dans les bornes des niveaux de cette case (`risk_matrix`), sa provision la gravité pondérée par la
@@ -807,6 +808,13 @@ les provisions survenues et écartées des risques (WF-PTF-0090) — se calculen
 de calcul, et les rend dans `scope.from` et `scope.to`, que l'écran affiche avec la vue
 (WF-IHM-0020). La liste des projets, qui ne retient de projet terminé que sur une période demandée,
 rend alors une période nulle.
+
+*Complété par US-0701/L6 (#1606, G-03 et G-05 ; WF-PTF-0010, WF-PTF-0070, recadrage du
+2026-10-28) : l'évolution trimestrielle de la performance est une statistique de période, et la
+structure des coûts et la courbe en S prennent `from` et `to` pour leurs projets terminés, avec la
+même période par défaut et le même refus ; le plan de charge et la santé du pilotage ne prennent
+pas de période, un projet terminé y étant sans effet (« Le portefeuille : horizon, période des
+projets terminés, couverture et contribution d'une offre », dans « Le contrat figé »).*
 
 ## Le seuil de sous-charge retenu (US-0240/L5)
 
@@ -931,10 +939,11 @@ référence est budgétée à zéro. #347 est close par la révision : la provis
 sort du reste à engager sans toucher la référence, celle d'un risque identifié après la
 référence n'a pas de part dans la réserve.
 
-*Complétée par US-0701/L5 (#1605, M-11 ; WF-IND-0020, WF-IND-0030 et WF-IND-0060 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la
-valeur acquise, le budget d'un sous-projet et l'avancement physique d'une récapitulative sont hors
-lignes de provision ; ils ne se lisent donc pas sur le montant budgété d'une tâche (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
+*Complétée par US-0701/L5 (#1605, M-11 ; WF-IND-0020, WF-IND-0030 et WF-IND-0060 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la valeur acquise, le budget d'un
+sous-projet et l'avancement physique d'une récapitulative sont hors lignes de provision ; ils ne se
+lisent donc pas sur le montant budgété d'une tâche (« Les décaissements, la revue précédente, le
+diagramme temps/temps et l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
 **Une marche de la courbe porte son montant** (`CurveSeries.steps[].amount`, #285), signé, ce dont
 le budget de référence change à sa date, et non le budget après elle, que la série
@@ -1605,10 +1614,11 @@ description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; u
 tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
 », libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
 
-*Remplacé en partie par US-0701/L5 (#1605, M-09 ; WF-RAE-0020 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la revue précédente de
-`delta_to_previous_revision` est la révision marquée précédente qui l'a été à l'état En cours ;
-l'écart est nul quand aucune ne l'a été avant celle qui est lue (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
+*Remplacé en partie par US-0701/L5 (#1605, M-09 ; WF-RAE-0020 des passes de cohérence des 9 et 10
+octobre 2026, recadrage du 2026-10-28) : la revue précédente de `delta_to_previous_revision` est la
+révision marquée précédente qui l'a été à l'état En cours ; l'écart est nul quand aucune ne l'a été
+avant celle qui est lue (« Les décaissements, la revue précédente, le diagramme temps/temps et
+l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
 *Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
 devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
@@ -2012,13 +2022,14 @@ Quand EP-02/L27 (#376) y incrustera le cœur, le budget de référence changera 
 et avec lui les cases de la matrice ; la question est soumise à l'auteur sur #376, qui la tranchera
 avec la réserve.
 
-*Complétée par US-0701/L5 (#1605, M-10 ; WF-IND-0090 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les révisions marquées avant
-l'état En cours ne donnent aucun point au diagramme temps/temps ; le point de l'offre que
-`milestone_tracking` gardait pour la réception des études disparaît (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »). Il en va de même plus bas, à « L'évolution des
-indices ne compte que les révisions marquées à partir de l'état En cours » (EP-02/L24) : les
-révisions marquées avant l'état En cours ne donnent aucun point, et le suivi des jalons ne garde
-plus celui de l'offre.*
+*Complétée par US-0701/L5 (#1605, M-10 ; WF-IND-0090 des passes de cohérence des 9 et 10 octobre
+2026, recadrage du 2026-10-28) : les révisions marquées avant l'état En cours ne donnent aucun point
+au diagramme temps/temps ; le point de l'offre que `milestone_tracking` gardait pour la réception
+des études disparaît (« Les décaissements, la revue précédente, le diagramme temps/temps et
+l'avancement d'une récapitulative », dans « Le contrat figé »). Il en va de même plus bas, à «
+L'évolution des indices ne compte que les révisions marquées à partir de l'état En cours »
+(EP-02/L24) : les révisions marquées avant l'état En cours ne donnent aucun point, et le suivi des
+jalons ne garde plus celui de l'offre.*
 
 ### Les indicateurs d'aujourd'hui (EP-02/L24)
 
@@ -2088,9 +2099,12 @@ WF-REV-0050) : `steps` porte sa marche, 3 165,00, la différence des deux budget
 la série deux points à cette date, avant et après, nuls tous deux, rien n'étant encore prévu de
 dépenser. La série suit, à chaque jour, la référence en vigueur ce jour-là ; la valeur planifiée,
 elle, est recalculée entière sur la référence en vigueur (WF-DEV-0080), sans marche.
-*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100 et WF-IND-0110 des passes de
-cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les séries se lisent au pas du mois,
-chaque point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »). Il en va de même à la reprise du cœur (EP-02/L27) : la règle d'EP-02/L24, un point par jour où un montant commence ou finit, n'est plus gardée, et le budget de référence du témoin compte 46 points.*
+*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100 et WF-IND-0110 des passes de cohérence
+des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les séries se lisent au pas du mois, chaque
+point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées
+au marquage », dans « Le contrat figé »). Il en va de même à la reprise du cœur (EP-02/L27) : la
+règle d'EP-02/L24, un point par jour où un montant commence ou finit, n'est plus gardée, et le
+budget de référence du témoin compte 46 points.*
 `cost_curve_amendment`, variante gardée, devient un avenant 2 de 15 000 sur la ligne des études
 de détail au 10 mars : sa marche monte de 23 333,33 à 26 833,33, ce que la nouvelle référence
 prévoyait de plus à cette date. **Les délais de paiement sont décrits** : trente jours sur
@@ -2102,10 +2116,11 @@ sur le reste à engager étale de même les heures d'une tâche démarrée sur s
 la date de calcul : aucun mois passé, les mêmes heures en tout. Les lignes du cœur ne rendent pas
 `payment_delay_days`, facultatif : les nœuds restent tels quels, renvoyés à EP-02/L25 (#374).
 
-*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : le reste à engager d'une
-tâche dont la fin est dépassée, et la provision d'une tâche passée, sont portés entiers à la date
-de calcul, et non plus au premier jour ouvré qui la suit (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
+*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10
+octobre 2026, recadrage du 2026-10-28) : le reste à engager d'une tâche dont la fin est dépassée, et
+la provision d'une tâche passée, sont portés entiers à la date de calcul, et non plus au premier
+jour ouvré qui la suit (« Les décaissements, la revue précédente, le diagramme temps/temps et
+l'avancement d'une récapitulative », dans « Le contrat figé »).*
 
 **L'évolution des indices ne compte que les révisions marquées à partir de l'état En cours.**
 Une révision marquée pendant le chiffrage ne conserve que les indicateurs de son devis
@@ -2261,6 +2276,14 @@ trouve en retard et d'autres non. `portfolio_projects_empty` est recalé au 3 ju
 de `state_transitions_exited`, sortie du chiffrage le 15 mars 2026, tombe dans la période : c'est
 l'une des six offres perdues du taux de transformation.
 
+*Remplacé en partie par US-0701/L6 (#1606, G-03 ; WF-PTF-0070, recadrage du 2026-10-28) :
+l'évolution trimestrielle porte un point par trimestre civil que la période touche, de 2025-T2 à
+2026-T2 pour la période par défaut, que `scope.from` et `scope.to` rendent ; les deux premiers sont
+non calculables, et le dernier, lu à la date de calcul, égale les deux indices du jour, à quatre
+décimales (G-08) — le témoin y compte sa valeur planifiée du jour, que sa courbe, au pas du mois, ne
+porte pas (« Le portefeuille : horizon, période des projets terminés, couverture et contribution
+d'une offre », dans « Le contrat figé »).*
+
 **Le plan de charge agrégé, la courbe en S et la santé du pilotage sont engendrés** (C7 ;
 WF-PTF-0060, WF-PTF-0100, WF-PTF-0110). `wftools.mockportfoliotime` les somme sur les trois cents
 projets : le témoin à ses propres lectures — son plan de charge sur le reste à engager, sa courbe
@@ -2290,6 +2313,19 @@ sans le témoin, encore en chiffrage —, chacun suivant le même cours ; décem
 par une variante déclarée en « si… » : si ses factures n'avaient pas encore été importées, ses
 seuls avoirs l'étant déjà. Chaque point est la somme des points des projets, ce que les
 tests éprouvent en sommant deux moitiés du portefeuille.
+
+*Remplacé en partie par US-0701/L6 (#1606, M-07 et G-04 ; WF-PTF-0080, WF-PTF-0090 et
+WF-PTF-0100 de la spécification du 9 octobre 2026, constats C-122 et C-199, recadrage du
+2026-10-28) : le choix déclaré ne tient plus. Une offre incluse apporte à la courbe en S les courbes
+de son devis courant pondérées par sa probabilité de gain, hors lignes de provision pour le budget
+de référence et provisions comprises pour la projection ; la structure des coûts suit la même règle,
+et la vue des risques compte ses risques sans pondération. `mockportfoliotime` tire pour chaque
+offre la part de son devis que portent ses lignes de provision, de 2 à 8 %. La courbe court sur les
+douze mois qui précèdent celui de la date de calcul, puis sur les `horizon_months` mois à partir de
+lui, six par défaut, et non plus sur six mois de part et d'autre : de juin 2025 à novembre 2026 ;
+`portfolio_cost_curve_credit` est lue à un mois d'horizon, de décembre 2024 à décembre 2025 (« Le
+portefeuille : horizon, période des projets terminés, couverture et contribution d'une offre », dans
+« Le contrat figé »).*
 
 **La capacité d'un rôle est ses heures mensuelles, tout son effectif compris** (WF-REF-0100 ;
 décision du 2026-10-08 sur #375, revue à la revue du lot : la spécification fait foi). C'est
@@ -2327,6 +2363,12 @@ WF-RIS-0050) : la réserve de référence du témoin, 910, et celle de chaque au
 2,5 à 5,5 % de son budget ; le coût des risques survenus du témoin, 200, et celui d'un projet sur
 quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des risques identifiés.
 `matrix.totals.reserve` porte la même réserve. L'écart de couverture est la différence des sommes.
+
+*Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre
+2026, constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les
+sommes de celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est
+terminé, et l'exemple ne change pas (« Le portefeuille : horizon, période des projets terminés,
+couverture et contribution d'une offre », dans « Le contrat figé »).*
 
 **La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
 semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
@@ -3519,6 +3561,9 @@ envoyée, celle que l'utilisateur corrige, `params` nommant la borne complétée
 à la règle (`test_every_inverted_period_is_refused_by_one_rule`), les deux exemples du portefeuille
 compris, et chaque opération qui prend `to` — en propre ou par un paramètre partagé — à la
 déclaration de son refus, avec un exemple de période inversée.
+
+*Complété par US-0701/L6 (#1606, G-05) : `getPortfolioCostStructure` et `getPortfolioCostCurve`
+prennent aussi `from` et `to` et déclarent `PortfolioPeriodRefused` ; six vues le partagent.*
 
 Engendrés par `wftools.mocklists`, des comptes et des rôles écrits à la main et du lotissement du
 témoin, dont il écrit désormais la forme pour `mockdata` : `users_by_access_role`, `users_search`,
@@ -8804,6 +8849,58 @@ passages d'EP-02/L24 (M-06), #466 (M-09), EP-02/L23 et EP-02/L24 (M-10), #245 (M
   récapitulative. `tools/tests/test_mockcurves.py` tient le Vérif de WF-IND-0060 (50 %) sur une
   structure déclarée, une provision sur la deuxième tâche, et celui de WF-RAE-0020, de WF-IND-0090
   et de WF-IND-0100 sur le témoin.
+
+### Le portefeuille : horizon, période des projets terminés, couverture et contribution d'une offre (US-0701/L6, #1606)
+
+La spécification du 9 octobre 2026 (constats C-122, C-199 et C-205 de sa revue) a dit ce qu'une
+offre et un projet terminé apportent au portefeuille ; la proposition de la revue du contrat
+s'applique à chaque constat, et la décision de l'auteur du 2026-10-28 (« Le portefeuille ») tranche
+les deux points qu'elle laissait ouverts. Réécrits, plus haut : le choix déclaré d'EP-02/L26 (M-07),
+sa courbe sur six mois de part et d'autre (G-04), son évolution de 2025-T3 à 2026-T2 (G-03) et sa
+couverture « des projets en cours » (G-06) ; complétées, la période par défaut d'US-0240/L3 et le
+refus d'une période d'EP-02/L42e (G-05).
+
+- **L'évolution trimestrielle** (G-03, WF-PTF-0070). Un point par trimestre civil que la période
+  touche, du plus ancien au plus récent, chaque indice lu au dernier jour du trimestre, et à la date
+  de calcul pour celui qui la contient ; `scope.from` et `scope.to` rendent la période. Sur la
+  période par défaut, du 4 juin 2025 au 3 juin 2026 : cinq trimestres, de 2025-T2 à 2026-T2, les
+  deux premiers non calculables. `mockportfolio.quarters` les tire de la période.
+- **L'horizon** (G-04, WF-PTF-0060, WF-PTF-0100). `horizon_months` compte les mois à partir de
+  celui de la date de calcul, six par défaut ; la courbe en S les fait précéder des douze mois
+  passés, quel que soit l'horizon. Décision de l'auteur ; écartés : le futur seul partout, un
+  paramètre de plus. `portfolio_cost_curve` court de juin 2025 à novembre 2026, dix-huit mois ;
+  `portfolio_cost_curve_credit`, lue au 31 décembre 2025 à un mois d'horizon, de décembre 2024 à
+  décembre 2025, ses dix premiers mois nuls.
+- **La période des projets terminés** (G-05, WF-PTF-0010). `getPortfolioCostStructure` et
+  `getPortfolioCostCurve` prennent `PortfolioFrom`, `PortfolioTo` et `PortfolioPeriodRefused`, la
+  période par défaut comprise, qu'elles rendent dans `scope` ; elle ne borne pas les mois de la
+  courbe. `getPortfolioWorkload` et `getPortfolioPilotHealth` disent qu'un état autre que ceux qui
+  y contribuent — en cours, et en chiffrage pour la charge — est sans effet, et ne prennent pas de
+  période. Décision de l'auteur ; écarté : la période sur les quatre vues.
+- **La couverture agrégée** (G-06, WF-PTF-0090). La réserve et la couverture portent sur les projets
+  en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence. Aucun projet
+  de la liste n'est terminé : l'exemple ne change pas, et un test déclare un projet terminé.
+- **La contribution d'une offre** (M-07, WF-PTF-0020, WF-PTF-0080, WF-PTF-0090, WF-PTF-0100).
+  Son devis courant pondéré par sa probabilité de gain, hors lignes de provision au budget de
+  référence (courbe et structure des coûts), provisions comprises au reste à engager et à la
+  projection ; ses risques identifiés et leurs provisions sans pondération dans la vue des risques.
+  `mockportfoliotime.offer_course` porte le Vérif de WF-PTF-0100 (100 hors provisions, 50 de
+  provision, 40 % : 40 au budget, 60 à la projection) ; chaque offre engendrée tire la part de son
+  devis que portent ses lignes de provision, de 2 à 8 %. L'exemple de la structure des coûts et
+  celui des risques ne retiennent pas d'offre ; leurs générateurs ne la modélisent pas.
+- **Les mineurs de ces fichiers.** Le budget de référence agrégé ne porte plus de nature
+  « Provision » (G-15, WF-IND-0020) ; les états hors du périmètre et l'état à la date de calcul
+  (`PortfolioStates`, G-11, WF-CYC-0130) — un projet créé, perdu ou abandonné est sans effet, la
+  forme qu'a retenue la décision sur G-05, l'autre étant un refus ; la zone d'un mois du plan agrégé
+  et son 422 (G-13) ; la performance sur les seuls projets en cours, `scope.states` les états
+  demandés (G-14) ; le dénominateur du taux de transformation, une offre abandonnée ne comptant pas
+  (M-15) ; la projection au rythme constaté agrégée (M-16) ; les indices du portefeuille à quatre
+  décimales (la part du portefeuille de G-08, qu'US-0701/L5 lui laissait). Le dernier trimestre de
+  l'évolution égale ainsi les deux indices du jour : le témoin y compte sa valeur planifiée du jour,
+  que sa courbe, au pas du mois, ne porte pas.
+- **Les tests.** `tools/tests/test_mockportfoliotime.py` tient les Vérif de WF-PTF-0100 (l'offre) et
+  de WF-PTF-0090 (le projet terminé), l'horizon, les trimestres et l'effet nul d'un autre état ;
+  `test_mockcurves.py` tient celui de WF-IND-0030 sur une structure déclarée (#1634).
 
 ## Collage et annulation
 

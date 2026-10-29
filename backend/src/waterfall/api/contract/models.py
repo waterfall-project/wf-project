@@ -5357,7 +5357,12 @@ class OrgNodeLabel1(RootModel[str]):
 
 
 class PortfolioScope(ContractModel):
-    states: list[ProjectState]
+    states: Annotated[
+        list[ProjectState],
+        Field(
+            description="Les états demandés (`states`), ou les projets en cours sans demande, que la vue en compte ou non chacun : la même règle pour toutes les vues (WF-PTF-0010)."
+        ),
+    ]
     as_of: PlanningDate
     from_: Annotated[PlanningDate | None, Field(alias="from")] = None
     to: PlanningDate | None = None
@@ -5414,7 +5419,10 @@ class PortfolioValue(ContractModel):
     pipeline_weighted: Money
     delivered: Money
     conversion_rate: Annotated[
-        Computable, Field(description="À quatre décimales (README, « Une part… »).")
+        Computable,
+        Field(
+            description="Les offres passées de Chiffrage à En cours sur celles passées de Chiffrage à En cours ou à Perdu dans la période, qu'elles soient ou non du périmètre ; une offre abandonnée ne compte pas (WF-PTF-0050). À quatre décimales (README, « Une part… ») ; non calculable sans aucune, `no_offer_out_of_pricing`."
+        ),
     ]
 
 
@@ -5429,7 +5437,12 @@ class Month2(ContractModel):
         Computable,
         Field(description="La charge sur la capacité, à quatre décimales (README, « Une part… »)."),
     ]
-    zone: AlertZone
+    zone: Annotated[
+        AlertZone,
+        Field(
+            description="La zone du mois, classée par le serveur : `alert` quand la charge dépasse la capacité, `watch` quand le taux de charge est sous `under_load_threshold`, un rôle sans charge compris, `nominal` sinon (WF-PTF-0060, WF-IHM-0070)."
+        ),
+    ]
 
 
 class Role1(ContractModel):
@@ -5507,15 +5520,35 @@ class PortfolioPerformance(ContractModel):
             description="L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre."
         ),
     ]
-    projections: Projections
+    projections: Annotated[
+        Projections,
+        Field(
+            description="`at_budget` et `project_manager` sont les sommes des projections des projets en cours ; `at_observed_rate` est le budget de référence agrégé divisé par l'indice de coût agrégé, non calculable tant qu'il ne l'est pas (WF-PTF-0070, WF-PTF-0020) : deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel 500 et 500 donnent 2 222, non 2 250."
+        ),
+    ]
     zone_distribution: list[ZoneDistributionItem]
-    quarterly: list[QuarterlyItem]
+    quarterly: Annotated[
+        list[QuarterlyItem],
+        Field(
+            description="Un point par trimestre civil que la période touche (`from`, `to` ; par défaut les douze mois qui finissent à la date de calcul, `scope.from` et `scope.to`), du plus ancien au plus récent : chaque indice est le rapport des sommes des projets en cours à cette date (WF-PTF-0020), lu au dernier jour du trimestre selon WF-PTF-0010, et à la date de calcul pour le trimestre qui la contient (WF-PTF-0070)."
+        ),
+    ]
 
 
 class PortfolioCostStructure(ContractModel):
     scope: PortfolioScope
-    budget_by_cost_type: list[AmountByKey]
-    remaining_by_cost_type: list[AmountByKey]
+    budget_by_cost_type: Annotated[
+        list[AmountByKey],
+        Field(
+            description="Le budget de référence agrégé par nature, hors lignes de provision (WF-IND-0020) ; le devis pondéré d'un projet en chiffrage inclus en tient lieu, hors lignes de provision comme lui : une offre à 40 % dont le devis porte une ligne de provision pour risques de 50 n'ajoute rien à sa nature ici (WF-PTF-0080, WF-RIS-0050)."
+        ),
+    ]
+    remaining_by_cost_type: Annotated[
+        list[AmountByKey],
+        Field(
+            description="Le reste à engager agrégé par nature, provisions comprises ; le devis pondéré d'un projet en chiffrage inclus en tient lieu, provisions comprises : la même ligne de provision de 50 y ajoute 20 à sa nature (WF-PTF-0080)."
+        ),
+    ]
     labor_by_org_node: list[AmountByKey]
 
 
@@ -5540,13 +5573,18 @@ class PeriodOutcome(ContractModel):
 
 class PortfolioRisks(ContractModel):
     scope: PortfolioScope
-    identified_total: Money
+    identified_total: Annotated[
+        Money,
+        Field(
+            description="Le total des provisions des risques identifiés des projets du périmètre, celles d'un projet en chiffrage inclus sans pondération (WF-PTF-0090, WF-PTF-0020)."
+        ),
+    ]
     heaviest: list[HeaviestItem]
     matrix: RiskMatrix
     coverage: Annotated[
         RiskCoverageTotals,
         Field(
-            description="Couverture des risques agrégée : la somme des réserves de référence des projets en cours, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes (WF-PTF-0090, WF-RIS-0050)."
+            description="Couverture des risques agrégée : la somme des réserves de référence des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050)."
         ),
     ]
     period_outcome: PeriodOutcome

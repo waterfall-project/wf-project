@@ -242,24 +242,21 @@ def test_a_provision_stays_at_the_date_of_its_task_under_the_payment_delays() ->
 @pytest.mark.requirement("WF-IND-0030-A")
 @pytest.mark.requirement("WF-IND-0020-A")
 def test_the_earned_value_and_the_budget_of_a_subproject_leave_out_the_lines_of_provision() -> None:
-    # « hors lignes de provision » : a provision the reference knew, completed with its task,
-    # earns nothing and is no part of the budget of a subproject.
-    witness, base = mockindicators.today(), mockindicators.reference()
-    day = date(2099, 12, 31)
-    provisions = [line for line in witness.lines if mockhistory.is_provision(line)]
-    assert any(line.amounts.budgeted for line in provisions)
-    merged = {row.number for row in mockhistory.merged_lines(list(witness.rows))}
-    expected = sum(
+    # « hors lignes de provision » : a provision of 50 budgeted on a task completed earns
+    # nothing — two tasks completed, of 100 and 200, and one of 400 started earn 300, by a
+    # structure declared here rather than by the logic of the generator (#1634) —, and a
+    # provision is no part of the budget of a subproject.
+    provision = Line(9019, "Provision", PROVISIONS, unit=Decimal(50), is_provision=True)
+    declared = mockindicators.today(
         (
-            line.amounts.budgeted
-            for line in witness.lines
-            if not mockhistory.is_provision(line)
-            and line.number not in merged
-            and witness.completed_on(cast("int", line.parent)) is not None
-        ),
-        Decimal(0),
+            _leaf(901, "100", "completed", provision),
+            _leaf(902, "200", "completed"),
+            _leaf(903, "400", "started"),
+        )
     )
-    assert mockindicators.earned(witness, day) == expected
+    assert next(line for line in declared.lines if line.number == 9019).amounts.budgeted == 50
+    assert mockindicators.earned(declared, date(2099, 12, 31)) == Decimal(300)
+    witness, base = mockindicators.today(), mockindicators.reference()
     for scope, label in mockindicators.scopes()[1:]:
         found = mockindicators.balance(witness, base, [], scope, label)
         assert Decimal(cast("str", found["budget"])) == sum(

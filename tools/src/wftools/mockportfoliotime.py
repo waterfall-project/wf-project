@@ -9,8 +9,8 @@ its cost curve, its milestones (``wftools.mocktoday``) —; every other project 
 and a few values drawn from the seed give, by simple formulas said here, to be replaced by the
 kernel of EP-10 and EP-11:
 
-- a project in progress works from a start drawn after the first quarter of the evolution of the
-  indices — which nothing had yet been spent nor planned in (``mockportfolio``) — and before
+- a project in progress works from a start drawn after the first two quarters of the evolution of
+  the indices — which nothing had yet been spent nor planned in (``mockportfolio``) — and before
   February 2026, to a finish drawn after today; its reference budget is spread in two pieces, its
   planned value (``mockportfolio.earned``) evenly over its days up to today and the rest over its
   days after, so that the curve and the performance tell the same planned value; its actual cost
@@ -19,8 +19,10 @@ kernel of EP-10 and EP-11:
   its actual cost, over its days after today;
 - an offer, when the pricing is included, is spread so over the days of a period drawn after
   today, its current estimate weighted by its probability of winning (WF-PTF-0060, WF-PTF-0100):
-  it stands for the reference budget and for the projection of the project manager, nothing being
-  spent;
+  without its provision lines — a share of its estimate drawn for it — it stands for the
+  reference budget, with them for the projection of the project manager, nothing being spent
+  (M-07); a project in another state — completed, created, lost, abandoned — is none of the list,
+  and counts for nothing in the workload and the health (G-05);
 - the labour of a project is the share of its remaining to commit — of its estimate for an offer —
   that the structure of the costs gives the labour (``mockportfolio``), parted between the
   electrical engineer and the commissioning technician by a share drawn for the project, at the
@@ -52,7 +54,16 @@ from wftools import (
 )
 from wftools.mockids import MILESTONES, identifier, universe
 from wftools.mockportfolio import Earned, earned, identified_risks, portfolio, role_shares
-from wftools.mockstructure import CENT, LABOUR_RATES, JsonObject, JsonValue, decimal, draw, money
+from wftools.mockstructure import (
+    CENT,
+    LABOUR_RATES,
+    JsonObject,
+    JsonValue,
+    decimal,
+    draw,
+    money,
+    share,
+)
 from wftools.mockwitness import AMENDMENT_MERGED, COST_IMPORTS, TODAY, by_identifier, fixture
 from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
 
@@ -63,9 +74,9 @@ DAY = TODAY.date()
 """The day every view of the portfolio is computed at: today, as every first example."""
 
 STARTED_FROM, STARTED_TO = date(2025, 10, 1), date(2026, 1, 31)
-"""When a generated project in progress may have started: after the first quarter of the evolution
-of the indices, declared not computable (``mockportfolio``), and before the first revision a
-generated project marked, on 2 February 2026."""
+"""When a generated project in progress may have started: after the first two quarters of the
+evolution of the indices, declared not computable (``mockportfolio``), and before the first
+revision a generated project marked, on 2 February 2026."""
 
 CREDIT_ON = date(2025, 12, 31)
 """The day of calculation of the variant ``portfolio_cost_curve_credit``."""
@@ -78,10 +89,15 @@ UNDER_LOAD = Decimal("0.5")
 """The threshold of under-load the server retains when the request names none (WF-PTF-0060)."""
 
 HORIZON = 6
-"""The months of the workload when the request names no horizon, the month of today the first."""
+"""The months of the horizon when the request names none (``horizon_months``), the month of the
+day of calculation the first: those of the workload, and of the S-curve after its past (G-04)."""
 
-CURVE_MONTHS = 12
-"""The months of the S-curve: six past, the month of today and five to come."""
+PAST_MONTHS = 12
+"""The months of the S-curve before that of the day of calculation, whatever the horizon (G-04):
+the curve of the examples runs over eighteen months, twelve past and the six of the horizon."""
+
+_OFFER_PROVISIONS = (2, 8)
+"""The share of the estimate of an offer its provision lines bear, in hundredths, drawn for it."""
 
 ORG_NODE = universe(470)
 """The node of organisation the filtered workload retains: the technical direction, whose
@@ -143,46 +159,62 @@ def course(row: JsonObject) -> Course | None:
     """Return a generated project of the list over time, or nothing for an offer without estimate.
 
     A project in progress started between ``STARTED_FROM`` and ``STARTED_TO`` and finishes within
-    two years after today; an offer would start within six months and last up to eighteen.
+    two years after today; an offer would start within six months and last up to eighteen, its
+    provision lines a share of its estimate drawn for it (``offer_course``). A project in another
+    state has none: no project of the list is, and the workload and the health count none (G-05).
     """
-    key = f"course/{row['project_id']}"
-    delay = timedelta(days=draw(f"{key}/delay", 0, 60))
-    if row["state"] == "in_progress":
-        values: Earned = earned(row)
-        left = values.projection - values.actual
-        start = STARTED_FROM + timedelta(
-            days=draw(f"{key}/started", 0, (STARTED_TO - STARTED_FROM).days)
-        )
-        finish = DAY + timedelta(days=draw(f"{key}/finish", 45, 720))
-        marked = date.fromisoformat(cast("str", row["last_marked_at"])[:10])
-        return Course(
-            start,
-            finish,
-            values.budget,
-            values.planned,
-            values.actual,
-            marked if no_cost_since_review(row) else DAY,
-            left,
-            _hours(row["project_id"], left * _LABOUR_OF_REMAINING),
-            delay,
-        )
-    if row["current_estimate"] is None:
+    if row["state"] == "pricing":
+        if row["current_estimate"] is None:
+            return None
+        estimate = Decimal(cast("str", row["current_estimate"]))
+        drawn = draw(f"course/{row['project_id']}/provisions", *_OFFER_PROVISIONS)
+        return offer_course(row, (estimate * drawn / 100).quantize(CENT))
+    if row["state"] != "in_progress":
         return None
-    weighted = Decimal(cast("str", row["current_estimate"])) * Decimal(
-        cast("str", row["win_probability"])
+    key = f"course/{row['project_id']}"
+    values: Earned = earned(row)
+    left = values.projection - values.actual
+    start = STARTED_FROM + timedelta(
+        days=draw(f"{key}/started", 0, (STARTED_TO - STARTED_FROM).days)
     )
-    start = DAY + timedelta(days=draw(f"{key}/start", 15, 180))
-    finish = start + timedelta(days=draw(f"{key}/lasts", 120, 540))
+    finish = DAY + timedelta(days=draw(f"{key}/finish", 45, 720))
+    marked = date.fromisoformat(cast("str", row["last_marked_at"])[:10])
     return Course(
         start,
         finish,
-        weighted,
+        values.budget,
+        values.planned,
+        values.actual,
+        marked if no_cost_since_review(row) else DAY,
+        left,
+        _hours(row["project_id"], left * _LABOUR_OF_REMAINING),
+        timedelta(days=draw(f"{key}/delay", 0, 60)),
+    )
+
+
+def offer_course(row: JsonObject, provisions: Decimal) -> Course:
+    """Return an offer over time, its estimate weighted by its probability of winning (M-07).
+
+    Its estimate without its provision lines stands for the reference budget, its estimate with
+    them for what it has left to commit, so for its projection, nothing being spent: an offer at
+    40 % whose estimate bears 100 without provisions and a provision of 50 brings 40 to the final
+    cumulated budget and 60 to the projection (WF-PTF-0100); its labour, of the whole estimate
+    (WF-PTF-0060).
+    """
+    key = f"course/{row['project_id']}"
+    probability = Decimal(cast("str", row["win_probability"]))
+    weighted = Decimal(cast("str", row["current_estimate"])) * probability
+    start = DAY + timedelta(days=draw(f"{key}/start", 15, 180))
+    return Course(
+        start,
+        start + timedelta(days=draw(f"{key}/lasts", 120, 540)),
+        weighted - provisions * probability,
         Decimal(0),
         Decimal(0),
         DAY,
         weighted,
         _hours(row["project_id"], weighted * _LABOUR_OF_ESTIMATE),
-        delay,
+        timedelta(days=draw(f"{key}/delay", 0, 60)),
     )
 
 
@@ -224,14 +256,25 @@ def _month(end: date) -> str:
     return end.strftime("%Y-%m")
 
 
-def scope(rows: list[JsonObject], states: list[str], org: str | None = None) -> JsonObject:
-    """Return the scope of a view of the portfolio today, as the server retains it."""
+def scope(
+    rows: list[JsonObject],
+    states: list[str],
+    org: str | None = None,
+    *,
+    period: date | None = None,
+) -> JsonObject:
+    """Return the scope of a view of the portfolio, as the server retains it.
+
+    Read today, or at the day of calculation ``period`` names for a view that takes a period: the
+    default period then, the twelve months that end on that day (``PortfolioFrom``, G-05).
+    """
     labels = {node["org_node_id"]: node["label"] for node in fixture("org_nodes")}
+    as_of = DAY if period is None else period
     return {
         "states": cast("list[JsonValue]", states),
-        "as_of": DAY.isoformat(),
-        "from": None,
-        "to": None,
+        "as_of": as_of.isoformat(),
+        "from": None if period is None else mockportfolio.period_from(period).isoformat(),
+        "to": None if period is None else period.isoformat(),
         "org_node_id": org,
         "org_node_label": None if org is None else labels[org],
         "project_count": sum(1 for row in rows if row["state"] in states),
@@ -412,6 +455,14 @@ def course_curves(each: Course, *, delays: bool, as_of: date = DAY) -> Curves:
     return Curves(budget, actual, projection)
 
 
+def curve_months(as_of: date, horizon: int = HORIZON) -> list[date]:
+    """Return the ends of the months of the S-curve at a day of calculation (G-04, WF-PTF-0100).
+
+    The twelve months before that of the day, then the ``horizon`` months from it.
+    """
+    return _months(_months_before(as_of, PAST_MONTHS), PAST_MONTHS + horizon)
+
+
 def portfolio_cost_curve(
     rows: list[JsonObject],
     *,
@@ -423,10 +474,12 @@ def portfolio_cost_curve(
     """Return the answer of getPortfolioCostCurve, the pricing included, today (WF-PTF-0100).
 
     Each point is the sum of the points of the projects at the end of a month: the reference
-    budget over the twelve months, the actual cost up to the day of calculation, the projection of
-    the project manager from it; with the payment delays, the disbursements and their detail by
-    month, the past by month of the actual cost, what is to come by month of the projection. The
-    witness brings its own curve, read today alone.
+    budget over the ``months`` given — by default those of the horizon by default
+    (``curve_months``), or some ends of month to read the curve at —, the actual cost up to the
+    day of calculation, the projection of the project manager from it; with the payment delays,
+    the disbursements and their detail by month, the past by month of the actual cost, what is to
+    come by month of the projection. The witness brings its own curve, read today alone. The
+    scope gives the default period, which no project of the list falls in, none being completed.
     """
     witness_id = _witness_id()
     own, cash = _witness_curves(delays=delays) if _holds_witness(rows) else (None, {})
@@ -440,7 +493,7 @@ def portfolio_cost_curve(
     ]
     curves = others if own is None else [own, *others]
     if months is None:
-        months = _months(_months_before(DAY, CURVE_MONTHS // 2), CURVE_MONTHS)
+        months = curve_months(as_of)
     past = [end for end in months if end < as_of]
     ahead = [end for end in months if end > as_of]
 
@@ -452,10 +505,8 @@ def portfolio_cost_curve(
     ) -> list[JsonValue]:
         return [{"date": day.isoformat(), "amount": money(summed(read, day))} for day in days]
 
-    answer = scope(rows, list(states))
-    answer["as_of"] = as_of.isoformat()
     return {
-        "scope": answer,
+        "scope": scope(rows, list(states), period=as_of),
         "payment_delays": delays,
         "series": [
             {"name": "reference_budget", "points": points(lambda c: c.budget, months)},
@@ -489,17 +540,26 @@ CREDIT_SHARE = Decimal("0.02")
 """The credit notes of December in the variant: two hundredths of what its documents carry."""
 
 
-def portfolio_cost_curve_credit(rows: list[JsonObject]) -> JsonObject:
-    """Return the S-curve as disbursements computed on 31 December 2025, from October.
+CREDIT_HORIZON = 1
+"""The horizon of the variant ``portfolio_cost_curve_credit``: the month of its day alone, after
+the twelve before it (G-04)."""
 
-    The projects then in progress, with the same courses; and the counterfactual of the variant,
-    declared by its summary: if the invoices of December had not yet been imported, its credit
-    notes alone already, December would be a month of net negative disbursement (WF-CRE-0010).
+
+def portfolio_cost_curve_credit(rows: list[JsonObject]) -> JsonObject:
+    """Return the S-curve as disbursements computed on 31 December 2025, over a month's horizon.
+
+    The projects then in progress, with the same courses, from December 2024 to December 2025 —
+    none started before October —; and the counterfactual of the variant, declared by its
+    summary: if the invoices of December had not yet been imported, its credit notes alone
+    already, December would be a month of net negative disbursement (WF-CRE-0010).
     """
     perimeter = credit_perimeter(rows)
-    months = _months(date(2025, 10, 1), 3)
     curve = portfolio_cost_curve(
-        perimeter, delays=True, as_of=CREDIT_ON, months=months, states=("in_progress",)
+        perimeter,
+        delays=True,
+        as_of=CREDIT_ON,
+        months=curve_months(CREDIT_ON, CREDIT_HORIZON),
+        states=("in_progress",),
     )
     cash = cast("list[JsonObject]", curve["cash_out_by_month"])
     december = Decimal(cast("str", cash[-1]["past"]))
@@ -568,9 +628,9 @@ def quarterly(rows: list[JsonObject]) -> list[JsonValue]:
     Each quarter is read at its end — today for the last —, from the curves of the projects: the
     actual cost and the reference budget, the planned value, those of the S-curve at that day;
     the earned value, the witness's from its own curve, another's its earned value today by the
-    share of its actual cost spent by then. Each index is a ratio of the sums (WF-PTF-0020); one
-    whose denominator is nought is not computable, as in the first quarter, before any project
-    started.
+    share of its actual cost spent by then. Each index is a ratio of the sums (WF-PTF-0020), to
+    four places; one whose denominator is nought is not computable, as in the first two quarters,
+    before any project started. The quarters are those the default period touches (G-03).
     """
     witness_id = _witness_id()
     found = mocktoday.witness()
@@ -582,6 +642,14 @@ def quarterly(rows: list[JsonObject]) -> list[JsonValue]:
         day = _quarter_end(quarter)
         actual = planned = value = Decimal(0)
         for row in progressing:
+            if row["project_id"] == witness_id and day == DAY:
+                # Today, the witness's indicators: its curve of the reference budget bears a
+                # point at the end of each month only, not its planned value of the day.
+                today = earned(row)
+                actual += today.actual
+                planned += today.planned
+                value += today.earned
+                continue
             if row["project_id"] == witness_id:
                 actual += _at(_series(curve, "actual_cost"), day)
                 planned += _at(_series(curve, "reference_budget"), day)
@@ -608,11 +676,7 @@ def quarterly(rows: list[JsonObject]) -> list[JsonValue]:
 def _index(value: Decimal, denominator: Decimal, index: str) -> JsonObject:
     if denominator == 0:
         return {"is_computable": False, "value": None, "reason": _UNCOMPUTED[index]}
-    return {
-        "is_computable": True,
-        "value": decimal((value / denominator).quantize(CENT)),
-        "reason": None,
-    }
+    return {"is_computable": True, "value": decimal(share(value / denominator)), "reason": None}
 
 
 # --- The health of the steering (WF-PTF-0110) ---------------------------------------------------
@@ -824,7 +888,8 @@ def examples() -> dict[str, JsonObject]:
     node = cast("str", cast("JsonObject", filtered["scope"])["org_node_label"]).lower()
     return {
         "portfolio_workload.json": mocktext.example(
-            f"Le plan de charge agrégé du portefeuille au {today}, sur six mois, au seuil de "
+            f"Le plan de charge agrégé du portefeuille au {today}, sur l'horizon par défaut de six "
+            f"mois, celui du jour le premier, au seuil de "
             f"sous-charge de 50 % : les projets en cours sur leur reste à engager — le projet "
             f"témoin aux heures de son propre plan de charge — et, ajoutées par la requête au "
             f"périmètre par défaut, les offres en chiffrage sur leur devis pondéré par leur "
@@ -849,13 +914,16 @@ def examples() -> dict[str, JsonObject]:
         ),
         "portfolio_cost_curve.json": mocktext.example(
             f"La courbe en S du portefeuille au {today}, de "
-            f"{_month_said(first)} à {_month_said(last)}, les projets en cours et, ajoutées "
-            f"par la requête au périmètre par défaut, les offres en chiffrage : la somme des "
-            f"budgets de référence cumulés, celle des coûts réels cumulés jusqu'au {today}, et "
-            f"celle des projections du chef de projet au-delà. Chaque point est la somme des "
-            f"points de ce mois sur les projets — le projet témoin aux points de sa propre courbe, "
-            f"une offre à son devis pondéré par sa probabilité de gain, qui tient lieu de budget "
-            f"et de projection — ; rien n'est recalculé (WF-PTF-0100, WF-IND-0100).",
+            f"{_month_said(first)} à {_month_said(last)} — les douze mois qui précèdent celui du "
+            f"jour, puis l'horizon par défaut de six mois à partir de lui —, les projets en cours "
+            f"et, ajoutées par la requête au périmètre par défaut, les offres en chiffrage : la "
+            f"somme des budgets de référence cumulés, celle des coûts réels cumulés jusqu'au "
+            f"{today}, et celle des projections du chef de projet au-delà. Chaque point est la "
+            f"somme des points de ce mois sur les projets — le projet témoin aux points de sa "
+            f"propre courbe, une offre à son devis pondéré par sa probabilité de gain, hors lignes "
+            f"de provision pour le budget, provisions comprises pour la projection — ; rien n'est "
+            f"recalculé (WF-PTF-0100, WF-IND-0100). Aucun projet terminé n'est dans la période "
+            f"par défaut, du {_day(mockportfolio.PERIOD_FROM)} au {today}.",
             curve,
         ),
         "portfolio_cost_curve_payment_delays.json": mocktext.example(
@@ -867,8 +935,9 @@ def examples() -> dict[str, JsonObject]:
             cash,
         ),
         "portfolio_cost_curve_credit.json": mocktext.example(
-            f"La courbe en S du portefeuille en décaissements, calculée au {_day(CREDIT_ON)}, "
-            f"d'octobre à décembre 2025, sur les "
+            f"La courbe en S du portefeuille en décaissements, calculée au {_day(CREDIT_ON)} à un "
+            f"mois d'horizon, de décembre 2024 à décembre 2025 — aucun projet n'avait commencé "
+            f"avant octobre —, sur les "
             f"{mocktext.count(cast('int', cast('JsonObject', credit['scope'])['project_count']))} "
             f"projets alors en cours — le projet témoin, encore en chiffrage, n'en est pas —, "
             f"chacun suivant le même cours que dans la courbe d'aujourd'hui ; et si les factures "

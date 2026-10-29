@@ -395,7 +395,12 @@ WorkloadBasis:
 PortfolioStates:
   name: states
   in: query
-  description: États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours.
+  description: >-
+    États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du
+    portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les
+    projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y
+    est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée
+    (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130).
   schema:
     type: array
     items: { $ref: schemas/projects.yaml#/ProjectState }
@@ -409,8 +414,9 @@ PortfolioFrom:
     Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période
     par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`,
     `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les
-    statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des
-    projets aucune période ; `scope.from` et `scope.to` disent la période retenue.
+    statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S
+    retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la
+    liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue.
   schema: { $ref: common.yaml#/PlanningDate }
 
 PortfolioTo:

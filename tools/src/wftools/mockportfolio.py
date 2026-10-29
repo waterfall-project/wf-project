@@ -242,7 +242,21 @@ def _index(value: Decimal) -> JsonObject:
 
 # --- The views of the portfolio, summed from its projects ----------------------------------
 
-PERIOD_FROM = date(2025, 6, 4)
+
+def period_from(as_of: date) -> date:
+    """Return the start of the default period of a day of calculation (``PortfolioFrom``).
+
+    The day twelve months before — the 28th of February for a 29th —, then the day after: the
+    twelve months that end on the day of calculation.
+    """
+    try:
+        before = as_of.replace(year=as_of.year - 1)
+    except ValueError:
+        before = as_of.replace(year=as_of.year - 1, day=28)
+    return before + timedelta(days=1)
+
+
+PERIOD_FROM = period_from(AS_OF)
 """The start of the period of the views that read one: the year up to the day of the examples."""
 
 _RISK_SUBJECTS = (
@@ -362,8 +376,15 @@ def _progressing(rows: list[JsonObject]) -> list[Earned]:
     return [earned(row) for row in rows if row["state"] == "in_progress"]
 
 
-QUARTERS = ("2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2")
-"""The quarters of the evolution: the first before any cost was spent, the last the day's."""
+def quarters(start: date, end: date) -> tuple[str, ...]:
+    """Return the calendar quarters a period touches, the oldest first (G-03, WF-PTF-0070)."""
+    first, last = start.year * 4 + (start.month - 1) // 3, end.year * 4 + (end.month - 1) // 3
+    return tuple(f"{rank // 4}-Q{rank % 4 + 1}" for rank in range(first, last + 1))
+
+
+QUARTERS = quarters(PERIOD_FROM, AS_OF)
+"""The quarters of the evolution, those the default period touches: from 2025-Q2, whose last
+month the period begins in, before any cost was spent, to 2026-Q2, the day's."""
 
 
 def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) -> JsonObject:
@@ -371,8 +392,9 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
 
     Each index is the ratio of the sums (WF-PTF-0020); the distribution counts each project
     once in the zone of each of its indices, none when its index has no zone; the evolution runs
-    over the ``QUARTERS``, as the courses of the projects give it (``quarterly``, computed by
-    ``mockportfoliotime.quarterly`` from the same projects over time).
+    over the ``QUARTERS`` of the default period, which the scope gives, as the courses of the
+    projects give it (``quarterly``, computed by ``mockportfoliotime.quarterly`` from the same
+    projects over time). A project in pricing or completed would count for nothing here.
     """
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
@@ -383,7 +405,7 @@ def portfolio_performance(rows: list[JsonObject], quarterly: list[JsonValue]) ->
     at_budget = actual + budget - value
     at_rate, at_rate_total = _at_observed_rate(budget, actual, value)
     return {
-        "scope": _scope(rows, ["in_progress"], period=False),
+        "scope": _scope(rows, ["in_progress"], period=True),
         "reference_budget": money(budget),
         "cost_index": _ratio_index(value, actual, "no_actual_cost"),
         "schedule_index": _ratio_index(value, planned, "no_planned_value"),
@@ -412,11 +434,12 @@ def _ratio_index(numerator: Decimal, denominator: Decimal, reason: str) -> JsonO
     """Return an index of the portfolio: not computable, without a zone, on a null denominator.
 
     « Présenté comme non calculable, jamais comme zéro ni comme infini » (WF-IND-0010): a
-    portfolio with no project in progress, or none that spent, planned or earned anything.
+    portfolio with no project in progress, or none that spent, planned or earned anything. To
+    four places, as every ratio (README, « Une part… », G-08).
     """
     if denominator == 0:
         return {"value": {"is_computable": False, "value": None, "reason": reason}, "zone": None}
-    return _index((numerator / denominator).quantize(CENT))
+    return _index(share(numerator / denominator))
 
 
 def _at_observed_rate(
@@ -448,9 +471,11 @@ def _zones(rows: list[JsonObject], name: str) -> dict[str, int]:
     return {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
 
 
-_LABOR_SHARE, _NON_LABOR_SHARE = Decimal("0.55"), Decimal("0.35")
+_LABOR_SHARE = Decimal("0.55")
 _REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE = Decimal("0.5"), Decimal("0.4")
-"""How the budgets and the remaining to commit of the portfolio part by nature."""
+"""How the budgets and the remaining to commit of the portfolio part by nature: the budget the
+labour its share and the non-labour the rest, the reference budget being without the provision
+lines (WF-IND-0020, G-15); the remaining to commit the provision too, the rest of its parts."""
 
 ENGINEER, TECHNICIAN = universe(451), universe(452)
 """The roles of the universe the labour of the portfolio parts between: the electrical engineer
@@ -470,9 +495,11 @@ def role_shares(project_id: JsonValue) -> dict[str, Decimal]:
 def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     """Return the answer of getPortfolioCostStructure over the projects in progress (WF-PTF-0080).
 
-    The budget and the remaining to commit part between the three natures of the universe, the
-    provisions taking what is left, so that the parts sum to their totals; the labour is that of
-    the one node of organisation the roles that work on the projects come under.
+    The budget parts between the labour and the non-labour, without the provision lines as the
+    reference budget (WF-IND-0020); the remaining to commit between the three natures of the
+    universe, the provisions taking what is left; the parts sum to their totals. The labour is
+    that of the one node of organisation the roles that work on the projects come under. No
+    project of the list is completed, and the request adds no offer: the period is the default.
     """
     sums = _progressing(rows)
     budget = sum((each.budget for each in sums), Decimal(0))
@@ -481,7 +508,8 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
         (nature["cost_type_id"], nature["label"])
         for nature in by_identifier("cost_types", "cost_type_id")
     ]
-    budgets = _parts(budget, (_LABOR_SHARE, _NON_LABOR_SHARE))
+    labour = (budget * _LABOR_SHARE).quantize(CENT)
+    budgets = {LABOR: labour, NON_LABOR: budget - labour}
     org_node = next(
         role["org_node_id"]
         for role in fixture("resource_roles")["items"]
@@ -489,8 +517,10 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
     )
     label = next(node["label"] for node in fixture("org_nodes") if node["org_node_id"] == org_node)
     return {
-        "scope": _scope(rows, ["in_progress"], period=False),
-        "budget_by_cost_type": _by_key(natures, budgets, budget),
+        "scope": _scope(rows, ["in_progress"], period=True),
+        "budget_by_cost_type": _by_key(
+            [(key, label) for key, label in natures if key in budgets], budgets, budget
+        ),
         "remaining_by_cost_type": _by_key(
             natures,
             _parts(remaining, (_REMAINING_LABOR_SHARE, _REMAINING_NON_LABOR_SHARE)),
@@ -503,7 +533,7 @@ def portfolio_cost_structure(rows: list[JsonObject]) -> JsonObject:
 
 
 def _parts(total: Decimal, shares: tuple[Decimal, Decimal]) -> dict[str, Decimal]:
-    """Part a total by nature: the labour and the non-labour their shares, the provision the rest.
+    """Part a remaining to commit by nature: labour and non-labour their shares, provision the rest.
 
     Each part is named by its nature, never by its place among the natures of the universe.
     """
@@ -621,7 +651,7 @@ def identified_risks(rows: list[JsonObject]) -> list[Risk]:
 
 
 def project_coverage(row: JsonObject) -> tuple[Decimal, Decimal]:
-    """Return the reserve of reference of a generated project in progress, and its occurred cost.
+    """Return the reserve of reference of a project in progress or completed, and its occurred cost.
 
     Its reserve from 2.5 to 5.5 % of its reference budget; one project in four has had risks
     occur, whose re-estimated cost is from 0.1 to 1.5 % of its budget (WF-RIS-0050).
@@ -639,7 +669,9 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
 
     The total, the heaviest and the matrix are those of the identified risks
     (`identified_risks`), each a point of the matrix with its project (#1053); the risks that
-    occurred or were dismissed over the period are the witness project's and a drawn sum.
+    occurred or were dismissed over the period are the witness project's and a drawn sum. The
+    reserve and the coverage are summed over the projects in progress and completed (G-06): none
+    of the list is completed, but one given counts in them.
     """
     read = mockhistory.readings()
     register = cast("list[dict[str, Any]]", cast("dict[str, Any]", read["risks"])["items"])
@@ -660,7 +692,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
         (Decimal(risk["provision_amount"]) for risk in register if risk["state"] == "dismissed"),
         Decimal(draw("risks/dismissed", 2_000, 9_000) * 1_000),
     )
-    # The coverage of the risks (WF-RIS-0050), summed over the projects in progress
+    # The coverage of the risks (WF-RIS-0050), summed over the projects in progress and completed
     # (WF-PTF-0090): the witness brings its own, every other project its reserve and the cost of
     # its occurred risks (``coverage``); the provisions remaining are those of the identified risks.
     coverage = cast("dict[str, Any]", read["risk_coverage"])
@@ -668,7 +700,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     occurred_costs = [Decimal(coverage["occurred_cost"])]
     witness = fixture("project")["project_id"]
     for row in rows:
-        if row["state"] == "in_progress" and row["project_id"] != witness:
+        if row["state"] in {"in_progress", "completed"} and row["project_id"] != witness:
             reserve_of, occurred_of = project_coverage(row)
             reserves.append(reserve_of)
             occurred_costs.append(occurred_of)

@@ -257,12 +257,12 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 |---|---|---|---|
 | GET | `/portfolio/projects` | Liste des projets du portefeuille | WF-IHM-0130, WF-PTF-0040 |
 | GET | `/portfolio/value` | Carnet, pipeline et réalisé | WF-PTF-0020, WF-PTF-0050 |
-| GET | `/portfolio/workload` | Plan de charge agrégé | WF-PTF-0060 |
+| GET | `/portfolio/workload` | Plan de charge agrégé | WF-PTF-0010, WF-PTF-0060 |
 | GET | `/portfolio/performance` | Indices, projections, répartition par zone et évolution trimestrielle | WF-PTF-0010, WF-PTF-0020, WF-PTF-0070 |
-| GET | `/portfolio/cost-structure` | Structure des coûts du portefeuille | WF-PTF-0080 |
-| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0090, WF-RIS-0050 |
-| GET | `/portfolio/cost-curve` | Courbe en S du portefeuille | WF-IND-0100, WF-PTF-0100 |
-| GET | `/portfolio/pilot-health` | Santé du pilotage | WF-PTF-0110, WF-REF-0180 |
+| GET | `/portfolio/cost-structure` | Structure des coûts du portefeuille | WF-PTF-0010, WF-PTF-0080 |
+| GET | `/portfolio/risks` | Risques du portefeuille | WF-PTF-0020, WF-PTF-0090, WF-RIS-0050 |
+| GET | `/portfolio/cost-curve` | Courbe en S du portefeuille | WF-IND-0100, WF-PTF-0010, WF-PTF-0100 |
+| GET | `/portfolio/pilot-health` | Santé du pilotage | WF-PTF-0010, WF-PTF-0110, WF-REF-0180 |
 
 ## Exigences que le contrat ne cite pas
 

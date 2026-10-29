@@ -948,6 +948,8 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         if "- name: to\n" in text or re.search(r"parameters\.yaml#/\w*To\b", text)
     }
     assert sorted(taking) == [
+        "getPortfolioCostCurve",
+        "getPortfolioCostStructure",
         "getPortfolioPerformance",
         "getPortfolioProjects",
         "getPortfolioRisks",
