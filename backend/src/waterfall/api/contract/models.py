@@ -1293,9 +1293,11 @@ class RestoreRequest(RootModel[RestoreRequest1 | RestoreRequest2]):
 
 
 class AuditAction(StrEnum):
+    project_create = "project_create"
     revision_mark = "revision_mark"
+    revision_abandon = "revision_abandon"
     reference_designate = "reference_designate"
-    amendment_merge = "amendment_merge"
+    structure_merge = "structure_merge"
     risk_occurrence = "risk_occurrence"
     project_exit = "project_exit"
     cost_line_exclude = "cost_line_exclude"
@@ -1344,13 +1346,13 @@ class AuditObject(ContractModel):
     label: Annotated[
         str | None,
         Field(
-            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue."
+            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription ; nul pour une révision en cours abandonnée, qui n'a pas encore de nom de version (WF-REV-0010) ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue."
         ),
     ]
     revision: Annotated[
         AuditRevision | None,
         Field(
-            description="La révision où l'objet vit, au moment de l'action : celle dont le registre porte le risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, celle du différentiel d'un avenant (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090), un compte, un rôle, une sauvegarde, un dépôt."
+            description="La révision où l'objet vit, au moment de l'action : celle dont le registre porte le risque (WF-RIS-0030) — pour une survenance, la révision en cours où elle fusionne son devis propre (WF-RIS-0060) —, celle de la structure différentielle (`CostStructure.revision_id`, WF-REV-0050), celle où s'applique l'import d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090). Nulle pour un objet qui ne vit pas dans une révision : le projet, une révision elle-même, une ligne de coût réel, imputée au projet (WF-CRE-0010), et l'import des coûts réels, quand seuls les imports d'un planning, d'un devis ou d'un reste à engager s'appliquent à une révision (WF-INTF-0090), un compte, un rôle, une sauvegarde, un dépôt."
         ),
     ]
 

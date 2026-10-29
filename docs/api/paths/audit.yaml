@@ -81,7 +81,7 @@
         in: query
         description: >-
           Retient les inscriptions de cette requête, ou de la tâche de fond qu'elle a
-          déclenchée : toutes celles d'une même action, comme la fusion d'un avenant, avec le
+          déclenchée : toutes celles d'une même action, comme la fusion d'un différentiel, avec le
           marquage et la désignation qu'elle produit (WF-OBS-0020, WF-IHM-0130). Une
           corrélation que le journal ne porte pas ne retient rien.
         schema:
@@ -129,6 +129,7 @@
               project: { $ref: ../../../fixtures/api/audit_events_project.json }
               exited: { $ref: ../../../fixtures/api/audit_events_exited.json }
               import_applied: { $ref: ../../../fixtures/api/audit_events_import_applied.json }
+              revision_abandoned: { $ref: ../../../fixtures/api/audit_events_revision_abandoned.json }
               empty: { $ref: ../../../fixtures/api/audit_events_empty.json }
               by_actor: { $ref: ../../../fixtures/api/audit_events_by_actor.json }
               by_object_label: { $ref: ../../../fixtures/api/audit_events_by_object_label.json }

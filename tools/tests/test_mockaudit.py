@@ -80,7 +80,7 @@ def test_a_merge_inscribes_the_amendment_then_the_marking_and_the_designation_it
     merged = mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)
     at_merge = [e for e in _events(journal["audit_events"])[::-1] if e["occurred_at"] == merged]
     assert [(e["action"], e["object"]["kind"]) for e in at_merge] == [
-        ("amendment_merge", "cost_structure"),
+        ("structure_merge", "cost_structure"),
         ("revision_mark", "revision"),
         ("reference_designate", "revision"),
     ]
@@ -114,7 +114,7 @@ def test_each_action_on_the_witness_is_one_the_chronology_says(journal: dict[str
     )
     assert ("revision_mark", offer["marked_at"]) in said
     assert ("reference_designate", mockhistory.stamp(mockwitness.ORDER_RECEIVED.instant)) in said
-    assert ("amendment_merge", mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)) in said
+    assert ("structure_merge", mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)) in said
     assert ("risk_occurrence", mockhistory.stamp(mockwitness.RISK_752_OCCURRED.instant)) in said
     # Each import of actual costs applied is an inscription, at the instant its journal says.
     applied = {mockhistory.stamp(each.event.instant) for each in mockwitnesscosts.JOURNAL}
@@ -398,12 +398,12 @@ def test_an_object_that_lives_in_a_revision_names_it_as_it_was(journal: dict[str
     [occurrence] = [e for e in _events(journal["audit_events"]) if e["action"] == "risk_occurrence"]
     assert revisions[current]["audit"]["created_at"] <= occurrence["occurred_at"]
     lived = revisions[amendment["revision_id"]]
-    assert named["amendment_merge"] == [
+    assert named["structure_merge"] == [
         {"revision_id": lived["revision_id"], "label": lived["version_name"]}
     ]
     for action in ("import_apply", "cost_line_exclude", "revision_mark", "reference_designate"):
         assert named[action], action
-    others = set(named) - {"risk_occurrence", "amendment_merge"}
+    others = set(named) - {"risk_occurrence", "structure_merge"}
     assert all(revision is None for action in others for revision in named[action])
 
 
@@ -498,7 +498,7 @@ def test_a_correlation_retains_the_inscriptions_of_one_request(journal: dict[str
     assert [event["action"] for event in retained] == [
         "reference_designate",
         "revision_mark",
-        "amendment_merge",
+        "structure_merge",
     ]
     assert len({event["correlation_id"] for event in retained}) == 1
     others = [
