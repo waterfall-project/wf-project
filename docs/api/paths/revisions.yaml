@@ -770,6 +770,7 @@
               timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
               empty: { $ref: ../../../fixtures/api/nodes_empty.json }
               amendment: { $ref: ../../../fixtures/api/nodes_amendment.json }
+              risk_estimate: { $ref: ../../../fixtures/api/nodes_risk_estimate.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

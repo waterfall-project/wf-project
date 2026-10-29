@@ -327,7 +327,9 @@ CostStructure:
         modification de la structure elle-même. C'est lui qu'un collage porte
         (`PasteApply.lock_version`), et que toute écriture de grille rend
         (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour
-        (WF-IHM-0110).
+        (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures
+        fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa
+        survenance porte (`RiskOccurrence`).
 
 StructureCommand:
   type: string

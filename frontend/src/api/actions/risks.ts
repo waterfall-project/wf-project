@@ -98,16 +98,37 @@ export async function deleteRisk(projectId: string, riskId: string): Promise<Set
 /**
  * Declare a risk occurred (WF-RIS-0060): the API hands the merge of its own estimate into the main
  * structure to the worker and answers at once with the reference of the background task
- * (WF-ARC-0090), which the tracker of the shell follows. Final.
+ * (WF-ARC-0090), which the tracker of the shell follows. Final. The API refuses it (412,
+ * `STALE_LOCK_VERSION`) when the main structure or the risk moved since the report it carries the
+ * counters of, or when a revision in progress was born — or vanished — since it was read, which
+ * `creates_current_revision` gives back as read (WF-IHM-0110, US-0680): that refusal reaches the screen like the others.
+ *
+ * A stopgap: the action reads the report of the occurrence (`getRiskOccurrenceReport`) just before
+ * and sends the two counters and `creates_current_revision` it gives back, so that the confirmation still applies. The next lot
+ * (US-0680/L2, #1454) replaces it: the confirmation will carry the counters of the report the user
+ * was shown, and this read goes away.
  */
 export async function declareRiskOccurrence(
   projectId: string,
   riskId: string,
 ): Promise<Outcome<BackgroundTask>> {
+  const client = serverClient();
+  const path = { project_id: projectId, risk_id: riskId };
+  const report = await decode(() =>
+    client.GET("/projects/{project_id}/risks/{risk_id}/occurrence", { params: { path } }),
+  );
+  if (report.kind !== "done") {
+    return report;
+  }
   return decodeTask(() =>
-    serverClient().POST("/projects/{project_id}/risks/{risk_id}/occurrence", {
-      params: { path: { project_id: projectId, risk_id: riskId } },
-      body: { confirmed: true },
+    client.POST("/projects/{project_id}/risks/{risk_id}/occurrence", {
+      params: { path },
+      body: {
+        confirmed: true,
+        main_structure_lock_version: report.data.main_structure_lock_version,
+        risk_lock_version: report.data.risk_lock_version,
+        creates_current_revision: report.data.creates_current_revision,
+      },
     }),
   );
 }

@@ -362,7 +362,9 @@ class N:
     """The numbers of the nodes of the core, said once — the node 5nn, its lineage 6nn.
 
     Every module names the core by this table, never by its digits, so that it is renumbered in
-    one place alone (#376, revue d'EP-02/L24). From 591, the nodes the amendment 2 adds, which the
+    one place alone (#376, revue d'EP-02/L24). From 531 to 534, the nodes of the own estimate of
+    the risk 751, its structure 204, which no other structure bears (``REWORK_ESTIMATE``, US-0680).
+    From 591, the nodes the amendment 2 adds, which the
     main structure does not bear (``mockamendment``, #791); the differential renders the node of
     number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421).
     """
@@ -374,6 +376,10 @@ class N:
     STUDIES_RECEIVED = 525
     DESIGN_FILE = 526
     STUDIES_LINE = 527
+    REWORK_DIAGNOSIS = 531
+    REWORK_DIAGNOSIS_LINE = 532
+    REWIRING = 533
+    REWIRING_LINE = 534
     MERGED = 541
     REMINDER = 542
     REMINDER_LINE = 543
@@ -656,6 +662,45 @@ commissioning starts and is consumed there (EP-02/L22)."""
 
 CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
 """The readable core, the first roots of the structure, its rows its first rows (#376)."""
+
+REWORK_ESTIMATE = (
+    Task(
+        N.REWORK_DIAGNOSIS,
+        "Diagnostic des défauts de câblage",
+        days=5,
+        manual=(date(2026, 7, 1), date(2026, 7, 7)),
+        lines=(
+            Line(
+                N.REWORK_DIAGNOSIS_LINE,
+                "Recherche des défauts par le câbleur",
+                SUBCONTRACTING,
+                unit=Decimal("250.00") * RISK_SCALE,
+                payment_delay_days=PAYMENT_DELAY,
+            ),
+        ),
+    ),
+    Task(
+        N.REWIRING,
+        "Reprise du câblage des armoires",
+        days=15,
+        links=(Link(N.REWORK_DIAGNOSIS),),
+        lines=(
+            Line(
+                N.REWIRING_LINE,
+                "Recâblage des armoires",
+                SUBCONTRACTING,
+                unit=Decimal("1000.00") * RISK_SCALE,
+                payment_delay_days=PAYMENT_DELAY,
+            ),
+        ),
+    ),
+)
+"""The own estimate of the risk 751, the rework of the wiring, its structure 204 in the current
+revision (WF-RIS-0030, US-0680): the diagnosis of the faults, entered in manual mode from 1 to
+7 July 2026, after the wiring of the cabinets is due to finish, and the rework of the wiring after
+it, both subcontracted, 250,000 and 1,000,000 at the scale of the structure — 1,250,000, the
+severity its review of 2 February retained (``mockwitnessrisks``, WF-RIS-0010). Its tasks bear no
+lot, no post and no inscription: those are the main structure's alone (WF-PLA-0170)."""
 
 STUDIES_RECEIVED, STUDIES_LINE = N.STUDIES_RECEIVED, N.STUDIES_LINE
 WIRING, LABOUR, FACTORY_ACCEPTANCE = N.WIRING, N.LABOUR, N.FACTORY_ACCEPTANCE

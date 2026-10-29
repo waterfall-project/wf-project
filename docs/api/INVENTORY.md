@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**163 opérations sur 127 chemins, dans 13 familles.**
+**164 opérations sur 127 chemins, dans 13 familles.**
 Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -206,7 +206,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Risques et provisions
 
-`paths/risks.yaml` — 10 opérations
+`paths/risks.yaml` — 11 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -217,6 +217,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | DELETE | `/projects/{project_id}/risks/{risk_id}` | Supprimer un risque | WF-IHM-0110, WF-RIS-0020 |
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
+| GET | `/projects/{project_id}/risks/{risk_id}/occurrence` | Compte rendu préalable de la survenance d'un risque | WF-IHM-0110, WF-RIS-0060 |
 | POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-IHM-0110, WF-PLA-0170, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/risks/coverage` | Couverture des risques | WF-RAE-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/matrix` | Matrice de risques du projet | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040 |

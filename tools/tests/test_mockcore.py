@@ -47,6 +47,7 @@ from wftools import (
     mockcore,
     mockdata,
     mockids,
+    mockriskwrites,
     mocktext,
     mockwitness,
     mockwitnessrisks,
@@ -547,6 +548,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_nested": nested,
         "nodes_summaries": nested,
         "nodes_amendment": mockamendment.rows(),
+        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0
@@ -618,6 +620,7 @@ def test_each_task_read_bears_the_fewest_hours_of_the_calendars_of_its_labour_li
         "nodes_core": mockcore.alone(),
         "nodes_nested": mockcore.alone(mockdata.nested()),
         "nodes_amendment": mockamendment.rows(),
+        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
     }
     for name, rows in structures.items():
         borne: dict[str, list[str]] = {}

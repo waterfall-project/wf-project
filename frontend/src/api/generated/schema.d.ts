@@ -2254,11 +2254,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Compte rendu préalable de la survenance d'un risque
+         * @description Une lecture, qui n'écrit rien : ce que la survenance du risque ferait de la structure principale de la révision en cours (WF-RIS-0060), présenté avant sa confirmation comme le compte rendu d'une fusion (`RiskOccurrenceReport`, sur le modèle de `getStructureMergeReport`) — les tâches et les lignes du devis propre ajoutées sous la tâche qui porte la ligne de provision, ou après elle quand c'est un jalon, la ligne de provision retirée, la tâche porteuse modifiée —, et la provision retirée du reste à engager. L'écart est celui que le serveur calcule, comme pour un différentiel (C-361), et le front ne le compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné. Le compte rendu décrit la révision en cours à l'instant de la lecture — ou, tant que le projet n'en a pas, la dernière révision marquée, dont la survenance la créerait par copie (`creates_current_revision`, comme pour la fusion d'un différentiel, #790) —, et la survenance confirmée (`declareRiskOccurrence`) porte ce qu'il a lu : une saisie faite entre-temps dans la structure principale, sur le risque ou dans son devis propre — qui fait avancer `Risk.lock_version` —, ou une révision en cours née depuis la lecture, la fait refuser par 412 (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne s'applique pas, et l'écran n'en offre pas la confirmation. Refusée par 409 pour un risque qui n'est pas identifié, comme sa survenance.
+         */
+        get: operations["getRiskOccurrenceReport"];
         put?: never;
         /**
          * Déclarer un risque survenu
-         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110, WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la révision en cours sont indisponibles (`no_background_task_running`).
+         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110, WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre, que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la confirmation. Elle renvoie aussi `creates_current_revision`, tel que le compte rendu l'a lu : une révision en cours née depuis la lecture, ou disparue, la fait refuser par 412.
          */
         post: operations["declareRiskOccurrence"];
         delete?: never;
@@ -4353,7 +4357,7 @@ export interface components {
             is_merged: boolean;
             /** @description Commandes de saisie de la structure que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090) : ce que la grille qui la lit offre — la saisie des cellules, les gestes de structure, le collage —, sans rien déduire de l'état du projet (`StructureCommand`). Une grille dont la commande est absente ou indisponible se présente en lecture seule. */
             available_commands: components["schemas"]["StructureCommandAvailability"][];
-            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). */
+            /** @description Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence`). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Crée un différentiel ou le devis propre d'un risque. La structure principale n'est jamais créée ici : elle existe dès la création de la révision (WF-REV-0100). */
@@ -4370,7 +4374,7 @@ export interface components {
          * @enum {string}
          */
         ImportDifferenceField: "parent";
-        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s). */
+        /** @description Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s), ou ce que la survenance d'un risque ferait de la structure principale (`RiskOccurrenceReport`, WF-RIS-0060 ; US-0680). */
         ImportDifference: {
             /**
              * @description Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`.
@@ -4399,7 +4403,7 @@ export interface components {
             /** @description Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué. */
             completed_on: components["schemas"]["PlanningDate"] | null;
         };
-        /** @description Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
+        /** @description Un motif qui refuse un import, une fusion ou la survenance d'un risque entière, présenté au compte rendu avant l'application (WF-INTF-0040, WF-REV-0050, WF-RIS-0060 ; EP-14/L42s, `RiskOccurrenceReport`) : son code et les paramètres qu'il porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks` (WF-PLA-0170) ; `PROJECT_HORIZON_EXCEEDED`, la durée du projet portée au-delà de quinze ans, `params.task` (WF-PLA-0150) ; pour une fusion, aussi `TASK_WITHOUT_WORKING_HOURS` (WF-PLA-0010), `LINK_CYCLE`, une boucle de liaisons que la fusion fermerait, `params.cycle`, et `LINK_FORBIDDEN`, une liaison qu'elle ferait naître entre une récapitulative et sa subordonnée, `params.link` (WF-PLA-0030). Chacun est le motif sur lequel la tâche de fond de la fusion échoue, avec les mêmes paramètres (`mergeCostStructure`, WF-REV-0050 ; #788). */
         ReportRefusal: {
             code: components["schemas"]["ErrorCode"];
             params?: components["schemas"]["ProblemParams"];
@@ -5076,6 +5080,7 @@ export interface components {
             /** @description Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et, pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
             available_commands: components["schemas"]["RiskCommandAvailability"][];
             audit: components["schemas"]["Audit"];
+            /** @description Compteur du risque. Il avance à chaque écriture du risque, et aussi à toute saisie dans son devis propre (`structure_id`) — une cellule, un collage, un déplacement, une création, une suppression —, dont il tient sa gravité (WF-RIS-0010) : le compte rendu de sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`). Il avance de même à la suppression du sous-projet qu'il désignait (`provision_subproject_id`, #732). */
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Les trois totaux de provisions, distincts — les identifiés pour leur provision courante, les survenus et les écartés pour celle qu'ils portaient dans la révision de référence —, leur total général, et la réserve pour risques de la révision de référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les risques retenus — tous ceux que les filtres retiennent, quelle que soit la page lue (`listRisks`, #1367). */
@@ -5122,10 +5127,31 @@ export interface components {
             provision_cost_category_id?: components["schemas"]["Uuid"];
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, les lignes fusionnées portant un montant budgété nul et leur montant du devis propre en réestimé ; la ligne de provision est retirée. Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif. */
+        /** @description Compte rendu de la survenance d'un risque, présenté avant sa confirmation (WF-RIS-0060 ; US-0680, #1383) : ce qu'elle ferait de la structure principale de la révision en cours, et du reste à engager. Il reprend les éléments du compte rendu de la fusion d'un différentiel (`StructureMergeReport`), et se lit de même. Les deux tableaux sont toujours rendus, vides quand il n'y a rien à dire ; la survenance ne s'applique que si `refusals` est vide. Il rend les compteurs lus, et s'il crée la révision en cours, que la confirmation renvoie (`RiskOccurrence`). */
+        RiskOccurrenceReport: {
+            /** @description Le compteur de la structure principale lue (`CostStructure.lock_version`) — celle de la révision en cours, ou, sans révision en cours, celle de la dernière révision marquée : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412. */
+            main_structure_lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur du risque lu (`Risk.lock_version`), de même. Il avance aussi à toute saisie dans le devis propre du risque, dont le compte rendu liste les tâches et les lignes : une saisie qui l'écrit depuis rend le compte rendu périmé. */
+            risk_lock_version: components["schemas"]["LockVersion"];
+            /** @description Vrai quand le projet n'a pas de révision en cours : la survenance crée d'abord la révision en cours par copie de la dernière révision marquée, chiffrée aux taux conservés, projetés, puis y fusionne le devis propre, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-RIS-0060, WF-REV-0010, WF-REV-0060). Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la révision marquée, que la copie reprend telle quelle, et `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé, comme pour la fusion d'un différentiel (`StructureMergeReport.creates_current_revision`, #790) et comme le risque se lit (`getRisk`, `revision_id` absent). Faux quand le projet a une révision en cours. Une révision en cours née depuis la lecture fait refuser la confirmation par 412. */
+            creates_current_revision: boolean;
+            /** @description Les écarts que la survenance ferait dans la structure principale, comme ceux d'une fusion (`ImportDifference`), dans cet ordre : les tâches et les lignes du devis propre, ajoutées (`added`) dans l'ordre de son plan — ses tâches de premier niveau en dernière position sous la tâche qui porte la ligne de provision, ou, quand c'est un jalon, immédiatement après lui, sous sa tâche parente ou au premier niveau ; un ajout n'a pas encore de lignée, et les liaisons internes du devis propre viennent avec ses tâches — ; la tâche porteuse modifiée (`updated`), devenue la récapitulative de ces tâches, `fields` nommant ce qui change d'elle, ses dates et sa durée couvrant désormais celles de ses subordonnées (WF-PLA-0040) — un jalon, qui reste un jalon sans sous-tâche, n'est pas modifié — ; la ligne de provision retirée (`removed`). Les tâches ajoutées gardent leurs subordonnées, leurs liaisons internes, leurs durées et leurs modes, une tâche sans prédécesseur dans le devis propre passant en mode manuel aux dates qu'elle y avait ; les lignes ajoutées portent un montant budgété nul (WF-RIS-0060). */
+            differences: components["schemas"]["ImportDifference"][];
+            /** @description Le montant de la ligne de provision retirée, qui quitte le reste à engager — la provision du risque (`Risk.provision_amount`) ; le reste à engager augmente du total du devis propre, moins ce montant (WF-RIS-0060). */
+            provision_amount: components["schemas"]["Money"];
+            /** @description Les motifs qui refusent la survenance entière, chacun avec les paramètres qu'il porte quand la tâche de fond échoue (`ReportRefusal`) — ainsi `TASK_WITHOUT_WORKING_HOURS`, une tâche fusionnée dont une ligne de main-d'œuvre a un rôle sans aucune heure travaillée dans la semaine (WF-PLA-0010). Vide quand la survenance s'applique. */
+            refusals: components["schemas"]["ReportRefusal"][];
+        };
+        /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, les lignes fusionnées portant un montant budgété nul et leur montant du devis propre en réestimé ; la ligne de provision est retirée. Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif. La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus, et s'il créait la révision en cours : la structure principale ou le risque changés depuis — et le risque change aussi à toute saisie dans son devis propre (`Risk.lock_version`) —, ou une révision en cours née depuis la lecture, ou disparue, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel (`StructureMerge`, WF-IHM-0110 ; US-0680). */
         RiskOccurrence: {
             /** @constant */
             confirmed: true;
+            /** @description Le compteur de la structure principale que le compte rendu a lu (`RiskOccurrenceReport.main_structure_lock_version`) — celle de la révision en cours, ou, sans révision en cours, celle de la dernière révision marquée. */
+            main_structure_lock_version: components["schemas"]["LockVersion"];
+            /** @description Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`), qui avance aussi à toute saisie dans son devis propre (`Risk.lock_version`). */
+            risk_lock_version: components["schemas"]["LockVersion"];
+            /** @description Ce que le compte rendu a lu (`RiskOccurrenceReport.creates_current_revision`), renvoyé tel que lu : vrai alors qu'une révision en cours est née depuis la lecture, ou faux alors qu'il n'y en a plus, la confirmation est refusée par 412. */
+            creates_current_revision: boolean;
         };
         /** @description Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) : la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la matrice du portefeuille. */
         RiskMatrixLevel: {
@@ -11279,6 +11305,41 @@ export interface operations {
             503: components["responses"]["ServiceUnavailable"];
         };
     };
+    getRiskOccurrenceReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["parameters"]["ProjectId"];
+                risk_id: components["parameters"]["RiskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ce que la survenance ferait, et ce qui la refuse. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskOccurrenceReport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Le risque n'est pas identifié — survenu ou écarté — : seul un risque identifié survient (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, la condition que la commande `declare_occurrence` du risque dit manquer. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     declareRiskOccurrence: {
         parameters: {
             query?: never;
@@ -11308,7 +11369,24 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la condition qui manque, comme la commande `declare_occurrence` du risque la dit — ainsi `risk_identified` pour un risque survenu ou écarté, seul un risque identifié survenant (WF-RIS-0020), comme au compte rendu. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description La structure principale ou le risque ont changé depuis le compte rendu confirmé — le risque change aussi à toute saisie dans son devis propre —, ou une révision en cours est née depuis la lecture (`creates_current_revision` vrai), ou a disparu (faux) : le compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110). `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque, l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien d'autre, comme tout 412 (#296), si bien qu'il ne dit pas lequel des deux a avancé ; le client ne rejoue pas avec ce compteur, il relit le compte rendu, qui rend l'un et l'autre. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["UnprocessableEntity"];
             503: components["responses"]["ServiceUnavailable"];
         };

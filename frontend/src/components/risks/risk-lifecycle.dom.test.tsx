@@ -41,6 +41,7 @@ vi.mock("next/navigation", async (original) => ({
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const DELETE = "DELETE /projects/{project_id}/risks/{risk_id}";
 const OCCURRENCE = "POST /projects/{project_id}/risks/{risk_id}/occurrence";
+const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence";
 
 const IDENTIFIED = example("risk") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
@@ -170,8 +171,9 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("« Déclarer survenu »", () => {
-  it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks", async () => {
+  it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
     });
     render(detail(IDENTIFIED));
@@ -189,13 +191,26 @@ describe("« Déclarer survenu »", () => {
       }),
     );
     await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(1);
+      expect(client.calls).toHaveLength(2);
     });
-    expect(client.calls[0]?.route).toBe(OCCURRENCE);
-    expect(client.calls[0]?.path).toBe(
-      `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`,
-    );
-    expect(client.calls[0]?.body).toEqual({ confirmed: true });
+    // The stopgap of US-0680/L1: the report is read just before, and its two counters and
+    // `creates_current_revision` are carried by the confirmation, as read.
+    const report = example("risk_occurrence_report") as {
+      main_structure_lock_version: number;
+      risk_lock_version: number;
+      creates_current_revision: boolean;
+    };
+    const path = `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`;
+    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
+    expect(client.calls[0]?.path).toBe(path);
+    expect(client.calls[1]?.route).toBe(OCCURRENCE);
+    expect(client.calls[1]?.path).toBe(path);
+    expect(client.calls[1]?.body).toEqual({
+      confirmed: true,
+      main_structure_lock_version: report.main_structure_lock_version,
+      risk_lock_version: report.risk_lock_version,
+      creates_current_revision: report.creates_current_revision,
+    });
     expect(
       await screen.findAllByText(/La survenance de « Risque de reprise du câblage » est confiée/),
     ).not.toHaveLength(0);
@@ -204,6 +219,39 @@ describe("« Déclarer survenu »", () => {
       await within(tasks).findByText("Survenance d’un risque « Risque de reprise du câblage »"),
     ).toBeVisible();
     expect(within(tasks).getByText("En attente")).toBeVisible();
+  });
+
+  it("tells the refusal of the report read before the declaration, and sends nothing", async () => {
+    const client = serve({
+      [OCCURRENCE_REPORT]: {
+        problem: example("risk_occurrence_not_identified") as Problem & { status: 409 },
+      },
+    });
+    render(detail(IDENTIFIED));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    await userEvent.click(
+      within(screen.getByRole("form", { name: "Déclarer survenu" })).getByRole("button", {
+        name: "Déclarer le risque survenu",
+      }),
+    );
+    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
+  });
+
+  it("tells the stale report refused by the declaration, under a confirmation that stays open", async () => {
+    serve({
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
+      [OCCURRENCE]: {
+        problem: example("risk_occurrence_report_stale") as Problem & { status: 412 },
+      },
+    });
+    render(detail(IDENTIFIED));
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    await userEvent.click(within(form).getByRole("button", { name: "Déclarer le risque survenu" }));
+    expect(await within(form).findByRole("alert")).toBeVisible();
+    expect(screen.getByRole("form", { name: "Déclarer survenu" })).toBe(form);
   });
 
   it("leaves a risk occurred with no command of entry, each saying why [WF-RIS-0020-A]", () => {

@@ -392,6 +392,52 @@
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/risks/{risk_id}/occurrence:
+  get:
+    operationId: getRiskOccurrenceReport
+    tags: [risks]
+    summary: Compte rendu préalable de la survenance d'un risque
+    description: >-
+      Une lecture, qui n'écrit rien : ce que la survenance du risque ferait de la structure
+      principale de la révision en cours (WF-RIS-0060), présenté avant sa confirmation comme le
+      compte rendu d'une fusion (`RiskOccurrenceReport`, sur le modèle de
+      `getStructureMergeReport`) — les tâches et les lignes du devis propre ajoutées sous la tâche
+      qui porte la ligne de provision, ou après elle quand c'est un jalon, la ligne de provision
+      retirée, la tâche porteuse modifiée —, et la provision retirée du reste à engager. L'écart
+      est celui que le serveur calcule, comme pour un différentiel (C-361), et le front ne le
+      compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné.
+      Le compte rendu décrit la révision en cours à l'instant de la lecture — ou, tant que le
+      projet n'en a pas, la dernière révision marquée, dont la survenance la créerait par copie
+      (`creates_current_revision`, comme pour la fusion d'un différentiel, #790) —, et la
+      survenance confirmée (`declareRiskOccurrence`) porte ce qu'il a lu : une saisie faite
+      entre-temps dans la structure principale, sur le risque ou dans son devis propre — qui
+      fait avancer `Risk.lock_version` —, ou une révision en cours née depuis la lecture, la
+      fait refuser par 412 (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne
+      s'applique pas, et l'écran n'en offre pas la confirmation. Refusée par 409 pour un risque
+      qui n'est pas identifié, comme sa survenance.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    responses:
+      '200':
+        description: Ce que la survenance ferait, et ce qui la refuse.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrenceReport }
+            examples:
+              witness: { $ref: ../../../fixtures/api/risk_occurrence_report.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Le risque n'est pas identifié — survenu ou écarté — : seul un risque identifié survient
+          (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`,
+          la condition que la commande `declare_occurrence` du risque dit manquer.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: declareRiskOccurrence
     tags: [risks]
@@ -406,7 +452,14 @@
       survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique
       d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
       WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la
-      révision en cours sont indisponibles (`no_background_task_running`).
+      révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit
+      le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a
+      lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que
+      personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le
+      compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre,
+      que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la
+      confirmation. Elle renvoie aussi `creates_current_revision`, tel que le compte rendu l'a
+      lu : une révision en cours née depuis la lecture, ou disparue, la fait refuser par 412.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -415,6 +468,8 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/risks.yaml#/RiskOccurrence }
+          examples:
+            sent: { $ref: ../../../fixtures/api/risk_occurrence_sent.json }
     responses:
       '202':
         description: Survenance mise en file.
@@ -427,7 +482,32 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
+          condition qui manque, comme la commande `declare_occurrence` du risque la dit — ainsi
+          `risk_identified` pour un risque survenu ou écarté, seul un risque identifié survenant
+          (WF-RIS-0020), comme au compte rendu.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
+      '412':
+        description: >-
+          La structure principale ou le risque ont changé depuis le compte rendu confirmé — le
+          risque change aussi à toute saisie dans son devis propre —, ou une révision en cours
+          est née depuis la lecture (`creates_current_revision` vrai), ou a disparu (faux) : le
+          compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110).
+          `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
+          l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien
+          d'autre, comme tout 412 (#296), si bien qu'il ne dit pas lequel des deux a avancé ; le
+          client ne rejoue pas avec ce compteur, il relit le compte rendu, qui rend l'un et l'autre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              report_stale: { $ref: ../../../fixtures/api/risk_occurrence_report_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

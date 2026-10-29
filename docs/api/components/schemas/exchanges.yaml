@@ -404,8 +404,9 @@ ReportRefusal:
   type: object
   required: [code]
   description: >-
-    Un motif qui refuse un import ou une fusion entière, présenté au compte rendu avant
-    l'application (WF-INTF-0040, WF-REV-0050 ; EP-14/L42s) : son code et les paramètres qu'il
+    Un motif qui refuse un import, une fusion ou la survenance d'un risque entière, présenté au
+    compte rendu avant l'application (WF-INTF-0040, WF-REV-0050, WF-RIS-0060 ; EP-14/L42s,
+    `RiskOccurrenceReport`) : son code et les paramètres qu'il
     porte dans un refus (`Problem.params`), les tâches nommées par leur nœud de la structure
     principale et leur libellé. Ainsi `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, la tâche d'un poste sortie
     du sous-arbre de la tâche de son lot, `params.work_package_task` et `order_item_tasks`
@@ -424,7 +425,9 @@ ImportDifference:
   required: [change, target]
   description: >-
     Un écart d'un import avec les données existantes, ou d'un différentiel avec la structure
-    principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s).
+    principale qu'il fusionnerait (`StructureMergeReport`, WF-REV-0050 ; EP-14/L42s), ou ce que la
+    survenance d'un risque ferait de la structure principale (`RiskOccurrenceReport`, WF-RIS-0060 ;
+    US-0680).
   properties:
     change:
       type: string
