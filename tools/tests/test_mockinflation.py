@@ -4,7 +4,9 @@
 
 The budgeted and the re-estimated amounts of a line are « exprimés inflation comprise, à l'année de
 consommation de la ligne » (WF-DEV-0020); the amount at the rates of the reference year, before
-inflation, is a value read (WF-DEV-0050); a line of provision is not projected (WF-DEV-0030).
+inflation, is a value read (WF-DEV-0050); a line of provision is not projected (WF-DEV-0030). The
+re-estimate of a line re-estimated by nobody, of a task not started, is what the remaining to commit
+counts (WF-RAE-0010, M-08).
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdating, mockwitness
+from wftools import mockcore, mockdating, mockindicators, mockstructure, mockwitness
 from wftools.mockstructure import CENT, REFERENCE_YEAR, Projection, described
 from wftools.mockwitness import Line, Task
 
@@ -71,3 +73,29 @@ def test_a_line_of_provision_two_years_after_the_reference_year_is_not_projected
     amounts = ("base_amount", "budgeted_amount", "reestimated_amount")
     assert [rows[592][key] for key in amounts] == ["250.00", "250.00", "250.00"]
     assert [rows[593][key] for key in amounts] == ["100.00", "106.09", "106.09"]
+
+
+@pytest.mark.requirement("WF-RAE-0010-A")
+def test_a_task_not_started_counts_its_reestimate_at_the_rates_the_revision_keeps() -> None:
+    # Vérif : « une tâche non démarrée […] compte pour sa charge au taux de 2027, et non au taux de
+    # 2026 corrigé d'une année d'inflation ». In the witness, the revision 102 keeps the rates of
+    # 2026 its update accepted; a drawn labour line of a task not started, re-estimated by nobody,
+    # keeps the budget the offer fixed at the rates of 2025 (#467): it counts its hours at the rate
+    # of 2026, projected on its year of consumption — its re-estimate —, not its budget.
+    reading = mockindicators.today()
+    lines = [
+        line
+        for line in reading.lines
+        if line.number >= mockwitness.GENERATED
+        and line.hours
+        and reading.progress(line) == "not_started"
+    ]
+    assert len(lines) == 2_685
+    for line in lines:
+        facet = reading.facet(line)
+        rate = mockstructure.LABOUR_RATES[cast("str", facet["cost_category_id"])]
+        year = cast("int", facet["consumption_year"])
+        counted = mockindicators.remaining_of(reading, line)
+        assert counted == line.amounts.reestimated
+        assert counted == mockstructure.inflated(line.hours * rate, year)
+        assert counted > line.amounts.budgeted

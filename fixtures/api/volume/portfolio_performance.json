@@ -8,7 +8,7 @@
     "schedule_index": {"value":{"is_computable":true,"value":"0.91","reason":null},"zone":"nominal"},
     "cost_variance": "-75841120.37",
     "schedule_variance": "-121379599.40",
-    "projections": {"at_budget":"2741272188.42","project_manager":"2795400368.92","at_observed_rate":{"is_computable":true,"value":"2832594354.58","reason":null},"variance_at_budget":"75841120.37","variance_project_manager":"129969300.87","variance_at_observed_rate":"167163286.53"},
+    "projections": {"at_budget":"2741272188.42","project_manager":"2795577473.18","at_observed_rate":{"is_computable":true,"value":"2832594354.58","reason":null},"variance_at_budget":"75841120.37","variance_project_manager":"130146405.13","variance_at_observed_rate":"167163286.53"},
     "zone_distribution": [
       {"index":"cost","zone":"nominal","project_count":169},
       {"index":"cost","zone":"watch","project_count":47},

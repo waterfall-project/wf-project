@@ -2008,6 +2008,12 @@ le reste à engager moins le budget, comme l'exemple écrit à la main le faisai
 dépasse son budget est en alerte, les autres nominaux, et un mois de charge au-delà de la capacité
 de son rôle aussi : WF-IHM-0070 ne fixe aucun seuil intermédiaire pour l'un ni l'autre.
 
+*Remplacé en partie par US-0701/L1 (#1601, M-08) : depuis la spécification du 2026-10-22
+(WF-RAE-0010) et le recadrage du 2026-10-28, une tâche non démarrée ne compte plus son budgété
+projeté, mais le montant réestimé de ses lignes, calculé, faute de réestimation, depuis les
+grandeurs de la référence aux taux conservés par la révision courante, sur son année de
+consommation courante (« Le réestimé d'une ligne non réestimée », dans « Le contrat figé »).*
+
 **Ce que disent les exemples.** `estimate_indicators` : 121 534,56 de devis, dont 500 de
 provision du risque identifié, le poste du lotissement que porte le lot « Poste de commande », et
 un écart de -210,00 à la référence, qui est aussi la révision marquée précédente — les 500 de
@@ -2384,6 +2390,10 @@ reste à engager 21 234,56, ces deux tâches non démarrées y comptant leur bud
 (WF-RAE-0010). Un test d'invariant tient le budget de l'offre de toute ligne que l'avenant ne
 désigne pas, un autre l'unicité du taux d'une catégorie dans chaque révision.
 
+*Remplacé en partie par US-0701/L1 (#1601, M-08, WF-RAE-0010 du 2026-10-22) : les tâches non
+démarrées comptent au reste à engager le montant réestimé de leurs lignes, aux taux de 2026 que la
+révision conserve, et non leur budget projeté, aux taux de l'offre.*
+
 **Le reste des points repris** : les risques lus dans 102 citent les structures de 102, à leurs
 identifiants propres, 204 à 206 (`structures`, #461 ; WF-DAT-0030) ; l'évolution des indices
 choisit ses révisions d'après l'état du projet au marquage, lu dans `state_transitions`, et non
@@ -2464,6 +2474,10 @@ d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; l
 risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
 électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
 ses indicateurs, et les vues du portefeuille la somment.
+
+*Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08) : les montants sont inflation comprise, et
+les tâches non démarrées comptent leur montant réestimé ; le reste à engager, le budget de référence
+et le devis du témoin changent (« Le contrat figé »).*
 
 **Les variantes déclarées.** `cost_curve_subproject_empty` et sa variante aux délais de paiement,
 qui montraient un sous-projet dont aucune ligne ne relève, deviennent des variantes
@@ -8478,6 +8492,42 @@ reste omise. `mockcomparisons` les calcule sur le budgété et le réestimé des
 `comparison*.json` et `volume/comparison_volume.json` sont régénérés, et
 `test_mockcomparison.py` tient le Vérif sur une révision dont un différentiel ne change que le
 budget d'une ligne.
+
+### Le réestimé d'une ligne non réestimée (US-0701/L1, #1601, M-08)
+
+WF-RAE-0010, réécrite le 2026-10-22, compte au reste à engager une tâche non démarrée pour « le
+montant réestimé de ses lignes, qui, faute de réestimation, se calcule depuis les grandeurs de la
+référence, aux taux conservés par la révision courante (WF-REV-0060) et sur son année de
+consommation courante » ; « à taux horaires inchangés, c'est le montant budgété de la ligne reporté
+de l'année de consommation que lui donnait la référence sur son année de consommation courante ».
+Le contrat ne disait rien de la valeur de `reestimated_amount` d'une ligne jamais réestimée, et deux
+décisions d'EP-02 disaient l'ancienne règle, « le budgété projeté d'une tâche non démarrée »
+(EP-02/L24, EP-02/L27, EP-14/L45a, réécrites plus haut). La proposition de la revue s'applique
+(décision de l'auteur du 2026-10-28, « la règle des autres majeurs ») :
+
+- **`EstimateLineFacet.reestimated_amount`** est celui de la dernière réestimation (WF-RAE-0040) ;
+  pour une ligne jamais réestimée, il est calculé depuis ses grandeurs courantes — celles de la
+  référence, ou de l'avenant dont la fusion les a changées (WF-REV-0050) — aux taux conservés par la
+  révision, sur son année de consommation courante. Le reste à engager compte ce montant pour toute
+  ligne d'une tâche non terminée (`RemainingIndicators`).
+- **Pas de booléen `is_reestimated`.** La revue le proposait « à trancher », pour que la grille
+  distingue une ligne réestimée et que l'avenant sache quelles lignes recalculer. La spécification
+  ne le rend pas nécessaire au contrat : WF-RAE-0010 compte le même montant réestimé dans les deux
+  cas, seule sa source change, et c'est le serveur qui la connaît ; WF-RAE-0040 présente à chaque
+  ligne ses grandeurs et son montant réestimé, précédents et courants, sans distinguer une ligne
+  réestimée d'une autre ; et la fusion d'un avenant (WF-REV-0050), qui ne donne ses grandeurs qu'à
+  la ligne « que personne n'a réestimée », est une écriture du serveur, dont le compte rendu
+  présente les lignes modifiées sans cet état. Ajouter le champ plus tard ne romprait aucun client.
+- **L'année des montants** : le reste à engager est inflation comprise, à l'année de consommation
+  courante de chaque ligne, comme le réestimé qu'il somme (L-01, ci-dessus) — le doute de la revue
+  est levé sans second total.
+- **Le témoin.** `mockindicators.remaining_of` compte le réestimé de toute ligne d'une tâche non
+  terminée, la provision d'un risque identifié pour son montant, et rien pour une tâche terminée.
+  Les lignes de main-d'œuvre tirées des tâches non démarrées, que l'avenant 1 ne désigne pas,
+  gardent le budget de l'offre, aux taux de 2025, et comptent désormais leurs heures aux taux de
+  2026 que la révision conserve : le reste à engager du témoin passe de 67 293 028,72 à
+  67 470 132,98, sa marge sur le budget de référence à -641 535,13, et le poste de commande dépasse
+  son budget de 64 699,97. `test_mockinflation.py` tient le Vérif de WF-RAE-0010 sur elles.
 
 ## Collage et annulation
 

@@ -316,8 +316,8 @@ def test_the_rate_update_proposes_the_rates_of_the_grid_for_2026(today: dict[str
 
 
 def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str, Any]) -> None:
-    # Nothing for a task completed, the re-estimate of a task started, the budget of a task not
-    # started; the lines budgeted nothing for their re-estimate, the provisions for their amount.
+    # Nothing for a task completed, the re-estimate of a task started or not (WF-RAE-0010, M-08);
+    # the lines budgeted nothing for their re-estimate, the provisions for their amount.
     witness = mockindicators.today()
     by_state: dict[str, Decimal] = {}
     for line in witness.lines:
@@ -331,7 +331,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
         "started": Decimal("416710.83"),
         "provision": Decimal("500000.00"),
         "merged": Decimal("200.00"),
-        "not_started": Decimal("66376117.89"),
+        "not_started": Decimal("66553222.15"),
     }
     # The core alone counts as it did before the structure was summed (EP-02/L24).
     core = mockindicators.today(CORE)
@@ -359,11 +359,12 @@ def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(
         assert entry["is_over_budget"] is (Decimal(entry["variance"]) < 0)
         assert entry["zone"] == ("alert" if entry["is_over_budget"] else "nominal")
     # The invoice of the screens is the one cost of the control station, whose drawn lots follow
-    # the factory acceptance and have not started; its budget is overrun by the invoice alone,
-    # its remaining and its budget both inflation included on the same years (WF-DEV-0020).
+    # the factory acceptance and have not started; its budget is overrun by the invoice and by its
+    # drawn labour, budgeted at the rates of 2025 of the offer and counted at those of 2026 the
+    # revision keeps, both inflation included on the same years (WF-DEV-0020, WF-RAE-0010).
     assert (balances[CONTROL]["actual_cost"], balances[CONTROL]["variance"]) == (
         "2400.00",
-        "-2400.00",
+        "-64699.97",
     )
     assert Decimal(balances[TESTS]["actual_cost"]) == sum(
         line.amount for line in mockcosts.drawn() if line.code == "SP-ESS"
@@ -446,16 +447,16 @@ def test_the_marked_reference_keeps_its_indicators_at_its_marking(today: dict[st
         "scope": "project",
         "is_stored": True,
     }
-    # Nothing started: the budget of each line, inflation included on its year of consumption —
-    # the core's in 2026; the drawn tasks' up to 2029 — and the provisions of the three risks it
-    # bore, 850,060.
+    # Nothing started: the re-estimate of each line, inflation included on its year of
+    # consumption — the core's in 2026; the drawn tasks' up to 2029 — and the provisions of the
+    # three risks it bore, 850,060 (WF-RAE-0010).
     base = mockindicators.reference()
-    projected = sum(line.amounts.budgeted for line in mockindicators.budgeted(base))
+    reestimated = sum(line.amounts.reestimated for line in mockindicators.budgeted(base))
     reserve = mockhistory.reserve(mockhistory.reference_rows())
     assert reserve == Decimal("850060.00")
-    assert Decimal(marked["remaining"]) == projected + reserve == Decimal("69091628.05")
-    # The budget inflation included as the remaining is: nothing started, they agree.
-    assert Decimal(marked["remaining"]) == Decimal(marked["reference_budget"]) + reserve
+    assert Decimal(marked["remaining"]) == reestimated + reserve == Decimal("69273551.06")
+    # Over the budget: the drawn labour budgeted at the rates of the offer counts those of 2026.
+    assert Decimal(marked["remaining"]) > Decimal(marked["reference_budget"]) + reserve
     assert marked["reference_budget"] == "68241568.05"
     assert marked["schedule_index"]["value"]["reason"] == "no_planned_value"
 
@@ -473,7 +474,7 @@ def test_the_marks_the_review_journey_reads(today: dict[str, Any]) -> None:
         project["schedule_variance"],
         project["schedule_index"]["value"]["value"],
         project["cost_index"]["value"]["value"],
-    ) == ("67293028.72", "68241568.05", "1671458.13", "-221599.80", "0.8674", "1.0261")
+    ) == ("67470132.98", "68241568.05", "1671458.13", "-221599.80", "0.8674", "1.0261")
     assert (project["schedule_index"]["zone"], project["cost_index"]["zone"]) == (
         "watch",
         "nominal",

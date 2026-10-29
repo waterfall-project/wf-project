@@ -1394,8 +1394,15 @@ EstimateLineFacet:
     reestimated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) :
-        le montant aux taux de l'année de référence projeté sur son année de consommation
+        Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) —
+        celles de sa dernière réestimation depuis la grille ou par l'import (WF-RAE-0040) ; pour
+        une ligne que personne n'a réestimée, celles de la référence, ou de l'avenant dont la
+        fusion les a changées (WF-REV-0050), chiffrées aux taux conservés par la révision
+        courante (WF-REV-0060) et sur son année de consommation courante (WF-RAE-0010) — : à
+        taux horaires inchangés, le montant budgété reporté sur l'année de consommation
+        courante. C'est ce montant que le reste à engager compte pour une ligne d'une tâche non
+        terminée, démarrée ou non, réestimée ou non. Il est le montant aux taux de l'année de
+        référence projeté sur son année de consommation
         courante au taux d'inflation du projet, composé une fois par année écoulée depuis
         l'année de référence, chaque part d'une tâche à cheval sur plusieurs années projetée
         sur la sienne (WF-DEV-0030, WF-DEV-0040). Une ligne dont la tâche se place deux ans

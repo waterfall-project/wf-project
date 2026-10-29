@@ -367,21 +367,18 @@ def earned(reading: Reading, day: date, scope: str = PROJECT) -> Decimal:
 def remaining_of(reading: Reading, line: mockcore.Row) -> Decimal:
     """Return what a line counts in the remaining to commit (WF-RAE-0010).
 
-    A line of provision of a risk identified, its amount; a line budgeted nothing, added after
-    the reference, its amount re-estimated whatever its task; otherwise nothing on a task
-    completed, the amount re-estimated on a task started, the budgeted amount on a task not
-    started. Every amount inflation included, at its year of consumption (WF-DEV-0020).
+    A line of provision of a risk identified, its amount, which is not projected (WF-DEV-0030); a
+    line budgeted nothing, added after the reference, its amount re-estimated whatever its task;
+    otherwise nothing on a task completed, and its amount re-estimated on a task started or not,
+    re-estimated or not: re-estimated by nobody, it is computed from its current quantities, those
+    of the reference, at the rates the revision keeps and on its current year of consumption
+    (WF-RAE-0010, M-08). Every amount inflation included (WF-DEV-0020).
     """
-    if mockhistory.is_provision(line):
-        return line.amounts.base
-    if line.amounts.budgeted == 0:
+    if mockhistory.is_provision(line) or line.amounts.budgeted == 0:
         return line.amounts.reestimated
-    progress = reading.progress(line)
-    if progress == "completed":
+    if reading.progress(line) == "completed":
         return Decimal(0)
-    if progress == "started":
-        return line.amounts.reestimated
-    return line.amounts.budgeted
+    return line.amounts.reestimated
 
 
 def remaining(reading: Reading, scope: str = PROJECT) -> Decimal:

@@ -198,9 +198,14 @@ RemainingIndicators:
     couverture des risques. Chaque montant est inflation comprise, à l'année de consommation
     courante des lignes, comme le montant réestimé dont il est la somme, et le budget de
     référence auquel la marge le compare (WF-DEV-0020) ; une ligne de provision n'est pas
-    projetée (WF-DEV-0030). Le reste à engager parle de marge, au budget de référence
-    (`delta_to_reference`) comme à celui d'un sous-projet (`SubprojectBalance.variance`) : le
-    budget moins la somme du coût réel et du reste à engager, positive quand il en reste,
+    projetée (WF-DEV-0030). Une ligne d'une tâche non terminée compte pour son montant réestimé,
+    que sa tâche soit démarrée ou non et qu'elle ait été réestimée ou non : faute de
+    réestimation, il se calcule depuis les grandeurs de la référence, aux taux conservés par la
+    révision courante et sur son année de consommation courante (WF-RAE-0010,
+    `EstimateLineFacet.reestimated_amount`) ; une ligne d'une tâche terminée ne compte pas. Le
+    reste à engager parle de marge, au budget de référence (`delta_to_reference`) comme à celui
+    d'un sous-projet (`SubprojectBalance.variance`) : le budget moins la somme du coût réel et
+    du reste à engager, positive quand il en reste,
     négative au-delà du budget — le sens de l'écart de couverture des risques
     (`RiskCoverageTotals.coverage_variance`), qui garde son nom de la spécification. Le
     portefeuille et les projections parlent d'écart, positif au-delà du budget
