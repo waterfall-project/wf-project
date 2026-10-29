@@ -119,7 +119,7 @@ def test_the_amendment_2_is_opened_in_the_reference_while_the_amendment_1_is_ope
     merge = mockhistory.stamp(AMENDMENT_MERGED.instant)
     assert any(
         (each["action"], each["object"]["label"], each["occurred_at"])
-        == ("amendment_merge", first["label"], merge)
+        == ("structure_merge", first["label"], merge)
         for each in journal
     )
     [taken_over] = [

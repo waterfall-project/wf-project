@@ -2700,9 +2700,9 @@ consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscript
 la produit (EP-03, US-0410).
 
 - **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
-  corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un avenant inscrit
-  `amendment_merge` sur la structure du différentiel, puis `revision_mark` et `reference_designate`
-  sur la révision qui en résulte, que WF-REV-0050 marque et fait référence. Sans elles, le journal
+  corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un différentiel inscrit
+  `structure_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la
+  révision qui en résulte, que WF-REV-0050 marque et fait référence. Sans elles, le journal
   ne dirait ni le marquage ni la désignation de la référence en vigueur. `test_mockaudit.py` tient
   la complétude : chaque révision marquée a son `revision_mark` à son `marked_at`, et la référence
   son `reference_designate`.
@@ -2721,15 +2721,20 @@ la produit (EP-03, US-0410).
   non ce qu'un utilisateur choisit pour lui-même ; `test_mockaudit.py` le tient.
 
 - **Les actions** (`AuditAction`) suivent l'énumération de WF-SEC-0030, dans son ordre et dans les
-  mots du catalogue des permissions et des tâches de fond : `revision_mark`, `reference_designate`,
-  `amendment_merge` — la contractualisation d'un avenant, que la fusion de son différentiel réalise
-  (WF-REV-0050) —, `risk_occurrence`, `project_exit`, `cost_line_exclude` et `cost_line_reinstate`,
-  `import_apply`, `user_create`, `user_update`, `user_deactivate`, `user_reactivate`,
-  `password_link_create` — le lien de mot de passe, que `createPasswordSetupLink` disait déjà
-  inscrit, sans son jeton —, `access_role_create`, `access_role_update`, `access_role_delete`,
-  `user_access_roles_set` — l'attribution des rôles —, `backup` et `restore`. La suppression d'un
-  rôle est rangée avec sa modification, une désactivation de compte avec la sienne : WF-SEC-0030 dit
-  « la création et la modification ».
+  mots du catalogue des permissions et des tâches de fond : `project_create` et `revision_abandon`
+  (#1577, plus bas), `revision_mark`, `reference_designate`, `structure_merge` — la fusion d'un
+  différentiel (WF-REV-0050) —, `risk_occurrence`, `project_exit`, `cost_line_exclude` et
+  `cost_line_reinstate`, `import_apply`, `user_create`, `user_update`, `user_deactivate`,
+  `user_reactivate`, `password_link_create` — le lien de mot de passe, que `createPasswordSetupLink`
+  disait déjà inscrit, sans son jeton —, `access_role_create`, `access_role_update`,
+  `access_role_delete`, `user_access_roles_set` — l'attribution des rôles —, `backup` et `restore`.
+  La suppression d'un rôle est rangée avec sa modification, une désactivation de compte avec la
+  sienne : WF-SEC-0030 dit « la création et la modification ». La fusion s'est d'abord appelée
+  `amendment_merge`, « la contractualisation d'un avenant » : la revue du contrat avant le gel
+  (K-04, `2026-10-28-contrat-avant-gel.md`, US-0640/L6b #1594) l'a renommée `structure_merge`, à son
+  rang, quand la spécification eut retiré « avenant » de WF-SEC-0030 (le 2026-10-09) — le nom que la
+  permission et la tâche de fond lui donnaient déjà (EP-02/L29, #384) : un même geste ne porte plus
+  deux noms dans le contrat. Le back sert encore `amendment_merge` jusqu'à EP-04 (#1577, plus bas).
 - **Les filtres** se combinent : la période (`from` compris, `to` exclu), l'auteur (`user_id`), sa
   nature, un compte ou la plateforme (`actor_kind`, `AuditActorKind`), les actions (`actions`, une liste, au pluriel comme les autres filtres à plusieurs valeurs), le projet
   (`project_id`), la nature et l'identifiant de l'objet (`object_kind`, `object_id`) ; une période
@@ -6834,6 +6839,8 @@ révision n'est pas marquée (C-362).
   marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403. Aucune
   `RevisionCommand` ne la dit d'avance : son 409 seul nomme `revision_draft`, ou
   `no_background_task_running` pendant un traitement de fond sur la révision.
+  *Remplacé par US-0640/L6 (#1351) : `RevisionCommand.apply_rate_update` la dit d'avance, et le
+  409 nomme la première condition qui manque à la commande.*
 - **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
   `expected_lock_version` est le compteur courant du différentiel.
 
@@ -6963,6 +6970,8 @@ parcours, sur les lignes 7 à 9, n'en couvre aucun, et son exemple ne change pas
 collage dont la cellule visée est elle-même sur un nœud retiré, qui ne nomme aucun champ
 (`editable_fields` vide), n'est pas tranché ici. Écarté : un refus de la ligne du bloc tombée sur un
 nœud retiré, que la décision écarte.
+*Tranché au recadrage d'EP-16 et écrit par US-0640/L6 (#1361) : le collage entier est refusé,
+`PASTE_TARGET_REMOVED` sur l'ancre.*
 
 ## L'encart « Démarrer le projet » sur un projet sans révision (EP-15/US-0490/L4, #1358)
 
@@ -7430,6 +7439,7 @@ est lue et gardée.
 **La création n'est pas touchée.** `TaskFacetWrite` (`createNode`) garde `WorkInstant` : la
 décision vise la saisie d'une date dans la grille ; une création qui portera des dates saisies
 suivra la même règle, par une modification du contrat.
+*Remplacé par US-0640/L6 (#1345) : `createNode` refuse aussi une date manuelle un jour chômé.*
 
 Exemple engendré (`wftools.mockgestures`) : `task_dates_sent`, le corps de `updateTaskFacet` qui
 donne `task_dates_entered` — les dates de la mise en service, manuelle, envoyées par leur seule
@@ -8074,8 +8084,9 @@ Sans objet :
   dans `ProblemParams` et laisse absent ce que l'erreur ne donne pas, sans écrire `null` : un nul
   que les paramètres portent, le code d'un projet qui n'en a pas, n'est plus retiré de l'enveloppe
   (`waterfall.api.problems`) ; une propriété typée donnée à `None` est laissée absente, et une forme
-  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du modèle engendré change avec le schéma (`Params` devient
-  `ProblemParams`), et les objets ouverts que le test « aucune phrase » admet se réduisent à lui.
+  que le schéma ne donne pas est une défaillance du service (500 `INTERNAL_ERROR`). Le nom du
+  modèle engendré change avec le schéma (`Params` devient `ProblemParams`), et les objets ouverts
+  que le test « aucune phrase » admet se réduisent à lui.
 - **Le compte rendu d'import nomme le rôle et la tâche d'une ligne rejetée** (#768, points 1 et 2).
   Une ligne de main-d'œuvre importée qui laisserait sa tâche sans heure travaillée
   (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection`) nomme ses rôles par `resource_roles`, chacun
@@ -8239,6 +8250,147 @@ Aucune opération nouvelle.
   site » le « Montage des armoires sur site », l'une de ses subordonnées, pour prédécesseur.
 
 **Corrélation** 1561 et 1562 ; **tâches de fond** 952, 953 et 954.
+
+### Les constats de contrat des lots d'EP-15 (US-0640/L6, #1457)
+
+Les constats de contrat que les lots d'EP-15 ont relevés en livrant, tranchés au recadrage d'EP-16
+(« Ce que le cadrage décide », #1445), et ceux que l'auteur a confiés à ce lot le 2026-10-28 : #870,
+#1401, #1531, #1566, #1573 (sa part back) et #1577. Aucune opération nouvelle. Les écrans qui les
+adoptent sont d'US-0660/L3 et L4.
+
+- **« Appliquer la mise à jour des taux » est une commande de la révision** (#1351, WF-REV-0060 : « la
+  présentation reste proposée depuis la révision en cours tant qu'elle n'est pas marquée »).
+  `RevisionCommand.apply_rate_update`, rangée après la fusion et avant le marquage — les écritures
+  de la révision qui ne la figent pas, puis celles qui la figent —, et une condition nouvelle,
+  `rate_update_available`, rangée après `unmerged_amendment_exists` : elle manque quand la
+  proposition (`getRateUpdateProposal`) ne présente aucune catégorie. Ce que le lot a fixé :
+  - *La permission* est `revisions.write`, la gestion des révisions (FBS-4.1, que WF-REV-0060 nomme
+    d'abord) : celle de `createRevision`, qui applique déjà la mise à jour à la création
+    (`RevisionCreate.apply_rate_update`), et la mise à jour est une écriture de la révision, comme son
+    marquage (« Les refus du cycle », plus haut). Écartée : `estimate.write`, que la lecture de
+    US-0490/L2 supposait (`edit_estimate`) : le devis de la structure principale ne se saisit plus
+    dès En cours, quand la mise à jour s'y accepte encore — le Vérif l'accepte sur une révision créée
+    par un import de reste à engager. Un chiffreur (`revision_estimator`) ne la voit donc pas.
+  - *L'ordre des conditions.* Sur la révision en cours, la condition propre d'abord,
+    `rate_update_available`, puis `no_background_task_running` pendant un marquage, l'application
+    d'un import, une survenance ou une fusion, comme `generate_skeleton` ; sur une révision marquée,
+    `revision_draft` seule, la proposition n'y étant pas jugée. Le 409 d'`applyRateUpdate` nomme la
+    première qui manque, dans cet ordre.
+  - *Les exemples.* Chaque révision des exemples porte la commande, indisponible : la 102, la 101 à
+    sa version 2 et la 103 par `rate_update_available` (`rate_update_none` ; la 101 a accepté
+    chaque catégorie présentée ; la 103 n'a pas de révision précédente), la 102 pendant un marquage
+    ou un import aussi par `no_background_task_running`, les révisions marquées par
+    `revision_draft`. Engendré par `wftools.mockcycle`, `revision_rate_update_offered`
+    (`getRevision`) : la 101 le 12 janvier 2026 à 10 h, à sa création par l'identification des
+    risques, à sa version 1, la mise à jour offerte, disponible — `rate_update_applied` à sa
+    version, la commande seule changée —, un instant antérieur de la même chronologie. Écrit à la
+    main, `rate_update_not_available`, le 409 d'une mise à jour envoyée pour la 102.
+- **Le registre des risques se pagine** (#1367, WF-IHM-0060). `listRisks` reçoit `Limit` et
+  `Offset`, et sa réponse `meta` (`PaginationMeta`), exigé, comme `listActualCosts` ; `totals` reste
+  calculé sur tous les risques que les filtres et la recherche retiennent, non sur la page lue —
+  `ProvisionTotals` le dit. `risks`, engendré, et `risks_empty`, écrit à la main, portent `meta`
+  (cinquante lignes par page, trois risques, aucun).
+- **`createNode` refuse une date manuelle un jour chômé** (#1345, WF-PLA-0020 : « une date
+  saisie »). Comme `updateTaskFacet` : 422 `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou
+  `/task/finish/date` par `NON_WORKING_DAY`, `params.date` et `next_working_day`, rien n'étant créé.
+  Le calendrier qui juge est celui de la tâche créée : sans ligne de main-d'œuvre, le calendrier par
+  défaut (WF-PLA-0010). `TaskFacetWrite` garde `WorkInstant` — la création porte ses heures — :
+  seule la date d'un jour chômé est refusée. Exemple engendré par `wftools.mocknonworking`,
+  `node_create_non_working_day` : une tâche « Réception provisoire sur site » créée en mode manuel
+  sous l'« Installation sur site », son début envoyé le samedi 19 décembre 2026, le lundi 21 nommé.
+- **Un collage ancré sur un nœud retiré est refusé entier** (#1361 ; écarté par la décision :
+  reporter l'ancre au nœud suivant, qui écrirait ailleurs que là où l'utilisateur a cliqué). La forme,
+  fixée par le lot : un code nouveau, `PASTE_TARGET_REMOVED`, une seule `PasteRejection`, sur la
+  première ligne du bloc (`row` à `0`) et la colonne visée, et `PastePlan.accepted` à `0`, aucune
+  autre ligne n'étant jugée ; confirmé, le plan n'écrit rien et le compteur de la structure n'avance
+  pas. Écarté : `FIELD_NOT_ACCEPTED` sur chaque cellule de la première ligne, que la règle générale
+  du collage aurait donné, et qui ne dit pas la cause (défaut n° 10 du guide, comme pour
+  `SUBPROJECT_HAS_ACTUAL_COSTS`). `PastePreview`, `previewPaste` et `applyPaste` le disent. Exemple
+  engendré par `wftools.mockamendmentwrites`, `paste_plan_amendment_target_removed` (collage 996) :
+  le bloc qui saute la ligne retirée, collé sur cette ligne même, l'« Assistance aux essais de
+  câblage » de l'avenant 2.
+- **#1368 est écarté sans changement de contrat** (WF-RIS-0020, décision de l'auteur du
+  2026-10-28). `ProjectCommand.declare_risk` n'exige pas de révision en cours : le projet la porte
+  précisément quand il n'en a pas, et la déclaration en crée une au préalable (« lorsque le projet
+  n'en comporte pas, la saisie en crée une au préalable »).
+- **Les exemples de l'encart et de l'analyse échouée** (#1379). Engendré par `wftools.mockcycle`,
+  `revisions_project_created` (`listRevisions`) : la seule révision 103 du projet créé aujourd'hui,
+  telle que la lit `revision_without_tasks`. Écrit à la main, `task_import_analysis_failed`
+  (`getBackgroundTask`, tâche de fond 934, celle d'`import_analysing`) : l'analyse échouée à 8 h 41,
+  variante contrefactuelle, sur `INTERNAL_ERROR` — le format et la version d'un fichier se jugent à
+  l'ouverture de l'import (`openImport`, 422), si bien qu'une analyse n'échoue que sur une
+  défaillance.
+- **Deux risques dérivés d'exemples dans les tests du front** (#1384, point 1). Engendrés par
+  `wftools.mockhistory`, variantes contrefactuelles déclarées, chacune un risque du registre tel
+  qu'il le lit, une valeur changée : `risk_dismissed_category_deactivated`, « Indisponibilité de
+  l'automaticien », écarté, la catégorie de sa provision désactivée depuis
+  (`provision_cost_category_is_active` faux) ; `risk_uncited`, « Risque de reprise du câblage »,
+  qu'aucune révision marquée ne citerait, sa suppression disponible. Le point 2, le libellé de
+  `ReferenceForm`, est à EP-17 (#1568), et le point 3, `task_occurrence_succeeded`, l'y suit
+  (décision de l'auteur du 2026-10-28).
+- **Le choix d'états de la liste de l'accueil** (#1401, décision de l'auteur du 2026-10-28 : une
+  préférence). Aucun schéma ne change : la clé de `grids` est `projects`, celle sous laquelle la
+  grille de la liste des projets de l'accueil garde déjà ses réglages (`PROJECT_LIST_GRID.key`) — un
+  nom propre à cette liste, que le portefeuille ne partage pas (`portfolio_projects`) —, et
+  `filters.states` garde les états choisis comme l'adresse de l'accueil les écrit, sous le nom du
+  paramètre, `states`, leurs valeurs séparées par des virgules, comme tout filtre d'une grille
+  (`GridPreferences.filters`, US-0380). Écartés : une clé nouvelle, `home_projects` par exemple, qui
+  séparerait des autres réglages de la même grille le filtre que l'écran garde avec eux ; une
+  propriété typée de `GridPreferences`, qui changerait le schéma. Le défaut — Chiffrage et En cours
+  — reste celui de l'écran (US-0660/L4), qu'un compte qui n'a rien écrit prend ; « Tous les états »
+  s'écrit comme l'adresse l'écrira, ce qu'US-0660/L4 fixe ; le serveur garde le filtre tel qu'il est
+  écrit. `getPortfolioProjects` et `PortfolioStates` ne changent pas. Exemple écrit à la main,
+  `preferences_project_states` (`updateMyPreferences`) : Chiffrage, En cours et Terminé choisis
+  (`pricing,in_progress,completed`).
+- **Le nom d'un contributeur anonymisé** (#870, décision de l'auteur du 2026-10-28).
+  `Contributor.display_name` et `ContributorSuggestion.display_name` sont nullables, comme
+  `ActorRef.display_name` : nul pour un compte anonymisé, que le front nomme par le libellé neutre de
+  son catalogue (`useAccountNaming`), le service ne rendant ni son nom (WF-ADM-0060) ni une phrase
+  (WF-ARC-0110) ; une proposition n'est jamais anonymisée, un compte anonymisé étant désactivé.
+  `listContributors` range un compte anonymisé après les noms dans l'ordre croissant — sans tri,
+  après les autres comptes de sa qualité —, comme `listUsers` range un auteur anonymisé, et la
+  recherche sur le nom ne le retient pas. Exemple engendré par `wftools.mocklists`,
+  `contributors_anonymized` : la liste du témoin une fois le compte d'Alix Moreau anonymisé
+  (`users_anonymized`), son nom nul, en dernier, le compteur de la liste inchangé. Le service est
+  d'EP-04.
+- **La création d'un projet et l'abandon d'une révision au journal d'audit** (#1577, WF-SEC-0030).
+  `AuditAction` gagne `project_create`, avant `revision_mark`, et `revision_abandon`, après lui,
+  dans l'ordre de WF-SEC-0030 ; `AuditObjectKind` ne change pas. Leurs `params` sont vides, et
+  `AuditParams` dit pourquoi : la création d'un projet le nomme déjà par son code et son libellé du
+  moment (`AuditEvent.project`, `AuditObject.label`) ; l'abandon nomme la révision par son
+  identifiant et par son projet, une révision en cours n'ayant pas de nom de version
+  (`AuditObject.label` nul). Écarté : répéter le code et le libellé du projet dans `params`, ce que
+  l'inscription dit deux fois déjà. Le journal du témoin (`wftools.mockaudit`) inscrit la création
+  de PRJ-001 par Camille Martin le 6 octobre 2025 à 9 h, à l'instant de son audit, après la création
+  du compte de Noé Vidal au même instant ; et l'abandon de sa révision 102, aujourd'hui à 14 h 05,
+  la suite d'une écriture de `project_without_current_revision`, lue seule dans
+  `audit_events_revision_abandoned`. Les inscriptions suivantes en prennent un numéro de plus :
+  `audit_events_anonymized_object` et `audit_events_anonymized_actor`, écrits à la main, suivent
+  (inscriptions 41 et 42). Livré par US-0640/L6b (#1594), avec le renommage de K-04
+  (`structure_merge`, ci-dessus). Le back reste en retard sur le contrat jusqu'à EP-04, sans
+  migration dans EP-16 (décision de l'auteur du 2026-10-28, option b, sur #1457) : il ne sert ni
+  `project_create`, ni `revision_abandon`, ni `structure_merge`, et sert encore `amendment_merge` ;
+  `test_audit_journal.py` nomme ces écarts et échoue dès que le back en comble un. EP-04 servira
+  aussi le libellé nul d'une révision en cours abandonnée, qui n'a pas encore de nom de version : la
+  contrainte `OBJECT_LABELED` de la migration 0011 n'admet un libellé nul que pour une sauvegarde ou
+  un compte, et refuse une révision.
+- **Le délai de paiement, écart d'un différentiel** (#1566, WF-DEV-0020, WF-IND-0100).
+  `NodeChange` gagne `payment_delay_days`, après les montants et avant le parent : une ligne dont
+  seul le délai change est `modified`, quand aucun montant ne bouge, et ses tâches porteuses le sont
+  par leur contenu. L'écart d'un import le disait déjà : `ImportDifference.fields` nomme les colonnes
+  de `NodeColumn`, dont `payment_delay_days`. `estimate_line_payment_delay_amendment`, régénéré,
+  présente le « Raccordement des borniers » modifié par son délai, et ses ancêtres par leur contenu.
+- **Les refus de l'annulation et du rétablissement** (#1531). Écrits à la main, variantes
+  contrefactuelles : `undo_later_change` et `redo_later_change`, `UNDO_CONFLICT` sans paramètre, la
+  charge du « Raccordement des borniers » modifiée depuis par Lucas Petit ;
+  `undo_restored_subproject_deleted`, `STATE_FORBIDS_OPERATION` à `restored_subproject_exists`,
+  une ligne rendue à un sous-projet supprimé depuis. Les descriptions des deux 409 nomment
+  `UNDO_CONFLICT`.
+- **#1573, la part back** : la ligne trop longue de l'entrée « Les comptes rendus et les paramètres
+  des refus » est coupée, et le test des paramètres typés valides prend un paramètre `(nom, valeur)`
+  au lieu de la clé factice `tasks_imported`.
+
+**Corrélations** 1563 à 1567 ; **collage** 996.
 
 ### Le compte rendu préalable de la survenance d'un risque (US-0680/L1, #1453)
 

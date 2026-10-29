@@ -193,6 +193,16 @@ describe("the grids of the settings of a project", () => {
     );
   });
 
+  it("names an anonymised contributor by the neutral label alone, muted and marked, in the grid [WF-ADM-0060-A]", () => {
+    const anonymized = (example("contributors_anonymized") as { items: Contributor[] }).items;
+    const { container } = render(settings(<ContributorList contributors={anonymized} />));
+    const marked = container.querySelectorAll("[data-anonymized]");
+    expect([...marked].map((each) => each.textContent)).toEqual(["Compte anonymisé"]);
+    expect(marked[0]?.closest('[data-column="name"]')).not.toBeNull();
+    expect(marked[0]).toHaveClass("text-muted-foreground");
+    expect(container.textContent).not.toMatch(/null/);
+  });
+
   it("ask the server for the search of the contributors on their names, under the names of their grid", async () => {
     page.search = "subproject_search=SP";
     render(settings());

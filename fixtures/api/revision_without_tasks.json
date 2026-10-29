@@ -55,6 +55,13 @@
         ]
       },
       {
+        "command": "apply_rate_update",
+        "is_available": false,
+        "missing_conditions": [
+          "rate_update_available"
+        ]
+      },
+      {
         "command": "mark",
         "is_available": true,
         "missing_conditions": []

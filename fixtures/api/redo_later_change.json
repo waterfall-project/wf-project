@@ -1,0 +1,8 @@
+{
+  "summary": "Le rétablissement de la saisie de la charge du « Raccordement des borniers », annulée, que Lucas Petit a modifiée depuis l'annulation : une modification postérieure porte sur le même objet ; refusé, rien n'est rétabli. Une variante contrefactuelle : le témoin ne rétablit rien (WF-IHM-0110, #1531).",
+  "value": {
+    "code": "UNDO_CONFLICT",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001566"
+  }
+}

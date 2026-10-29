@@ -547,7 +547,8 @@ ProvisionTotals:
     courante, les survenus et les écartés pour celle qu'ils portaient dans la révision
     de référence —, leur total général, et la réserve pour risques de la révision de
     référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les
-    risques retenus.
+    risques retenus — tous ceux que les filtres retiennent, quelle que soit la page lue
+    (`listRisks`, #1367).
   properties:
     total: { $ref: ../common.yaml#/Money }
     identified: { $ref: ../common.yaml#/Money }

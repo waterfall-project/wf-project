@@ -26,7 +26,12 @@ RESOLVED = {"row_number_task": "task", "row_number_estimate_line": "estimate_lin
 """The resolutions written by hand, and the kind of the node each names."""
 UNKNOWN = 6001
 """The number the refusal asks: the one after the last row of the witness structure."""
-PREFERENCES = ("me_grid_settings", "me_auditor", "preferences_page_size")
+PREFERENCES = (
+    "me_grid_settings",
+    "me_auditor",
+    "preferences_page_size",
+    "preferences_project_states",
+)
 """The examples whose grids the front wrote, each with the columns it offered."""
 
 
@@ -112,7 +117,7 @@ def test_a_grid_written_keeps_the_columns_it_hid_and_widened_among_those_it_knew
             assert set(settings.get("hidden_columns", [])) <= known, (name, grid)
             assert set(settings.get("column_widths", {})) <= known, (name, grid)
             grids += 1
-    assert grids == 5
+    assert grids == 6
 
 
 def test_a_column_the_grid_hides_by_default_and_did_not_know_is_hidden() -> None:

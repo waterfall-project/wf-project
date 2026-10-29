@@ -357,6 +357,11 @@ the node after it, the trials on site the amendment adds, which takes its label 
 
 SKIPPING_PASTE = universe(995)
 
+REMOVED_ANCHOR_PASTE = universe(996)
+
+TARGET_REMOVED = "PASTE_TARGET_REMOVED"
+"""The motive of a block whose cell aimed at is on a node the differential withdraws (#1361)."""
+
 
 def paste_targets(count: int = len(AMENDMENT_BLOCK), target: int = ENTERED_LINE) -> list[int]:
     """Return the nodes the rows of a block write, by their number, in the order of the plan.
@@ -430,6 +435,18 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
 def paste_plan_amendment_skipping() -> JsonObject:
     """Return what previewPaste answers to the block that skips the line the amendment withdraws."""
     return paste_plan_amendment(SKIPPING_BLOCK, SKIPPING_TARGET, SKIPPING_PASTE)
+
+
+def paste_plan_amendment_target_removed() -> JsonObject:
+    """Return what previewPaste answers to the block that skips a line, pasted on that line.
+
+    The cell aimed at is on a node the differential withdraws, which accepts no field
+    (`editable_fields` empty): the block is refused whole, said once, on its first row and the
+    column aimed at; no row is judged nor counted accepted, and nothing will be written (#1361).
+    Reporting the anchor to the next node would write elsewhere than where the user clicked.
+    """
+    rejected: list[JsonValue] = [{"row": 0, "column": "label", "code": TARGET_REMOVED}]
+    return {"paste_id": REMOVED_ANCHOR_PASTE, "accepted": 0, "rejected": rejected}
 
 
 def paste_applied_amendment_skipping() -> JsonObject:
@@ -708,5 +725,15 @@ def skipping_examples() -> dict[str, JsonObject]:
             f"{applied['structure_lock_version']} ; aucune ligne refusée (WF-IHM-0050, "
             f"WF-REV-0050, #1278).",
             applied,
+        ),
+        "paste_plan_amendment_target_removed.json": mocktext.example(
+            f"{on}, le même bloc collé sur le libellé de la ligne « {removed_label} », que "
+            f"l'avenant retire, que la grille montre à sa place en lecture seule et qui n'accepte "
+            f"aucun champ : la cellule visée est sur un nœud retiré, et le collage est refusé "
+            f"entier — une seule fois, sur la première ligne du bloc et la colonne visée —, "
+            f"aucune ligne acceptée ; rien ne sera écrit. L'ancre n'est pas reportée au nœud "
+            f"suivant, qui écrirait ailleurs que là où l'utilisateur a cliqué (WF-IHM-0050, "
+            f"#1361).",
+            paste_plan_amendment_target_removed(),
         ),
     }

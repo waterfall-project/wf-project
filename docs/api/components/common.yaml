@@ -452,6 +452,10 @@ ErrorCode:
     - HOURLY_RATE_MISSING
     - PROJECT_CODE_REQUIRED
     - PASTE_TOO_WIDE
+    # Le motif d'un bloc collé dont la cellule visée est sur un nœud qu'un différentiel retire,
+    # qui n'accepte aucun champ : le bloc est refusé entier, dit une fois sur sa première ligne et
+    # la colonne visée (`PasteRejection`, `PastePreview`, WF-IHM-0050 ; #1361).
+    - PASTE_TARGET_REMOVED
     - FILE_FORMAT_UNREADABLE
     # Une saisie de rôle ou de calendrier qui laisserait une tâche sans aucune heure travaillée
     # dans la semaine ; aussi motif de rejet d'une ligne collée ou importée (WF-PLA-0010).
@@ -586,7 +590,8 @@ ErrorCode:
     - FIELD_NOT_ACCEPTED
     # Une date d'une tâche manuelle sur un jour sans aucune heure travaillée au calendrier
     # applicable de la tâche (WF-PLA-0020, WF-PLA-0010 ; #1271, #1289) : refusée à la saisie
-    # (`/start/date` ou `/finish/date`, `updateTaskFacet`), rien n'est écrit ; gardée à l'import
+    # (`/start/date` ou `/finish/date`, `updateTaskFacet` ; `/task/start/date` ou
+    # `/task/finish/date`, `createNode`, #1345), rien n'est écrit ; gardée à l'import
     # d'un fichier MS Project, et signalée au compte rendu (`ImportReport.signals`).
     # `params.date` nomme la date, `params.next_working_day` le jour travaillé suivant.
     - NON_WORKING_DAY
