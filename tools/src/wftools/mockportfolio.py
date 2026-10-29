@@ -31,6 +31,7 @@ from wftools.mockstructure import (
     decimal,
     draw,
     money,
+    part_share,
     partition,
     share,
 )
@@ -550,7 +551,7 @@ def _by_key(
             "key": key,
             "label": label,
             "amount": money(amounts[key]),
-            **({} if part is None else {"share": decimal(part)}),
+            "share": part_share(part),
         }
         for (key, label), part in zip(keys, found, strict=True)
     ]

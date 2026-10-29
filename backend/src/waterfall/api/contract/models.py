@@ -2806,6 +2806,7 @@ class NotComputableReason(StrEnum):
     no_actual_or_remaining = "no_actual_or_remaining"
     no_capacity = "no_capacity"
     no_offer_out_of_pricing = "no_offer_out_of_pricing"
+    no_total = "no_total"
     hourly_rate_missing = "hourly_rate_missing"
     work_package_without_task = "work_package_without_task"
 
@@ -4183,11 +4184,11 @@ class ComputableAmountByKey(ContractModel):
     label: str | None = None
     amount: ComputableMoney
     share: Annotated[
-        Computable | None,
+        Computable,
         Field(
-            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des lots non (README, « Une part… »)."
+            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, non calculable sur un total nul (`no_total`, WF-IND-0010) ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des lots non (README, « Une part… »)."
         ),
-    ] = None
+    ]
 
 
 class EstimateIndicators(ContractModel):
@@ -4304,11 +4305,11 @@ class AmountByKey(ContractModel):
     label: str | None = None
     amount: Money
     share: Annotated[
-        Decimal | None,
+        Computable,
         Field(
-            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`)."
+            description="Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`) ; toujours rendue, non calculable sur un total nul (`no_total`, WF-IND-0010)."
         ),
-    ] = None
+    ]
 
 
 class SubprojectBalance(ContractModel):

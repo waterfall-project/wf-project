@@ -48,6 +48,7 @@ from wftools.mockstructure import (
     described,
     labels,
     money,
+    part_share,
     partition,
     share,
 )
@@ -530,8 +531,8 @@ def _parts(
 
     The shares of a partition of the total sum to one (``partition``); those of the order items,
     which hold a part of the lines only, are each the amount over the total (``share``). No share
-    is computable when the total is not, nor without its amount; none is given of a nil total, for
-    now (EP-14/L55, #718), until L42t says what the contract gives for it (#774, WF-IND-0010).
+    is computable when the total is not, nor without its amount, nor over a nil total, which has
+    ``no_total`` (WF-IND-0010; G-02, #1633).
     """
     absent = missing_rates(reading, reading.lines, missing)
     total = _estimate(reading.lines)
@@ -542,7 +543,7 @@ def _parts(
         else [share(each / total) if total else None for each in amounts]
     )
     parts: list[JsonValue] = []
-    for group, part_share in zip(groups, found, strict=True):
+    for group, each_share in zip(groups, found, strict=True):
         part: JsonObject = {"key": group.key}
         if group.label is not None:
             part["label"] = group.label
@@ -550,8 +551,8 @@ def _parts(
         part["amount"] = amount
         if absent or amount["is_computable"] is not True:
             part["share"] = not_computable(_MISSING, {"missing_rates": absent})
-        elif part_share is not None:
-            part["share"] = computable(decimal(part_share))
+        else:
+            part["share"] = part_share(each_share)
         parts.append(part)
     return parts
 
@@ -745,7 +746,7 @@ def remaining_indicators(
                 "key": group.key,
                 "label": group.label,
                 "amount": money(amount),
-                **({} if part is None else {"share": decimal(part)}),
+                "share": part_share(part),
             }
             for (group, amount), part in zip(by_nature, parts, strict=True)
         ],

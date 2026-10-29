@@ -5,9 +5,9 @@
     "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000102","revision_status":"draft","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
     "total": "67470132.98",
     "by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9335462.59","share":"0.1384"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"57634670.39","share":"0.8542"},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500000.00","share":"0.0074"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"9335462.59","share":{"is_computable":true,"value":"0.1384","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"57634670.39","share":{"is_computable":true,"value":"0.8542","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"500000.00","share":{"is_computable":true,"value":"0.0074","reason":null}}
     ],
     "by_subproject": [
       {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budget":"23251897.56","actual_cost":"2400.00","remaining":"23314197.53","variance":"-64699.97","is_over_budget":true,"zone":"alert"},

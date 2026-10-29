@@ -4,16 +4,16 @@
   "value": {
     "scope": {"states":["in_progress"],"as_of":"2026-06-03","from":"2025-06-04","to":"2026-06-03","org_node_id":null,"org_node_label":null,"project_count":269},
     "budget_by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"1465987087.43","share":"0.55"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"1199443980.62","share":"0.45"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"1465987087.43","share":{"is_computable":true,"value":"0.55","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"1199443980.62","share":{"is_computable":true,"value":"0.45","reason":null}}
     ],
     "remaining_by_cost_type": [
-      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"755222016.75","share":"0.5"},
-      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"604177613.40","share":"0.4"},
-      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"151044403.35","share":"0.1"}
+      {"key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","amount":"755222016.75","share":{"is_computable":true,"value":"0.5","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":"604177613.40","share":{"is_computable":true,"value":"0.4","reason":null}},
+      {"key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","amount":"151044403.35","share":{"is_computable":true,"value":"0.1","reason":null}}
     ],
     "labor_by_org_node": [
-      {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1465987087.43","share":"1"}
+      {"key":"01926f3a-7c00-7000-8000-000000000471","label":"Bureau d'études électricité","amount":"1465987087.43","share":{"is_computable":true,"value":"1","reason":null}}
     ]
   }
 }

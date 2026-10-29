@@ -422,7 +422,7 @@ def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, 
     budget = Decimal(volumes["portfolio_performance.json"]["value"]["reference_budget"])
     assert total(part["amount"] for part in structure["budget_by_cost_type"]) == budget
     for parts in ("budget_by_cost_type", "remaining_by_cost_type"):
-        assert total(part["share"] for part in structure[parts]) == 1
+        assert total(part["share"]["value"] for part in structure[parts]) == 1
     labor = structure["budget_by_cost_type"][0]
     assert labor["label"] == "Main-d'œuvre"
     # G-15: the reference budget is without the provision lines (WF-IND-0020); the remaining to

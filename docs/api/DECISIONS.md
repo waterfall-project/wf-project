@@ -4805,7 +4805,7 @@ déclarée : la même copie altérée sur l'emplacement, sa restauration échou�
 14 h 03 min 40 s). `test_mockuniverse.py` les tient contre le dépôt et l'opération.
 
 *Complétée par EP-14/L55 : `partition` ne lève plus sur un total nul ; la part d'un total nul est
-à dire au contrat par L42t (#774, WF-IND-0010).*
+non calculable, de motif `no_total` (2026-10-29, #1633, G-02 : « La part d'un total nul »).*
 
 **Une part, un avancement ou un taux calculé est donné à quatre décimales, jamais nul quand il ne
 l'est pas, et les parts d'une répartition somment à un** (#694 ; README, « Une part… » ;
@@ -5328,30 +5328,35 @@ refus d'une nature ou d'une catégorie (`params.resource_roles`) et les projets 
 d'un calendrier (`params.projects`) ; le formulaire d'une catégorie dit déjà la troisième condition
 de MO-001 (`cost-form.dom.test.tsx`).
 
-## La part d'un total nul, question ouverte ; l'outil en attendant (EP-14/L55)
+## La part d'un total nul (EP-14/L55, tranchée le 2026-10-29 par #1633, G-02)
 
 Constat #718 de la relecture 2 de L42o : `wftools.mockstructure.partition` levait sur une
 répartition sans montant (`max` d'une suite vide) et sur un total nul (une division par zéro) — un
-devis encore sans ligne, un reste à engager entièrement nul, un portefeuille sans projet en cours —,
-et la règle « Une part… » du README ne dit pas ce que le contrat donne alors.
+devis encore sans ligne, un reste à engager entièrement nul, un portefeuille sans projet en cours.
+EP-14/L55 l'a fait ne plus lever : une répartition sans montant n'a aucune part, et chaque montant
+d'un total nul n'en a pas non plus (`None`). La question de ce que le contrat donne alors restait
+ouverte (#774, L42t) ; le générateur omettait la part, en attendant.
 
-**La question est ouverte, et part dans L42t (#774).** WF-IND-0010 veut qu'une valeur dont le
-dénominateur est nul soit présentée non calculable, jamais comme zéro ni comme l'infini, et la
-décision « Une enveloppe `Computable` pour ce qui peut ne pas se calculer », en tête de ce fichier,
-en fait une règle du contrat : `{ is_computable, value, reason }` partout où un dénominateur peut
-être nul. La part d'un total nul y entre ; la dire non calculable — un motif pour elle,
-`AmountByKey.share` passé en `Computable`, les descriptions de `share` — est une modification du
-contrat, faite dans le lot de contrat L42t, puis adoptée par un lot du front. EP-14/L55, lot
-d'outillage, ne touche ni au README ni à aucun schéma (relecture 1 de L55, décision de l'agent de
-livraison).
+**Décision de l'auteur du 2026-10-29 (#1633, G-02, option A) : la part d'un total nul est non
+calculable.** WF-IND-0010 veut qu'une valeur dont le dénominateur est nul soit présentée non
+calculable, jamais comme zéro ni comme l'infini, et la décision « Une enveloppe `Computable` pour ce
+qui peut ne pas se calculer », en tête de ce fichier, en fait une règle du contrat. `share` est
+exigé dans `AmountByKey` et dans `ComputableAmountByKey` ; `AmountByKey.share` passe de `Decimal` à
+`Computable`, comme l'était déjà celle de `ComputableAmountByKey` ; un total nul donne
+`{ is_computable: false, value: null, reason: "no_total" }`. `no_total` s'ajoute à
+`NotComputableReason` : aucun motif existant ne disait « total nul » — `no_reference_budget` et
+`no_budgeted_amount` nomment des assiettes précises, non la somme d'une répartition. Écartés : une
+part nulle, lue comme « rien » ; `null`, qui n'a pas de motif ; une part facultative, que le client
+engendré verrait `?`.
 
-**Ce que fait l'outil en attendant, provisoire.** `partition` ne lève plus : une répartition sans
-montant n'a aucune part, et chaque montant d'un total nul vient sans `share`, comme la part d'un poste
-d'un total nul ; le devis, le reste à engager et la structure des coûts du portefeuille omettent
-alors la part. Aucun exemple n'a de total nul, et aucun ne change ; L42t remplacera ce comportement
-par ce qu'il décidera. `tools/tests/test_mocktoday.py` le tient sur l'outil, sur le devis et le reste
-à engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
-cours.
+**Ce que fait l'outil.** `mockstructure.part_share` donne toute part : `Computable` calculable, ou
+non calculable de motif `no_total` quand `partition` ou `share` n'en trouve pas ; le devis, le reste
+à engager et la structure des coûts du portefeuille l'emploient, et un lot sans tâche garde
+`work_package_without_task`. Aucun exemple n'a de total nul ; ceux de `AmountByKey` (le reste à
+engager, la structure des coûts) prennent la forme `Computable`, engendrés par `make mock-data`.
+`tools/tests/test_mocktoday.py` tient la part d'un total nul sur l'outil, sur le devis et le reste à
+engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
+cours, et que toute part de tout exemple est un `Computable`.
 
 ## Le squelette, le rattachement, les chronologies et les nœuds retenus d'un lotissement filtré (EP-14/L42k)
 
@@ -5828,7 +5833,8 @@ l'écarter). `minItems: 1` le dit ; les indicateurs conservés d'une révision m
 postes de son marquage, un poste supprimé depuis compris (relecture 1). Le poste du témoin est
 porté : aucun exemple ne change. Aucun exemple ne montre `order_item_without_task` : les seuls
 indicateurs où il se lirait sans variante sont ceux du projet créé aujourd'hui, dont le devis vide a
-un total nul, et la part d'un total nul reste à dire (#774, L42t) — l'exemple y viendra. Écartés :
+un total nul, et la part d'un total nul est non calculable (`no_total`, 2026-10-29, #1633) —
+l'exemple y viendra. Écartés :
 omettre le poste, que l'écran ne pourrait présenter sans relire le lotissement ; un montant nul dans
 un schéma propre, quand l'enveloppe `Computable` dit déjà qu'une valeur ne se calcule pas ; la liste
 nulle, qui ne présente aucun poste.
@@ -8738,12 +8744,9 @@ descriptions prennent pour pivot ; la capacité d'un rôle dans `WorkloadPlan.ro
 `PortfolioPerformance`, `reference_budget`, `cost_variance` et `schedule_variance` (WF-PTF-0070).
 Tous les exemples les portaient déjà : aucun ne change.
 
-**La part d'une répartition (`share`) reste facultative.** La revue la voulait exigée dans
-`AmountByKey` et `ComputableAmountByKey` ; mais la part d'un total nul n'est toujours pas dite
-(« La part d'un total nul, question ouverte », EP-14/L55), et le générateur l'omet alors. L'exiger
-demande une forme que ni la spécification ni la revue ne donnent — un motif de non-calcul pour un
-total nul, et `AmountByKey.share` passé en `Computable` — : la question est rendue à l'agent de
-livraison, sans être tranchée ici.
+**La part d'une répartition (`share`) fut laissée facultative par US-0701/L5**, faute d'une forme
+pour la part d'un total nul. Elle est exigée depuis la décision du 2026-10-29 (« La part d'un total
+nul », EP-14/L55 : #1633, G-02, option A), dans `AmountByKey` et `ComputableAmountByKey`.
 
 **Les mineurs de ces fichiers** (règle du recadrage : un mineur d'un fichier qu'un lot modifie est
 corrigé par lui). `actual_cost` compte les pièces datées « antérieure ou égale » à la date de

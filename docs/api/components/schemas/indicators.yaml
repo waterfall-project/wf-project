@@ -82,7 +82,9 @@ NotComputableReason:
     `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le
     taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le
     taux de transformation d'une période où aucune offre n'est passée de Chiffrage à En cours
-    ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant
+    ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050) ; `no_total`, la part d'un
+    montant dans une répartition dont le total est nul (`AmountByKey.share`,
+    `ComputableAmountByKey.share`, WF-IND-0010 ; #1633). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant
     du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence
     empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et
     `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni
@@ -97,6 +99,7 @@ NotComputableReason:
     - no_actual_or_remaining
     - no_capacity
     - no_offer_out_of_pricing
+    - no_total
     - hourly_rate_missing
     - work_package_without_task
 
@@ -176,11 +179,12 @@ EstimateIndicators:
 
 ComputableAmountByKey:
   type: object
-  required: [key, amount]
+  required: [key, amount, share]
   description: >-
     Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer
     (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`),
-    et sa part du total, qui ne se calcule pas sans lui.
+    et sa part du total, toujours rendue : elle ne se calcule pas sans le montant, ni sur un
+    total nul (`no_total`).
   properties:
     key: { type: string }
     label: { type: string }
@@ -188,7 +192,8 @@ ComputableAmountByKey:
     share:
       allOf: [{ $ref: '#/Computable' }]
       description: >-
-        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ;
+        Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
+        non calculable sur un total nul (`no_total`, WF-IND-0010) ;
         les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande
         portant le reste des arrondis, celles des lots non (README, « Une part… »).
 
@@ -274,17 +279,18 @@ SubprojectBalance:
 
 AmountByKey:
   type: object
-  required: [key, amount]
+  required: [key, amount, share]
   properties:
     key: { type: string }
     label: { type: string }
     amount: { $ref: ../common.yaml#/Money }
     share:
-      allOf: [{ $ref: ../common.yaml#/Decimal }]
+      allOf: [{ $ref: '#/Computable' }]
       description: >-
         Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas,
         les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis
-        (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`).
+        (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`) ;
+        toujours rendue, non calculable sur un total nul (`no_total`, WF-IND-0010).
 
 ProjectIndicators:
   type: object
