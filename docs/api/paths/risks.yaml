@@ -407,8 +407,15 @@
       compose pas (#1383). Abandonner à cette étape, c'est ne pas confirmer : rien n'est fusionné.
       Le compte rendu décrit la révision en cours à l'instant de la lecture, et la survenance
       confirmée (`declareRiskOccurrence`) porte les compteurs qu'il a lus : une saisie faite
-      entre-temps dans la structure principale, ou sur le risque, la fait refuser par 412
-      (WF-IHM-0110). Tant que `refusals` n'est pas vide, la survenance ne s'applique pas, et l'écran
+      entre-temps dans la structure principale, sur le risque ou dans son devis propre — qui
+      fait avancer `Risk.lock_version` —, la fait refuser par 412 (WF-IHM-0110). Tant que le
+      projet n'a pas de révision en cours, la survenance en créerait une par copie de la dernière
+      révision marquée : le compte rendu est alors jugé sur la structure principale de cette
+      révision marquée, que la copie reprend telle quelle, et `main_structure_lock_version` est
+      son compteur, que le marquage a figé, comme pour la fusion d'un différentiel
+      (`StructureMergeReport.creates_current_revision`, #790) et comme le risque se lit
+      (`getRisk`) ; la confirmation est refusée par 412 dès qu'une révision en cours existe,
+      née entre la lecture et la confirmation (décision de l'auteur, #1453). Tant que `refusals` n'est pas vide, la survenance ne s'applique pas, et l'écran
       n'en offre pas la confirmation. Refusée par 409 pour un risque qui n'est pas identifié, comme
       sa survenance.
     parameters:
@@ -452,7 +459,12 @@
       révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit
       le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a
       lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que
-      personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680).
+      personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le
+      compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre,
+      que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la
+      confirmation. Un compte rendu lu sans révision en cours, jugé sur la structure principale de
+      la dernière révision marquée, est refusé par 412 dès qu'une révision en cours existe
+      (décision de l'auteur, #1453).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -486,8 +498,10 @@
               not_identified: { $ref: ../../../fixtures/api/risk_occurrence_not_identified.json }
       '412':
         description: >-
-          La structure principale ou le risque ont changé depuis le compte rendu confirmé : le
-          compte rendu est périmé, et rien n'est fusionné (WF-RIS-0060, WF-IHM-0110).
+          La structure principale ou le risque ont changé depuis le compte rendu confirmé — le
+          risque change aussi à toute saisie dans son devis propre —, ou une révision en cours
+          est née depuis un compte rendu lu sans elle : le compte rendu est périmé, et rien n'est
+          fusionné (WF-RIS-0060, WF-IHM-0110 ; décision de l'auteur, #1453).
           `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
           l'objet que le chemin nomme, même quand seule la structure principale a changé, et rien
           d'autre, comme tout 412 (#296), si bien qu'il ne dit pas lequel des deux a avancé ; le

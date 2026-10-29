@@ -3362,7 +3362,7 @@ class CostStructure(ContractModel):
     lock_version: Annotated[
         LockVersion,
         Field(
-            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110)."
+            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence` ; décision de l'auteur, #1453)."
         ),
     ]
 
@@ -4711,7 +4711,12 @@ class Risk(ContractModel):
         ),
     ]
     audit: Audit
-    lock_version: LockVersion
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Compteur du risque. Il avance à chaque écriture du risque, et aussi à toute saisie dans son devis propre (`structure_id`) — une cellule, un collage, un déplacement, une création, une suppression —, dont il tient sa gravité (WF-RIS-0010) : le compte rendu de sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`, décision de l'auteur, #1453). Il avance de même à la suppression du sous-projet qu'il désignait (`provision_subproject_id`, #732)."
+        ),
+    ]
 
 
 class ProvisionTotals(ContractModel):
@@ -4784,11 +4789,14 @@ class RiskOccurrenceReport(ContractModel):
     main_structure_lock_version: Annotated[
         LockVersion,
         Field(
-            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
+            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) — celle de la révision en cours, ou, sans révision en cours, celle de la dernière révision marquée : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
         ),
     ]
     risk_lock_version: Annotated[
-        LockVersion, Field(description="Le compteur du risque lu (`Risk.lock_version`), de même.")
+        LockVersion,
+        Field(
+            description="Le compteur du risque lu (`Risk.lock_version`), de même. Il avance aussi à toute saisie dans le devis propre du risque, dont le compte rendu liste les tâches et les lignes : une saisie qui l'écrit depuis rend le compte rendu périmé (décision de l'auteur, #1453)."
+        ),
     ]
     differences: Annotated[
         list[ImportDifference],
@@ -4815,13 +4823,13 @@ class RiskOccurrence(ContractModel):
     main_structure_lock_version: Annotated[
         LockVersion,
         Field(
-            description="Le compteur de la structure principale que le compte rendu a lu (`RiskOccurrenceReport.main_structure_lock_version`)."
+            description="Le compteur de la structure principale que le compte rendu a lu (`RiskOccurrenceReport.main_structure_lock_version`) — celle de la révision en cours, ou, sans révision en cours, celle de la dernière révision marquée."
         ),
     ]
     risk_lock_version: Annotated[
         LockVersion,
         Field(
-            description="Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`)."
+            description="Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`), qui avance aussi à toute saisie dans son devis propre (`Risk.lock_version`)."
         ),
     ]
 

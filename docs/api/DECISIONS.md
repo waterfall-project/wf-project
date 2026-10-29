@@ -8430,6 +8430,33 @@ ni le cas du jalon.
   l'objet que le chemin nomme, même quand seule la structure principale a changé (#296). Le 412 ne
   dit donc pas lequel des deux compteurs a avancé : le client ne rejoue pas avec
   `expected_lock_version`, il relit le compte rendu et le remontre.
+- **Le devis propre gardé par le compteur du risque** (revue locale d'US-0680/L1, question à
+  l'auteur, décision du 2026-10-28, option (b), #1453). Le compte rendu liste les tâches et les
+  lignes du devis propre, mais une saisie dans sa structure ne faisait avancer ni le compteur de
+  la structure principale ni celui du risque : lu par A, modifié par B, le devis aurait été
+  fusionné sans que personne l'ait vu. Toute saisie dans le devis propre du risque — une cellule,
+  un collage, un déplacement, une création, une suppression, ce qui fait avancer
+  `CostStructure.lock_version` de sa structure — fait aussi avancer `Risk.lock_version`
+  (`Risk.lock_version`, `CostStructure.lock_version`, `RiskOccurrence`, `RiskOccurrenceReport`,
+  `declareRiskOccurrence`) : la gravité du risque est le total de son devis propre (WF-RIS-0010),
+  le risque change donc quand son devis change, comme il change à la suppression du sous-projet
+  qu'il désignait (#732). La conception reste à deux compteurs, et la phrase « n'applique jamais un
+  compte rendu que personne n'a vu » reste vraie. Écartées : (a), un troisième compteur
+  `own_structure_lock_version`, qui s'écarte des « deux compteurs » de la conception ; (c), dire
+  que le devis propre n'est pas gardé. Tenu par le service d'EP-08 ; ce lot l'écrit au contrat.
+- **Sans révision en cours** (même revue, décision du 2026-10-28, option (a), #1453).
+  WF-RIS-0060 : sans révision en cours, la survenance en crée une au préalable, par copie de la
+  dernière révision marquée (WF-REV-0010). Le compte rendu se juge alors comme celui de la fusion
+  d'un différentiel de la dernière révision marquée (#790) : ses écarts et ses motifs de refus sur
+  la structure principale de la révision marquée, que la copie reprend telle quelle, et
+  `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé — la révision
+  aussi que lit le risque, `revision_id` absent (`getRisk`). La confirmation est refusée par 412
+  dès qu'une révision en cours existe, née entre la lecture et la confirmation
+  (`getRiskOccurrenceReport`, `declareRiskOccurrence`, `RiskOccurrence`,
+  `RiskOccurrenceReport`) : un 412 et non le 409 `revision_draft` de la fusion, le chemin de la
+  survenance nommant le risque et non une révision, et le compte rendu lu étant celui d'une
+  structure que la survenance ne fusionnerait plus. Écartée : (b), laisser la question ouverte
+  pour EP-08. Tenu par le service d'EP-08 ; sans exemple, le témoin ayant une révision en cours.
 - **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
   décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
   « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du

@@ -12,6 +12,8 @@ import re
 from decimal import Decimal
 from typing import Any, cast
 
+import yaml
+
 from wftools import (
     REPOSITORY,
     mockamendment,
@@ -380,3 +382,40 @@ def test_a_stale_confirmation_returns_the_version_of_the_risk_the_path_names() -
     refused = example("risk_occurrence_report_stale")["value"]
     assert (refused["status"], refused["code"]) == (412, "STALE_LOCK_VERSION")
     assert refused["params"] == {"expected_lock_version": example("risk")["value"]["lock_version"]}
+
+
+def _schema(file: str, name: str) -> dict[str, Any]:
+    """Return one schema of the contract, as its component file writes it."""
+    text = (REPOSITORY / "docs" / "api" / "components" / file).read_text(encoding="utf-8")
+    return cast("dict[str, Any]", yaml.safe_load(text)[name])
+
+
+def test_a_write_in_the_own_estimate_advances_the_counter_the_confirmation_carries() -> None:
+    # Decision of the author, #1453, option (b): the report lists the own estimate, which no
+    # counter of the main structure guards; any write in it advances `Risk.lock_version`, one of
+    # the two counters the confirmation carries, so that the report it made stale is refused.
+    risk = _schema("schemas/risks.yaml", "Risk")["properties"]["lock_version"]
+    structure = _schema("schemas/revisions.yaml", "CostStructure")["properties"]["lock_version"]
+    report = _schema("schemas/risks.yaml", "RiskOccurrenceReport")["properties"]
+    confirmation = _schema("schemas/risks.yaml", "RiskOccurrence")
+    assert "devis propre" in risk["description"]
+    assert "`Risk.lock_version`" in structure["description"]
+    assert "devis propre" in report["risk_lock_version"]["description"]
+    assert "`Risk.lock_version`" in confirmation["properties"]["risk_lock_version"]["description"]
+    assert set(confirmation["required"]) == {
+        "confirmed",
+        "main_structure_lock_version",
+        "risk_lock_version",
+    }
+    assert "devis propre" in _response("risks.yaml", "declareRiskOccurrence", "412")
+
+
+def test_a_report_read_without_a_current_revision_is_judged_on_the_last_marked_one() -> None:
+    # Decision of the author, #1453, option (a): the rule of the merge of an amendment of the last
+    # marked revision (#790); a current revision born since the reading makes the confirmation
+    # refused by 412.
+    report = _schema("schemas/risks.yaml", "RiskOccurrenceReport")
+    assert "`StructureMergeReport.creates_current_revision`" in report["description"]
+    counter = report["properties"]["main_structure_lock_version"]["description"]
+    assert "dernière révision marquée" in counter
+    assert "révision en cours" in _response("risks.yaml", "declareRiskOccurrence", "412")
