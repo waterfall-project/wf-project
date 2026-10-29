@@ -62,7 +62,7 @@ const PROJECTS: AuditFilterBarProps["projects"] = facets.projects.map((project) 
   code: project.code,
   label: project.label,
 }));
-const MERGE = "01926f3a-7c00-7000-8000-000800000018";
+const MERGE = "01926f3a-7c00-7000-8000-000800000019";
 const NAMED: AuditFilterBarProps["named"] = {
   user: undefined,
   project: undefined,
@@ -150,9 +150,9 @@ describe("the grid of the journal", () => {
     render(journal());
     const row = within(grid()).getAllByRole("row")[1];
     expect(row?.textContent).toMatch(
-      /^.+Camille MartinApplication d’un importImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000034$/,
+      /^.+Camille MartinApplication d’un importImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000035$/,
     );
-    expect(grid().querySelector("tfoot tr")?.textContent).toBe("36 inscriptions");
+    expect(grid().querySelector("tfoot tr")?.textContent).toBe("37 inscriptions");
     // The header of every column is grey, as that of every table (#508).
     expect(grid().querySelector("thead th")?.className).toContain("bg-muted");
   });
@@ -256,7 +256,7 @@ describe("the grid of the journal", () => {
     render(journal());
     // The scheduled backup of 3 June, by the correlation of its inscription.
     const backup = within(grid()).getByRole("row", {
-      name: /01926f3a-7c00-7000-8000-000800000033$/,
+      name: /01926f3a-7c00-7000-8000-000800000034$/,
     });
     expect(backup).toHaveTextContent(/La plateformeSauvegardeSauvegardeSauvegardeHors projet/);
     expect(backup).not.toHaveTextContent("01926f3a-7c00-7000-8000-000000000907");
@@ -305,10 +305,10 @@ describe("the grid of the journal", () => {
     expect(
       within(grid()).queryByRole("link", { name: "PRJ-001 · Modernisation du poste de commande" }),
     ).toBeNull();
-    // The twelve inscriptions of the project still name it, by its code and its label.
+    // The thirteen inscriptions of the project still name it, by its code and its label.
     expect(
       within(grid()).getAllByText("PRJ-001 · Modernisation du poste de commande"),
-    ).toHaveLength(12);
+    ).toHaveLength(13);
   });
 
   it("leads to the whole history of an object, every other filter lifted, its sort kept, back to the first page", async () => {
@@ -372,7 +372,7 @@ describe("the grid of the journal", () => {
     for (const link of correlated) {
       expect(link).toHaveAttribute("href", address);
     }
-    const merge = within(grid()).getByRole("row", { name: /Contractualisation d’un avenant/ });
+    const merge = within(grid()).getByRole("row", { name: /Fusion d’un différentiel/ });
     await userEvent.click(within(merge).getByRole("link", { name: /^Les inscriptions/ }));
     expect(lastAddress()).toBe(address);
   });
@@ -655,24 +655,39 @@ describe("the filters of the journal", () => {
     ).toBeInTheDocument();
   });
 
+  it("say the creation of a project and the abandon of a revision in progress, the abandoned revision, which has no name nor page any more, named by its nature without a link [WF-SEC-0030-A]", () => {
+    const shown = example("audit_events_revision_abandoned") as Journal;
+    const only = (action: AuditEvent["action"]): Journal => ({
+      ...shown,
+      items: shown.items.filter((event) => event.action === action),
+    });
+    const { unmount } = render(journal({ shown: only("revision_abandon") }));
+    const abandon = within(grid()).getByRole("row", { name: /Abandon d’une révision en cours/ });
+    expect(abandon).toHaveTextContent("Révision");
+    expect(within(abandon).queryByRole("link", { name: "Révision" })).not.toBeInTheDocument();
+    unmount();
+    render(journal({ shown: only("project_create") }));
+    expect(within(grid()).getAllByRole("row")[1]).toHaveTextContent("Création d’un projet");
+  });
+
   it("filter by correlation, entered and sent as the contract takes it, back to the first page, the filter lifted when emptied", async () => {
-    page.search = "actions=amendment_merge&offset=50";
+    page.search = "actions=structure_merge&offset=50";
     const { rerender } = render(journal());
     const field = screen.getByRole("searchbox", { name: "Corrélation" });
     // A correlation pasted, blanks around it: trimmed, as the contract takes it.
     await userEvent.type(field, ` ${MERGE} {Enter}`);
-    expect(lastAddress()).toBe(`/admin/audit-log?actions=amendment_merge&correlation_id=${MERGE}`);
+    expect(lastAddress()).toBe(`/admin/audit-log?actions=structure_merge&correlation_id=${MERGE}`);
     expect(field).toHaveFocus();
-    page.search = `actions=amendment_merge&correlation_id=${MERGE}`;
+    page.search = `actions=structure_merge&correlation_id=${MERGE}`;
     rerender(journal());
     expect(field).toHaveValue(MERGE);
     await userEvent.clear(field);
     await userEvent.type(field, "{Enter}");
-    expect(lastAddress()).toBe("/admin/audit-log?actions=amendment_merge");
+    expect(lastAddress()).toBe("/admin/audit-log?actions=structure_merge");
   });
 
   it("send no correlation the contract would refuse: the browser says why, and the address stays", async () => {
-    page.search = "actions=amendment_merge";
+    page.search = "actions=structure_merge";
     render(journal());
     const field = screen.getByRole("searchbox", { name: "Corrélation" });
     await userEvent.type(field, "a b{Enter}");
@@ -716,9 +731,9 @@ describe("an anonymised account in the journal", () => {
     );
     const rows = within(grid()).getAllByRole("row").slice(1, -1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000040",
-      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000020",
-      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000014",
+      "3 juin 2026, 16:05Camille MartinAnonymisation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000041",
+      "2 mars 2026, 17:20Camille MartinDésactivation d’un compteCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000021",
+      "12 janv. 2026, 11:00Camille MartinCréation d’un compteCréé dans WaterfallCompteCompte anonymiséHors projet01926f3a-7c00-7000-8000-000800000015",
     ]);
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
     expect(

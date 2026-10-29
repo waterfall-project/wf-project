@@ -2903,9 +2903,11 @@
       "timed_out": "Timed out"
     },
     "AuditAction": {
+      "project_create": "Project created",
       "revision_mark": "Revision marked",
+      "revision_abandon": "Revision in progress abandoned",
       "reference_designate": "Reference designated",
-      "amendment_merge": "Amendment contracted",
+      "structure_merge": "Differential merged",
       "risk_occurrence": "Risk occurred",
       "project_exit": "Exit from the lifecycle",
       "cost_line_exclude": "Cost line excluded",

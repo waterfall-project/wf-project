@@ -2903,9 +2903,11 @@
       "timed_out": "Délai dépassé"
     },
     "AuditAction": {
+      "project_create": "Création d’un projet",
       "revision_mark": "Marquage d’une révision",
+      "revision_abandon": "Abandon d’une révision en cours",
       "reference_designate": "Désignation de la référence",
-      "amendment_merge": "Contractualisation d’un avenant",
+      "structure_merge": "Fusion d’un différentiel",
       "risk_occurrence": "Survenance d’un risque",
       "project_exit": "Sortie du cycle de vie",
       "cost_line_exclude": "Exclusion d’une ligne de coût",
