@@ -974,9 +974,9 @@ consommation, et la grille de devis présente `base_amount` et `reestimated_amou
 total n'avaient pas de montant corrigé, et la grille montrait une cellule vide ; ils portent la
 somme des montants corrigés de leurs lignes, que le front ne calcule pas.
 
-*Remplacé par US-0701/L1 (#1601) : `inflated_amount` disparaît de la tâche, des totaux et de
-`ComputedValueField` ; leurs `budgeted_amount` et `reestimated_amount`, inflation comprise, le
-remplacent.*
+*Remplacé par US-0701/L1 (#1601, spécification des 10 et 22 octobre 2026, recadrage du
+2026-10-28, L-01) : `inflated_amount` disparaît de la tâche, des totaux et de `ComputedValueField` ;
+leurs `budgeted_amount` et `reestimated_amount`, inflation comprise, le remplacent.*
 
 **Après une écriture qui déplace des nœuds dans le temps, leurs montants corrigés en projection
 légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé ; décisions de l'utilisateur du
@@ -1008,8 +1008,9 @@ semaine de quatre jours, le permet depuis EP-02/L20 ; la projection est éprouv�
 planning appliqué aux lignes du devis, et le chemin de la grille de devis le sera avec l'écriture
 qui redate (EP-02/L22, « L'univers témoin »).
 
-*Remplacé en partie par US-0701/L1 (#1601) : `NodeInflation` porte `budgeted_amount` et
-`reestimated_amount`, inflation comprise, au lieu d'`inflated_amount` ; le budgété, projeté sur
+*Remplacé en partie par US-0701/L1 (#1601, spécification des 10 et 22 octobre 2026, recadrage du
+2026-10-28, L-01) : `NodeInflation` porte `budgeted_amount` et `reestimated_amount`, inflation
+comprise, au lieu d'`inflated_amount` ; le budgété, projeté sur
 l'année où la référence consommait la ligne, ne suit les dates que sur un projet sans révision de
 référence, où il est confondu avec le réestimé (WF-DEV-0050).*
 
@@ -1579,6 +1580,9 @@ calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte
 description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
 tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
 », libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
+
+*Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
+devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
 
 **`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
 WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
@@ -2390,8 +2394,8 @@ reste à engager 21 234,56, ces deux tâches non démarrées y comptant leur bud
 (WF-RAE-0010). Un test d'invariant tient le budget de l'offre de toute ligne que l'avenant ne
 désigne pas, un autre l'unicité du taux d'une catégorie dans chaque révision.
 
-*Remplacé en partie par US-0701/L1 (#1601, M-08, WF-RAE-0010 du 2026-10-22) : les tâches non
-démarrées comptent au reste à engager le montant réestimé de leurs lignes, aux taux de 2026 que la
+*Remplacé en partie par US-0701/L1 (#1601, M-08, WF-RAE-0010 du 2026-10-22, recadrage du
+2026-10-28) : les tâches non démarrées comptent au reste à engager le montant réestimé de leurs lignes, aux taux de 2026 que la
 révision conserve, et non leur budget projeté, aux taux de l'offre.*
 
 **Le reste des points repris** : les risques lus dans 102 citent les structures de 102, à leurs
@@ -2475,7 +2479,8 @@ risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,7
 électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
 ses indicateurs, et les vues du portefeuille la somment.
 
-*Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08) : les montants sont inflation comprise, et
+*Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08 ; spécification des 10 et 22 octobre 2026,
+recadrage du 2026-10-28) : les montants sont inflation comprise, et
 les tâches non démarrées comptent leur montant réestimé ; le reste à engager, le budget de référence
 et le devis du témoin changent (« Le contrat figé »).*
 
@@ -8468,9 +8473,10 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
   simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
   l'avenant 1 ne désigne pas (#467). Le devis du témoin vaut 68 923 691,06, son budget de référence
-  68 241 568,05 ; le reste à engager, la valeur planifiée et la valeur acquise ne bougent pas, les
-  tâches non démarrées y comptant déjà leur budget projeté, et les tâches terminées étant de 2026.
-  Le budget du poste de commande n'est plus dépassé que de la facture des écrans, 2 400,00.
+  68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
+  de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
+  réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
+  plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
   l'année de référence) et celui de la provision de WF-DEV-0030.
 - **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et

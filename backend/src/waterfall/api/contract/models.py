@@ -479,7 +479,7 @@ class LockVersion(RootModel[int]):
     root: Annotated[
         int,
         Field(
-            description="Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative, le montant corrigé des lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le compteur d'aucun nœud.",
+            description="Compteur d'écriture de l'objet. Toute modification le porte et l'exige, une création n'en a pas ; une valeur périmée est refusée par 412, ce qui rend l'annulation sûre à plusieurs contributeurs (WF-IHM-0110, WF-PRJ-0060). Il suit les écritures de l'utilisateur : ce que le serveur recalcule sans que personne ne l'écrive — les dates des successeurs d'une liaison ou d'une durée, ce que le chemin critique déplace, les montants et les dates d'une récapitulative, les montants, inflation comprise, des lignes et des tâches qu'une écriture déplace d'une année à l'autre — ne fait avancer le compteur d'aucun nœud.",
             ge=0,
         ),
     ]

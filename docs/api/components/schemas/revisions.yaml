@@ -49,7 +49,8 @@ Revision:
         l'année de référence, avant inflation » de la grille de devis (`base_amount`,
         WF-DEV-0050), celle d'où l'inflation projette les montants budgété et réestimé, une fois
         par année écoulée (WF-DEV-0030), et celle que la mise à jour des taux vise
-        (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026.
+        (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision
+        précédente, créée en 2026, garde 2026.
     snapshot:
       anyOf: [{ $ref: '#/RevisionSnapshot' }, { type: 'null' }]
     available_commands:
@@ -242,10 +243,10 @@ ReferenceDesignation:
   type: object
   required: [revision_id, confirmed]
   description: >-
-    Désigne la révision de référence parmi les révisions marquées. Corrigible tant
-    que le projet n'a reçu aucun coût réel et qu'aucune révision n'a été marquée depuis la
-    dernière désignation ; au-delà, la
-    référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040).
+    Désigne la révision de référence parmi les révisions marquées. Corrigible tant que le
+    projet n'a reçu aucun coût réel et qu'aucune révision n'a été marquée depuis la dernière
+    désignation ; au-delà, la référence ne se déplace plus qu'à la contractualisation d'un
+    avenant (WF-REV-0040).
   properties:
     revision_id: { $ref: ../common.yaml#/Uuid }
     confirmed:
@@ -759,15 +760,15 @@ NodeColumn:
     la grille de reste à engager (WF-DEV-0050, WF-RAE-0040), chacune dans l'ordre où sa grille
     les présente : de `label` à `work_breakdown`, les colonnes de la tâche — la dernière, le
     lot ou le poste du lotissement auquel la tâche est rattachée (WF-PLA-0170) ;
-    `label`, puis de
-    `cost_category` à `previous_reestimated_amount`, celles de la ligne de devis — le montant aux
-    taux de l'année de référence, avant inflation (`base_amount`), puis les montants budgété et
-    réestimé, inflation comprise : la grille de devis présente le premier et le réestimé
-    (WF-DEV-0050), celle de reste à engager le budgété et le réestimé, et, au reste à engager
-    précédent, les grandeurs puis le montant réestimé (WF-RAE-0040). C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la
-    colonne visée (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et
-    de reste à engager trient, par les colonnes de la ligne : la grille de planning n'en trie
-    aucune (`sort_by`, WF-IHM-0060).
+    `label`, puis de `cost_category` à `previous_reestimated_amount`, celles de la ligne de
+    devis — le montant aux taux de l'année de référence, avant inflation (`base_amount`), puis
+    les montants budgété et réestimé, inflation comprise : la grille de devis présente le
+    premier et le réestimé (WF-DEV-0050), celle de reste à engager le budgété et le réestimé,
+    et, au reste à engager précédent, les grandeurs puis le montant réestimé (WF-RAE-0040).
+    C'est dans cet ordre qu'un collage remplit les colonnes qui suivent la colonne visée
+    (`PastePreview.target_column`, WF-IHM-0050). Seules les grilles de devis et de reste à
+    engager trient, par les colonnes de la ligne : la grille de planning n'en trie aucune
+    (`sort_by`, WF-IHM-0060).
   enum:
     - label
     - description
@@ -833,16 +834,16 @@ ComputedDependency:
     (WF-PLA-0020) ; `float_dates`, la marge, écart des dates au plus tôt et au plus tard
     (WF-PLA-0100) ; `manual_mode`, la marge d'une tâche en mode manuel, qui n'en porte pas
     (WF-PLA-0100) ; `hourly_rate`, le montant d'une ligne de main-d'œuvre, de sa quantité, de
-    sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`, celui d'une ligne
-    hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ; `risk`, les
-    grandeurs, le sous-projet et le montant d'une ligne de provision (WF-RIS-0010) ;
-    `reference_revision`, le montant budgété, fixé par la révision de référence
-    (WF-DEV-0020) ; `remaining_reviews`, le montant réestimé, suivi par les revues du
-    reste à engager (WF-RAE-0040) ; `inflation`, la projection des montants budgété et
-    réestimé sur l'année de consommation de la ligne, au taux d'inflation du projet — une ligne
-    de provision n'est pas projetée (WF-DEV-0030, WF-DEV-0040) ; `own_estimate`, la gravité d'un risque, total de son devis
-    propre, et `severity_and_probability`, sa provision, cette gravité pondérée par sa
-    probabilité (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
+    sa charge et du taux horaire de sa catégorie pour l'année de référence ; `unit_disbursement`,
+    celui d'une ligne hors main-d'œuvre, de sa quantité et de son débours unitaire (WF-DEV-0030) ;
+    `risk`, les grandeurs, le sous-projet et le montant d'une ligne de provision (WF-RIS-0010) ;
+    `reference_revision`, le montant budgété, fixé par la révision de référence (WF-DEV-0020) ;
+    `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040)
+    ; `inflation`, la projection des montants budgété et réestimé sur l'année de consommation de la
+    ligne, au taux d'inflation du projet — une ligne de provision n'est pas projetée (WF-DEV-0030,
+    WF-DEV-0040) ; `own_estimate`, la gravité d'un risque, total de son devis propre, et
+    `severity_and_probability`, sa provision, cette gravité pondérée par sa probabilité
+    (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
   enum:
     - subordinates
     - lines_and_subordinates
@@ -1387,13 +1388,13 @@ EstimateLineFacet:
       description: >-
         Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs
         de référence, inflation comprise, à l'année de consommation que la référence lui
-        donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf
-        une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs
-        de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une
-        ligne de provision porte la provision qu'elle avait dans la révision de référence :
-        ce montant compte à la réserve pour risques, jamais au budget de référence, qui est
-        la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et
-        se lit dans les indicateurs, jamais en sommant ces montants.
+        donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue
+        d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la
+        fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré
+        (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de
+        référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui
+        est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se
+        lit dans les indicateurs, jamais en sommant ces montants.
     reestimated_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
