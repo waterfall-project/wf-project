@@ -313,8 +313,9 @@
       '422':
         description: >-
           Format ou version non reconnus à la lecture de l'en-tête, avant toute analyse ; le
-          format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
-          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Une extraction de
+          format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`,
+          `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et
+          `params.expected_version` sa version. Une extraction de
           coûts réels n'a pas de version : elle se reconnaît aux intitulés que déclare la
           correspondance (WF-INTF-0070, WF-REF-0190) ; à laquelle manque une colonne exigée, elle
           est refusée par `FILE_FORMAT_UNREADABLE`, `params.expected_format` à `actual_costs`,
@@ -393,13 +394,17 @@
     tags: [exchanges]
     summary: Abandonner un import
     description: >-
-      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120).
+      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120). L'abandon
+      est idempotent : celui d'un import déjà abandonné ou expiré rend 204 sans effet, son
+      fichier étant déjà supprimé (WF-ARC-0100). Le contrat ne dit rien de l'abandon d'un import
+      appliqué ou en cours d'application : la spécification n'en dit rien, et la forme de ce
+      refus est celle des refus d'US-0702.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '204':
-        description: Import abandonné.
+        description: Import abandonné, ou déjà abandonné ou expiré (sans effet).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

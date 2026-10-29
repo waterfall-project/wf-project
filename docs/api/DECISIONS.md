@@ -9115,10 +9115,13 @@ le compte rendu d'EP-02/L35 (#383) et la tâche non démarrée de #486 (I-09), l
   pour une extraction de coûts réels, décrit ; `format_version`, `requires_confirmation_reasons`,
   `ImportDifference.label`, `ActualCostLine.excluded_reason` et `passthrough` exigés ;
   `Import.status` décrit, `expires_at` nul tant que l'analyse court ; les champs de l'ouverture et
-  leurs refus décrits ; `ExportKind` nommé ; les filtres de `listActualCosts` décrits ; un 404 d'export (`export_revision_not_found`). Restent au gel :
-  I-18 — l'abandon d'un import appliqué demanderait une condition nouvelle de `CommandCondition`,
-  la forme des refus étant d'US-0702 —, et, d'I-20, une liste `completed_tasks` non vide et le
-  409 d'une application refusée pour l'état.
+  leurs refus décrits ; `ExportKind` nommé ; les filtres de `listActualCosts` décrits ; un 404
+  d'export (`export_revision_not_found`). I-18 : l'abandon (`abandonImport`) est déclaré
+  idempotent — un import déjà abandonné ou expiré rend 204 sans effet, son état restant lu et son
+  fichier supprimé (WF-ARC-0100). Pour un import appliqué ou en cours d'application, la
+  spécification ne dit rien : le refus, qui demanderait une condition nouvelle de
+  `CommandCondition`, reste à la forme des refus d'US-0702. Restent au gel : d'I-20, une liste
+  `completed_tasks` non vide et le 409 d'une application refusée pour l'état.
 
 ## Collage et annulation
 
