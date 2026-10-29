@@ -246,7 +246,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-CRE-0020, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
-| DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-DAT-0120, WF-INTF-0080 |
+| DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
 | POST | `/projects/{project_id}/exports` | Demander un export | WF-ARC-0040, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
 

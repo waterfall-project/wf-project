@@ -2511,7 +2511,7 @@ export interface paths {
         post?: never;
         /**
          * Abandonner un import
-         * @description Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120).
+         * @description Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120). L'abandon est idempotent : celui d'un import déjà abandonné ou expiré rend 204 sans effet, son fichier étant déjà supprimé (WF-ARC-0100). Le contrat ne dit rien de l'abandon d'un import appliqué ou en cours d'application : la spécification n'en dit rien, et la forme de ce refus est celle des refus d'US-0702.
          */
         delete: operations["abandonImport"];
         options?: never;
@@ -5410,9 +5410,9 @@ export interface components {
         ImportReport: {
             /** @description La version du format que porte l'en-tête d'un devis ou d'un reste à engager (ANNEXE B) ; nulle pour un planning MS Project et une extraction de coûts réels, qui n'en portent pas (WF-INTF-0070). */
             format_version: string | null;
-            /** @description Les objets lus du fichier : les lignes d'un devis, d'un reste à engager ou d'une extraction de coûts réels, les tâches d'un planning MS Project. */
+            /** @description Les objets lus du fichier : les lignes d'un devis, d'un reste à engager ou d'une extraction de coûts réels, les tâches du fichier d'un planning MS Project — ni les liaisons, ni la structure, ni les tâches qu'il ne porte plus. */
             read_count: number;
-            /** @description Parmi les objets lus, ceux que l'import laisse tels quels : ni rejetés, ni ignorés, ni présentés ajoutés ou modifiés par `differences` — d'une extraction de coûts réels, les lignes déjà importées à l'identique (WF-INTF-0140, WF-CRE-0050). Les lignes ajoutées et mises à jour se comptent dans `differences`, les rejetées dans `rejected`. */
+            /** @description Parmi les objets lus, ceux que l'import laisse tels quels : ni rejetés, ni ignorés, ni présentés ajoutés ou modifiés par `differences` — d'une extraction de coûts réels, les lignes déjà importées à l'identique (WF-INTF-0140, WF-CRE-0050). Les lignes ajoutées et mises à jour se comptent dans `differences`, les rejetées dans `rejected`. Pour un planning, `differences` porte aussi la structure, les liaisons et les tâches retirées ou conservées, que le fichier ne compte pas parmi ses tâches lues : seuls s'en retranchent les écarts de cible `task` ajoutés ou mis à jour — `unchanged_count` vaut `read_count` moins les rejetées et ces écarts. */
             unchanged_count: number;
             /** @description Les lignes rejetées, chacune par son rang, et son onglet quand le fichier en a plusieurs, avec son motif ; les autres s'appliquent (WF-INTF-0080). Parmi elles, d'un devis ou d'un reste à engager, une ligne qui quitterait un sous-projet qui a reçu des coûts réels, le compte rendu nommant ce sous-projet (`ImportRejection`, WF-INTF-0100, WF-INTF-0120) ; d'une extraction de coûts réels, une ligne dont l'élément d'OTP n'a pas la forme attendue ou désigne un autre projet (WF-CRE-0020), chacune comptée au journal parmi les lignes rejetées (`CostImport.rejected_count`, WF-CRE-0050). */
             rejected: components["schemas"]["ImportRejection"][];
@@ -11990,7 +11990,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Import abandonné. */
+            /** @description Import abandonné, ou déjà abandonné ou expiré (sans effet). */
             204: {
                 headers: {
                     [name: string]: unknown;

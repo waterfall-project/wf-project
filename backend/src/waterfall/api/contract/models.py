@@ -5379,14 +5379,14 @@ class ImportReport(ContractModel):
     read_count: Annotated[
         int,
         Field(
-            description="Les objets lus du fichier : les lignes d'un devis, d'un reste à engager ou d'une extraction de coûts réels, les tâches d'un planning MS Project.",
+            description="Les objets lus du fichier : les lignes d'un devis, d'un reste à engager ou d'une extraction de coûts réels, les tâches du fichier d'un planning MS Project — ni les liaisons, ni la structure, ni les tâches qu'il ne porte plus.",
             ge=0,
         ),
     ]
     unchanged_count: Annotated[
         int,
         Field(
-            description="Parmi les objets lus, ceux que l'import laisse tels quels : ni rejetés, ni ignorés, ni présentés ajoutés ou modifiés par `differences` — d'une extraction de coûts réels, les lignes déjà importées à l'identique (WF-INTF-0140, WF-CRE-0050). Les lignes ajoutées et mises à jour se comptent dans `differences`, les rejetées dans `rejected`.",
+            description="Parmi les objets lus, ceux que l'import laisse tels quels : ni rejetés, ni ignorés, ni présentés ajoutés ou modifiés par `differences` — d'une extraction de coûts réels, les lignes déjà importées à l'identique (WF-INTF-0140, WF-CRE-0050). Les lignes ajoutées et mises à jour se comptent dans `differences`, les rejetées dans `rejected`. Pour un planning, `differences` porte aussi la structure, les liaisons et les tâches retirées ou conservées, que le fichier ne compte pas parmi ses tâches lues : seuls s'en retranchent les écarts de cible `task` ajoutés ou mis à jour — `unchanged_count` vaut `read_count` moins les rejetées et ces écarts.",
             ge=0,
         ),
     ]
