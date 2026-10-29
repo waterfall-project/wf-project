@@ -577,7 +577,7 @@
       "period": "Période extraite",
       "created": "Créées",
       "updated": "Mises à jour",
-      "ignored": "Ignorées",
+      "rejected": "Rejetées",
       "periodRange": "du {from} au {to}",
       "periodFrom": "à partir du {from}",
       "periodTo": "jusqu’au {to}",
@@ -2625,7 +2625,10 @@
     "FIELD_READ_ONLY": "Ce champ vient du fournisseur d’identité : il ne se modifie pas dans Waterfall.",
     "BACKUP_FROM_NEWER_VERSION": "Cette sauvegarde vient d’une version plus récente que celle installée : elle ne se restaure pas.",
     "TASK_INTERRUPTED_BY_RESTORE": "La restauration a interrompu cette tâche, en cours au moment de la sauvegarde restaurée : elle ne reprend pas.",
-    "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé."
+    "PASTE_TARGET_REMOVED": "La cible du collage a disparu entre-temps : rien n’a été collé.",
+    "WBS_ELEMENT_INVALID": "L’élément d’OTP de la ligne n’a pas la forme attendue : un code projet, une barre oblique, puis un code de sous-projet.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "L’élément d’OTP de la ligne appartient à un autre projet.",
+    "AMBIGUOUS_TASK_LABEL": "Ce libellé est porté par plusieurs tâches : le compte rendu ne dit pas laquelle il vise."
   },
   "problemDetails": {
     "missing_permission": "Permission requise : {permission}.",
@@ -3429,11 +3432,13 @@
         "task": "Tâche",
         "estimate_line": "Ligne de devis",
         "link": "Liaison",
-        "actual_cost_line": "Ligne de coût réel"
+        "actual_cost_line": "Ligne de coût réel",
+        "cost_structure": "Structure de coûts"
       }
     },
     "ImportDifferenceField": {
-      "parent": "Rattachement"
+      "parent": "Rattachement",
+      "planning_start_on": "Date de début de planning"
     },
     "ImportIgnoredKind": {
       "resources": "Ressources",
@@ -3442,7 +3447,14 @@
       "costs": "Coûts",
       "custom_fields": "Champs personnalisés",
       "date_constraints": "Contraintes de date, tâches importées en mode manuel",
-      "columns": "Colonnes de l’extraction ni lues ni conservées"
+      "columns": "Colonnes de l’extraction ni lues ni conservées",
+      "provision_lines": "Lignes de provision d’un risque, laissées telles quelles"
+    },
+    "ImportSignal": {
+      "code": {
+        "NON_WORKING_DAY": "Jour non travaillé",
+        "SUMMARY_TASK_DERIVED": "Tâche récapitulative dérivée de ses tâches"
+      }
     },
     "ActualCostSourceColumn": {
       "wbs_element": "Élément d’OTP",
@@ -3475,13 +3487,11 @@
         "failed": "Échoué"
       }
     },
-    "ExportRequest": {
-      "kind": {
-        "ms_project_schedule": "Planning MS Project",
-        "estimate": "Devis",
-        "remaining": "Reste à engager",
-        "task_tree_image": "Image de l’arborescence de tâches"
-      }
+    "ExportKind": {
+      "ms_project_schedule": "Planning MS Project",
+      "estimate": "Devis",
+      "remaining": "Reste à engager",
+      "task_tree_image": "Image de l’arborescence de tâches"
     },
     "PortfolioPerformance": {
       "zone_distribution": {

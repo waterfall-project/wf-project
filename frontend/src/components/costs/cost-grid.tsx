@@ -85,8 +85,8 @@ export function costRow(line: ActualCostLine): CostRow {
     subproject_code: line.subproject_code,
     subproject_label: line.subproject_label,
     is_in_tracked_scope,
-    ...(line.excluded_reason === undefined ? {} : { excluded_reason: line.excluded_reason }),
-    ...(line.passthrough === undefined ? {} : { passthrough: line.passthrough }),
+    excluded_reason: line.excluded_reason,
+    passthrough: line.passthrough,
   };
 }
 
@@ -199,7 +199,7 @@ export function costGrid(
         format: "text" as const,
         width: 160,
         contract: `${KEPT}${name}`,
-        value: (line: CostRow) => line.passthrough?.[name],
+        value: (line: CostRow) => line.passthrough[name],
       })),
     ],
   };

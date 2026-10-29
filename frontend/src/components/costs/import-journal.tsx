@@ -3,7 +3,7 @@
 /**
  * The journal of the imports of actual costs (WF-CRE-0050), a page of it, the most recent first as
  * the server gives it: of each import, its date in the local time of the workstation, its author,
- * the period extracted and the counts of the lines created, updated and ignored — figures the
+ * the period extracted and the counts of the lines created, updated and rejected — figures the
  * server counted, in the format of the language. The way through its pages, when the server holds
  * more than one; that it is empty, when no import was ever made. A region named by its label, as
  * the totals and the filters are: no identifier drawn on the server (#251).
@@ -72,7 +72,7 @@ export function ImportJournal({
             t("period"),
             t("created"),
             t("updated"),
-            t("ignored"),
+            t("rejected"),
           ]}
         >
           {imports.map((entry) => (
@@ -93,7 +93,7 @@ export function ImportJournal({
                 {count(entry.updated_count)}
               </TableCell>
               <TableCell className={`${CELL} text-right tabular-nums`}>
-                {count(entry.ignored_count)}
+                {count(entry.rejected_count)}
               </TableCell>
             </TableRow>
           ))}
