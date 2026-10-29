@@ -177,8 +177,7 @@ def partition(amounts: Sequence[Decimal], total: Decimal) -> Sequence[Decimal | 
     one exactly (WF-DEV-0060, WF-PTF-0080): that part may bear more than four places —
     1 - 0.00000003 is 0.99999997 (EP-14/L42o, review 1). A partition without a part has no share;
     the parts of a nil total have none either, ``None`` each, so that the tool no longer raises
-    (EP-14/L55, #718). Provisional: no example has a nil total, and what the contract gives for it,
-    which WF-IND-0010 wants not computable, is for L42t to say (#774).
+    (EP-14/L55, #718); ``part_share`` says what the contract gives for it.
     """
     if not amounts or not total:
         return [None for _ in amounts]
@@ -186,6 +185,21 @@ def partition(amounts: Sequence[Decimal], total: Decimal) -> Sequence[Decimal | 
     largest = max(range(len(amounts)), key=lambda rank: amounts[rank])
     found[largest] += 1 - sum(found)
     return found
+
+
+NO_TOTAL = "no_total"
+"""The reason a share is not computable: the total it is a share of is nil (WF-IND-0010, #1633)."""
+
+
+def part_share(part: Decimal | None) -> JsonObject:
+    """Return the share of a part as the contract gives it, always: a ``Computable``.
+
+    A share ``partition`` or ``share`` found is computable; none found, the total being nil, the
+    share is not computable rather than left out (WF-IND-0010; G-02, #1633).
+    """
+    if part is None:
+        return {"is_computable": False, "value": None, "reason": NO_TOTAL}
+    return {"is_computable": True, "value": decimal(part), "reason": None}
 
 
 def decimal(value: Decimal) -> str:

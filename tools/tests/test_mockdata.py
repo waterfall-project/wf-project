@@ -393,7 +393,8 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
     sums = [mockportfolio.earned(row) for row in progressing]
     value, actual = total(e.earned for e in sums), total(e.actual for e in sums)
     cost = performance["cost_index"]
-    assert Decimal(cost["value"]["value"]) == (value / actual).quantize(Decimal("0.01"))
+    # To four places, as every ratio (README, « Une part… », G-08).
+    assert Decimal(cost["value"]["value"]) == mockstructure.share(value / actual)
     assert cost["zone"] == mockportfolio.zone(Decimal(cost["value"]["value"]))
     assert performance["reference_budget"] == volumes["portfolio_value.json"]["value"]["order_book"]
     assert performance["scope"]["project_count"] == len(progressing)
@@ -407,6 +408,9 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
             if entry["index"] == index
         } == {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
     assert performance["quarterly"][-1]["cost_index"]["value"] == cost["value"]["value"]
+    # G-03: the period of the evolution, the default one, is given by the scope.
+    period = (performance["scope"]["from"], performance["scope"]["to"])
+    assert period == (mockportfolio.PERIOD_FROM.isoformat(), "2026-06-03")
     first = performance["quarterly"][0]
     assert first["cost_index"]["is_computable"] is False
     assert first["cost_index"]["reason"] == "no_actual_cost"
@@ -418,9 +422,15 @@ def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, 
     budget = Decimal(volumes["portfolio_performance.json"]["value"]["reference_budget"])
     assert total(part["amount"] for part in structure["budget_by_cost_type"]) == budget
     for parts in ("budget_by_cost_type", "remaining_by_cost_type"):
-        assert total(part["share"] for part in structure[parts]) == 1
+        assert total(part["share"]["value"] for part in structure[parts]) == 1
     labor = structure["budget_by_cost_type"][0]
     assert labor["label"] == "Main-d'œuvre"
+    # G-15: the reference budget is without the provision lines (WF-IND-0020); the remaining to
+    # commit bears them.
+    budgets = [part["label"] for part in structure["budget_by_cost_type"]]
+    assert budgets == ["Main-d'œuvre", "Débours"]
+    assert "Provision" in [part["label"] for part in structure["remaining_by_cost_type"]]
+    assert structure["scope"]["from"] == mockportfolio.PERIOD_FROM.isoformat()
     nodes = {node["org_node_id"]: node["label"] for node in mockwitness.fixture("org_nodes")}
     assert all(nodes[part["key"]] == part["label"] for part in structure["labor_by_org_node"])
     assert total(part["amount"] for part in structure["labor_by_org_node"]) == Decimal(

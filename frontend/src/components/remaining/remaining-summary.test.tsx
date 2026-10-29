@@ -28,6 +28,11 @@ function renderSummary(indicators: RemainingIndicators, locale: "en" | "fr" = "e
   );
 }
 
+/** A share the server computed. */
+function computed(value: string): RemainingIndicators["by_cost_type"][number]["share"] {
+  return { is_computable: true, value, reason: null };
+}
+
 describe("the summary of the remaining to commit", () => {
   it("leaves out the deviation from a previous review that never was, rather than nil [WF-RAE-0020-A]", () => {
     // Sur un projet sans revue précédente, l'écart correspondant est absent plutôt que nul.
@@ -55,13 +60,30 @@ describe("the summary of the remaining to commit", () => {
     const tiny = {
       ...indicators,
       by_cost_type: indicators.by_cost_type.map((item) =>
-        item.label === "Provision" ? { ...item, share: "0.00004" } : item,
+        item.label === "Provision" ? { ...item, share: computed("0.00004") } : item,
       ),
     };
     expect(text(renderSummary(tiny))).toContain("Provision: 500,000.00 (<0.01%)");
     // The spaces of French, no-break ones, are read as plain ones.
     expect(text(renderSummary(tiny, "fr"))).toContain("Provision : 500 000,00 (< 0,01 %)");
     expect(text(renderSummary(indicators))).toContain("Provision: 500,000.00 (0.74%)");
+  });
+
+  it("says a share of a nil total not computable, with its reason, rather than leaving it out [WF-IND-0010-A] [WF-RAE-0020-A]", () => {
+    // A variant of `remaining_indicators`: the share of the provision, not computable on a nil total.
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    const nil = {
+      ...indicators,
+      by_cost_type: indicators.by_cost_type.map((item) =>
+        item.label === "Provision"
+          ? { ...item, share: { is_computable: false, value: null, reason: "no_total" as const } }
+          : item,
+      ),
+    };
+    expect(text(renderSummary(nil))).toContain(
+      "Provision: 500,000.00 (Not computable — The total is zero.)",
+    );
+    expect(text(renderSummary(nil, "fr"))).toContain("Le total est nul.");
   });
 
   it("dates the coverage of the risks as every card, each region reading alone [WF-IHM-0020-A]", () => {

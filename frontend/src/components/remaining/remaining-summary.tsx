@@ -23,6 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { ComputableValue } from "@/components/portfolio/portfolio-value";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -67,13 +68,16 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
           <ul className="space-y-1 text-xs leading-snug">
             {indicators.by_cost_type.map((item) => (
               <li key={item.key} className="tabular-nums">
-                {item.share === undefined
-                  ? t("amount", { name: name(item), amount: money(item.amount) })
-                  : t("amountShare", {
-                      name: name(item),
-                      amount: money(item.amount),
-                      share: formatShare(item.share, locale, bounds),
-                    })}
+                {t.rich("amountShare", {
+                  name: name(item),
+                  amount: money(item.amount),
+                  share: () => (
+                    <ComputableValue
+                      value={item.share}
+                      format={(share) => formatShare(share, locale, bounds)}
+                    />
+                  ),
+                })}
               </li>
             ))}
           </ul>

@@ -107,7 +107,9 @@ from wftools import (
 from wftools.mockids import universe
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
+    PERIOD_FROM,
     PROJECT_COUNT,
+    QUARTERS,
     UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
     portfolio,
@@ -678,15 +680,18 @@ def volumes() -> dict[str, JsonObject]:
             f"{_day(TODAY.date())} : chaque indice est le rapport des sommes de leurs "
             f"valeurs acquises, coûts réels et valeurs planifiées, la répartition compte "
             f"chaque projet dans la zone de chacun de ses indices, et l'évolution court sur "
-            f"quatre trimestres, le premier non calculable, rien n'ayant encore été dépensé "
-            f"ni planifié (WF-PTF-0070).",
+            f"les {_count(len(QUARTERS))} trimestres que touche la période par défaut, du "
+            f"{_day(PERIOD_FROM)} au {_day(TODAY.date())}, chacun lu à sa fin — le dernier au "
+            f"jour —, les deux premiers non calculables, rien n'ayant encore été dépensé ni "
+            f"planifié (WF-PTF-0070).",
             portfolio_performance(rows, mockportfoliotime.quarterly(rows)),
         ),
         "portfolio_cost_structure.json": _example(
             f"La structure des coûts des projets en cours du portefeuille du §4.6.2 au "
-            f"{_day(TODAY.date())} : leur budget de référence et leur reste à engager par "
-            "nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses "
-            "rôles ; aucune ventilation du coût réel (WF-PTF-0080).",
+            f"{_day(TODAY.date())} : leur budget de référence, hors lignes de provision, et leur "
+            "reste à engager, provisions comprises, par nature, en montant et en part, et leur "
+            "main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel "
+            "(WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
             portfolio_cost_structure(rows),
         ),
         "portfolio_risks.json": _example(

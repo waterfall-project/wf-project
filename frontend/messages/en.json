@@ -773,8 +773,7 @@
     "deltaToPrevious": "Deviation from the previous review",
     "byCostType": "By nature of cost",
     "bySubproject": "Remaining to commit by sub-project, and margin on the budget",
-    "amount": "{name}: {amount}",
-    "amountShare": "{name}: {amount} ({share})",
+    "amountShare": "{name}: {amount} (<share></share>)",
     "balance": "{name}: {remaining}, margin {variance}"
   },
   "kanban": {
@@ -3317,7 +3316,8 @@
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
-      "work_package_without_task": "No task bears this work package."
+      "work_package_without_task": "No task bears this work package.",
+      "no_total": "The total is zero."
     },
     "CurveSeries": {
       "series": {

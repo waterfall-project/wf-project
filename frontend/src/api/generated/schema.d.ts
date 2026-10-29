@@ -2588,7 +2588,7 @@ export interface paths {
         };
         /**
          * Plan de charge agrégé
-         * @description Somme des charges par rôle et par mois : reste à engager pour les projets en cours, devis pondéré pour les projets en chiffrage inclus. La sous-charge est signalée autant que la surcharge (WF-PTF-0060).
+         * @description Somme des charges par rôle et par mois : reste à engager pour les projets en cours, devis pondéré pour les projets en chiffrage inclus. La sous-charge est signalée autant que la surcharge (WF-PTF-0060). Seuls ces deux états y contribuent : un autre état que `states` nomme — terminé, créé, perdu ou abandonné — est sans effet, et la vue ne prend pas de période (WF-PTF-0060, WF-PTF-0010).
          */
         get: operations["getPortfolioWorkload"];
         put?: never;
@@ -2608,7 +2608,7 @@ export interface paths {
         };
         /**
          * Indices, projections, répartition par zone et évolution trimestrielle
-         * @description Un indice de portefeuille est un rapport de sommes, jamais une moyenne d'indices (WF-PTF-0020). L'évolution trimestrielle se calcule aux dates passées selon WF-PTF-0010 (WF-PTF-0070).
+         * @description Sur les seuls projets en cours du périmètre (WF-PTF-0070) : un projet en chiffrage ou terminé que `states` ajoute n'y contribue pas, et `scope.states` nomme les états demandés. Un indice de portefeuille est un rapport de sommes, jamais une moyenne d'indices (WF-PTF-0020). L'évolution trimestrielle court sur les trimestres que la période touche (`from`, `to`), chacun calculé à une date passée selon WF-PTF-0010 (WF-PTF-0070).
          */
         get: operations["getPortfolioPerformance"];
         put?: never;
@@ -2628,7 +2628,7 @@ export interface paths {
         };
         /**
          * Structure des coûts du portefeuille
-         * @description Ventilation par nature du budget de référence et du reste à engager, et main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature, que l'ERP ne fournit pas (WF-PTF-0080).
+         * @description Ventilation par nature du budget de référence et du reste à engager, et main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature, que l'ERP ne fournit pas (WF-PTF-0080). Les projets terminés qu'ajoute `states` sont ceux de la période (`from`, `to`, à défaut la période par défaut, que `scope.from` et `scope.to` rendent ; WF-PTF-0010). Un projet en chiffrage inclus contribue par son devis courant pondéré par sa probabilité de gain : hors lignes de provision au budget de référence, dont il tient lieu, provisions comprises au reste à engager (WF-PTF-0080).
          */
         get: operations["getPortfolioCostStructure"];
         put?: never;
@@ -2648,7 +2648,7 @@ export interface paths {
         };
         /**
          * Risques du portefeuille
-         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, couverture des risques agrégée — somme des réserves de référence face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
+         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, couverture des risques agrégée — somme des réserves de référence face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence (WF-PTF-0090).
          */
         get: operations["getPortfolioRisks"];
         put?: never;
@@ -2668,7 +2668,7 @@ export interface paths {
         };
         /**
          * Courbe en S du portefeuille
-         * @description Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa probabilité de gain. Sur demande (`payment_delays`), ce sont les décaissements que chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+         * @description Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis projection du chef de projet. Un projet en chiffrage inclus contribue par les courbes de son devis courant, pondérées par sa probabilité de gain : hors lignes de provision pour le budget de référence, provisions comprises pour la projection du chef de projet (WF-PTF-0100). Les projets terminés qu'ajoute `states` sont ceux de la période (`from`, `to`, à défaut la période par défaut, que `scope.from` et `scope.to` rendent ; WF-PTF-0010) ; la période ne borne pas les mois de la courbe, que `horizon_months` fixe. Sur demande (`payment_delays`), ce sont les décaissements que chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le portefeuille et les projets racontent la même histoire (WF-PTF-0100).
          */
         get: operations["getPortfolioCostCurve"];
         put?: never;
@@ -2688,7 +2688,7 @@ export interface paths {
         };
         /**
          * Santé du pilotage
-         * @description Revues en retard, risques non réexaminés, coûts non importés, jalons contractuels dépassés : les quatre signaux dont l'absence rend les autres vues trompeuses (WF-PTF-0110, WF-REF-0180).
+         * @description Revues en retard, risques non réexaminés, coûts non importés, jalons contractuels dépassés : les quatre signaux dont l'absence rend les autres vues trompeuses (WF-PTF-0110, WF-REF-0180). Sur les seuls projets en cours du périmètre : un autre état que `states` nomme — en chiffrage, terminé, créé, perdu ou abandonné — est sans effet, et la vue ne prend pas de période (WF-PTF-0110, WF-PTF-0010).
          */
         get: operations["getPortfolioPilotHealth"];
         put?: never;
@@ -4100,10 +4100,10 @@ export interface components {
             hours: components["schemas"]["Hours"];
         };
         /**
-         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060), et la part de gravité d'un risque sur une assiette nulle, un projet sans budget de référence dont le devis ne porte encore que des provisions (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est sortie de l'état Chiffrage (WF-PTF-0050). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte : « un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
+         * @description Pourquoi une valeur n'est pas calculable : la grandeur nulle à son dénominateur (WF-IND-0010). `no_actual_cost`, l'indice de coût, et la projection au rythme constaté tant qu'il ne se calcule pas (WF-IND-0070, WF-IND-0050) ; `no_earned_value`, la projection au rythme constaté quand l'indice de coût est nul, faute de valeur acquise (WF-IND-0050) ; `no_planned_value`, l'indice de délai (WF-IND-0080) ; `no_reference_budget`, la consommation du budget et l'avancement physique du projet (WF-IND-0040, WF-IND-0060), et la part de gravité d'un risque sur une assiette nulle, un projet sans budget de référence dont le devis ne porte encore que des provisions (`RiskMatrixPoint.severity_ratio`, WF-REF-0160, #1240) ; `no_budgeted_amount`, l'avancement physique d'une récapitulative dont le sous-arbre ne porte aucun montant budgété (WF-IND-0060) ; `no_actual_or_remaining`, l'avancement financier (WF-IND-0040) ; `no_capacity`, le taux de charge d'un rôle (WF-DEV-0070, WF-PTF-0060) ; `no_offer_out_of_pricing`, le taux de transformation d'une période où aucune offre n'est passée de Chiffrage à En cours ou à Perdu, une offre abandonnée ne comptant pas (WF-PTF-0050) ; `no_total`, la part d'un montant dans une répartition dont le total est nul (`AmountByKey.share`, `ComputableAmountByKey.share`, WF-IND-0010 ; #1633). Un motif n'est pas une grandeur nulle : `hourly_rate_missing`, un montant du devis qu'une catégorie de main-d'œuvre sans taux horaire pour l'année de référence empêche de calculer — le calcul est refusé plutôt que fait avec zéro, et `params.missing_rates` nomme les catégories et les années (WF-DEV-0010) ; ni `work_package_without_task`, le total d'un lot du lotissement qu'aucune tâche ne porte : « un lot sans tâche rattachée est présenté sans total » (WF-DEV-0060 ; EP-14/L42s).
          * @enum {string}
          */
-        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "hourly_rate_missing" | "work_package_without_task";
+        NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "no_total" | "hourly_rate_missing" | "work_package_without_task";
         /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
         MissingRate: {
             cost_category_id: components["schemas"]["Uuid"];
@@ -4783,13 +4783,13 @@ export interface components {
                 missing_rates?: components["schemas"]["MissingRate"][];
             };
         };
-        /** @description Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`), et sa part du total, qui ne se calcule pas sans lui. */
+        /** @description Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`), et sa part du total, toujours rendue : elle ne se calcule pas sans le montant, ni sur un total nul (`no_total`). */
         ComputableAmountByKey: {
             key: string;
             label?: string;
             amount: components["schemas"]["ComputableMoney"];
-            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des lots non (README, « Une part… »). */
-            share?: components["schemas"]["Computable"];
+            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, non calculable sur un total nul (`no_total`, WF-IND-0010) ; les parts d'une répartition — par nature, par sous-projet — somment à 1, la plus grande portant le reste des arrondis, celles des lots non (README, « Une part… »). */
+            share: components["schemas"]["Computable"];
         };
         /** @description Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de taux horaire pour l'année de référence, les montants qui en dépendent — le total, la nature, le sous-projet et le lot qui portent ses lignes, les écarts, et les parts qui se rapportent au total — ne se calculent pas, motif `hourly_rate_missing`, les catégories et les années nommées par `params.missing_rates` (WF-DEV-0010) ; jamais un budget faux à zéro. Les montants que ces lignes ne touchent pas se calculent. Tous sont des montants réestimés, inflation comprise, à l'année de consommation des lignes (WF-DEV-0020) — `total`, ses ventilations par nature, par sous-projet et par lot, et les deux écarts —, `total` valant le `reestimated_amount` des totaux de la structure ; aucun n'est au montant avant inflation, valeur de lecture de la grille (`NodeTotals.base_amount`, WF-DEV-0050), et la somme des parts vaut cent sur cette seule base (WF-DEV-0060). */
         EstimateIndicators: {
@@ -4851,8 +4851,8 @@ export interface components {
             key: string;
             label?: string;
             amount: components["schemas"]["Money"];
-            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`). */
-            share?: components["schemas"]["Decimal"];
+            /** @description Le montant sur le total, à quatre décimales, jamais nul quand le montant ne l'est pas, les parts d'une répartition sommant à 1, la plus grande portant le reste des arrondis (README, « Une part… ») : un quotient calculé, non un pourcentage conservé (`Percent`) ; toujours rendue, non calculable sur un total nul (`no_total`, WF-IND-0010). */
+            share: components["schemas"]["Computable"];
         };
         /** @description Marge entre le budget d'un sous-projet et la somme de son coût réel et de son reste à engager (WF-RAE-0020). `unassigned` désigne l'ensemble « hors sous-projet » (WF-IND-0020). Le serveur classe le dépassement dans l'échelle commune des signalements (`zone`, WF-IHM-0070) : le front n'en déduit aucune zone. */
         SubprojectBalance: {
@@ -5404,6 +5404,7 @@ export interface components {
         };
         /** @description Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010). Au jour courant, chaque projet y contribue par sa révision courante : la révision en cours, ou la dernière révision marquée quand il n'en a pas — un projet dont la revue vient d'être marquée contribue par elle (WF-PTF-0010, WF-IND-0010). */
         PortfolioScope: {
+            /** @description Les états demandés (`states`), ou les projets en cours sans demande, que la vue en compte ou non chacun : la même règle pour toutes les vues (WF-PTF-0010). */
             states: components["schemas"]["ProjectState"][];
             as_of: components["schemas"]["PlanningDate"];
             from?: components["schemas"]["PlanningDate"] | null;
@@ -5440,7 +5441,7 @@ export interface components {
             pipeline_gross: components["schemas"]["Money"];
             pipeline_weighted: components["schemas"]["Money"];
             delivered: components["schemas"]["Money"];
-            /** @description À quatre décimales (README, « Une part… »). */
+            /** @description Les offres passées de Chiffrage à En cours sur celles passées de Chiffrage à En cours ou à Perdu dans la période, qu'elles soient ou non du périmètre ; une offre abandonnée ne compte pas (WF-PTF-0050). À quatre décimales (README, « Une part… ») ; non calculable sans aucune, `no_offer_out_of_pricing`. */
             conversion_rate: components["schemas"]["Computable"];
         };
         /** @description Charges sommées par rôle et par mois : sur le reste à engager pour les projets en cours, sur le devis pondéré pour les projets en chiffrage inclus (WF-PTF-0060). */
@@ -5467,11 +5468,12 @@ export interface components {
                     hours: components["schemas"]["Hours"];
                     /** @description La charge sur la capacité, à quatre décimales (README, « Une part… »). */
                     load_ratio: components["schemas"]["Computable"];
+                    /** @description La zone du mois, classée par le serveur : `alert` quand la charge dépasse la capacité, `watch` quand le taux de charge est sous `under_load_threshold`, un rôle sans charge compris, `nominal` sinon (WF-PTF-0060, WF-IHM-0070). */
                     zone: components["schemas"]["AlertZone"];
                 }[];
             }[];
         };
-        /** @description Indices agrégés, répartition par zone et évolution trimestrielle (WF-PTF-0070). */
+        /** @description Indices agrégés, répartition par zone et évolution trimestrielle, sur les seuls projets en cours du périmètre (WF-PTF-0070). */
         PortfolioPerformance: {
             scope: components["schemas"]["PortfolioScope"];
             reference_budget: components["schemas"]["Money"];
@@ -5481,6 +5483,7 @@ export interface components {
             cost_variance: components["schemas"]["Money"];
             /** @description L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre. */
             schedule_variance: components["schemas"]["Money"];
+            /** @description `at_budget` et `project_manager` sont les sommes des projections des projets en cours ; `at_observed_rate` est le budget de référence agrégé divisé par l'indice de coût agrégé, non calculable tant qu'il ne l'est pas (WF-PTF-0070, WF-PTF-0020) : deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel 500 et 500 donnent 2 222, non 2 250. */
             projections: components["schemas"]["Projections"];
             zone_distribution: {
                 /** @enum {string} */
@@ -5488,22 +5491,26 @@ export interface components {
                 zone: components["schemas"]["AlertZone"];
                 project_count: number;
             }[];
+            /** @description Un point par trimestre civil que la période touche (`from`, `to` ; par défaut les douze mois qui finissent à la date de calcul, `scope.from` et `scope.to`), du plus ancien au plus récent : chaque indice est le rapport des sommes des projets en cours à cette date (WF-PTF-0020), lu au dernier jour du trimestre selon WF-PTF-0010, et à la date de calcul pour le trimestre qui la contient (WF-PTF-0070). */
             quarterly: {
                 quarter: string;
                 cost_index: components["schemas"]["Computable"];
                 schedule_index: components["schemas"]["Computable"];
             }[];
         };
-        /** @description Ventilation par nature du budget de référence et du reste à engager, et main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature (WF-PTF-0080). */
+        /** @description Ventilation par nature du budget de référence et du reste à engager, et main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature (WF-PTF-0080). Les projets en cours et terminés du périmètre contribuent pour tout, un projet en chiffrage inclus par son devis courant pondéré par sa probabilité de gain (WF-PTF-0020, WF-PTF-0080). */
         PortfolioCostStructure: {
             scope: components["schemas"]["PortfolioScope"];
+            /** @description Le budget de référence agrégé par nature, hors lignes de provision (WF-IND-0020) ; le devis pondéré d'un projet en chiffrage inclus en tient lieu, hors lignes de provision comme lui : une offre à 40 % dont le devis porte une ligne de provision pour risques de 50 n'ajoute rien à sa nature ici (WF-PTF-0080, WF-RIS-0050). */
             budget_by_cost_type: components["schemas"]["AmountByKey"][];
+            /** @description Le reste à engager agrégé par nature, provisions comprises ; le devis pondéré d'un projet en chiffrage inclus en tient lieu, provisions comprises : la même ligne de provision de 50 y ajoute 20 à sa nature (WF-PTF-0080). */
             remaining_by_cost_type: components["schemas"]["AmountByKey"][];
             labor_by_org_node: components["schemas"]["AmountByKey"][];
         };
-        /** @description Risques tous projets confondus, avec la couverture des risques agrégée : chaque montant est la somme de celui des projets en cours du périmètre (WF-PTF-0090, WF-RIS-0050). */
+        /** @description Risques tous projets confondus, avec la couverture des risques agrégée (WF-PTF-0090, WF-RIS-0050). Le total, les plus lourds et la matrice comptent les risques identifiés des projets du périmètre, ceux d'un projet en chiffrage inclus et leurs provisions sans pondération (WF-PTF-0020, WF-PTF-0090). La réserve et la couverture sont les sommes de celles des projets en cours et terminés du périmètre ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090). */
         PortfolioRisks: {
             scope: components["schemas"]["PortfolioScope"];
+            /** @description Le total des provisions des risques identifiés des projets du périmètre, celles d'un projet en chiffrage inclus sans pondération (WF-PTF-0090, WF-PTF-0020). */
             identified_total: components["schemas"]["Money"];
             heaviest: {
                 risk_id: components["schemas"]["Uuid"];
@@ -5515,14 +5522,14 @@ export interface components {
                 provision_amount: components["schemas"]["Money"];
             }[];
             matrix: components["schemas"]["RiskMatrix"];
-            /** @description Couverture des risques agrégée : la somme des réserves de référence des projets en cours, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes (WF-PTF-0090, WF-RIS-0050). */
+            /** @description Couverture des risques agrégée : la somme des réserves de référence des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050). */
             coverage: components["schemas"]["RiskCoverageTotals"];
             period_outcome: {
                 occurred_provisions: components["schemas"]["Money"];
                 dismissed_provisions: components["schemas"]["Money"];
             };
         };
-        /** @description Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés des projets du périmètre (WF-IND-0100) — le budget de référence, le coût réel jusqu'à la date de calcul, la projection du chef de projet au-delà. Demandée avec les délais de paiement, elle somme les décaissements des projets et `cash_out_by_month` les détaille par mois (WF-PTF-0100). */
+        /** @description Courbe en S du portefeuille : somme, mois par mois, des trois courbes de coûts cumulés des projets du périmètre (WF-IND-0100) — le budget de référence, le coût réel jusqu'à la date de calcul, la projection du chef de projet au-delà. Demandée avec les délais de paiement, elle somme les décaissements des projets et `cash_out_by_month` les détaille par mois (WF-PTF-0100). Elle court sur les douze mois qui précèdent celui de la date de calcul, puis sur les `horizon_months` mois à partir de lui, au pas du mois comme `CurveSeries` (WF-IND-0100). Un projet en chiffrage inclus y apporte les courbes de son devis courant, pondérées par sa probabilité de gain : hors lignes de provision pour le budget de référence, provisions comprises pour la projection — une offre à 40 % dont le devis porte 100 hors provisions et une provision de 50 apporte 40 au budget cumulé final et 60 à la projection (WF-PTF-0100). */
         PortfolioCostCurve: {
             scope: components["schemas"]["PortfolioScope"];
             /** @description Vrai quand les séries sont celles des décaissements, chaque projet rendant les siennes avec ses délais de paiement et les provisions de ses risques identifiés (WF-IND-0100). Faux sinon. */
@@ -5690,7 +5697,7 @@ export interface components {
         CostTypeId: components["schemas"]["Uuid"];
         CostCategoryId: components["schemas"]["Uuid"];
         RateYear: components["schemas"]["Year"];
-        /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+        /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
         PortfolioStates: components["schemas"]["ProjectState"][];
         ProjectId: components["schemas"]["Uuid"];
         SubprojectId: components["schemas"]["Uuid"];
@@ -5743,7 +5750,7 @@ export interface components {
         /** @description Le numéro du morceau, à partir de 1 (`ChunkedUpload.part_count`). */
         ChunkedUploadPartNumber: number;
         ImportId: components["schemas"]["Uuid"];
-        /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+        /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
         PortfolioFrom: components["schemas"]["PlanningDate"];
         /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
         PortfolioTo: components["schemas"]["PlanningDate"];
@@ -8653,7 +8660,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Vrai, les seuls projets dont l'appelant est contributeur. */
                 is_contributor?: boolean;
@@ -11956,9 +11963,9 @@ export interface operations {
     getPortfolioProjects: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
@@ -12005,9 +12012,9 @@ export interface operations {
     getPortfolioValue: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
@@ -12040,12 +12047,13 @@ export interface operations {
     getPortfolioWorkload: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
                 org_node_id?: components["parameters"]["PortfolioOrgNode"];
+                /** @description Nombre de mois du plan, le mois de la date de calcul le premier (WF-PTF-0060) ; absent, six. */
                 horizon_months?: number;
                 /** @description Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060). */
                 under_load_threshold?: components["schemas"]["Percent"];
@@ -12067,16 +12075,24 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description `VALIDATION_FAILED` : un nœud d'organisation inconnu, `fields` désignant `/query/org_node_id` ; un seuil de sous-charge ou un horizon hors de ses bornes, `/query/under_load_threshold` ou `/query/horizon_months` par `VALUE_OUT_OF_RANGE` (WF-PTF-0060). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioPerformance: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
@@ -12109,8 +12125,12 @@ export interface operations {
     getPortfolioCostStructure: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
+                to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
                 /** @description Restreint les seules lignes de main-d'œuvre dont le rôle relève du nœud — rattaché à lui ou à l'un de ses descendants ; un projet n'appartient à aucun service (WF-PTF-0010). */
@@ -12133,16 +12153,16 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            422: components["responses"]["PortfolioPeriodRefused"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioRisks: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
-                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques retiennent les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
                 from?: components["parameters"]["PortfolioFrom"];
                 /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
                 to?: components["parameters"]["PortfolioTo"];
@@ -12173,10 +12193,15 @@ export interface operations {
     getPortfolioCostCurve: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
+                /** @description Début de la période, inclus, pour les projets terminés et les statistiques de période. Sans `to`, la fin est la date de calcul (`as_of`, ou le jour courant), celle de la période par défaut ; un début qui lui est postérieur est refusé par 422, `/query/from`, `params.maximum` la fin complétée (`PortfolioPeriodRefused`). Sans l'une ni l'autre, les statistiques, l'évolution trimestrielle, la structure des coûts et la courbe en S retiennent la période par défaut, les douze mois qui finissent à la date de calcul, et la liste des projets aucune période ; `scope.from` et `scope.to` disent la période retenue. */
+                from?: components["parameters"]["PortfolioFrom"];
+                /** @description Fin de la période, incluse, une date de planning. Antérieure à `from`, elle est refusée par 422 (`PortfolioPeriodRefused`). Sans `from`, le début est celui de la période par défaut : la date de calcul moins douze mois (le 28 février pour un 29 février), puis le lendemain — le 4 juin 2025 pour le 3 juin 2026, le 1er mars 2027 pour le 29 février 2028 ; une fin qui lui est antérieure est refusée de même, `params.minimum` le début complété. */
+                to?: components["parameters"]["PortfolioTo"];
                 /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];
+                /** @description Nombre de mois de la courbe à partir de celui de la date de calcul, ce mois le premier ; absent, six. Les douze mois qui précèdent celui de la date de calcul les précèdent toujours : sans horizon, la courbe court sur dix-huit mois (WF-PTF-0100). */
                 horizon_months?: number;
                 /** @description Vrai, les séries sont celles des décaissements des projets, décalées des délais de paiement et portant les provisions des risques identifiés (WF-IND-0100, WF-PTF-0100). */
                 payment_delays?: boolean;
@@ -12198,14 +12223,14 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            422: components["responses"]["UnprocessableEntity"];
+            422: components["responses"]["PortfolioPeriodRefused"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
     getPortfolioPilotHealth: {
         parameters: {
             query?: {
-                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. */
+                /** @description États retenus dans le périmètre (WF-PTF-0010). Par défaut, les projets en cours. Une vue du portefeuille ne retient que les projets en cours, ceux en chiffrage qu'elle ajoute et les projets terminés de la période : un projet créé, perdu ou abandonné que `states` nomme y est sans effet, comme tout état que la vue dit ne pas compter (WF-PTF-0010). À une date passée (`as_of`), un projet est retenu selon l'état qu'il avait à cette date (WF-CYC-0130). */
                 states?: components["parameters"]["PortfolioStates"];
                 /** @description Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010). */
                 as_of?: components["parameters"]["AsOf"];

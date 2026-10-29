@@ -117,35 +117,52 @@ def test_a_partition_without_an_amount_or_of_a_nil_total_gives_no_share(
     amounts: tuple[str, ...], total: str
 ) -> None:
     # EP-14/L55 (#718), where the tool raised: without an amount, no share; of a nil total, no share
-    # of any amount, nil or not. Provisional, no example having a nil total: what the contract gives
-    # for it, which WF-IND-0010 wants not computable, is for L42t to say (#774).
+    # of any amount, nil or not. The contract says it not computable (`part_share`, below).
     parts = [Decimal(amount) for amount in amounts]
     assert list(mockstructure.partition(parts, Decimal(total))) == [None] * len(parts)
 
 
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_the_share_of_a_nil_total_is_not_computable_and_says_why() -> None:
+    # G-02 (#1633), WF-IND-0010: a share is always given, a `Computable`; over a nil total it is
+    # not computable, with the reason `no_total`, never left out and never nought.
+    assert mockstructure.part_share(None) == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_total",
+    }
+    assert mockstructure.part_share(Decimal("0.1384")) == {
+        "is_computable": True,
+        "value": "0.1384",
+        "reason": None,
+    }
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
 def test_the_cost_structure_of_a_portfolio_without_a_project_in_progress_gives_no_share() -> None:
-    # The same, provisional, through a reading: each nature, and the labour of the node of
-    # organisation, keep their nil amount and come without a share (EP-14/L55, #718; L42t, #774).
+    # Through a reading: each nature, and the labour of the node of organisation, keep their nil
+    # amount and a share not computable over the nil total (G-02, #1633).
     structure = mockportfolio.portfolio_cost_structure([])
     for key in ("budget_by_cost_type", "remaining_by_cost_type", "labor_by_org_node"):
         parts = cast("list[Node]", structure[key])
         assert parts, key
-        given = [(part["amount"], "share" in part) for part in parts]
-        assert given == [("0.00", False)] * len(parts), key
+        given = [(part["amount"], part["share"]) for part in parts]
+        assert given == [("0.00", mockstructure.part_share(None))] * len(parts), key
 
 
+@pytest.mark.requirement("WF-IND-0010-A")
 def test_the_estimate_and_the_remaining_of_a_structure_without_a_line_give_no_share() -> None:
-    # The same, provisional, through the readings of the estimate and of the remaining: a task that
-    # bears a lot and no line, so a nil total (EP-14/L55, #718; L42t, #774). No nature has a part,
-    # and the lot comes at 0.00 without its share, as a share over the nil total would raise.
+    # The same through the readings of the estimate and of the remaining: a task that bears a lot
+    # and no line, so a nil total (EP-14/L55, #718). No nature has a part, and the lot comes at
+    # 0.00 with a share not computable, `no_total` (G-02, #1633).
     roots = [mockwitness.Task(1, "Fourniture", days=5, bears=mockwitness.FIRST_LOT)]
     reading = mockindicators.today(roots)
     found = mockindicators.estimate(reading)
     assert found["total"] == {"is_computable": True, "value": "0.00", "reason": None}
     assert (found["by_cost_type"], found["by_subproject"]) == ([], [])
     lots = cast("list[Node]", found["by_work_package"])
-    assert [(lot["key"], lot["amount"]["value"], "share" in lot) for lot in lots] == [
-        (mockwitness.FIRST_LOT.identifier, "0.00", False)
+    assert [(lot["key"], lot["amount"]["value"], lot["share"]) for lot in lots] == [
+        (mockwitness.FIRST_LOT.identifier, "0.00", mockstructure.part_share(None))
     ]
     remaining = mockindicators.remaining_indicators(
         reading, mockindicators.reference(roots), None, []
@@ -165,6 +182,20 @@ def test_no_share_of_an_amount_not_nil_is_given_nil() -> None:
                 continue
             found += 1
             assert (part_share == 0) == (amount == 0), (name, part["key"])
+    assert found > 0
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+def test_every_share_of_every_example_is_a_computable() -> None:
+    # G-02 (#1633): `share` is exigé and a `Computable` everywhere — a bare decimal, or a share
+    # left out, would not be the contract.
+    found = 0
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        name = path.relative_to(mockwitness.FIXTURES).as_posix()
+        for part in _parts(json.loads(path.read_text(encoding="utf-8"))["value"]):
+            found += 1
+            assert isinstance(part["share"], dict), (name, part["key"])
+            assert "is_computable" in part["share"], (name, part["key"])
     assert found > 0
 
 
@@ -343,7 +374,7 @@ def test_the_remaining_counts_each_line_by_the_state_of_its_task(today: dict[str
     left = today["remaining_indicators"]
     assert Decimal(left["total"]) == sum(by_state.values())
     assert sum(Decimal(part["amount"]) for part in left["by_cost_type"]) == Decimal(left["total"])
-    assert sum(Decimal(part["share"]) for part in left["by_cost_type"]) == 1
+    assert sum(Decimal(part["share"]["value"]) for part in left["by_cost_type"]) == 1
 
 
 def test_the_balances_sum_to_the_project_and_signal_the_one_over_its_budget(

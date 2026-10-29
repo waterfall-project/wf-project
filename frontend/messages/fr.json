@@ -773,8 +773,7 @@
     "deltaToPrevious": "Écart à la revue précédente",
     "byCostType": "Par nature de coût",
     "bySubproject": "Reste à engager par sous-projet, et marge sur le budget",
-    "amount": "{name} : {amount}",
-    "amountShare": "{name} : {amount} ({share})",
+    "amountShare": "{name} : {amount} (<share></share>)",
     "balance": "{name} : {remaining}, marge {variance}"
   },
   "kanban": {
@@ -3317,7 +3316,8 @@
       "no_capacity": "Aucune capacité pour ce rôle sur la période.",
       "no_offer_out_of_pricing": "Aucune offre sortie de l’état Chiffrage sur la période.",
       "hourly_rate_missing": "Taux horaire manquant pour l’année de référence.",
-      "work_package_without_task": "Aucune tâche ne porte ce lot."
+      "work_package_without_task": "Aucune tâche ne porte ce lot.",
+      "no_total": "Le total est nul."
     },
     "CurveSeries": {
       "series": {
