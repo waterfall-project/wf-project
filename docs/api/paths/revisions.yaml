@@ -198,8 +198,8 @@
     tags: [revisions]
     summary: Désigner la révision de référence
     description: >-
-      Désignation manuelle possible tant que le projet n'a ni coût réel ni révision
-      marquée postérieure ; au-delà, la référence ne se déplace plus qu'à la
+      Désignation manuelle possible tant que le projet n'a reçu aucun coût réel et
+      qu'aucune révision n'a été marquée depuis la dernière désignation ; au-delà, la référence ne se déplace plus qu'à la
       contractualisation d'un avenant (WF-REV-0040). Inscrite au journal d'audit
       (WF-SEC-0030). La
       désignation fait passer le projet à En cours si les conditions de WF-CYC-0030
@@ -255,7 +255,8 @@
     tags: [revisions]
     summary: Écart de taux proposé, catégorie par catégorie
     description: >-
-      Présenté à la création d'une révision lorsque le référentiel a changé. Une
+      Présenté à la création d'une révision dont l'année de référence diffère de celle de la
+      révision précédente, que le référentiel ait changé ou non (WF-REV-0060). Une
       catégorie sans taux pour l'année retenue conserve son taux précédent, projeté par
       le taux d'inflation (WF-REV-0060).
     parameters:

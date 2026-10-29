@@ -3347,7 +3347,7 @@ class CostStructure(ContractModel):
     is_merged: Annotated[
         bool,
         Field(
-            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050)."
+            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060)."
         ),
     ]
     available_commands: Annotated[
