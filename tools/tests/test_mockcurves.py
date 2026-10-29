@@ -6,19 +6,24 @@ They try the contract and its examples, not the service, which EP-08 to EP-11 wr
 a project at the pace of the month, each point the cumulative amount at the end of its month, the
 day of the calculation one point more on the series that stop or start there (WF-IND-0100,
 WF-IND-0110, WF-DAT-0040); the indicators of the day of a project without a current revision,
-computed on its last marked revision with the actual cost of the day (WF-IND-0010).
+computed on its last marked revision with the actual cost of the day (WF-IND-0010); the
+disbursements, the actual cost not shifted and the remaining spread after the day of the
+calculation (WF-IND-0100); the gap to the previous review, a revision marked In progress
+(WF-RAE-0020); the time/time chart (WF-IND-0090); the physical progress of a summary, out of the
+lines of provision (WF-IND-0060).
 """
 
 import json
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
-from wftools import mockcurves, mockdata, mockhistory, mockindicators, mocktoday
-from wftools.mockindicators import Cost
-from wftools.mockwitness import TODAY
+from wftools import mockcore, mockcurves, mockdata, mockhistory, mockindicators, mocktoday
+from wftools.mockcalendar import Instant
+from wftools.mockindicators import END_OF_DAY, Cost
+from wftools.mockwitness import PROVISIONS, SUBCONTRACTING, TODAY, Line, Task
 
 type Node = dict[str, Any]
 
@@ -154,3 +159,115 @@ def test_an_import_of_actual_costs_changes_the_day_and_leaves_the_kept_indicator
     assert kept == mockindicators.project_indicators(base, base, witness.costs)
     assert kept["context"]["is_stored"] is True
     assert mockindicators.latest_today(base).is_stored is False
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_actual_cost_of_the_disbursements_is_not_shifted(today: dict[str, Any]) -> None:
+    # « Le coût réel n'est pas décalé » : the same series with the payment delays as without.
+    def actual(name: str) -> list[Node]:
+        return next(
+            series["points"] for series in today[name]["series"] if series["name"] == "actual_cost"
+        )
+
+    assert actual("cost_curve_payment_delays") == actual("cost_curve")
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_remaining_of_a_task_past_its_finish_is_whole_at_the_day_of_the_calculation() -> None:
+    # « porté entier à la date de calcul lorsque la fin de la tâche est dépassée » ; the others
+    # over the part of the duration of their task after it.
+    witness = mockindicators.today()
+    after = Instant(witness.day, END_OF_DAY)
+    late = early = 0
+    for line in witness.lines:
+        amount = mockindicators.remaining_of(witness, line)
+        if amount == 0:
+            continue
+        flow = mockcurves.ahead(witness, line, amount)
+        if witness.bearer(line).finish <= after:
+            late += 1
+            assert flow.first == flow.last == witness.day, line.number
+        else:
+            early += 1
+            assert flow.start >= after, line.number
+    assert late
+    assert early
+
+
+@pytest.mark.requirement("WF-RAE-0020-A")
+def test_the_gap_to_the_previous_review_is_absent_after_an_offer_marked_while_pricing() -> None:
+    # « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant celle qui est
+    # lue, l'écart correspondant est absent plutôt que nul » : the offer, marked while pricing,
+    # is no review; the reference, marked In progress, is one.
+    witness = mocktoday.witness()
+    now, base = witness.today, witness.reference
+    after_offer = mockindicators.remaining_indicators(now, base, witness.offer, witness.costs)
+    assert after_offer["delta_to_previous_revision"] is None
+    after_reference = mockindicators.remaining_indicators(now, base, base, witness.costs)
+    assert after_reference["delta_to_previous_revision"] is not None
+
+
+@pytest.mark.requirement("WF-IND-0090-A")
+def test_no_revision_marked_before_the_state_in_progress_gives_a_point(
+    today: dict[str, Any],
+) -> None:
+    # « Les révisions marquées avant l'état En cours ne donnent aucun point » ; « Un jalon terminé
+    # n'a plus de point après sa terminaison, et son dernier point est sur la diagonale » ; the
+    # last point of the other is that of the current day.
+    studies, acceptance = today["milestone_tracking"]["milestones"]
+    for milestone in (studies, acceptance):
+        assert all(point["marked_at"] != "2025-12-15T16:00:00Z" for point in milestone["points"])
+    assert studies["points"][-1] == {
+        "marked_at": f"{studies['completed_on']}T00:00:00Z",
+        "forecast_date": studies["completed_on"],
+    }
+    assert acceptance["points"][-1]["marked_at"] == "2026-06-03T14:05:00Z"
+
+
+WEEK = (date(2026, 3, 2), date(2026, 3, 6))
+
+
+def _leaf(number: int, amount: str, progress: str, *extra: Line) -> Task:
+    return Task(
+        number,
+        f"Tâche {number}",
+        days=5,
+        manual=WEEK,
+        progress=progress,
+        lines=(Line(number * 10, f"Ligne {number}", SUBCONTRACTING, unit=Decimal(amount)), *extra),
+    )
+
+
+@pytest.mark.requirement("WF-IND-0060-A")
+@pytest.mark.parametrize(
+    ("own", "expected"),
+    [
+        # « Une récapitulative sans ligne propre dont les deux premières de trois subordonnées, de
+        # montants budgétés 100, 100 et 200, sont terminées affiche 50 % » — the provision of 50 on
+        # the second, out of both terms.
+        ((), "0.5"),
+        # Its own line of 100 counts, not earned while it is not completed: 200 on 500.
+        ((Line(9009, "Ligne propre", SUBCONTRACTING, unit=Decimal(100)),), "0.4"),
+    ],
+)
+def test_the_physical_progress_of_a_summary_leaves_out_the_lines_of_provision(
+    own: tuple[Line, ...], expected: str
+) -> None:
+    provision = Line(9029, "Provision", PROVISIONS, unit=Decimal(50), is_provision=True)
+    summary = Task(
+        900,
+        "Récapitulative",
+        lines=own,
+        children=(
+            _leaf(901, "100", "completed"),
+            _leaf(902, "100", "completed", provision),
+            _leaf(903, "200", "started"),
+        ),
+    )
+    [row] = [row for row in mockcore.core((summary,), date(2026, 6, 3)) if row.number == 900]
+    facet = cast("Node", row.node["task"])
+    assert facet["physical_progress"] == {
+        "is_computable": True,
+        "value": expected,
+        "reason": None,
+    }

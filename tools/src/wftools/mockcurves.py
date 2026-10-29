@@ -58,10 +58,10 @@ def remaining_flows(reading: Reading, *, delays: bool = False, scope: str = PROJ
     """Return the remaining to commit of a scope spread on the dates of the current revision.
 
     Each line over the hours its task has left to work after the day of the reading; one whose
-    task has none left on the first working day after (WF-IND-0100). With the payment delays,
-    each shifted by its line's, and a provision of a risk identified at the date of its task —
-    its finish, or the first working day after today when it is past. The lines of the scope
-    alone: the project, a subproject or none (WF-IND-0020).
+    task is past its finish whole at the day of the reading (WF-IND-0100, WF-RAE-0040). With the
+    payment delays, each shifted by its line's, and a provision of a risk identified, which bears
+    none, at the date of its task — its finish, or the day of the reading when it is past. The
+    lines of the scope alone: the project, a subproject or none (WF-IND-0020).
     """
     after = Instant(reading.day, END_OF_DAY)
     flows: list[Flow] = []
@@ -72,8 +72,7 @@ def remaining_flows(reading: Reading, *, delays: bool = False, scope: str = PROJ
         placed = reading.bearer(line)
         calendar, delay = placed.calendar, reading.delays[line.number] if delays else 0
         if delays and mockhistory.is_provision(line):
-            upcoming = calendar.start_at(after)
-            at = max(Instant(placed.finish.day), Instant(upcoming.day))
+            at = max(Instant(placed.finish.day, END_OF_DAY), after)
             flows.append(Flow(amount, calendar, at, at))
         else:
             flows.append(ahead(reading, line, amount, delay))
@@ -83,15 +82,16 @@ def remaining_flows(reading: Reading, *, delays: bool = False, scope: str = PROJ
 def ahead(reading: Reading, line: mockcore.Row, amount: Decimal, delay: int = 0) -> Flow:
     """Return what is left of a line spread over the hours its task works after the reading.
 
-    All its hours for a task not started, those after the day of the reading for one started;
-    on the first working day after it for a task with none left (WF-RAE-0010, WF-IND-0100).
+    Over the part of the duration of its task after the day of the reading, pro rata of the
+    hours of work: all its hours for a task not started, those after the day for one started or
+    late to start; whole at the day of the reading for a task past its finish — in its month, for
+    the workload (WF-IND-0100, WF-RAE-0040, WF-DEV-0070).
     """
     after = Instant(reading.day, END_OF_DAY)
     placed = reading.bearer(line)
     calendar = placed.calendar
     if placed.finish <= after:
-        upcoming = calendar.start_at(after)
-        return Flow(amount, calendar, upcoming, upcoming, delay)
+        return Flow(amount, calendar, after, after, delay)
     return Flow(amount, calendar, max(placed.start, after), placed.finish, delay)
 
 
@@ -320,8 +320,11 @@ def cost_curve(
             {"name": "actual_cost", "points": actual_series(costs, origin, day) if drawn else []},
             {
                 "name": "project_manager_projection",
+                # It starts from the actual cost at the day (WF-IND-0100): what is past its
+                # finish, whole at that day, is in the point of the end of its month.
                 "points": _points(
-                    (each, spent + left.by(each)) for each in (projection if drawn else [])
+                    (each, spent + (left.by(each) if each > day else Decimal(0)))
+                    for each in (projection if drawn else [])
                 ),
             },
         ],

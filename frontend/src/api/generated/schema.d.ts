@@ -2100,7 +2100,7 @@ export interface paths {
         };
         /**
          * Diagramme temps/temps
-         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage ; la courbe s'arrête à la terminaison (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un sous-projet n'a pas (WF-IND-0020).
+         * @description Pour chaque jalon inscrit au suivi, la date que chaque révision marquée à l'état En cours prévoyait, en fonction de sa date de marquage — une révision marquée avant n'en donne aucune — ; la courbe d'un jalon s'arrête par un point à sa date de terminaison, en abscisse comme en ordonnée, et le dernier point d'un jalon non terminé est celui du jour courant, par la révision en cours ou, à défaut, la dernière révision marquée (WF-IND-0090, WF-IND-0010). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un sous-projet n'a pas (WF-IND-0020).
          */
         get: operations["getMilestoneTracking"];
         put?: never;
@@ -2120,7 +2120,7 @@ export interface paths {
         };
         /**
          * Courbe de coûts cumulés
-         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, le reste à engager étalé sur les dates de la révision courante. Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date de la tâche qui les porte : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040). Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
+         * @description Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la projection du chef de projet, qui part de ce point : le reste à engager de chaque ligne étalé, au prorata des heures travaillées, sur la part de la durée de sa tâche postérieure à la date de calcul, et porté entier à la date de calcul quand la fin de la tâche est dépassée (WF-RAE-0040). Les changements du budget apparaissent comme des marches datées. Sur demande (`payment_delays`), chaque montant du budget et de la projection est décalé du délai de paiement de sa ligne, les provisions des risques identifiés, qui n'en portent pas, restant à la date de la tâche qui les porte, et le coût réel n'est pas décalé : la courbe présente alors les décaissements, passés et à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040). Restreinte à un sous-projet, ou à l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce que l'avenant change du budget de la maille, aucune s'il n'en change rien ; `context.scope` nomme la maille. Une maille sans ligne dans aucune référence ni dans la révision courante, et sans coût réel, n'a rien à tracer : ses séries sans point, aucune marche, et `cash_out_by_month` vide avec les délais de paiement.
          */
         get: operations["getCostCurve"];
         put?: never;
@@ -4152,7 +4152,7 @@ export interface components {
             total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
             is_critical?: boolean;
-            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
             physical_progress?: components["schemas"]["Computable"] | null;
             /** @description Somme des montants aux taux de l'année de référence, avant inflation, des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : une valeur de lecture, que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les deux sommes qui suivent. */
             base_amount?: components["schemas"]["Money"];
@@ -4459,7 +4459,7 @@ export interface components {
             total_float?: components["schemas"]["Duration"] | null;
             /** @description Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). */
             is_critical?: boolean;
-            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
+            /** @description Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative. */
             physical_progress?: components["schemas"]["Computable"] | null;
             /** @description Somme des montants aux taux de l'année de référence, avant inflation, des lignes que la tâche porte et de ceux de ses subordonnées, calculée par le serveur, jamais saisissable : une valeur de lecture, que la grille de devis présente pour une tâche, récapitulative comprise (WF-DEV-0050). Un attribut de la tâche : un filtre de la grille ne le change pas, comme les deux sommes qui suivent. */
             base_amount: components["schemas"]["Money"];
@@ -4858,8 +4858,10 @@ export interface components {
         SubprojectBalance: {
             key: string;
             label?: string;
+            /** @description Le budget de référence du sous-projet : la somme des montants budgétés des lignes qui lui appartiennent dans la révision de référence, hors lignes de provision (WF-IND-0020). */
             budget: components["schemas"]["Money"];
             actual_cost: components["schemas"]["Money"];
+            /** @description Le reste à engager des lignes qui lui appartiennent dans la révision courante (WF-IND-0020) : une ligne passée d'un sous-projet à un autre après la référence compte son budget dans le premier, son reste à engager dans le second. */
             remaining: components["schemas"]["Money"];
             /** @description La marge du sous-projet : son budget moins la somme de son coût réel et de son reste à engager, positive quand il en reste, négative quand le sous-projet dépasse son budget (WF-RAE-0020) — le sens de `RemainingIndicators.delta_to_reference`. */
             variance: components["schemas"]["Money"];
@@ -4876,7 +4878,7 @@ export interface components {
             by_subproject: components["schemas"]["SubprojectBalance"][];
             /** @description La marge sur le budget de référence (WF-RAE-0020) : le budget de référence moins la somme du coût réel et du reste à engager, positive quand il en reste, négative quand le projet dépasse son budget — budget 1 000, coût réel 500, reste à engager 550, marge -50 ; nulle quand le projet n'a pas de révision de référence. */
             delta_to_reference?: components["schemas"]["Money"] | null;
-            /** @description L'écart avec le reste à engager de la révision marquée précédente, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran l'omet alors (WF-RAE-0020). */
+            /** @description L'écart avec le reste à engager de la révision marquée précédente qui l'a été à l'état En cours, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`), et non zéro, quand aucune révision n'a été marquée à l'état En cours avant celle qui est lue — une offre marquée en chiffrage n'est pas une revue — : l'écran l'omet alors (WF-RAE-0020). */
             delta_to_previous_revision?: components["schemas"]["Money"] | null;
         };
         /**
@@ -4929,7 +4931,7 @@ export interface components {
             reference_budget: components["schemas"]["Money"];
             /** @description Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle que la révision de référence la date, au prorata des heures travaillées — du calendrier de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon (WF-DEV-0080). */
             planned_value: components["schemas"]["Money"];
-            /** @description Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030). */
+            /** @description Montants budgétés des lignes des tâches terminées à la date de calcul, hors lignes de provision, la date de terminaison faisant foi ; les lignes propres d'une récapitulative s'acquièrent quand elle est terminée, et celles issues d'un risque survenu ne s'acquièrent pas (WF-IND-0030). */
             earned_value: components["schemas"]["Money"];
             /** @description Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de calcul (WF-IND-0010). */
             actual_cost: components["schemas"]["Money"];
@@ -4946,15 +4948,18 @@ export interface components {
             schedule_variance: components["schemas"]["Money"];
             projections: components["schemas"]["Projections"];
         };
-        /** @description Diagramme temps/temps : pour chaque jalon inscrit, la date que chaque révision marquée prévoyait, en fonction de sa date de marquage (WF-IND-0090). */
+        /** @description Diagramme temps/temps : pour chaque jalon inscrit, la date que chaque révision marquée à l'état En cours prévoyait, en fonction de sa date de marquage ; les révisions marquées avant l'état En cours ne donnent aucun point (WF-IND-0090). */
         MilestoneTracking: {
             context: components["schemas"]["CalculationContext"];
             milestones: {
                 lineage_id: components["schemas"]["Uuid"];
                 label: string;
                 completed_on?: components["schemas"]["PlanningDate"] | null;
+                /** @description Un point par révision marquée à l'état En cours, à sa date de marquage, jusqu'à la terminaison du jalon — le dernier point d'un jalon terminé est à sa date de terminaison, en abscisse comme en ordonnée, et aucune révision marquée ensuite n'en ajoute — ; puis, pour un jalon non terminé, le point du jour courant, que fournit la révision en cours ou, à défaut, la dernière révision marquée (WF-IND-0090, WF-IND-0010). */
                 points: {
+                    /** @description L'abscisse du point : la date de marquage de sa révision, la terminaison du jalon — à minuit, la date de terminaison n'ayant pas d'heure —, ou l'instant du calcul pour le point du jour courant. */
                     marked_at: components["schemas"]["Timestamp"];
+                    /** @description L'ordonnée : la date que la révision prévoyait pour le jalon, ou sa date de terminaison pour le dernier point d'un jalon terminé. */
                     forecast_date: components["schemas"]["PlanningDate"];
                 }[];
             }[];
@@ -4968,7 +4973,7 @@ export interface components {
         /** @description Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant, nulle ; la date de calcul est un point de plus sur les séries qui s'y arrêtent ou en partent (`actual_cost`, `earned_value`, `project_manager_projection`), et une marche d'avenant deux points à sa date, avant et après (`steps`). Les changements du budget de référence y apparaissent comme des marches datées. Les courbes d'une révision marquée sont conservées avec ses indicateurs et présentées au même pas (WF-DAT-0040). Demandée avec les délais de paiement, la courbe de coûts cumulés porte les décaissements : ses séries sont décalées, et `cash_out_by_month` les détaille par mois. Une série sans point n'a rien à tracer pour la maille (WF-IND-0020) : le budget de référence, quand aucune référence n'y budgète de ligne ; toutes les séries, quand la maille n'a ni ligne ni coût réel, comme le dit `getCostCurve`. Le coût réel d'une maille qui a des lignes sans pièce reste tracé, nul, de l'origine de la courbe à la date de calcul. L'écran dit une série sans point plutôt que de tracer un zéro. */
         CurveSeries: {
             context: components["schemas"]["CalculationContext"];
-            /** @description Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon. */
+            /** @description Vrai quand les séries sont celles des décaissements : le budget de référence et la projection décalés, chaque montant du délai de paiement de sa ligne, les provisions des risques identifiés, qui n'en portent pas, à la date de la tâche qui les porte ; le coût réel n'est pas décalé (WF-IND-0100). Faux sinon. */
             payment_delays: boolean;
             series: {
                 /** @enum {string} */
@@ -4986,7 +4991,7 @@ export interface components {
                 /** @enum {string} */
                 cause: "amendment";
             }[];
-            /** @description Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon. */
+            /** @description Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce — le coût réel n'est pas décalé — ; l'avenir en étalant le reste à engager de chaque ligne, au prorata des heures travaillées, sur la part de la durée de sa tâche postérieure à la date de calcul, porté entier à la date de calcul quand la fin de la tâche est dépassée, chaque part décalée du délai de paiement de sa ligne, et les provisions des risques identifiés à la date de leur tâche (WF-IND-0100, WF-RAE-0040). Nul sinon. */
             cash_out_by_month: components["schemas"]["CashOutMonth"][] | null;
         };
         /** @description Les deux indices d'une révision : à sa date de marquage, tels que le marquage les a conservés (WF-DAT-0040), leur zone classée sur les seuils courants (WF-REF-0130) ; au jour courant, le dernier point, `version_name` nul et `revision_id` celui de la révision en cours, ou de la dernière révision marquée sur un projet qui n'en a pas, calculé avec le coût réel du jour (WF-IND-0010, WF-IND-0130). */

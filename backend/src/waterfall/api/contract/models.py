@@ -2914,7 +2914,7 @@ class ComparedTaskFacet(ContractModel):
     physical_progress: Annotated[
         Computable | None,
         Field(
-            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
         ),
     ] = None
     base_amount: Annotated[
@@ -3588,7 +3588,7 @@ class TaskFacet(ContractModel):
     physical_progress: Annotated[
         Computable | None,
         Field(
-            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
         ),
     ] = None
     base_amount: Annotated[
@@ -4314,9 +4314,19 @@ class AmountByKey(ContractModel):
 class SubprojectBalance(ContractModel):
     key: str
     label: str | None = None
-    budget: Money
+    budget: Annotated[
+        Money,
+        Field(
+            description="Le budget de référence du sous-projet : la somme des montants budgétés des lignes qui lui appartiennent dans la révision de référence, hors lignes de provision (WF-IND-0020)."
+        ),
+    ]
     actual_cost: Money
-    remaining: Money
+    remaining: Annotated[
+        Money,
+        Field(
+            description="Le reste à engager des lignes qui lui appartiennent dans la révision courante (WF-IND-0020) : une ligne passée d'un sous-projet à un autre après la référence compte son budget dans le premier, son reste à engager dans le second."
+        ),
+    ]
     variance: Annotated[
         Money,
         Field(
@@ -4347,7 +4357,7 @@ class RemainingIndicators(ContractModel):
     delta_to_previous_revision: Annotated[
         Money | None,
         Field(
-            description="L'écart avec le reste à engager de la révision marquée précédente, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran l'omet alors (WF-RAE-0020)."
+            description="L'écart avec le reste à engager de la révision marquée précédente qui l'a été à l'état En cours, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`), et non zéro, quand aucune révision n'a été marquée à l'état En cours avant celle qui est lue — une offre marquée en chiffrage n'est pas une revue — : l'écran l'omet alors (WF-RAE-0020)."
         ),
     ] = None
 
@@ -4442,7 +4452,7 @@ class ProjectIndicators(ContractModel):
     earned_value: Annotated[
         Money,
         Field(
-            description="Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030)."
+            description="Montants budgétés des lignes des tâches terminées à la date de calcul, hors lignes de provision, la date de terminaison faisant foi ; les lignes propres d'une récapitulative s'acquièrent quand elle est terminée, et celles issues d'un risque survenu ne s'acquièrent pas (WF-IND-0030)."
         ),
     ]
     actual_cost: Annotated[
@@ -4478,15 +4488,30 @@ class ProjectIndicators(ContractModel):
 
 
 class Point(ContractModel):
-    marked_at: Timestamp
-    forecast_date: PlanningDate
+    marked_at: Annotated[
+        Timestamp,
+        Field(
+            description="L'abscisse du point : la date de marquage de sa révision, la terminaison du jalon — à minuit, la date de terminaison n'ayant pas d'heure —, ou l'instant du calcul pour le point du jour courant."
+        ),
+    ]
+    forecast_date: Annotated[
+        PlanningDate,
+        Field(
+            description="L'ordonnée : la date que la révision prévoyait pour le jalon, ou sa date de terminaison pour le dernier point d'un jalon terminé."
+        ),
+    ]
 
 
 class Milestone(ContractModel):
     lineage_id: Uuid
     label: str
     completed_on: PlanningDate | None = None
-    points: list[Point]
+    points: Annotated[
+        list[Point],
+        Field(
+            description="Un point par révision marquée à l'état En cours, à sa date de marquage, jusqu'à la terminaison du jalon — le dernier point d'un jalon terminé est à sa date de terminaison, en abscisse comme en ordonnée, et aucune révision marquée ensuite n'en ajoute — ; puis, pour un jalon non terminé, le point du jour courant, que fournit la révision en cours ou, à défaut, la dernière révision marquée (WF-IND-0090, WF-IND-0010)."
+        ),
+    ]
 
 
 class MilestoneTracking(ContractModel):
@@ -4538,7 +4563,7 @@ class CurveSeries(ContractModel):
     payment_delays: Annotated[
         bool,
         Field(
-            description="Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon."
+            description="Vrai quand les séries sont celles des décaissements : le budget de référence et la projection décalés, chaque montant du délai de paiement de sa ligne, les provisions des risques identifiés, qui n'en portent pas, à la date de la tâche qui les porte ; le coût réel n'est pas décalé (WF-IND-0100). Faux sinon."
         ),
     ]
     series: list[Series]
@@ -4551,7 +4576,7 @@ class CurveSeries(ContractModel):
     cash_out_by_month: Annotated[
         list[CashOutMonth] | None,
         Field(
-            description="Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon."
+            description="Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce — le coût réel n'est pas décalé — ; l'avenir en étalant le reste à engager de chaque ligne, au prorata des heures travaillées, sur la part de la durée de sa tâche postérieure à la date de calcul, porté entier à la date de calcul quand la fin de la tâche est dépassée, chaque part décalée du délai de paiement de sa ligne, et les provisions des risques identifiés à la date de leur tâche (WF-IND-0100, WF-RAE-0040). Nul sinon."
         ),
     ]
 

@@ -724,8 +724,11 @@ def remaining_indicators(
     to the reference budget — the budget less the actual cost and the remaining, positive while
     a margin is left, in the one sense of the balances of the subprojects (#466) —, and to the
     remaining of the previous marked revision at its marking — the remaining less that one —,
-    absent without one; the coverage of the risks (WF-RIS-0050).
+    absent without one, or when it was not marked In progress: an offer marked while pricing is
+    no review (WF-RAE-0020); the coverage of the risks (WF-RIS-0050).
     """
+    if previous is not None and state_at(previous.at) != IN_PROGRESS:
+        previous = None
     total = remaining(reading)
     by_nature = [
         (group, sum((remaining_of(reading, line) for line in group.lines), Decimal(0)))
@@ -886,11 +889,13 @@ def index_history(
 def milestone_tracking(marked: Sequence[Point], current: Point) -> JsonObject:
     """Return the time/time chart of the tracked milestones (`MilestoneTracking`, WF-IND-0090).
 
-    For each milestone, the date each marked revision that bears it forecast, at its marking;
-    the last point today, by the current revision — or, for a milestone completed, at its
-    completion, on the diagonal, nothing after.
+    For each milestone, the date each revision marked In progress that bears it forecast, at
+    its marking — one marked before gives none, the state read in the transitions of the project
+    at its marking —; the last point today, by the current revision — or, for a milestone
+    completed, at its completion, on the diagonal, nothing after.
     """
     now = current.reading
+    kept = [point for point in marked if state_at(point.reading.at) == IN_PROGRESS]
     entries: list[JsonValue] = []
     for number in TRACKED:
         completed = now.completed_on(number)
@@ -899,7 +904,7 @@ def milestone_tracking(marked: Sequence[Point], current: Point) -> JsonObject:
                 "marked_at": mockhistory.stamp(point.reading.at),
                 "forecast_date": point.reading.dated[number].finish.day.isoformat(),
             }
-            for point in marked
+            for point in kept
             if number in point.reading.dated
             and (completed is None or point.reading.day <= completed)
         ]

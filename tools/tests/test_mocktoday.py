@@ -544,9 +544,9 @@ def test_the_disbursements_to_come_sum_to_the_remaining(today: dict[str, Any]) -
 def test_the_milestones_follow_the_revisions_that_bear_them(today: dict[str, Any]) -> None:
     studies, acceptance = today["milestone_tracking"]["milestones"]
     # The reception of the studies, kept by every revision, completed on 24 April: its last
-    # point on the diagonal, none after.
+    # point on the diagonal, none after; the offer, marked while pricing, gives none.
     assert studies["completed_on"] == "2026-04-24"
-    assert [point["forecast_date"] for point in studies["points"]] == ["2026-04-24"] * 3
+    assert [point["forecast_date"] for point in studies["points"]] == ["2026-04-24"] * 2
     assert studies["points"][-1]["marked_at"] == "2026-04-24T00:00:00Z"
     # The factory acceptance, added by the amendment 1: no point by the offer (C13).
     assert [point["marked_at"] for point in acceptance["points"]] == [
@@ -646,9 +646,9 @@ def test_the_evolution_of_the_indices_keeps_the_revisions_marked_in_progress(
             mockhistory.REFERENCE,
             mockhistory.CURRENT,
         ]
-    # The tracking of the milestones keeps the forecast of the offer.
+    # The tracking of the milestones neither (WF-IND-0090, US-0701/L5).
     studies = today["milestone_tracking"]["milestones"][0]
-    assert studies["points"][0]["marked_at"] == "2025-12-15T16:00:00Z"
+    assert studies["points"][0]["marked_at"] == "2026-02-01T09:00:00Z"
 
 
 def test_the_state_at_a_marking_is_read_in_the_transitions_of_the_project_not_from_its_date() -> (

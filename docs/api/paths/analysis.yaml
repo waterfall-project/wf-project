@@ -271,9 +271,12 @@
     tags: [indicators]
     summary: Diagramme temps/temps
     description: >-
-      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait,
-      en fonction de sa date de marquage ; la courbe s'arrête à la terminaison
-      (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
+      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée à l'état En
+      cours prévoyait, en fonction de sa date de marquage — une révision marquée avant n'en
+      donne aucune — ; la courbe d'un jalon s'arrête par un point à sa date de terminaison, en
+      abscisse comme en ordonnée, et le dernier point d'un jalon non terminé est celui du jour
+      courant, par la révision en cours ou, à défaut, la dernière révision marquée
+      (WF-IND-0090, WF-IND-0010). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
       sous-projet n'a pas (WF-IND-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -297,12 +300,15 @@
     summary: Courbe de coûts cumulés
     description: >-
       Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la
-      projection du chef de projet, le reste à engager étalé sur les dates de la
-      révision courante. Les changements du budget apparaissent comme des marches
-      datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de
-      paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date
-      de la tâche qui les porte : la courbe présente alors les décaissements, passés et
-      à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
+      projection du chef de projet, qui part de ce point : le reste à engager de chaque ligne
+      étalé, au prorata des heures travaillées, sur la part de la durée de sa tâche
+      postérieure à la date de calcul, et porté entier à la date de calcul quand la fin de la
+      tâche est dépassée (WF-RAE-0040). Les changements du budget apparaissent comme des
+      marches datées. Sur demande (`payment_delays`), chaque montant du budget et de la
+      projection est décalé du délai de paiement de sa ligne, les provisions des risques
+      identifiés, qui n'en portent pas, restant à la date de la tâche qui les porte, et le coût
+      réel n'est pas décalé : la courbe présente alors les décaissements, passés et à venir,
+      et les rend aussi par mois (`cash_out_by_month`) ; la somme des
       décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque
       point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision
       marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses

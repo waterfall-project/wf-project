@@ -494,13 +494,14 @@ def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[
             f"la révision en cours : {_indices(control)} (WF-IND-0020, WF-IND-0130)."
         ),
         "milestone_tracking": (
-            f"Le diagramme temps/temps du projet au {_TODAY} : la réception des études, prévue au "
-            f"{_on(studies['completed_on'])} par l'offre et par la référence, terminée ce jour-là, "
-            f"son dernier point sur la diagonale et aucun après ; la réception usine, ajoutée par "
-            f"l'avenant 1 — l'offre ne la porte pas —, prévue au "
+            f"Le diagramme temps/temps du projet au {_TODAY} : un point par révision marquée à "
+            f"l'état En cours — la référence ; l'offre, marquée pendant le chiffrage, n'en donne "
+            f"aucun. La réception des études, prévue au {_on(studies['completed_on'])} par la "
+            f"référence, terminée ce jour-là, son dernier point sur la diagonale et aucun après ; "
+            f"la réception usine, ajoutée par l'avenant 1, prévue au "
             f"{_on(_objs(acceptance['points'])[0]['forecast_date'])} par la référence et toujours "
-            f"par la révision en cours : une horizontale. Aucune révision ne déplace un jalon "
-            f"(WF-IND-0090)."
+            f"par la révision en cours, au jour courant : une horizontale. Aucune révision ne "
+            f"déplace un jalon (WF-IND-0090)."
         ),
     }
 
