@@ -8583,11 +8583,11 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   d'appliquer est prise (l'offre et la référence recevront la même année de référence), sa mise
   en œuvre est en question — WF-REV-0060 oblige à redater l'offre en 2026, ce qui retire au témoin
   son récit de mise à jour des taux (commentaire de #1628) — et la part détachée US-0701/L2b
-  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de
-  main-d'œuvre réestimées seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis
-  du témoin vaut 68 923 691,06, son budget de référence
-  68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
-  de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
+  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de
+  WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
+  seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
+  68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
+  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
   réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
   plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
@@ -8973,8 +8973,11 @@ d'EP-02/L7 (L-16), la fusion de l'avenant 1 d'EP-02/L27 (#467, L-14) et l'annula
   Ce témoin ne prouve donc pas la conservation : comme la valeur conservée à chaque marquage et la
   valeur courante du projet sont égales partout, `test_mockrevisions.py` ne distingue pas « conservé
   au marquage » de « suit le projet » (WF-REV-0070, WF-REV-0090). Une révision au taux ou à la
-  probabilité différents obligerait à réécrire les récits chiffrés du témoin, hors de ce lot ; la
-  conservation est éprouvée par le back, sur des données qui changent.
+  probabilité différents obligerait à réécrire les récits chiffrés du témoin, hors de ce lot.
+  Aujourd'hui, aucun test n'éprouve la conservation : ni le faux back, dont le témoin a des valeurs
+  égales partout, ni le back, car EP-16 n'écrit pas le service de révision. Le service de
+  l'EPIC EP-04 (WF-REV-0070-A, WF-REV-0090-A), qui réalise les révisions, l'éprouvera sur des
+  données qui changent.
 - **Les images des taux conservés** (E-11, WF-REV-0030). `EmployedReference.hourly_rates` lit
   `HourlyRateImage` — catégorie, année, montant —, sans l'audit ni le compteur du taux du
   référentiel, qui bougent après le marquage. Les trois autres images gardent les leurs, celles
