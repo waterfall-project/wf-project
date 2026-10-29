@@ -3139,9 +3139,24 @@
     },
     "StructureCreate": {
       "kind": {
-        "amendment": "Avenant",
-        "risk": "Devis de risque"
+        "amendment": "Avenant"
       }
+    },
+    "UndoneKind": {
+      "cell": "Cellule modifiée",
+      "node_create": "Création de nœud",
+      "node_delete": "Suppression de nœud",
+      "node_move": "Déplacement de nœud",
+      "paste": "Collage",
+      "link": "Lien",
+      "progress": "Avancement",
+      "remaining": "Reste à faire",
+      "tracking": "Suivi",
+      "structure_update": "Modification de la structure",
+      "risk_create": "Création de risque",
+      "risk_update": "Modification de risque",
+      "risk_review": "Revue de risque",
+      "risk_delete": "Suppression de risque"
     },
     "TaskProgress": {
       "not_started": "Non démarrée",
