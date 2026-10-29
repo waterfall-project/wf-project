@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import functools
 import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -54,12 +54,25 @@ if TYPE_CHECKING:
     from datetime import date
 
 
+@dataclass(frozen=True, slots=True)
+class Conflict:
+    """A link a predecessor in automatic mode cannot satisfy with a task in manual mode.
+
+    Named by both its tasks and its type, as the grid and the Gantt name it (WF-PLA-0020).
+    """
+
+    predecessor: int
+    successor: int
+    link_type: str
+
+
 @dataclass(slots=True)
 class Dated:
     """A task of the core placed in time: its calendar, its dates, the latest it may finish.
 
     A summary and a task in manual mode have no latest finish: the first is not scheduled, the
-    second is a date imposed, with no float and never critical (WF-PLA-0100).
+    second is a date imposed, with no float and never critical (WF-PLA-0100). The links a task
+    cannot satisfy, or that are not satisfied for it, are its conflicts (WF-PLA-0020).
     """
 
     task: Task
@@ -67,6 +80,7 @@ class Dated:
     start: Instant
     finish: Instant
     late_finish: Instant | None = None
+    conflicts: list[Conflict] = field(default_factory=list[Conflict])
 
     @property
     def hours(self) -> Decimal:
@@ -83,6 +97,19 @@ class Dated:
         if self.late_finish is None:
             return None
         return self.calendar.work_between(self.finish, self.late_finish) / HOURS_PER_DAY
+
+
+def float_of(dated: Mapping[int, Dated], number: int) -> Decimal | None:
+    """Return the total float of a task in days of work, a summary's from its subordinates.
+
+    A summary bears the smallest float of those of its subordinates that bear one, and none when
+    none does (WF-PLA-0100): it is critical as soon as one of them is, its float nil or negative.
+    """
+    placed = dated[number]
+    if not placed.task.children:
+        return placed.total_float
+    floats = [float_of(dated, child.number) for child in placed.task.children]
+    return min((each for each in floats if each is not None), default=None)
 
 
 def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
@@ -202,7 +229,7 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
     task's start, its own duration after. The lag is placed on the successor's calendar, as the
     forward pass places it. A successor in manual mode bounds its predecessors by the dates
     entered, its latest start being its start (WF-PLA-0100, #402): a predecessor that cannot
-    finish in time has a negative float.
+    finish in time has a negative float, and the link is a conflict both tasks bear (WF-PLA-0020).
     """
     activities = [each for each in dated.values() if not each.task.children]
     core_finish = max(each.finish for each in activities)
@@ -231,6 +258,11 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
                 start = calendar.instant(latest_start, finish=False)
                 bound = each.calendar.finish_after(start, each.hours)
             latest = min(latest, bound)
+            manual = successor.task.manual is not None
+            if manual and each.calendar.work_between(each.finish, bound) < 0:
+                conflict = Conflict(task.number, successor.task.number, link_type)
+                each.conflicts.append(conflict)
+                successor.conflicts.append(conflict)
         each.late_finish = latest
 
 

@@ -44,6 +44,7 @@ And the named examples of ``listNodes`` and of ``getComputedValueDependencies``,
 ``nodes_estimate``, ``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by
 ``wftools.mocksort``), ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
 ``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
+``dependencies_labour_category``,
 ``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float``,
 ``dependencies_provision_subproject`` —:
 readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
@@ -586,6 +587,11 @@ def readings() -> dict[str, JsonObject]:
             "devis : le taux horaire de sa catégorie pour l'année de référence ; aucune ligne "
             "(WF-IHM-0030, WF-DEV-0030, WF-DEV-0050).",
             mockcore.dependencies(rows, _LABOUR, "estimate_line.base_amount"),
+        ),
+        "dependencies_labour_category.json": _example(
+            "Ce dont dépend la catégorie de la ligne de main-d'œuvre du devis : son rôle de "
+            "ressource, dont elle tient sa catégorie ; aucune ligne (WF-IHM-0030, WF-DEV-0020).",
+            mockcore.dependencies(rows, _LABOUR, "estimate_line.cost_category_id"),
         ),
         "dependencies_task_amount.json": _example(
             "Ce dont dépend le montant à l'année de référence de la tâche « Câblage des "

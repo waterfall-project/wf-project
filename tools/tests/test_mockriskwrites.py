@@ -40,6 +40,7 @@ CITED = (
     ("risks.yaml", "declareRiskOccurrence", "202", "task_occurrence_queued"),
     ("risks.yaml", "createRisk", "422", "risk_provision_task_refused"),
     ("revisions.yaml", "moveNodes", "422", "nodes_move_provision_refused"),
+    ("revisions.yaml", "setLineRemaining", "409", "remaining_provision_refused"),
     ("revisions.yaml", "listNodes", "200", "nodes_risk_estimate"),
     ("risks.yaml", "getRiskOccurrenceReport", "200", "risk_occurrence_report"),
     ("risks.yaml", "getRiskOccurrenceReport", "409", "risk_occurrence_not_identified"),

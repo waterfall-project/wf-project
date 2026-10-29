@@ -141,10 +141,10 @@ export interface Examples {
     200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
-    200: "dependencies_labour" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
+    200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}": {
     200: "row_number_estimate_line" | "row_number_task";
@@ -249,7 +249,7 @@ export interface Examples {
     200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
-    200: "task_attached" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
+    200: "task_attached" | "task_dates_conflicting" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
   };
   "PATCH /projects/{project_id}/risks/{risk_id}": {
     200: "risk_updated";
@@ -333,7 +333,7 @@ export interface Examples {
     202: "task_merge_queued";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "node_created" | "node_created_child";
+    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "estimate_line_created_labelled" | "node_created" | "node_created_child";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move": {
     200: "nodes_indented" | "nodes_moved";

@@ -305,6 +305,12 @@ WF-PLA-0080 et WF-RAE-0040 demandent sous le nom d'état. Les journaux (imports,
 coûts, sauvegardes, réexamens) restent sans filtre : la spécification n'en nomme aucun pour
 eux, et un filtre viendra avec l'écran qui le demande.
 
+*Réécrit en partie par US-0701/L3 (#1603, F-06, F-07 ; WF-PLA-0080 du 2026-10-09, recadrage du
+2026-10-28) : l'état n'est plus une colonne (`NodeColumn`), la grille de planning le signalant
+« par une marque visuelle et non par une colonne » ; le filtre `progress` reste, nommé comme la
+propriété qu'il filtre. `listNodes` se filtre sur chaque colonne des trois grilles, par les bornes
+et les périodes du README.*
+
 **Les décaissements sont la courbe de coûts cumulés, décalée** (WF-IND-0100 ; WF-IND-0120
 n'a jamais existé, la révision de la spécification du 2026-10-04 l'a dit : la projection de
 décaissement est « la lecture en décaissements de la courbe en S »). `getProjectCashOut` et
@@ -7689,6 +7695,11 @@ détail envoyées à l'état non démarré. Le faux back date désormais un gest
 où il est fait (`Task.declared_on`), et non plus par les dates de la tâche (WF-PLA-0130) ; aucune
 autre réponse engendrée n'en change.
 
+*Réécrit en partie par US-0701/L3 (#1603, F-13, L-13 ; WF-PLA-0130 du 2026-10-10, recadrage du
+2026-10-28) : un jalon terminé, qui ne passe jamais par l'état démarré, prend pour date de
+démarrage celle de sa terminaison, et rouvert, perd l'une et l'autre ; `milestone_completed` porte
+`started_on` au 3 juin.*
+
 **Le plafond des préférences se vérifie une fois la modification fusionnée** (#1235).
 `grids` et `timelines` étaient bornés à cent entrées par requête, mais des `PATCH` successifs
 faisaient grandir la table gardée. Le service compte les entrées après la fusion : une
@@ -9122,6 +9133,124 @@ le compte rendu d'EP-02/L35 (#383) et la tâche non démarrée de #486 (I-09), l
   spécification ne dit rien : le refus, qui demanderait une condition nouvelle de
   `CommandCondition`, reste à la forme des refus d'US-0702. Restent au gel : d'I-20, une liste
   `completed_tasks` non vide et le 409 d'une application refusée pour l'état.
+
+### L'arbre commun : récapitulatives, liaisons, colonnes, lignes de devis, paramètres de filtre (US-0701/L3, #1603, F-01, F-02, F-06, F-07, F-08, F-09, F-10, F-13, F-14)
+
+Les constats F-01, F-02, F-06 (ses paramètres), F-07 à F-10, F-13 et F-14 de la revue du contrat
+avant le gel, et leurs doublons L-07, L-09, L-10, L-12, L-13 et F-15. La spécification les a
+tranchés dans ses passes des 9 et 10 octobre 2026 (WF-PLA-0040, WF-PLA-0080, WF-PLA-0100 du
+2026-10-09 ; WF-PLA-0020, WF-PLA-0130 du 2026-10-10) ; la proposition de la revue s'applique
+(décision de l'auteur du 2026-10-28, « la règle des autres majeurs »), et la décision du
+recadrage « Les filtres de colonnes » fixe le partage de F-06. Réécrits en partie, plus haut : « Les
+gestes du Kanban » (EP-15/US-0540, F-13) et « Toute liste se filtre sur ce que son écran présente »
+(EP-02, F-07).
+
+- **La marge et la criticité d'une récapitulative** (F-01, L-10 ; WF-PLA-0100). `TaskFacet` exige
+  `total_float`, nullable, et `is_critical` : une récapitulative porte la plus petite marge de
+  celles de ses subordonnées qui en portent une, nulle quand aucune n'en porte, et elle est
+  critique dès que l'une d'elles l'est ; une tâche en mode manuel n'a pas de marge et n'est jamais
+  critique. Le client engendré ne distingue plus une récapitulative sans marge d'une valeur
+  absente. `ComputedDependency.subordinates` le dit ; la dépendance de la marge d'une
+  récapitulative n'a pas d'exemple propre. `mockdating.float_of` la calcule, et toutes les lectures
+  et les `ancestors` des écritures sont régénérés : « Études » porte une marge nulle et est
+  critique.
+- **La liaison en conflit** (F-02, L-07 ; WF-PLA-0020, WF-PLA-0100). La forme de L-07 :
+  `TaskFacet.link_conflicts` et `NodeSchedule.link_conflicts`, exigés, toujours rendus, vides sans
+  conflit, des `LinkConflict` `{predecessor_node_id, successor_node_id, link_type}` — sur la tâche
+  manuelle, les liaisons que ses prédécesseurs automatiques ne peuvent pas satisfaire ; sur le
+  prédécesseur, celles qu'il ne satisfait pas. La spécification signale « la tâche manuelle et ce
+  prédécesseur », et le signalement « nomme la liaison en cause » : les deux tâches lisent la
+  liaison sur leur propre nœud, et `rescheduled` suit l'écriture qui crée ou lève le conflit.
+  Écartée : la forme de F-02, `Predecessor.is_conflicting` et
+  `NodeSchedule.conflicting_predecessor_node_ids` — elle ne marque la liaison que du côté du
+  successeur, et le Gantt devrait parcourir les prédécesseurs de chaque successeur pour signaler
+  le prédécesseur, que seule sa marge négative distinguerait, ce que WF-ARC-0020 interdit ; le
+  type de la liaison, qui décide de ce qui est jugé, n'y serait pas. Le témoin n'a pas de tâche
+  manuelle liée à un prédécesseur automatique : l'exemple engendré `task_dates_conflicting`
+  (`mockgestures`) passe « Préparation 1.2.17 », tâche tirée autour du cœur, en mode manuel du 16
+  juin au 8 juillet, avant que son prédécesseur, « Reprise 1.2.14 », puisse finir le 23 juin ;
+  les deux nomment la liaison, le prédécesseur porte une marge de -6 jours, et la chaîne qui le
+  précède devient critique.
+- **Les filtres de colonne de `listNodes`** (F-06 ; WF-IHM-0060, WF-IHM-0130). Décision du
+  recadrage : les paramètres entrent au contrat et au faux back, leur présentation dans les trois
+  grilles va à EP-17. Chaque colonne des grilles de planning, de devis et de reste à engager, selon
+  la convention du README : les bornes `<colonne>_min` et `<colonne>_max` de la durée, de
+  l'avancement physique, de la marge, de la quantité, de la charge, du débours unitaire, du délai
+  de paiement, de l'année de consommation, des trois montants et des quatre grandeurs
+  précédentes ; les périodes `<colonne>_from` et `<colonne>_to` du début, de la fin, des dates de
+  démarrage et de terminaison ; `scheduling_mode` en liste ; `is_milestone`, `finish_overdue`,
+  `uses_inactive_object` ; `description`, un texte contenu, comme `search`. La liste de la revue
+  est corrigée : `inflated_amount` a disparu (L-01, US-0701/L1) ; l'avancement physique et les
+  grandeurs précédentes, colonnes que la revue omettait, y entrent. Deux points que ni la
+  spécification ni la revue ne disent, choisis au plus près du contrat : la durée, portée dans
+  l'unité de sa saisie, se borne en jours de travail, comme la marge, convertie par les
+  constantes de l'installation (`DurationUnits`) ; les prédécesseurs, une liste de liaisons et
+  non une valeur, ne se filtrent pas. Un filtre de la tâche retient la tâche avec ses lignes, un
+  filtre de la ligne la ligne, la borne d'un montant portant sur la ligne ; les refus sont ceux du
+  README. `compareRevisions`, qui partage les paramètres des nœuds (#1193), ne les reçoit pas : sa
+  grille n'est pas l'une des trois. Exemple engendré `nodes_estimate_filtered` (`mocksort`), le
+  devis du lot « Poste de commande » borné de 1 000,00 à 10 000,00 réestimés : le raccordement des
+  borniers et les borniers, leurs tâches rendues pour la lisibilité de l'arbre.
+- **Les colonnes de la grille de planning** (F-07, L-12 ; WF-PLA-0080). `NodeColumn` reçoit
+  `started_on` et `completed_on` après `is_critical`, à la place que WF-PLA-0080 leur donne, avant
+  les prédécesseurs et le rattachement, qui reste dernier (EP-02/L30) ; ce sont des colonnes de
+  lecture, qu'un collage refuse par `FIELD_NOT_ACCEPTED`. `progress` en sort : la spécification est
+  claire, l'état est « signalé par une marque visuelle et non par une colonne » (Vérif : « une
+  tâche terminée se distingue d'une tâche démarrée sans lire de colonne »), et seul le Kanban
+  l'écrit. Écarté : le garder comme colonne non saisissable, que la grille ne présente pas. Le
+  filtre `progress` reste, la grille de planning filtrant « sur les tâches démarrées ».
+  `paste_too_wide` ne change pas — sa largeur est celle d'une ligne, de son libellé à la dernière
+  colonne —, ni `known_columns` de `me_grid_settings`, qui ne connaît que la grille de devis.
+- **Le libellé composé** (F-08 ; WF-DEV-0020). `EstimateLineWrite.label` est facultatif :
+  absent, le serveur compose celui de la tâche porteuse et, s'il existe, celui du rôle ; envoyé,
+  il est pris tel quel. La forme, que ni la spécification ni la revue ne donnent, suit celle des
+  libellés du témoin qui joignent deux noms (« Provision — risque de reprise du câblage ») : les
+  deux séparés par un tiret cadratin entre deux espaces, tronqués à 300 caractères. Exemple engendré
+  `estimate_line_created_labelled` (`mockamendmentwrites`), une ligne de main-d'œuvre créée sous la
+  mise en service de l'avenant 2, son rôle seul envoyé : « Mise en service — Technicien de mise en
+  service ».
+- **La catégorie d'une ligne de main-d'œuvre** (F-09 ; Vérif de WF-DEV-0020). Elle est celle du
+  rôle, calculée : `estimate_line.cost_category_id` entre dans `ComputedField` et
+  `ComputedValueField`, les lignes de main-d'œuvre la portent dans `computed_fields` et non plus
+  dans `editable_fields`, et `ComputedDependency.resource_role` la nomme. `EstimateLineWrite`
+  n'exige plus la catégorie quand le rôle est envoyé ; sans rôle, elle est exigée
+  (`VALUE_REQUIRED`). Une catégorie envoyée qui n'est pas celle du rôle est refusée par
+  `COMPUTED_VALUE`, à la création comme à la modification ; la sienne ne change rien. Écarté : le
+  motif `FIELD_NOT_ACCEPTED` de la revue, qui dit un champ que le nœud ne porte pas, quand la
+  catégorie est une valeur calculée pour lui, que WF-IHM-0030 refuse « en nommant ce dont elle
+  dépend » — la proposition range elle-même la catégorie dans `computed_fields`. Exemples
+  engendrés `estimate_line_category_mismatch` et `dependencies_labour_category`.
+- **La ligne de provision ne se réestime pas** (F-10 ; WF-RIS-0010, WF-RAE-0010). Sa
+  `remaining_entry` est indisponible, `missing_conditions` à `line_not_provision`, condition
+  nouvelle de `CommandCondition`, après `task_not_completed` sous une tâche terminée ;
+  `setLineRemaining` déclare son 409. Exemple engendré `remaining_provision_refused`
+  (`mockriskwrites`).
+- **Le jalon terminé est daté** (F-13, L-13 ; WF-PLA-0130 du 2026-10-10). La revue le laissait « à
+  trancher » ; la spécification est sans exception : « une tâche terminée sans avoir été démarrée
+  prend pour date de démarrage celle de sa terminaison ». Un jalon terminé depuis le Kanban porte
+  `started_on` égal à `completed_on`, sans passer par l'état démarré ; rouvert, il perd l'une et
+  l'autre. `TaskFacet.started_on`, `ProgressUpdate`, `RemainingUpdate.completed_on`, `KanbanCommand`
+  et `setTaskProgress` le disent ; `milestone_completed`, `milestone_reopened` et toutes les
+  lectures où la « Réception des études » est terminée sont régénérés. Écartée : la lecture « un
+  jalon ne démarre jamais, `started_on` nul », que la passe du 10 octobre a retirée.
+- **Le mode d'une récapitulative** (F-14, L-09, F-15 ; WF-PLA-0040 du 2026-10-09). Toujours
+  automatique, calculé : `task.scheduling_mode` entre dans `ComputedField` et
+  `ComputedValueField`, chaque récapitulative le nomme dans `computed_fields`, et sa saisie, même
+  `automatic`, est refusée par `COMPUTED_VALUE` (`TaskFacetUpdate`, `updateTaskFacet`) ; une feuille
+  manuelle qui reçoit une subordonnée devient une récapitulative automatique (`createNode`,
+  `moveNodes`). La récapitulative qui perd sa dernière subordonnée — feuille automatique de la
+  durée qu'elle calculait, jalon si cette durée est nulle et qu'elle n'est pas démarrée, feuille
+  d'un jour si elle l'est — est dite dans `deleteNode`, `moveNodes` et `NodesWritten.ancestors`, en
+  descriptions seulement : les refus de `deleteNode` (F-04) sont à US-0702, et l'exemple
+  `node_summary_emptied` de L-09 n'est pas fait.
+- **Les mineurs des fichiers touchés.** F-12 l'était déjà par US-0701/L1 (`rescheduled` dit
+  qu'une tâche rendue entière dans `ancestors` y paraît aussi). F-16 : `Lag.value` en `percent` est
+  un nombre de pour cent, `50` pour la moitié, comme MS Project — sans exemple, aucun prédécesseur
+  du témoin n'étant en pourcentage. F-18 : `NodeKinds` n'est pas un filtre ; `calendar_id` est nul
+  pour une intersection de calendriers. F-19 : `getComputedValueDependencies` refuse un `field`
+  hors de l'énumération par 422 sur `/query/field`, comme `resolveRowNumber` le numéro de ligne,
+  sans 400. De F-17, ce lot ne fait que les exemples des refus qu'il crée — la catégorie
+  discordante, la ligne de provision réestimée — ; le reste est à US-0702/L1 (#1610).
 
 ## Collage et annulation
 

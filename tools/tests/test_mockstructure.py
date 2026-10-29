@@ -296,7 +296,13 @@ def test_a_summary_spans_its_subordinates(items: list[Node]) -> None:
         below = [child["task"] for child in children(items, node) if child["kind"] == "task"]
         assert instant(task["start"]) == min(instant(child["start"]) for child in below)
         assert instant(task["finish"]) == max(instant(child["finish"]) for child in below)
-        assert "total_float" not in task
+        # Its float, the smallest of its subordinates', nil when none bears one (WF-PLA-0100).
+        floats = [Decimal(child["total_float"]["value"]) for child in below if child["total_float"]]
+        if floats:
+            assert Decimal(task["total_float"]["value"]) == min(floats)
+        else:
+            assert task["total_float"] is None
+        assert task["is_critical"] == any(child["is_critical"] for child in below)
         # Its physical progress, as the core's summaries give it (WF-IND-0060, #370).
         assert "physical_progress" in task
 
@@ -342,8 +348,10 @@ def test_progress_is_that_of_today_and_nothing_completes_by_itself(items: list[N
     assert states == {"not_started": 955, "completed": 21, "started": 9}
     for node in lines(items):
         completed = nodes[node["parent_id"]]["task"]["progress"] == "completed"
+        provision = node["estimate_line"]["is_computed"]
         entry = node["estimate_line"]["remaining_entry"]
-        assert entry["is_available"] is not completed
+        # A line of a completed task, or of provision, takes no re-estimate (WF-RAE-0040, F-10).
+        assert entry["is_available"] is not (completed or provision)
 
 
 def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> None:
@@ -480,9 +488,9 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "Ingénierie électrique",
         "Ingénieur électricien",
     )
+    assert row(28)["computed_fields"] == ["estimate_line.cost_category_id"]
     assert row(28)["editable_fields"] == [
         "estimate_line.label",
-        "estimate_line.cost_category_id",
         "estimate_line.resource_role_id",
         "estimate_line.quantity",
         "estimate_line.hours",

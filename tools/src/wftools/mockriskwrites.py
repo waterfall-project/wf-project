@@ -266,6 +266,29 @@ def nodes_move_provision_refused() -> JsonObject:
     }
 
 
+REESTIMATED_PROVISION_CORRELATION = universe(1074)
+
+
+def remaining_provision_refused() -> JsonObject:
+    """Return what setLineRemaining answers to the line of provision of the rework re-estimated.
+
+    A line of provision is never re-estimated: its amount is the one its risk computes, and its
+    node says so by the condition it lacks (`remaining_entry`, WF-RIS-0010, WF-RAE-0010).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    facet = cast("JsonObject", rows[cast("int", REWORK.provision_line)].node["estimate_line"])
+    entry = cast("JsonObject", facet["remaining_entry"])
+    if entry["missing_conditions"] != ["line_not_provision"]:
+        message = "the line of provision of the rework does not lack line_not_provision alone"
+        raise ValueError(message)
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "line_not_provision"},
+        "correlation_id": REESTIMATED_PROVISION_CORRELATION,
+    }
+
+
 # --- The report before the occurrence ----------------------------------------------------------
 
 OCCURRING = REWORK
@@ -621,6 +644,14 @@ def examples() -> dict[str, JsonObject]:
             f"risque ; le refus nomme le risque, que la grille ne lit pas. Rien ne bouge "
             f"(WF-RIS-0010, #1227).",
             nodes_move_provision_refused(),
+        ),
+        "remaining_provision_refused.json": mocktext.example(
+            f"La ligne de provision de « {REWORK.label} », « {provision.label} », réestimée dans "
+            f"la grille de reste à engager : son montant est celui que son risque calcule, et le "
+            f"reste à engager le compte pour ce montant ; la ligne le disait "
+            f"(remaining_entry), et la saisie est refusée, la condition nommée ; rien n'est "
+            f"écrit (WF-RIS-0010, WF-RAE-0010).",
+            remaining_provision_refused(),
         ),
         **_occurrence_examples(),
     }

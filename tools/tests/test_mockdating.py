@@ -117,7 +117,16 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     # The core is linked to the tasks drawn about it (#376): the lots of the control station
     # follow its factory acceptance, on the critical path of the whole structure, which ends in
     # August 2029; the installation on site leads to the commissioning of the control station.
-    assert critical == [DETAILED_STUDIES, REVIEW, ACCEPTANCE, WIRING, MILESTONE]
+    # A summary is critical as soon as one of its subordinates is (WF-PLA-0100, F-01).
+    assert critical == [
+        STUDIES,
+        DETAILED_STUDIES,
+        REVIEW,
+        ACCEPTANCE,
+        CONTROL_STATION,
+        WIRING,
+        MILESTONE,
+    ]
     assert all(facet(tasks[n])["total_float"] == {"value": "0", "unit": "d"} for n in critical)
     assert facet(installation[MOUNTING])["total_float"] == {"value": "597.5", "unit": "d"}
     assert facet(installation[COMMISSIONING])["total_float"] == {"value": "597.5", "unit": "d"}

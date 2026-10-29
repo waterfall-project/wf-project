@@ -175,7 +175,9 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
     assert facet(estimate[OCCURRED])["progress"] == "completed"
     assert facet(estimate[CONTROL_STATION])["progress"] == "started"
     for summary in (planning[STUDIES], estimate[CONTROL_STATION], estimate[OCCURRED]):
+        # Its mode is always automatic, computed, and not entered (WF-PLA-0040, F-14).
         assert summary["computed_fields"] == [
+            "task.scheduling_mode",
             "task.duration",
             "task.start",
             "task.finish",
@@ -192,7 +194,7 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
             "task.work_package_id",
             "task.tracking",
         ]
-        assert "total_float" not in facet(summary)
+        assert facet(summary)["link_conflicts"] == []
     # Its dates of progress are its subordinates': started with the first, completed with the
     # last — the studies are not completed, the occurrence is.
     assert facet(planning[STUDIES])["started_on"] == "2026-03-02"
@@ -213,10 +215,12 @@ def test_a_milestone_is_a_task_of_no_duration_at_one_instant(readings: dict[str,
         assert task["start"] == task["finish"]
         assert "task.duration" not in node["editable_fields"]
     # Where its predecessors finish: the Friday at 8 hours, not the Monday after. Completed, a
-    # milestone never started: it goes from not started to completed.
+    # milestone goes from not started to completed, and « une tâche terminée sans avoir été
+    # démarrée prend pour date de démarrage celle de sa terminaison » (WF-PLA-0130, F-13); not
+    # completed, it bears neither.
     assert facet(planning[ACCEPTANCE])["finish"] == {"date": "2026-04-24", "hours": "8"}
     assert facet(planning[ACCEPTANCE])["completed_on"] == "2026-04-24"
-    assert "started_on" not in facet(planning[ACCEPTANCE])
+    assert facet(planning[ACCEPTANCE])["started_on"] == "2026-04-24"
     assert "started_on" not in facet(milestone[MILESTONE])
     assert planning[ACCEPTANCE]["predecessors"] == [
         {
@@ -540,6 +544,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_estimate": current,
         "nodes_estimate_sorted": current,
         "nodes_estimate_hours": current,
+        "nodes_estimate_filtered": current,
         "nodes_installation": current,
         "nodes_planning": current,
         "nodes_risk_occurred": current,

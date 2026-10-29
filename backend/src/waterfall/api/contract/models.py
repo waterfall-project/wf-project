@@ -802,6 +802,7 @@ class CommandCondition(StrEnum):
     unmerged_amendment_exists = "unmerged_amendment_exists"
     rate_update_available = "rate_update_available"
     task_not_completed = "task_not_completed"
+    line_not_provision = "line_not_provision"
     task_is_milestone = "task_is_milestone"
     task_not_milestone = "task_not_milestone"
     task_without_lines = "task_without_lines"
@@ -2787,10 +2788,11 @@ class NodeColumn(StrEnum):
     duration = "duration"
     start = "start"
     finish = "finish"
-    progress = "progress"
     physical_progress = "physical_progress"
     total_float = "total_float"
     is_critical = "is_critical"
+    started_on = "started_on"
+    completed_on = "completed_on"
     predecessors = "predecessors"
     work_breakdown = "work_breakdown"
     cost_category = "cost_category"
@@ -2841,6 +2843,21 @@ class Duration(ContractModel):
 class WorkInstant(ContractModel):
     date: PlanningDate
     hours: Hours
+
+
+class LinkType(StrEnum):
+    finish_to_start = "finish_to_start"
+    start_to_start = "start_to_start"
+    finish_to_finish = "finish_to_finish"
+    start_to_finish = "start_to_finish"
+
+
+class LinkConflict(ContractModel):
+    predecessor_node_id: Uuid
+    successor_node_id: Annotated[
+        Uuid, Field(description="La tâche en mode manuel que la liaison relie à son prédécesseur.")
+    ]
+    link_type: LinkType
 
 
 class NotComputableReason(StrEnum):
@@ -2918,11 +2935,16 @@ class ComparedTaskFacet(ContractModel):
             description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
         ),
     ] = None
-    started_on: PlanningDate | None = None
+    started_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Date de démarrage, renseignée au changement d'état (WF-PLA-0130), nulle pour une tâche non démarrée. Une tâche terminée sans avoir été démarrée — un jalon terminé depuis le Kanban, une tâche que la saisie d'un reste à engager nul termine — prend pour date de démarrage celle de sa terminaison ; un jalon rouvert perd l'une et l'autre (`ProgressUpdate`). Une récapitulative porte celle de la première de ses subordonnées démarrées. Une colonne de lecture de la grille de planning (`NodeColumn.started_on`, WF-PLA-0080)."
+        ),
+    ] = None
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030)."
+            description="Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030), nulle pour une tâche qui n'est pas terminée ; une colonne de lecture de la grille de planning (`NodeColumn.completed_on`, WF-PLA-0080)."
         ),
     ] = None
     is_summary: Annotated[
@@ -2937,7 +2959,7 @@ class ComparedTaskFacet(ContractModel):
     calendar_id: Annotated[
         Uuid | None,
         Field(
-            description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010)."
+            description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). Nul quand il est l'intersection de plusieurs calendriers, qui n'a pas d'identifiant : `calendar_hours` en porte alors les heures."
         ),
     ] = None
     calendar_hours: Annotated[
@@ -2949,13 +2971,19 @@ class ComparedTaskFacet(ContractModel):
     total_float: Annotated[
         Duration | None,
         Field(
-            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge."
+            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et la liaison en conflit est nommée sur l'une et l'autre tâche (`link_conflicts`, WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. Une récapitulative porte la plus petite marge de celles de ses subordonnées qui en portent une, nulle quand aucune n'en porte (WF-PLA-0100) : celle qui porte une subordonnée critique affiche la marge de cette subordonnée, nulle ou négative."
         ),
     ] = None
     is_critical: Annotated[
         bool | None,
         Field(
-            description="Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100)."
+            description="Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). Fausse pour une tâche en mode manuel, qui n'apparaît jamais sur le chemin critique ; vraie pour une récapitulative dès que l'une de ses subordonnées est critique."
+        ),
+    ] = None
+    link_conflicts: Annotated[
+        list[LinkConflict] | None,
+        Field(
+            description="Les liaisons en conflit (WF-PLA-0020), toujours rendues, vides sans conflit : sur une tâche en mode manuel, celles que ses prédécesseurs en mode automatique ne peuvent pas satisfaire ; sur un tel prédécesseur, celles qu'il ne satisfait pas. Chacune nomme ses deux tâches et son type, dans l'ordre du plan de leur prédécesseur, puis de leur successeur ; la grille et le Gantt signalent l'une et l'autre tâche selon l'échelle commune (WF-IHM-0070) sans croiser les marges ni recalculer de date (WF-ARC-0020). Une récapitulative n'en porte pas. Calculées, jamais saisies, elles disparaissent dès que les dates le permettent ; une écriture qui en crée ou en lève les rend (`NodesWritten.rescheduled`)."
         ),
     ] = None
     physical_progress: Annotated[
@@ -3028,8 +3056,21 @@ class PaymentDelayDays(RootModel[int]):
 
 
 class ComparedEstimateLineFacet(ContractModel):
-    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
-    cost_category_id: Uuid | None = None
+    label: Annotated[
+        str | None,
+        Field(
+            description="Libellé, composé par le serveur à la création quand il n'est pas envoyé (`EstimateLineWrite.label`, WF-DEV-0020), modifiable ensuite.",
+            max_length=300,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ] = None
+    cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Catégorie de coût ; celle d'une ligne de main-d'œuvre est celle de son rôle, calculée et non saisissable (`computed_fields`, Vérif de WF-DEV-0020)."
+        ),
+    ] = None
     cost_category_label: Annotated[
         str | None,
         Field(
@@ -3130,20 +3171,13 @@ class ComparedEstimateLineFacet(ContractModel):
     remaining_entry: Annotated[
         EntryAvailability | None,
         Field(
-            description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement."
+            description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque, dans l'ordre de `CommandCondition` : les lignes d'une tâche terminée ne se modifient pas (`task_not_completed`, WF-RAE-0040) ; une ligne de provision ne se réestime jamais, son montant étant celui que son risque calcule et le reste à engager le comptant pour ce montant (`line_not_provision`, WF-RIS-0010, WF-RAE-0010). La grille le lit ligne par ligne, sans déduire la règle de l'avancement ni de la nature de la ligne."
         ),
     ] = None
     bearing_task_node_id: Annotated[
         Uuid | None, Field(description="Tâche porteuse, résolue à la lecture.")
     ] = None
     bearing_task_label: str | None = None
-
-
-class LinkType(StrEnum):
-    finish_to_start = "finish_to_start"
-    start_to_start = "start_to_start"
-    finish_to_finish = "finish_to_finish"
-    start_to_finish = "start_to_finish"
 
 
 class LagUnit(StrEnum):
@@ -3161,7 +3195,12 @@ class LagUnit(StrEnum):
 
 
 class Lag(ContractModel):
-    value: Decimal
+    value: Annotated[
+        Decimal,
+        Field(
+            description="Le nombre d'unités ; en `percent`, le nombre de pour cent, et non une part de 0 à 1 : `50` pour la moitié de la durée du prédécesseur, comme MS Project l'écrit (WF-PLA-0030, WF-PLA-0160)."
+        ),
+    ]
     unit: LagUnit
 
 
@@ -3176,10 +3215,12 @@ class Predecessor(PredecessorWrite):
 
 
 class ComputedField(StrEnum):
+    task_scheduling_mode = "task.scheduling_mode"
     task_duration = "task.duration"
     task_start = "task.start"
     task_finish = "task.finish"
     task_progress = "task.progress"
+    estimate_line_cost_category_id = "estimate_line.cost_category_id"
     estimate_line_quantity = "estimate_line.quantity"
     estimate_line_hours = "estimate_line.hours"
     estimate_line_unit_disbursement = "estimate_line.unit_disbursement"
@@ -3251,13 +3292,13 @@ class ComparedNodeRead(ContractModel):
     computed_fields: Annotated[
         list[ComputedField] | None,
         Field(
-            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
+            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, le mode — toujours automatique (WF-PLA-0040) —, les dates, la durée et l'avancement d'une récapitulative, la catégorie d'une ligne de main-d'œuvre, celle de son rôle (WF-DEV-0020), les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
         ),
     ] = None
     editable_fields: Annotated[
         list[EditableField] | None,
         Field(
-            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire, l'une et l'autre le délai de paiement — nul par défaut pour la main-d'œuvre, et « saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020, WF-IND-0100 ; #785) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
+            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, jamais sa catégorie, qui est celle de son rôle (Vérif de WF-DEV-0020), une ligne hors main-d'œuvre sa catégorie et le débours unitaire, l'une et l'autre le délai de paiement — nul par défaut pour la main-d'œuvre, et « saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020, WF-IND-0100 ; #785) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni mode, ni durée, ni dates, ni avancement (WF-PLA-0040, WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
         ),
     ] = None
     lock_version: LockVersion
@@ -3447,11 +3488,16 @@ class TaskFacet(ContractModel):
             description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
         ),
     ]
-    started_on: PlanningDate | None = None
+    started_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Date de démarrage, renseignée au changement d'état (WF-PLA-0130), nulle pour une tâche non démarrée. Une tâche terminée sans avoir été démarrée — un jalon terminé depuis le Kanban, une tâche que la saisie d'un reste à engager nul termine — prend pour date de démarrage celle de sa terminaison ; un jalon rouvert perd l'une et l'autre (`ProgressUpdate`). Une récapitulative porte celle de la première de ses subordonnées démarrées. Une colonne de lecture de la grille de planning (`NodeColumn.started_on`, WF-PLA-0080)."
+        ),
+    ] = None
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030)."
+            description="Date de terminaison, qui situe la valeur acquise dans le temps (WF-IND-0030), nulle pour une tâche qui n'est pas terminée ; une colonne de lecture de la grille de planning (`NodeColumn.completed_on`, WF-PLA-0080)."
         ),
     ] = None
     is_summary: Annotated[
@@ -3464,7 +3510,7 @@ class TaskFacet(ContractModel):
     calendar_id: Annotated[
         Uuid | None,
         Field(
-            description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010)."
+            description="Calendrier applicable, résolu à la lecture : intersection des calendriers des rôles des lignes de main-d'œuvre, ou calendrier par défaut (WF-PLA-0010). Nul quand il est l'intersection de plusieurs calendriers, qui n'a pas d'identifiant : `calendar_hours` en porte alors les heures."
         ),
     ] = None
     calendar_hours: Annotated[
@@ -3476,15 +3522,21 @@ class TaskFacet(ContractModel):
     total_float: Annotated[
         Duration | None,
         Field(
-            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge."
+            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et la liaison en conflit est nommée sur l'une et l'autre tâche (`link_conflicts`, WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge. Une récapitulative porte la plus petite marge de celles de ses subordonnées qui en portent une, nulle quand aucune n'en porte (WF-PLA-0100) : celle qui porte une subordonnée critique affiche la marge de cette subordonnée, nulle ou négative."
         ),
-    ] = None
+    ]
     is_critical: Annotated[
-        bool | None,
+        bool,
         Field(
-            description="Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100)."
+            description="Appartenance au chemin critique, calculée : une marge totale nulle ou négative (WF-PLA-0100). Fausse pour une tâche en mode manuel, qui n'apparaît jamais sur le chemin critique ; vraie pour une récapitulative dès que l'une de ses subordonnées est critique."
         ),
-    ] = None
+    ]
+    link_conflicts: Annotated[
+        list[LinkConflict],
+        Field(
+            description="Les liaisons en conflit (WF-PLA-0020), toujours rendues, vides sans conflit : sur une tâche en mode manuel, celles que ses prédécesseurs en mode automatique ne peuvent pas satisfaire ; sur un tel prédécesseur, celles qu'il ne satisfait pas. Chacune nomme ses deux tâches et son type, dans l'ordre du plan de leur prédécesseur, puis de leur successeur ; la grille et le Gantt signalent l'une et l'autre tâche selon l'échelle commune (WF-IHM-0070) sans croiser les marges ni recalculer de date (WF-ARC-0020). Une récapitulative n'en porte pas. Calculées, jamais saisies, elles disparaissent dès que les dates le permettent ; une écriture qui en crée ou en lève les rend (`NodesWritten.rescheduled`)."
+        ),
+    ]
     physical_progress: Annotated[
         Computable | None,
         Field(
@@ -3540,8 +3592,21 @@ class TaskFacet(ContractModel):
 
 
 class EstimateLineFacet(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    cost_category_id: Uuid
+    label: Annotated[
+        str,
+        Field(
+            description="Libellé, composé par le serveur à la création quand il n'est pas envoyé (`EstimateLineWrite.label`, WF-DEV-0020), modifiable ensuite.",
+            max_length=300,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
+    cost_category_id: Annotated[
+        Uuid,
+        Field(
+            description="Catégorie de coût ; celle d'une ligne de main-d'œuvre est celle de son rôle, calculée et non saisissable (`computed_fields`, Vérif de WF-DEV-0020)."
+        ),
+    ]
     cost_category_label: Annotated[
         str,
         Field(
@@ -3642,7 +3707,7 @@ class EstimateLineFacet(ContractModel):
     remaining_entry: Annotated[
         EntryAvailability,
         Field(
-            description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque : les lignes d'une tâche terminée ne se modifient pas (WF-RAE-0040). La grille le lit ligne par ligne, sans déduire la règle de l'avancement."
+            description="Si la ligne accepte une réestimation au reste à engager, et sinon ce qui lui manque, dans l'ordre de `CommandCondition` : les lignes d'une tâche terminée ne se modifient pas (`task_not_completed`, WF-RAE-0040) ; une ligne de provision ne se réestime jamais, son montant étant celui que son risque calcule et le reste à engager le comptant pour ce montant (`line_not_provision`, WF-RIS-0010, WF-RAE-0010). La grille le lit ligne par ligne, sans déduire la règle de l'avancement ni de la nature de la ligne."
         ),
     ]
     bearing_task_node_id: Annotated[
@@ -3677,13 +3742,13 @@ class Node(ContractModel):
     computed_fields: Annotated[
         list[ComputedField],
         Field(
-            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, les dates, la durée et l'avancement d'une récapitulative, les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
+            description="Champs saisissables — par le schéma d'écriture ou, pour l'avancement, par sa commande — que le serveur calcule pour ce nœud-ci : les dates d'une tâche en mode automatique, le mode — toujours automatique (WF-PLA-0040) —, les dates, la durée et l'avancement d'une récapitulative, la catégorie d'une ligne de main-d'œuvre, celle de son rôle (WF-DEV-0020), les grandeurs d'une ligne de provision et son sous-projet, celui que son risque désigne (WF-RIS-0010). Le front les présente comme calculés et n'en propose pas la saisie (WF-IHM-0030) ; il ne déduit rien du mode ni de la nature du nœud."
         ),
     ]
     editable_fields: Annotated[
         list[EditableField],
         Field(
-            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, une ligne hors main-d'œuvre le débours unitaire, l'une et l'autre le délai de paiement — nul par défaut pour la main-d'œuvre, et « saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020, WF-IND-0100 ; #785) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni durée, ni dates, ni avancement (WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
+            description="Champs de la facette que ce nœud-ci accepte en écriture, symétrique de `computed_fields` : une ligne de main-d'œuvre porte le rôle et la charge, jamais sa catégorie, qui est celle de son rôle (Vérif de WF-DEV-0020), une ligne hors main-d'œuvre sa catégorie et le débours unitaire, l'une et l'autre le délai de paiement — nul par défaut pour la main-d'œuvre, et « saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020, WF-IND-0100 ; #785) —, une ligne de provision ni les uns ni les autres, ni son sous-projet, que son risque désigne et ne change que tant qu'il est identifié (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à saisir, une récapitulative ni mode, ni durée, ni dates, ni avancement (WF-PLA-0040, WF-PLA-0130). Un champ calculé pour ce nœud n'y figure jamais. La grille n'offre la saisie d'une cellule que si son champ y figure, sans rien déduire de la nature de la catégorie ni du mode (WF-IHM-0040) ; ce que l'appelant a le droit d'écrire relève des commandes de la révision, pas de cette liste."
         ),
     ]
     lock_version: LockVersion
@@ -3708,7 +3773,7 @@ class NodeSchedule(ContractModel):
     total_float: Annotated[
         Duration | None,
         Field(
-            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et le conflit est signalé (WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge."
+            description="Marge totale (WF-PLA-0100), calculée : du temps de travail en jours ouvrés (`unit: d`), décimale et signée, sans minimum. Une tâche en mode manuel borne la fin au plus tard de ses prédécesseurs comme le début au plus tôt de ses successeurs : un prédécesseur qui ne peut pas finir à temps pour elle porte une marge négative, il est critique, et la liaison en conflit est nommée (`link_conflicts`, WF-PLA-0020). Nulle pour une tâche en mode manuel, qui ne porte pas de marge."
         ),
     ]
     is_critical: Annotated[
@@ -3716,6 +3781,10 @@ class NodeSchedule(ContractModel):
         Field(
             description="Appartenance au chemin critique, une marge totale nulle ou négative (WF-PLA-0100) ; fausse pour une tâche en mode manuel."
         ),
+    ]
+    link_conflicts: Annotated[
+        list[LinkConflict],
+        Field(description="Les liaisons en conflit de la tâche, comme `TaskFacet.link_conflicts`."),
     ]
     finish_overdue: Annotated[
         bool,
@@ -3757,7 +3826,7 @@ class NodesWritten(ContractModel):
     ancestors: Annotated[
         list[Node],
         Field(
-            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent."
+            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement, marge et criticité d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient — une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est nulle et qu'elle n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040) —, ses `computed_fields` et `editable_fields` changés avec elle (`deleteNode`, `moveNodes`)."
         ),
     ]
     rescheduled: Annotated[
@@ -3978,8 +4047,21 @@ class PaymentDelayDays2(RootModel[int]):
 
 
 class EstimateLineWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    cost_category_id: Uuid
+    label: Annotated[
+        str | None,
+        Field(
+            description="Facultatif : absent, le serveur compose le libellé de celui de la tâche qui porte la ligne et, s'il y en a un, de celui de son rôle, séparés par un tiret cadratin entre deux espaces — « Mise en service — Technicien de mise en service » —, tronqué à 300 caractères ; envoyé, il est pris tel quel, non vide (WF-DEV-0020). Le libellé reste modifiable (`EstimateLineUpdate`).",
+            max_length=300,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ] = None
+    cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Exigée sans rôle ; d'une ligne de main-d'œuvre, celle du rôle, calculée — envoyée, elle doit être la sienne."
+        ),
+    ] = None
     quantity: Decimal
     resource_role_id: Uuid | None = None
     hours: Hours | None = None
@@ -4004,6 +4086,7 @@ class RowNumberResolution(ContractModel):
 
 
 class ComputedValueField(StrEnum):
+    task_scheduling_mode = "task.scheduling_mode"
     task_duration = "task.duration"
     task_start = "task.start"
     task_finish = "task.finish"
@@ -4013,6 +4096,7 @@ class ComputedValueField(StrEnum):
     task_base_amount = "task.base_amount"
     task_budgeted_amount = "task.budgeted_amount"
     task_reestimated_amount = "task.reestimated_amount"
+    estimate_line_cost_category_id = "estimate_line.cost_category_id"
     estimate_line_quantity = "estimate_line.quantity"
     estimate_line_hours = "estimate_line.hours"
     estimate_line_unit_disbursement = "estimate_line.unit_disbursement"
@@ -4031,6 +4115,7 @@ class ComputedDependency(StrEnum):
     manual_mode = "manual_mode"
     hourly_rate = "hourly_rate"
     unit_disbursement = "unit_disbursement"
+    resource_role = "resource_role"
     risk = "risk"
     reference_revision = "reference_revision"
     remaining_reviews = "remaining_reviews"
@@ -4086,7 +4171,12 @@ class TaskFacetUpdate(ContractModel):
 
 class EstimateLineUpdate(ContractModel):
     label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
-    cost_category_id: Uuid | None = None
+    cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La catégorie d'une ligne hors main-d'œuvre ; une ligne de main-d'œuvre tient la sienne de son rôle, et en refuse une autre (`COMPUTED_VALUE`)."
+        ),
+    ] = None
     quantity: Decimal | None = None
     resource_role_id: Uuid | None = None
     hours: Hours | None = None
@@ -4127,7 +4217,7 @@ class RemainingUpdate(ContractModel):
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Date de terminaison de la tâche, demandée à la validation quand la saisie la termine — la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande la date et rejoue la saisie. Pour une tâche non démarrée qui n'est pas un jalon, la même date est aussi celle de son démarrage (`started_on`) : la tâche passe par l'état démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas la tâche."
+            description="Date de terminaison de la tâche, demandée à la validation quand la saisie la termine — la dernière de ses lignes encore ouvertes mise à zéro —, proposée par l'écran au jour courant et modifiable (WF-RAE-0040, WF-PLA-0130). Exigée dans ce cas : sans elle, la saisie est refusée par un motif `COMPLETION_DATE_REQUIRED` sur `/completed_on`, `fields[].params.task_node_id` nommant la tâche, et rien n'est écrit ; l'écran demande la date et rejoue la saisie. Pour une tâche non démarrée, jalon compris, la même date est aussi celle de son démarrage (`started_on`, WF-PLA-0130) ; une tâche qui n'est pas un jalon passe par l'état démarré (WF-RAE-0030). Ignorée quand la saisie ne termine pas la tâche."
         ),
     ] = None
     lock_version: LockVersion

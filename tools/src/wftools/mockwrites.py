@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 
 type Node = dict[str, Any]
 
-SCHEDULE = ("start", "finish", "total_float", "is_critical", "finish_overdue")
+SCHEDULE = ("start", "finish", "total_float", "is_critical", "link_conflicts", "finish_overdue")
 """The fields of a task a write may redate without writing it (`NodeSchedule`)."""
 
 INFLATION = ("budgeted_amount", "reestimated_amount", "consumption_year")

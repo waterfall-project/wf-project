@@ -258,7 +258,10 @@ CommandCondition:
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
     et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
     elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
-    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214).
+    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214). `line_not_provision` manque à la
+    réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
+    que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`,
+    WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409.
     Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme
     (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à
     la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
@@ -310,6 +313,7 @@ CommandCondition:
     - unmerged_amendment_exists
     - rate_update_available
     - task_not_completed
+    - line_not_provision
     - task_is_milestone
     - task_not_milestone
     - task_without_lines

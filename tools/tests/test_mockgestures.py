@@ -93,6 +93,7 @@ OPERATIONS = {
             "node_created_child",
             "estimate_line_created",
             "estimate_line_created_after_subtask",
+            "estimate_line_created_labelled",
         ],
     ),
     "deleteNode": ("200", ["node_summary_deleted"]),
@@ -117,6 +118,7 @@ REFUSALS = {
         "estimate_line_completed_refused",
         "node_create_horizon_exceeded",
         "node_create_after_not_sibling",
+        "estimate_line_category_mismatch",
     ],
     "updateTaskFacet": [
         "task_date_computed_refused",

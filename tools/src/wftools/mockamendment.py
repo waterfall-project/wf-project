@@ -155,6 +155,20 @@ def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
                 {**link, "predecessor_node_id": own[cast("str", link["predecessor_node_id"])]}
                 for link in cast("list[JsonObject]", node["predecessors"])
             ]
+        task = cast("JsonObject | None", node.get("task"))
+        if task is not None:
+            # A copy: the facet is shared by every reading of the structure it was read from.
+            node["task"] = {
+                **task,
+                "link_conflicts": [
+                    {
+                        **conflict,
+                        "predecessor_node_id": own[cast("str", conflict["predecessor_node_id"])],
+                        "successor_node_id": own[cast("str", conflict["successor_node_id"])],
+                    }
+                    for conflict in cast("list[JsonObject]", task["link_conflicts"])
+                ],
+            }
     return nodes
 
 
