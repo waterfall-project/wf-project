@@ -194,6 +194,85 @@ def test_the_remaining_of_a_task_past_its_finish_is_whole_at_the_day_of_the_calc
     assert early
 
 
+def _points_of(example: dict[str, Any], name: str) -> list[Node]:
+    return next(series["points"] for series in example["series"] if series["name"] == name)
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_the_origin_of_the_reference_budget_is_that_of_the_amendment_step_when_it_is_older(
+    today: dict[str, Any],
+) -> None:
+    # « la première, à la fin du mois qui précède le premier montant — ou celui de la marche
+    # d'avenant, si elle est plus ancienne » : the amendment steps the budget on 1 February 2026,
+    # before the first amount of the reference in force, which the planned value starts from.
+    budget = _points_of(today["cost_curve"], "reference_budget")
+    planned = _points_of(today["earned_value_curves"], "planned_value")
+    steps = [step["date"] for step in today["cost_curve"]["steps"]]
+    assert budget[0]["date"] == "2026-01-31"
+    assert planned[0]["date"] == "2026-02-28"
+    assert budget[0]["date"] < planned[0]["date"]
+    assert budget[0]["amount"] == planned[0]["amount"] == "0.00"
+    assert steps
+    assert mockcurves.month_before(date.fromisoformat(min(steps))).isoformat() == budget[0]["date"]
+
+
+@pytest.mark.requirement("WF-IND-0100-A")
+def test_a_provision_stays_at_the_date_of_its_task_under_the_payment_delays() -> None:
+    # « une provision de risque identifié reste à sa date » : the delay of a line shifts it, not a
+    # provision, placed whole at the finish of its task, or at the day of the reading when past.
+    witness = mockindicators.today()
+    delayed = mockcurves.remaining_flows(witness, delays=True)
+    plain = mockcurves.remaining_flows(witness)
+    assert any(delay for delay in witness.delays.values())
+    placed = 0
+    for line in witness.lines:
+        amount = mockindicators.remaining_of(witness, line)
+        if amount == 0 or not mockhistory.is_provision(line):
+            continue
+        finish = witness.bearer(line).finish.day
+        at = max(finish, witness.day)
+        assert any(flow.amount == amount and flow.first == flow.last == at for flow in delayed), (
+            line.number
+        )
+        placed += 1
+    assert placed
+    assert len(delayed) == len(plain)
+
+
+@pytest.mark.requirement("WF-IND-0030-A")
+@pytest.mark.requirement("WF-IND-0020-A")
+def test_the_earned_value_and_the_budget_of_a_subproject_leave_out_the_lines_of_provision() -> None:
+    # « hors lignes de provision » : a provision the reference knew, completed with its task,
+    # earns nothing and is no part of the budget of a subproject.
+    witness, base = mockindicators.today(), mockindicators.reference()
+    day = date(2099, 12, 31)
+    provisions = [line for line in witness.lines if mockhistory.is_provision(line)]
+    assert any(line.amounts.budgeted for line in provisions)
+    merged = {row.number for row in mockhistory.merged_lines(list(witness.rows))}
+    expected = sum(
+        (
+            line.amounts.budgeted
+            for line in witness.lines
+            if not mockhistory.is_provision(line)
+            and line.number not in merged
+            and witness.completed_on(cast("int", line.parent)) is not None
+        ),
+        Decimal(0),
+    )
+    assert mockindicators.earned(witness, day) == expected
+    for scope, label in mockindicators.scopes()[1:]:
+        found = mockindicators.balance(witness, base, [], scope, label)
+        assert Decimal(cast("str", found["budget"])) == sum(
+            (
+                line.amounts.budgeted
+                for line in base.lines
+                if base.in_scope(line, scope) and not mockhistory.is_provision(line)
+            ),
+            Decimal(0),
+        )
+    assert any(mockhistory.is_provision(line) for line in base.lines)
+
+
 @pytest.mark.requirement("WF-RAE-0020-A")
 def test_the_gap_to_the_previous_review_is_absent_after_an_offer_marked_while_pricing() -> None:
     # « Sur un projet dont aucune révision n'a été marquée à l'état En cours avant celle qui est

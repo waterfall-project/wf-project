@@ -531,8 +531,8 @@ CurveSeries:
   required: [context, payment_delays, series, cash_out_by_month]
   description: >-
     Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois
-    (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant,
-    nulle ; la date de calcul est un point de plus sur les séries qui s'y arrêtent ou en partent
+    (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant
+    — ou celui de la marche d'avenant, si elle est plus ancienne —, nulle ; la date de calcul est un point de plus sur les séries qui s'y arrêtent ou en partent
     (`actual_cost`, `earned_value`, `project_manager_projection`), et une marche d'avenant deux
     points à sa date, avant et après (`steps`). Les changements du budget de référence y
     apparaissent comme des marches datées. Les courbes d'une révision marquée sont conservées

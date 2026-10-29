@@ -241,7 +241,7 @@ class Era:
 
 
 def budget_series(
-    eras: Sequence[Era], day: date, *, delays: bool = False, scope: str = PROJECT
+    eras: Sequence[Era], *, delays: bool = False, scope: str = PROJECT
 ) -> list[JsonValue]:
     """Return the cumulative reference budget of a scope, by the reference in force at each day.
 
@@ -249,7 +249,6 @@ def budget_series(
     before it, then that of the reference it produced, a vertical step (DECISIONS, « Les exemples
     des courbes »). No point for a scope no reference budgets a line of.
     """
-    del day
     flows = [budget_flows(era.base, delays=delays, scope=scope) for era in eras]
     if not any(flows):
         return []
@@ -301,7 +300,7 @@ def cost_curve(
     """
     day = reading.day
     costs = in_scope(costs, scope)
-    budget_points = budget_series(eras, day, delays=delays, scope=scope)
+    budget_points = budget_series(eras, delays=delays, scope=scope)
     flows = remaining_flows(reading, delays=delays, scope=scope)
     drawn = bool(budget_points or costs or flows)
     if budget_points:

@@ -2015,7 +2015,10 @@ avec la réserve.
 *Complétée par US-0701/L5 (#1605, M-10 ; WF-IND-0090 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les révisions marquées avant
 l'état En cours ne donnent aucun point au diagramme temps/temps ; le point de l'offre que
 `milestone_tracking` gardait pour la réception des études disparaît (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
+récapitulative », dans « Le contrat figé »). Il en va de même plus bas, à « L'évolution des
+indices ne compte que les révisions marquées à partir de l'état En cours » (EP-02/L24) : les
+révisions marquées avant l'état En cours ne donnent aucun point, et le suivi des jalons ne garde
+plus celui de l'offre.*
 
 ### Les indicateurs d'aujourd'hui (EP-02/L24)
 
@@ -2087,7 +2090,7 @@ dépenser. La série suit, à chaque jour, la référence en vigueur ce jour-là
 elle, est recalculée entière sur la référence en vigueur (WF-DEV-0080), sans marche.
 *Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100 et WF-IND-0110 des passes de
 cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les séries se lisent au pas du mois,
-chaque point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
+chaque point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »). Il en va de même à la reprise du cœur (EP-02/L27) : la règle d'EP-02/L24, un point par jour où un montant commence ou finit, n'est plus gardée, et le budget de référence du témoin compte 46 points.*
 `cost_curve_amendment`, variante gardée, devient un avenant 2 de 15 000 sur la ligne des études
 de détail au 10 mars : sa marche monte de 23 333,33 à 26 833,33, ce que la nouvelle référence
 prévoyait de plus à cette date. **Les délais de paiement sont décrits** : trente jours sur
@@ -2110,11 +2113,6 @@ Une révision marquée pendant le chiffrage ne conserve que les indicateurs de s
 deux, la référence à son marquage et la révision courante aujourd'hui. Le Vérif de WF-IND-0130
 (« un point par révision marquée ») le contredit : la question est ouverte sur #468. Le suivi
 des jalons, lui, garde le point de l'offre, une date prévue que l'offre porte (WF-IND-0090).
-
-*Remplacé en partie par US-0701/L5 (#1605, M-10 ; WF-IND-0090 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : « Les révisions marquées
-avant l'état En cours ne donnent aucun point » ; le suivi des jalons ne garde plus celui de l'offre
-(« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
-récapitulative », dans « Le contrat figé »).*
 
 **`rate_update` suit la grille des taux** (C15, #232). Une proposition se présente à la création
 d'une révision dont l'année de référence diffère de celle qu'elle copie (WF-REV-0060) : c'est la
@@ -2525,11 +2523,6 @@ d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; l
 risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
 électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
 ses indicateurs, et les vues du portefeuille la somment.
-
-*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100, WF-IND-0110 et WF-DAT-0040 des
-passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la règle d'EP-02/L24, un
-point par jour où un montant commence ou finit, n'est plus gardée ; les courbes sont au pas du mois,
-46 points pour le budget de référence du témoin (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
 
 *Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08 ; spécification des 10 et 22 octobre 2026,
 recadrage du 2026-10-28) : les montants sont inflation comprise, et
