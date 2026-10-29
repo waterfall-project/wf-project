@@ -8463,6 +8463,22 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   revient à son réglage par défaut, comme au changement de clé d'EP-02/L16 ; `me_grid_settings`
   connaît désormais `reestimated_amount`.
 
+### Les deux écarts de la comparaison (US-0701/L1, #1601, E-02)
+
+WF-REV-0080 présente « les écarts de montants budgétés et de montants réestimés, par nature de coût
+et par sous-projet », et son Vérif les distingue : « une ligne existante dont le différentiel ne
+modifie que le montant budgété ne présente aucun écart de montant réestimé ». Le contrat n'en
+portait qu'un, `delta`, d'une troisième grandeur, le montant à l'année de référence.
+`RevisionComparison.amount_deltas[]` porte désormais `budgeted_delta` et `reestimated_delta`,
+exigés, inflation comprise (« Les montants inflation comprise », ci-dessus), dans le sens d'EP-02/L35
+(la révision comparée moins la révision de base) ; `delta` disparaît. Écarté : le garder sous le nom
+de `base_delta`, l'écart du montant avant inflation — aucune grille ne le présente, et l'écran de la
+comparaison lit les deux écarts que la spécification nomme. Une clé dont les deux écarts sont nuls
+reste omise. `mockcomparisons` les calcule sur le budgété et le réestimé des lignes retenues ;
+`comparison*.json` et `volume/comparison_volume.json` sont régénérés, et
+`test_mockcomparison.py` tient le Vérif sur une révision dont un différentiel ne change que le
+budget d'une ligne.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

@@ -18,11 +18,11 @@
     "totals": {"task_count":3,"estimate_line_count":4,"hours":"240","base_amount":"618600.00","budgeted_amount":"618300.00","reestimated_amount":"618600.00"},
     "meta": {"summary_depth":2,"scheduled_at":"2026-02-01T09:00:00Z"},
     "amount_deltas": [
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","delta":"3300.00"},
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","delta":"-350.00"},
-      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","delta":"600000.00"},
-      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","delta":"18600.00"},
-      {"dimension":"subproject","key":"unassigned","label":null,"delta":"584350.00"}
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000461","label":"Main-d'œuvre","budgeted_delta":"3000.00","reestimated_delta":"3300.00"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","budgeted_delta":"-350.00","reestimated_delta":"-350.00"},
+      {"dimension":"cost_type","key":"01926f3a-7c00-7000-8000-000000000463","label":"Provision","budgeted_delta":"600000.00","reestimated_delta":"600000.00"},
+      {"dimension":"subproject","key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","budgeted_delta":"18300.00","reestimated_delta":"18600.00"},
+      {"dimension":"subproject","key":"unassigned","label":null,"budgeted_delta":"584350.00","reestimated_delta":"584350.00"}
     ]
   }
 }
