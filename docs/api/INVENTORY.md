@@ -7,7 +7,7 @@ les réponses en citent d'autres, comptées dans la couverture ci-dessous mais p
 dans le tableau.
 
 **165 opérations sur 128 chemins, dans 13 familles.**
-Le contrat cite **188 des 212 exigences** de la spécification.
+Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
 
@@ -22,7 +22,7 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
 | GET | `/tasks` | Tâches de fond de l'appelant | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
-| GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-DAT-0120 |
+| GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-ARC-0040, WF-DAT-0120 |
 
 ## Compte courant, préférences et avatar
 
@@ -244,11 +244,11 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Déposer un morceau | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Terminer le dépôt par morceaux | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
-| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0130, WF-REF-0190 |
+| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-CRE-0020, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
-| POST | `/projects/{project_id}/exports` | Demander un export | WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0130, WF-INTF-0180, WF-PLA-0120 |
+| POST | `/projects/{project_id}/exports` | Demander un export | WF-ARC-0040, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
 
 ## Portefeuille
 
@@ -267,12 +267,12 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 
 ## Exigences que le contrat ne cite pas
 
-24 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
+23 sur 212. Aucune n'est un oubli : ce sont celles qui n'ont pas de
 surface d'interface, et il vaut mieux qu'elles n'en aient pas.
 
 | Domaine | Exigences | Pourquoi aucune surface d'API |
 |---|---|---|
-| ARC | WF-ARC-0010, WF-ARC-0040, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
+| ARC | WF-ARC-0010, WF-ARC-0070, WF-ARC-0080 | Choix d'architecture interne : noyau unique, rôles des composants de données, empaquetage, autorité du serveur, absence d'état. Ils se vérifient sur le dépôt et le déploiement. |
 | CMP | WF-CMP-0010 | Compatibilité des navigateurs et largeurs d'affichage : propriété du front. |
 | DAT | WF-DAT-0050, WF-DAT-0140 | Partitionnement et migrations : propriétés du schéma, invisibles du contrat. |
 | EXP | WF-EXP-0010, WF-EXP-0030 | Exploitation : environnements, amorçage, mise à jour, perte maximale. Aucune n'est une opération d'API. |

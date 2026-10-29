@@ -23,7 +23,7 @@ class CostImport:
     Its event, the instant it was applied; the import of the exchanges that applied it, by its
     number, opened and analysed a few minutes before; the period it extracted, each bound
     possibly missing; and the lines of other projects it read, rejected and signalled to its
-    report (WF-CRE-0020), which the journal counts among the lines ignored.
+    report (WF-CRE-0020), which the journal counts among the lines rejected (WF-CRE-0050).
     """
 
     number: int

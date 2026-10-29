@@ -131,7 +131,7 @@ RevisionCommand:
     `revision_mark`, `reference_designate`, `revision_abandon` : un rôle qui marque sans
     fusionner voit `mark` et non `merge_structure` (WF-ADM-0100) ; en exporter le planning MS
     Project, le devis, le reste à engager ou l'image de l'arborescence de tâches — une commande
-    par nature d'export (`ExportRequest.kind`), dans l'ordre de l'énumération (WF-INTF-0050,
+    par nature d'export (`ExportKind`), dans l'ordre de l'énumération (WF-INTF-0050,
     WF-INTF-0110, WF-INTF-0130, WF-PLA-0120). Un export se dit de la révision qu'il lit, marquée
     comme en cours ; un import, qui écrit dans la révision en cours ou la crée, est une
     commande du projet (`ProjectCommand`). Un export relève de la consultation

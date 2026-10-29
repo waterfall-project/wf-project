@@ -4,12 +4,17 @@
     "import_id": "01926f3a-7c00-7000-8000-000000000a19",
     "kind": "ms_project_schedule",
     "filename": "planning-montage-fournisseur.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
     "status": "analysed",
     "created_at": "2026-06-03T13:52:00Z",
     "expires_at": "2026-06-04T13:53:00Z",
     "report": {
       "format_version": null,
       "read_count": 999,
+      "unchanged_count": 999,
       "rejected": [],
       "refusals": [],
       "differences": [

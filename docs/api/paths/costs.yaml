@@ -18,12 +18,20 @@
       - $ref: ../components/parameters.yaml#/SubprojectFilter
       - name: from
         in: query
+        description: >-
+          Le début de la période, sur la date de pièce (`document_date`), inclus (WF-CRE-0040).
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: to
         in: query
+        description: >-
+          La fin de la période, sur la date de pièce, incluse ; une fin qui précède le début est
+          refusée par 422, `/query/to` par `VALUE_OUT_OF_RANGE`.
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: in_tracked_scope
         in: query
+        description: >-
+          Vrai, les lignes suivies seules ; faux, les lignes exclues seules ; absent, toutes
+          (WF-CRE-0030, WF-CRE-0040).
         schema: { type: boolean }
       - name: sort_by
         in: query
@@ -134,8 +142,8 @@
     tags: [actual-costs]
     summary: Journal des imports de coûts réels
     description: >-
-      Date, auteur, période extraite et nombre de lignes créées, mises à jour et
-      ignorées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
+      Date, auteur, période extraite et nombre de lignes créées, mises à jour, inchangées et
+      rejetées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit

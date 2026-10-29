@@ -4,12 +4,17 @@
     "import_id": "01926f3a-7c00-7000-8000-000000000a1a",
     "kind": "estimate",
     "filename": "devis-avenant-2-cablage.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000203",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
     "status": "analysed",
     "created_at": "2026-06-03T07:50:05Z",
     "expires_at": "2026-06-04T07:51:00Z",
     "report": {
       "format_version": "1",
       "read_count": 3,
+      "unchanged_count": 2,
       "rejected": [
         {
           "sheet": "Hors lot",

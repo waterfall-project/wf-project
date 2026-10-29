@@ -1,18 +1,33 @@
 {
-  "summary": "L'import d'un planning MS Project exporté de Waterfall puis retravaillé, tel qu'il se lisait le 20 mai 2026 à 10 h 16, analysé et pas encore abandonné — imports, au 3 juin, le dit abandonné depuis. Un aller-retour sur les identifiants que l'export a écrits : la « Revue de conception » du cœur, terminée le 24 avril, rallongée dans le fichier, serait mise à jour sur sa durée sans toucher à son état, et sa fin recalculée par Waterfall diffère de celle du fichier, écart présenté en information ; la liaison de la « Réception des études » à la « Revue de conception » y prend un décalage, écart de liaison porté par le successeur, dont la colonne des prédécesseurs la présente, et qui nomme son prédécesseur ; les « Études de détail », terminées le 10 avril et que le fichier ne porte plus, sont conservées et signalées ; les deux ressources, le calendrier et l'avancement du fichier sont ignorés et dits (WF-INTF-0040, WF-INTF-0080).",
+  "summary": "L'import d'un planning MS Project exporté de Waterfall puis retravaillé, tel qu'il se lisait le 20 mai 2026 à 10 h 16, analysé et pas encore abandonné — imports, au 3 juin, le dit abandonné depuis. Un aller-retour sur les identifiants que l'export a écrits : le projet du fichier commence le 23 février 2026, et cette date remplacerait la date de début de planning de la structure principale, le 2 mars, écart présenté sur la structure ; la récapitulative des « Études », que le fichier porte en mode manuel du 2 mars au 30 avril, serait importée en mode automatique, signalée avec ses dates du fichier, sa fin recalculée par Waterfall en écart ; la « Revue de conception » du cœur, terminée le 24 avril, rallongée dans le fichier, serait mise à jour sur sa durée sans toucher à son état, et sa fin recalculée par Waterfall diffère de celle du fichier, écart présenté en information ; la liaison de la « Réception des études » à la « Revue de conception » y prend un décalage, écart de liaison porté par le successeur, dont la colonne des prédécesseurs la présente, et qui nomme son prédécesseur ; les « Études de détail », terminées le 10 avril et que le fichier ne porte plus, sont conservées et signalées ; les deux ressources, le calendrier et l'avancement du fichier sont ignorés et dits (WF-INTF-0040, WF-PLA-0020, WF-INTF-0080).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a10",
     "kind": "ms_project_schedule",
     "filename": "planning-poste-de-commande.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
     "status": "analysed",
     "created_at": "2026-05-20T10:15:00Z",
     "expires_at": "2026-05-21T10:16:00Z",
     "report": {
       "format_version": null,
-      "read_count": 3,
+      "read_count": 4,
+      "unchanged_count": 2,
       "rejected": [],
       "refusals": [],
       "differences": [
+        {
+          "change": "updated",
+          "target": "cost_structure",
+          "lineage_id": null,
+          "label": "Structure principale",
+          "predecessor_label": null,
+          "fields": [
+            "planning_start_on"
+          ]
+        },
         {
           "change": "updated",
           "target": "task",
@@ -67,6 +82,13 @@
       "completed_tasks": [],
       "date_mismatches": [
         {
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+          "label": "Études",
+          "fields": [
+            "finish"
+          ]
+        },
+        {
           "lineage_id": "01926f3a-7c00-7000-8000-000000000624",
           "label": "Revue de conception",
           "fields": [
@@ -74,7 +96,18 @@
           ]
         }
       ],
-      "signals": [],
+      "signals": [
+        {
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000621",
+          "label": "Études",
+          "column": "scheduling_mode",
+          "code": "SUMMARY_TASK_DERIVED",
+          "params": {
+            "start": "2026-03-02",
+            "finish": "2026-04-30"
+          }
+        }
+      ],
       "requires_confirmation_reasons": []
     }
   }

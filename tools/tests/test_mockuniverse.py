@@ -376,6 +376,10 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
         if not (isinstance(value, dict) and "import_id" in value and "task" in value):
             continue
         item = cast("Node", value)
+        # An import whose analysis runs has no expiry yet: the analysis sets it (I-14).
+        if item["status"] == "analysing":
+            assert item["expires_at"] is None, name
+            continue
         expiries[item["import_id"]].add(item["expires_at"])
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
