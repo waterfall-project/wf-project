@@ -273,6 +273,24 @@ def test_an_import_of_the_witness_says_its_structure_and_revision() -> None:
     )
 
 
+def test_the_unchanged_count_of_a_planning_import_is_read_less_rejected_and_changed_tasks() -> None:
+    # I-18's neighbour: for a planning, `read_count` counts the tasks of the file, so `differences`
+    # takes from it only its added or updated tasks, not the structure, the links, nor the tasks
+    # the file no longer carries.
+    paths = sorted(mockwitness.FIXTURES.glob("import_planning_*.json"))
+    assert len(paths) >= 4
+    for path in paths:
+        report = json.loads(path.read_text(encoding="utf-8"))["value"]["report"]
+        changed = [
+            each
+            for each in report["differences"]
+            if each["target"] == "task" and each["change"] in ("added", "updated")
+        ]
+        assert report["unchanged_count"] == (
+            report["read_count"] - len(report["rejected"]) - len(changed)
+        ), path.name
+
+
 def test_the_export_of_a_revision_of_another_project_is_not_found() -> None:
     refused = mockexchanges.export_revision_not_found()
     assert (refused["code"], refused["status"]) == ("NOT_FOUND", 404)
