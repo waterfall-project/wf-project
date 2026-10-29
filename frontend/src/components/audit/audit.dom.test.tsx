@@ -655,7 +655,7 @@ describe("the filters of the journal", () => {
     ).toBeInTheDocument();
   });
 
-  it("say the creation of a project and the abandon of a revision in progress, the abandoned revision, which has no name nor page any more, named by its nature without a link [WF-SEC-0030-A]", () => {
+  it("say the creation of a project and the abandon of a revision in progress, the abandoned revision, which has no label, named by its nature without a link as any object of a null label [WF-SEC-0030-A]", () => {
     const shown = example("audit_events_revision_abandoned") as Journal;
     const only = (action: AuditEvent["action"]): Journal => ({
       ...shown,
@@ -667,7 +667,11 @@ describe("the filters of the journal", () => {
     expect(within(abandon).queryByRole("link", { name: "Révision" })).not.toBeInTheDocument();
     unmount();
     render(journal({ shown: only("project_create") }));
-    expect(within(grid()).getAllByRole("row")[1]).toHaveTextContent("Création d’un projet");
+    // The object cell alone, the project column bearing the same label: its name is exactly the label.
+    const creation = within(grid()).getByRole("row", { name: /Création d’un projet/ });
+    expect(
+      within(creation).getByRole("cell", { name: "Modernisation du poste de commande" }),
+    ).toBeInTheDocument();
   });
 
   it("filter by correlation, entered and sent as the contract takes it, back to the first page, the filter lifted when emptied", async () => {

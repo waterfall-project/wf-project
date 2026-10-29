@@ -22,7 +22,7 @@
  * address, and an object that lives in a revision, in the revision the inscription names
  * (`AuditObject.revision`) — a risk, in the risks of the revision, its detail open; the import of a
  * planning, an estimate or a remaining to commit, in its exchanges, its report shown; the
- * differential of an amendment, among the cost structures the screen of the revisions shows of the
+ * merged differential structure, among the cost structures the screen of the revisions shows of the
  * revision —; a line of actual cost and the import of actual costs
  * belong to the project and to no revision, and an account, a role or a backup has no screen of its
  * own: their names stand alone. The correlation is a link to the inscriptions of its request alone.
@@ -102,7 +102,7 @@ function projectHref(projectId: string, reach: AuditReach): string | undefined {
  * The screen of an object that lives in a revision, in that revision, where the session may read its
  * function: a risk, in the risks of the revision, its detail open (`risks.read`); the import of a
  * planning, an estimate or a remaining to commit, in the exchanges of the revision, its report shown
- * (`planning.read`); the differential of an amendment, among the cost structures of the revision, on
+ * (`planning.read`); the merged differential structure, among the cost structures of the revision, on
  * the screen of the revisions read in it (`revisions.read`). Otherwise the revision itself, which
  * leads to the first of its functions the session may read; none when it may read none.
  */
