@@ -3007,6 +3007,7 @@
       "task_is_milestone": "the task is a milestone",
       "task_not_milestone": "the task is not a milestone",
       "task_without_lines": "task without any line but provisions",
+      "line_not_provision": "line other than a provision",
       "completed_milestone": "completed milestone",
       "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
@@ -3212,13 +3213,15 @@
         "duration": "Duration",
         "start": "Start",
         "finish": "Finish",
-        "progress": "Progress"
+        "progress": "Progress",
+        "scheduling_mode": "Scheduling mode"
       },
       "estimate_line": {
         "quantity": "Quantity",
         "hours": "Hours",
         "unit_disbursement": "Unit disbursement",
-        "subproject_id": "Subproject"
+        "subproject_id": "Subproject",
+        "cost_category_id": "Cost category"
       }
     },
     "EditableField": {
@@ -3253,10 +3256,11 @@
       "duration": "Duration",
       "start": "Start",
       "finish": "Finish",
-      "progress": "Progress",
       "physical_progress": "Physical progress",
       "total_float": "Total float",
       "is_critical": "Critical path",
+      "started_on": "Started on",
+      "completed_on": "Completed on",
       "predecessors": "Predecessors",
       "work_breakdown": "Work package or order item",
       "cost_category": "Cost category",
@@ -3280,6 +3284,7 @@
         "duration": "Duration of the task",
         "start": "Start of the task",
         "finish": "Finish of the task",
+        "scheduling_mode": "Scheduling mode of the task",
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
         "total_float": "Total float of the task",
@@ -3291,6 +3296,7 @@
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "cost_category_id": "Cost category of the line",
         "subproject_id": "Subproject of the line",
         "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
@@ -3306,6 +3312,7 @@
       "manual_mode": "A task in manual mode bears no float.",
       "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
+      "resource_role": "The role of a labour line determines its cost category.",
       "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",

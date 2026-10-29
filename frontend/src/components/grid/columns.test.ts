@@ -193,6 +193,8 @@ describe("the columns of the contract", () => {
     expect(pasteSpan(task, "total_float")).toEqual([
       "total_float",
       "is_critical",
+      "started_on",
+      "completed_on",
       "predecessors",
       "work_breakdown",
     ]);

@@ -134,8 +134,8 @@ describe("the grid of the remaining to commit", () => {
   it("offers no sort on the progress nor the finish of a task, which the server leaves in the order of the tree (#526)", async () => {
     // The server sorts the lines under each task alone (WF-IHM-0060): a sort by a column of the task
     // alone would change nothing, and the grid does not present it. The columns keep the column of
-    // the contract they show all the same, which a paste lands on where the grid takes one (the
-    // planning, the estimate).
+    // the contract they show where the contract names one (WF-PLA-0080: the state is a visual mark,
+    // not a column, so the progress names none).
     push.mockClear();
     const client = serve();
     render(grid());
@@ -157,11 +157,11 @@ describe("the grid of the remaining to commit", () => {
     expect(push).toHaveBeenCalledTimes(1);
     expect(String(push.mock.calls[0]?.[0])).toContain("sort_by=budgeted_amount");
     const taskAlone = REMAINING_GRID.columns.filter((column) => TASK_ALONE.includes(column.key));
-    expect(taskAlone.map((column) => column.contract)).toEqual(["progress", "finish"]);
+    expect(taskAlone.map((column) => column.contract)).toEqual([undefined, "finish"]);
   });
 
   it("shows no sort by a column of the task alone the address would still ask", () => {
-    // A sort by the progress handed down anyway is shown on no header.
+    // A sort by the finish handed down anyway is shown on no header.
     serve();
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
@@ -172,7 +172,7 @@ describe("the grid of the remaining to commit", () => {
           filters={{ progress: ["started"] }}
           editable
           query={{
-            sort: { column: "progress", order: "desc" },
+            sort: { column: "finish", order: "desc" },
             search: undefined,
             size: undefined,
           }}
