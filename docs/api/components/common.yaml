@@ -440,6 +440,12 @@ ErrorCode:
     - FILE_TOO_LARGE
     # 422 — règle métier ; `params` ou `fields` localise le refus.
     - VALIDATION_FAILED
+    # Une valeur que le serveur calcule pour le nœud, envoyée à la saisie (WF-IHM-0030) : la date
+    # d'une tâche en mode automatique (`updateTaskFacet`), le mode d'une récapitulative,
+    # toujours automatique, même envoyé `automatic` (`TaskFacetUpdate`, `updateTaskFacet` ;
+    # WF-PLA-0040), la catégorie d'une ligne de main-d'œuvre quand elle n'est pas celle de son
+    # rôle (`EstimateLineWrite`, `EstimateLineUpdate` ; WF-DEV-0020) ; `fields` la nomme, et
+    # `getComputedValueDependencies` dit ce dont elle dépend.
     - COMPUTED_VALUE
     - SUMMARY_TASK_DERIVED
     # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses

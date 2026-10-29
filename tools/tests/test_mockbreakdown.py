@@ -6,7 +6,8 @@ They try the examples of #586 and of the timelines against the universe they ill
 against the contract: the command of the skeleton, where it is offered and its refusal, the
 skeleton of the work breakdown by default, the refusals of the attachment by field and the merge
 that fails, the command of the timelines and the timeline created — not the Vérif of a
-requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »), but the
+one of the float of a summary, which cites WF-PLA-0100-A.
 """
 
 import json
@@ -322,6 +323,23 @@ def test_the_skeleton_of_the_default_breakdown_is_two_summaries_and_their_end_mi
     assert written["totals"]["estimate_line_count"] == 0
     for node in nodes:
         assert mockids.universe(int(node["node_id"][-3:]) + 100) == node["lineage_id"]
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
+def test_the_float_of_a_generated_summary_is_the_least_of_its_subordinates() -> None:
+    # « Une récapitulative dont une subordonnée est critique est critique et affiche la marge de
+    # cette subordonnée, nulle ou négative » : the example of the skeleton is written by hand.
+    nodes = fixture("skeleton_generated")["nodes"]
+    summaries = [node for node in nodes if node["task"]["is_summary"]]
+    assert len(summaries) == 2
+    for summary in summaries:
+        below = [node["task"] for node in nodes if node["parent_id"] == summary["node_id"]]
+        assert below
+        floats = [Decimal(task["total_float"]["value"]) for task in below if task["total_float"]]
+        assert floats
+        assert Decimal(summary["task"]["total_float"]["value"]) == min(floats)
+        assert summary["task"]["is_critical"] == any(task["is_critical"] for task in below)
+    assert all(node["task"]["is_critical"] for node in nodes)
 
 
 # --- The refusals of the attachment (#586) ------------------------------------------------------

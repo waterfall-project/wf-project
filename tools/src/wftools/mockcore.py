@@ -788,7 +788,8 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     The finish of a summary, its direct subordinates (WF-PLA-0040); the amount of a task, its
     lines and its direct subordinates (WF-DEV-0050); the amount of a labour line, the hourly
     rate (WF-DEV-0020); the quantity and the subproject of a provision, its risk (WF-RIS-0010,
-    EP-14/L42p); the float of a task in manual mode, its mode (WF-PLA-0100); the category of a
+    EP-14/L42p); the float of a summary, its direct subordinates, that of a task in manual mode,
+    its mode (WF-PLA-0100); the category of a
     labour line, its role (WF-DEV-0020). The rows are named
     by their number in the whole structure and their label; read again after rows were inserted
     above them, they bear their new numbers (WF-PLA-0080).
@@ -802,7 +803,8 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     elif row.kind == TASK and name == "task.base_amount":
         rules, named = ["lines_and_subordinates"], children
     elif row.kind == TASK and name == "task.total_float":
-        rules = ["manual_mode"]
+        subordinates = [each for each in children if each.kind == TASK]
+        rules, named = (["subordinates"], subordinates) if subordinates else (["manual_mode"], [])
     elif row.kind == ESTIMATE_LINE and name == "estimate_line.base_amount":
         rules = ["hourly_rate" if row.hours else "unit_disbursement"]
     elif row.kind == ESTIMATE_LINE and name in {"estimate_line.quantity", PROVISION_SUBPROJECT}:

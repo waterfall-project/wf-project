@@ -267,7 +267,8 @@ CommandCondition:
     la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
     terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie
     d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone`
-    au démarrage d'un jalon, qui ne démarre jamais, et à la réouverture d'un jalon terminé vers
+    au démarrage d'un jalon, qui ne passe pas par l'état démarré, et à la réouverture d'un jalon
+    terminé vers
     l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est
     pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non
     démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque.

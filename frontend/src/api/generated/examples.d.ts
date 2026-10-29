@@ -6,7 +6,7 @@
  */
 export interface Examples {
   "DELETE /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}": {
-    200: "node_deleted" | "node_summary_deleted";
+    200: "node_deleted" | "node_summary_deleted" | "node_summary_emptied";
   };
   "GET /access-roles": {
     200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";

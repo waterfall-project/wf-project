@@ -118,6 +118,25 @@ def node_created_child() -> JsonObject:
     return core_write(after, [CREATED_CHILD], following=before)
 
 
+def node_summary_emptied() -> JsonObject:
+    """Return what deleteNode answers to the one subordinate of a summary, the one created under it.
+
+    It follows ``node_created_child`` (#421): the summary loses its only subordinate and becomes
+    the leaf it was before, in automatic mode, of the duration it computed (WF-PLA-0040). The
+    structure is one version further than that creation.
+    """
+    summary = replace(SIBLING, children=(CHILD,))
+    before = mockcore.current(described(amended(CORE, added(N.STUDIES, child=summary))))
+    after = mockcore.current(described(amended(CORE, added(N.STUDIES, child=SIBLING))))
+    return written(
+        mockcore.whole(before),
+        mockcore.whole(after),
+        [],
+        deleted=[universe(CREATED_CHILD)],
+        structure_version=4,
+    )
+
+
 def network_task(label: str) -> Task:
     """Return a task drawn about the core, by its label."""
     [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == label]
@@ -667,6 +686,12 @@ def examples() -> dict[str, JsonObject]:
 def _structure_examples() -> dict[str, JsonObject]:
     created, child = node_created(), node_created_child()
     indented, deleted = nodes_indented(), node_summary_deleted()
+    emptied = node_summary_emptied()
+    [leaf] = [
+        node["task"]
+        for node in _nodes(emptied, "ancestors")
+        if node["node_id"] == universe(CREATED)
+    ]
     rows = {row.number: row for row in mockcore.current()}
     created_task = _task(created)
     [child_parent] = [
@@ -712,6 +737,16 @@ def _structure_examples() -> dict[str, JsonObject]:
             f"{_redated(deleted)} ; {totals_said(deleted)} — le devis diminue de "
             f"{mocktext.amount(removed)} — ; {_version(deleted)} (WF-PLA-0070, WF-DAT-0090).",
             deleted,
+        ),
+        "node_summary_emptied.json": mocktext.example(
+            f"La tâche « {CHILD.label} », seule subordonnée de « {SIBLING.label} », que la "
+            f"création précédente a faite récapitulative (node_created_child), supprimée : la "
+            f"récapitulative redevient une feuille en mode automatique de la durée qu'elle "
+            f"calculait, {mocktext.span(leaf)}, et accepte de nouveau son mode et sa durée "
+            f"(editable_fields). Elle est rendue dans les ancêtres telle qu'elle devient, avec "
+            f"« {rows[N.STUDIES].label} » : {_redated(emptied)} ; {totals_said(emptied)}, "
+            f"inchangés ; {_version(emptied)} (WF-PLA-0040, WF-PLA-0070).",
+            emptied,
         ),
     }
 

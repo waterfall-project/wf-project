@@ -331,6 +331,23 @@ def test_the_dependencies_name_the_rows_of_the_tree_by_their_number_and_label(
         mockcore.dependencies(rows, STUDIES, "task.label")
 
 
+@pytest.mark.requirement("WF-PLA-0100-A")
+def test_the_float_of_a_summary_depends_on_its_subordinates_not_on_a_mode(
+    rows: list[mockcore.Row],
+) -> None:
+    # « Une récapitulative dont une subordonnée est critique est critique et affiche la marge de
+    # cette subordonnée » : the float of a summary is drawn from its direct subordinates.
+    summary = mockcore.dependencies(rows, STUDIES, "task.total_float")
+    assert summary["depends_on"] == ["subordinates"]
+    children = [row for row in rows if row.parent == STUDIES and row.kind == mockcore.TASK]
+    assert children
+    assert [row["node_id"] for row in cast("list[dict[str, Any]]", summary["rows"])] == [
+        universe(row.number) for row in children
+    ]
+    manual = mockcore.dependencies(rows, DESKS, "task.total_float")
+    assert (manual["depends_on"], manual["rows"]) == (["manual_mode"], [])
+
+
 _STRUCTURE_NODES = next(f for f in mockids.IDENTIFIERS if f.what == "nœuds de la structure")
 _STRUCTURE_LINEAGES = next(f for f in mockids.IDENTIFIERS if f.first == 600)
 

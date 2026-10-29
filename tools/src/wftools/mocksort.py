@@ -165,6 +165,28 @@ def period_inverted() -> JsonObject:
     }
 
 
+def bounds_inverted() -> JsonObject:
+    """Return what listNodes answers to the bounds of a column whose upper bound is the lower.
+
+    The rule of every column of numbers of the contract (README): 422, the upper bound named by
+    VALUE_OUT_OF_RANGE, ``params.minimum`` the lower bound given, in the type of the column — a
+    decimal, in a string, for an amount.
+    """
+    high = BOUNDS[1]
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/query/reestimated_amount_max",
+                "code": "VALUE_OUT_OF_RANGE",
+                "params": {"minimum": f"{high:.2f}"},
+            }
+        ],
+        "correlation_id": universe(1076),
+    }
+
+
 def examples(rows: list[mockcore.Row]) -> dict[str, JsonObject]:
     """Return the examples of the estimate of the control station sorted or filtered, by file name.
 
@@ -223,5 +245,13 @@ def examples(rows: list[mockcore.Row]) -> dict[str, JsonObject]:
             f"la fin de la période précède son début, et le paramètre start_to est refusé, "
             f"désigné par /query/start_to, le début nommé (README du contrat, WF-IHM-0130).",
             period_inverted(),
+        ),
+        "nodes_bounds_inverted.json": mocktext.example(
+            f"Les lignes de devis demandées le {day} entre {amount(BOUNDS[1])} et "
+            f"{amount(BOUNDS[0])} réestimés (reestimated_amount_min, reestimated_amount_max) : la "
+            f"borne supérieure précède la borne inférieure, et reestimated_amount_max est "
+            f"refusée, désignée par /query/reestimated_amount_max, la borne inférieure nommée, "
+            f"un décimal en chaîne comme la colonne (README du contrat, WF-IHM-0130).",
+            bounds_inverted(),
         ),
     }

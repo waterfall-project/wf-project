@@ -96,7 +96,7 @@ OPERATIONS = {
             "estimate_line_created_labelled",
         ],
     ),
-    "deleteNode": ("200", ["node_summary_deleted"]),
+    "deleteNode": ("200", ["node_summary_deleted", "node_summary_emptied"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
     "updateEstimateLine": (

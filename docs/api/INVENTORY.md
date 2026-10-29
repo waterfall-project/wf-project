@@ -164,7 +164,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PUT | `/projects/{project_id}/reference-revision` | Désigner la révision de référence | WF-CYC-0030, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Écart de taux proposé, catégorie par catégorie | WF-REV-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Appliquer la mise à jour des taux | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
-| GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-REV-0080 |
+| GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-IHM-0130, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Ouvrir un différentiel | WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modifier la date de début de planning et le libellé d'une structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |

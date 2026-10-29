@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from witnessreadings import ACCEPTANCE, LABOUR, PROVISION, STUDIES, facet, nodes
 
-from wftools import mockcore, mockdating, mockwitness, mockwrites
+from wftools import mockcore, mockdating, mockgestures, mockids, mockwitness, mockwrites
 from wftools.mockcalendar import START_TO_START
 from wftools.mockwitness import Link, Task
 
@@ -206,3 +206,25 @@ def test_a_bound_of_a_column_of_a_line_retains_the_lines_within_it() -> None:
     assert all(Decimal(1000) <= amount <= Decimal(10_000) for amount in amounts)
     assert Decimal(reading["totals"]["reestimated_amount"]) == sum(amounts)
     assert reading["totals"]["task_count"] == 0
+
+
+@pytest.mark.requirement("WF-PLA-0040-A")
+def test_deleting_the_only_subordinate_of_a_summary_leaves_a_leaf_of_its_duration() -> None:
+    # « La suppression de la seule subordonnée d'une récapitulative de dix jours laisse une tâche
+    # feuille de dix jours » : the witness has no summary of ten days with one subordinate; the
+    # one of a day its creation example makes (node_created_child) stands for it.
+    summary_id = mockids.universe(mockgestures.CREATED)
+    created = mockwitness.fixture("node_created_child")["ancestors"]
+    summary = {node["node_id"]: node["task"] for node in created}[summary_id]
+    assert summary["is_summary"] is True
+    emptied = mockwitness.fixture("node_summary_emptied")
+    assert emptied["nodes"] == []
+    leaf_node = {node["node_id"]: node for node in emptied["ancestors"]}[summary_id]
+    leaf = leaf_node["task"]
+    assert leaf["is_summary"] is False
+    assert leaf["scheduling_mode"] == "automatic"
+    assert leaf["duration"] == summary["duration"]
+    assert (leaf["start"], leaf["finish"]) == (summary["start"], summary["finish"])
+    assert "task.duration" in leaf_node["editable_fields"]
+    assert "task.duration" not in leaf_node["computed_fields"]
+    assert emptied["structure_lock_version"] == 4

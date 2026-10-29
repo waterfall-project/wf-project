@@ -740,7 +740,8 @@ KanbanCommand:
     `task_without_lines` pour une tâche qui porte une ligne hors provision, que la saisie d'un
     reste à engager nul sur toutes ses lignes termine (WF-RAE-0040), dans cet ordre.
     `reopen` rouvre une tâche terminée : un jalon redevient non démarré, ses dates de
-    démarrage et de terminaison effacées, toute autre tâche redevient démarrée ; listée sur toute carte
+    démarrage et de terminaison effacées, toute autre tâche redevient démarrée ; listée sur toute
+    carte
     terminée, et sur elle seule. `enter_remaining` renvoie à la grille de reste à engager, sur
     la tâche, et n'écrit rien : listée sur la carte d'une tâche non terminée qui porte une
     ligne hors provision, et sur elle seule — c'est le geste qui la termine, `complete` y
@@ -791,7 +792,8 @@ NotStartedTask:
 ComputedField:
   type: string
   description: >-
-    Champ saisissable que le serveur calcule pour un nœud (`computed_fields`) : `task.scheduling_mode`,
+    Champ saisissable que le serveur calcule pour un nœud (`computed_fields`) :
+    `task.scheduling_mode`,
     le mode d'une récapitulative, toujours automatique (WF-PLA-0040) ;
     `estimate_line.cost_category_id`, la catégorie d'une ligne de main-d'œuvre, celle de son rôle
     (WF-DEV-0020).
@@ -1975,7 +1977,8 @@ ProgressUpdate:
     terminaison situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130). Une tâche
     terminée se rouvre : un jalon en le ramenant à « non démarrée », ses dates de démarrage et
     de terminaison effacées — seul cas où une tâche revient à cet état —, toute autre tâche en
-    la repassant à « démarrée » (WF-RAE-0030). `not_started` envoyé pour une tâche qui n'est pas un jalon
+    la repassant à « démarrée » (WF-RAE-0030). `not_started` envoyé pour une tâche qui n'est pas un
+    jalon
     terminé est refusé par 409, `missing_condition` à `completed_milestone` : une tâche
     démarrée par erreur se corrige en annulant la saisie (WF-IHM-0110). Le passage direct de
     non démarrée à terminée n'est ouvert qu'à un jalon, qui ne passe jamais par l'état

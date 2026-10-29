@@ -369,3 +369,16 @@ def test_every_task_read_on_the_amendment_accepts_its_predecessors_but_one_remov
     for node in _json(mockamendment.nodes_amendment())["items"]:
         accepts = "task.predecessors" in node["editable_fields"]
         assert accepts == (node["kind"] == "task" and node["difference"] != "removed"), node
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_the_label_composed_for_a_line_is_cut_at_the_length_of_a_label() -> None:
+    # « À la création d'une ligne, Waterfall compose son libellé à partir de celui de la tâche qui
+    # la porte et, s'il existe, de celui de son rôle de ressource » : within 300 characters.
+    assert mockamendmentwrites.composed_label("Mise en service", "Technicien") == (
+        "Mise en service — Technicien"
+    )
+    assert mockamendmentwrites.composed_label("Mise en service", None) == "Mise en service"
+    long = mockamendmentwrites.composed_label("T" * 250, "R" * 100)
+    assert len(long) == mockamendmentwrites.LABEL_LENGTH == 300
+    assert long == "T" * 250 + " — " + "R" * 47

@@ -9187,10 +9187,17 @@ gestes du Kanban » (EP-15/US-0540, F-13) et « Toute liste se filtre sur ce que
   constantes de l'installation (`DurationUnits`) ; les prédécesseurs, une liste de liaisons et
   non une valeur, ne se filtrent pas. Un filtre de la tâche retient la tâche avec ses lignes, un
   filtre de la ligne la ligne, la borne d'un montant portant sur la ligne ; les refus sont ceux du
-  README. `compareRevisions`, qui partage les paramètres des nœuds (#1193), ne les reçoit pas : sa
-  grille n'est pas l'une des trois. Exemple engendré `nodes_estimate_filtered` (`mocksort`), le
-  devis du lot « Poste de commande » borné de 1 000,00 à 10 000,00 réestimés : le raccordement des
-  borniers et les borniers, leurs tâches rendues pour la lisibilité de l'arbre.
+  README. `compareRevisions` les reçoit aussi, les mêmes `$ref` et le même 422 : WF-IHM-0130 veut
+  que toute table se filtre sur chacune de ses colonnes, sa grille est celle des structures, et sa
+  description dit déjà partager les paramètres de `listNodes` (#1193). Les nœuds comparés
+  (`Compared*`) portent toutes les colonnes ; un filtre y porte sur la grandeur que la comparaison
+  affiche, celle de la révision comparée, jamais sur l'écart que `difference` dit, et sur la valeur
+  de base pour un nœud retiré, comme le tri et la recherche (#1205). Exemples engendrés
+  (`mocksort`) : `nodes_estimate_filtered`, le devis du lot « Poste de commande » borné de 1 000,00
+  à 10 000,00 réestimés — le raccordement des borniers et les borniers, leurs tâches rendues pour
+  la lisibilité de l'arbre — ; `nodes_bounds_inverted`, la borne haute du montant réestimé sous la
+  basse, refusée sur `/query/reestimated_amount_max`, `params.minimum` la borne basse, sous le 422
+  de `listNodes` et de `compareRevisions` avec `nodes_period_inverted`.
 - **Les colonnes de la grille de planning** (F-07, L-12 ; WF-PLA-0080). `NodeColumn` reçoit
   `started_on` et `completed_on` après `is_critical`, à la place que WF-PLA-0080 leur donne, avant
   les prédécesseurs et le rattachement, qui reste dernier (EP-02/L30) ; ce sont des colonnes de
@@ -9240,9 +9247,13 @@ gestes du Kanban » (EP-15/US-0540, F-13) et « Toute liste se filtre sur ce que
   manuelle qui reçoit une subordonnée devient une récapitulative automatique (`createNode`,
   `moveNodes`). La récapitulative qui perd sa dernière subordonnée — feuille automatique de la
   durée qu'elle calculait, jalon si cette durée est nulle et qu'elle n'est pas démarrée, feuille
-  d'un jour si elle l'est — est dite dans `deleteNode`, `moveNodes` et `NodesWritten.ancestors`, en
-  descriptions seulement : les refus de `deleteNode` (F-04) sont à US-0702, et l'exemple
-  `node_summary_emptied` de L-09 n'est pas fait.
+  d'un jour si elle l'est — est dite dans `deleteNode`, `moveNodes` et `NodesWritten.ancestors` ;
+  les refus de `deleteNode` (F-04) sont à US-0702. Exemple engendré `node_summary_emptied`
+  (`mockgestures`), sous le 200 de `deleteNode` : la suppression de la tâche « Relevé des réglages
+  existants », seule subordonnée de « Note de calcul des protections » que `node_created_child` a
+  faite récapitulative, laisse celle-ci feuille automatique d'un jour, rendue telle qu'elle
+  devient dans `ancestors` ; le témoin n'a pas de récapitulative de dix jours à une seule
+  subordonnée, celle-ci en tient lieu (WF-PLA-0040).
 - **Les mineurs des fichiers touchés.** F-12 l'était déjà par US-0701/L1 (`rescheduled` dit
   qu'une tâche rendue entière dans `ancestors` y paraît aussi). F-16 : `Lag.value` en `percent` est
   un nombre de pour cent, `50` pour la moitié, comme MS Project — sans exemple, aucun prédécesseur

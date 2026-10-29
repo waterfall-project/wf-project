@@ -2781,6 +2781,11 @@ class TaskProgress(StrEnum):
     completed = "completed"
 
 
+class SchedulingMode(StrEnum):
+    automatic = "automatic"
+    manual = "manual"
+
+
 class NodeColumn(StrEnum):
     label = "label"
     description = "description"
@@ -2810,11 +2815,6 @@ class NodeColumn(StrEnum):
     previous_hours = "previous_hours"
     previous_unit_disbursement = "previous_unit_disbursement"
     previous_reestimated_amount = "previous_reestimated_amount"
-
-
-class SchedulingMode(StrEnum):
-    automatic = "automatic"
-    manual = "manual"
 
 
 class DurationUnit(StrEnum):
@@ -3959,7 +3959,7 @@ class ImportCompletedTask(ContractModel):
     completed_on: Annotated[
         PlanningDate | None,
         Field(
-            description="La date de terminaison que la tâche prend — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030). D'un import, la date de la revue que porte le fichier, lue dès l'analyse et jamais nulle (WF-INTF-0120, WF-INTF-0130) ; d'une fusion, le jour de son application, nul tant qu'elle n'est pas appliquée (WF-PLA-0130, WF-REV-0050)."
+            description="La date de terminaison que la tâche prend — et aussi sa date de démarrage pour une tâche non démarrée, jalon compris : une tâche qui n'est pas un jalon passe par l'état démarré (WF-RAE-0030), un jalon n'y passe pas (WF-PLA-0130). D'un import, la date de la revue que porte le fichier, lue dès l'analyse et jamais nulle (WF-INTF-0120, WF-INTF-0130) ; d'une fusion, le jour de son application, nul tant qu'elle n'est pas appliquée (WF-PLA-0130, WF-REV-0050)."
         ),
     ]
 
@@ -5507,7 +5507,7 @@ class ImportReport(ContractModel):
     completed_tasks: Annotated[
         list[ImportCompletedTask],
         Field(
-            description="Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date de terminaison est la date de la revue que porte le fichier, en « Synthèse », lue dès l'analyse (WF-INTF-0120, WF-INTF-0130). Une tâche non démarrée qui n'est pas un jalon passe par l'état démarré : démarrée et terminée à cette date (`started_on` égal à `completed_on`), seul un jalon allant directement de non démarré à terminé (WF-RAE-0030). Vide pour les autres natures d'import."
+            description="Les tâches que l'application de l'import termine, parce qu'il met à zéro le reste à engager de toutes leurs lignes (WF-INTF-0120, WF-RAE-0040), chacune nommée ; leur date de terminaison est la date de la revue que porte le fichier, en « Synthèse », lue dès l'analyse (WF-INTF-0120, WF-INTF-0130). Une tâche non démarrée qui n'est pas un jalon passe par l'état démarré : démarrée et terminée à cette date (`started_on` égal à `completed_on`) ; un jalon, qui ne passe pas par l'état démarré, va directement de non démarré à terminé et porte aussi `started_on` égal à `completed_on` (WF-RAE-0030, WF-PLA-0130). Vide pour les autres natures d'import."
         ),
     ]
     date_mismatches: Annotated[
