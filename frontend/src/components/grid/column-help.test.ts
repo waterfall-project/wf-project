@@ -3,10 +3,8 @@
 /*
  * The guard of the definitions of the columns (US-0580/L2, #1137): each column of the grids of the
  * estimate, of the planning, of the remaining to commit and of the risks (US-0580/L3) has a
- * definition for its header, and the amount corrected of inflation, the sentence with the year and
- * the rate that correct it where the screen knows them. So has each column of the tables of the
- * administration and of the portfolio, those of their commands included (US-0670/L2, #1434), in both
- * catalogues.
+ * definition for its header. So has each column of the tables of the administration and of the
+ * portfolio, those of their commands included (US-0670/L2, #1434), in both catalogues.
  */
 import { describe, expect, it } from "vitest";
 
@@ -65,18 +63,4 @@ describe("the definitions of the columns", () => {
       }
     },
   );
-
-  it("gives the amount corrected of inflation a definition of its own whether or not the revision is known", () => {
-    const plain = estimateGrid(estimateReference()).columns.find(
-      (column) => column.key === "inflated_amount",
-    );
-    const corrected = estimateGrid(estimateReference(), undefined, {
-      year: "2026",
-      rate: "3 %",
-    }).columns.find((column) => column.key === "inflated_amount");
-    expect(plain?.help).toBe("estimate.inflatedAmountStatic");
-    expect(plain?.helpValues).toBeUndefined();
-    expect(corrected?.help).toBe("estimate.inflatedAmount");
-    expect(corrected?.helpValues).toEqual({ year: "2026", rate: "3 %" });
-  });
 });

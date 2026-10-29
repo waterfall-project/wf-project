@@ -127,13 +127,33 @@ def money(value: Decimal) -> str:
     return str(value.quantize(CENT))
 
 
-def inflated(amount: Decimal, year: int) -> Decimal:
-    """Return an amount projected on a year, at the inflation rate of the witness project.
+@dataclass(frozen=True, slots=True)
+class Projection:
+    """How a revision projects an amount on its year of consumption (WF-DEV-0030, WF-PRJ-0040).
 
-    A simplification of WF-DEV-0040: the whole line is projected on the year its task starts,
-    not split across the years the task spans in proportion to its hours of work.
+    Compounded at the inflation rate of the project, once a year elapsed since the reference
+    year of the revision: the witness's, 3 % from 2026, by default. Every revision of the witness
+    is projected from 2026, the offer of 2025 included: a declared simplification, for the author
+    to settle (#1628). A simplification of
+    WF-DEV-0040: the whole line is projected on the year its task starts, not split across the
+    years the task spans in proportion to its hours of work.
     """
-    return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
+
+    reference_year: int = REFERENCE_YEAR
+    rate: Decimal = INFLATION_RATE
+
+    def __call__(self, amount: Decimal, year: int) -> Decimal:
+        """Return an amount projected on a year."""
+        return (amount * (1 + self.rate) ** (year - self.reference_year)).quantize(CENT)
+
+
+WITNESS = Projection()
+"""The projection of the revisions of the witness of reference year 2026, at its 3 %."""
+
+
+def inflated(amount: Decimal, year: int) -> Decimal:
+    """Return an amount projected on a year, as the witness projects it (``Projection``)."""
+    return WITNESS(amount, year)
 
 
 def share(value: Decimal) -> Decimal:

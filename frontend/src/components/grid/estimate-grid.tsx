@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import {
@@ -30,7 +30,6 @@ import {
   updateTaskFacet,
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
-import { formatPercent } from "@/i18n/format";
 
 import { DenseGrid } from "./dense-grid";
 import {
@@ -97,12 +96,6 @@ export interface EstimateGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
-  /**
-   * What the amount corrected of inflation is corrected by, which the header of its column names:
-   * the year of reference of the revision and the rate of inflation of the project, as the server
-   * rates them; none, and the column bears no definition.
-   */
-  readonly inflation?: { readonly referenceYear: number; readonly rate: string } | undefined;
 }
 
 /**
@@ -217,10 +210,8 @@ export function EstimateGrid({
   query,
   preferences,
   differential,
-  inflation,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
-  const locale = useLocale();
 
   const columns = useTranslations("enums.NodeColumn");
   // The version of the structure moves with each write answered: the highest one told — writes
@@ -278,23 +269,8 @@ export function EstimateGrid({
       editable
         ? structureWrites(structure, version, told, tasksEditable, name, filters)
         : undefined,
-      inflation === undefined
-        ? undefined
-        : { year: String(inflation.referenceYear), rate: formatPercent(inflation.rate, locale) },
     );
-  }, [
-    reference,
-    editable,
-    tasksEditable,
-    structure,
-    version,
-    reach,
-    filters,
-    whole,
-    columns,
-    inflation,
-    locale,
-  ]);
+  }, [reference, editable, tasksEditable, structure, version, reach, filters, whole, columns]);
   const config = useMemo(() => withDifference(read, differential), [read, differential]);
   return (
     <DenseGrid

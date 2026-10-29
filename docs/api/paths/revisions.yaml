@@ -198,10 +198,10 @@
     tags: [revisions]
     summary: Désigner la révision de référence
     description: >-
-      Désignation manuelle possible tant que le projet n'a ni coût réel ni révision
-      marquée postérieure ; au-delà, la référence ne se déplace plus qu'à la
-      contractualisation d'un avenant (WF-REV-0040). Inscrite au journal d'audit
-      (WF-SEC-0030). La
+      Désignation manuelle possible tant que le projet n'a reçu aucun coût réel et
+      qu'aucune révision n'a été marquée depuis la dernière désignation ; au-delà, la
+      référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040).
+      Inscrite au journal d'audit (WF-SEC-0030). La
       désignation fait passer le projet à En cours si les conditions de WF-CYC-0030
       sont réunies.
     parameters:
@@ -255,7 +255,8 @@
     tags: [revisions]
     summary: Écart de taux proposé, catégorie par catégorie
     description: >-
-      Présenté à la création d'une révision lorsque le référentiel a changé. Une
+      Présenté à la création d'une révision dont l'année de référence diffère de celle de la
+      révision précédente, que le référentiel ait changé ou non (WF-REV-0060). Une
       catégorie sans taux pour l'année retenue conserve son taux précédent, projeté par
       le taux d'inflation (WF-REV-0060).
     parameters:
@@ -938,8 +939,8 @@
       structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage
       suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les
       successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans
-      `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs montants corrigés dans `reinflated`
-      (WF-DEV-0040). Comme toute modification, elle porte le compteur lu du nœud supprimé
+      `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs montants, inflation comprise, dans
+      `reinflated` (WF-DEV-0040). Comme toute modification, elle porte le compteur lu du nœud supprimé
       (`lock_version`, WF-IHM-0110) : un nœud écrit depuis sa lecture n'est pas supprimé (#1210).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -1074,8 +1075,9 @@
         description: >-
           Tâche modifiée, avec les dates et la criticité recalculées, ses ancêtres recalculés,
           les tâches qu'une durée saisie redate — ses successeurs, et ce que le chemin critique
-          déplace —, le montant corrigé des lignes et des tâches qu'elle déplace d'une année à
-          l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
+          déplace —, les montants, inflation comprise, des lignes et des tâches qu'elle déplace
+          d'une année à l'autre et les totaux de la structure (`NodesWritten`, WF-PLA-0020,
+          WF-DEV-0040).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
@@ -1137,14 +1139,15 @@
     tags: [estimate]
     summary: Modifier la facette argent d'une ligne de devis
     description: >-
-      Les montants sont calculés et non saisissables : celui à l'année de référence par la
-      ligne, le budgété par la référence, le réestimé par les revues, le corrigé de
-      l'inflation par l'année de consommation (WF-DEV-0020, WF-DEV-0030, WF-DEV-0040). Une
-      ligne de provision est calculée depuis son risque (WF-RIS-0010). Seul le compteur lu est
+      Les montants sont calculés et non saisissables : celui aux taux de l'année de référence,
+      avant inflation, par la ligne, le budgété par la référence, le réestimé par les revues,
+      ces deux-là inflation comprise, à l'année de consommation de la ligne (WF-DEV-0020,
+      WF-DEV-0030, WF-DEV-0040). Une ligne de provision est calculée depuis son risque, et n'est
+      pas projetée (WF-RIS-0010, WF-DEV-0030). Seul le compteur lu est
       exigé : seul ce qui est envoyé change (WF-IHM-0040), et le nœud dit ce qu'il accepte
       (`editable_fields`). Un rôle changé change le calendrier de la tâche, donc ses dates
       (WF-PLA-0010) : ses successeurs redatés sont rendus dans `rescheduled`, et dans `reinflated`
-      chaque ligne ou tâche non récapitulative dont le montant corrigé change — les autres lignes
+      chaque ligne ou tâche non récapitulative dont un montant change d'année — les autres lignes
       qu'elle porte, celles des successeurs qui changent d'année, et leurs tâches. Une ligne
       dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu des coûts
       réels, et ne nomme pas son sous-projet dans `editable_fields` ; celle d'une tâche non
@@ -1447,8 +1450,8 @@
       est résolue à la lecture (§3.5.1). La hiérarchie obtenue reste celle d'un arbre de
       tâches et de récapitulatives (WF-PLA-0040). Un déplacement change la structure de
       l'arbre, et peut redater des tâches qui ne sont ni déplacées ni ancêtres : elles sont
-      rendues dans `rescheduled` (WF-PLA-0020), et leurs montants corrigés dans `reinflated`
-      (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
+      rendues dans `rescheduled` (WF-PLA-0020), et leurs montants, inflation comprise, dans
+      `reinflated` (WF-DEV-0040). Une récapitulative qui perd sa dernière subordonnée garde son
       rattachement au lotissement ; un déplacement qui sortirait la tâche d'un poste du
       sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`), comme un
       déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). La

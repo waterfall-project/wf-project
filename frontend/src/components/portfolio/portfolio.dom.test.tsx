@@ -595,7 +595,7 @@ describe("the charts of the portfolio", () => {
     );
     expect(rows).toHaveLength(1 + 12 + 7 + 7);
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}593${NARROW}192,97`,
+      `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}620${NARROW}318,36`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.
@@ -625,7 +625,7 @@ describe("the charts of the portfolio", () => {
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     // The month of the calculation bears both: what was spent up to it, what is to come after.
     expect(within(figure).getByRole("row", { name: /juin 2026/ })).toHaveTextContent(
-      `juin 202619${NARROW}713${NARROW}579,4231${NARROW}415${NARROW}024,64`,
+      `juin 202619${NARROW}713${NARROW}579,4231${NARROW}417${NARROW}246,57`,
     );
   });
 

@@ -51,8 +51,10 @@ _amount, _day = mocktext.amount, mocktext.day
 def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonValue]:
     """Return the deltas of the estimate by nature of cost and by subproject, each named.
 
-    In the order of the identifiers of the natures, then of the subprojects of the universe, those
-    without subproject last (WF-REV-0080, WF-IND-0020).
+    The delta of the budgeted amounts and that of the re-estimated amounts, inflation included,
+    the later's less the earlier's (WF-REV-0080), a key whose two deltas are nil left out. In the
+    order of the identifiers of the natures, then of the subprojects of the universe, those
+    without subproject last (WF-IND-0020).
     """
     natures = {
         nature["cost_type_id"]: nature["label"]
@@ -60,14 +62,19 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
     }
     subprojects = [entry["subproject_id"] for entry in fixture("subprojects")]
     named = labels()
-    by: dict[tuple[str, str], Decimal] = {}
+    nil = (Decimal(0), Decimal(0))
+    by: dict[tuple[str, str], tuple[Decimal, Decimal]] = {}
     for rows, sign in ((before, -1), (after, 1)):
         for row in rows:
             if row.kind != mockcore.ESTIMATE_LINE:
                 continue
             subproject = cast("str | None", estimate_line(row)["subproject_id"]) or "unassigned"
             for key in (("cost_type", nature(row)), ("subproject", subproject)):
-                by[key] = by.get(key, Decimal(0)) + sign * row.amounts.base
+                budgeted, reestimated = by.get(key, nil)
+                by[key] = (
+                    budgeted + sign * row.amounts.budgeted,
+                    reestimated + sign * row.amounts.reestimated,
+                )
     order = [("cost_type", key) for key in natures] + [
         ("subproject", key) for key in [*subprojects, "unassigned"]
     ]
@@ -78,10 +85,11 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
             "label": None
             if key == "unassigned"
             else (natures[key] if dimension == "cost_type" else named[key]),
-            "delta": money(by[dimension, key]),
+            "budgeted_delta": money(by[dimension, key][0]),
+            "reestimated_delta": money(by[dimension, key][1]),
         }
         for dimension, key in order
-        if by.get((dimension, key), Decimal(0)) != 0
+        if by.get((dimension, key), nil) != nil
     ]
 
 
@@ -99,8 +107,8 @@ def comparison(
     had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
     the nodes removed not counted, its dates computed when it was marked, after which nothing
     redates it (WF-DAT-0020, #1404), or at the instant of the witness for a revision still in
-    progress, as any reading of such a structure; and the deltas of the estimate at the year of
-    reference, of the lines the reading retains, those removed with them.
+    progress, as any reading of such a structure; and the deltas of the budgeted and of the
+    re-estimated amounts, of the lines the reading retains, those removed with them.
 
     A line is retained by its parent in the later, where the marked tree renders it, and brings
     its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
@@ -167,7 +175,8 @@ def _deltas_text(deltas: list[JsonObject], dimension: str) -> str:
     """Say the deltas of one dimension, each by the label of its key, in the order rendered."""
     return mocktext.listed(
         [
-            f"{_amount(Decimal(cast('str', entry['delta'])))} pour "
+            f"{_amount(Decimal(cast('str', entry['budgeted_delta'])))} budgétés et "
+            f"{_amount(Decimal(cast('str', entry['reestimated_delta'])))} réestimés pour "
             + (
                 "ce qui ne relève d'aucun sous-projet"
                 if entry["label"] is None
@@ -205,8 +214,9 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
         f"leur place, en lecture seule, {_quoted(removed)} ; {len(changed)} modifiés par leurs "
         f"propres valeurs, {_quoted(changed)}{rerated} ; et {len(content)} tâches modifiées par "
         f"leur seul contenu, {_quoted(content)} (C-361). Les totaux sont ceux du sous-arbre dans "
-        f"la référence, sans les nœuds retirés ; les écarts du devis à l'année de référence, ceux "
-        f"de ses lignes, retirées comprises, par nature — {_deltas_text(deltas, 'cost_type')} — "
+        f"la référence, sans les nœuds retirés ; les écarts des montants budgétés et réestimés, "
+        f"inflation comprise, ceux de ses lignes, retirées comprises, par nature — "
+        f"{_deltas_text(deltas, 'cost_type')} — "
         f"et par sous-projet — {_deltas_text(deltas, 'subproject')} : l'offre n'en portait aucun, "
         f"les sous-projets ayant été déclarés après la commande, et ses lignes passent de "
         f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193).",
@@ -231,7 +241,10 @@ def comparison_volume() -> JsonObject:
     unchanged = len(nodes) - len(added) - len(removed) - len(changed) - len(content)
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
     by_nature = [entry for entry in deltas if entry["dimension"] == "cost_type"]
-    total = sum((Decimal(cast("str", entry["delta"])) for entry in by_nature), Decimal(0))
+    budgeted, reestimated = (
+        sum((Decimal(cast("str", entry[key])) for entry in by_nature), Decimal(0))
+        for key in ("budgeted_delta", "reestimated_delta")
+    )
     read = mockcore.with_fields(nodes, VOLUME_FIELDS, mockdiff.ALWAYS)
     return mocktext.example(
         f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
@@ -243,8 +256,9 @@ def comparison_volume() -> JsonObject:
         f"à leur place, {mocktext.count(len(changed))} modifiés par leurs propres valeurs, "
         f"{mocktext.count(len(content))} tâches modifiées par leur seul contenu et "
         f"{mocktext.count(unchanged)} inchangés (C-361). Les totaux et la meta sont ceux de "
-        f"`listNodes` sur la référence entière, les écarts du devis à l'année de référence ceux de "
-        f"toute la structure, {_amount(total)} en tout (WF-REV-0080, WF-DAT-0030, #1193, #1201).",
+        f"`listNodes` sur la référence entière, les écarts des montants budgétés et réestimés ceux "
+        f"de toute la structure, {_amount(budgeted)} et {_amount(reestimated)} en tout "
+        f"(WF-REV-0080, WF-DAT-0030, #1193, #1201).",
         {**compared, "items": cast("list[JsonValue]", read)},
     )
 

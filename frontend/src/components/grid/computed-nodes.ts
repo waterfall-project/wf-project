@@ -24,7 +24,7 @@ type ComputedField = components["schemas"]["ComputedField"];
  * An amount of a node, which the server computes for a task — the sum of its subtree — as for a
  * line: at the year of reference, or corrected for inflation (WF-DEV-0050).
  */
-type Amount = "base_amount" | "budgeted_amount" | "reestimated_amount" | "inflated_amount";
+type Amount = "base_amount" | "budgeted_amount" | "reestimated_amount";
 
 /**
  * The cells of a field an entry writes, computed in the rows whose node names it among its

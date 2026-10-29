@@ -261,11 +261,11 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
-    # alone are budgeted 120,534.56, the whole structure 65,430,697.64.
+    # alone are budgeted 120,534.56, the whole structure 68,241,568.05, inflation included.
     assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
         "120534.56"
     )
-    assert budget == Decimal("65430697.64")
+    assert budget == Decimal("68241568.05")
     numbers = {row.number for row in rows}
     assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
@@ -293,9 +293,9 @@ def test_the_register_reads_its_severities_on_the_reference_budget_of_the_whole_
     amount = mocktext.amount
     summary = str(examples["risk_matrix.json"]["summary"])
     for severity, label, share, level in (
-        (1_250_000, "Risque de reprise du câblage", "1,91 %", 2),
+        (1_250_000, "Risque de reprise du câblage", "1,83 %", 2),
         (200, "Retard de livraison des armoires", "moins de 0,01 %", 1),
-        (12_000_000, "Indisponibilité de l'automaticien", "18,34 %", 4),
+        (12_000_000, "Indisponibilité de l'automaticien", "17,58 %", 4),
     ):
         said = f"{amount(Decimal(severity))} pour « {label} », {share}, au niveau {level}"
         assert said in summary, said
@@ -414,18 +414,26 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     # 3,165 of the core without its provisions, the 850,060 of the provisions the reference bore —
     # 751 and 753 at the scale of the structure (EP-14/L45b) —, and the rates of 2026 on the labour
     # drawn.
+    # The budgeted deltas leave the rates out: the drawn labour keeps the budget of the offer.
     offer = mockhistory.offer_rows()
-    difference = sum(
-        (row.amounts.base for row in reference.values() if row.kind == "estimate_line"),
-        Decimal(0),
-    ) - sum((row.amounts.base for row in offer if row.kind == "estimate_line"), Decimal(0))
-    for dimension in ("cost_type", "subproject"):
-        deltas = [
-            Decimal(entry["delta"])
-            for entry in compared["amount_deltas"]
-            if entry["dimension"] == dimension
-        ]
-        assert sum(deltas, Decimal(0)) == difference == Decimal("1027251.25")
+    for key, expected in (("budgeted", "852925.00"), ("reestimated", "1034848.01")):
+        difference = sum(
+            (
+                getattr(row.amounts, key)
+                for row in reference.values()
+                if row.kind == "estimate_line"
+            ),
+            Decimal(0),
+        ) - sum(
+            (getattr(row.amounts, key) for row in offer if row.kind == "estimate_line"), Decimal(0)
+        )
+        for dimension in ("cost_type", "subproject"):
+            deltas = [
+                Decimal(entry[f"{key}_delta"])
+                for entry in compared["amount_deltas"]
+                if entry["dimension"] == dimension
+            ]
+            assert sum(deltas, Decimal(0)) == difference == Decimal(expected), key
     # Read whole, its totals are those of listNodes on the reference (#1193).
     assert len(compared["items"]) == 5_999
     assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
@@ -480,17 +488,20 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
         if (offer.get(number) or referenced[number]).kind == "estimate_line"
     ]
 
-    def base(rows: dict[int, mockcore.Row], number: int) -> Decimal:
-        return rows[number].amounts.base if number in rows else Decimal(0)
+    def amount(rows: dict[int, mockcore.Row], number: int, key: str) -> Decimal:
+        return getattr(rows[number].amounts, key) if number in rows else Decimal(0)
 
-    expected = sum((base(referenced, n) - base(offer, n) for n in lines), Decimal(0))
-    for dimension in ("cost_type", "subproject"):
-        deltas = [
-            Decimal(entry["delta"])
-            for entry in window["amount_deltas"]
-            if entry["dimension"] == dimension
-        ]
-        assert sum(deltas, Decimal(0)) == expected == Decimal("602950.00")
+    for key, total in (("budgeted", "602650.00"), ("reestimated", "602950.00")):
+        expected = sum(
+            (amount(referenced, n, key) - amount(offer, n, key) for n in lines), Decimal(0)
+        )
+        for dimension in ("cost_type", "subproject"):
+            deltas = [
+                Decimal(entry[f"{key}_delta"])
+                for entry in window["amount_deltas"]
+                if entry["dimension"] == dimension
+            ]
+            assert sum(deltas, Decimal(0)) == expected == Decimal(total), key
     summary = str(mockcomparisons.examples()["comparison.json"]["summary"])
     assert "sous-arbre « Installation sur site » (subtree_of)" in summary
     assert "9 nœuds dans l'ordre du plan" in summary
@@ -621,12 +632,17 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
     ]
     assert [reference[n].amounts.budgeted for n in (563, 566)] == [Decimal(9420), Decimal(5880)]
     labour = next(entry for entry in whole["amount_deltas"] if entry["key"] == mockstructure.LABOR)
-    # Read whole: the 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
-    assert Decimal(labour["delta"]) == Decimal("3515.00") + Decimal("174026.25")
-    drawn_hours = sum(
-        (row.hours for row in reference.values() if row.number >= GENERATED), Decimal(0)
+    # Read whole: the budget of the core changes by 3,215, the two lines the amendment does not
+    # designate keeping the offer's; the re-estimate by its 3,515 and by the step of 1.50 an hour
+    # on the labour drawn about it, 174,026.25 before inflation, projected on its years.
+    offered = {row.number: row for row in mockhistory.offer_rows()}
+    drawn = [row for row in reference.values() if row.number >= GENERATED and row.hours]
+    step = sum(row.amounts.reestimated - offered[row.number].amounts.reestimated for row in drawn)
+    assert Decimal(labour["budgeted_delta"]) == Decimal("3215.00")
+    assert Decimal(labour["reestimated_delta"]) == Decimal("3515.00") + step
+    assert sum((row.hours for row in drawn), Decimal(0)) * mockstructure.RATE_STEP == Decimal(
+        "174026.25"
     )
-    assert drawn_hours * mockstructure.RATE_STEP == Decimal("174026.25")
     grid = {
         row["cost_category_id"]: {cell["year"]: cell["amount"] for cell in row["cells"] if cell}
         for row in mockwitness.fixture("volume/hourly_rate_grid")["rows"]

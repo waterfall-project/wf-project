@@ -139,22 +139,26 @@ def test_a_duration_lengthened_pushes_a_successor_into_the_next_year(
         line = node["estimate_line"]
         entry = amounts[node["node_id"]]
         assert entry["consumption_year"] == 2027
-        assert Decimal(entry["inflated_amount"]) == mockstructure.inflated(
+        assert Decimal(entry["reestimated_amount"]) == mockstructure.inflated(
             Decimal(line["base_amount"]), 2027
         )
-        delta += Decimal(entry["inflated_amount"]) - Decimal(line["inflated_amount"])
-    total = sum(Decimal(amounts[node["node_id"]]["inflated_amount"]) for node in lines_of)
+        # The budget stays projected on the year the reference consumed the line (WF-DEV-0020).
+        assert entry["budgeted_amount"] == line["budgeted_amount"]
+        delta += Decimal(entry["reestimated_amount"]) - Decimal(line["reestimated_amount"])
+    total = sum(Decimal(amounts[node["node_id"]]["reestimated_amount"]) for node in lines_of)
     assert amounts[successor["node_id"]]["consumption_year"] is None
-    assert Decimal(amounts[successor["node_id"]]["inflated_amount"]) == total
-    # The summaries above, whole, and the totals: the corrected amounts move by the same delta.
+    assert Decimal(amounts[successor["node_id"]]["reestimated_amount"]) == total
+    # The summaries above, whole, and the totals: the re-estimated amounts move by the same delta.
     assert [node["task"]["is_summary"] for node in written["ancestors"]] == [True, True]
     for node in written["ancestors"]:
         was = before[node["node_id"]]["task"]
-        assert Decimal(node["task"]["inflated_amount"]) == Decimal(was["inflated_amount"]) + delta
+        assert Decimal(node["task"]["reestimated_amount"]) == (
+            Decimal(was["reestimated_amount"]) + delta
+        )
         assert node["task"]["base_amount"] == was["base_amount"]
     totals = answer["totals"]
-    assert Decimal(written["totals"]["inflated_amount"]) == (
-        Decimal(totals["inflated_amount"]) + delta
+    assert Decimal(written["totals"]["reestimated_amount"]) == (
+        Decimal(totals["reestimated_amount"]) + delta
     )
     assert written["totals"]["base_amount"] == totals["base_amount"]
 
@@ -308,25 +312,24 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     assert moved[COMMISSIONING]["start"]["date"] >= "2027"
     assert sorted(moved) == [MOUNTING, COMMISSIONING]
     assert len(redated["rescheduled"]) == len(moved)
-    # Its line consumed a year later, corrected anew at the inflation of the witness, and the
+    # Its line consumed a year later, re-estimated anew at the inflation of the witness, and the
     # commissioning, which sums it; the mounting, still started in 2026, keeps its lines' year.
     amounts = {int(entry["node_id"][-3:]): entry for entry in redated["reinflated"]}
     assert list(amounts) == [COMMISSIONING, COMMISSIONING_LINE]
     was = read[COMMISSIONING_LINE]["estimate_line"]
     assert amounts[COMMISSIONING_LINE]["consumption_year"] == 2027
-    assert money(amounts[COMMISSIONING_LINE]["inflated_amount"]) == mockstructure.inflated(
+    assert money(amounts[COMMISSIONING_LINE]["reestimated_amount"]) == mockstructure.inflated(
         money(was["base_amount"]), 2027
     )
     assert amounts[COMMISSIONING]["consumption_year"] is None
-    assert (
-        amounts[COMMISSIONING]["inflated_amount"] == amounts[COMMISSIONING_LINE]["inflated_amount"]
+    line_amount = amounts[COMMISSIONING_LINE]["reestimated_amount"]
+    assert amounts[COMMISSIONING]["reestimated_amount"] == line_amount
+    delta = money(line_amount) - money(was["reestimated_amount"])
+    assert money(above[INSTALLATION]["task"]["reestimated_amount"]) == (
+        money(read[INSTALLATION]["task"]["reestimated_amount"]) + delta
     )
-    delta = money(amounts[COMMISSIONING_LINE]["inflated_amount"]) - money(was["inflated_amount"])
-    assert money(above[INSTALLATION]["task"]["inflated_amount"]) == (
-        money(read[INSTALLATION]["task"]["inflated_amount"]) + delta
-    )
-    assert money(redated["totals"]["inflated_amount"]) == (
-        money(whole["totals"]["inflated_amount"]) + delta
+    assert money(redated["totals"]["reestimated_amount"]) == (
+        money(whole["totals"]["reestimated_amount"]) + delta
     )
     assert redated["totals"]["base_amount"] == whole["totals"]["base_amount"]
 
@@ -536,9 +539,9 @@ def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_s
 def test_a_block_too_wide_is_refused_by_the_width_of_a_line_in_the_contract() -> None:
     columns = mockwrites.node_columns()
     assert (columns[0], columns[-1]) == ("label", "previous_reestimated_amount")
-    # Its label and sixteen columns, the quantities of the previous review among them (#424).
-    assert mockwrites.line_width(columns) == 17
-    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 17}
+    # Its label and fifteen columns, the quantities of the previous review among them (#424).
+    assert mockwrites.line_width(columns) == 16
+    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 16}
     text = "Other:\n  enum: [a]\nNodeColumn:\n  type: string\n  enum:\n    - label\n    - work\n"
     text += "    - cost_category\n    - hours\nNext:\n"
     assert mockwrites.node_columns(text) == ["label", "work", "cost_category", "hours"]

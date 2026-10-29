@@ -180,13 +180,12 @@ afterEach(() => {
 });
 
 // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment delay,
-// inactive object, amount at the year of reference, amount corrected for inflation.
+// inactive object, amount at the year of reference.
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
 const SUBPROJECT = 7;
 const REFERENCE = 10;
-const INFLATED = 11;
 // Number, label, description, mode, duration, start, finish, progress, physical progress, float,
 // predecessors, Gantt.
 const DURATION = 4;
@@ -211,7 +210,6 @@ describe("a value of a grid the server computes", () => {
     expect(amount).toHaveClass("bg-muted");
     expect(amount).toHaveAccessibleName(/^Calculé 1\s000,00$/);
     expect(within(amount).getByRole("img", { name: "Calculé" })).toBeInTheDocument();
-    expect(cell(labour, INFLATED)).toHaveAccessibleName(/^Calculé 1\s000,00$/);
 
     // A try to enter it is refused, beside it, naming what the server says it depends on;
     // nothing opens to type.

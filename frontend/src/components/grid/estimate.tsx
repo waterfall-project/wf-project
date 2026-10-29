@@ -3,14 +3,13 @@
 /**
  * The configuration of the grid of the estimate (WF-DEV-0050): the common tree of a structure
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
- * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts the
+ * its nature; the label, the quantity, the effort, the unit disbursement, and the amount the
  * server computes and never lets anyone enter, of a line as of a task, summary included — the
- * amount at the year of reference (`base_amount`, WF-DEV-0030) and the amount corrected for
- * inflation, projected on the year of consumption (WF-DEV-0040) —, never the budgeted nor the
- * re-estimated amount (#235). The figures and the sub-project of a provision are computed too,
- * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the
- * answer: the hours and the two amounts of the lines retained, never the amounts of the tasks, which
- * would count them twice.
+ * amount at the year of reference, before inflation (`base_amount`, WF-DEV-0030) —, never the
+ * budgeted nor the re-estimated amount (#235). The figures and the sub-project of a provision are
+ * computed too, from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals
+ * are those of the answer: the hours and the two amounts of the lines retained, never the amounts
+ * of the tasks, which would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category, the role and
  * the sub-project of a line are named by the labels the server resolves, the object active or
@@ -68,7 +67,7 @@ import {
  */
 export const ESTIMATE_FIELDS = {
   node: [],
-  task: ["base_amount", "inflated_amount"],
+  task: ["base_amount"],
   line: [
     "cost_category_id",
     "cost_category_label",
@@ -81,7 +80,6 @@ export const ESTIMATE_FIELDS = {
     "payment_delay_days",
     "uses_inactive_object",
     "base_amount",
-    "inflated_amount",
   ],
 } as const satisfies AnyNodeFields;
 
@@ -200,17 +198,6 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       contract: "base_amount",
       value: (node) => node.task?.base_amount ?? node.estimate_line?.base_amount,
       total: (totals) => totals.base_amount,
-    },
-    {
-      key: "inflated_amount",
-      label: "inflatedAmount",
-      help: "estimate.inflatedAmountStatic",
-      format: "money",
-      width: 128,
-      computed: computedAmount("inflated_amount"),
-      contract: "inflated_amount",
-      value: (node) => node.task?.inflated_amount ?? node.estimate_line?.inflated_amount,
-      total: (totals) => totals.inflated_amount,
     },
   ],
 };
@@ -435,30 +422,6 @@ function entered(
 }
 
 /**
- * What the amount corrected of inflation is corrected by, as its header names it (WF-IHM-0140): the
- * year of reference of the revision and the rate of inflation of the project, formatted.
- */
-export interface EstimateInflation {
-  readonly year: string;
-  readonly rate: string;
-}
-
-/**
- * The column of the amount corrected of inflation, defined by the year and the rate that correct it:
- * its definition is a sentence with its values, which only the screen that reads the revision and the
- * project knows; without them the column keeps a definition that names neither; the other columns
- * are as they are.
- */
-function inflated(
-  column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
-  inflation: EstimateInflation | undefined,
-): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
-  return inflation === undefined || column.key !== "inflated_amount"
-    ? column
-    : { ...column, help: "estimate.inflatedAmount", helpValues: { ...inflation } };
-}
-
-/**
  * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
  * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
  * quantity, effort, unit disbursement and payment delay, where its node accepts the
@@ -469,15 +432,12 @@ function inflated(
 export function estimateGrid(
   reference: EstimateReference,
   writes?: EstimateWrites,
-  inflation?: EstimateInflation,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
     retotal: writes?.totals,
-    columns: ESTIMATE_GRID.columns.map((column) =>
-      entered(inflated(column, inflation), specs[column.key], writes),
-    ),
+    columns: ESTIMATE_GRID.columns.map((column) => entered(column, specs[column.key], writes)),
   };
 }

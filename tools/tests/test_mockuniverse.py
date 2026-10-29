@@ -738,7 +738,7 @@ def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() ->
     volume, witness = fixture("volume/estimate_indicators_volume"), fixture("estimate_indicators")
     assert volume == witness
     totals = fixture("volume/nodes_thousand")["totals"]
-    assert volume["total"]["value"] == totals["base_amount"]
+    assert volume["total"]["value"] == totals["reestimated_amount"]
     # The reference budget is the budgeted amounts of the grid, but the provision's (WF-RIS-0050).
     provisions = sum(
         Decimal(node["estimate_line"]["budgeted_amount"])

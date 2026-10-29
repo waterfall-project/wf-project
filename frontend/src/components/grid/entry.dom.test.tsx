@@ -202,7 +202,6 @@ describe("the keyboard of a grid", () => {
       });
       expect(cell(LABOUR, "label")).toHaveTextContent("Raccordement des borniers");
       expect(cell(LABOUR, "base_amount")).toHaveTextContent(/1\s120,00$/);
-      expect(cell(LABOUR, "inflated_amount")).toHaveTextContent(/1\s120,00$/);
     },
   );
 

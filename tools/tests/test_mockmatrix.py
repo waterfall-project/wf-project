@@ -58,7 +58,7 @@ def test_each_risk_the_matrix_counts_is_a_point_at_the_values_of_the_risk(
     # One point per risk the cells count, in the order of the register, at the values the
     # register reads — whatever its state, the screen filtering the points as the grid —, its
     # severity as a share of the budget the cells class, and the zone of its cell.
-    budget = Decimal("65430697.64")
+    budget = Decimal("68241568.05")
     items = history["risks"]["items"]
     matrix = history["risk_matrix"]
     points = matrix["points"]
@@ -79,12 +79,12 @@ def test_each_risk_the_matrix_counts_is_a_point_at_the_values_of_the_risk(
         ratio = Decimal(point["severity_ratio"]["value"])
         assert ratio == mockstructure.share(Decimal(item["severity"]) / budget)
         assert mockhistory.level(ratio, _bounds(matrix)) == item["matrix_cell"]["severity_level"]
-    # 1.91 %, under a hundredth of a percent given to its first digit, 18.34 % (README, « Une
+    # 1.83 %, under a hundredth of a percent given to its first digit, 17.58 % (README, « Une
     # part… »).
     assert [point["severity_ratio"]["value"] for point in points] == [
-        "0.0191",
+        "0.0183",
         "0.000003",
-        "0.1834",
+        "0.1758",
     ]
 
 

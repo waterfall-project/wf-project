@@ -162,9 +162,9 @@ describe("the risk matrix as a bubble chart", () => {
     ]);
     // Placed at the values of the point, the strings of the API as they are, never rounded to a
     // cell nor read as floats: 0.000003 stays 0.000003.
-    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0191"] });
+    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0183"] });
     expect(placed(bubbles[1])).toEqual({ [DELIVERY]: ["0.3", "0.000003"] });
-    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1834"] });
+    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1758"] });
     // The states are told apart by the shape of the bubble, and the legend names them.
     expect(option?.legend).toMatchObject({ data: ["Identified", "Occurred", "Dismissed"] });
   });
@@ -202,7 +202,7 @@ describe("the risk matrix as a bubble chart", () => {
       { xAxis: 1, yAxis: axis.max },
     ]);
     // The axis reaches over the heaviest bubble (18.34 %) and the end of the last level.
-    expect(axis.max).toBeGreaterThan(0.1834);
+    expect(axis.max).toBeGreaterThan(0.1758);
     expect(zones).toMatchObject({ silent: true, data: [] });
   });
 
@@ -417,7 +417,7 @@ describe("the risk matrix as a bubble chart", () => {
       [
         "<b>Câblage &lt;b&gt;&amp; co&lt;/b&gt;</b>",
         "Probability : 40%",
-        "Severity : 1,250,000.00 (1.91%)",
+        "Severity : 1,250,000.00 (1.83%)",
         "Provision : 500,000.00",
         "State : Identified",
         "Zone : Watch",

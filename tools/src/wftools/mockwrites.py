@@ -3,10 +3,10 @@
 """The answers of the writes of the grids, generated from what each write changes (EP-02/L22).
 
 A write of a grid answers what it changed (`NodesWritten`): the nodes written; the tasks it
-redated, by their schedule (`rescheduled`); the lines and the tasks whose amount corrected for
-inflation it moved, by their amounts (`reinflated`); the summaries above all of them, whole
-(`ancestors`); the totals of the whole structure, and the version the structure moved on to
-(WF-IHM-0040, WF-PLA-0020, WF-DEV-0040). Here each answer is the difference between two
+redated, by their schedule (`rescheduled`); the lines and the tasks it moved in time, by their
+amounts inflation included (`reinflated`); the summaries above all of them, whole (`ancestors`);
+the totals of the whole structure, and the version the structure moved on to (WF-IHM-0040,
+WF-PLA-0020, WF-DEV-0040). Here each answer is the difference between two
 readings of one structure, before and after the write, never written by hand (#287).
 
 The writes of the witness are made on its core: its description (``wftools.mockwitness``) is
@@ -61,11 +61,8 @@ type Node = dict[str, Any]
 SCHEDULE = ("start", "finish", "total_float", "is_critical", "finish_overdue")
 """The fields of a task a write may redate without writing it (`NodeSchedule`)."""
 
-INFLATION = ("inflated_amount", "consumption_year")
+INFLATION = ("budgeted_amount", "reestimated_amount", "consumption_year")
 """The fields of a line or a task a write may move in time without writing it (`NodeInflation`)."""
-
-_AMOUNTS = ("base_amount", "reestimated_amount", "inflated_amount")
-"""The amounts a quantity entered changes: the budget is the reference's (WF-DEV-0020)."""
 
 
 def written(
@@ -80,7 +77,7 @@ def written(
 
     The nodes written, whole, their version one further — a node created, at its first —; the
     tasks, not summaries, whose schedule changed without being written; the lines and the tasks,
-    not summaries, whose amount corrected for inflation or year of consumption changed, but those
+    not summaries, whose amounts inflation included or year of consumption changed, but those
     the ancestors render whole; the ancestors of the nodes written, those they had before a move
     with those they have after, of the node deleted — read before, as it is gone after — and of
     the tasks redated, whole, but those written. Each list in the order of the plan, each node once
@@ -104,13 +101,7 @@ def written(
             continue
         facet, old = _facet(node), _facet(was[node_id])
         if _changed(facet, old, INFLATION):
-            reinflated.append(
-                {
-                    "node_id": node_id,
-                    "inflated_amount": facet["inflated_amount"],
-                    "consumption_year": facet.get("consumption_year"),
-                }
-            )
+            reinflated.append({"node_id": node_id, **{key: facet.get(key) for key in INFLATION}})
     return {
         "nodes": [
             {
@@ -771,7 +762,7 @@ def _core_writes() -> dict[str, JsonObject]:
     changed = estimate_line_subproject_changed()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
-    unmoved = "" if linked["reinflated"] else " — aucun montant corrigé de l'inflation ne change —"
+    unmoved = "" if linked["reinflated"] else " — aucun montant ne change d'année —"
     whole = mockcore.whole(mockcore.current())
     later = {entry["node_id"]: entry for entry in cast("list[Node]", redated["rescheduled"])}
     priced = {entry["node_id"]: entry for entry in cast("list[Node]", redated["reinflated"])}
@@ -888,14 +879,16 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_on(later[universe(MOUNTING)]['finish'])} au lieu du "
             f"{_on(mounted['finish'])}, et la mise en service qui le suit "
             f"démarre le {_on(later[commissioning]['start'])} (rescheduled). Consommée en 2027, "
-            f"sa ligne, « {before[COMMISSIONING_LINE].label} », est corrigée de l'inflation de "
-            f"3 % du projet, {_money(priced[universe(COMMISSIONING_LINE)]['inflated_amount'])} "
-            f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.inflated)}, et la "
-            f"mise en service avec elle (reinflated) ; leur montant à l'année de référence ne "
-            f"change pas. Redatée{_plural(redated)}, {_redated(redated, before)} "
+            f"sa ligne, « {before[COMMISSIONING_LINE].label} », est réestimée inflation comprise, "
+            f"à 3 % du projet, "
+            f"{_money(priced[universe(COMMISSIONING_LINE)]['reestimated_amount'])} "
+            f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.reestimated)}, et la "
+            f"mise en service avec elle (reinflated) ; leur budgété, projeté sur l'année où la "
+            f"référence les consommait, et leur montant aux taux de l'année de référence ne "
+            f"changent pas (WF-DEV-0020). Redatée{_plural(redated)}, {_redated(redated, before)} "
             f"{'reste' if len(cast('list[Node]', redated['rescheduled'])) == 1 else 'restent'} "
             f"{_margin(redated, whole)} ; le montage et les récapitulatives "
-            f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant corrigé "
+            f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant réestimé "
             f"change (WF-PLA-0010, WF-PLA-0020, WF-DEV-0040).",
             redated,
         ),

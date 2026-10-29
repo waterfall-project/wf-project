@@ -125,7 +125,6 @@
       "unitDisbursement": "Unit disbursement",
       "paymentDelay": "Payment delay (days)",
       "referenceAmount": "Amount (reference year)",
-      "inflatedAmount": "Amount corrected for inflation",
       "inactiveObject": "Deactivated object",
       "startDate": "Start",
       "finishDate": "Finish",
@@ -1320,12 +1319,6 @@
       },
       "referenceAmount": {
         "help": "Amount of the line at the reference year of the revision, before any correction for inflation."
-      },
-      "inflatedAmount": {
-        "help": "Amount corrected for inflation from the reference year ({year}) to the year the line is consumed, at the inflation rate of the project ({rate} a year)."
-      },
-      "inflatedAmountStatic": {
-        "help": "Amount corrected for inflation from the reference year of the revision to the year the line is consumed, at the inflation rate of the project."
       }
     },
     "planning": {
@@ -3260,7 +3253,6 @@
       "base_amount": "Amount at the reference year",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
-      "inflated_amount": "Inflation-corrected amount",
       "previous_quantity": "Previous quantity",
       "previous_hours": "Previous hours",
       "previous_unit_disbursement": "Previous unit disbursement",
@@ -3276,8 +3268,7 @@
         "total_float": "Total float of the task",
         "base_amount": "Amount at the reference year of the task",
         "budgeted_amount": "Budgeted amount of the task",
-        "reestimated_amount": "Re-estimated amount of the task",
-        "inflated_amount": "Inflation-corrected amount of the task"
+        "reestimated_amount": "Re-estimated amount of the task"
       },
       "estimate_line": {
         "quantity": "Quantity of the line",
@@ -3287,8 +3278,7 @@
         "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
-        "previous_reestimated_amount": "Previous re-estimated amount of the line",
-        "inflated_amount": "Inflation-corrected amount of the line"
+        "previous_reestimated_amount": "Previous re-estimated amount of the line"
       }
     },
     "ComputedDependency": {

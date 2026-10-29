@@ -61,7 +61,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The indicators in cards, dated, each figure as the server gives it, the coverage of the risks
   // in a card of its own.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*67\s293\s028,72/);
+  await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
     /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
