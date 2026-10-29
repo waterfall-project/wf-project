@@ -107,7 +107,7 @@ function OfferedExports({
     void held(command()).then((result) => {
       setBusy(false);
       if (result.kind === "done") {
-        track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });
+        track(result.data, { command, subject: t(`enums.ExportKind.${kind}`) });
       }
       setOutcome(result.kind === "done" ? undefined : result);
     });
@@ -135,7 +135,7 @@ function OfferedExports({
           >
             {offered.map((value) => (
               <option key={value} value={value}>
-                {t(`enums.ExportRequest.kind.${value}`)}
+                {t(`enums.ExportKind.${value}`)}
               </option>
             ))}
           </NativeSelect>

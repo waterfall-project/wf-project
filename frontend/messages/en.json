@@ -577,7 +577,7 @@
       "period": "Period extracted",
       "created": "Created",
       "updated": "Updated",
-      "ignored": "Ignored",
+      "rejected": "Rejected",
       "periodRange": "from {from} to {to}",
       "periodFrom": "from {from}",
       "periodTo": "until {to}",
@@ -2625,7 +2625,10 @@
     "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
     "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
     "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume.",
-    "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted."
+    "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
+    "WBS_ELEMENT_INVALID": "The WBS element of the line does not have the expected form: a project code, a slash, then a sub-project code.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
+    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -3429,11 +3432,13 @@
         "task": "Task",
         "estimate_line": "Estimate line",
         "link": "Link",
-        "actual_cost_line": "Actual cost line"
+        "actual_cost_line": "Actual cost line",
+        "cost_structure": "Cost structure"
       }
     },
     "ImportDifferenceField": {
-      "parent": "Parent"
+      "parent": "Parent",
+      "planning_start_on": "Planning start date"
     },
     "ImportIgnoredKind": {
       "resources": "Resources",
@@ -3442,7 +3447,14 @@
       "costs": "Costs",
       "custom_fields": "Custom fields",
       "date_constraints": "Date constraints, tasks imported in manual mode",
-      "columns": "Extraction columns neither read nor kept"
+      "columns": "Extraction columns neither read nor kept",
+      "provision_lines": "Risk provision lines, left as they are"
+    },
+    "ImportSignal": {
+      "code": {
+        "NON_WORKING_DAY": "Non-working day",
+        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks"
+      }
     },
     "ActualCostSourceColumn": {
       "wbs_element": "WBS element",
@@ -3475,13 +3487,11 @@
         "failed": "Failed"
       }
     },
-    "ExportRequest": {
-      "kind": {
-        "ms_project_schedule": "MS Project schedule",
-        "estimate": "Estimate",
-        "remaining": "Estimate to complete",
-        "task_tree_image": "Task tree image"
-      }
+    "ExportKind": {
+      "ms_project_schedule": "MS Project schedule",
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete",
+      "task_tree_image": "Task tree image"
     },
     "PortfolioPerformance": {
       "zone_distribution": {

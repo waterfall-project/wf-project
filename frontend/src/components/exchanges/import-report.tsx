@@ -226,7 +226,7 @@ function Ignored({ ignored }: { readonly ignored: Report["ignored"] }) {
 /** What the analysis found: lines read, reasons to confirm, lines rejected, differences. */
 function Findings({ report }: { readonly report: Report }) {
   const t = useTranslations();
-  const reasons = report.requires_confirmation_reasons ?? [];
+  const reasons = report.requires_confirmation_reasons;
   return (
     <div className="space-y-3">
       <p className="text-sm">{t("exchanges.report.read", { count: report.read_count })}</p>
@@ -278,10 +278,14 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
         <dd>
           <LocalTime value={entry.created_at} />
         </dd>
-        <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
-        <dd>
-          <LocalTime value={entry.expires_at} />
-        </dd>
+        {entry.expires_at === null ? null : (
+          <>
+            <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
+            <dd>
+              <LocalTime value={entry.expires_at} />
+            </dd>
+          </>
+        )}
         {entry.report?.format_version == null ? null : (
           <>
             <dt className="text-muted-foreground">{t("exchanges.report.formatVersion")}</dt>

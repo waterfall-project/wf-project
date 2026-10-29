@@ -370,6 +370,8 @@ paths = [
     "fixtures/api/import_remaining_subproject_held.json",
     "fixtures/api/import_planning_non_working_day.json",
     "fixtures/api/import_estimate_main_in_progress.json",
+    "fixtures/api/import_actual_costs_first.json",
+    "fixtures/api/export_revision_not_found.json",
     "fixtures/api/comparison.json",
     "fixtures/api/comparison_moved.json",
     "fixtures/api/comparison_identical.json",

@@ -248,7 +248,7 @@ describe("the grid of the actual costs", () => {
         costRow({
           ...line,
           passthrough: Object.fromEntries(
-            Object.entries(line.passthrough ?? {}).map(([key, value]) => [
+            Object.entries(line.passthrough).map(([key, value]) => [
               key === OLD ? NAME : key,
               value,
             ]),
@@ -769,7 +769,7 @@ describe("the journal of the imports", () => {
     const table = screen.getByRole("table", { name: "Journal des imports" });
     const rows = within(table).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "DateParPériode extraiteCrééesMises à jourIgnorées",
+      "DateParPériode extraiteCrééesMises à jourRejetées",
       expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/20262200$/),
       expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260612\s345$/),
       expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),

@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2026 waterfall-project
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Tests of the refusals of a paste and of an import (EP-15/US-0460/L2b, #1152, #1153).
+"""Tests of the refusals of a paste and of an import, and of the exchanges they stand beside.
 
-As those of the other writes of the grids, they try the simplifications of the fake back against
-the readings of the witness, not the Vérif of a requirement: none cites one (WF-QUA-0010, « un
-test qui ne couvre aucune exigence »).
+The refusals of EP-15/US-0460/L2b (#1152, #1153); the first extraction of April, and the export of
+a revision of another project (US-0701/L7, #1607). As those of the other writes of the grids, they
+try the simplifications of the fake back against the readings of the witness, not the Vérif of a
+requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -13,7 +14,8 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import REPOSITORY, mockcore, mockdata, mockexchanges, mockwitness
+from wftools import REPOSITORY, mockcore, mockcosts, mockdata, mockexchanges, mockwitness
+from wftools.mockids import hex_identifier
 from wftools.mockwitness import SUBPROJECT_CONTROL, SUBPROJECT_TESTS, N
 
 type Node = dict[str, Any]
@@ -70,10 +72,16 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert "import_estimate_main_in_progress" in _cited(
         _operation("exchanges.yaml", "openImport"), "409"
     )
+    assert "import_actual_costs_first" in _cited(_operation("exchanges.yaml", "getImport"), "200")
+    assert "export_revision_not_found" in _cited(
+        _operation("exchanges.yaml", "requestExport"), "404"
+    )
     assert set(examples) == {
         "paste_plan_subproject_held.json",
         "import_remaining_subproject_held.json",
         "import_estimate_main_in_progress.json",
+        "import_actual_costs_first.json",
+        "export_revision_not_found.json",
     }
     assert set(examples) <= set(mockdata.named())
 
@@ -194,3 +202,96 @@ def test_the_estimate_imported_on_the_main_structure_in_progress_names_its_condi
         for each in structure["available_commands"]
         if each["command"] == "edit_estimate"
     )
+
+
+# --- The first extraction of April, and what an import says of its opening (US-0701/L7) ---------
+
+
+def _journal(number: int) -> Node:
+    [entry] = [
+        each
+        for each in cast("list[Node]", mockcosts.journal()["items"])
+        if each["cost_import_id"] == hex_identifier(number)
+    ]
+    return entry
+
+
+def test_the_extraction_of_april_reports_what_its_journal_counts() -> None:
+    # I-01, I-02: the report presents the lines its journal entry counts once applied — three
+    # created, one rejected for its element of another project, named as the file carries it —,
+    # and the period the journal keeps; the lines added are those the costs read first brought.
+    imported = cast("Node", _json(mockexchanges.import_actual_costs_first()))
+    report = imported["report"]
+    entry = _journal(0xC12)
+    added = [each for each in report["differences"] if each["change"] == "added"]
+    assert len(added) == entry["created_count"] == 3
+    assert len(report["rejected"]) == entry["rejected_count"] == 1
+    assert report["unchanged_count"] == entry["unchanged_count"] == 0
+    assert report["read_count"] == len(added) + len(report["rejected"])
+    [rejected] = report["rejected"]
+    other = mockexchanges.other_project()
+    assert other != mockwitness.fixture("project")["code"]
+    assert rejected["code"] == "WBS_ELEMENT_OUTSIDE_PROJECT"
+    assert rejected["params"] == {"wbs_element": f"{other}/SP-CAB", "project_code": other}
+    assert rejected["sheet"] is None
+    assert report["format_version"] is None
+    assert report["requires_confirmation_reasons"] == [
+        "lines_outside_project",
+        "unknown_subproject",
+    ]
+    assert (imported["period_from"], imported["period_to"]) == (
+        entry["period_from"],
+        entry["period_to"],
+    )
+    assert imported["structure_id"] is None
+    assert imported["revision_id"] is None
+    # The import of the exchanges imports lists is the one that applied it.
+    [listed] = [
+        each
+        for each in mockwitness.fixture("imports")["items"]
+        if each["import_id"] == imported["import_id"]
+    ]
+    assert listed["status"] == "applied"
+    assert listed["filename"] == imported["filename"]
+    assert listed["expires_at"] == imported["expires_at"]
+    assert (listed["period_from"], listed["period_to"]) == (
+        imported["period_from"],
+        imported["period_to"],
+    )
+
+
+def test_an_import_of_the_witness_says_its_structure_and_revision() -> None:
+    # I-08: the remaining to commit is imported on the main structure of the current revision.
+    main = mockexchanges.main_structure()
+    imported = cast("Node", _json(mockexchanges.import_remaining_subproject_held()))
+    assert imported["structure_id"] == main["structure_id"]
+    assert imported["revision_id"] == main["revision_id"]
+    assert (imported["period_from"], imported["period_to"]) == (None, None)
+    report = imported["report"]
+    assert report["unchanged_count"] == (
+        report["read_count"] - len(report["rejected"]) - len(report["differences"])
+    )
+
+
+def test_the_unchanged_count_of_a_planning_import_is_read_less_rejected_and_changed_tasks() -> None:
+    # I-18's neighbour: for a planning, `read_count` counts the tasks of the file, so `differences`
+    # takes from it only its added or updated tasks, not the structure, the links, nor the tasks
+    # the file no longer carries.
+    paths = sorted(mockwitness.FIXTURES.glob("import_planning_*.json"))
+    assert len(paths) >= 4
+    for path in paths:
+        report = json.loads(path.read_text(encoding="utf-8"))["value"]["report"]
+        changed = [
+            each
+            for each in report["differences"]
+            if each["target"] == "task" and each["change"] in ("added", "updated")
+        ]
+        assert report["unchanged_count"] == (
+            report["read_count"] - len(report["rejected"]) - len(changed)
+        ), path.name
+
+
+def test_the_export_of_a_revision_of_another_project_is_not_found() -> None:
+    refused = mockexchanges.export_revision_not_found()
+    assert (refused["code"], refused["status"]) == ("NOT_FOUND", 404)
+    assert "params" not in refused

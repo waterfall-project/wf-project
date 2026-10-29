@@ -233,12 +233,20 @@
     tags: [exchanges]
     summary: Ouvrir un import et lancer son analyse
     description: >-
-      L'analyse lit le fichier, contrôle son format et sa version, compare aux données
-      existantes et produit le compte rendu, sans rien modifier (WF-ARC-0100, WF-INTF-0070,
-      WF-INTF-0080). Les imports de planning, de devis et de reste à engager s'appliquent à la
-      révision en cours, créée au besoin (WF-INTF-0090). Selon le flux : planning MS Project
-      (WF-INTF-0040), devis (WF-INTF-0100), reste à engager (WF-INTF-0120), coûts réels
-      (WF-INTF-0140). Une extraction de coûts réels se lit selon la correspondance de
+      L'ouverture lit l'en-tête du fichier — son format, sa version, les intitulés de ses
+      colonnes — avant de mettre l'analyse en file, et refuse par 422 ce qu'elle ne reconnaît pas
+      (WF-INTF-0070) : la lecture se borne à l'en-tête, et le contenu n'est lu que par
+      l'analyse. L'analyse, confiée au
+      worker, compare le contenu aux données existantes et produit le compte rendu, sans rien
+      modifier (WF-ARC-0100, WF-INTF-0080) ; elle ne refuse plus de format, l'ouverture l'ayant
+      reconnu. Les imports de planning, de devis et de reste à engager s'appliquent à la
+      révision en cours, créée au besoin (WF-INTF-0090), sur la structure que la requête nomme,
+      la principale par défaut, que l'import rend (`Import.structure_id`). Selon le flux :
+      planning MS Project (WF-INTF-0040), dont la date de début du projet devient la date de
+      début de planning de la structure (`CostStructure.planning_start_on`, WF-PLA-0020), le
+      compte rendu présentant son changement ; devis (WF-INTF-0100), reste à engager
+      (WF-INTF-0120), coûts réels (WF-INTF-0140), dont la période extraite est journalisée
+      (WF-CRE-0050). Une extraction de coûts réels se lit selon la correspondance de
       l'installation (`getActualCostMapping`, WF-REF-0190) : l'import est refusé tant que l'une
       des quatre colonnes exigées n'y a aucun intitulé, ce que la commande `import_actual_costs`
       du projet dit d'avance ; un fichier auquel manque une colonne exigée est refusé en la
@@ -261,7 +269,8 @@
       l'onglet d'un autre sous-projet d'un reste à engager (WF-INTF-0120), ou portant un autre
       sous-projet dans la colonne d'un devis (WF-INTF-0100), elle est rejetée au compte rendu, qui
       nomme ce sous-projet (`ImportRejection`, `SUBPROJECT_HAS_ACTUAL_COSTS` ; C-359, #1152,
-      #1153). Confiée au worker (WF-ARC-0090).
+      #1153). L'analyse est confiée au worker (WF-ARC-0090). Un dépôt inconnu ou expiré, une
+      structure inconnue ou d'une autre révision sont refusés par 404.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -303,9 +312,10 @@
               actual_cost_mapping_incomplete: { $ref: ../../../fixtures/api/import_actual_cost_mapping_incomplete.json }
       '422':
         description: >-
-          Format ou version non reconnus ; le format attendu est nommé (WF-INTF-0070) :
-          `FILE_FORMAT_UNREADABLE`, `params.expected_format` le format de la nature de
-          l'import (un `ExchangeKind`) et `params.expected_version` sa version. Une extraction de
+          Format ou version non reconnus à la lecture de l'en-tête, avant toute analyse ; le
+          format attendu est nommé (WF-INTF-0070) : `FILE_FORMAT_UNREADABLE`,
+          `params.expected_format` le format de la nature de l'import (un `ExchangeKind`) et
+          `params.expected_version` sa version. Une extraction de
           coûts réels n'a pas de version : elle se reconnaît aux intitulés que déclare la
           correspondance (WF-INTF-0070, WF-REF-0190) ; à laquelle manque une colonne exigée, elle
           est refusée par `FILE_FORMAT_UNREADABLE`, `params.expected_format` à `actual_costs`,
@@ -314,7 +324,9 @@
           de la correspondance. Ou un dépôt
           qui n'a pas été fait pour un import — une sauvegarde déposée pour une restauration
           (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant `/upload_id` par
-          `UPLOAD_PURPOSE_MISMATCH`.
+          `UPLOAD_PURPOSE_MISMATCH`. Ou une période extraite dont la fin précède le début :
+          `VALIDATION_FAILED`, `/period_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début.
+          Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -330,18 +342,27 @@
     tags: [exchanges]
     summary: Compte rendu d'un import
     description: >-
-      Lignes lues, lignes rejetées avec leur motif, écarts avec les données existantes,
+      La structure, la révision et la période que l'ouverture a reçues, puis le compte rendu :
+      lignes lues, inchangées, rejetées avec leur motif, écarts avec les données existantes,
       objets conservés et signalés, éléments ignorés, tâches terminées et écarts de dates
-      ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-PLA-0130) ; d'un devis ou d'un
+      ou de durées constatés (WF-INTF-0080, WF-INTF-0040, WF-INTF-0120) ; d'un devis ou d'un
       reste à engager, les lignes rejetées parce qu'elles quitteraient un sous-projet qui a reçu
-      des coûts réels, le sous-projet nommé (WF-INTF-0100, WF-INTF-0120) ; d'un planning MS
-      Project, les dates de tâches manuelles gardées sur un jour sans heure travaillée, signalées
-      (`ImportReport.signals`, WF-PLA-0020 ; #1271) ; d'une extraction de coûts réels, les
-      colonnes du fichier ni lues ni déclarées conservées, ignorées et nommées par leur intitulé
-      (`ImportIgnoredKind`, `columns`, WF-REF-0190), chaque ligne de coût désignée par sa pièce
-      et son poste, et les lignes du fichier de même pièce et de même poste rejetées
-      (`DUPLICATE_COST_LINE`, WF-INTF-0140 ; EP-16/US-0630). Le compte rendu est
-      conservé sous forme de codes et rendu dans la langue du lecteur (WF-ARC-0110).
+      des coûts réels, le sous-projet nommé (WF-INTF-0100, WF-INTF-0120), celles qui citent une
+      tâche, un rôle ou un sous-projet inconnus, la valeur lue nommée, ou une tâche par un libellé
+      que plusieurs portent (`AMBIGUOUS_TASK_LABEL`, ANNEXE B), les lignes de provision ignorées
+      ou conservées (`provision_lines`, `kept`, WF-INTF-0100), et les tâches qu'un reste à
+      engager termine à la date de la revue que porte le fichier (WF-INTF-0120) ; d'un planning
+      MS Project, la date de début de planning de la structure qu'il change (`cost_structure`),
+      les dates de tâches manuelles gardées sur un jour sans heure travaillée, et les
+      récapitulatives manuelles importées en mode automatique, signalées
+      (`ImportReport.signals`, WF-PLA-0020, WF-INTF-0040 ; #1271) ; d'une extraction de coûts
+      réels, les colonnes du fichier ni lues ni déclarées conservées, ignorées et nommées par leur
+      intitulé (`ImportIgnoredKind`, `columns`, WF-REF-0190), chaque ligne de coût désignée par sa
+      pièce et son poste, les lignes du fichier de même pièce et de même poste rejetées
+      (`DUPLICATE_COST_LINE`, WF-INTF-0140 ; EP-16/US-0630), et celles dont l'élément d'OTP est
+      mal formé ou d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`,
+      WF-CRE-0020). Le compte rendu est conservé sous forme de codes et rendu dans la langue du
+      lecteur (WF-ARC-0110).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -359,6 +380,7 @@
               actual_costs_analysed: { $ref: ../../../fixtures/api/import_actual_costs_analysed.json }
               actual_costs_column_ignored: { $ref: ../../../fixtures/api/import_actual_costs_column_ignored.json }
               actual_costs_duplicate_line: { $ref: ../../../fixtures/api/import_actual_costs_duplicate_line.json }
+              actual_costs_first: { $ref: ../../../fixtures/api/import_actual_costs_first.json }
               planning_rejected: { $ref: ../../../fixtures/api/import_planning_rejected.json }
               remaining_subproject_held: { $ref: ../../../fixtures/api/import_remaining_subproject_held.json }
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
@@ -372,13 +394,17 @@
     tags: [exchanges]
     summary: Abandonner un import
     description: >-
-      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120).
+      Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120). L'abandon
+      est idempotent : celui d'un import déjà abandonné ou expiré rend 204 sans effet, son
+      fichier étant déjà supprimé (WF-ARC-0100). Le contrat ne dit rien de l'abandon d'un import
+      appliqué ou en cours d'application : la spécification n'en dit rien, et la forme de ce
+      refus est celle des refus d'US-0702.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '204':
-        description: Import abandonné.
+        description: Import abandonné, ou déjà abandonné ou expiré (sans effet).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -452,8 +478,15 @@
       Planning MS Project avec ses calendriers (WF-INTF-0050), devis (WF-INTF-0110),
       reste à engager (WF-INTF-0130) — un planning exporté puis réimporté sans
       modification restitue les mêmes tâches (WF-INTF-0060) —, ou image de l'arborescence de tâches
-      (WF-PLA-0120). Le fichier est engendré à la demande et n'est pas stocké
-      (WF-DAT-0120) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). La
+      (WF-PLA-0120). Le fichier est engendré par le worker et déposé sur le stockage objet, où il
+      attend son téléchargement (`getBackgroundTaskResult`) : il est supprimé à l'issue de son
+      premier téléchargement complet, ou au terme de vingt-quatre heures s'il n'a pas été
+      téléchargé, un téléchargement interrompu le laissant en place (WF-DAT-0120,
+      WF-ARC-0040) ; ses en-têtes ne dépendent pas de la langue (WF-INTF-0180). Un planning MS
+      Project écrit la date de début de planning de la structure dans la date de début du projet
+      (WF-INTF-0050, WF-PLA-0020) ; un reste à engager, la date de la revue en « Synthèse »,
+      celle que la requête nomme ou le jour de la demande (`ExportRequest.review_date`,
+      WF-INTF-0130), que son import retiendra pour terminer une tâche (WF-INTF-0120). La
       révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge
       l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans
       révision par 422.
@@ -482,6 +515,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_of_another_project: { $ref: ../../../fixtures/api/export_revision_not_found.json }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422':
         description: >-

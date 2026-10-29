@@ -11,6 +11,12 @@ the code the entry of the line gives, `SUBPROJECT_HAS_ACTUAL_COSTS`, which names
 subproject (#1152). The import of the estimate is refused on the main structure of a project in
 progress, the condition named as the main structure names it (WF-INTF-0100, C-358, #1153). Each
 refusal is judged on the readings of the witness, as the server judges it, never written by hand.
+
+And the first extraction of April as its analysis presented it, before it was applied: the lines
+it added, and the line of another project it rejected for its element of the work breakdown
+structure (WF-CRE-0020, US-0701/L7); and the export of a revision of another project, refused as an
+unknown one (WF-ADM-0110). An import says the structure, the revision and the period its opening
+received (``opened_on``, I-08).
 """
 
 from __future__ import annotations
@@ -18,7 +24,8 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
 
-from wftools import mockcore, mocktext
+from wftools import mockcore, mockcosts, mocktext
+from wftools.mockhistory import stamp
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import charged_subprojects
 from wftools.mockwitness import (
@@ -27,6 +34,7 @@ from wftools.mockwitness import (
     N,
     fixture,
 )
+from wftools.mockwitnesscosts import APRIL, CostLine
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -200,6 +208,7 @@ def import_report(nodes: dict[int, Node]) -> JsonObject:
     return {
         "format_version": "1",
         "read_count": len(IMPORTED),
+        "unchanged_count": len(IMPORTED) - len(rejected) - len(differences),
         "rejected": rejected,
         "refusals": [],
         "differences": differences,
@@ -225,6 +234,7 @@ def import_remaining_subproject_held() -> JsonObject:
         "import_id": HELD_IMPORT,
         "kind": "remaining",
         "filename": "reste-a-engager-essais.xlsx",
+        **opened_on(main_structure()),
         "status": "analysed",
         "created_at": SUBMITTED,
         "expires_at": EXPIRES,
@@ -253,6 +263,24 @@ def main_structure() -> Node:
     return cast("Node", main)
 
 
+def opened_on(
+    structure: Node | None, period: tuple[date | None, date | None] = (None, None)
+) -> Node:
+    """Return what an import says of its opening: its structure, its revision, its period.
+
+    The structure the import writes on, and the current revision that bears it (WF-INTF-0090); an
+    extraction of actual costs writes on neither, its lines being the project's, and says the
+    period it extracted instead, each bound possibly missing (WF-CRE-0020, WF-CRE-0050).
+    """
+    start, end = period
+    return {
+        "structure_id": None if structure is None else structure["structure_id"],
+        "revision_id": None if structure is None else structure["revision_id"],
+        "period_from": None if start is None else start.isoformat(),
+        "period_to": None if end is None else end.isoformat(),
+    }
+
+
 def import_estimate_main_in_progress() -> JsonObject:
     """Return what openImport answers to an estimate imported on the main structure, in progress.
 
@@ -271,11 +299,158 @@ def import_estimate_main_in_progress() -> JsonObject:
     }
 
 
+# --- The first extraction of April, analysed, and an export of another project ----------------
+
+APRIL_IMPORT, APRIL_TASK = hex_identifier(APRIL.exchange), universe(944)
+APRIL_SUBMITTED, APRIL_ANALYSED, APRIL_EXPIRES = (
+    "2026-05-04T08:25:00Z",
+    "2026-05-04T08:26:00Z",
+    "2026-05-05T08:26:00Z",
+)
+"""When the extraction of April was opened, analysed, and until when it applied, as imports
+lists it; it was applied at 8:30, the instant its journal says (``cost_imports``)."""
+
+OUTSIDE_SUBPROJECT = "SP-CAB"
+"""The code of subproject the element of the line of another project carries after the slash."""
+
+
+def other_project() -> str:
+    """Return the code of a project of the portfolio other than the witness, as homes lists it."""
+    witness = fixture("project")["code"]
+    return next(each["code"] for each in fixture("projects")["items"] if each["code"] != witness)
+
+
+def april_added() -> list[CostLine]:
+    """Return the lines the extraction of April created, in the order of their documents."""
+    created = [line for line in mockcosts.lines() if line.imports[0] is APRIL]
+    return sorted(created, key=lambda line: (line.document, line.item or ""))
+
+
+def april_report() -> JsonObject:
+    """Return the report of the extraction of April, as its analysis presented it.
+
+    Each line whose document and item were not yet imported is added, named by its document and
+    its item (WF-INTF-0140, D-4); each line of another project the journal counts is rejected, its
+    element named as the file carries it, with the code of project read (WF-CRE-0020), last in the
+    file. A code of subproject no subproject of the project carries is kept, and asks for an
+    explicit confirmation, as the lines of another project do.
+    """
+    added = april_added()
+    code = other_project()
+    rejected: list[JsonValue] = [
+        {
+            "sheet": None,
+            "row": FIRST_ROW + len(added) + offset,
+            "code": "WBS_ELEMENT_OUTSIDE_PROJECT",
+            "params": {"wbs_element": f"{code}/{OUTSIDE_SUBPROJECT}", "project_code": code},
+        }
+        for offset in range(APRIL.rejected)
+    ]
+    differences: list[JsonValue] = [
+        {
+            "change": "added",
+            "target": "actual_cost_line",
+            "lineage_id": None,
+            "label": line.document,
+            "document_item": line.item,
+            "predecessor_label": None,
+            "fields": [],
+        }
+        for line in added
+    ]
+    reasons: list[JsonValue] = ["lines_outside_project"] if rejected else []
+    if unknown_codes(added):
+        reasons.append("unknown_subproject")
+    read = len(added) + len(rejected)
+    return {
+        "format_version": None,
+        "read_count": read,
+        "unchanged_count": read - len(rejected) - len(differences),
+        "rejected": rejected,
+        "refusals": [],
+        "differences": differences,
+        "ignored": [],
+        "completed_tasks": [],
+        "date_mismatches": [],
+        "signals": [],
+        "requires_confirmation_reasons": reasons,
+    }
+
+
+def unknown_codes(added: Sequence[CostLine]) -> list[str]:
+    """Return the codes of subproject of lines no subproject of the project carries, once each."""
+    return sorted(
+        {line.code for line in added if line.code is not None and mockcosts.imputed(line) is None}
+    )
+
+
+def import_actual_costs_first() -> JsonObject:
+    """Return what getImport answered of the extraction of April, analysed on 4 May."""
+    return {
+        "import_id": APRIL_IMPORT,
+        "kind": "actual_costs",
+        "filename": "couts-reels-2026-04.xlsx",
+        **opened_on(None, APRIL.period),
+        "status": "analysed",
+        "created_at": APRIL_SUBMITTED,
+        "expires_at": APRIL_EXPIRES,
+        "report": april_report(),
+        "task": {
+            "task_id": APRIL_TASK,
+            "kind": "import_analysis",
+            "status": "succeeded",
+            "progress": 100,
+            "submitted_at": APRIL_SUBMITTED,
+            "finished_at": APRIL_ANALYSED,
+            "problem": None,
+            "result_url": None,
+        },
+    }
+
+
+EXPORT_CORRELATION = universe(1579)
+
+
+def export_revision_not_found() -> JsonObject:
+    """Return what requestExport answers to a revision of another project (WF-ADM-0110)."""
+    return {"code": "NOT_FOUND", "status": 404, "correlation_id": EXPORT_CORRELATION}
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
 def _subproject(refusal: JsonValue) -> str:
     return cast("dict[str, dict[str, dict[str, str]]]", refusal)["params"]["subproject"]["label"]
+
+
+def _april_said() -> str:
+    """Say what the analysis of the extraction of April presented, from its report."""
+    report = cast("dict[str, Any]", april_report())
+    added = april_added()
+    named = ", ".join(
+        line.document if line.item is None else f"{line.document} poste {line.item}"
+        for line in added
+    )
+    [rejected] = report["rejected"]
+    codes = unknown_codes(added)
+    confirmed = "des lignes d'un autre projet"
+    if codes:
+        confirmed += (
+            f", et le code de sous-projet {', '.join(codes)}, qu'aucun sous-projet du projet "
+            "ne porte"
+        )
+    return (
+        f"L'extraction d'avril, {mockcosts.period_said(APRIL)}, déposée le "
+        f"{mocktext.day(date(2026, 5, 4))} à {mocktext.hour(APRIL_SUBMITTED)} et analysée à "
+        f"{mocktext.hour(APRIL_ANALYSED)}, telle que son analyse la présenta, avant son "
+        f"application à {mocktext.hour(stamp(APRIL.event.instant))} (imports, cost_imports) : "
+        f"{report['read_count']} lignes lues ; {len(added)} lignes nouvelles ajoutées, chacune "
+        f"désignée par sa pièce et son poste — {named} — ; à la ligne {rejected['row']}, "
+        f"l'élément d'OTP « {rejected['params']['wbs_element']} », d'un autre projet, rejeté et "
+        f"nommé avec le code projet lu, {rejected['params']['project_code']}, que le journal "
+        f"compte parmi les lignes rejetées. L'application demande une confirmation explicite : "
+        f"{confirmed} (WF-CRE-0020, WF-CRE-0050, WF-INTF-0140, WF-INTF-0080)."
+    )
 
 
 def examples() -> dict[str, JsonObject]:
@@ -318,6 +493,15 @@ def examples() -> dict[str, JsonObject]:
             f"nomme le « {_subproject(imported_refusal)} », qui a reçu des coûts réels "
             f"(WF-INTF-0120, WF-PRJ-0050, WF-INTF-0080).",
             imported,
+        ),
+        "import_actual_costs_first.json": mocktext.example(
+            _april_said(), import_actual_costs_first()
+        ),
+        "export_revision_not_found.json": mocktext.example(
+            "L'export du devis demandé aujourd'hui sur le projet témoin, nommant une révision du "
+            f"projet {other_project()} : refusé comme une révision inconnue, sans dire qu'elle "
+            "existe ailleurs ; rien n'est mis en file (WF-ADM-0110, WF-INTF-0110).",
+            export_revision_not_found(),
         ),
         "import_estimate_main_in_progress.json": mocktext.example(
             "L'import d'un devis demandé aujourd'hui sur la structure principale du projet "

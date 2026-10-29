@@ -4,12 +4,17 @@
     "import_id": "01926f3a-7c00-7000-8000-000000000a16",
     "kind": "ms_project_schedule",
     "filename": "planning-poste-de-commande-v2.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
     "status": "analysed",
     "created_at": "2026-06-03T13:50:00Z",
     "expires_at": "2026-06-04T13:51:00Z",
     "report": {
       "format_version": null,
       "read_count": 1000,
+      "unchanged_count": 998,
       "rejected": [],
       "refusals": [
         {

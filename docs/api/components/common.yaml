@@ -336,7 +336,18 @@ Problem:
         `setActualCostMapping`, WF-REF-0190 ; EP-16/US-0620) ;
         `rows`, les rangs, en tableau d'entiers, des autres lignes du fichier qui portent la même
         pièce et le même poste qu'une ligne d'une extraction de coûts réels rejetée
-        (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140 ; EP-16/US-0630).
+        (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140 ; EP-16/US-0630) ;
+        `wbs_element`, l'élément d'OTP d'une ligne d'une extraction de coûts réels rejetée, tel
+        que le fichier le porte, et `project_code`, le code projet qu'il porte quand c'est celui
+        d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`,
+        `ImportRejection.params`, WF-CRE-0020) ; `value`, la valeur de la cellule telle que le
+        fichier la porte, d'une ligne d'un devis ou d'un reste à engager qui cite une tâche, un
+        rôle ou un sous-projet inconnu (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`,
+        `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100) ; `label`, le libellé d'une
+        tâche que portent plusieurs tâches, avec `tasks` celles qui le portent
+        (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, ANNEXE B) ; `start` et `finish`, les
+        dates qu'un planning MS Project donne à une récapitulative en mode manuel, importée en
+        mode automatique (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040).
     fields:
       type: array
       description: >-
@@ -595,6 +606,16 @@ ErrorCode:
     # d'un fichier MS Project, et signalée au compte rendu (`ImportReport.signals`).
     # `params.date` nomme la date, `params.next_working_day` le jour travaillé suivant.
     - NON_WORKING_DAY
+    # Une ligne d'une extraction de coûts réels rejetée pour son élément d'OTP (`ImportRejection`,
+    # WF-CRE-0020) : un élément qui n'a pas la forme d'un code projet suivi facultativement d'une
+    # barre oblique et d'un code de sous-projet, `params.wbs_element` l'élément lu ; un élément
+    # d'un autre projet, `params.wbs_element` et `params.project_code` le code projet lu.
+    - WBS_ELEMENT_INVALID
+    - WBS_ELEMENT_OUTSIDE_PROJECT
+    # Une ligne d'un devis ou d'un reste à engager qui désigne sa tâche par un libellé que
+    # portent plusieurs tâches (`ImportRejection`, ANNEXE B, WF-INTF-0080) : `params.label` le
+    # libellé, `params.tasks` les tâches qui le portent, par leur lignée et leur libellé.
+    - AMBIGUOUS_TASK_LABEL
     # Une ligne dont la tâche est démarrée ou terminée, passée hors d'un sous-projet qui a reçu
     # des coûts réels (`/subproject_id`, `updateEstimateLine`, WF-PRJ-0050) ;
     # `fields[].params.subproject` nomme ce sous-projet. Aussi le motif d'une cellule de
@@ -684,7 +705,9 @@ ProblemParams:
         projet, leur nœud et leur libellé pour une saisie, un collage ou une fusion ; par leur
         lignée et leur libellé au compte rendu d'un import, qui nomme ses objets ainsi
         (`ImportDifference`) et peut porter sur un projet sans révision en cours, dont aucun nœud
-        n'existe encore (WF-INTF-0090 ; #768, point 2).
+        n'existe encore (WF-INTF-0090 ; #768, point 2). De même, par leur lignée et leur libellé,
+        les tâches qui portent le libellé ambigu qu'une ligne importée cite
+        (`AMBIGUOUS_TASK_LABEL`, ANNEXE B).
       items:
         anyOf:
           - $ref: '#/ProblemTask'
@@ -862,4 +885,6 @@ BackgroundTaskRef:
       description: >-
         Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
         (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
-        tâche : une lecture achevée depuis l'a remplacé.
+        tâche : une lecture achevée depuis l'a remplacé. Celui d'un export (`export`) est nul une
+        fois le fichier supprimé, après son premier téléchargement complet ou au terme de
+        vingt-quatre heures (`getBackgroundTaskResult`, WF-DAT-0120).

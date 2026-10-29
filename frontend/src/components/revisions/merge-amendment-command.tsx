@@ -49,7 +49,11 @@ export interface MergedAmendment {
 }
 
 /** The objects a report counts, in the order it presents them. */
-const COUNTED: readonly Exclude<Target, "actual_cost_line">[] = ["task", "estimate_line", "link"];
+const COUNTED: readonly Exclude<Target, "actual_cost_line" | "cost_structure">[] = [
+  "task",
+  "estimate_line",
+  "link",
+];
 
 /** The changes a report counts, each with the mark of the diff it bears. */
 const COUNTED_CHANGES: readonly {

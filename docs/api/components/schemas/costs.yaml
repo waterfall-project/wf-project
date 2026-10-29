@@ -12,6 +12,8 @@ ActualCostLine:
     - subproject_code
     - subproject_label
     - is_in_tracked_scope
+    - excluded_reason
+    - passthrough
     - audit
   description: >-
     Ligne de coût réel. Quatre attributs significatifs ; les autres colonnes du
@@ -67,10 +69,15 @@ ActualCostLine:
       description: Faux pour une ligne exclue, qui reste consultable et n'entre dans aucun indicateur (WF-CRE-0030).
     excluded_reason:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le motif de l'exclusion, tel que l'utilisateur l'a saisi ; nul pour une ligne suivie, ou
+        exclue sans motif (WF-CRE-0030). Toujours rendu.
     passthrough:
       type: object
       additionalProperties: { type: string }
-      description: Colonnes conservées du fichier, restituées à la consultation (WF-CRE-0010).
+      description: >-
+        Colonnes conservées du fichier, restituées à la consultation (WF-CRE-0010) ; toujours
+        rendu, vide pour une ligne qui n'en porte pas.
     audit: { $ref: ../common.yaml#/Audit }
 
 ActualCostListMeta:
@@ -116,18 +123,45 @@ ScopeExclusion:
 
 CostImport:
   type: object
-  required: [cost_import_id, imported_at, actor, created_count, updated_count, ignored_count]
+  required:
+    - cost_import_id
+    - imported_at
+    - actor
+    - period_from
+    - period_to
+    - created_count
+    - updated_count
+    - unchanged_count
+    - rejected_count
   description: >-
-    Entrée du journal des imports de coûts réels : de quand datent les chiffres
-    qu'on lit (WF-CRE-0050).
+    Entrée du journal des imports de coûts réels : de quand datent les chiffres qu'on lit, sa
+    date, son auteur, la période extraite et le nombre de lignes créées, mises à jour,
+    inchangées et rejetées (WF-CRE-0050).
   properties:
     cost_import_id: { $ref: ../common.yaml#/Uuid }
     imported_at: { $ref: ../common.yaml#/Timestamp }
     actor: { $ref: ../common.yaml#/ActorRef }
     period_from:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: Le début de la période extraite ; nul quand l'import n'en a pas déclaré.
     period_to:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
-    created_count: { type: integer, minimum: 0 }
-    updated_count: { type: integer, minimum: 0 }
-    ignored_count: { type: integer, minimum: 0 }
+      description: La fin de la période extraite, incluse ; nulle quand l'import n'en a pas déclaré.
+    created_count:
+      type: integer
+      minimum: 0
+      description: Lignes dont la pièce et le poste n'étaient pas encore importés (WF-INTF-0140).
+    updated_count:
+      type: integer
+      minimum: 0
+      description: Lignes déjà importées dont le fichier change une valeur (WF-INTF-0140).
+    unchanged_count:
+      type: integer
+      minimum: 0
+      description: Lignes déjà importées, que le fichier porte à l'identique (WF-CRE-0050).
+    rejected_count:
+      type: integer
+      minimum: 0
+      description: >-
+        Lignes rejetées au compte rendu : un élément d'OTP mal formé ou d'un autre projet
+        (WF-CRE-0020), deux lignes de même pièce et de même poste (WF-INTF-0140).

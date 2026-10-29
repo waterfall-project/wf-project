@@ -10,7 +10,7 @@ as the consultation of the costs and the journal present them today (WF-CRE-0040
 as the indicators count them (``tracked``). What follows from the description is computed, never
 written: the imputation of a line from its code of subproject (WF-CRE-0020), its audit from the
 imports that brought it and its exclusion, the three totals, the date of the last import, and the
-counts of lines each import created, updated and ignored.
+counts of lines each import created, updated, left unchanged and rejected.
 And the answers of the exclusion of a line from the tracked scope and of its reinstatement, written
 today (``setActualCostTrackedScope``, WF-CRE-0030), and the consultation read anew after the
 exclusion. Nothing here reads the clock, nor a file the same command writes.
@@ -302,21 +302,23 @@ def consultation(lines: Sequence[CostLine], *, limit: int = PAGE, offset: int = 
     }
 
 
-def counts(entry: CostImport) -> tuple[int, int, int]:
-    """Return the lines an import created, updated and ignored (WF-CRE-0050).
+def counts(entry: CostImport) -> tuple[int, int, int, int]:
+    """Return the lines an import created, updated, left unchanged and rejected (WF-CRE-0050).
 
     A line whose document and item were already imported is updated, its exclusion kept; another
-    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected, and
-    ignored (WF-CRE-0020).
+    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected
+    (WF-CRE-0020). A line an import brings again is updated, as its audit says, unless it comes back
+    as it was: the file without a period brings back the six lines already imported so, which the
+    audit does not mention.
     """
     created = sum(1 for line in lines() if line.imports[0] is entry)
     updated = sum(1 for line in lines() if entry in line.imports[1:])
-    return created, updated, entry.rejected
+    return created, updated, entry.unchanged, entry.rejected
 
 
 def journal_entry(entry: CostImport) -> JsonObject:
     """Return an import as the journal presents it (`CostImport`)."""
-    created, updated, ignored = counts(entry)
+    created, updated, unchanged, rejected = counts(entry)
     start, end = entry.period
     return {
         "cost_import_id": hex_identifier(entry.number),
@@ -326,7 +328,8 @@ def journal_entry(entry: CostImport) -> JsonObject:
         "period_to": None if end is None else end.isoformat(),
         "created_count": created,
         "updated_count": updated,
-        "ignored_count": ignored,
+        "unchanged_count": unchanged,
+        "rejected_count": rejected,
     }
 
 
@@ -364,7 +367,7 @@ def _lines(value: int) -> str:
     return "une ligne" if value == 1 else f"{mocktext.count(value)} lignes"
 
 
-def _period(entry: CostImport) -> str:
+def period_said(entry: CostImport) -> str:
     """Say the period an import extracted, from its bounds, each possibly missing."""
     start, end = entry.period
     if start is None and end is None:
@@ -388,16 +391,18 @@ def _keeps_exclusion(entry: CostImport) -> bool:
 
 def _said(entry: CostImport) -> str:
     """Say what an import did, from its counts."""
-    created, updated, ignored = counts(entry)
+    created, updated, unchanged, rejected = counts(entry)
     parts: list[str] = []
     if created:
         parts.append(f"{_lines(created)} créée{'s' if created > 1 else ''}")
     if updated:
         parts.append(f"{_lines(updated)} mise{'s' if updated > 1 else ''} à jour")
-    if ignored == 1:
+    if unchanged:
+        parts.append(f"{_lines(unchanged)} inchangée{'s' if unchanged > 1 else ''}")
+    if rejected == 1:
         parts.append("une ligne d'un autre projet rejetée et signalée")
-    elif ignored:
-        parts.append(f"{_lines(ignored)} d'autres projets rejetées et signalées")
+    elif rejected:
+        parts.append(f"{_lines(rejected)} d'autres projets rejetées et signalées")
     return ", ".join(parts) if parts else "rien"
 
 
@@ -517,13 +522,14 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         "cost_imports": (
             f"Le journal des imports de coûts réels au {today}, ses {len(JOURNAL)} imports du plus "
             "récent au plus ancien, dont trois n'ont pas déclaré toute leur période : celle de "
-            f"mai, {_period(MAY)}, {_said(MAY)} ; une réextraction {_period(APRIL_AGAIN)}, "
+            f"mai, {period_said(MAY)}, {_said(MAY)} ; une réextraction "
+            f"{period_said(APRIL_AGAIN)}, "
             f"{_said(APRIL_AGAIN)}"
             + (", l'exclusion de la réception conservée" if _keeps_exclusion(APRIL_AGAIN) else "")
-            + f" ; un fichier {_period(UNDATED)}, {_said(UNDATED)} ; puis l'extraction d'avril, "
-            f"{_period(APRIL)}, {_said(APRIL)}, et celle de mars, {_period(MARCH)}, "
-            f"{_said(MARCH)}. Le journal compte parmi les lignes ignorées celles "
-            "qu'un import rejette (WF-CRE-0020, WF-CRE-0030, WF-CRE-0050)."
+            + f" ; un fichier {period_said(UNDATED)}, {_said(UNDATED)} ; puis l'extraction "
+            f"d'avril, {period_said(APRIL)}, {_said(APRIL)} (import_actual_costs_first), et celle "
+            f"de mars, {period_said(MARCH)}, {_said(MARCH)}. Le journal compte à part les lignes "
+            "inchangées et les lignes rejetées (WF-CRE-0020, WF-CRE-0030, WF-CRE-0050)."
         ),
     }
 

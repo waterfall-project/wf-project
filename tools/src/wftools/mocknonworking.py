@@ -22,6 +22,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Any, cast
 
 from wftools import mockcore, mockdating, mocktext
+from wftools.mockexchanges import main_structure, opened_on
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import described
 from wftools.mockwitness import N, default_calendar, fixture
@@ -212,9 +213,11 @@ def import_report() -> JsonObject:
         if node[column]["date"] != day.isoformat()
     ]
     lineage, label = mockcore.lineage(N.COMMISSIONING), rows[N.COMMISSIONING].label
+    read = len(mockdating.tasks_in_order(described()))
     return {
         "format_version": None,
-        "read_count": len(mockdating.tasks_in_order(described())),
+        "read_count": read,
+        "unchanged_count": read - 1,
         "rejected": [],
         "refusals": [],
         "differences": [
@@ -236,11 +239,12 @@ def import_report() -> JsonObject:
 
 
 def import_planning_non_working_day() -> JsonObject:
-    """Return what getImport answers of that planning, analysed today."""
+    """Return what getImport answers of that planning, analysed today, on the main structure."""
     return {
         "import_id": IMPORTED_IMPORT,
         "kind": "ms_project_schedule",
         "filename": "planning-poste-de-commande.xml",
+        **opened_on(main_structure()),
         "status": "analysed",
         "created_at": SUBMITTED,
         "expires_at": EXPIRES,

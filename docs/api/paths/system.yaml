@@ -217,14 +217,17 @@
     summary: Résultat d'une tâche de fond
     description: >-
       Télécharge le fichier qu'une tâche a produit — export MS Project, Excel ou image
-      d'arborescence. Le fichier est engendré à la demande et n'est pas stocké
-      (WF-DAT-0120).
+      d'arborescence. Le worker l'a déposé sur le stockage objet, où il attend son
+      téléchargement : il est supprimé à l'issue de son premier téléchargement complet, ou au
+      terme de vingt-quatre heures s'il n'a pas été téléchargé ; un téléchargement interrompu le
+      laisse en place, et se reprend (WF-DAT-0120, WF-ARC-0040). Un résultat supprimé — déjà
+      téléchargé jusqu'au bout, ou expiré — est un 404, et la tâche rend alors `result_url` nul.
     parameters:
       - $ref: ../components/parameters.yaml#/TaskId
     responses:
       '200':
         description: >-
-          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) :
+          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportKind`) :
           un devis ou un reste à engager en classeur Excel
           (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), un
           planning MS Project en XML (`application/xml`, `.xml`), l'image de l'arborescence en

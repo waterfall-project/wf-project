@@ -1310,6 +1310,14 @@ un import, et la liste non vide n'a pas d'exemple ; un test du cœur exige qu'un
 la main nomme un libellé du cœur par l'identifiant et la lignée du cœur ;
 `import_actual_costs_analysed`, qui dit son motif de confirmation.
 
+*Réécrit par US-0701/L7 (#1607, I-09) : la date de terminaison d'une tâche qu'un import de
+reste à engager termine est la date de la revue que porte le fichier, en « Synthèse », lue dès
+l'analyse — `ImportCompletedTask.completed_on` n'est jamais nul pour un import —, et non plus le
+jour de l'application : WF-INTF-0120 et WF-INTF-0130, réécrites les 9 et 10 octobre 2026, le
+disent, contre WF-PLA-0130. Décision de l'auteur au recadrage du 2026-10-28, « La date de
+terminaison par import » ; l'issue de spécification #1596 demande d'aligner WF-PLA-0130. La
+fusion garde le jour de son application. Section « Les échanges », plus bas.*
+
 **Les trois permissions de WF-ADM-0100 entrent au catalogue** (`project_create`,
 `revision_abandon`, `structure_merge`, #384). Les codes suivent ceux du catalogue — l'objet, puis
 l'action, comme `revision_mark` — et `structure_merge` est le nom que `BackgroundTaskRef.kind`
@@ -1703,6 +1711,10 @@ démarre et la termine le jour de son application, `started_on` égal à `comple
 plus, détail que le reste à engager ne demande pas, et un refus tant que la tâche n'est pas
 démarrée. L'exemple `remaining_completion_date_required` porte sur le câblage des armoires, déjà
 démarré : il n'en dépend pas.
+
+*Réécrit en partie par US-0701/L7 (#1607, I-09 ; WF-INTF-0120 du 2026-10-09, recadrage du
+2026-10-28) : un import de reste à engager démarre et termine une telle tâche à la date de la revue
+que porte le fichier, non le jour de son application ; la règle de WF-RAE-0030 est inchangée.*
 
 **L'union des colonnes conservées des coûts réels est donnée pour toute la lecture** (#414, #353
 quatrième point ; WF-CRE-0010). `meta` de `listActualCosts` devient un `ActualCostListMeta`, la
@@ -2175,6 +2187,11 @@ exclus ; `cost_imports` porte les cinq imports, et `cost_imports_periods`, qui l
 disparaît. Une ligne d'un autre projet est « rejetée et signalée au compte rendu » (WF-CRE-0020
 révisée) ; le journal la compte parmi les lignes ignorées, seul compte que WF-CRE-0050 lui donne.
 
+*Réécrit par US-0701/L7 (#1607, I-01 ; WF-CRE-0050 de la passe de cohérence des 9 et 10 octobre
+2026, recadrage du 2026-10-28, « la règle des autres majeurs ») : le journal compte les lignes
+créées, mises à jour, inchangées et rejetées (`CostImport.unchanged_count`, `rejected_count`) ;
+`ignored_count` disparaît, et une ligne d'un autre projet compte parmi les rejetées.*
+
 **La facture des études entre dans l'univers** (décision de l'auteur, revue d'EP-02/L25) :
 FA-2026-0409, 100 000 de sous-traitance datés du 10 avril, jour où les études de détail se
 terminent, sans partie sous-projet dans son OTP comme leur ligne 527, apportée par l'extraction
@@ -2371,8 +2388,8 @@ quatre, de 0,1 à 1,5 % de son budget ; les provisions restantes, celles des ris
 *Remplacé en partie par US-0701/L6 (#1606, G-06 ; WF-PTF-0090 de la spécification du 9 octobre 2026,
 constat C-205, recadrage du 2026-10-28) : la réserve et la couverture agrégées sont les sommes de
 celles des projets en cours et terminés du périmètre ; aucun projet de la liste n'est terminé, et
-l'exemple ne change pas (« Le portefeuille : horizon, projets terminés, couverture, offres », dans «
-Le contrat figé »).*
+l'exemple ne change pas (« Le portefeuille : horizon, projets terminés, couverture, offres »,
+dans « Le contrat figé »).*
 
 **La santé du pilotage se lit des projets en cours.** Une revue est en retard au-delà des huit
 semaines du référentiel depuis la dernière révision marquée de la liste ; pour le témoin, ses
@@ -2719,6 +2736,12 @@ de la tâche, ou dans un avis de son panneau quand il ne peut relire la tâche. 
 les types que le contrat déclare pour un résultat, et rien de ce qu'elle répond ne se garde en cache
 (`Cache-Control: private, no-store`). Écarté : une action serveur qui rend le fichier en `Blob`, le
 premier passage du lot. La même règle vaudra pour le téléchargement des sauvegardes (#519).
+
+*Réécrit en partie par US-0701/L7 (#1607, I-07, K-07, L-19 ; WF-DAT-0120 du 2026-10-09,
+recadrage du 2026-10-28) : le fichier d'un export est stocké jusqu'à son premier téléchargement
+complet, ou vingt-quatre heures ; un résultat supprimé, téléchargé ou expiré, est un 404, et non
+plus le 409 que la route du front recevait. La route n'en change pas : elle traite tout refus de
+même.*
 
 **Ce que ce lot laisse à l'auteur** (#353, confirmations demandées) : le contrat borne le dépôt d'un
 import à 10 Mio, 10 485 760 octets (#324), là où la décision disait « 10 Mo » ; et les textes —
@@ -8587,9 +8610,10 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
   seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
   68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
-  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
-  réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
-  plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
+  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé,
+  change avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas) : 67 470 132,98 dans
+  l'état final, et le poste de commande, qui ne devait plus être dépassé que de la facture des
+  écrans, 2 400,00, l'est de 64 699,97.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
   l'année de référence) et celui de la provision de WF-DEV-0030.
 - **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et
@@ -9016,6 +9040,88 @@ d'EP-02/L7 (L-16), la fusion de l'avenant 1 d'EP-02/L27 (#467, L-14) et l'annula
   heures ne changent pas, aucune tâche n'ayant démarré au marquage. Écarté : un exemple sur un
   projet en chiffrage, que la revue suggérait — le témoin n'en porte pas avec une révision
   marquée, et la règle se lit sur le refus et la description.
+
+### Les échanges : journal, rejets, compte rendu MS Project, date de la revue, format à l'ouverture (US-0701/L7, #1607)
+
+Les constats I-01 à I-05 et I-07 à I-11 de la revue du contrat avant le gel, et leurs doublons
+K-05, K-06, K-07 et L-19. La spécification les a tranchés dans ses passes des 9 et 10 octobre
+2026 ; les décisions de l'auteur du 2026-10-28 (« La date de terminaison par import », « Le format
+d'un import », « La date de début de planning ») tranchent ce qu'elle laissait ouvert, et la
+proposition de la revue s'applique au reste (« la règle des autres majeurs »). Réécrits, plus haut :
+le compte rendu d'EP-02/L35 (#383) et la tâche non démarrée de #486 (I-09), le journal d'EP-02/L25
+(I-01), le téléchargement d'EP-02/L38 (I-07).
+
+- **Le journal et le compte rendu comptent les inchangées et les rejetées** (I-01 ; WF-CRE-0050,
+  WF-INTF-0140). `CostImport` porte `unchanged_count` et `rejected_count`, exigés, à la place
+  d'`ignored_count` ; `period_from` et `period_to` deviennent exigés, nullables. `ImportReport`
+  porte `unchanged_count`, exigé : les objets lus que l'import laisse tels quels, ni rejetés, ni
+  ignorés, ni présentés ajoutés ou modifiés. Écarté : la mention que l'inchangé se déduit de
+  `read_count`, que la revue offrait aussi — d'un planning, `differences` porte des liaisons et
+  des lignes que le fichier ne compte pas parmi ses objets lus, et la soustraction ne tomberait
+  pas juste. Le témoin ne rapporte aucune ligne à l'identique : la réextraction du 11 mai garde
+  ses six lignes mises à jour, comme leur audit le dit (`mockcosts.counts`).
+- **Le rejet d'une ligne de coût pour son élément d'OTP** (I-02 ; WF-CRE-0020). Deux codes,
+  `WBS_ELEMENT_INVALID` et `WBS_ELEMENT_OUTSIDE_PROJECT`, `params.wbs_element` l'élément lu et,
+  pour le second, `params.project_code` le code projet lu. L'exemple engendré
+  `import_actual_costs_first` (`mockexchanges`) est l'extraction d'avril telle que son analyse la
+  présenta le 4 mai, avant son application : trois lignes ajoutées, la ligne d'un autre projet que
+  le journal compte rejetée, et les deux motifs de confirmation. Il est aussi le premier import de
+  coûts réels que la revue demandait (I-20).
+- **Le compte rendu d'un planning MS Project** (I-03, I-04, K-05 ; WF-INTF-0040 du 2026-10-09).
+  La date de début du projet du fichier devient la date de début de planning de la structure, et
+  le compte rendu la présente quand elle diffère : un écart `updated` de cible `cost_structure`,
+  `fields` à `planning_start_on` (`ImportDifferenceField`), `lineage_id` nul, la structure étant
+  celle de l'import, comme la revue le proposait sous I-03 ; la valeur ne voyage pas, comme pour
+  tout autre écart. Écarté : le champ `planning_start_change` de K-05, une forme de plus pour un
+  seul écart. Le nom du champ suit `CostStructure.planning_start_on`, et non le `planning_start`
+  de la revue. `ImportSignal.code` s'ouvre à `SUMMARY_TASK_DERIVED`, le code qui refuse à la
+  saisie des dates sur une récapitulative : une récapitulative manuelle du fichier importée en
+  automatique, `column` à `scheduling_mode`, `params.start` et `params.finish` les dates du
+  fichier, l'écart recalculé dans `date_mismatches`. L'exemple écrit à la main
+  `import_planning_mismatch` porte l'un et l'autre : le projet du fichier commence le 23 février,
+  et la récapitulative des « Études » (621) y est manuelle.
+- **Les lignes de provision d'un devis et d'un reste à engager** (I-05, K-06 ; WF-INTF-0100 du
+  2026-10-09, WF-INTF-0120). `ImportIgnoredKind` gagne `provision_lines`, les lignes du fichier
+  qui portent la lignée d'une provision, ignorées et nommées ; `kept` s'étend à la provision
+  qu'un devis ne porte plus, conservée ; un reste à engager laisse inchangées, sans les signaler,
+  toutes les lignes absentes de son fichier, la sienne comprise. `import_remaining_analysed` signale
+  la provision du risque 751, que son fichier portait.
+- **L'export est stocké jusqu'à son premier téléchargement complet** (I-07, K-07, L-19 ;
+  WF-DAT-0120 du 2026-10-09, WF-ARC-0040). `requestExport`, `ExportRequest` et
+  `getBackgroundTaskResult` le disent ; un résultat supprimé est un 404, et `result_url` d'un
+  export devient nul. Le 409 générique de `getBackgroundTaskResult` reste à US-0702 (A-05).
+- **La lecture d'un import dit ce que son ouverture a reçu** (I-08 ; WF-INTF-0090, WF-CRE-0050).
+  `Import.structure_id`, `revision_id`, `period_from` et `period_to`, exigés, nullables : la
+  structure résolue, la principale quand la requête n'en nommait pas ; la révision en cours, nulle
+  tant que l'import la créera ; une extraction de coûts réels n'a ni structure ni révision — ses
+  lignes sont du projet —, mais sa période. Écarté : la structure principale pour une extraction,
+  que la revue laissait entendre, une structure que l'import n'écrit pas.
+- **La date de terminaison par import** (I-09 ; WF-INTF-0120, WF-INTF-0130 des 9 et 10 octobre
+  2026). Décision de l'auteur : la date de la revue que porte le fichier, connue dès l'analyse ;
+  `ExportRequest.review_date`, nullable, le jour de la demande par défaut, que l'export du reste à
+  engager écrit en « Synthèse » ; la fusion garde le jour de son application. Écarté : le jour de
+  l'application. L'issue de spécification #1596 (WF-PLA-0130) est à l'auteur.
+- **Le format se contrôle à l'ouverture** (I-10 ; WF-INTF-0070, WF-ARC-0100). Décision de
+  l'auteur : `openImport` lit l'en-tête — format, version, intitulés — avant de mettre l'analyse
+  en file, et refuse par 422 ; l'analyse ne refuse plus de format. Écarté : le refus porté par
+  l'échec de la tâche d'analyse. Les exemples ne changent pas : le seul échec d'analyse,
+  `task_import_analysis_failed`, est une défaillance du service.
+- **Le libellé ambigu et la valeur lue** (I-11 ; ANNEXE B, WF-INTF-0100). `AMBIGUOUS_TASK_LABEL`,
+  `params.label` et `params.tasks`, les tâches par leur lignée et leur libellé
+  (`ProblemImportedTask`) ; `UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE` et `UNKNOWN_SUBPROJECT`
+  nomment la valeur lue, `params.value`, que `import_analysed` montre. Le témoin n'a pas deux
+  tâches de même libellé : le libellé ambigu n'a pas d'exemple.
+- **Les mineurs des fichiers touchés** (I-12 à I-16, I-19, I-20 en partie). `format_version` nul
+  pour une extraction de coûts réels, décrit ; `format_version`, `requires_confirmation_reasons`,
+  `ImportDifference.label`, `ActualCostLine.excluded_reason` et `passthrough` exigés ;
+  `Import.status` décrit, `expires_at` nul tant que l'analyse court ; les champs de l'ouverture et
+  leurs refus décrits ; `ExportKind` nommé ; les filtres de `listActualCosts` décrits ; un 404
+  d'export (`export_revision_not_found`). I-18 : l'abandon (`abandonImport`) est déclaré
+  idempotent — un import déjà abandonné ou expiré rend 204 sans effet, son état restant lu et son
+  fichier supprimé (WF-ARC-0100). Pour un import appliqué ou en cours d'application, la
+  spécification ne dit rien : le refus, qui demanderait une condition nouvelle de
+  `CommandCondition`, reste à la forme des refus d'US-0702. Restent au gel : d'I-20, une liste
+  `completed_tasks` non vide et le 409 d'une application refusée pour l'état.
 
 ## Collage et annulation
 
