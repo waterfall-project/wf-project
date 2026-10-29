@@ -4,8 +4,8 @@
 
 They try the planning start of a structure moved a week earlier against the Vérif of WF-PLA-0020
 it illustrates, the calculation date of the workload of a marked revision against that of
-WF-DEV-0070, and, citing nothing (WF-QUA-0010, « un test qui ne couvre aucune exigence »), the
-attributes the revisions and the structures written by hand carry against the witness.
+WF-DEV-0070, and the attributes the revisions and the structures written by hand carry against the
+witness, citing WF-REV-0030-A, WF-REV-0070-A and WF-REV-0090-A where they try their Vérif.
 """
 
 from datetime import date, timedelta
@@ -149,8 +149,12 @@ def test_a_revision_names_the_marked_revision_it_copies_by_its_version() -> None
     assert first == {"Offre v1.0"}
 
 
+@pytest.mark.requirement("WF-REV-0090-A")
+@pytest.mark.requirement("WF-REV-0070-A")
 def test_the_revisions_carry_the_parameters_of_their_project() -> None:
-    # The witness never changed its inflation nor its probability: every revision conserves them.
+    # The witness never changed its inflation nor its probability: every revision carries the
+    # project's. It does not tell « conserved at the marking » from « follows the project », both
+    # being equal here: see DECISIONS.md, « Le témoin n'a jamais changé son taux d'inflation ».
     project = fixture("project")
     for revision in _revisions():
         assert revision["inflation_rate"] == project["inflation_rate"]
@@ -173,6 +177,7 @@ def snapshots() -> dict[str, Node]:
     return cast("dict[str, Node]", mocksnapshot.revisions(mockdata.categories()))
 
 
+@pytest.mark.requirement("WF-REV-0030-A")
 @pytest.mark.parametrize("name", ["revision_marked", "revision_offer"])
 def test_a_marked_revision_conserves_the_images_of_the_reference_it_employs(
     snapshots: dict[str, Node], name: str

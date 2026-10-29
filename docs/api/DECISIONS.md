@@ -8579,9 +8579,11 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
   Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
   simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
-  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628) : l'offre et la
-  référence recevront la même année de référence, et le lot qui l'applique lèvera la
-  simplification ; le Vérif de WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de
+  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628) : la décision
+  d'appliquer est prise (l'offre et la référence recevront la même année de référence), sa mise
+  en œuvre est en question — WF-REV-0060 oblige à redater l'offre en 2026, ce qui retire au témoin
+  son récit de mise à jour des taux (commentaire de #1628) — et la part détachée US-0701/L2b
+  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de
   main-d'œuvre réestimées seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis
   du témoin vaut 68 923 691,06, son budget de référence
   68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
@@ -8968,6 +8970,11 @@ d'EP-02/L7 (L-16), la fusion de l'avenant 1 d'EP-02/L27 (#467, L-14) et l'annula
   l'offre, et sont désormais engendrés (`mocksnapshot`), depuis `revisions` et les lignes de
   chacune ; `revision_marked_merge_offered` le reprend. Le témoin n'a jamais changé son taux
   d'inflation, 3 %, ni sa probabilité de gain, 100 % : chaque révision les conserve.
+  Ce témoin ne prouve donc pas la conservation : comme la valeur conservée à chaque marquage et la
+  valeur courante du projet sont égales partout, `test_mockrevisions.py` ne distingue pas « conservé
+  au marquage » de « suit le projet » (WF-REV-0070, WF-REV-0090). Une révision au taux ou à la
+  probabilité différents obligerait à réécrire les récits chiffrés du témoin, hors de ce lot ; la
+  conservation est éprouvée par le back, sur des données qui changent.
 - **Les images des taux conservés** (E-11, WF-REV-0030). `EmployedReference.hourly_rates` lit
   `HourlyRateImage` — catégorie, année, montant —, sans l'audit ni le compteur du taux du
   référentiel, qui bougent après le marquage. Les trois autres images gardent les leurs, celles

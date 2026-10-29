@@ -448,9 +448,12 @@ StructureCreate:
 StructureUpdate:
   type: object
   required: [lock_version]
+  minProperties: 2
   description: >-
     Modifie la structure elle-même : sa date de début de planning et son libellé
-    (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé.
+    (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé. Un
+    corps réduit au compteur ne changerait rien : au moins un des deux champs est exigé avec lui,
+    sinon 422 `VALIDATION_FAILED`, et le compteur n'avance pas.
   properties:
     planning_start_on:
       allOf: [{ $ref: ../common.yaml#/PlanningDate }]

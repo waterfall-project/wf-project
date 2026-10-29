@@ -4401,7 +4401,7 @@ export interface components {
             kind: "amendment";
             label: string;
         };
-        /** @description Modifie la structure elle-même : sa date de début de planning et son libellé (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé. */
+        /** @description Modifie la structure elle-même : sa date de début de planning et son libellé (WF-PLA-0020, WF-REV-0100). Seul ce qui est envoyé change ; le compteur lu est exigé. Un corps réduit au compteur ne changerait rien : au moins un des deux champs est exigé avec lui, sinon 422 `VALIDATION_FAILED`, et le compteur n'avance pas. */
         StructureUpdate: {
             /** @description La date de début de planning (`CostStructure.planning_start_on`), sur un jour qui a au moins une heure travaillée au calendrier par défaut (WF-PLA-0010, WF-PLA-0020). */
             planning_start_on?: components["schemas"]["PlanningDate"];
