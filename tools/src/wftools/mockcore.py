@@ -37,6 +37,7 @@ from wftools.mockcalendar import (
 from wftools.mockdating import (
     Amounts,
     Dated,
+    float_of,
     payment_delay,
     price,
     progress_at,
@@ -75,7 +76,7 @@ from wftools.mockwitness import (
 from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
     from datetime import date, datetime
 
     from wftools.mocksort import LineSort
@@ -219,10 +220,7 @@ class _Emitter:
             "consumption_year": year,
             "is_computed": line.is_provision,
             "uses_inactive_object": False,
-            "remaining_entry": {
-                "is_available": not completed,
-                "missing_conditions": ["task_not_completed"] if completed else [],
-            },
+            "remaining_entry": _remaining_entry(completed=completed, provision=line.is_provision),
         }
         node = self._node(line.number, place, ESTIMATE_LINE, facet)
         fields = line_fields(
@@ -297,22 +295,43 @@ class _Emitter:
         tracking = _tracking(task)
         if tracking:
             facet["tracking"] = tracking
-        if not task.children:
-            total_float = placed.total_float
-            facet["total_float"] = (
-                None if total_float is None else {"value": decimal(total_float), "unit": "d"}
-            )
-            # The critical path counts the floats nil or negative (WF-PLA-0100, #402).
-            facet["is_critical"] = total_float is not None and total_float <= 0
+        # A summary bears the smallest float of its subordinates, none when none bears one; the
+        # critical path counts the floats nil or negative (WF-PLA-0100, #402).
+        total_float = float_of(self.dated, task.number)
+        facet["total_float"] = (
+            None if total_float is None else {"value": decimal(total_float), "unit": "d"}
+        )
+        facet["is_critical"] = total_float is not None and total_float <= 0
+        facet["link_conflicts"] = self._conflicts(placed)
         return facet
+
+    def _conflicts(self, placed: Dated) -> list[JsonValue]:
+        """Return the links a task cannot satisfy, or that are not satisfied for it (WF-PLA-0020).
+
+        Each by its two tasks and its type, in the order of the plan of their predecessor, then of
+        their successor: a summary, never linked to a task in manual mode, bears none.
+        """
+        found = sorted(
+            placed.conflicts,
+            key=lambda each: (self.row_of[each.predecessor], self.row_of[each.successor]),
+        )
+        return [
+            {
+                "predecessor_node_id": node_id(each.predecessor),
+                "successor_node_id": node_id(each.successor),
+                "link_type": each.link_type,
+            }
+            for each in found
+        ]
 
     def _dates_of(self, task: Task, state: str) -> tuple[date | None, date | None]:
         """Return when a task started and when it completed, as far as it has (WF-PLA-0130).
 
         A task starts on its first day and completes on its last, or on the day of the gesture
-        that declared it (``Task.declared_on``); a milestone goes from not
-        started to completed and never starts (WF-PLA-0050); a summary starts with the first of
-        its subordinates and completes with the last.
+        that declared it (``Task.declared_on``); a milestone goes from not started to completed
+        without passing through started (WF-PLA-0050), and takes the day it completes as the day
+        it started (WF-PLA-0130); a summary starts with the first of its subordinates and completes
+        with the last.
         """
         if task.children:
             starts: list[date] = []
@@ -329,7 +348,9 @@ class _Emitter:
         placed, on = self.dated[task.number], task.declared_on
         completed = (on or placed.finish.day) if state == "completed" else None
         if task.is_milestone or state == "not_started":
-            return None, completed
+            # A task completed without having started — a milestone — starts on the day it
+            # completes, and reopened, it loses both (WF-PLA-0130).
+            return completed, completed
         return on if on is not None and state == "started" else placed.start.day, completed
 
     def _physical_progress(self, summary: Task) -> JsonObject:
@@ -367,6 +388,21 @@ class _Emitter:
             "lock_version": 1,
             kind: facet,
         }
+
+
+def _remaining_entry(*, completed: bool, provision: bool) -> JsonObject:
+    """Return whether a line takes a re-estimate, and else the conditions it lacks.
+
+    The lines of a completed task are not modified (WF-RAE-0040); a line of provision is computed
+    from its risk and never re-estimated (WF-RIS-0010, WF-RAE-0010): in the order of
+    `CommandCondition`.
+    """
+    missing: list[JsonValue] = []
+    if completed:
+        missing.append("task_not_completed")
+    if provision:
+        missing.append("line_not_provision")
+    return {"is_available": not missing, "missing_conditions": missing}
 
 
 def _tracking(task: Task) -> list[JsonValue]:
@@ -572,8 +608,18 @@ def search(rows: list[Row], text: str) -> JsonObject:
 
     An ancestor rendered for the readability of the tree alone is not counted in the totals.
     """
+    return filtered(rows, lambda row: mocktext.holds(row.label, text))
+
+
+def filtered(rows: list[Row], keep: Callable[[Row], bool]) -> JsonObject:
+    """Return the reading of a filter: the nodes it retains, and their ancestors (WF-IHM-0060).
+
+    A filter on a line — a bound of one of its columns, ``<column>_min`` — retains the lines that
+    satisfy it, their tasks rendered for the readability of the tree alone and counted in no total;
+    the totals are those of the lines retained (WF-IHM-0130).
+    """
     by_number = {row.number: row for row in rows}
-    found = {row.number for row in rows if mocktext.holds(row.label, text)}
+    found = {row.number for row in rows if keep(row)}
     ancestors: set[int] = set()
     for number in found:
         parent = by_number[number].parent
@@ -742,7 +788,9 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     The finish of a summary, its direct subordinates (WF-PLA-0040); the amount of a task, its
     lines and its direct subordinates (WF-DEV-0050); the amount of a labour line, the hourly
     rate (WF-DEV-0020); the quantity and the subproject of a provision, its risk (WF-RIS-0010,
-    EP-14/L42p); the float of a task in manual mode, its mode (WF-PLA-0100). The rows are named
+    EP-14/L42p); the float of a summary, its direct subordinates, that of a task in manual mode,
+    its mode (WF-PLA-0100); the category of a
+    labour line, its role (WF-DEV-0020). The rows are named
     by their number in the whole structure and their label; read again after rows were inserted
     above them, they bear their new numbers (WF-PLA-0080).
     """
@@ -755,11 +803,14 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     elif row.kind == TASK and name == "task.base_amount":
         rules, named = ["lines_and_subordinates"], children
     elif row.kind == TASK and name == "task.total_float":
-        rules = ["manual_mode"]
+        subordinates = [each for each in children if each.kind == TASK]
+        rules, named = (["subordinates"], subordinates) if subordinates else (["manual_mode"], [])
     elif row.kind == ESTIMATE_LINE and name == "estimate_line.base_amount":
         rules = ["hourly_rate" if row.hours else "unit_disbursement"]
     elif row.kind == ESTIMATE_LINE and name in {"estimate_line.quantity", PROVISION_SUBPROJECT}:
         rules = ["risk"]
+    elif row.kind == ESTIMATE_LINE and name == "estimate_line.cost_category_id":
+        rules = ["resource_role"]
     else:
         message = f"{name} of {row.label} is not a computed value the core explains"
         raise ValueError(message)

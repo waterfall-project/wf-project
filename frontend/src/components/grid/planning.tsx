@@ -203,7 +203,6 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       width: 44,
       icon: Contrast,
       computed: computedWhereNamed("task.progress"),
-      contract: "progress",
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,
     },

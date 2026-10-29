@@ -142,7 +142,7 @@ describe("the Gantt of the planning", () => {
   it("names each bar by the dates the API gives, a milestone by its day, the critical path in words [WF-PLA-0090-A]", () => {
     renderPlanning();
     const bar = (label: string) => within(ganttOf(label)).getByRole("img");
-    expect(bar("Études")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026");
+    expect(bar("Études")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026 — critique");
     expect(bar("Études de détail")).toHaveAccessibleName("Du 02/03/2026 au 10/04/2026 — critique");
     expect(bar("Pupitres opérateurs")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026");
     expect(bar("Réception des études")).toHaveAccessibleName("Jalon le 24/04/2026 — critique");

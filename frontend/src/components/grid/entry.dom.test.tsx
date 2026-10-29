@@ -153,7 +153,7 @@ describe("the keyboard of a grid", () => {
   // validation rendering the grid anew, and its answer once more — four times the work of a test of
   // a single entry, past five seconds under the load of several lots: fifteen (EP-02/L46).
   it(
-    "enters a whole line of the estimate without the pointer — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]",
+    "enters a whole line of the estimate without the pointer — label, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]",
     { timeout: 15_000 },
     async () => {
       const client = serve();
@@ -161,17 +161,15 @@ describe("the keyboard of a grid", () => {
       cell(LABOUR, "label").focus();
       // A character typed opens the entry with it; Tab validates it and goes along the row.
       await userEvent.keyboard("Repérage{Tab}");
-      expect(cell(LABOUR, "cost_category")).toHaveFocus();
-      // The category and the role are chosen from their lists, by the first letters of a name: a
-      // letter typed on the cell opens its list at the first choice it starts, the next ones search on.
-      await userEvent.keyboard("Mi");
-      const categories = screen.getByRole("combobox", { name: "Catégorie" });
-      expect(categories).toHaveFocus();
-      expect(categories).toHaveValue(COMMISSIONING);
-      await userEvent.keyboard("{Tab}{Enter}");
+      // The category of a line of labour is computed from its role (WF-DEV-0020): the cell is
+      // read only, and the keyboard goes along the row to the role.
+      expect(cell(LABOUR, "resource_role")).toHaveFocus();
+      // The role is chosen from its list, by the first letters of a name: a letter typed on the
+      // cell opens its list at the first choice it starts, the next ones search on.
+      await userEvent.keyboard("T");
       const roles = screen.getByRole("combobox", { name: "Rôle" });
-      expect(roles).toHaveValue("01926f3a-7c00-7000-8000-000000000451");
-      await userEvent.keyboard("Technicien");
+      expect(roles).toHaveFocus();
+      await userEvent.keyboard("echnicien");
       expect(roles).toHaveValue(COMMISSIONING_TECHNICIAN);
       await userEvent.keyboard("{Tab}2{Tab}15{Enter}");
 
@@ -181,7 +179,7 @@ describe("the keyboard of a grid", () => {
       // Each cell left alone, the second and the next carrying the version the server answered.
       const node = `${NODES}/${nodeIdOf(LABOUR)}/estimate-line`;
       await vi.waitFor(() => {
-        expect(written(client)).toHaveLength(5);
+        expect(written(client)).toHaveLength(4);
       });
       const bodies = written(client).map(({ path, body }) => {
         expect(path).toBe(node);
@@ -189,7 +187,6 @@ describe("the keyboard of a grid", () => {
       });
       expect(bodies).toMatchObject([
         { label: "Repérage", lock_version: 1 },
-        { cost_category_id: COMMISSIONING, lock_version: 2 },
         { resource_role_id: COMMISSIONING_TECHNICIAN, lock_version: 2 },
         { quantity: "2", lock_version: 2 },
         { hours: "15", lock_version: 2 },
@@ -295,7 +292,10 @@ describe("the keyboard of a grid", () => {
     const readOnly = (row: number, columns: readonly string[]) =>
       columns.filter((column) => cell(row, column).getAttribute("aria-readonly") === "true");
     const figures = ["label", "cost_category", "resource_role", "quantity", "hours"] as const;
-    expect(readOnly(LABOUR, [...figures, "unit_disbursement"])).toEqual(["unit_disbursement"]);
+    expect(readOnly(LABOUR, [...figures, "unit_disbursement"])).toEqual([
+      "cost_category",
+      "unit_disbursement",
+    ]);
     expect(readOnly(DISBURSEMENT, [...figures, "unit_disbursement"])).toEqual([
       "resource_role",
       "hours",
@@ -449,11 +449,13 @@ describe("the keyboard of a grid", () => {
   it("leaves a choice at its value before when its entry under way is abandoned [WF-IHM-0040-A]", async () => {
     const client = serve();
     render(grid());
-    cell(LABOUR, "cost_category").focus();
+    // The category of a line of labour is computed, that of a disbursement is chosen.
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
+    cell(DISBURSEMENT, "cost_category").focus();
     await userEvent.keyboard("{Enter}Mise");
     expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveValue(COMMISSIONING);
     await userEvent.keyboard("{Escape}");
-    expect(cell(LABOUR, "cost_category")).toHaveTextContent("Ingénierie électrique");
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
     expect(written(client)).toEqual([]);
   });
 
@@ -584,7 +586,7 @@ describe("the keyboard of a grid", () => {
   it("is accessible while a choice is entered", async () => {
     serve();
     render(grid());
-    cell(LABOUR, "cost_category").focus();
+    cell(DISBURSEMENT, "cost_category").focus();
     await userEvent.keyboard("{Enter}");
     expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveFocus();
     await expectAccessible(document.body);

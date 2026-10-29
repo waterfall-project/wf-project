@@ -31,8 +31,19 @@ from typing import TYPE_CHECKING, Any, cast
 from wftools import mockamendment, mockcore, mocktext
 from wftools.mockgestures import added, money_said, network_task, tasks_said
 from wftools.mockids import universe
+from wftools.mockstructure import labels
 from wftools.mocktree import AT_END, LINE, TASK, placed
-from wftools.mockwitness import EQUIPMENT, SUBPROJECT_CONTROL, SUBPROJECT_TESTS, Line, N, Task
+from wftools.mockwitness import (
+    COMMISSIONING,
+    COMMISSIONING_TECHNICIAN,
+    ELECTRICAL_ENGINEERING,
+    EQUIPMENT,
+    SUBPROJECT_CONTROL,
+    SUBPROJECT_TESTS,
+    Line,
+    N,
+    Task,
+)
 from wftools.mockwrites import amended, known, node_columns, totals_said, written
 
 if TYPE_CHECKING:
@@ -104,6 +115,61 @@ def estimate_line_created() -> JsonObject:
     """Return what createNode answers to a line created under the commissioning."""
     roots = amended(mockamendment.amendment(), added(N.COMMISSIONING, line=TEST_SUPPLIES))
     return amendment_write(roots, [CREATED_LINE])
+
+
+LABELLED_LINE, LABELLED_HOURS = 587, Decimal(16)
+"""The labour line created under the commissioning without a label nor a category: the server
+composes its label and takes the category of its role (WF-DEV-0020)."""
+
+LABEL_LENGTH = 300
+"""The longest label of a line (`EstimateLineFacet.label`)."""
+
+
+def composed_label(task_label: str, role_label: str | None) -> str:
+    """Return the label the server composes for a line created without one (WF-DEV-0020).
+
+    The label of the task that bears it and, if the line has one, that of its role, joined as the
+    labels of the universe join two names — « Provision — risque de reprise du câblage » —,
+    within the length of a label.
+    """
+    label = task_label if role_label is None else f"{task_label} — {role_label}"
+    return label[:LABEL_LENGTH]
+
+
+def labelled_line() -> Line:
+    """Return the labour line created under the commissioning, as the server completes it."""
+    task = {row.number: row for row in mockamendment.rows()}[N.COMMISSIONING]
+    return Line(
+        LABELLED_LINE,
+        composed_label(task.label, labels()[COMMISSIONING_TECHNICIAN]),
+        COMMISSIONING,
+        hours=LABELLED_HOURS,
+        role=COMMISSIONING_TECHNICIAN,
+        subproject=SUBPROJECT_TESTS,
+    )
+
+
+def estimate_line_created_labelled() -> JsonObject:
+    """Return what createNode answers to a labour line sent without a label nor a category."""
+    roots = amended(mockamendment.amendment(), added(N.COMMISSIONING, line=labelled_line()))
+    return amendment_write(roots, [LABELLED_LINE])
+
+
+MISMATCH_CORRELATION = universe(1073)
+
+
+def estimate_line_category_mismatch() -> JsonObject:
+    """Return what createNode answers to a labour line sent with a category not its role's.
+
+    The category of a labour line is its role's, computed: another one sent is refused as any
+    computed value is, the grid naming what it depends on (WF-DEV-0020, WF-IHM-0030).
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/estimate_line/cost_category_id", "code": "COMPUTED_VALUE"}],
+        "correlation_id": MISMATCH_CORRELATION,
+    }
 
 
 SHARED_UNDER, SHARED_AFTER = N.CONTROL_STATION, N.FACTORY_ACCEPTANCE
@@ -590,7 +656,38 @@ def examples() -> dict[str, JsonObject]:
             f"la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
             nodes_move_completed_refused(),
         ),
+        **_labelled_examples(open_),
         **edit_examples(),
+    }
+
+
+def _labelled_examples(open_: str) -> dict[str, JsonObject]:
+    """Return the examples of a labour line created without a label, and of a category refused."""
+    created = estimate_line_created_labelled()
+    [line] = _nodes(created)
+    facet = cast("Node", line["estimate_line"])
+    task = {row.number: row for row in mockamendment.rows()}[N.COMMISSIONING].label
+    role, category = labels()[COMMISSIONING_TECHNICIAN], labels()[ELECTRICAL_ENGINEERING]
+    return {
+        "estimate_line_created_labelled.json": mocktext.example(
+            f"{open_}, une ligne de main-d'œuvre créée sous la « {task} », son rôle seul envoyé, "
+            f"« {role} », avec {LABELLED_HOURS} h, sans libellé ni catégorie : le serveur compose "
+            f"son libellé de celui de la tâche et de celui du rôle, « {facet['label']} », qui "
+            f"reste modifiable (editable_fields), et lui donne la catégorie de son rôle, "
+            f"« {facet['cost_category_label']} », qu'elle ne saisit pas (computed_fields) ; "
+            f"{money_said(facet['base_amount'])}, à sa première version (201). Avec elle, ses "
+            f"ancêtres, {tasks_said(created, 'ancestors')}, {totals_said(created)}, et le "
+            f"compteur du différentiel passé à {created['structure_lock_version']} (WF-DEV-0020).",
+            created,
+        ),
+        "estimate_line_category_mismatch.json": mocktext.example(
+            f"{open_}, la même ligne de main-d'œuvre envoyée avec la catégorie « {category} », "
+            f"qui n'est pas celle de son rôle, « {role} » : la catégorie d'une ligne de "
+            f"main-d'œuvre est celle de son rôle, calculée, et la saisie est refusée sur son "
+            f"champ, la grille nommant ce dont elle dépend (getComputedValueDependencies) ; rien "
+            f"n'est créé (WF-DEV-0020, WF-IHM-0030).",
+            estimate_line_category_mismatch(),
+        ),
     }
 
 

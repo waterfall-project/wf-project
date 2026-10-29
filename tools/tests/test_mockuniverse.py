@@ -892,6 +892,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
         "backups": ("/query/to", "minimum", datetime),
+        "nodes": ("/query/start_to", "minimum", date),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
@@ -952,6 +953,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         if "- name: to\n" in text or re.search(r"parameters\.yaml#/\w*To\b", text)
     }
     assert sorted(taking) == [
+        "compareRevisions",
         "getPortfolioCostCurve",
         "getPortfolioCostStructure",
         "getPortfolioPerformance",
@@ -962,6 +964,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "listActualCosts",
         "listAuditEvents",
         "listBackups",
+        "listNodes",
         "listProjects",
         "listUsers",
     ]

@@ -106,7 +106,9 @@ NodeFields:
 NodeKinds:
   name: kinds
   in: query
-  description: Restreint aux tâches ou aux lignes, selon la grille affichée.
+  description: >-
+    Choisit ce que la lecture rend, tâches ou lignes, selon la grille affichée ; ce n'est pas un
+    filtre : les totaux ne changent pas avec lui (`listNodes`, #487).
   schema:
     type: array
     items: { $ref: schemas/revisions.yaml#/NodeKind }
@@ -198,6 +200,373 @@ NodeTimelineFilter:
     (`tracking`, WF-PLA-0140, WF-PLA-0060), sans leurs ancêtres ; une chronologie sans
     inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
   schema: { $ref: common.yaml#/Uuid }
+
+# Les filtres de colonne de `listNodes` (US-0701/L3, F-06) : chaque colonne de nombres de ses trois
+# grilles par ses deux bornes, chaque colonne de dates par sa période (README du contrat).
+
+NodeDescriptionFilter:
+  name: description
+  in: query
+  description: >-
+    Restreint aux tâches dont la description contient ce texte, sans égard à la casse ni aux
+    accents, comme `search` (README du contrat ; WF-PLA-0080).
+  schema: { type: string, minLength: 1 }
+
+NodeSchedulingModeFilter:
+  name: scheduling_mode
+  in: query
+  description: Restreint aux tâches dans l'un de ces modes de planification (WF-PLA-0080).
+  schema:
+    type: array
+    items: { $ref: schemas/revisions.yaml#/SchedulingMode }
+  explode: false
+
+NodeDurationMin:
+  name: duration_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la durée, en jours de travail : restreint aux tâches qui en
+    portent au moins autant (WF-PLA-0080).
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeDurationMax:
+  name: duration_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la durée, en jours de travail : restreint aux tâches qui n'en
+    portent pas plus (WF-PLA-0080). Inférieure à `duration_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/duration_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+NodePhysicalProgressMin:
+  name: physical_progress_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de l'avancement physique, de 0 à 1 : restreint aux récapitulatives
+    qui en portent au moins autant (WF-PLA-0080).
+  schema: { $ref: common.yaml#/Decimal }
+
+NodePhysicalProgressMax:
+  name: physical_progress_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de l'avancement physique, de 0 à 1 : restreint aux récapitulatives
+    qui n'en portent pas plus (WF-PLA-0080). Inférieure à `physical_progress_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/physical_progress_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeTotalFloatMin:
+  name: total_float_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la marge totale, en jours de travail, signée : restreint aux
+    tâches qui en portent au moins autant (WF-PLA-0080).
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeTotalFloatMax:
+  name: total_float_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la marge totale, en jours de travail, signée : restreint aux
+    tâches qui n'en portent pas plus (WF-PLA-0080). Inférieure à `total_float_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/total_float_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeQuantityMin:
+  name: quantity_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la quantité : restreint aux lignes qui en portent au moins autant
+    (WF-DEV-0050).
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeQuantityMax:
+  name: quantity_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la quantité : restreint aux lignes qui n'en portent pas plus
+    (WF-DEV-0050). Inférieure à `quantity_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/quantity_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+NodeHoursMin:
+  name: hours_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la charge, en heures : restreint aux lignes qui en portent au
+    moins autant (WF-DEV-0050).
+  schema: { $ref: common.yaml#/Hours }
+
+NodeHoursMax:
+  name: hours_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la charge, en heures : restreint aux lignes qui n'en portent pas
+    plus (WF-DEV-0050). Inférieure à `hours_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/hours_max`.
+  schema: { $ref: common.yaml#/Hours }
+
+NodeUnitDisbursementMin:
+  name: unit_disbursement_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du débours unitaire : restreint aux lignes qui en portent au moins
+    autant (WF-DEV-0050).
+  schema: { $ref: common.yaml#/Money }
+
+NodeUnitDisbursementMax:
+  name: unit_disbursement_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du débours unitaire : restreint aux lignes qui n'en portent pas plus
+    (WF-DEV-0050). Inférieure à `unit_disbursement_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/unit_disbursement_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodePaymentDelayMin:
+  name: payment_delay_days_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du délai de paiement, en jours : restreint aux lignes qui en portent
+    au moins autant (WF-DEV-0050).
+  schema: { type: integer, minimum: 0 }
+
+NodePaymentDelayMax:
+  name: payment_delay_days_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du délai de paiement, en jours : restreint aux lignes qui n'en
+    portent pas plus (WF-DEV-0050). Inférieure à `payment_delay_days_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/payment_delay_days_max`.
+  schema: { type: integer, minimum: 0 }
+
+NodeConsumptionYearMin:
+  name: consumption_year_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de l'année de consommation : restreint aux lignes qui en portent au
+    moins autant (WF-DEV-0040).
+  schema: { $ref: common.yaml#/Year }
+
+NodeConsumptionYearMax:
+  name: consumption_year_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de l'année de consommation : restreint aux lignes qui n'en portent
+    pas plus (WF-DEV-0040). Inférieure à `consumption_year_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/consumption_year_max`.
+  schema: { $ref: common.yaml#/Year }
+
+NodeBaseAmountMin:
+  name: base_amount_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du montant aux taux de l'année de référence, avant inflation :
+    restreint aux lignes qui en portent au moins autant (WF-DEV-0050).
+  schema: { $ref: common.yaml#/Money }
+
+NodeBaseAmountMax:
+  name: base_amount_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du montant aux taux de l'année de référence, avant inflation :
+    restreint aux lignes qui n'en portent pas plus (WF-DEV-0050). Inférieure à `base_amount_min`,
+    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/base_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodeBudgetedAmountMin:
+  name: budgeted_amount_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du montant budgété, inflation comprise : restreint aux lignes qui en
+    portent au moins autant (WF-RAE-0040).
+  schema: { $ref: common.yaml#/Money }
+
+NodeBudgetedAmountMax:
+  name: budgeted_amount_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du montant budgété, inflation comprise : restreint aux lignes qui
+    n'en portent pas plus (WF-RAE-0040). Inférieure à `budgeted_amount_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/budgeted_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodeReestimatedAmountMin:
+  name: reestimated_amount_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du montant réestimé, inflation comprise : restreint aux lignes qui en
+    portent au moins autant (WF-DEV-0050, WF-RAE-0040).
+  schema: { $ref: common.yaml#/Money }
+
+NodeReestimatedAmountMax:
+  name: reestimated_amount_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du montant réestimé, inflation comprise : restreint aux lignes qui
+    n'en portent pas plus (WF-DEV-0050, WF-RAE-0040). Inférieure à `reestimated_amount_min`, refusée
+    par 422 `VALUE_OUT_OF_RANGE` sur `/query/reestimated_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodePreviousQuantityMin:
+  name: previous_quantity_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la quantité au reste à engager précédent : restreint aux lignes
+    qui en portent au moins autant (WF-RAE-0040).
+  schema: { $ref: common.yaml#/Decimal }
+
+NodePreviousQuantityMax:
+  name: previous_quantity_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la quantité au reste à engager précédent : restreint aux lignes
+    qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_quantity_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/previous_quantity_max`.
+  schema: { $ref: common.yaml#/Decimal }
+
+NodePreviousHoursMin:
+  name: previous_hours_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, de la charge au reste à engager précédent : restreint aux lignes qui
+    en portent au moins autant (WF-RAE-0040).
+  schema: { $ref: common.yaml#/Hours }
+
+NodePreviousHoursMax:
+  name: previous_hours_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, de la charge au reste à engager précédent : restreint aux lignes qui
+    n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_hours_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/previous_hours_max`.
+  schema: { $ref: common.yaml#/Hours }
+
+NodePreviousUnitDisbursementMin:
+  name: previous_unit_disbursement_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du débours unitaire au reste à engager précédent : restreint aux
+    lignes qui en portent au moins autant (WF-RAE-0040).
+  schema: { $ref: common.yaml#/Money }
+
+NodePreviousUnitDisbursementMax:
+  name: previous_unit_disbursement_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du débours unitaire au reste à engager précédent : restreint aux
+    lignes qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_unit_disbursement_min`,
+    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/previous_unit_disbursement_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodePreviousReestimatedAmountMin:
+  name: previous_reestimated_amount_min
+  in: query
+  description: >-
+    Borne inférieure, incluse, du montant réestimé au reste à engager précédent : restreint aux
+    lignes qui en portent au moins autant (WF-RAE-0040).
+  schema: { $ref: common.yaml#/Money }
+
+NodePreviousReestimatedAmountMax:
+  name: previous_reestimated_amount_max
+  in: query
+  description: >-
+    Borne supérieure, incluse, du montant réestimé au reste à engager précédent : restreint aux
+    lignes qui n'en portent pas plus (WF-RAE-0040). Inférieure à `previous_reestimated_amount_min`,
+    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/previous_reestimated_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+NodeStartFrom:
+  name: start_from
+  in: query
+  description: >-
+    Début, inclus, de la période du début : restreint aux tâches qui en portent une dans la période
+    (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeStartTo:
+  name: start_to
+  in: query
+  description: >-
+    Fin, inclus, de la période du début : restreint aux tâches qui en portent une dans la période ;
+    antérieure à `start_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/start_to`
+    (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeFinishFrom:
+  name: finish_from
+  in: query
+  description: >-
+    Début, inclus, de la période de la fin : restreint aux tâches qui en portent une dans la période
+    (WF-PLA-0080, WF-RAE-0040).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeFinishTo:
+  name: finish_to
+  in: query
+  description: >-
+    Fin, inclus, de la période de la fin : restreint aux tâches qui en portent une dans la période ;
+    antérieure à `finish_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/finish_to`
+    (WF-PLA-0080, WF-RAE-0040).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeStartedOnFrom:
+  name: started_on_from
+  in: query
+  description: >-
+    Début, inclus, de la période de la date de démarrage : restreint aux tâches qui en portent une
+    dans la période (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeStartedOnTo:
+  name: started_on_to
+  in: query
+  description: >-
+    Fin, inclus, de la période de la date de démarrage : restreint aux tâches qui en portent une
+    dans la période ; antérieure à `started_on_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/started_on_to` (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeCompletedOnFrom:
+  name: completed_on_from
+  in: query
+  description: >-
+    Début, inclus, de la période de la date de terminaison : restreint aux tâches qui en portent une
+    dans la période (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeCompletedOnTo:
+  name: completed_on_to
+  in: query
+  description: >-
+    Fin, inclus, de la période de la date de terminaison : restreint aux tâches qui en portent une
+    dans la période ; antérieure à `completed_on_from`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/completed_on_to` (WF-PLA-0080).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+NodeMilestoneFilter:
+  name: is_milestone
+  in: query
+  description: >-
+    Vrai, restreint aux jalons, faux aux tâches qui n'en sont pas ; absent, ne restreint rien
+    (WF-PLA-0080).
+  schema: { type: boolean }
+
+NodeFinishOverdueFilter:
+  name: finish_overdue
+  in: query
+  description: >-
+    Vrai, restreint aux tâches démarrées dont la fin est dépassée (`finish_overdue`), faux aux
+    autres ; absent, ne restreint rien (WF-RAE-0040).
+  schema: { type: boolean }
+
+NodeInactiveObjectFilter:
+  name: uses_inactive_object
+  in: query
+  description: >-
+    Vrai, restreint aux lignes qui emploient un objet désactivé du référentiel
+    (`uses_inactive_object`), faux aux autres ; absent, ne restreint rien (WF-REF-0010).
+  schema: { type: boolean }
 
 NodeSortBy:
   name: sort_by

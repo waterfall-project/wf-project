@@ -155,7 +155,8 @@ def test_a_milestone_completes_at_the_date_entered_without_starting(
     assert completed["lock_version"] == attached["lock_version"] + 1
     assert completed["task"]["progress"] == "completed"
     assert completed["task"]["completed_on"] == READ_ON.isoformat()
-    assert "started_on" not in completed["task"]
+    # Completed without having started, it takes that day as its date of start (WF-PLA-0130).
+    assert completed["task"]["started_on"] == READ_ON.isoformat()
     assert completed["task"]["finish"] == attached["task"]["finish"]
     assert completed["task"]["order_item_id"] == attached["task"]["order_item_id"]
 

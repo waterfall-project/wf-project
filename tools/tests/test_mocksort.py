@@ -146,3 +146,22 @@ def test_the_columns_a_line_sorts_by_are_those_of_the_contract() -> None:
     block = block[block.index("  enum:") : block.index("\n\n")]
     columns = re.findall(r"^    - (\w+)$", block, re.MULTILINE)
     assert ("label", *columns[columns.index("cost_category") :]) == LINE_COLUMNS
+
+
+@pytest.mark.requirement("WF-IHM-0130-A")
+def test_an_upper_bound_below_the_lower_is_refused_naming_the_lower_bound(
+    readings: dict[str, Any],
+) -> None:
+    # « Toute table se filtre sur chacune de ses colonnes » : the bounds of a column inverted are
+    # refused on the upper one, the lower bound given in the type of the column (README).
+    refused = readings["nodes_bounds_inverted.json"]
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    [field] = refused["fields"]
+    assert field == {
+        "pointer": "/query/reestimated_amount_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {"minimum": "10000.00"},
+    }
+    contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
+    cited = contract.count("fixtures/api/nodes_bounds_inverted.json")
+    assert cited == 2  # listNodes and compareRevisions

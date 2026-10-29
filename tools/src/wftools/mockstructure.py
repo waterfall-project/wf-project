@@ -434,9 +434,10 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     """Return what a task computes and what it accepts (WF-PLA-0130).
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
-    nothing. A summary computes its duration and its progress too, and accepts its label and its
-    description; a milestone has no duration to enter. Every task, summary, leaf or milestone,
-    accepts its predecessors, after its other fields of planning: a link is refused only by what it
+    nothing. A summary computes its mode — always automatic —, its duration and its progress too,
+    and accepts its label and its description (WF-PLA-0040); a milestone has no duration to enter.
+    Every task, summary, leaf or milestone, accepts its predecessors, after its other fields of
+    planning: a link is refused only by what it
     links, as it is entered (WF-PLA-0030, WF-PLA-0040, #1257). Every task of the main structure
     accepts its attachment to an order item or a work package (WF-PLA-0130), then its
     inscriptions to the timelines and to the time/time tracking, last (WF-PLA-0060, #1065): every
@@ -447,7 +448,7 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     main_only: list[JsonValue] = ["task.order_item_id", "task.work_package_id", "task.tracking"]
     if is_summary:
         return Fields(
-            ["task.duration", *dates, "task.progress"],
+            ["task.scheduling_mode", "task.duration", *dates, "task.progress"],
             [*editable, "task.predecessors", *main_only],
         )
     editable.append("task.scheduling_mode")
@@ -463,7 +464,8 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
 def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
-    A labour line takes its role and its hours, another its unit disbursement; both take their
+    A labour line takes its role and its hours, its category being its role's, computed (Vérif of
+    WF-DEV-0020); another takes its category and its unit disbursement; both take their
     payment delay, nought by default for labour and « saisissable sur toute ligne autre qu'une
     ligne de provision » (WF-DEV-0020, WF-IND-0100, #785); a provision computes its
     quantity and its unit disbursement from its risk, and takes neither, nor its category
@@ -477,23 +479,30 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
-        computed: list[JsonValue] = [
+        provision: list[JsonValue] = [
             "estimate_line.quantity",
             "estimate_line.unit_disbursement",
             "estimate_line.subproject_id",
         ]
-        return Fields(computed, editable)
-    editable.append("estimate_line.cost_category_id")
+        return Fields(provision, editable)
+    computed: list[JsonValue] = []
     if is_labour:
+        computed.append("estimate_line.cost_category_id")
         editable.extend(
             ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
         )
     else:
-        editable.extend(["estimate_line.quantity", "estimate_line.unit_disbursement"])
+        editable.extend(
+            [
+                "estimate_line.cost_category_id",
+                "estimate_line.quantity",
+                "estimate_line.unit_disbursement",
+            ]
+        )
     editable.append("estimate_line.payment_delay_days")
     if not is_held:
         editable.append("estimate_line.subproject_id")
-    return Fields([], editable)
+    return Fields(computed, editable)
 
 
 def computable(value: str) -> JsonObject:

@@ -2463,7 +2463,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
 - sous `fixtures/api/`, par leur nom, les exemples du témoin, déclarés engendrés dans
   `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
   `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
-  chaque tâche par `wftools.mocksort`) ; les réponses des
+  chaque tâche, ou filtrées par les bornes d'une colonne, par `wftools.mocksort`) ; les réponses des
   écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
   de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
   nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur

@@ -3007,6 +3007,7 @@
       "task_is_milestone": "la tâche est un jalon",
       "task_not_milestone": "la tâche n'est pas un jalon",
       "task_without_lines": "tâche sans ligne hors provision",
+      "line_not_provision": "ligne hors provision",
       "completed_milestone": "jalon terminé",
       "hourly_rates_set": "taux horaires renseignés",
       "no_background_task_running": "aucun traitement de fond en cours sur l’objet",
@@ -3212,13 +3213,15 @@
         "duration": "Durée",
         "start": "Début",
         "finish": "Fin",
-        "progress": "Avancement"
+        "progress": "Avancement",
+        "scheduling_mode": "Mode de planification"
       },
       "estimate_line": {
         "quantity": "Quantité",
         "hours": "Heures",
         "unit_disbursement": "Débours unitaire",
-        "subproject_id": "Sous-projet"
+        "subproject_id": "Sous-projet",
+        "cost_category_id": "Catégorie de coût"
       }
     },
     "EditableField": {
@@ -3253,10 +3256,11 @@
       "duration": "Durée",
       "start": "Début",
       "finish": "Fin",
-      "progress": "Avancement",
       "physical_progress": "Avancement physique",
       "total_float": "Marge totale",
       "is_critical": "Chemin critique",
+      "started_on": "Démarrée le",
+      "completed_on": "Terminée le",
       "predecessors": "Prédécesseurs",
       "work_breakdown": "Lot ou poste",
       "cost_category": "Catégorie de coût",
@@ -3280,6 +3284,7 @@
         "duration": "Durée de la tâche",
         "start": "Début de la tâche",
         "finish": "Fin de la tâche",
+        "scheduling_mode": "Mode de planification de la tâche",
         "progress": "Avancement de la tâche",
         "physical_progress": "Avancement physique de la tâche",
         "total_float": "Marge totale de la tâche",
@@ -3291,6 +3296,7 @@
         "quantity": "Quantité de la ligne",
         "hours": "Charge de la ligne",
         "unit_disbursement": "Débours unitaire de la ligne",
+        "cost_category_id": "Catégorie de coût de la ligne",
         "subproject_id": "Sous-projet de la ligne",
         "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
@@ -3306,6 +3312,7 @@
       "manual_mode": "Une tâche en mode manuel ne porte pas de marge.",
       "hourly_rate": "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       "unit_disbursement": "Le montant d’une ligne hors main-d’œuvre est le produit de sa quantité et de son débours unitaire.",
+      "resource_role": "Le rôle d’une ligne de main-d’œuvre détermine sa catégorie de coût.",
       "risk": "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",

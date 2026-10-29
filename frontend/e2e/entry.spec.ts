@@ -133,7 +133,7 @@ function times(key: string, count: number): string[] {
   return Array.from({ length: count }, () => key);
 }
 
-test("enters a whole line of the estimate without the mouse — label, category, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
+test("enters a whole line of the estimate without the mouse — label, role, quantity, effort —, and the last cell validated places the cursor on the next row [WF-IHM-0040-A]", async ({
   page,
 }) => {
   const { grid, at } = await tabIntoGrid(page, AMENDMENT_SCREEN);
@@ -150,13 +150,8 @@ test("enters a whole line of the estimate without the mouse — label, category,
   // Typed, the label replaces the one read; Tab validates it and goes along the row.
   await page.keyboard.type("Heures de câblage");
   await page.keyboard.press("Tab");
-  await expect(cellAt(grid, LINE, at.category)).toBeFocused();
-  // The category is chosen by the first letters of its name, typed on the cell: its list opens.
-  await page.keyboard.type("Ingénierie");
-  const categories = page.getByRole("combobox", { name: "Catégorie" });
-  await expect(categories).toBeFocused();
-  await expect(categories).toHaveValue("01926f3a-7c00-7000-8000-000000000402");
-  await page.keyboard.press("Tab");
+  // The category of a line of labour is computed from its role (WF-DEV-0020): the cell is read
+  // only, and the keyboard goes along the row to the role.
   await expect(cellAt(grid, LINE, at.role)).toBeFocused();
   // The role, from its list opened by Enter.
   await page.keyboard.press("Enter");
@@ -175,8 +170,8 @@ test("enters a whole line of the estimate without the mouse — label, category,
   const next = cellAt(grid, LINE + 1, at.label);
   await expect(next).toBeFocused();
   await expect(next).toBeInViewport();
-  // The five cells written, one after the other.
-  await expect.poll(() => writes.length).toBe(5);
+  // The four cells written, one after the other.
+  await expect.poll(() => writes.length).toBe(4);
   // The line as the server last answered it — the fake back keeps nothing of what it is sent —,
   // in place of what was typed.
   await expect(rowAt(grid, LINE).getByRole("gridcell")).toHaveText([

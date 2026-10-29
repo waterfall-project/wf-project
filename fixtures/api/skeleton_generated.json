@@ -39,6 +39,12 @@
             "saturday": "0",
             "sunday": "0"
           },
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "link_conflicts": [],
           "order_item_id": null,
           "work_package_id": "01926f3a-7c00-7000-8000-000000000714",
           "work_breakdown_label": "Rénovation du poste de livraison",
@@ -52,6 +58,7 @@
           }
         },
         "computed_fields": [
+          "task.scheduling_mode",
           "task.duration",
           "task.start",
           "task.finish",
@@ -103,6 +110,12 @@
             "saturday": "0",
             "sunday": "0"
           },
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "link_conflicts": [],
           "order_item_id": "01926f3a-7c00-7000-8000-000000000715",
           "work_package_id": null,
           "work_breakdown_label": "Rénovation du poste de livraison",
@@ -116,6 +129,7 @@
           }
         },
         "computed_fields": [
+          "task.scheduling_mode",
           "task.duration",
           "task.start",
           "task.finish",
@@ -172,6 +186,7 @@
             "unit": "d"
           },
           "is_critical": true,
+          "link_conflicts": [],
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00"
@@ -234,6 +249,7 @@
             "unit": "d"
           },
           "is_critical": true,
+          "link_conflicts": [],
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00"
