@@ -2914,7 +2914,7 @@ class ComparedTaskFacet(ContractModel):
     physical_progress: Annotated[
         Computable | None,
         Field(
-            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
         ),
     ] = None
     base_amount: Annotated[
@@ -3588,7 +3588,7 @@ class TaskFacet(ContractModel):
     physical_progress: Annotated[
         Computable | None,
         Field(
-            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés portés par les tâches terminées de son sous-arbre au total budgété de ce sous-arbre (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
+            description="Avancement physique d'une récapitulative, calculé : le rapport des montants budgétés acquis dans son sous-arbre — ses lignes propres comprises, acquises quand elle est terminée, hors lignes de provision (WF-IND-0030) — au total des montants budgétés de ce sous-arbre, hors lignes de provision (WF-IND-0060), à quatre décimales (README, « Une part… »), non calculable quand ce total est nul (`no_budgeted_amount`, WF-IND-0010). Nul pour une tâche qui n'est pas récapitulative."
         ),
     ] = None
     base_amount: Annotated[
@@ -4145,7 +4145,7 @@ class UndoResult(ContractModel):
 
 class CalculationContext(ContractModel):
     revision_id: Uuid
-    revision_status: RevisionStatus | None = None
+    revision_status: RevisionStatus
     computed_at: Timestamp
     scope: Annotated[
         str,
@@ -4154,11 +4154,11 @@ class CalculationContext(ContractModel):
         ),
     ]
     is_stored: Annotated[
-        bool | None,
+        bool,
         Field(
-            description="Vrai pour les indicateurs conservés d'une révision marquée, invariables depuis son marquage (WF-DAT-0040)."
+            description="Vrai pour ce que le marquage d'une révision a conservé — ses indicateurs et ses courbes, invariables depuis son marquage, sur le coût réel connu alors (WF-DAT-0040, WF-IND-0010) ; faux pour la révision en cours, et pour le calcul au jour courant d'un projet sans révision en cours, sur sa dernière révision marquée avec le coût réel du jour. La zone d'un indice conservé se classe à la lecture (`IndexValue.zone`)."
         ),
-    ] = None
+    ]
 
 
 class ComputableMoney(ContractModel):
@@ -4254,7 +4254,7 @@ class Role(ContractModel):
     resource_role_id: Uuid
     label: str
     org_node_id: Uuid | None = None
-    capacity_monthly_hours: Hours | None = None
+    capacity_monthly_hours: Hours
     months: list[Month]
 
 
@@ -4314,9 +4314,19 @@ class AmountByKey(ContractModel):
 class SubprojectBalance(ContractModel):
     key: str
     label: str | None = None
-    budget: Money
+    budget: Annotated[
+        Money,
+        Field(
+            description="Le budget de référence du sous-projet : la somme des montants budgétés des lignes qui lui appartiennent dans la révision de référence, hors lignes de provision (WF-IND-0020)."
+        ),
+    ]
     actual_cost: Money
-    remaining: Money
+    remaining: Annotated[
+        Money,
+        Field(
+            description="Le reste à engager des lignes qui lui appartiennent dans la révision courante (WF-IND-0020) : une ligne passée d'un sous-projet à un autre après la référence compte son budget dans le premier, son reste à engager dans le second."
+        ),
+    ]
     variance: Annotated[
         Money,
         Field(
@@ -4347,7 +4357,7 @@ class RemainingIndicators(ContractModel):
     delta_to_previous_revision: Annotated[
         Money | None,
         Field(
-            description="L'écart avec le reste à engager de la révision marquée précédente, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`) sans revue précédente, et non zéro : l'écran l'omet alors (WF-RAE-0020)."
+            description="L'écart avec le reste à engager de la révision marquée précédente qui l'a été à l'état En cours, à son marquage (WF-RAE-0020) : ce que cette revue a changé, le reste à engager courant moins le sien, négatif quand il a diminué ; nul (`null`), et non zéro, quand aucune révision n'a été marquée à l'état En cours avant celle qui est lue — une offre marquée en chiffrage n'est pas une revue — : l'écran l'omet alors (WF-RAE-0020)."
         ),
     ] = None
 
@@ -4392,8 +4402,18 @@ class NotStartedTask(KanbanTask):
 
 
 class IndexValue(ContractModel):
-    value: Computable
-    zone: AlertZone | None
+    value: Annotated[
+        Computable,
+        Field(
+            description="L'indice, rapport de deux grandeurs, à quatre décimales (README, « Une part… »)."
+        ),
+    ]
+    zone: Annotated[
+        AlertZone | None,
+        Field(
+            description="La zone de l'indice, classée par le serveur à la lecture d'après les seuils courants du référentiel : supérieur ou égal au seuil de vigilance, nominal ; inférieur à lui et supérieur ou égal au seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte — aux seuils 0,9 et 0,8, un indice de 0,9 est nominal, un de 0,8 en vigilance (WF-REF-0170). Un indice conservé l'est aussi : sa valeur ne change pas, sa zone peut changer avec les seuils (WF-REF-0130). Nulle quand l'indice ne se calcule pas."
+        ),
+    ]
 
 
 class Projections(ContractModel):
@@ -4401,23 +4421,23 @@ class Projections(ContractModel):
     project_manager: Money
     at_observed_rate: ComputableMoney
     variance_at_budget: Annotated[
-        Money | None,
+        Money,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`."
         ),
-    ] = None
+    ]
     variance_project_manager: Annotated[
-        Money | None,
+        Money,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference`."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference`."
         ),
-    ] = None
+    ]
     variance_at_observed_rate: Annotated[
         Money | None,
         Field(
-            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProject.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas."
+            description="La projection moins le budget de référence, positive quand elle le dépasse (WF-IND-0050), au sens de `PortfolioProjectRow.delta_to_reference` ; nulle tant que la projection au rythme constaté ne se calcule pas."
         ),
-    ] = None
+    ]
 
 
 class ProjectIndicators(ContractModel):
@@ -4426,57 +4446,72 @@ class ProjectIndicators(ContractModel):
     planned_value: Annotated[
         Money,
         Field(
-            description="Lignes comptées au budget de référence, étalées linéairement sur la durée de leur tâche dans la révision de référence (WF-DEV-0080)."
+            description="Lignes comptées au budget de référence, chacune étalée sur la durée de sa tâche telle que la révision de référence la date, au prorata des heures travaillées — du calendrier de son rôle pour une ligne de main-d'œuvre, du calendrier applicable de la tâche sinon (WF-DEV-0080)."
         ),
     ]
     earned_value: Annotated[
         Money,
         Field(
-            description="Montants budgétés des tâches terminées, à leur date de terminaison (WF-IND-0030)."
+            description="Montants budgétés des lignes des tâches terminées à la date de calcul, hors lignes de provision, la date de terminaison faisant foi ; les lignes propres d'une récapitulative s'acquièrent quand elle est terminée, et celles issues d'un risque survenu ne s'acquièrent pas (WF-IND-0030)."
         ),
     ]
     actual_cost: Annotated[
         Money,
         Field(
-            description="Lignes du périmètre suivi dont la date de pièce est antérieure à la date de calcul (WF-IND-0010)."
+            description="Lignes du périmètre suivi dont la date de pièce est antérieure ou égale à la date de calcul (WF-IND-0010)."
         ),
     ]
     remaining: Money
     financial_progress: Annotated[
-        Computable | None,
+        Computable,
         Field(
             description="Rapport du coût réel à la somme du coût réel et du reste à engager ; non calculable lorsque les deux sont nuls (WF-IND-0040). À quatre décimales, comme la consommation du budget et l'avancement physique (README, « Une part… »)."
         ),
-    ] = None
-    budget_consumption: Computable | None = None
-    physical_progress: Computable | None = None
+    ]
+    budget_consumption: Computable
+    physical_progress: Computable
     cost_index: IndexValue
     schedule_index: IndexValue
     cost_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire)."
         ),
-    ] = None
+    ]
     schedule_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire)."
         ),
-    ] = None
+    ]
     projections: Projections
 
 
 class Point(ContractModel):
-    marked_at: Timestamp
-    forecast_date: PlanningDate
+    marked_at: Annotated[
+        Timestamp,
+        Field(
+            description="L'abscisse du point : la date de marquage de sa révision, la terminaison du jalon — à minuit, la date de terminaison n'ayant pas d'heure —, ou l'instant du calcul pour le point du jour courant."
+        ),
+    ]
+    forecast_date: Annotated[
+        PlanningDate,
+        Field(
+            description="L'ordonnée : la date que la révision prévoyait pour le jalon, ou sa date de terminaison pour le dernier point d'un jalon terminé."
+        ),
+    ]
 
 
 class Milestone(ContractModel):
     lineage_id: Uuid
     label: str
     completed_on: PlanningDate | None = None
-    points: list[Point]
+    points: Annotated[
+        list[Point],
+        Field(
+            description="Un point par révision marquée à l'état En cours, à sa date de marquage, jusqu'à la terminaison du jalon — le dernier point d'un jalon terminé est à sa date de terminaison, en abscisse comme en ordonnée, et aucune révision marquée ensuite n'en ajoute — ; puis, pour un jalon non terminé, le point du jour courant, que fournit la révision en cours ou, à défaut, la dernière révision marquée (WF-IND-0090, WF-IND-0010)."
+        ),
+    ]
 
 
 class MilestoneTracking(ContractModel):
@@ -4528,7 +4563,7 @@ class CurveSeries(ContractModel):
     payment_delays: Annotated[
         bool,
         Field(
-            description="Vrai quand les séries sont celles des décaissements : chaque montant décalé du délai de paiement de sa ligne, les provisions des risques identifiés ajoutées à la date de la tâche qui les porte (WF-IND-0100). Faux sinon."
+            description="Vrai quand les séries sont celles des décaissements : le budget de référence et la projection décalés, chaque montant du délai de paiement de sa ligne, les provisions des risques identifiés, qui n'en portent pas, à la date de la tâche qui les porte ; le coût réel n'est pas décalé (WF-IND-0100). Faux sinon."
         ),
     ]
     series: list[Series]
@@ -4541,7 +4576,7 @@ class CurveSeries(ContractModel):
     cash_out_by_month: Annotated[
         list[CashOutMonth] | None,
         Field(
-            description="Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce décalée, l'avenir en étalant le reste à engager et les provisions des risques identifiés, chaque part décalée de son délai de paiement (WF-IND-0100). Nul sinon."
+            description="Les décaissements par mois, rendus quand `payment_delays` est vrai : le passé par mois de date de pièce — le coût réel n'est pas décalé — ; l'avenir en étalant le reste à engager de chaque ligne, au prorata des heures travaillées, sur la part de la durée de sa tâche postérieure à la date de calcul, porté entier à la date de calcul quand la fin de la tâche est dépassée, chaque part décalée du délai de paiement de sa ligne, et les provisions des risques identifiés à la date de leur tâche (WF-IND-0100, WF-RAE-0040). Nul sinon."
         ),
     ]
 
@@ -4574,7 +4609,12 @@ class IndexHistoryScope(ContractModel):
 
 class IndexHistory(ContractModel):
     context: CalculationContext
-    thresholds: IndexThresholds
+    thresholds: Annotated[
+        IndexThresholds,
+        Field(
+            description="Les seuils courants du référentiel, ceux qui classent chaque point, conservé ou du jour (WF-REF-0130, WF-REF-0170)."
+        ),
+    ]
     scopes: Annotated[
         list[IndexHistoryScope],
         Field(
@@ -5389,13 +5429,13 @@ class Month2(ContractModel):
         Computable,
         Field(description="La charge sur la capacité, à quatre décimales (README, « Une part… »)."),
     ]
-    zone: AlertZone | None = None
+    zone: AlertZone
 
 
 class Role1(ContractModel):
     resource_role_id: Uuid
     label: str
-    capacity_monthly_hours: Hours | None = None
+    capacity_monthly_hours: Hours
     months: Annotated[
         list[Month2],
         Field(
@@ -5452,21 +5492,21 @@ class QuarterlyItem(ContractModel):
 
 class PortfolioPerformance(ContractModel):
     scope: PortfolioScope
-    reference_budget: Money | None = None
+    reference_budget: Money
     cost_index: IndexValue
     schedule_index: IndexValue
     cost_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de coût : la valeur acquise moins le coût réel, positif quand le travail fait a coûté moins que son budget, négatif au-delà — une valeur acquise de 400 pour un coût réel de 500 donne -100 (WF-IND-0070, glossaire), sommé sur le périmètre."
         ),
-    ] = None
+    ]
     schedule_variance: Annotated[
-        Money | None,
+        Money,
         Field(
             description="L'écart de délai : la valeur acquise moins la valeur planifiée, positif en avance, négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100 (WF-IND-0080, glossaire), sommé sur le périmètre."
         ),
-    ] = None
+    ]
     projections: Projections
     zone_distribution: list[ZoneDistributionItem]
     quarterly: list[QuarterlyItem]

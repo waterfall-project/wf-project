@@ -343,14 +343,14 @@ IndicatorsRevision:
   in: query
   description: >-
     La révision du calcul, pour les indicateurs du projet comme pour les courbes :
-    absente, ou la révision en cours, le calcul au jour courant ; une révision marquée,
-    le calcul à la date de son marquage. Les indicateurs sont alors ceux que son marquage
-    a conservés (WF-DAT-0040), `CalculationContext.is_stored` vrai ; les courbes, que rien
-    ne conserve, sont recalculées à cette date, `is_stored` faux, sur les lignes de coût réel
-    connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) : une
-    pièce datée d'avant le marquage mais importée après compte dans la courbe et non dans les
-    indicateurs conservés, et l'écran peut les montrer divergents — c'est ce que `is_stored`
-    signale, WF-DAT-0040 ne conservant que les indicateurs. Une révision marquée
+    absente, ou la révision en cours, le calcul au jour courant — sur la révision en cours,
+    ou, quand le projet n'en a pas, sur sa dernière révision marquée avec le coût réel du jour
+    (WF-IND-0010), `CalculationContext.is_stored` faux et `context.revision_id` nommant la
+    révision du calcul ; une révision marquée, le calcul à la date de son marquage : les
+    indicateurs et les courbes que son marquage a conservés (WF-DAT-0040), `is_stored` vrai,
+    sur les lignes de coût réel connues à son marquage, telles qu'elles étaient alors — une
+    ligne importée ensuite n'y entre pas, quelle que soit sa date de pièce, et une ligne mise à
+    jour ou exclue ensuite y reste telle qu'elle était (WF-IND-0010). Une révision marquée
     avant l'état En cours n'a conservé que le total de son devis, sans aucun indicateur
     projet (WF-DAT-0040) : refusée par 409, `STATE_FORBIDS_OPERATION`. Avec `as_of`, qui
     choisit déjà la révision par sa date, refusée par 422, `VALIDATION_FAILED`.
@@ -360,9 +360,11 @@ AsOf:
   name: as_of
   in: query
   description: >-
-    Date de calcul. Absente, les indicateurs sont ceux de la révision en cours au
-    jour courant ; présente, ceux de la dernière révision marquée antérieure, tels
-    qu'ils ont été conservés à son marquage (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
+    Date de calcul. Absente, les indicateurs du jour courant : ceux de la révision en
+    cours, ou, quand le projet n'en a pas, ceux de sa dernière révision marquée calculés avec
+    le coût réel du jour, `is_stored` faux (WF-IND-0010) ; présente, ceux de la dernière
+    révision marquée antérieure ou égale, tels qu'ils ont été conservés à son marquage
+    (WF-IND-0010, WF-DAT-0040, WF-PTF-0010).
   schema: { $ref: common.yaml#/PlanningDate }
 
 Scope:

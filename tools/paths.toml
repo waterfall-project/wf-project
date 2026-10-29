@@ -407,6 +407,7 @@ paths = [
     "fixtures/api/remaining_indicators_over_budget.json",
     "fixtures/api/project_indicators.json",
     "fixtures/api/project_indicators_marked.json",
+    "fixtures/api/project_indicators_without_current_revision.json",
     "fixtures/api/index_history.json",
     "fixtures/api/milestone_tracking.json",
     "fixtures/api/cost_curve.json",

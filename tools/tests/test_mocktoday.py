@@ -544,9 +544,9 @@ def test_the_disbursements_to_come_sum_to_the_remaining(today: dict[str, Any]) -
 def test_the_milestones_follow_the_revisions_that_bear_them(today: dict[str, Any]) -> None:
     studies, acceptance = today["milestone_tracking"]["milestones"]
     # The reception of the studies, kept by every revision, completed on 24 April: its last
-    # point on the diagonal, none after.
+    # point on the diagonal, none after; the offer, marked while pricing, gives none.
     assert studies["completed_on"] == "2026-04-24"
-    assert [point["forecast_date"] for point in studies["points"]] == ["2026-04-24"] * 3
+    assert [point["forecast_date"] for point in studies["points"]] == ["2026-04-24"] * 2
     assert studies["points"][-1]["marked_at"] == "2026-04-24T00:00:00Z"
     # The factory acceptance, added by the amendment 1: no point by the offer (C13).
     assert [point["marked_at"] for point in acceptance["points"]] == [
@@ -646,9 +646,9 @@ def test_the_evolution_of_the_indices_keeps_the_revisions_marked_in_progress(
             mockhistory.REFERENCE,
             mockhistory.CURRENT,
         ]
-    # The tracking of the milestones keeps the forecast of the offer.
+    # The tracking of the milestones neither (WF-IND-0090, US-0701/L5).
     studies = today["milestone_tracking"]["milestones"][0]
-    assert studies["points"][0]["marked_at"] == "2025-12-15T16:00:00Z"
+    assert studies["points"][0]["marked_at"] == "2026-02-01T09:00:00Z"
 
 
 def test_the_state_at_a_marking_is_read_in_the_transitions_of_the_project_not_from_its_date() -> (
@@ -836,8 +836,9 @@ def test_a_scope_without_budget_draws_its_cost_and_its_projection(today: dict[st
     assert _series(curve, "reference_budget") == []
     assert curve["steps"] == []
     spent = _series(curve, "actual_cost")
-    # Drawn from the day before its first document, the invoice of the control station.
-    assert spent[0] == {"date": "2026-05-17", "amount": "0.00"}
+    # Drawn from the end of the month before its first document, the invoice of the control
+    # station of 18 May.
+    assert spent[0] == {"date": "2026-04-30", "amount": "0.00"}
     assert spent[-1] == _series(budgeted, "actual_cost")[-1]
     projection = _series(curve, "project_manager_projection")
     assert projection == _series(budgeted, "project_manager_projection")
@@ -881,7 +882,7 @@ def test_the_summaries_count_the_drawn_tasks_completed_and_the_curves_step_at_th
 ) -> None:
     # The indicators of the project and the curves of earned value say how many drawn tasks are
     # completed — those the invoices of the actual costs are of (EP-14/L45a) —, and the earned
-    # value steps at each day one completed, after the studies on 10 April.
+    # value steps at the point of the month of each one completed, after the studies on 10 April.
     invoices = mockcosts.drawn()
     assert len(invoices) == 21
     for name in ("project_indicators", "earned_value_curves"):
@@ -889,7 +890,8 @@ def test_the_summaries_count_the_drawn_tasks_completed_and_the_curves_step_at_th
         assert f"{len(invoices)} tâches tirées" in summary, name
     earned = _series(today["earned_value_curves"], "earned_value")
     days = {point["date"] for point in earned}
-    assert {line.on.isoformat() for line in invoices} | {"2026-04-10"} <= days
+    months = {mockcurves.month_end(line.on).isoformat() for line in invoices if line.on.month < 6}
+    assert months | {"2026-04-30", "2026-06-03"} <= days
     witness = mockindicators.today()
     for point in earned:
         day = date.fromisoformat(point["date"])

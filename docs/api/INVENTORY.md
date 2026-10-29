@@ -199,10 +199,10 @@ Le contrat cite **188 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/remaining-indicators` | Indicateurs de reste à engager | WF-IND-0020, WF-RAE-0020 |
 | GET | `/projects/{project_id}/remaining-indicators/startable-tasks` | Tâches du Kanban, par état | WF-IHM-0090, WF-PLA-0040, WF-RAE-0030 |
 | GET | `/projects/{project_id}/indicators` | Indicateurs de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0080 |
-| GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0020, WF-IND-0090 |
-| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100 |
+| GET | `/projects/{project_id}/indicators/milestone-tracking` | Diagramme temps/temps | WF-IND-0010, WF-IND-0020, WF-IND-0090 |
+| GET | `/projects/{project_id}/indicators/cost-curve` | Courbe de coûts cumulés | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0100, WF-RAE-0040 |
 | GET | `/projects/{project_id}/indicators/earned-value-curves` | Courbes de valeur acquise | WF-DAT-0040, WF-IND-0010, WF-IND-0110 |
-| GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
+| GET | `/projects/{project_id}/indicators/index-history` | Évolution des indices | WF-DAT-0040, WF-IND-0010, WF-IND-0020, WF-IND-0130, WF-REF-0170 |
 
 ## Risques et provisions
 

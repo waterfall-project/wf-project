@@ -335,13 +335,16 @@ class _Emitter:
         """Return the physical progress of a summary (WF-IND-0060).
 
         The budget of the lines of its completed tasks over the budget of the lines of its
-        subtree; not computable without any budget (WF-IND-0010).
+        subtree, its own lines included — earned when it is completed —, the lines of provision
+        out of both (WF-IND-0060, WF-IND-0030); not computable without any budget (WF-IND-0010).
         """
-        below = {task.number for task in tasks_in_order(summary.children)}
+        below = {summary.number, *(task.number for task in tasks_in_order(summary.children))}
         budgeted = Decimal(0)
         completed = Decimal(0)
         for row in self.rows:
             if row.kind != ESTIMATE_LINE or row.parent not in below:
+                continue
+            if cast("JsonObject", row.node[ESTIMATE_LINE])["is_computed"] is True:
                 continue
             budgeted += row.amounts.budgeted
             if progress_at(self.dated, row.parent, self.today) == "completed":

@@ -305,18 +305,14 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
             <TableRow key={role.resource_role_id}>
               <TableCell className={CELL}>{role.label}</TableCell>
               <TableCell className={`${CELL} tabular-nums`}>
-                {role.capacity_monthly_hours === undefined
-                  ? null
-                  : t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
+                {t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
               </TableCell>
               {role.months.map((month) => (
                 <TableCell key={month.month} className={`${CELL} tabular-nums`}>
                   <span className="flex flex-col">
                     <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
                     <span className="inline-flex items-center gap-1">
-                      {month.zone === undefined ? null : (
-                        <Signal zone={month.zone} variant="icon" />
-                      )}
+                      <Signal zone={month.zone} variant="icon" />
                       <ComputableValue
                         value={month.load_ratio}
                         format={(ratio) => formatShare(ratio, locale, bounds)}

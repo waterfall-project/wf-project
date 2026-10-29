@@ -218,7 +218,11 @@ test("opens the screen hydrated, though the shell has written its cookie before 
     expect(await opened).toEqual({ shown: 3, hydrated: 3 });
   } finally {
     release();
-    // The scripts the screen loads once hydrated are still being fetched: the page waits for them.
+    // The scripts the screen loads once hydrated — those of the charts — are still being fetched,
+    // some of them asked as the test ends: a route removed under a request it has just caught
+    // continues that request, and the handler's `fulfill` then fails ("Route is already handled").
+    // The page is left to load them all, held by the route, before the route is removed.
+    await page.waitForLoadState("networkidle");
     await page.unrouteAll({ behavior: "wait" });
   }
 });

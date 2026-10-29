@@ -30,12 +30,6 @@ export type ProjectIndicators = components["schemas"]["ProjectIndicators"];
 /** An amount of the contract, always computed. */
 type Money = components["schemas"]["Money"];
 
-/**
- * A progress the API leaves out — the contract does not require it —: said missing, as a value
- * that is not computable without a reason, never made up.
- */
-const NOT_GIVEN = { is_computable: false } as const;
-
 /** The name of a figure in the catalogues. */
 type FigureName =
   | "referenceBudget"
@@ -125,8 +119,7 @@ function Projections({ indicators }: { readonly indicators: ProjectIndicators })
         context={context}
         date="held"
       />
-      {projections.variance_at_observed_rate === null ||
-      projections.variance_at_observed_rate === undefined ? null : (
+      {projections.variance_at_observed_rate === null ? null : (
         <p className="text-sm">
           {t("varianceAtObservedRate", {
             variance: formatMoney(projections.variance_at_observed_rate, locale),
@@ -199,13 +192,13 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
         <div className="flex flex-wrap gap-8">
           <ComputedIndicator
             indicator="indicator.names.financialProgress"
-            value={indicators.financial_progress ?? NOT_GIVEN}
+            value={indicators.financial_progress}
             context={context}
             date="held"
           />
           <ComputedIndicator
             indicator="indicator.names.budgetConsumption"
-            value={indicators.budget_consumption ?? NOT_GIVEN}
+            value={indicators.budget_consumption}
             context={context}
             date="held"
           />
@@ -224,7 +217,7 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
       <IndicatorCard title={t("physical.title")} context={context}>
         <ComputedIndicator
           indicator="indicator.names.physicalProgress"
-          value={indicators.physical_progress ?? NOT_GIVEN}
+          value={indicators.physical_progress}
           context={context}
           date="held"
         />

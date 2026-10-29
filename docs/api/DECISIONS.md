@@ -315,6 +315,12 @@ décaissement est un schéma partagé (`CashOutMonth`), que la courbe en S du po
 réemploie (WF-PTF-0100, voir « Révision de la spécification du 2026-10-04 ») : le portefeuille
 somme ce que les projets rendent.
 
+*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : seuls le budget et la
+projection sont décalés, le coût réel ne l'est pas, une ligne de provision reste à la date de sa
+tâche, et le reste à engager s'étale sur la part de la durée postérieure à la date de calcul
+(« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
+récapitulative », dans « Le contrat figé »).*
+
 **L'évolution des indices est une lecture** (`getIndexHistory`, WF-IND-0130). Par maille — le
 projet, chaque sous-projet, « hors sous-projet » (WF-IND-0020) —, un point par révision
 marquée, à sa date de marquage (`at`, un horodatage comme `marked_at`), avec les deux indices
@@ -925,6 +931,11 @@ référence est budgétée à zéro. #347 est close par la révision : la provis
 sort du reste à engager sans toucher la référence, celle d'un risque identifié après la
 référence n'a pas de part dans la réserve.
 
+*Complétée par US-0701/L5 (#1605, M-11 ; WF-IND-0020, WF-IND-0030 et WF-IND-0060 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la
+valeur acquise, le budget d'un sous-projet et l'avancement physique d'une récapitulative sont hors
+lignes de provision ; ils ne se lisent donc pas sur le montant budgété d'une tâche (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
+récapitulative », dans « Le contrat figé »).*
+
 **Une marche de la courbe porte son montant** (`CurveSeries.steps[].amount`, #285), signé, ce dont
 le budget de référence change à sa date, et non le budget après elle, que la série
 `reference_budget` porte ; c'est ce que `cost_curve_amendment` montrait. Le nom reste.
@@ -1135,6 +1146,13 @@ recalculées. Exemple : `project_indicators_marked`, la référence marquée le 
 2026, avant que rien ne soit planifié ni dépensé — ni indice de coût ni indice de délai — : sur
 l'écran de cette révision, les indicateurs sont les siens, et l'évolution des indices, toujours
 calculée au jour sur la révision en cours, l'est sur une autre.
+
+*Remplacé en partie par US-0701/L5 (#1605, M-02 et M-03 ; WF-IND-0010 et WF-DAT-0040 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les courbes d'une révision marquée
+sont conservées avec ses indicateurs, `is_stored` vrai, sur les lignes de coût réel connues à son
+marquage telles qu'elles étaient — le point ouvert est clos par la spécification ; et, sans
+révision en cours, le calcul au jour courant se fait sur la dernière révision marquée avec le coût
+réel du jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
 
 **Les mois du plan de charge agrégé sont en tête de la réponse** (#326). `PortfolioWorkload.months`,
 exigé, porte les mois de l'horizon, croissants et sans trou ; chaque rôle porte un mois par mois de
@@ -1539,6 +1557,12 @@ colonne comme le fichier la nomme ; `document_number`, qui identifie la ligne, e
 `label` et jamais par `fields`. Exemple : `import_actual_costs_analysed`, le fournisseur de la
 facture. `listOrgNodes` cherche aussi sur le code.
 
+*Remplacé en partie par US-0701/L5 (#1605, M-02 ; WF-IND-0010 et WF-DAT-0040 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : WF-DAT-0040 conserve désormais les
+séries des courbes avec les indicateurs, au pas du mois, et le coût réel d'une révision marquée est
+celui connu à son marquage ; les courbes d'une révision marquée ne sont plus recalculées
+(« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »).*
+
 ## Les constats de la seconde moitié d'EP-02 (EP-02/L35)
 
 Les constats de contrat ouverts pendant les lots d'écrans et du témoin (#466, #463, #424, #425,
@@ -1580,6 +1604,11 @@ calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte
 description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
 tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
 », libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
+
+*Remplacé en partie par US-0701/L5 (#1605, M-09 ; WF-RAE-0020 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : la revue précédente de
+`delta_to_previous_revision` est la révision marquée précédente qui l'a été à l'état En cours ;
+l'écart est nul quand aucune ne l'a été avant celle qui est lue (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
+récapitulative », dans « Le contrat figé »).*
 
 *Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
 devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
@@ -1983,6 +2012,14 @@ Quand EP-02/L27 (#376) y incrustera le cœur, le budget de référence changera 
 et avec lui les cases de la matrice ; la question est soumise à l'auteur sur #376, qui la tranchera
 avec la réserve.
 
+*Complétée par US-0701/L5 (#1605, M-10 ; WF-IND-0090 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les révisions marquées avant
+l'état En cours ne donnent aucun point au diagramme temps/temps ; le point de l'offre que
+`milestone_tracking` gardait pour la réception des études disparaît (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
+récapitulative », dans « Le contrat figé »). Il en va de même plus bas, à « L'évolution des
+indices ne compte que les révisions marquées à partir de l'état En cours » (EP-02/L24) : les
+révisions marquées avant l'état En cours ne donnent aucun point, et le suivi des jalons ne garde
+plus celui de l'offre.*
+
 ### Les indicateurs d'aujourd'hui (EP-02/L24)
 
 **Les indicateurs du témoin sont engendrés, au 3 juin 2026 à 14 h 05** (#287 ; C2, C13, C15,
@@ -2051,6 +2088,9 @@ WF-REV-0050) : `steps` porte sa marche, 3 165,00, la différence des deux budget
 la série deux points à cette date, avant et après, nuls tous deux, rien n'étant encore prévu de
 dépenser. La série suit, à chaque jour, la référence en vigueur ce jour-là ; la valeur planifiée,
 elle, est recalculée entière sur la référence en vigueur (WF-DEV-0080), sans marche.
+*Remplacé en partie par US-0701/L5 (#1605, G-01 ; WF-IND-0100 et WF-IND-0110 des passes de
+cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : les séries se lisent au pas du mois,
+chaque point le cumul à la fin du mois, et non plus à chaque jour (« Les courbes au pas du mois, conservées au marquage », dans « Le contrat figé »). Il en va de même à la reprise du cœur (EP-02/L27) : la règle d'EP-02/L24, un point par jour où un montant commence ou finit, n'est plus gardée, et le budget de référence du témoin compte 46 points.*
 `cost_curve_amendment`, variante gardée, devient un avenant 2 de 15 000 sur la ligne des études
 de détail au 10 mars : sa marche monte de 23 333,33 à 26 833,33, ce que la nouvelle référence
 prévoyait de plus à cette date. **Les délais de paiement sont décrits** : trente jours sur
@@ -2061,6 +2101,11 @@ d'heure à travailler compte au premier jour ouvré qui suit la date de calcul. 
 sur le reste à engager étale de même les heures d'une tâche démarrée sur ses heures ouvrées après
 la date de calcul : aucun mois passé, les mêmes heures en tout. Les lignes du cœur ne rendent pas
 `payment_delay_days`, facultatif : les nœuds restent tels quels, renvoyés à EP-02/L25 (#374).
+
+*Remplacé en partie par US-0701/L5 (#1605, M-06 ; WF-IND-0100 des passes de cohérence des 9 et 10 octobre 2026, recadrage du 2026-10-28) : le reste à engager d'une
+tâche dont la fin est dépassée, et la provision d'une tâche passée, sont portés entiers à la date
+de calcul, et non plus au premier jour ouvré qui la suit (« Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une
+récapitulative », dans « Le contrat figé »).*
 
 **L'évolution des indices ne compte que les révisions marquées à partir de l'état En cours.**
 Une révision marquée pendant le chiffrage ne conserve que les indicateurs de son devis
@@ -8630,6 +8675,135 @@ ni le cas du jalon.
   structure principale.
 
 **Corrélation** 1591 et 1592.
+
+### Les indicateurs exigés (US-0701/L5, #1605, G-02)
+
+Des indicateurs que la spécification exige étaient facultatifs dans les schémas : une réponse
+conforme pouvait omettre l'avancement financier, les écarts, les écarts des projections, la
+capacité d'un rôle ou la zone d'un mois, et le client engendré les voyait facultatifs. Les rendre
+exigés après le gel resserrerait le contrat du côté du producteur ; la proposition de la revue
+s'applique (décision de l'auteur du 2026-10-28, « la règle des autres majeurs »), sur le précédent
+de `under_load_threshold` (US-0240/L5, plus haut). Sont exigés : dans `ProjectIndicators`,
+`financial_progress`, `budget_consumption`, `physical_progress`, `cost_variance` et
+`schedule_variance` (WF-IND-0040, WF-IND-0060 à WF-IND-0080) ; dans `Projections`, les trois écarts
+au budget, `variance_at_observed_rate` restant nul tant que sa projection ne se calcule pas
+(WF-IND-0050) ; dans `CalculationContext`, `revision_status` et `is_stored`, que toutes les
+descriptions prennent pour pivot ; la capacité d'un rôle dans `WorkloadPlan.roles[]` et
+`PortfolioWorkload.roles[]` (WF-DEV-0070, WF-PTF-0060), et la zone d'un mois du plan agrégé ; dans
+`PortfolioPerformance`, `reference_budget`, `cost_variance` et `schedule_variance` (WF-PTF-0070).
+Tous les exemples les portaient déjà : aucun ne change.
+
+**La part d'une répartition (`share`) reste facultative.** La revue la voulait exigée dans
+`AmountByKey` et `ComputableAmountByKey` ; mais la part d'un total nul n'est toujours pas dite
+(« La part d'un total nul, question ouverte », EP-14/L55), et le générateur l'omet alors. L'exiger
+demande une forme que ni la spécification ni la revue ne donnent — un motif de non-calcul pour un
+total nul, et `AmountByKey.share` passé en `Computable` — : la question est rendue à l'agent de
+livraison, sans être tranchée ici.
+
+**Les mineurs de ces fichiers** (règle du recadrage : un mineur d'un fichier qu'un lot modifie est
+corrigé par lui). `actual_cost` compte les pièces datées « antérieure ou égale » à la date de
+calcul (G-09, WF-IND-0010) ; la valeur planifiée et le plan de charge s'étalent « au prorata des
+heures travaillées », et non linéairement, la charge restante sur la part de la durée postérieure à
+la date de calcul (G-10, WF-DEV-0080, WF-DEV-0070) ; `PortfolioProjectRow.delta_to_reference`
+remplace le schéma qui n'existe pas (G-12) ; `IndexValue.value` est à quatre décimales (la part
+`indicators.yaml` de G-08 ; l'arrondi du portefeuille est à US-0701/L6), et `IndexValue.zone` dit
+les bornes des zones (la part `indicators.yaml` de M-13, WF-REF-0170) et qu'elle se classe à la
+lecture sur les seuils courants, pour un indice conservé aussi, comme `IndexHistory.thresholds`
+(M-14, WF-REF-0130). L-24 était déjà appliqué (`EstimateIndicators.delta_to_reference`).
+
+### Les courbes au pas du mois, conservées au marquage (US-0701/L5, #1605, G-01, M-02, M-03)
+
+Les passes de cohérence des 9 et 10 octobre 2026 ont écrit dans la spécification trois règles que
+le contrat ne suivait pas ; la proposition de la revue s'applique à chacune (décision de l'auteur du
+2026-10-28, « la règle des autres majeurs »), et les décisions antérieures qu'elles contredisent
+sont réécrites : #247 et #365 (EP-02/L18, EP-02/L35), EP-02/L24 deux fois.
+
+- **Le pas du mois** (G-01). « Les courbes se calculent et se présentent au pas du mois, chaque
+  point portant le cumul à la fin du mois ; la révision en cours et les révisions marquées sont
+  présentées au même pas » (WF-IND-0100, WF-IND-0110, WF-DAT-0040). `CurveSeries` le dit : la
+  première valeur à la fin du mois qui précède le premier montant, nulle ; la date de calcul, un
+  point de plus sur les séries qui s'y arrêtent ou en partent (`actual_cost`, `earned_value`,
+  `project_manager_projection`) ; une marche d'avenant, deux points à sa date, avant et après, comme
+  le voulait EP-02/L24. Une tâche terminée fait sa marche dans la valeur acquise au point du mois de
+  sa terminaison. La courbe en S du portefeuille, déjà au pas du mois, raconte désormais la même
+  histoire que celle du projet (WF-PTF-0100). Écarté : garder le point par jour pour la maquette,
+  contraire aux trois exigences, et un changement de nature des points après le gel.
+- **Les courbes d'une révision marquée sont conservées** (M-02). WF-IND-0010 : « Pour une révision
+  marquée, ce sont les lignes connues à son marquage, telles qu'elles étaient alors […]. Les courbes
+  d'une révision marquée sont conservées avec ses indicateurs ». `IndicatorsRevision`, `getCostCurve`
+  et `getEarnedValueCurves` perdent les phrases « connues aujourd'hui », et `is_stored` est vrai
+  pour ce que le marquage a conservé, indicateurs et courbes ; faux pour la révision en cours et
+  pour le calcul au jour courant d'un projet sans révision en cours. Le point ouvert de #247, des
+  courbes recalculées qui pouvaient s'écarter des indicateurs, est clos par la spécification.
+- **Les indicateurs du jour d'un projet sans révision en cours** (M-03). WF-IND-0010 : « ses
+  indicateurs au jour courant se calculent sur sa dernière révision marquée, avec le coût réel au
+  jour courant » ; WF-IND-0130 et WF-IND-0090 en tirent le dernier point, WF-PTF-0010 la
+  contribution au portefeuille (« Un projet dont la revue vient d'être marquée et qui n'a pas de
+  révision en cours contribue par cette revue »). `IndicatorsRevision`, `AsOf`, `getProjectIndicators`,
+  `getIndexHistory`, `IndexHistory`, `IndexHistoryPoint`, l'en-tête de `portfolio.yaml` et
+  `PortfolioScope` le disent : `is_stored` faux, `context.revision_id` nommant la révision marquée,
+  le dernier point de l'évolution `version_name` nul. Le risque avait déjà sa règle (`RiskRevision`,
+  US-0230/L2).
+- **Le témoin.** `mockcurves` lit chaque courbe aux fins de mois (`days_of`, `up_to`) : 46 points
+  pour le budget de référence de `cost_curve` au lieu de 756, du 31 janvier 2026 au 31 août 2029 ;
+  le coût réel et la valeur acquise s'arrêtent au 3 juin, d'où part la projection. Une lecture est
+  conservée quand elle est celle de sa révision à l'instant de son marquage
+  (`mockindicators.Reading.is_stored`), qui donne `is_stored` aux courbes comme aux indicateurs.
+  Exemple nouveau, `project_indicators_without_current_revision`, une variante contrefactuelle
+  déclarée : la révision 102 abandonnée ce matin, ses saisies défaites — terminaisons comprises —,
+  les indicateurs du jour se calculent sur la référence 101 avec le coût réel du jour, 1 412 970,20,
+  sans valeur acquise, d'où un indice de coût nul et une projection au rythme constaté non
+  calculable ; ceux que la référence a conservés (`project_indicators_marked`) ne changent pas.
+  `tools/tests/test_mockcurves.py` tient le pas du mois, la marche de la valeur acquise au point du
+  mois et les deux lectures d'un projet sans révision en cours (WF-IND-0100, WF-IND-0110,
+  WF-IND-0010). Aucun exemple ne lit une courbe d'une révision marquée : le témoin ne modélise pas
+  la date d'import d'une pièce, que la conservation demanderait.
+
+### Les décaissements, la revue précédente, le diagramme temps/temps et l'avancement d'une récapitulative (US-0701/L5, #1605, M-06, M-09, M-10, M-11)
+
+Quatre règles de calcul que les passes de cohérence des 9 et 10 octobre 2026 ont précisées ; la
+proposition de la revue s'applique à chacune (décision de l'auteur du 2026-10-28), et les décisions
+antérieures qu'elles contredisent sont réécrites, plus haut : la révision du 2026-10-04 et deux
+passages d'EP-02/L24 (M-06), #466 (M-09), EP-02/L23 et EP-02/L24 (M-10), #245 (M-11).
+
+- **Les décaissements** (M-06, WF-IND-0100). « Le coût réel n'est pas décalé » ; « le reste à
+  engager de chaque ligne est étalé, au prorata des heures travaillées, sur la part de la durée de
+  sa tâche postérieure à la date de calcul, et porté entier à la date de calcul lorsque la fin de la
+  tâche est dépassée » ; une ligne de provision « reste à la date de la tâche qui la porte ».
+  `getCostCurve`, `CurveSeries.payment_delays` et `cash_out_by_month` le disent : « date de pièce
+  décalée » et « étalé sur les dates de la révision courante » disparaissent. La projection part
+  du coût réel à la date de calcul, comme le veut le Vérif ; ce qu'une tâche en retard porte
+  encore compte au point de la fin du mois de la date de calcul. `mockcurves.ahead` porte ce
+  reste à la date de calcul, et non plus au premier jour ouvré qui la suit, la provision d'une tâche
+  passée aussi : au pas du mois, les exemples ne changent pas.
+- **La revue précédente** (M-09, WF-RAE-0020). L'écart au reste à engager précédent ne compte que
+  la révision marquée précédente « lorsque celle-ci a été marquée à l'état En cours » : nul quand
+  aucune ne l'a été avant celle qui est lue, une offre marquée en chiffrage n'étant pas une revue.
+  `mockindicators.remaining_indicators` lit l'état du projet au marquage de la révision donnée
+  (`state_at`). Le témoin compare la révision courante à la référence 101, marquée En cours :
+  aucun exemple ne change. `EstimateLineFacet.previous_*`, « nulles avant la première revue »,
+  n'est pas touché : `revisions.yaml` est aux lots US-0701/L2 et L3, et WF-RAE-0040 ne dit pas que
+  le reste à engager précédent de la grille soit celui d'une révision marquée En cours.
+- **Le diagramme temps/temps** (M-10, WF-IND-0090). « Les révisions marquées avant l'état En cours
+  ne donnent aucun point » ; la courbe d'un jalon s'arrête par un point à sa terminaison, en
+  abscisse comme en ordonnée ; le dernier point est celui du jour courant, par la révision en cours
+  ou, à défaut, la dernière révision marquée. `MilestoneTracking`, ses points et `marked_at` —
+  l'abscisse, qui est aussi la terminaison à minuit ou l'instant du calcul — le disent.
+  `mockindicators.milestone_tracking` écarte les révisions marquées avant l'état En cours :
+  `milestone_tracking` perd le point de l'offre du 15 décembre 2025, la réception des études n'a
+  plus que la référence et sa terminaison.
+- **L'avancement d'une récapitulative** (M-11, WF-IND-0060, WF-IND-0030, WF-IND-0020). Le rapport
+  des montants budgétés acquis dans son sous-arbre, ses lignes propres comprises, au total de ce
+  sous-arbre, hors lignes de provision de part et d'autre (`TaskFacet.physical_progress`, la seule
+  description de `revisions.yaml` que ce lot touche) ; la valeur acquise hors lignes de provision
+  (`ProjectIndicators.earned_value`) ; le budget d'un sous-projet sur ses lignes de la référence,
+  hors provisions, son reste à engager sur celles de la révision courante
+  (`SubprojectBalance.budget`, `remaining`). `mockcore` compte désormais les lignes propres de la
+  récapitulative et écarte les provisions. Sur le témoin, rien ne change : la récapitulative
+  « Poste de commande » (551) vaut 0, aucune de ses tâches n'étant terminée, et 552 n'est pas une
+  récapitulative. `tools/tests/test_mockcurves.py` tient le Vérif de WF-IND-0060 (50 %) sur une
+  structure déclarée, une provision sur la deuxième tâche, et celui de WF-RAE-0020, de WF-IND-0090
+  et de WF-IND-0100 sur le témoin.
 
 ## Collage et annulation
 

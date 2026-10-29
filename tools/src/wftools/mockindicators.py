@@ -30,7 +30,7 @@ file the same command writes.
 from __future__ import annotations
 
 import functools
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
@@ -115,6 +115,15 @@ class Reading:
         """Return the lines of the revision, in the order of the plan."""
         return [row for row in self.rows if row.kind == mockcore.ESTIMATE_LINE]
 
+    @property
+    def is_stored(self) -> bool:
+        """Whether the reading is what the marking of its revision kept: read at that instant.
+
+        A marked revision read at another instant — today, the last marked revision of a project
+        without a current revision (WF-IND-0010) — is computed, not kept (WF-DAT-0040).
+        """
+        return _marked_at().get(self.revision) == mockhistory.stamp(self.at)
+
     def facet(self, row: mockcore.Row) -> JsonObject:
         """Return the facet of a node: its task or its line."""
         return cast("JsonObject", row.node[row.kind])
@@ -153,6 +162,16 @@ class Reading:
             if row.parent in found:
                 found.add(row.number)
         return found
+
+
+@functools.cache
+def _marked_at() -> dict[str, str]:
+    """Return the instant each marked revision of the witness was marked (``revisions``)."""
+    return {
+        cast("str", entry["revision_id"]): cast("str", entry["marked_at"])
+        for entry in fixture("revisions")["items"]
+        if entry["marked_at"] is not None
+    }
 
 
 def read(
@@ -223,6 +242,15 @@ def reference(roots: Iterable[Task] | None = None) -> Reading:
         mockcore.REFERENCE if roots is None else roots,
         AMENDMENT_MERGED.instant,
     )
+
+
+def latest_today(marked: Reading) -> Reading:
+    """Return the last marked revision of a project without a current revision, read today.
+
+    Its indicators of the day are computed on it, with the actual cost of the day; those its
+    marking kept do not change (WF-IND-0010, WF-DAT-0040).
+    """
+    return replace(marked, at=TODAY)
 
 
 def offer(roots: Iterable[Task] | None = None) -> Reading:
@@ -407,8 +435,8 @@ def context(
 ) -> JsonObject:
     """Return the context of a calculation (`CalculationContext`, WF-IHM-0020).
 
-    At the instant of the reading, or at another — a curve of a marked revision is computed
-    today, nothing keeping it (WF-DAT-0040); ``stored`` for what a marking kept; for the scope
+    At the instant of the reading, or at another — the workload of a marked revision is read
+    today —; ``stored`` for what a marking kept, indicators and curves (WF-DAT-0040); for the scope
     computed, the whole project by default (WF-IND-0020).
     """
     draft = reading.revision == mockhistory.CURRENT
@@ -696,8 +724,11 @@ def remaining_indicators(
     to the reference budget — the budget less the actual cost and the remaining, positive while
     a margin is left, in the one sense of the balances of the subprojects (#466) —, and to the
     remaining of the previous marked revision at its marking — the remaining less that one —,
-    absent without one; the coverage of the risks (WF-RIS-0050).
+    absent without one, or when it was not marked In progress: an offer marked while pricing is
+    no review (WF-RAE-0020); the coverage of the risks (WF-RIS-0050).
     """
+    if previous is not None and state_at(previous.at) != IN_PROGRESS:
+        previous = None
     total = remaining(reading)
     by_nature = [
         (group, sum((remaining_of(reading, line) for line in group.lines), Decimal(0)))
@@ -740,7 +771,8 @@ def project_indicators(
 ) -> JsonObject:
     """Return the indicators of earned value of a scope (`ProjectIndicators`).
 
-    Those of a marked revision are the ones its marking kept (WF-DAT-0040).
+    Those of a marked revision at its marking are the ones its marking kept (WF-DAT-0040); read
+    today, those of the day of a project without a current revision (WF-IND-0010).
 
     At the day of the reading, on the reference ``base``: the reference budget, the planned and
     earned values, the actual cost and the remaining (WF-IND-0010 to WF-IND-0030), the progress
@@ -761,7 +793,7 @@ def project_indicators(
         at_rate = (fixed * spent / gained).quantize(CENT)
         observed, variance = computable(money(at_rate)), money(at_rate - fixed)
     return {
-        "context": context(reading, stored=reading.revision != mockhistory.CURRENT),
+        "context": context(reading, stored=reading.is_stored),
         "reference_budget": money(fixed),
         "planned_value": money(value),
         "earned_value": money(gained),
@@ -857,11 +889,13 @@ def index_history(
 def milestone_tracking(marked: Sequence[Point], current: Point) -> JsonObject:
     """Return the time/time chart of the tracked milestones (`MilestoneTracking`, WF-IND-0090).
 
-    For each milestone, the date each marked revision that bears it forecast, at its marking;
-    the last point today, by the current revision — or, for a milestone completed, at its
-    completion, on the diagonal, nothing after.
+    For each milestone, the date each revision marked In progress that bears it forecast, at
+    its marking — one marked before gives none, the state read in the transitions of the project
+    at its marking —; the last point today, by the current revision — or, for a milestone
+    completed, at its completion, on the diagonal, nothing after.
     """
     now = current.reading
+    kept = [point for point in marked if state_at(point.reading.at) == IN_PROGRESS]
     entries: list[JsonValue] = []
     for number in TRACKED:
         completed = now.completed_on(number)
@@ -870,7 +904,7 @@ def milestone_tracking(marked: Sequence[Point], current: Point) -> JsonObject:
                 "marked_at": mockhistory.stamp(point.reading.at),
                 "forecast_date": point.reading.dated[number].finish.day.isoformat(),
             }
-            for point in marked
+            for point in kept
             if number in point.reading.dated
             and (completed is None or point.reading.day <= completed)
         ]

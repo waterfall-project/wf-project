@@ -218,9 +218,11 @@
     description: >-
       Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager,
       avancements, indices avec leur zone, écarts et trois projections. Calculés à partir
-      de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les
-      valeurs conservées de la dernière révision marquée antérieure ; pour une révision
-      marquée nommée, celles de son marquage (WF-DAT-0040).
+      de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). Au jour courant, ceux de
+      la révision en cours, ou, sur un projet qui n'en a pas, ceux de sa dernière révision
+      marquée calculés avec le coût réel du jour, non conservés (WF-IND-0010) ; à une date
+      passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une
+      révision marquée nommée, celles de son marquage (WF-DAT-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -235,6 +237,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/project_indicators.json }
               marked: { $ref: ../../../fixtures/api/project_indicators_marked.json }
+              without_current_revision: { $ref: ../../../fixtures/api/project_indicators_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -268,9 +271,12 @@
     tags: [indicators]
     summary: Diagramme temps/temps
     description: >-
-      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait,
-      en fonction de sa date de marquage ; la courbe s'arrête à la terminaison
-      (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
+      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée à l'état En
+      cours prévoyait, en fonction de sa date de marquage — une révision marquée avant n'en
+      donne aucune — ; la courbe d'un jalon s'arrête par un point à sa date de terminaison, en
+      abscisse comme en ordonnée, et le dernier point d'un jalon non terminé est celui du jour
+      courant, par la révision en cours ou, à défaut, la dernière révision marquée
+      (WF-IND-0090, WF-IND-0010). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
       sous-projet n'a pas (WF-IND-0020).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -294,17 +300,20 @@
     summary: Courbe de coûts cumulés
     description: >-
       Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la
-      projection du chef de projet, le reste à engager étalé sur les dates de la
-      révision courante. Les changements du budget apparaissent comme des marches
-      datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de
-      paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date
-      de la tâche qui les porte : la courbe présente alors les décaissements, passés et
-      à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
-      décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision
-      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les
-      lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou
-      égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés
-      (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à
+      projection du chef de projet, qui part de ce point : le reste à engager de chaque ligne
+      étalé, au prorata des heures travaillées, sur la part de la durée de sa tâche
+      postérieure à la date de calcul, et porté entier à la date de calcul quand la fin de la
+      tâche est dépassée (WF-RAE-0040). Les changements du budget apparaissent comme des
+      marches datées. Sur demande (`payment_delays`), chaque montant du budget et de la
+      projection est décalé du délai de paiement de sa ligne, les provisions des risques
+      identifiés, qui n'en portent pas, restant à la date de la tâche qui les porte, et le coût
+      réel n'est pas décalé : la courbe présente alors les décaissements, passés et à venir,
+      et les rend aussi par mois (`cash_out_by_month`) ; la somme des
+      décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque
+      point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision
+      marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses
+      indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient
+      alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040). Restreinte à un sous-projet, ou à
       l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les
       lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce
       que l'avenant change du budget de la maille, aucune s'il n'en change rien ;
@@ -368,11 +377,10 @@
     summary: Courbes de valeur acquise
     description: >-
       Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
-      les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes
-      recalculées à la date de son marquage (`revision_id`), sur les lignes de coût réel
-      connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) :
-      elles peuvent différer des indicateurs conservés (WF-DAT-0040), `context.is_stored`
-      faux.
+      les dates de pièce, jusqu'à la date de calcul, au pas du mois (WF-IND-0110). Pour une
+      révision marquée nommée (`revision_id`), les courbes que son marquage a conservées avec
+      ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles
+      étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -420,8 +428,10 @@
       Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris
       (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par
       révision marquée, à sa date de marquage, tel que son marquage l'a conservé
-      (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec
-      les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un
+      (WF-DAT-0040), et le dernier point au jour courant (WF-IND-0010) — sur la révision en
+      cours, ou, sur un projet qui n'en a pas, sur sa dernière révision marquée avec le coût
+      réel du jour —, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130,
+      WF-REF-0170). Un
       indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un
       point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule
       maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que
