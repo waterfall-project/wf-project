@@ -16,10 +16,14 @@ import pytest
 from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockdating import Amounts
 from wftools.mockids import universe
-from wftools.mockstructure import money
+from wftools.mockstructure import LABOUR_RATES, money
 from wftools.mockwitness import SCHEDULED_AT, N
 
 type Node = dict[str, Any]
+
+LINES_REESTIMATED_ALONE = 2_768
+"""The lines from the offer 100 to the reference 101 whose re-estimate alone changes, all of them
+labour lines moved by the rates of 2026: the number the drawn structure gives, fixed by its seed."""
 
 
 @pytest.fixture(scope="module")
@@ -160,13 +164,21 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     assert [node["node_id"] for node in budget_changed] == [universe(N.LABOUR)]
     assert budget_changed[0]["changes"] == ["budgeted_amount", "reestimated_amount"]
     alone = [node for node in lines if node.get("changes") == ["reestimated_amount"]]
-    assert len(alone) == 2_768
+    assert len(alone) == LINES_REESTIMATED_ALONE
+    # A line of disbursement would move by its year of consumption alone: none does, the offer
+    # and the reference dating their lines alike from 2026 (#1628). Every one is a labour line.
+    assert all(marked[node["node_id"]]["hours"] is not None for node in alone)
+    rates = {2025: mockhistory.offer_rates(), 2026: LABOUR_RATES}
     for node in alone:
         before, after = offered[node["node_id"]], marked[node["node_id"]]
         for key in ("quantity", "hours", "unit_disbursement", "budgeted_amount"):
             assert before[key] == after[key]
-        assert before["consumption_year"] != after["consumption_year"] or after["hours"] is not None
         assert before["reestimated_amount"] != after["reestimated_amount"]
+        # It moves because the reference keeps the rates of 2026, the offer those of 2025: its
+        # amount at the rates of the reference year says it, whatever its year of consumption.
+        hours = Decimal(after["quantity"]) * Decimal(after["hours"])
+        for facet, year in ((before, 2025), (after, 2026)):
+            assert facet["base_amount"] == money(hours * rates[year][facet["cost_category_id"]])
 
 
 def test_a_reading_with_fields_renders_what_it_names_besides_the_four() -> None:
