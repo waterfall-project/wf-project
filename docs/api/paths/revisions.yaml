@@ -4,9 +4,12 @@
     tags: [revisions]
     summary: Historique des révisions
     description: >-
-      Nom de version, description, état, date de marquage, année de référence et caractère
-      de référence — les attributs d'une révision (WF-REV-0090) ; chacune est consultable dans
-      son intégralité (WF-REV-0070).
+      Nom de version, description, état, date de marquage, année de référence, taux
+      d'inflation et probabilité de gain conservés, caractère de référence — les attributs d'une
+      révision (WF-REV-0090) —, et la révision marquée dont chacune est la copie, qu'un écran
+      nomme avec la révision en cours (WF-IHM-0020) ; chacune est consultable dans son
+      intégralité (WF-REV-0070), l'instantané du référentiel par `getRevision` (`snapshot`, omis
+      ici).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
@@ -101,7 +104,9 @@
     tags: [revisions]
     summary: Une révision et son instantané
     description: >-
-      Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030).
+      Attributs de la révision et contenu de son instantané (WF-REV-0090, WF-REV-0030) : les
+      valeurs du référentiel qu'une révision marquée a figées (`snapshot`), omis pour la révision
+      en cours.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -447,10 +452,13 @@
   post:
     operationId: createCostStructure
     tags: [revisions]
-    summary: Créer un différentiel ou un devis de risque
+    summary: Ouvrir un différentiel
     description: >-
       Plusieurs différentiels peuvent coexister, et chacun est fusionné ou abandonné
-      indépendamment (WF-REV-0100).
+      indépendamment (WF-REV-0100). Le différentiel est une copie de la structure principale, sa
+      date de début de planning comprise (`CostStructure.planning_start_on`). Le devis propre d'un
+      risque naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui ; la structure
+      principale existe dès la révision : ni l'un ni l'autre ne se crée ici.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -473,6 +481,66 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}:
+  patch:
+    operationId: updateCostStructure
+    tags: [revisions]
+    summary: Modifier la date de début de planning et le libellé d'une structure
+    description: >-
+      Écrit la date de début de planning de la structure et son libellé (WF-PLA-0020,
+      WF-REV-0100), sous sa commande de planification (`StructureCommand.edit_planning`) : gardée
+      par `planning.write`, refusée comme elle sur une révision marquée ou pendant un traitement
+      de fond. Seul ce qui est envoyé change, le compteur lu exigé (`StructureUpdate`). Une tâche
+      en mode automatique sans prédécesseur commence à la date de début de planning, à la
+      première heure travaillée de son calendrier applicable : la changer redate ces tâches et
+      leurs successeurs automatiques — « avancer cette date d'une semaine l'avance d'autant, ainsi
+      que ses successeurs automatiques » (WF-PLA-0020) —, les tâches en mode manuel ne bougeant
+      pas. La réponse est celle d'une écriture de grille, sans nœud écrit (`NodesWritten`). La
+      date se juge sur le calendrier par défaut, la structure n'ayant pas de calendrier propre :
+      un jour sans aucune heure travaillée est refusé, et le refus nomme le jour travaillé
+      suivant ; rien n'est écrit (WF-PLA-0010, WF-PLA-0020). Une écriture de l'historique
+      annulable de l'appelant (`undoLastChange`, `UndoneKind.structure_update`).
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RevisionId
+      - $ref: ../components/parameters.yaml#/StructureId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/revisions.yaml#/StructureUpdate }
+    responses:
+      '200':
+        description: >-
+          Structure modifiée : les tâches qu'elle redate, leurs montants, inflation comprise,
+          quand elles changent d'année, les récapitulatives recalculées, les totaux et le compteur
+          de la structure (`NodesWritten`, WF-PLA-0020, WF-DEV-0040).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
+            examples:
+              advanced: { $ref: ../../../fixtures/api/volume/structure_planning_start_advanced.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Une date de début de planning sur un jour sans aucune heure travaillée au calendrier par
+          défaut : `fields` sur `/planning_start_on` par `NON_WORKING_DAY`, `fields[].params.date`
+          la date envoyée et `next_working_day` le jour travaillé suivant ; rien n'est écrit
+          (WF-PLA-0020, WF-PLA-0010). Ou, sans `fields`, une date qui porterait la durée du projet
+          au-delà de quinze ans : `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par
+          son nœud et son libellé (WF-PLA-0150). Ou un libellé vide (`VALIDATION_FAILED`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              non_working_day: { $ref: ../../../fixtures/api/structure_start_non_working_day.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
@@ -537,45 +605,47 @@
     tags: [revisions]
     summary: Fusionner un différentiel dans la structure principale
     description: >-
-      La fusion ne touche que les montants budgétés des lignes que le différentiel
-      désigne ; les montants réestimés sont conservés. Une tâche déjà démarrée n'est
-      jamais retirée : son reste à engager est porté à zéro. La révision marquée qui en
-      résulte devient la référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun
-      rattachement au lotissement, le différentiel n'en portant pas, et une tâche existante que
-      le différentiel modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au
-      journal d'audit (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la
-      structure principale une ligne de main-d'œuvre dont le rôle la laisserait sans aucune
-      heure travaillée dans la semaine échoue sans rien fusionner : la tâche de fond finit en
-      échec, `problem.code` à `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et
-      les tâches en cause (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du
-      sous-arbre de la tâche de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle
-      échoue de même sans rien fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`,
-      `params.work_package_task` nommant la tâche du lot et `order_item_tasks` celles des postes
-      qui en sortiraient, chacune par son nœud et son libellé (`Problem.params`), comme
-      `TASK_WITHOUT_WORKING_HOURS` (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion
-      qui fermerait une boucle de liaisons dans la structure principale échoue de même,
-      `problem.code` à `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ;
-      `task_merge_link_cycle`) ; une fusion qui lierait une récapitulative à sa subordonnée,
-      `problem.code` à `LINK_FORBIDDEN`, `params.link` nommant les deux tâches, la récapitulative
-      d'abord (WF-PLA-0030 ; `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de quinze
-      ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en cause
-      (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure
+      La fusion donne aux lignes que le différentiel désigne les grandeurs de référence qu'il porte,
+      d'où leur montant budgété est tiré ; une ligne désignée d'une tâche non démarrée, que personne
+      n'a réestimée depuis la référence, prend aussi ces grandeurs pour grandeurs courantes ; les
+      grandeurs courantes et le montant réestimé de toutes les autres lignes sont conservés
+      (WF-REV-0050, WF-DEV-0020). La révision marquée reçoit le nom de version et la description de
+      la confirmation, comme à tout marquage (WF-REV-0020). Une tâche déjà démarrée n'est jamais
+      retirée : son reste à engager est porté à zéro. La révision marquée qui en résulte devient la
+      référence (WF-REV-0050). Une tâche que la fusion ajoute ne porte aucun rattachement au
+      lotissement, le différentiel n'en portant pas, et une tâche existante que le différentiel
+      modifie conserve le sien (WF-PLA-0170). Confiée au worker et inscrite au journal d'audit
+      (WF-ARC-0090, WF-SEC-0030). Une fusion qui donnerait à une tâche de la structure principale
+      une ligne de main-d'œuvre dont le rôle la laisserait sans aucune heure travaillée dans la
+      semaine échoue sans rien fusionner : la tâche de fond finit en échec, `problem.code` à
+      `TASK_WITHOUT_WORKING_HOURS`, ses `params` nommant les rôles et les tâches en cause
+      (WF-PLA-0010). « Une fusion qui déplacerait la tâche d'un poste hors du sous-arbre de la tâche
+      de son lot est refusée en nommant la tâche » (WF-PLA-0170) : elle échoue de même sans rien
+      fusionner, `problem.code` à `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `params.work_package_task`
+      nommant la tâche du lot et `order_item_tasks` celles des postes qui en sortiraient, chacune
+      par son nœud et son libellé (`Problem.params`), comme `TASK_WITHOUT_WORKING_HOURS`
+      (WF-IHM-0080 ; `task_merge_outside_work_package`). Une fusion qui fermerait une boucle de
+      liaisons dans la structure principale échoue de même, `problem.code` à `LINK_CYCLE`,
+      `params.cycle` nommant les tâches de la boucle (WF-PLA-0030 ; `task_merge_link_cycle`) ; une
+      fusion qui lierait une récapitulative à sa subordonnée, `problem.code` à `LINK_FORBIDDEN`,
+      `params.link` nommant les deux tâches, la récapitulative d'abord (WF-PLA-0030 ;
+      `task_merge_link_forbidden`, #1582) ; une fusion qui porterait la durée du projet au-delà de
+      quinze ans, `problem.code` à `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche en
+      cause (WF-PLA-0150 ; `task_merge_horizon_exceeded`) — chacune par son nœud de la structure
       principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute
-      (`Problem.params` ; #788). Le compte rendu
-      préalable (`getStructureMergeReport`, WF-REV-0050) dit ces motifs avant la
-      confirmation, qui porte les compteurs des deux structures qu'il a lus : refusée par 412 si
-      l'une a changé depuis, elle n'applique jamais un compte rendu que personne n'a vu
-      (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au
-      préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de la dernière
-      révision marquée, qui porte alors la commande `merge_structure`, et la même tâche de
-      fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux
+      (`Problem.params` ; #788). Le compte rendu préalable (`getStructureMergeReport`, WF-REV-0050)
+      dit ces motifs avant la confirmation, qui porte les compteurs des deux structures qu'il a
+      lus : refusée par 412 si l'une a changé depuis, elle n'applique jamais un compte rendu que
+      personne n'a vu (EP-14/L42s). « Lorsque le projet ne comporte pas de révision en cours, elle
+      en crée une au préalable » (WF-REV-0050) : la fusion se demande alors sur le différentiel de
+      la dernière révision marquée, qui porte alors la commande `merge_structure`, et la même tâche
+      de fond crée la révision en cours par copie de celle-ci (WF-REV-0010), chiffrée aux taux
       conservés, projetés (WF-REV-0060), y fusionne la copie du différentiel et la marque ; la
       révision marquée n'est pas modifiée. La tâche est une seule opération : en échec, elle ne
-      laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790).
-      Pour chiffrer la révision aux taux de la nouvelle année, on la crée d'abord
-      (`createRevision`), et la fusion se demande sur elle. Sur une révision marquée plus
-      ancienne, ou sur la dernière une fois qu'une révision est en cours, la fusion est refusée
-      par 409, comme le compte rendu.
+      laisse ni révision en cours ni fusion, et le projet reste sans révision en cours (#790). Pour
+      chiffrer la révision aux taux de la nouvelle année, on la crée d'abord (`createRevision`), et
+      la fusion se demande sur elle. Sur une révision marquée plus ancienne, ou sur la dernière une
+      fois qu'une révision est en cours, la fusion est refusée par 409, comme le compte rendu.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1677,15 +1747,23 @@
     tags: [revisions]
     summary: Annuler la dernière modification
     description: >-
-      Annule les modifications de la session, une par une et dans l'ordre inverse, sur
-      au moins cinquante niveaux : les saisies des grilles comme celles des risques —
-      création, modification, réexamen, suppression d'un risque —, saisies de la révision en
-      cours (WF-RIS-0020). Une annulation est une modification comme une autre :
-      elle s'inscrit dans les colonnes d'audit et est refusée si une modification
-      postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule un
-      import appliqué, un marquage, une fusion, la désignation de la référence, une sortie
-      du cycle de vie, la déclaration d'un risque survenu ni l'exclusion d'une ligne de
-      coût.
+      L'historique annulable est tenu par le serveur : une pile par révision et par utilisateur,
+      qui vit le temps de sa session — le jeton `bearer` qui porte ses requêtes —, et ne survit
+      ni à la fin de cette session, ni au marquage de la révision, ni à son abandon, la révision
+      n'étant plus en cours (décision de l'auteur du 2026-10-28, E-06). Elle reçoit chacune de
+      ses modifications de la révision en cours — les saisies des grilles, la date de début de
+      planning et le libellé d'une structure, et celles des risques, création, modification,
+      réexamen, suppression d'un risque (WF-RIS-0020) — et en garde au moins les cinquante
+      dernières ; deux utilisateurs ont chacun la leur. L'annulation défait la dernière, une par
+      une et dans l'ordre inverse. Une
+      annulation est une modification comme une autre : elle rend ce qu'une écriture rend
+      (`UndoResult.written`), s'inscrit dans les colonnes d'audit et est refusée si une
+      modification postérieure porte sur le même objet (WF-IHM-0110). Aucune commande n'annule
+      ce qui a sa propre commande inverse ou est définitif — un import appliqué, un marquage,
+      l'abandon d'une révision en cours, une fusion, la désignation de la référence, une sortie
+      du cycle de vie, la déclaration d'un risque survenu —, ni l'exclusion et la réintégration
+      d'une ligne de coût, qui se défont par le geste inverse (WF-IHM-0110, WF-CRE-0030,
+      C-363).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1701,8 +1779,8 @@
       '409':
         description: >-
           Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre,
-          rien n'étant défait (`later_change` ; #1531) —, ou l'historique de la session est vide
-          (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé
+          rien n'étant défait (`later_change` ; #1531) —, ou l'historique de l'appelant sur la
+          révision est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé
           depuis — à la provision d'un risque dont elle défait la création, la modification ou la
           suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
           suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
@@ -1735,7 +1813,9 @@
     tags: [revisions]
     summary: Rétablir la dernière annulation
     description: >-
-      Rétablit la saisie que la dernière annulation avait défaite (WF-IHM-0110).
+      Rétablit la saisie que la dernière annulation de l'appelant sur la révision avait défaite,
+      dans le même historique que `undoLastChange` (WF-IHM-0110). La réponse a la forme de celle
+      de l'annulation (`UndoResult`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId

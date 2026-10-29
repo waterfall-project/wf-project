@@ -242,6 +242,9 @@ export interface Examples {
   "PATCH /projects/{project_id}": {
     200: "project_updated";
   };
+  "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}": {
+    200: "volume/structure_planning_start_advanced";
+  };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
     200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };

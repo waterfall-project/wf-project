@@ -349,6 +349,11 @@ montants budgété et réestimé sont « inflation comprise, à l'année de cons
 `revision_id`, `current_remaining`, WF-DEV-0070). Sur un projet sans révision de référence,
 seule la révision en cours est une base : les deux autres sont refusées par 409.
 
+*Remplacé par US-0701/L2 (#1602, L-16) : WF-DEV-0070, réécrite le 2026-10-10, n'écarte sans
+référence que la base de la référence et garde une révision marquée, calculée à sa date de
+marquage ; décision du recadrage du 2026-10-28, « la règle des autres majeurs » (« Les révisions
+et les structures », dans « Le contrat figé »).*
+
 **La tâche dit si sa fin est dépassée** (`finish_overdue`, WF-RAE-0040, WF-PLA-0080), et **la
 ligne si elle emploie un objet désactivé** (`uses_inactive_object`, WF-REF-0010) : deux
 booléens calculés, que les grilles signalent sans recopier la règle — la date de calcul, le
@@ -2479,6 +2484,13 @@ main-d'œuvre à l'année de référence reste 3 515 ; le devis d'aujourd'hui va
 reste à engager 21 234,56, ces deux tâches non démarrées y comptant leur budget projeté
 (WF-RAE-0010). Un test d'invariant tient le budget de l'offre de toute ligne que l'avenant ne
 désigne pas, un autre l'unicité du taux d'une catégorie dans chaque révision.
+
+*Réécrit par US-0701/L2 (#1602, L-14) : WF-REV-0050, réécrite le 2026-10-10, fait donner par la
+fusion aux lignes désignées les grandeurs de référence du différentiel, et aussi leurs grandeurs
+courantes quand la tâche n'est pas démarrée et que personne n'a réestimé la ligne ; les autres
+lignes gardent grandeurs courantes et réestimé. Décision du recadrage du 2026-10-28, « la règle
+des autres majeurs ». La ligne que l'avenant 1 désigne, d'une tâche alors non démarrée, change
+déjà son budgété et son réestimé dans la comparaison : le témoin suit la règle nouvelle.*
 
 *Remplacé en partie par US-0701/L1 (#1601, M-08, WF-RAE-0010 du 2026-10-22, recadrage du
 2026-10-28) : les tâches non démarrées comptent au reste à engager le montant réestimé de leurs lignes, aux taux de 2026 que la
@@ -8567,10 +8579,15 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
   Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
   simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
-  l'avenant 1 ne désigne pas (#467). Elle est à trancher par l'auteur (#1628) :
-  l'issue en donne les options. Le devis du témoin vaut 68 923 691,06, son budget de référence
-  68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
-  de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
+  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628) : la décision
+  d'appliquer est prise (l'offre et la référence recevront la même année de référence), sa mise
+  en œuvre est en question — WF-REV-0060 oblige à redater l'offre en 2026, ce qui retire au témoin
+  son récit de mise à jour des taux (commentaire de #1628) — et la part détachée US-0701/L2b
+  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de
+  WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
+  seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
+  68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
+  ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
   réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
   plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
   `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
@@ -8904,6 +8921,102 @@ refus d'une période d'EP-02/L42e (G-05).
   de WF-PTF-0090 (le projet terminé), l'horizon, les trimestres et l'effet nul d'un autre état ;
   `test_mockcurves.py` tient celui de WF-IND-0030 sur une structure déclarée (#1634).
 
+### Les révisions et les structures : date de début de planning, fusion, historique annulable (US-0701/L2, #1602)
+
+Les constats E-01, E-03, E-04, E-06, E-08, E-09, E-10, E-11, L-05, L-14 et L-16 de la revue du
+contrat avant le gel. La spécification les a tranchés dans ses passes des 9 et 10 octobre 2026 ;
+les décisions de l'auteur du 2026-10-28 (« La date de début de planning », « L'historique
+annulable », « Les risques ») tranchent ce qu'elle laissait ouvert, et la proposition de la revue
+s'applique au reste (« la règle des autres majeurs »). Réécrits, plus haut : le plan de charge
+d'EP-02/L7 (L-16), la fusion de l'avenant 1 d'EP-02/L27 (#467, L-14) et l'annulation d'EP-02
+(« Collage et annulation », E-06).
+
+- **La date de début de planning** (E-01, WF-PLA-0020 et WF-REV-0100 du 2026-10-09, C-142 de leur
+  revue). `CostStructure.planning_start_on`, exigé ; `updateCostStructure`,
+  `PATCH …/structures/{structure_id}`, écrit la date et le libellé avec le compteur
+  (`StructureUpdate`), sous `edit_planning` de la structure, et rend `NodesWritten`, sans nœud
+  écrit : les tâches automatiques sans prédécesseur et leurs successeurs redatés. Décision de
+  l'auteur ; écarté : la date seule, un second PATCH viendrait pour le libellé. Deux points que ni
+  la spécification ni la revue ne disent, choisis au plus près d'elles : la date se juge sur le
+  calendrier par défaut, la structure n'ayant pas de calendrier propre et une tâche sans ligne de
+  main-d'œuvre étant sur lui (WF-PLA-0010) — refus `NON_WORKING_DAY` sur `/planning_start_on`,
+  comme une date saisie ; et un différentiel, copie de la structure principale à sa création, en
+  prend la date, sans quoi toutes ses tâches automatiques glisseraient au jour de sa création et
+  son compte rendu de fusion les dirait toutes redatées. La modification s'inscrit à l'historique
+  annulable (`UndoneKind.structure_update`) : WF-IHM-0110 ne l'en excepte pas. Le témoin :
+  `mockwitness.PLANNING_START`, le 2 mars 2026, date la structure principale et les différentiels
+  (`structures`, `structures_amendments`, `amendment_created`) ; un devis propre de risque porte
+  le jour où son risque a été identifié, le 12 janvier 2026, sans effet, sa première tâche étant
+  en mode manuel ; la structure du projet créé aujourd'hui, le 3 juin 2026. L'exemple
+  `structure_planning_start_advanced` (`volume/`) est une variante contrefactuelle déclarée, lue
+  le 20 février 2026, avant qu'aucune tâche ne démarre par ses dates : la date avancée d'une
+  semaine, au 23 février, redate 959 tâches — aujourd'hui, avancer la date d'une structure dont
+  les tâches ont démarré changerait leur état, que le générateur lit des dates. `mockdating` et
+  `mockcore` prennent la date de début de planning en paramètre ;
+  `tools/tests/test_mockrevisions.py` tient le Vérif de WF-PLA-0020 sur l'exemple, et
+  `structure_start_non_working_day` (`mocknonworking`) montre le refus. La lecture de la date par
+  l'import MS Project et son changement au compte rendu (I-03, K-05) sont d'US-0701/L7 (#1607).
+- **Le taux d'inflation, la probabilité de gain et la révision source** (E-03, L-05 ; WF-REV-0090,
+  WF-REV-0070, WF-IHM-0020 du 2026-10-10). `Revision.inflation_rate` et `win_probability`, exigés,
+  en lecture seule, comme `reference_year` l'a été pour la même raison (« Ce que la révision de la
+  spécification demande », EP-02/L29) : ceux du marquage sur une révision marquée, ceux du projet
+  sur la révision en cours. `RevisionSnapshot` est réduit à `employed_reference`, sans double.
+  `source_revision_id` et `source_version_name`, exigés et nuls pour la première révision d'un
+  projet, conservés une fois la révision marquée. Écarté : les porter aussi dans
+  `CalculationContext`, que la revue proposait « si les indicateurs se lisent sans relire la
+  révision » — le contexte ne porte pas non plus le nom de version de la révision lue, et tout écran
+  de projet lit déjà la révision. `snapshot` est rendu par `getRevision` pour une révision marquée,
+  omis ailleurs ; `revision_marked` et `revision_offer` portent l'instantané de la référence et de
+  l'offre, et sont désormais engendrés (`mocksnapshot`), depuis `revisions` et les lignes de
+  chacune ; `revision_marked_merge_offered` le reprend. Le témoin n'a jamais changé son taux
+  d'inflation, 3 %, ni sa probabilité de gain, 100 % : chaque révision les conserve.
+  Ce témoin ne prouve donc pas la conservation : comme la valeur conservée à chaque marquage et la
+  valeur courante du projet sont égales partout, `test_mockrevisions.py` ne distingue pas « conservé
+  au marquage » de « suit le projet » (WF-REV-0070, WF-REV-0090). Une révision au taux ou à la
+  probabilité différents obligerait à réécrire les récits chiffrés du témoin, hors de ce lot.
+  Aujourd'hui, aucun test n'éprouve la conservation : ni le faux back, dont le témoin a des valeurs
+  égales partout, ni le back, car EP-16 n'écrit pas le service de révision. Le service de
+  l'EPIC EP-04 (WF-REV-0070-A, WF-REV-0090-A), qui réalise les révisions, l'éprouvera sur des
+  données qui changent.
+- **Les images des taux conservés** (E-11, WF-REV-0030). `EmployedReference.hourly_rates` lit
+  `HourlyRateImage` — catégorie, année, montant —, sans l'audit ni le compteur du taux du
+  référentiel, qui bougent après le marquage. Les trois autres images gardent les leurs, celles
+  de l'objet tel qu'il était au marquage (EP-02/L42a, « Les listes du référentiel par pages »).
+- **La description à la fusion, et les grandeurs qu'elle donne** (E-04, L-14 ; WF-REV-0020,
+  WF-REV-0050 du 2026-10-10). `StructureMerge.description`, facultative, comme au marquage. La
+  fusion donne aux lignes désignées les grandeurs de référence du différentiel, et aussi leurs
+  grandeurs courantes quand la tâche n'est pas démarrée et que personne n'a réestimé la ligne ; les
+  deux descriptions qui disaient l'ancienne règle (`mergeCostStructure`, `StructureMerge`) la
+  suivent. Le compte rendu ne distingue pas les deux cas d'un écart `updated` : l'état réestimé
+  d'une ligne reste au serveur (« Le réestimé d'une ligne non réestimée », plus haut, M-08).
+- **Les compteurs du compte rendu sans révision en cours** (E-10). Ceux des structures 211 et 213
+  de la référence, 3 et 1, que `structures_amendments` liste ; l'exemple, écrit à la main, portait
+  ceux de la révision courante. `test_mockrevisions.py` les tient l'un à l'autre.
+- **`StructureCreate.kind` réduit à `amendment`** (E-09 ; WF-REV-0100, WF-RIS-0030), `risk_id`
+  retiré, résumé « Ouvrir un différentiel » : le devis propre d'un risque naît et disparaît avec
+  lui (`createRisk`). Décision de l'auteur ; écarté : une règle pour `risk_id`, deux chemins pour
+  le même objet.
+- **L'historique annulable** (E-06, E-08, L-18 ; WF-IHM-0110 du 2026-10-10). Tenu par le serveur,
+  décision de l'auteur : une pile par révision et par utilisateur, le temps de sa session (le
+  jeton `bearer`), finie au marquage et à l'abandon de la révision, d'au moins cinquante niveaux ;
+  la liste des actions hors annulation reçoit l'abandon et la réintégration d'une ligne de coût
+  (WF-CRE-0030, C-363). Écarté : le front qui rejoue l'inverse de chaque saisie — `undo` et `redo`
+  retirés, et chaque écriture devant rendre l'état antérieur. La spécification dit encore
+  l'historique « tenu par le front » ; l'issue de spécification #1595 demande à l'auteur de la
+  corriger. `UndoResult.written` rend `NodesWritten` — nul pour une saisie de risque —, pour que la
+  grille garde le compteur de la structure, et `undone.kind` est une énumération (`UndoneKind`),
+  celle de la revue et `structure_update`. La forme des refus de l'annulation (E-07) est
+  d'US-0702.
+- **Le plan de charge sur une révision marquée** (L-16, WF-DEV-0070 du 2026-10-10). Une révision
+  marquée est une base dès qu'elle existe, en chiffrage comme en réalisation ; seule
+  `reference_budget` est refusée sans révision de référence, et `current_remaining` sans révision
+  en cours. Sur une révision marquée, la date de calcul est sa date de marquage, et le reste s'y
+  répartit après elle, comme sur la révision en cours ; le plan est en heures, et `WorkloadBasis`
+  le dit. `workload_marked_remaining` est calculé au 1er février 2026, son contexte le dit ; ses
+  heures ne changent pas, aucune tâche n'ayant démarré au marquage. Écarté : un exemple sur un
+  projet en chiffrage, que la revue suggérait — le témoin n'en porte pas avec une révision
+  marquée, et la règle se lit sur le refus et la description.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -8922,6 +9035,13 @@ front garde une garde locale sur ce qu'il montre.
 **L'annulation est une opération de la révision**, `POST .../undo` et `POST .../redo`, pas
 un état du client. C'est ce qui rend vraie la phrase de WF-IHM-0110 : une annulation est
 une modification comme une autre, qui passe par l'API et s'inscrit dans l'audit.
+
+*Confirmée et précisée par US-0701/L2 (#1602, E-06, E-08, L-18) : WF-IHM-0110, réécrite le
+2026-10-10, dit l'historique « tenu par le front » ; l'auteur l'a gardé au serveur au recadrage du
+2026-10-28, et le contrat dit désormais sa session, sa pile par révision et par utilisateur, sa
+fin au marquage et à l'abandon et ses cinquante niveaux ; l'annulation rend `NodesWritten`
+(« Les révisions et les structures », dans « Le contrat figé »). #1595 demande la correction de la
+spécification.*
 
 ## Organisation des fichiers
 

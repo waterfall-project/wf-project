@@ -38,6 +38,7 @@ it starts on today."""
 
 REFUSED_CORRELATION = universe(1542)
 CREATED_CORRELATION = universe(1563)
+PLANNING_START_CORRELATION = universe(1593)
 
 CREATED_LABEL = "Réception provisoire sur site"
 """The task created in manual mode with its start on SATURDAY, under the installation on site."""
@@ -121,6 +122,27 @@ SUBMITTED, ANALYSED, EXPIRES = (
     "2026-06-04T11:03:00Z",
 )
 """When the import was opened today, analysed, and until when it applies (WF-ARC-0100)."""
+
+
+def structure_start_non_working_day() -> JsonObject:
+    """Return what updateCostStructure answers to the planning start sent on SATURDAY.
+
+    The structure has no calendar of its own: its planning start is judged on the default one,
+    that of a task without a labour line (WF-PLA-0010), as a date entered is. Refused on its
+    field, the next working day named; nothing is written (WF-PLA-0020).
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/planning_start_on",
+                "code": CODE,
+                "params": _judged(SATURDAY, default_calendar()),
+            }
+        ],
+        "correlation_id": PLANNING_START_CORRELATION,
+    }
 
 
 def imported_dates() -> tuple[date, date]:
@@ -249,6 +271,9 @@ def examples() -> dict[str, JsonObject]:
     [creation] = cast("list[dict[str, dict[str, str]]]", created["fields"])
     created_following = date.fromisoformat(creation["params"]["next_working_day"])
     imported = import_planning_non_working_day()
+    planning = structure_start_non_working_day()
+    [start] = cast("list[dict[str, dict[str, str]]]", planning["fields"])
+    start_following = date.fromisoformat(start["params"]["next_working_day"])
     report = cast("dict[str, list[dict[str, Any]]]", imported["report"])
     [ignored] = report["ignored"]
     return {
@@ -267,6 +292,15 @@ def examples() -> dict[str, JsonObject]:
             f"le refus nomme le jour travaillé suivant, {said(created_following)} ; rien n'est "
             f"créé (WF-PLA-0020, WF-PLA-0010, #1345).",
             created,
+        ),
+        "structure_start_non_working_day.json": mocktext.example(
+            f"La date de début de planning de la structure principale du projet témoin envoyée "
+            f"{said(SATURDAY)} : la structure n'a pas de calendrier propre, et le calendrier par "
+            f"défaut, celui d'une tâche sans ligne de main-d'œuvre, n'accorde aucune heure ce "
+            f"jour-là. La date est refusée sur son champ, comme une date saisie "
+            f"(task_date_non_working_day), et le refus nomme le jour travaillé suivant, "
+            f"{said(start_following)} ; rien n'est écrit (WF-PLA-0020, WF-PLA-0010).",
+            planning,
         ),
         "import_planning_non_working_day.json": mocktext.example(
             f"L'import d'un planning MS Project lu aujourd'hui à {mocktext.hour(SUBMITTED)} et "

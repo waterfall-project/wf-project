@@ -123,6 +123,10 @@ RISK_752_OCCURRED = Event(
     time(16, 0),
 )
 STUDIES_STARTED = Event(date(2026, 3, 2), "Réexamen de 751 à 40 % ; début des études", time(9, 15))
+PLANNING_START = STUDIES_STARTED.on
+"""The planning start of the main structure and of the differentials of the witness, which
+`structures` lists (`CostStructure.planning_start_on`): a task in automatic mode without a
+predecessor starts on it (WF-PLA-0020), the studies first."""
 COST_IMPORTS = tuple(
     Event(day, "Import de coûts réels", at)
     for day, at in (

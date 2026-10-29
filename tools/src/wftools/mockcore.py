@@ -61,6 +61,7 @@ from wftools.mockwitness import (
     CORE,
     INSCRIBED,
     MILESTONE_TRACKING,
+    PLANNING_START,
     SCHEDULED_AT,
     TODAY,
     TRACKED,
@@ -430,6 +431,7 @@ def core(
     today: date = READ_ON,
     rates: Mapping[str, Decimal] = LABOUR_RATES,
     previous: Iterable[Task] = (),
+    start: date = PLANNING_START,
 ) -> list[Row]:
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
@@ -439,11 +441,12 @@ def core(
     on the year the reference consumed it, wherever a write moves its task (WF-DEV-0020,
     WF-RAE-0010). Every revision is projected from 2026, the offer of 2025 included: a
     simplification, which keeps in the reference the budget the offer fixed (#467). A structure
-    is read once at a day, at some rates, after a previous review: the readings, the writes and
-    the indicators read the same one again and again. Its nodes are shared by every reading of
-    it: a caller that changes one copies it first.
+    is read once at a day, at some rates, after a previous review, from a planning start — the
+    witness's unless a write moves it (WF-PLA-0020) —: the readings, the writes and the indicators
+    read the same one again and again. Its nodes are shared by every reading of it: a caller that
+    changes one copies it first.
     """
-    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous)))
+    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous), start))
 
 
 @functools.cache
@@ -452,6 +455,7 @@ def _core(
     today: date,
     rates: tuple[tuple[str, Decimal], ...],
     previous: tuple[Task, ...],
+    start: date,
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
     years: dict[int, int] = {}
@@ -463,7 +467,7 @@ def _core(
             for line in task.lines
         }
     emitter = _Emitter(
-        schedule(roots),
+        schedule(roots, start),
         labels(),
         today,
         dict(rates),

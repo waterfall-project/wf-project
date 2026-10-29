@@ -1,5 +1,5 @@
 {
-  "summary": "Le plan de charge demandé sur le budget de référence de l'extension de la ligne d'essais, en chiffrage, état que le refus nomme, avec son énumération : sans révision de référence, seule la révision en cours est une base (WF-DEV-0070).",
+  "summary": "Le plan de charge demandé sur le budget de référence de l'extension de la ligne d'essais, en chiffrage, état que le refus nomme, avec son énumération : sans révision de référence, la base de la référence est absente (WF-DEV-0070).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,

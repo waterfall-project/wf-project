@@ -643,6 +643,18 @@ HourlyRate:
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
+HourlyRateImage:
+  type: object
+  required: [cost_category_id, year, amount]
+  description: >-
+    Taux horaire d'une catégorie de main-d'œuvre pour une année, tel qu'une révision le conserve
+    (WF-REV-0030, §4.4.1 « revision_rate ») : sa valeur seule, sans l'audit ni le compteur du taux
+    du référentiel, qui bougent après le marquage sans rien changer à la révision (WF-REF-0130).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    year: { $ref: ../common.yaml#/Year }
+    amount: { $ref: ../common.yaml#/Money }
+
 HourlyRateGrid:
   type: object
   required: [years, rows, meta]

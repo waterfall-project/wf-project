@@ -259,7 +259,8 @@ by = "make fixtures"
 # wftools.mockamendmentwrites), a date on a day without hours of work refused and imported
 # (wftools.mocknonworking), and the gestures of the Kanban (wftools.mockkanban), the
 # history of the witness (its revisions in wftools.mockhistory, read while the designation of
-# its reference is open in wftools.mockcycle, their comparisons in
+# its reference is open in wftools.mockcycle, the marked ones with their snapshot in
+# wftools.mocksnapshot, their comparisons in
 # wftools.mockcomparisons, its risks and the entries of a risk in wftools.mockriskwrites), its
 # indicators today
 # (wftools.mocktoday), its actual costs with the journal of their imports (wftools.mockcosts), and
@@ -330,6 +331,7 @@ paths = [
     "fixtures/api/task_horizon_exceeded.json",
     "fixtures/api/task_date_non_working_day.json",
     "fixtures/api/node_create_non_working_day.json",
+    "fixtures/api/structure_start_non_working_day.json",
     "fixtures/api/task_hours_beyond_day.json",
     "fixtures/api/task_hours_below_zero.json",
     "fixtures/api/predecessors_entered.json",
@@ -372,6 +374,8 @@ paths = [
     "fixtures/api/comparison_moved.json",
     "fixtures/api/comparison_identical.json",
     "fixtures/api/revision_marked_merge_offered.json",
+    "fixtures/api/revision_marked.json",
+    "fixtures/api/revision_offer.json",
     "fixtures/api/merge_may_create_revision_refused.json",
     "fixtures/api/nodes_amendment.json",
     "fixtures/api/structure_merge_report.json",

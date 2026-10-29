@@ -2590,16 +2590,20 @@ class RevisionStatus(StrEnum):
     marked = "marked"
 
 
+class HourlyRateImage(ContractModel):
+    cost_category_id: Uuid
+    year: Year
+    amount: Money
+
+
 class EmployedReference(ContractModel):
     resource_roles: list[ResourceRoleImage]
     calendars: list[CalendarImage]
     cost_categories: list[CostCategoryImage]
-    hourly_rates: list[HourlyRate]
+    hourly_rates: list[HourlyRateImage]
 
 
 class RevisionSnapshot(ContractModel):
-    inflation_rate: Percent
-    win_probability: Percent
     employed_reference: EmployedReference
 
 
@@ -2640,6 +2644,16 @@ class VersionName(RootModel[str]):
     ]
 
 
+class SourceVersionName(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Le nom de version de la révision source (`source_revision_id`), résolu à la lecture, pour que l'écran le nomme sans relire l'historique (WF-IHM-0020, WF-ARC-0020) ; nul avec elle.",
+            max_length=100,
+        ),
+    ]
+
+
 class Revision(ContractModel):
     revision_id: Uuid
     project_id: Uuid
@@ -2661,7 +2675,36 @@ class Revision(ContractModel):
             description="Année de référence de la révision, un de ses attributs (WF-REV-0090) : l'année dont les taux horaires chiffrent ses lignes. Fixée par le serveur à la création de la révision, à l'année courante, conservée par la révision et son instantané (WF-REV-0060, WF-REV-0030), jamais saisie. C'est l'année pour laquelle le calcul exige un taux horaire de chaque catégorie employée (WF-DEV-0010, `getMissingRates`), celle des montants « aux taux de l'année de référence, avant inflation » de la grille de devis (`base_amount`, WF-DEV-0050), celle d'où l'inflation projette les montants budgété et réestimé, une fois par année écoulée (WF-DEV-0030), et celle que la mise à jour des taux vise (`RateUpdateProposal.target_year`). Une révision créée en 2027 porte 2027 ; la révision précédente, créée en 2026, garde 2026."
         ),
     ]
-    snapshot: RevisionSnapshot | None = None
+    inflation_rate: Annotated[
+        Percent,
+        Field(
+            description="Le taux d'inflation du projet que la révision conserve, un de ses attributs (WF-REV-0030, WF-REV-0090) : celui d'où ses montants budgété et réestimé sont projetés (WF-DEV-0030). Sur une révision marquée, celui de son marquage, que l'historique des révisions présente (WF-REV-0070) ; sur la révision en cours, celui du projet, qu'elle suit jusqu'à son marquage (`Project.inflation_rate`). Jamais saisi ici."
+        ),
+    ]
+    win_probability: Annotated[
+        Percent,
+        Field(
+            description="La probabilité de gain du projet que la révision conserve, de même (WF-REV-0030, WF-REV-0090, WF-PRJ-0090) : celle de son marquage sur une révision marquée, celle du projet sur la révision en cours (`Project.win_probability`). Jamais saisie ici."
+        ),
+    ]
+    source_revision_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La révision marquée dont la révision est la copie (WF-REV-0010), que tout écran nomme avec la révision en cours (WF-IHM-0020) ; nulle pour la première révision d'un projet, qui ne copie rien. Conservée une fois la révision marquée : l'historique dit d'où vient chaque révision."
+        ),
+    ]
+    source_version_name: Annotated[
+        SourceVersionName | None,
+        Field(
+            description="Le nom de version de la révision source (`source_revision_id`), résolu à la lecture, pour que l'écran le nomme sans relire l'historique (WF-IHM-0020, WF-ARC-0020) ; nul avec elle."
+        ),
+    ]
+    snapshot: Annotated[
+        RevisionSnapshot | None,
+        Field(
+            description="Les valeurs du référentiel que la révision conserve (WF-REV-0030). Rendu par `getRevision` pour une révision marquée, qui les a figées à son marquage ; omis pour la révision en cours, dont les valeurs suivent le référentiel tant qu'elle n'est pas marquée, hors les taux qu'elle conserve (WF-REV-0060), et dans `listRevisions` comme dans la réponse d'une écriture, qui ne le lisent pas."
+        ),
+    ] = None
     available_commands: Annotated[
         list[RevisionCommandAvailability],
         Field(
@@ -3341,6 +3384,12 @@ class CostStructure(ContractModel):
     revision_id: Uuid
     kind: StructureKind
     label: Annotated[str, Field(max_length=300)]
+    planning_start_on: Annotated[
+        PlanningDate,
+        Field(
+            description="La date de début de planning de la structure, saisie (`updateCostStructure`) : le jour de sa première création par défaut ; une structure reprise d'une révision marquée conserve la sienne (WF-PLA-0020, WF-REV-0100, WF-REV-0010), et un différentiel, copie de la structure principale à sa création, prend la sienne. Une tâche en mode automatique sans prédécesseur y commence, à la première heure travaillée de son calendrier applicable (WF-PLA-0020). L'import MS Project la lit dans la date de début du projet du fichier, et l'export l'y écrit (WF-INTF-0040, WF-INTF-0050)."
+        ),
+    ]
     risk_id: Annotated[
         Uuid | None,
         Field(description="Renseigné pour une structure de nature `risk` (WF-RIS-0030)."),
@@ -3360,7 +3409,7 @@ class CostStructure(ContractModel):
     lock_version: Annotated[
         LockVersion,
         Field(
-            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même. C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence`)."
+            description="Compteur de la structure, qui avance à chaque écriture dans son arbre — une cellule, un collage, un déplacement, une création, une suppression — comme à chaque modification de la structure elle-même (`updateCostStructure`). C'est lui qu'un collage porte (`PasteApply.lock_version`), et que toute écriture de grille rend (`NodesWritten.structure_lock_version`), pour que la grille le garde à jour (WF-IHM-0110). Dans le devis propre d'un risque (`risk_id`), chacune de ces écritures fait aussi avancer le compteur du risque (`Risk.lock_version`), que la confirmation de sa survenance porte (`RiskOccurrence`)."
         ),
     ]
 
@@ -3368,170 +3417,17 @@ class CostStructure(ContractModel):
 class StructureCreate(ContractModel):
     kind: StructureKind
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    risk_id: Uuid | None = None
 
 
-class ActualCostColumn1(StrEnum):
-    document_date = "document_date"
-    document_number = "document_number"
-    document_item = "document_item"
-    amount = "amount"
-    subproject = "subproject"
-
-
-class ActualCostColumn2(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
-            pattern="^passthrough\\..+$",
-        ),
-    ]
-
-
-class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
-    root: Annotated[
-        ActualCostColumn1 | ActualCostColumn2,
-        Field(
-            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
-        ),
-    ]
-
-
-class ImportDifferenceField(StrEnum):
-    parent = "parent"
-
-
-class Change(StrEnum):
-    added = "added"
-    removed = "removed"
-    updated = "updated"
-    kept = "kept"
-
-
-class Target(StrEnum):
-    task = "task"
-    estimate_line = "estimate_line"
-    link = "link"
-    actual_cost_line = "actual_cost_line"
-
-
-class ImportDifference(ContractModel):
-    change: Annotated[
-        Change,
-        Field(
-            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`."
-        ),
-    ]
-    target: Target
-    lineage_id: Annotated[
-        Uuid | None,
-        Field(
-            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
-        ),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(
-            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie avec son poste (`document_item` ; WF-INTF-0140, D-4) : ni `document_number` ni `document_item` ne figurent donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro, ou un autre poste de la même pièce, étant une autre ligne."
-        ),
-    ] = None
-    document_item: Annotated[
-        str | None,
-        Field(
-            description="Pour une ligne de coût (`actual_cost_line`), le numéro de son poste dans la pièce que nomme `label`, qui la désigne avec elle (`ActualCostLine.document_item`, WF-INTF-0140, D-4 ; EP-16/US-0630) ; nul pour une ligne sans poste, et nul ou absent pour tout autre objet."
-        ),
-    ] = None
-    predecessor_label: Annotated[
-        str | None,
-        Field(
-            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
-        ),
-    ] = None
-    work_breakdown_label: Annotated[
-        str | None,
-        Field(
-            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
-        ),
-    ] = None
-    fields: Annotated[
-        list[NodeColumn | ActualCostColumn | ImportDifferenceField] | None,
-        Field(
-            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194). Ainsi la ligne de provision d'un risque dont l'import d'un planning ou la fusion retire la tâche porteuse : elle passe sur la tâche parente de celle-ci, ou, pour une tâche de premier niveau, sur la première tâche de premier niveau restante, et « la confirmation ou le compte rendu le signale » par cet écart, à côté du retrait de la tâche (WF-RIS-0010 ; #789)."
-        ),
-    ] = None
-
-
-class ImportCompletedTask(ContractModel):
-    lineage_id: Uuid
-    label: str
-    completed_on: Annotated[
+class StructureUpdate(ContractModel):
+    planning_start_on: Annotated[
         PlanningDate | None,
         Field(
-            description="Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué."
+            description="La date de début de planning (`CostStructure.planning_start_on`), sur un jour qui a au moins une heure travaillée au calendrier par défaut (WF-PLA-0010, WF-PLA-0020)."
         ),
-    ]
-
-
-class ReportRefusal(ContractModel):
-    code: ErrorCode
-    params: ProblemParams | None = None
-
-
-class StructureMergeReport(ContractModel):
-    main_structure_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
-        ),
-    ]
-    amendment_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur du différentiel lu (`CostStructure.lock_version`), de même."
-        ),
-    ]
-    creates_current_revision: Annotated[
-        bool,
-        Field(
-            description="Vrai quand le projet n'a pas de révision en cours : le différentiel est celui de la dernière révision marquée, et la fusion crée d'abord la révision en cours par copie de celle-ci, chiffrée aux taux conservés, projetés, y fusionne la copie du différentiel et la marque, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050, WF-REV-0010, WF-REV-0060 ; #790). Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la révision marquée, que la copie reprend telle quelle, et ses compteurs sont ceux de ses structures, que le marquage a figés. Faux pour un différentiel de la révision en cours."
-        ),
-    ]
-    differences: Annotated[
-        list[ImportDifference],
-        Field(
-            description="Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale. La ligne de provision d'un risque dont le différentiel retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789)."
-        ),
-    ]
-    completed_tasks: Annotated[
-        list[ImportCompletedTask],
-        Field(
-            description="Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040)."
-        ),
-    ]
-    refusals: Annotated[
-        list[ReportRefusal],
-        Field(
-            description="Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique. Une boucle de liaisons (`LINK_CYCLE`) laisse les dates de la structure sans calcul : l'horizon n'est alors pas jugé, et `PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais (#788)."
-        ),
-    ]
-
-
-class StructureMerge(ContractModel):
-    confirmed: Literal[True]
-    version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
-    main_structure_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`)."
-        ),
-    ]
-    amendment_lock_version: Annotated[
-        LockVersion,
-        Field(
-            description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
-        ),
-    ]
+    ] = None
+    label: Annotated[str | None, Field(max_length=300, min_length=1, pattern="\\S")] = None
+    lock_version: LockVersion
 
 
 class TaskFacet(ContractModel):
@@ -3802,40 +3698,6 @@ class Node(ContractModel):
     ] = None
 
 
-class TaskFacetWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
-    scheduling_mode: SchedulingMode | None = None
-    duration: Duration | None = None
-    start: WorkInstant | None = None
-    finish: WorkInstant | None = None
-    order_item_id: Uuid | None = None
-    work_package_id: Uuid | None = None
-
-
-class PaymentDelayDays2(RootModel[int]):
-    root: Annotated[int, Field(ge=0)]
-
-
-class EstimateLineWrite(ContractModel):
-    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    cost_category_id: Uuid
-    quantity: Decimal
-    resource_role_id: Uuid | None = None
-    hours: Hours | None = None
-    unit_disbursement: Money | None = None
-    payment_delay_days: PaymentDelayDays2 | None = None
-    subproject_id: Uuid | None = None
-
-
-class NodeCreate(ContractModel):
-    kind: NodeKind
-    parent_id: Uuid | None
-    after_node_id: Uuid | None = None
-    task: TaskFacetWrite | None = None
-    estimate_line: EstimateLineWrite | None = None
-
-
 class NodeSchedule(ContractModel):
     node_id: Uuid
     start: WorkInstant
@@ -3886,7 +3748,7 @@ class NodesWritten(ContractModel):
     nodes: Annotated[
         list[Node],
         Field(
-            description="Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre."
+            description="Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud."
         ),
     ]
     ancestors: Annotated[
@@ -3898,7 +3760,7 @@ class NodesWritten(ContractModel):
     rescheduled: Annotated[
         list[NodeSchedule],
         Field(
-            description="Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants, inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou l'autre."
+            description="Les tâches non récapitulatives dont le début, la fin, la marge totale ou la criticité ont changé par l'écriture sans être écrites — les successeurs d'une liaison ou d'une durée saisie, les tâches automatiques sans prédécesseur et leurs successeurs que déplace la date de début de planning, et ce que le chemin critique déplace (WF-PLA-0020, WF-PLA-0100) —, chacune une fois, dans l'ordre du plan ; vide quand rien d'autre n'a bougé. Une projection de leur calendrier, non le nœud entier : une chaîne de mille tâches reste légère. Les récapitulatives qu'elles déplacent sont rendues entières dans `ancestors`. Ni les unes ni les autres ne voient leur compteur avancer : il ne suit que les écritures (`LockVersion`). Les montants qui dépendent des dates — les montants, inflation comprise, l'année de consommation — n'y sont pas : ils sont dans `reinflated`. À la différence de `reinflated`, une tâche que `ancestors` rend entière — la porteuse d'une ligne écrite que l'écriture redate — y paraît aussi : les deux portent les mêmes dates, et la grille peut lire l'une ou l'autre."
         ),
     ]
     reinflated: Annotated[
@@ -3919,6 +3781,209 @@ class NodesWritten(ContractModel):
             description="Le compteur de la structure après l'écriture (`CostStructure.lock_version`), que le collage suivant porte (WF-IHM-0110)."
         ),
     ]
+
+
+class ActualCostColumn1(StrEnum):
+    document_date = "document_date"
+    document_number = "document_number"
+    document_item = "document_item"
+    amount = "amount"
+    subproject = "subproject"
+
+
+class ActualCostColumn2(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier.",
+            pattern="^passthrough\\..+$",
+        ),
+    ]
+
+
+class ActualCostColumn(RootModel[ActualCostColumn1 | ActualCostColumn2]):
+    root: Annotated[
+        ActualCostColumn1 | ActualCostColumn2,
+        Field(
+            description="Colonne d'une ligne de coût réel que porte le fichier importé, nommée comme le tri de `listActualCosts` la nomme (WF-CRE-0010) : la date et le numéro de la pièce, le numéro du poste dans la pièce, son montant, son sous-projet — le code lu dans l'élément d'OTP (`subproject_code`) ; un réimport qui le change recalcule l'imputation de la ligne, et le compte rendu le dit par un écart `updated` sur cette colonne (WF-CRE-0020, WF-INTF-0140). Une colonne conservée du fichier (`ActualCostLine.passthrough`, WF-CRE-0010) se nomme `passthrough.<colonne>`, comme le tri la nomme : un réimport qui en change la valeur — le fournisseur d'une pièce — est un écart `updated` sur elle, et non une ligne inchangée. Le numéro de pièce identifie la ligne avec le poste de la pièce (`document_item`) : l'un et l'autre servent au tri et ne sont jamais un champ d'écart (`ImportDifference.label`, `ImportDifference.document_item` ; D-4). Le périmètre suivi et le motif d'exclusion, que le serveur déduit, ne sont pas des colonnes du fichier."
+        ),
+    ]
+
+
+class ImportDifferenceField(StrEnum):
+    parent = "parent"
+
+
+class Change(StrEnum):
+    added = "added"
+    removed = "removed"
+    updated = "updated"
+    kept = "kept"
+
+
+class Target(StrEnum):
+    task = "task"
+    estimate_line = "estimate_line"
+    link = "link"
+    actual_cost_line = "actual_cost_line"
+
+
+class ImportDifference(ContractModel):
+    change: Annotated[
+        Change,
+        Field(
+            description="Ajouté, retiré, modifié — ou conservé et signalé (`kept`) : une tâche démarrée ou terminée que le fichier ne porte plus, ou une ligne de devis d'une telle tâche, que l'import garde au lieu de la retirer (WF-INTF-0040, WF-INTF-0100) ; pour une fusion, une tâche démarrée ou terminée que le différentiel retire, et que la fusion garde — la démarrée terminée, son reste à engager porté à zéro (WF-REV-0050, `StructureMergeReport` ; EP-14/L42s). Un `kept` n'a pas de `fields`."
+        ),
+    ]
+    target: Target
+    lineage_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La lignée de l'objet existant ; nulle pour un ajout, qui n'en a pas encore, et pour une ligne de coût réel, qui n'en porte pas. Pour une liaison (`link`), celle de la tâche successeur, dont la colonne `predecessors` porte la liaison ; `label` est le sien."
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description="Le libellé de l'objet — pour une liaison, celui du successeur ; pour une ligne de coût, son numéro de pièce, qui l'identifie avec son poste (`document_item` ; WF-INTF-0140, D-4) : ni `document_number` ni `document_item` ne figurent donc jamais parmi les `fields` d'un `updated`, une pièce d'un autre numéro, ou un autre poste de la même pièce, étant une autre ligne."
+        ),
+    ] = None
+    document_item: Annotated[
+        str | None,
+        Field(
+            description="Pour une ligne de coût (`actual_cost_line`), le numéro de son poste dans la pièce que nomme `label`, qui la désigne avec elle (`ActualCostLine.document_item`, WF-INTF-0140, D-4 ; EP-16/US-0630) ; nul pour une ligne sans poste, et nul ou absent pour tout autre objet."
+        ),
+    ] = None
+    predecessor_label: Annotated[
+        str | None,
+        Field(
+            description="Pour une liaison (`link`), le libellé du prédécesseur, pour que la ligne du compte rendu se lise « successeur ← prédécesseur » sans relire la structure (WF-PLA-0080, WF-ARC-0020) ; nul pour tout autre objet."
+        ),
+    ] = None
+    work_breakdown_label: Annotated[
+        str | None,
+        Field(
+            description="Pour le retrait d'une tâche rattachée (`removed`, `task`), le libellé du lot ou du poste qui perd sa tâche : « La suppression d'une tâche rattachée est appliquée, et le compte rendu nomme le lot ou le poste qui perd sa tâche » (WF-INTF-0040, WF-PLA-0170). Nul ou absent pour tout autre écart, et pour une tâche sans rattachement (EP-14/L42k)."
+        ),
+    ] = None
+    fields: Annotated[
+        list[NodeColumn | ActualCostColumn | ImportDifferenceField] | None,
+        Field(
+            description="Les champs qu'un écart `updated` change, vide pour un ajout, un retrait ou un objet conservé, nommés comme les colonnes de leur grille, que le front rend par son catalogue (WF-ARC-0110) : une tâche, une ligne de devis ou une liaison par `NodeColumn` — une liaison changée de type ou de décalage par `predecessors`, la colonne qui la présente ; une ligne de coût réel par `ActualCostColumn`, une colonne conservée du fichier par `passthrough.<colonne>`. Une tâche ou une ligne déplacée sous un autre parent — une autre récapitulative, une autre tâche porteuse — nomme `parent`, qu'aucune colonne ne présente, comme `NodeChange.parent` : « Une tâche déplacée sous une autre récapitulative est présentée modifiée » (WF-REV-0080, WF-REV-0050 ; #1194). Ainsi la ligne de provision d'un risque dont l'import d'un planning ou la fusion retire la tâche porteuse : elle passe sur la tâche parente de celle-ci, ou, pour une tâche de premier niveau, sur la première tâche de premier niveau restante, et « la confirmation ou le compte rendu le signale » par cet écart, à côté du retrait de la tâche (WF-RIS-0010 ; #789)."
+        ),
+    ] = None
+
+
+class ImportCompletedTask(ContractModel):
+    lineage_id: Uuid
+    label: str
+    completed_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Le jour de l'application de l'import ou de la fusion, la date de terminaison que la tâche prend (WF-PLA-0130) — et aussi sa date de démarrage pour une tâche non démarrée qui n'est pas un jalon, qui passe par l'état démarré (WF-RAE-0030) ; nul tant que l'import ou la fusion n'est pas appliqué."
+        ),
+    ]
+
+
+class ReportRefusal(ContractModel):
+    code: ErrorCode
+    params: ProblemParams | None = None
+
+
+class StructureMergeReport(ContractModel):
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale lue (`CostStructure.lock_version`) : une saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par 412."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel lu (`CostStructure.lock_version`), de même."
+        ),
+    ]
+    creates_current_revision: Annotated[
+        bool,
+        Field(
+            description="Vrai quand le projet n'a pas de révision en cours : le différentiel est celui de la dernière révision marquée, et la fusion crée d'abord la révision en cours par copie de celle-ci, chiffrée aux taux conservés, projetés, y fusionne la copie du différentiel et la marque, dans la même tâche de fond — « Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable » (WF-REV-0050, WF-REV-0010, WF-REV-0060 ; #790). Ses écarts et ses motifs de refus sont alors jugés sur la structure principale de la révision marquée, que la copie reprend telle quelle, et ses compteurs sont ceux de ses structures, que le marquage a figés. Faux pour un différentiel de la révision en cours."
+        ),
+    ]
+    differences: Annotated[
+        list[ImportDifference],
+        Field(
+            description="Les écarts du différentiel avec la structure principale, tâches, lignes de devis et liaisons, comme ceux d'un import (`ImportDifference`) ; un ajout n'a pas encore de lignée dans la structure principale. La ligne de provision d'un risque dont le différentiel retire la tâche porteuse passe sur une autre tâche, et le compte rendu le signale par un écart `updated` de la ligne sur `parent` (WF-RIS-0010 ; #789). Un écart `updated` d'une ligne nomme les grandeurs que le différentiel lui donne (`fields`) : elles deviennent ses grandeurs de référence, et aussi ses grandeurs courantes quand sa tâche n'est pas démarrée et que personne ne l'a réestimée (WF-REV-0050) ; le compte rendu ne distingue pas les deux cas, l'état réestimé d'une ligne restant au serveur (US-0701/L1, M-08)."
+        ),
+    ]
+    completed_tasks: Annotated[
+        list[ImportCompletedTask],
+        Field(
+            description="Les tâches démarrées que le différentiel retire, que la fusion termine en portant leur reste à engager à zéro (WF-REV-0050, WF-RAE-0040)."
+        ),
+    ]
+    refusals: Annotated[
+        list[ReportRefusal],
+        Field(
+            description="Les motifs qui refusent la fusion entière (WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170), chacun avec les paramètres qu'il porte quand la fusion échoue (`ReportRefusal`). Vide quand la fusion s'applique. Une boucle de liaisons (`LINK_CYCLE`) laisse les dates de la structure sans calcul : l'horizon n'est alors pas jugé, et `PROJECT_HORIZON_EXCEEDED` ne l'accompagne jamais (#788)."
+        ),
+    ]
+
+
+class StructureMerge(ContractModel):
+    confirmed: Literal[True]
+    version_name: Annotated[str, Field(max_length=100, min_length=1, pattern="\\S")]
+    description: Annotated[
+        str | None,
+        Field(
+            description="La description jointe à la révision marquée, comme au marquage (`RevisionMark.description`, WF-REV-0020, WF-REV-0090)."
+        ),
+    ] = None
+    main_structure_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur de la structure principale que le compte rendu a lu (`StructureMergeReport.main_structure_lock_version`)."
+        ),
+    ]
+    amendment_lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du différentiel que le compte rendu a lu (`StructureMergeReport.amendment_lock_version`)."
+        ),
+    ]
+
+
+class TaskFacetWrite(ContractModel):
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    description: str | None = None
+    scheduling_mode: SchedulingMode | None = None
+    duration: Duration | None = None
+    start: WorkInstant | None = None
+    finish: WorkInstant | None = None
+    order_item_id: Uuid | None = None
+    work_package_id: Uuid | None = None
+
+
+class PaymentDelayDays2(RootModel[int]):
+    root: Annotated[int, Field(ge=0)]
+
+
+class EstimateLineWrite(ContractModel):
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    cost_category_id: Uuid
+    quantity: Decimal
+    resource_role_id: Uuid | None = None
+    hours: Hours | None = None
+    unit_disbursement: Money | None = None
+    payment_delay_days: PaymentDelayDays2 | None = None
+    subproject_id: Uuid | None = None
+
+
+class NodeCreate(ContractModel):
+    kind: NodeKind
+    parent_id: Uuid | None
+    after_node_id: Uuid | None = None
+    task: TaskFacetWrite | None = None
+    estimate_line: EstimateLineWrite | None = None
 
 
 class RowNumberResolution(ContractModel):
@@ -4128,20 +4193,54 @@ class PasteApplied(NodesWritten):
     ]
 
 
+class UndoneKind(StrEnum):
+    cell = "cell"
+    node_create = "node_create"
+    node_delete = "node_delete"
+    node_move = "node_move"
+    paste = "paste"
+    link = "link"
+    progress = "progress"
+    remaining = "remaining"
+    tracking = "tracking"
+    structure_update = "structure_update"
+    risk_create = "risk_create"
+    risk_update = "risk_update"
+    risk_review = "risk_review"
+    risk_delete = "risk_delete"
+
+
 class Undone(ContractModel):
-    kind: str | None = None
-    node_ids: list[Uuid] | None = None
+    kind: UndoneKind
+    node_ids: Annotated[
+        list[Uuid],
+        Field(
+            description="Les nœuds que l'annulation, ou le rétablissement, rend à leur état précédent ; vide pour une saisie de risque."
+        ),
+    ]
     risk_ids: Annotated[
-        list[Uuid] | None,
+        list[Uuid],
         Field(
             description="Les risques que l'annulation, ou le rétablissement, rend à leur état précédent (WF-IHM-0110, WF-RIS-0020) ; vide pour une saisie des grilles."
         ),
-    ] = None
+    ]
 
 
 class UndoResult(ContractModel):
     undone: Undone
-    remaining_depth: Annotated[int, Field(ge=0)]
+    written: Annotated[
+        NodesWritten | None,
+        Field(
+            description="Ce que l'annulation, ou le rétablissement, a écrit dans une structure, comme toute écriture de grille : nœuds rendus à leur état, ancêtres recalculés, tâches redatées, totaux et compteur de la structure, pour que la grille montre juste sans relire la structure et garde le compteur que sa saisie suivante portera (WF-IHM-0040, WF-IHM-0110). Nul pour une saisie de risque, qui n'écrit dans une structure que par la ligne de provision de son risque : la grille relit alors sa structure."
+        ),
+    ]
+    remaining_depth: Annotated[
+        int,
+        Field(
+            description="Les modifications qui restent à annuler dans l'historique de l'appelant sur la révision, après celle-ci — pour le rétablissement, celles qui restent à rétablir.",
+            ge=0,
+        ),
+    ]
 
 
 class CalculationContext(ContractModel):
@@ -4264,7 +4363,7 @@ class WorkloadPlan(ContractModel):
     basis: Annotated[
         Basis,
         Field(
-            description="La base retenue : les montants budgétés de la révision de référence, les montants réestimés d'une révision marquée, ou ceux de la révision en cours (WF-DEV-0070). `context.revision_id` nomme la révision lue."
+            description="La base retenue : la charge de la révision de référence, la charge réestimée d'une révision marquée, ou celle de la révision en cours (WF-DEV-0070). `context.revision_id` nomme la révision lue."
         ),
     ]
     org_node_id: Annotated[

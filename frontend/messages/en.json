@@ -3139,9 +3139,24 @@
     },
     "StructureCreate": {
       "kind": {
-        "amendment": "Amendment",
-        "risk": "Risk estimate"
+        "amendment": "Amendment"
       }
+    },
+    "UndoneKind": {
+      "cell": "Cell edit",
+      "node_create": "Node creation",
+      "node_delete": "Node deletion",
+      "node_move": "Node move",
+      "paste": "Paste",
+      "link": "Link",
+      "progress": "Progress",
+      "remaining": "Remaining work",
+      "tracking": "Tracking",
+      "structure_update": "Structure update",
+      "risk_create": "Risk creation",
+      "risk_update": "Risk update",
+      "risk_review": "Risk review",
+      "risk_delete": "Risk deletion"
     },
     "TaskProgress": {
       "not_started": "Not started",

@@ -387,9 +387,9 @@ WorkloadBasis:
   in: query
   required: true
   description: >-
-    Base du plan de charge : les montants budgétés de la révision de référence, les
-    montants réestimés d'une révision marquée — nommée par `revision_id` —, ou ceux de la
-    révision en cours (WF-DEV-0070).
+    Base du plan de charge, où la charge des lignes de main-d'œuvre est prise : la révision de
+    référence, une révision marquée pour sa charge réestimée — nommée par `revision_id` —, ou la
+    révision en cours (WF-DEV-0070). Les deux dernières sont la base du reste à engager.
   schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
 
 PortfolioStates:

@@ -299,6 +299,7 @@ _KEYS = {
     ),
     "project_id": ("projets", "projets du portefeuille"),
     "revision_id": ("révisions",),
+    "source_revision_id": ("révisions",),
     "current_revision_id": ("révisions",),
     "reference_revision_id": ("révisions",),
     "from_revision_id": ("révisions",),

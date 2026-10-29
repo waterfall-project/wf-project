@@ -81,14 +81,17 @@
     tags: [estimate]
     summary: Plan de charge du projet
     description: >-
-      Par rôle et par mois, au choix sur les montants budgétés de la révision de
-      référence, sur les montants réestimés d'une révision marquée, nommée par
-      `revision_id`, ou sur ceux de la révision en cours, avec la capacité de chaque rôle
-      en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la
-      révision en cours est une base : les deux autres sont refusées (409,
-      `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id`
-      ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`). Le plan nomme le
-      nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
+      Par rôle et par mois, la charge des lignes de main-d'œuvre prise au choix dans la révision
+      de référence, dans une révision marquée pour sa charge réestimée, nommée par
+      `revision_id`, ou dans la révision en cours, avec la capacité de chaque rôle en regard
+      (WF-DEV-0070). Sur un projet sans révision de référence, la base de la référence est
+      absente : `reference_budget` est refusée (409, `STATE_FORBIDS_OPERATION`), comme
+      `current_remaining` sur un projet sans révision en cours ; une révision marquée reste une
+      base, en chiffrage comme en réalisation, et `marked_remaining` n'est refusée que sans
+      `revision_id` ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`) — sur
+      un projet sans aucune révision marquée, seule la révision en cours est donc une base. Sur
+      une révision marquée, la date de calcul est sa date de marquage (`context.computed_at`).
+      Le plan nomme le nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/WorkloadBasis
@@ -117,9 +120,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Projet sans révision de référence : seule la révision en cours est une base
-          (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet,
-          `params.state_enum` à `ProjectState`.
+          `reference_budget` sur un projet sans révision de référence, ou `current_remaining`
+          sur un projet sans révision en cours : la base est absente (WF-DEV-0070).
+          `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à
+          `ProjectState`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
