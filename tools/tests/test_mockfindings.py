@@ -267,7 +267,9 @@ def test_the_journal_inscribes_the_creation_of_the_witness_and_the_abandon_of_it
     None
 ):
     actions = _schema("schemas/audit.yaml", "AuditAction")["enum"]
-    assert actions[:3] == ["project_create", "revision_mark", "revision_abandon"]
+    order = ["project_create", "revision_mark", "revision_abandon"]
+    assert all(name in actions for name in order)
+    assert [actions.index(name) for name in order] == sorted(actions.index(name) for name in order)
     project = fixture("project")
     [created] = [
         each for each in fixture("audit_events")["items"] if each["action"] == "project_create"

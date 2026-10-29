@@ -195,6 +195,7 @@ TO_SERVE_BY_EP04 = ("project_create", "revision_abandon", "structure_merge")
 SERVED_UNDER_AN_OLD_NAME = ("amendment_merge",)
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_actions_and_the_natures_of_objects_are_those_of_the_contract() -> None:
     contract = [action.value for action in models.AuditAction]
     assert set(TO_SERVE_BY_EP04) <= set(contract)
