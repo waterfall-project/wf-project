@@ -211,14 +211,16 @@ describe("the screens of the portfolio", () => {
     const markup = await render(PerformancePage, { as_of: "2026-06-03" });
     expect(queryOf("GET /portfolio/performance")).toEqual({ as_of: "2026-06-03" });
     const page = text(markup);
-    expect(page).toContain("In progress · 269 projects · calculated on 3 Jun 2026");
-    expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
+    expect(page).toContain(
+      "In progress · 269 projects · period from 4 Jun 2025 to 3 Jun 2026 · calculated on 3 Jun 2026",
+    );
+    expect(page).toMatch(/Cost index 0\.941 Nominal Schedule index 0\.9088 Nominal/);
     expect(page).toMatch(/At the observed rate .*2,832,594,354\.58 .*167,163,286\.53/);
     expect(page).toContain(
       "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 152",
     );
     expect(page).toContain(
-      "Q3 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
+      "Q2 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date. Q3 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
     );
   });
 
@@ -354,7 +356,7 @@ describe("the screens of the portfolio", () => {
       "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
     };
     const markup = await render(PerformancePage);
-    expect(text(markup)).toMatch(/Cost index 0\.94 Nominal/);
+    expect(text(markup)).toMatch(/Cost index 0\.941 Nominal/);
     expect(markup).not.toContain("Organisation node");
   });
 

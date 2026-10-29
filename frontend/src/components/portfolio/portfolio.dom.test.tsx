@@ -576,10 +576,11 @@ describe("the charts of the portfolio", () => {
     const rows = within(figure).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "QuarterCost indexSchedule index",
+      "Q2 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
       "Q3 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
-      "Q4 20250.940.93",
-      expect.stringMatching(/^Q1 2026/),
-      "Q2 20260.940.91",
+      "Q4 20250.93920.9272",
+      "Q1 20260.93860.9426",
+      "Q2 20260.9410.9088",
     ]);
   });
 
@@ -590,10 +591,9 @@ describe("the charts of the portfolio", () => {
     const figure = screen.getByRole("figure", { name: "Coûts cumulés du portefeuille" });
     const rows = within(figure).getAllByRole("row");
     expect(rows[0]).toHaveTextContent("CourbeDateMontant");
-    expect(rows[1]).toHaveTextContent(
-      `Budget de référence31 déc. 2025210${NARROW}664${NARROW}042,15`,
-    );
-    expect(rows).toHaveLength(1 + 12 + 7 + 7);
+    expect(rows[1]).toHaveTextContent("Budget de référence30 juin 20250,00");
+    // One row of heading, then every point of the three curves: the past year and the horizon.
+    expect(rows).toHaveLength(1 + curves.series.reduce((sum, each) => sum + each.points.length, 0));
     expect(rows.at(-1)).toHaveTextContent(
       `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}620${NARROW}318,36`,
     );
@@ -702,7 +702,8 @@ describe("the charts of the portfolio", () => {
       },
       {
         title: "Cash-out of the portfolio by month",
-        subtitle: "In progress and Pricing · 300 projects · calculated on 3 Jun 2026",
+        subtitle:
+          "In progress and Pricing · 300 projects · period from 4 Jun 2025 to 3 Jun 2026 · calculated on 3 Jun 2026",
         fileName: "cash-out-by-month-portfolio-2026-06-03.png",
       },
     ]);

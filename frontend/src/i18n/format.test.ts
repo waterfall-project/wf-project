@@ -256,8 +256,8 @@ describe("a share", () => {
     // significant digit, never nil (EP-14/L42o, #694).
     const indicators = example("estimate_indicators_breakdown") as Schemas["EstimateIndicators"];
     const item = indicators.by_work_package[0];
-    expect(item?.share?.value).toBe("0.00003");
-    expect(share(item?.share?.value ?? "", "fr")).toBe(`<${NO_BREAK}0,01${NO_BREAK}%`);
+    expect(item?.share.value).toBe("0.00003");
+    expect(share(item?.share.value ?? "", "fr")).toBe(`<${NO_BREAK}0,01${NO_BREAK}%`);
   });
 
   it("refuses what is not a decimal of the contract", () => {

@@ -175,7 +175,7 @@ function Breakdown({
               <span>{label}</span>
               <span className="tabular-nums">
                 <Figured value={item.amount} format={(value) => formatMoney(value, locale)} />
-                {share?.is_computable === true && share.value !== null && share.value !== undefined
+                {share.is_computable && share.value !== null && share.value !== undefined
                   ? t("estimateSummary.shareOf", {
                       share: formatShare(share.value, locale, bounds),
                     })

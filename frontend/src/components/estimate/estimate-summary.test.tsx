@@ -95,7 +95,6 @@ describe("the summary of the estimate", () => {
     expect(html).toContain(
       "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 58 894 803,47 Provision 500 000,00",
     );
-    expect(html).not.toContain("%");
     expect(html).not.toContain("Total du devis 0,00");
   });
 
@@ -183,6 +182,21 @@ describe("the summary of the estimate", () => {
     expect(html).toContain("Sans libellé — 2026");
     expect(html).toContain("Par nature de coût Sans libellé 9 343 749,58 (13,69 %) Sans libellé");
     expect(html).not.toMatch(/01926f3a-/);
+  });
+
+  it("leaves a share not computable out of a breakdown, which says its amount alone [WF-QUA-0010]", () => {
+    // A variant of `estimate_indicators_breakdown`: every share of the natures of cost, not computable.
+    const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
+    const share = { is_computable: false, value: null, reason: "no_total" as const };
+    const html = text(
+      renderSummary(
+        { ...breakdown, by_cost_type: breakdown.by_cost_type.map((item) => ({ ...item, share })) },
+        example("missing_rates_none") as MissingRates,
+        all,
+        "en",
+      ),
+    );
+    expect(html).not.toContain("(Not computable");
   });
 
   it("leaves out a breakdown the API gives empty", () => {

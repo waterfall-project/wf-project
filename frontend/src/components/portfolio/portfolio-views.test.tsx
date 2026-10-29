@@ -32,18 +32,36 @@ const TINY = "<0.01%";
 
 describe("the shares of the portfolio, never « 0 % » when they are not nil (#626)", () => {
   it("says a share of the cost structure too small to show below the smallest shown", () => {
-    // A variant of `volume/portfolio_cost_structure`: the share of the provision in the budget,
+    // A variant of `volume/portfolio_cost_structure`: the share of the provision in the remaining,
     // 0.1, changed to 0.00003.
     const structure = example(
       "volume/portfolio_cost_structure",
     ) as Schemas["PortfolioCostStructure"];
-    const budget = structure.budget_by_cost_type.map((part) =>
-      part.label === "Provision" ? { ...part, share: "0.00003" } : part,
+    const remaining = structure.remaining_by_cost_type.map((part) =>
+      part.label === "Provision"
+        ? { ...part, share: { is_computable: true, value: "0.00003", reason: null } }
+        : part,
     );
     const said = text(
-      <CostStructureView structure={{ ...structure, budget_by_cost_type: budget }} />,
+      <CostStructureView structure={{ ...structure, remaining_by_cost_type: remaining }} />,
     );
-    expect(said).toContain(`Provision 266,543,106.80 ${TINY}`);
+    expect(said).toContain(`Provision 151,044,403.35 ${TINY}`);
+  });
+
+  it("says a share of a nil total not computable, with its reason [WF-QUA-0010]", () => {
+    // A variant of `volume/portfolio_cost_structure`: the share of the provision, not computable.
+    const structure = example(
+      "volume/portfolio_cost_structure",
+    ) as Schemas["PortfolioCostStructure"];
+    const remaining = structure.remaining_by_cost_type.map((part) =>
+      part.label === "Provision"
+        ? { ...part, share: { is_computable: false, value: null, reason: "no_total" as const } }
+        : part,
+    );
+    const said = text(
+      <CostStructureView structure={{ ...structure, remaining_by_cost_type: remaining }} />,
+    );
+    expect(said).toContain("The total is zero.");
   });
 
   it("says a load too small to show below the smallest shown", () => {
