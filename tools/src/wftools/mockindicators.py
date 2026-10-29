@@ -46,7 +46,6 @@ from wftools.mockstructure import (
     computable,
     decimal,
     described,
-    inflated,
     labels,
     money,
     partition,
@@ -368,22 +367,18 @@ def earned(reading: Reading, day: date, scope: str = PROJECT) -> Decimal:
 def remaining_of(reading: Reading, line: mockcore.Row) -> Decimal:
     """Return what a line counts in the remaining to commit (WF-RAE-0010).
 
-    A line of provision of a risk identified, its amount; a line budgeted nothing, added after
-    the reference, its amount re-estimated whatever its task; otherwise nothing on a task
-    completed, the amount re-estimated on a task started, the budgeted amount projected on its
-    year of consumption on a task not started.
+    A line of provision of a risk identified, its amount, which is not projected (WF-DEV-0030); a
+    line budgeted nothing, added after the reference, its amount re-estimated whatever its task;
+    otherwise nothing on a task completed, and its amount re-estimated on a task started or not,
+    re-estimated or not: re-estimated by nobody, it is computed from its current quantities, those
+    of the reference, at the rates the revision keeps and on its current year of consumption
+    (WF-RAE-0010, M-08). Every amount inflation included (WF-DEV-0020).
     """
-    if mockhistory.is_provision(line):
-        return line.amounts.base
-    if line.amounts.budgeted == 0:
-        return line.amounts.inflated
-    progress = reading.progress(line)
-    if progress == "completed":
+    if mockhistory.is_provision(line) or line.amounts.budgeted == 0:
+        return line.amounts.reestimated
+    if reading.progress(line) == "completed":
         return Decimal(0)
-    if progress == "started":
-        return line.amounts.inflated
-    year = cast("int", reading.facet(line)["consumption_year"])
-    return inflated(line.amounts.budgeted, year)
+    return line.amounts.reestimated
 
 
 def remaining(reading: Reading, scope: str = PROJECT) -> Decimal:
@@ -483,8 +478,9 @@ def missing_rates(
     ]
 
 
-def _base(lines: Iterable[mockcore.Row]) -> Decimal:
-    return sum((line.amounts.base for line in lines), Decimal(0))
+def _estimate(lines: Iterable[mockcore.Row]) -> Decimal:
+    """Return the estimate of some lines: their amounts re-estimated, inflation included."""
+    return sum((line.amounts.reestimated for line in lines), Decimal(0))
 
 
 def _amount(reading: Reading, lines: list[mockcore.Row], missing: frozenset[str]) -> JsonObject:
@@ -492,7 +488,7 @@ def _amount(reading: Reading, lines: list[mockcore.Row], missing: frozenset[str]
     absent = missing_rates(reading, lines, missing)
     if absent:
         return not_computable(_MISSING, {"missing_rates": absent})
-    return computable(money(_base(lines)))
+    return computable(money(_estimate(lines)))
 
 
 def _parts(
@@ -510,8 +506,8 @@ def _parts(
     now (EP-14/L55, #718), until L42t says what the contract gives for it (#774, WF-IND-0010).
     """
     absent = missing_rates(reading, reading.lines, missing)
-    total = _base(reading.lines)
-    amounts = [_base(group.lines) for group in groups]
+    total = _estimate(reading.lines)
+    amounts = [_estimate(group.lines) for group in groups]
     found = (
         partition(amounts, total)
         if whole
@@ -603,7 +599,7 @@ def estimate(
 ) -> JsonObject:
     """Return the indicators of the estimate of a revision (`EstimateIndicators`, WF-DEV-0060).
 
-    Its total at the year of reference, by nature, by subproject and by lot; its
+    Its total re-estimated, inflation included, by nature, by subproject and by lot; its
     provisions; its gaps to the estimate of the reference and of the previous marked revision,
     absent without them. That of a marked revision is the one its marking kept (WF-DAT-0040). A
     category in ``missing`` has no rate for the reference year: what its
@@ -611,14 +607,14 @@ def estimate(
     """
     lines = reading.lines
     absent = missing_rates(reading, lines, missing)
-    total = _base(lines)
+    total = _estimate(lines)
 
     def gap(other: Reading | None) -> JsonObject | None:
         if other is None:
             return None
         if absent:
             return not_computable(_MISSING, {"missing_rates": absent})
-        return computable(money(total - _base(other.lines)))
+        return computable(money(total - _estimate(other.lines)))
 
     return {
         "context": context(reading, stored=reading.revision != mockhistory.CURRENT),
@@ -627,7 +623,7 @@ def estimate(
         "by_subproject": _parts(reading, subprojects(reading, lines), missing),
         "by_work_package": by_work_package(reading, missing),
         "provisions_identified": money(
-            _base(line for line in lines if mockhistory.is_provision(line))
+            _estimate(line for line in lines if mockhistory.is_provision(line))
         ),
         "delta_to_reference": gap(against),
         "delta_to_previous_revision": gap(previous),

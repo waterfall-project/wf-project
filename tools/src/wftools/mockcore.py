@@ -150,6 +150,7 @@ class _Emitter:
     today: date
     rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
+    previous_years: Mapping[int, int] = field(default_factory=dict[int, int])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
     charged: frozenset[str] = field(default_factory=charged_subprojects)
@@ -199,7 +200,7 @@ class _Emitter:
         completed = progress == "completed"
         held = progress != "not_started" and line.subproject in self.charged
         year = self.dated[task.number].start.day.year
-        amounts = price(line, year, self.rates)
+        amounts = price(line, year, self.rates, budget_year=self.previous_years.get(line.number))
         facet: JsonObject = {
             "label": line.label,
             "cost_category_id": line.category,
@@ -240,16 +241,19 @@ class _Emitter:
         """Return the quantities of a line at the previous review and its amount re-estimated.
 
         Null before the first review, and for a line added since, as the merged ones; the hours
-        null for a line without, the unit disbursement null for a labour line (WF-RAE-0040).
+        null for a line without, the unit disbursement null for a labour line (WF-RAE-0040). The
+        amount, inflation included, on the year the review consumed the line (WF-DEV-0020).
         """
         before = self.previous.get(number)
         if before is None:
             return dict.fromkeys(PREVIOUS)
+        on = self.previous_years.get(number, year)
+        amounts = price(before, on, self.rates)
         return {
             "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),
             "previous_unit_disbursement": None if before.unit is None else money(before.unit),
-            "previous_reestimated_amount": money(price(before, year, self.rates).reestimated),
+            "previous_reestimated_amount": money(amounts.reestimated),
         }
 
     def _number(self, number: int) -> int:
@@ -427,10 +431,14 @@ def core(
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
     Its labour lines at the hourly rates given, those of the reference year of the revision; each
-    with its quantities in the previous review described, if any, and the amount they gave. A
-    structure is read once at a day, at some rates, after a previous review: the readings, the
-    writes and the indicators read the same one again and again. Its nodes are shared by every
-    reading of it: a caller that changes one copies it first.
+    with its quantities in the previous review described, if any, and the amount they gave. The
+    previous review of the witness is its reference 101: a line it bore keeps its budget projected
+    on the year the reference consumed it, wherever a write moves its task (WF-DEV-0020,
+    WF-RAE-0010). Every revision is projected from 2026, the offer of 2025 included: a
+    simplification, which keeps in the reference the budget the offer fixed (#467). A structure
+    is read once at a day, at some rates, after a previous review: the readings, the writes and
+    the indicators read the same one again and again. Its nodes are shared by every reading of
+    it: a caller that changes one copies it first.
     """
     return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous)))
 
@@ -443,7 +451,23 @@ def _core(
     previous: tuple[Task, ...],
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
-    emitter = _Emitter(schedule(roots), labels(), today, dict(rates), before, row_of=rows_of(roots))
+    years: dict[int, int] = {}
+    if previous:
+        dated = schedule(previous)
+        years = {
+            line.number: dated[task.number].start.day.year
+            for task in tasks_in_order(previous)
+            for line in task.lines
+        }
+    emitter = _Emitter(
+        schedule(roots),
+        labels(),
+        today,
+        dict(rates),
+        before,
+        years,
+        row_of=rows_of(roots),
+    )
     for rank, root in enumerate(roots, start=1):
         emitter.task(root, None, rank, 1)
     return tuple(emitter.rows)

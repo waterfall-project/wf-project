@@ -143,18 +143,15 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "66\u202f105\u202f223,89",
-      "68\u202f923\u202f691,06",
     ]);
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
-    // at the year of reference and corrected for inflation.
+    // at the year of reference.
     await vi.waitFor(() => {
       expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/502\s554,56$/);
     });
     expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/502\s354,56$/);
-    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/502\s554,56$/);
-    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals().slice(1)).toEqual([
       "Total — 1\u202f000 tâches, 5\u202f000 lignes",
       "",
@@ -166,7 +163,6 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "66\u202f105\u202f343,89",
-      "68\u202f923\u202f811,06",
     ]);
   });
 

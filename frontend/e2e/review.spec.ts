@@ -102,8 +102,8 @@ const FRENCH: Language = {
   },
   // French separates thousands with a narrow no-break space (U+202F).
   figures: [
-    ["Reste à engager", "67\u202f293\u202f028,72"],
-    ["Budget de référence", "65\u202f430\u202f697,64"],
+    ["Reste à engager", "67\u202f470\u202f132,98"],
+    ["Budget de référence", "68\u202f241\u202f568,05"],
     ["Valeur planifiée", "1\u202f671\u202f458,13"],
     ["Écart de délai", "-221\u202f599,80"],
     ["Indice de délai", "0,8674"],
@@ -141,8 +141,8 @@ const ENGLISH: Language = {
     backToProject: "Back to the project",
   },
   figures: [
-    ["Remaining to commit", "67,293,028.72"],
-    ["Reference budget", "65,430,697.64"],
+    ["Remaining to commit", "67,470,132.98"],
+    ["Reference budget", "68,241,568.05"],
     ["Planned value", "1,671,458.13"],
     ["Schedule variance", "-221,599.80"],
     ["Schedule index", "0.8674"],

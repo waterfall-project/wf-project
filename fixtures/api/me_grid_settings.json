@@ -49,7 +49,7 @@
             "payment_delay_days",
             "inactive_object",
             "base_amount",
-            "inflated_amount"
+            "reestimated_amount"
           ],
           "column_widths": {
             "label": 400

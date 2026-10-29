@@ -299,10 +299,10 @@ function rescheduled<
  * The fields of a line a write may move in time without writing it (`NodesWritten.reinflated`),
  * under their names on the line.
  */
-const INFLATION = ["inflated_amount", "consumption_year"] as const;
+const INFLATION = ["budgeted_amount", "reestimated_amount", "consumption_year"] as const;
 
 /** The field of a task, not a summary, a write may move in time without writing it. */
-const TASK_INFLATION = ["inflated_amount"] as const;
+const TASK_INFLATION = ["budgeted_amount", "reestimated_amount"] as const;
 
 /**
  * A row a write moved in time — a line, or a task its lines moved —: the fields of its amounts the
@@ -413,7 +413,6 @@ export const NODE_COLUMNS = [
   "base_amount",
   "budgeted_amount",
   "reestimated_amount",
-  "inflated_amount",
   "previous_quantity",
   "previous_hours",
   "previous_unit_disbursement",

@@ -312,8 +312,8 @@ describe("the cumulative curves", () => {
       ["2026-06-03T00:00:00Z", "1412970.20"],
     ]);
     expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "1412970.20"]);
-    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68705998.92"]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68883103.18"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68241568.05"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
     expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
@@ -381,7 +381,7 @@ describe("the cumulative curves", () => {
       "March 20261,400.000.00",
       "April 2026101,600.000.00",
       "May 20261,182,933.730.00",
-      "June 2026127,036.47673,290.61",
+      "June 2026127,036.47675,512.54",
     ]);
     expect(data.cash_out_by_month).toHaveLength(43);
   });
@@ -409,7 +409,7 @@ describe("the cumulative curves", () => {
       "Earned value",
       "Actual cost",
     ]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68241568.05"]);
     expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "1449858.33"]);
     // A task completed makes a step in the earned value at its date, as the actual cost at the
     // date of a document: both by steps, the planned value by a line.

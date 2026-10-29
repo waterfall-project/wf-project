@@ -125,7 +125,6 @@
       "unitDisbursement": "Débours unit.",
       "paymentDelay": "Délai de paiement (j)",
       "referenceAmount": "Montant (année de réf.)",
-      "inflatedAmount": "Montant corrigé de l’inflation",
       "inactiveObject": "Objet désactivé",
       "startDate": "Début",
       "finishDate": "Fin",
@@ -1320,12 +1319,6 @@
       },
       "referenceAmount": {
         "help": "Montant de la ligne à l’année de référence de la révision, avant toute correction de l’inflation."
-      },
-      "inflatedAmount": {
-        "help": "Montant corrigé de l’inflation de l’année de référence ({year}) à l’année de consommation de la ligne, au taux d’inflation du projet ({rate} par an)."
-      },
-      "inflatedAmountStatic": {
-        "help": "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet."
       }
     },
     "planning": {
@@ -3260,7 +3253,6 @@
       "base_amount": "Montant à l’année de référence",
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
-      "inflated_amount": "Montant corrigé de l’inflation",
       "previous_quantity": "Quantité précédente",
       "previous_hours": "Charge précédente",
       "previous_unit_disbursement": "Débours unitaire précédent",
@@ -3276,8 +3268,7 @@
         "total_float": "Marge totale de la tâche",
         "base_amount": "Montant à l’année de référence de la tâche",
         "budgeted_amount": "Montant budgété de la tâche",
-        "reestimated_amount": "Montant réestimé de la tâche",
-        "inflated_amount": "Montant corrigé de l’inflation de la tâche"
+        "reestimated_amount": "Montant réestimé de la tâche"
       },
       "estimate_line": {
         "quantity": "Quantité de la ligne",
@@ -3287,8 +3278,7 @@
         "base_amount": "Montant à l’année de référence de la ligne",
         "budgeted_amount": "Montant budgété de la ligne",
         "reestimated_amount": "Montant réestimé de la ligne",
-        "previous_reestimated_amount": "Montant réestimé précédent de la ligne",
-        "inflated_amount": "Montant corrigé de l’inflation de la ligne"
+        "previous_reestimated_amount": "Montant réestimé précédent de la ligne"
       }
     },
     "ComputedDependency": {

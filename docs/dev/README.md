@@ -791,9 +791,9 @@ et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
 `estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
 lecture de la structure que nomme l'adresse (`grid-screen.ts`) ; le planning demande au serveur les
 seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
-comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
-l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
-nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
+comprise, et en total, le montant à l'année de référence, avant inflation (`base_amount`), tel
+que le serveur le rend, jamais le budgété ni le réestimé, inflation comprise (WF-DEV-0020,
+WF-DEV-0050) ; il nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
 désactivé (`cost_category_label`, `resource_role_label`, #305) ; le sous-projet d'une ligne de
 provision, celui que son risque désigne, y est une cellule calculée, que le nœud nomme
 (`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande au serveur
@@ -2160,9 +2160,8 @@ même. L'infobulle dit :
   dans les deux langues, tenue par `make catalogs` et lue par `t("commands.<commande>.help")`, que le
   typage du catalogue refuse pour une commande qui n'en a pas (`CommandHelp` nomme celles qui en ont,
   pour une table de commandes) ; pour l'en-tête d'une colonne, sa définition
-  (`columns.<grille>.<colonne>.help`) ; ou une phrase à paramètres, comme le montant corrigé de
-  l'inflation, qui nomme l'année de référence et le taux. `help` et `unavailable` ne prennent jamais un
-  littéral (`make lint-front`) ;
+  (`columns.<grille>.<colonne>.help`) ; ou une phrase à paramètres (`helpValues`). `help` et
+  `unavailable` ne prennent jamais un littéral (`make lint-front`) ;
 - **ses touches**, en `<kbd>`, écrites selon le poste — ⌘ sur un Mac, Ctrl ailleurs —, chaque touche
   par son nom du catalogue (`commands.keys`, `commands.macKeys`). Elles n'ont qu'une source : la prop
   `keys`, écrite comme `aria-keyshortcuts` la nomme (`"Control+Z Meta+Z"`), que `CommandTooltip` pose
@@ -2205,10 +2204,9 @@ commandes d'objet passent à `CommandTooltip` avec US-0580/L2 (#1137), et la gar
 contrat), `CellCommand` et `UnavailableCellCommand` prennent le nom (`label`), `help` et la condition qui
 manque (`unavailable`), que `CommandTooltip` pose en `aria-disabled` et en description, sans texte caché
 écrit à la main. L'en-tête d'une colonne porte sa définition de la même façon (`GridColumn.help`, clé
-`<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour la phrase à paramètres du montant
-corrigé de l'inflation, que `estimateGrid` pose d'après l'année de référence de la révision et le taux du
-projet). La garde suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le
-fichier entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
+`<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour une phrase à paramètres). La garde
+suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le fichier
+entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
 est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
 `command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
 axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,

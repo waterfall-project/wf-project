@@ -40,7 +40,6 @@ LineColumn = Literal[
     "base_amount",
     "budgeted_amount",
     "reestimated_amount",
-    "inflated_amount",
     "previous_quantity",
     "previous_hours",
     "previous_unit_disbursement",

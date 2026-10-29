@@ -115,12 +115,6 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
     expect([inPricing?.editable, inPricing?.tasksEditable]).toEqual([true, true]);
   });
 
-  it("hands the grid the year of reference of the revision and the rate of inflation of the project, which its amount corrected of inflation names [WF-IHM-0140-A]", async () => {
-    // The witness: revision of the reference year 2026, project inflated at 3 %.
-    const grid = await estimateFor("me");
-    expect(grid?.inflation).toEqual({ referenceYear: 2026, rate: "0.03" });
-  });
-
   it.each([
     {
       kind: "the amendment 2, a differential",
@@ -241,7 +235,7 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
     expect(page).toContain("By work package Computed on Lot 1 2,019.56 (<0.01%)");
-    expect(page).toContain("Computed on No subproject 65,427,832.64 (100%)");
+    expect(page).toContain("Computed on No subproject 68,238,703.05 (100%)");
   });
 });
 

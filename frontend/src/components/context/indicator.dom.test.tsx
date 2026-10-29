@@ -61,7 +61,7 @@ describe("an indicator", () => {
     const { container } = render(page("indicator.names.physicalProgress", PHYSICAL_PROGRESS));
     expect(screen.getByRole("term")).toHaveTextContent("Avancement physique");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
-      "2,22\u00a0%",
+      "2,12\u00a0%",
       "Calculé le 3 juin 2026, 07:05",
     ]);
     const time = container.querySelector("time");
@@ -81,7 +81,7 @@ describe("an indicator", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.22%"]);
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.12%"]);
   });
 
   it.each([

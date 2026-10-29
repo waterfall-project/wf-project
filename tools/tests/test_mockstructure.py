@@ -174,13 +174,16 @@ def test_a_line_drawn_is_priced_exactly_and_paid_by_its_nature(items: list[Node]
     for node in drawn(lines(items)):
         line = node["estimate_line"]
         assert MONEY.match(line["base_amount"])
-        assert line["base_amount"] == line["reestimated_amount"]
+        # Re-estimated inflation included, on the year of its task (WF-DEV-0020).
+        assert line["reestimated_amount"] == mockstructure.money(
+            mockstructure.inflated(Decimal(line["base_amount"]), line["consumption_year"])
+        )
         if line["hours"] is None:
             expected = Decimal(line["quantity"]) * Decimal(line["unit_disbursement"])
             # The other lines are paid a month after their work, labour as it is worked; their
-            # budget is their amount.
+            # budget is their amount, projected on the year the reference consumed them, theirs.
             assert line["payment_delay_days"] == mockwitness.PAYMENT_DELAY
-            assert line["budgeted_amount"] == line["base_amount"]
+            assert line["budgeted_amount"] == line["reestimated_amount"]
         else:
             assert line["resource_role_id"] is not None
             rate = mockstructure.LABOUR_RATES[line["cost_category_id"]]
@@ -197,7 +200,8 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
 ) -> None:
     # WF-REV-0050, #467: the amendment 1 designated no drawn line, so a labour line keeps in the
     # reference the budget the offer fixed, its hours at the rate of 2025 of its category, and is
-    # re-estimated at the one rate of 2026 — as the two lines of the core the amendment did not
+    # re-estimated at the one rate of 2026 (the offer, projected from 2026 too, is a declared
+    # simplification left to the author, #1628) — as the two lines of the core the amendment did not
     # designate (EP-14/L45a). The offer, read at its marking, gives that very amount.
     offered = {
         row.number: row.amounts.base
@@ -210,17 +214,16 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
         line = node["estimate_line"]
         rate = mockstructure.hourly_rate(mockstructure.LABOUR_RATES[line["cost_category_id"]], 2025)
         budgeted = Decimal(line["quantity"]) * Decimal(line["hours"]) * rate
-        assert Decimal(line["budgeted_amount"]) == budgeted, node["node_id"]
-        assert Decimal(line["budgeted_amount"]) < Decimal(line["base_amount"])
+        year = line["consumption_year"]
+        assert Decimal(line["budgeted_amount"]) == mockstructure.inflated(budgeted, year)
+        assert Decimal(line["budgeted_amount"]) < Decimal(line["reestimated_amount"])
         assert offered[GENERATED + int(node["node_id"].removeprefix(PREFIX + "0001"))] == budgeted
     assert mockstructure.offer_budget(Decimal(10), mockwitness.ELECTRICAL_ENGINEERING) == Decimal(
         "785.00"
     )
 
 
-@pytest.mark.parametrize(
-    "amount", ["base_amount", "budgeted_amount", "reestimated_amount", "inflated_amount"]
-)
+@pytest.mark.parametrize("amount", ["base_amount", "budgeted_amount", "reestimated_amount"])
 def test_a_task_sums_the_lines_under_it_and_the_totals_all_of_them(
     answer: dict[str, Any], items: list[Node], amount: str
 ) -> None:
@@ -348,10 +351,12 @@ def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> N
     for node in lines(items):
         line = node["estimate_line"]
         start = nodes[node["parent_id"]]["task"]["start"]["date"]
-        assert line["consumption_year"] == int(start[:4])
-        assert line["inflated_amount"] == mockstructure.money(
-            mockstructure.inflated(Decimal(line["base_amount"]), line["consumption_year"])
-        )
+        start_year = int(start[:4])
+        assert line["consumption_year"] == start_year
+        base = Decimal(line["base_amount"])
+        # A line of provision is not projected (WF-DEV-0030): the others are, from 2026.
+        projected = base if line["is_computed"] else mockstructure.inflated(base, start_year)
+        assert line["reestimated_amount"] == mockstructure.money(projected)
 
 
 def test_the_one_provision_is_that_of_the_risk_identified(items: list[Node]) -> None:
@@ -393,9 +398,8 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line_count": 5_000,
         "hours": "116270",
         "base_amount": "66105223.89",
-        "budgeted_amount": "65680697.64",
-        "reestimated_amount": "66105223.89",
-        "inflated_amount": "68923691.06",
+        "budgeted_amount": "68491568.05",
+        "reestimated_amount": "68923691.06",
     }
 
     def row(number: int) -> Node:

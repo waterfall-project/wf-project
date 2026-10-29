@@ -1,12 +1,12 @@
 {
-  "summary": "La récapitulative « Installation sur site », non démarrée, supprimée avec ses subordonnées, « Montage des armoires sur site » et « Mise en service », leurs 3 lignes et leurs liaisons : rien à rendre d'elles, aucune autre tâche n'est replanifiée ; les totaux de la structure, 4 997 lignes, 116030 h, 66 086 623,89 à l'année de référence, dont 65 662 397,64 budgétés — le devis diminue de 18 600,00 — ; le compteur de la structure passé à 2 (WF-PLA-0070, WF-DAT-0090).",
+  "summary": "La récapitulative « Installation sur site », non démarrée, supprimée avec ses subordonnées, « Montage des armoires sur site » et « Mise en service », leurs 3 lignes et leurs liaisons : rien à rendre d'elles, aucune autre tâche n'est replanifiée ; les totaux de la structure, 4 997 lignes, 116030 h, 66 086 623,89 à l'année de référence, dont 68 473 268,05 budgétés — le devis diminue de 18 600,00 — ; le compteur de la structure passé à 2 (WF-PLA-0070, WF-DAT-0090).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "nodes": [],
     "ancestors": [],
     "rescheduled": [],
     "reinflated": [],
-    "totals": {"task_count":997,"estimate_line_count":4997,"hours":"116030","base_amount":"66086623.89","budgeted_amount":"65662397.64","reestimated_amount":"66086623.89","inflated_amount":"68905091.06"},
+    "totals": {"task_count":997,"estimate_line_count":4997,"hours":"116030","base_amount":"66086623.89","budgeted_amount":"68473268.05","reestimated_amount":"68905091.06"},
     "structure_lock_version": 2
   }
 }

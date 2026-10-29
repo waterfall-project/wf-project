@@ -110,11 +110,10 @@ def test_a_task_sums_its_lines_and_its_subordinates_and_the_totals_sum_the_lines
         "base_amount": "502434.56",
         "budgeted_amount": "252234.56",
         "reestimated_amount": "502434.56",
-        "inflated_amount": "502434.56",
     }
-    # Read in the reference year, a line is not corrected: its amounts agree (WF-DEV-0030).
+    # Read in the reference year, a line is not projected: its amounts agree (WF-DEV-0030).
     for node in estimate.values():
-        assert facet(node)["inflated_amount"] == facet(node)["base_amount"]
+        assert facet(node)["reestimated_amount"] == facet(node)["base_amount"]
 
 
 def test_the_lines_merged_by_the_occurrence_are_budgeted_nothing_in_the_same_tree(
@@ -138,7 +137,6 @@ def test_the_lines_merged_by_the_occurrence_are_budgeted_nothing_in_the_same_tre
         "base_amount": "200.00",
         "budgeted_amount": "0.00",
         "reestimated_amount": "200.00",
-        "inflated_amount": "200.00",
     }
     assert mockwitness.RISK_752_OCCURRED.on < mockwitness.STUDIES_STARTED.on
 

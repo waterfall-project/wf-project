@@ -35,8 +35,9 @@ from wftools.mockcalendar import (
 from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
     LABOUR_RATES,
+    WITNESS,
     JsonObject,
-    inflated,
+    Projection,
     money,
 )
 from wftools.mockwitness import (
@@ -264,19 +265,21 @@ def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Amounts:
-    """The four amounts of a line or of a task (WF-DEV-0020, WF-DEV-0040)."""
+    """The three amounts of a line or of a task (WF-DEV-0020, WF-DEV-0050).
+
+    The amount at the rates of the reference year, before inflation, a value read; the budgeted
+    and the re-estimated amounts, inflation included, at the year of consumption.
+    """
 
     base: Decimal = Decimal(0)
     budgeted: Decimal = Decimal(0)
     reestimated: Decimal = Decimal(0)
-    inflated: Decimal = Decimal(0)
 
     def __add__(self, other: Amounts) -> Amounts:
         return Amounts(
             self.base + other.base,
             self.budgeted + other.budgeted,
             self.reestimated + other.reestimated,
-            self.inflated + other.inflated,
         )
 
     def rendered(self) -> JsonObject:
@@ -285,7 +288,6 @@ class Amounts:
             "base_amount": money(self.base),
             "budgeted_amount": money(self.budgeted),
             "reestimated_amount": money(self.reestimated),
-            "inflated_amount": money(self.inflated),
         }
 
 
@@ -300,16 +302,26 @@ def payment_delay(line: Line) -> int | None:
     return None if line.is_provision else line.payment_delay_days
 
 
-def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:
+def price(
+    line: Line,
+    year: int,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    *,
+    budget_year: int | None = None,
+    projection: Projection = WITNESS,
+) -> Amounts:
     """Return the amounts of a line: hours at the rate of its category, or its disbursement.
 
-    The amount at the year of reference is the product of the quantity, one, and of the hours
-    by the hourly rate for a labour line, of the quantity and the unit disbursement otherwise
-    (WF-DEV-0030); the budget is what the reference revision gives it, the amount unless the
-    line says otherwise; the re-estimate is the amount; the amount corrected for inflation is
-    the amount projected on the year of consumption (WF-DEV-0040). The hourly rates are those
-    of the reference year of the revision priced, one for each category: by default, the core's,
-    of 2026 (WF-DEV-0020, WF-REV-0060).
+    The amount at the rates of the reference year, before inflation, is the product of the
+    quantity and of the hours by the hourly rate for a labour line, of the quantity and the unit
+    disbursement otherwise (WF-DEV-0030). The re-estimate is that amount projected on the year of
+    consumption, ``year``, compounded once a year elapsed since the reference year; the budget,
+    what the reference revision gives the line — the amount unless the line says otherwise —,
+    projected on the year the reference consumed it, ``budget_year``, that of the line by
+    default (WF-DEV-0020, WF-RAE-0010). A line of provision is not projected: its amount is the
+    one its risk computes, the own estimate of the risk bearing its projection already
+    (WF-DEV-0030, WF-PRJ-0040). The hourly rates are those of the reference year of the revision
+    priced, one for each category: by default, the core's, of 2026 (WF-DEV-0020, WF-REV-0060).
     """
     if line.hours is not None:
         amount = line.quantity * line.hours * rates[line.category]
@@ -319,4 +331,7 @@ def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) ->
         message = f"the line {line.number} has neither hours nor a unit disbursement"
         raise ValueError(message)
     budgeted = amount if line.budgeted is None else line.budgeted
-    return Amounts(amount, budgeted, amount, inflated(amount, year))
+    if line.is_provision:
+        return Amounts(amount, budgeted, amount)
+    on = year if budget_year is None else budget_year
+    return Amounts(amount, projection(budgeted, on), projection(amount, year))

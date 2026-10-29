@@ -3,8 +3,8 @@
 """Tests of the comparison of two revisions read by the window of a subtree, and with `fields`.
 
 They try what a window of the comparison retains and the deltas it counts, and the volume of the
-comparison read whole with the fields of its screen (#1201, #1208), not the Vérif of a
-requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+comparison read whole with the fields of its screen (#1201, #1208); one alone tries a Vérif, the
+two deltas of WF-REV-0080 (US-0701/L1, E-02).
 """
 
 from dataclasses import replace
@@ -14,7 +14,9 @@ from typing import Any, cast
 import pytest
 
 from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
+from wftools.mockdating import Amounts
 from wftools.mockids import universe
+from wftools.mockstructure import money
 from wftools.mockwitness import SCHEDULED_AT, N
 
 type Node = dict[str, Any]
@@ -38,18 +40,28 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _lines_by_id(rows: list[mockcore.Row]) -> dict[str, Node]:
+    """Return the facets of the lines of a reading, by node identifier."""
+    return {
+        cast("str", row.node["node_id"]): cast("Node", row.node["estimate_line"])
+        for row in rows
+        if row.kind == mockcore.ESTIMATE_LINE
+    }
+
+
 def _summed(compared: Node) -> set[Decimal]:
-    """Return the sums of the deltas of a comparison, one by dimension, as a set."""
+    """Return the sums of the deltas of a comparison, by dimension and by amount, as a set."""
     return {
         sum(
             (
-                Decimal(entry["delta"])
+                Decimal(entry[key])
                 for entry in compared["amount_deltas"]
                 if entry["dimension"] == dimension
             ),
             Decimal(0),
         )
         for dimension in ("cost_type", "subproject")
+        for key in ("budgeted_delta", "reestimated_delta")
     }
 
 
@@ -61,9 +73,7 @@ def test_a_line_moved_into_a_subtree_brings_its_whole_delta_and_leaves_none_behi
     rows = mockhistory.reference_rows()
     raised = Decimal(500)
     moved = [
-        replace(
-            row, parent=N.MOUNTING, amounts=replace(row.amounts, base=row.amounts.base + raised)
-        )
+        replace(row, parent=N.MOUNTING, amounts=row.amounts + Amounts(raised, raised, raised))
         if row.number == N.STUDIES_LINE
         else row
         for row in rows
@@ -99,7 +109,64 @@ def test_the_subtree_of_a_removed_task_is_the_one_it_had_with_its_removed_nodes(
     totals = cast("Node", window["totals"])
     assert (totals["task_count"], totals["estimate_line_count"]) == (0, 0)
     [removed] = [row for row in offer if row.number == N.SITE_TRIALS_LINE]
-    assert _summed(window) == {-removed.amounts.base}
+    assert _summed(window) == {-removed.amounts.budgeted, -removed.amounts.reestimated}
+    assert removed.amounts.budgeted == removed.amounts.reestimated
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_a_line_whose_budget_alone_changes_presents_no_delta_of_its_reestimate() -> None:
+    # Vérif : « une ligne existante dont le différentiel ne modifie que le montant budgété ne
+    # présente aucun écart de montant réestimé ». The reference, and the same revision where a
+    # differential gave the laying of the terminal blocks other quantities of reference, its
+    # current ones kept: the line is modified by its budget alone, its nature and its subproject
+    # bear a delta of the budgeted amounts, none of the re-estimated ones.
+    rows = mockhistory.reference_rows()
+
+    def rebudget(row: mockcore.Row) -> mockcore.Row:
+        budgeted = row.amounts.budgeted + 750
+        facet = {**cast("Node", row.node["estimate_line"]), "budgeted_amount": money(budgeted)}
+        node = {**row.node, "estimate_line": facet}
+        return replace(row, node=node, amounts=replace(row.amounts, budgeted=budgeted))
+
+    rebudgeted = [rebudget(row) if row.number == N.LABOUR else row for row in rows]
+    compared = mockcomparisons.comparison(
+        rows, rebudgeted, mockhistory.REFERENCE, mockhistory.REFERENCE
+    )
+    nodes = cast("list[Node]", compared["items"])
+    [line] = [node for node in nodes if node["node_id"] == universe(N.LABOUR)]
+    assert (line["difference"], line["changes"]) == ("modified", ["budgeted_amount"])
+    deltas = cast("list[Node]", compared["amount_deltas"])
+    assert [entry["dimension"] for entry in deltas] == ["cost_type", "subproject"]
+    assert {(entry["budgeted_delta"], entry["reestimated_delta"]) for entry in deltas} == {
+        ("750.00", "0.00")
+    }
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amendment_changes(
+    whole: Node,
+) -> None:
+    # Vérif : « les montants réestimés n'y diffèrent que par les lignes que le différentiel ajoute
+    # ou retire, par celles des tâches démarrées qu'il termine et par celles dont il change l'année
+    # de consommation ; une ligne existante dont le différentiel ne modifie que le montant budgété
+    # ne présente aucun écart de montant réestimé ». From the offer 100 to the reference 101, the
+    # amendment changes the hours of one line alone, and keeps the budget of the others (#467): a
+    # line modified for its re-estimate alone bears the quantities it bore, and moves because its
+    # year of consumption changes or, for labour, because the revision keeps the rates of 2026.
+    offered = _lines_by_id(mockhistory.offer_rows())
+    marked = _lines_by_id(mockhistory.reference_rows())
+    lines = [node for node in whole["items"] if node["kind"] == "estimate_line"]
+    budget_changed = [node for node in lines if "budgeted_amount" in (node.get("changes") or [])]
+    assert [node["node_id"] for node in budget_changed] == [universe(N.LABOUR)]
+    assert budget_changed[0]["changes"] == ["budgeted_amount", "reestimated_amount"]
+    alone = [node for node in lines if node.get("changes") == ["reestimated_amount"]]
+    assert len(alone) == 2_768
+    for node in alone:
+        before, after = offered[node["node_id"]], marked[node["node_id"]]
+        for key in ("quantity", "hours", "unit_disbursement", "budgeted_amount"):
+            assert before[key] == after[key]
+        assert before["consumption_year"] != after["consumption_year"] or after["hours"] is not None
+        assert before["reestimated_amount"] != after["reestimated_amount"]
 
 
 def test_a_reading_with_fields_renders_what_it_names_besides_the_four() -> None:
@@ -163,7 +230,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
     assert "2 770 modifiés par leurs propres valeurs" in summary
-    assert "1 027 251,25 en tout" in summary
+    assert "852 925,00 et 1 034 848,01 en tout" in summary
 
 
 VOLUME_BOUND = 1_500_000

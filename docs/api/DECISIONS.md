@@ -332,6 +332,13 @@ WF-DEV-0040) : calculé, il entre dans `ComputedValueField`, et `inflation` dans
 `ComputedDependency` dit d'où il vient. `budgeted_amount` et `reestimated_amount` restent des
 attributs de la ligne, que la grille de reste à engager lit (WF-RAE-0040).
 
+*Remplacé par US-0701/L1 (#1601) : la spécification a tranché les 10 et 22 octobre 2026 que les
+montants budgété et réestimé sont « inflation comprise, à l'année de consommation de la ligne »
+(WF-DEV-0020, WF-DEV-0050, glossaire), et l'auteur l'a suivie au recadrage du 2026-10-28 (L-01).
+`inflated_amount` disparaît ; la grille de devis lit `base_amount` et `reestimated_amount`, et
+`inflation` dit la projection du budgété et du réestimé (« Les montants inflation comprise », dans
+« Le contrat figé »).*
+
 **Le plan de charge nomme sa base** (`basis` : `reference_budget`, `marked_remaining` avec
 `revision_id`, `current_remaining`, WF-DEV-0070). Sur un projet sans révision de référence,
 seule la révision en cours est une base : les deux autres sont refusées par 409.
@@ -957,10 +964,19 @@ change de clé avec son champ (`reestimated_amount` → `base_amount`) : une lar
 tri gardés sous l'ancienne clé dans les préférences d'affichage ne s'appliquent plus, et la colonne
 revient à son réglage par défaut.
 
+*Remplacé en partie par US-0701/L1 (#1601, spécification des 10 et 22 octobre 2026, recadrage du
+2026-10-28) : `base_amount` reste le montant aux taux de l'année de référence, avant inflation,
+une valeur de lecture ; les montants budgété et réestimé sont inflation comprise, à l'année de
+consommation, et la grille de devis présente `base_amount` et `reestimated_amount`.*
+
 **Le montant corrigé de l'inflation remonte à la tâche et aux totaux** (`TaskFacet.inflated_amount`,
 `NodeTotals.inflated_amount`, `ComputedValueField` `task.inflated_amount`). Une récapitulative et le
 total n'avaient pas de montant corrigé, et la grille montrait une cellule vide ; ils portent la
 somme des montants corrigés de leurs lignes, que le front ne calcule pas.
+
+*Remplacé par US-0701/L1 (#1601, spécification des 10 et 22 octobre 2026, recadrage du
+2026-10-28, L-01) : `inflated_amount` disparaît de la tâche, des totaux et de `ComputedValueField` ;
+leurs `budgeted_amount` et `reestimated_amount`, inflation comprise, le remplacent.*
 
 **Après une écriture qui déplace des nœuds dans le temps, leurs montants corrigés en projection
 légère** (`NodesWritten.reinflated`, `NodeInflation`, exigé ; décisions de l'utilisateur du
@@ -991,6 +1007,12 @@ rôle ne changeait donc le calendrier d'aucune tâche (WF-PLA-0010). Le monteur 
 semaine de quatre jours, le permet depuis EP-02/L20 ; la projection est éprouvée sur l'exemple du
 planning appliqué aux lignes du devis, et le chemin de la grille de devis le sera avec l'écriture
 qui redate (EP-02/L22, « L'univers témoin »).
+
+*Remplacé en partie par US-0701/L1 (#1601, spécification des 10 et 22 octobre 2026, recadrage du
+2026-10-28, L-01) : `NodeInflation` porte `budgeted_amount` et `reestimated_amount`, inflation
+comprise, au lieu d'`inflated_amount` ; le budgété, projeté sur
+l'année où la référence consommait la ligne, ne suit les dates que sur un projet sans révision de
+référence, où il est confondu avec le réestimé (WF-DEV-0050).*
 
 **Les exemples de dépendance d'un montant suivent** : `dependencies_labour` et
 `dependencies_task_amount` disent désormais ce dont dépend le montant à l'année de référence d'une
@@ -1484,6 +1506,13 @@ ventilations et les deux écarts, la description d'`EstimateIndicators` le dit ;
 `NodeTotals.base_amount`, et seul `inflated_amount` de la grille porte l'inflation (#235). Écarté :
 un second total corrigé, à décider le jour où un écran d'indicateurs sans grille le montrerait.
 
+*Remplacé par US-0701/L1 (#1601) : depuis la spécification des 10 et 22 octobre 2026
+(WF-DEV-0020 : les deux montants entrent « à ce titre » au budget de référence et au reste à
+engager) et le recadrage du 2026-10-28 (L-01), les indicateurs de devis et de reste à engager sont
+inflation comprise, à l'année de consommation : `total` vaut `NodeTotals.reestimated_amount`. Le
+motif de #352 tient sur la nouvelle base — les parts somment à cent sur le seul réestimé —, et le
+montant avant inflation n'est plus qu'une valeur de lecture de la grille.*
+
 **Un export nomme sa révision** (#359 ; WF-INTF-0110, WF-INTF-0130). `ExportRequest.revision_id`
 est exigé et non nul ; `requestExport` refuse une révision inconnue ou d'un autre projet par 404, un
 corps sans révision par 422 (`/revision_id`). Écarté : une révision par défaut, qui ferait juger
@@ -1551,6 +1580,9 @@ calculait déjà. Chaque propriété `*variance*` ou `delta*` des schémas porte
 description qui dit son sens, `RiskCoverageTotals.coverage_variance` compris ; un test des outils le
 tient (`test_contract_gaps.py`). La colonne de la liste des projets se nomme « Écart à la référence
 », libellé fixé par l'auteur sur #466 ; les projections gardent « Écart au budget ».
+
+*Remplacé en partie par US-0701/L1 (#1601, E-02, recadrage du 2026-10-28) : `amount_deltas[].delta`
+devient `budgeted_delta` et `reestimated_delta`, dans le même sens.*
 
 **`listNodes` filtre sur la récapitulative, le niveau et la chronologie** (#463 ; WF-PLA-0110,
 WF-PLA-0140). Trois filtres sur une tâche, qui se combinent aux autres : `summaries_only`, les
@@ -1863,7 +1895,7 @@ totaux sont ceux que rendent les écritures du cœur, et les tests de la grille 
 totaux de la structure entière la lisent, plutôt qu'un sous-arbre lu comme s'il était entier.
 
 **Le chemin de la grille de devis par `reinflated` est éprouvé** (C10) :
-`inflation.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
+`reference-amount.dom.test.tsx` rend la grille sur `nodes_installation`, écrit le rôle du câblage sur site,
 et lit dans les cellules de la mise en service et de sa ligne les montants corrigés que la réponse
 porte, leur montant à l'année de référence inchangé, la récapitulative rendue entière.
 
@@ -1979,6 +2011,12 @@ survenance (WF-IND-0030) ; l'écart du reste à engager au budget de référence
 le reste à engager moins le budget, comme l'exemple écrit à la main le faisait. Un sous-projet qui
 dépasse son budget est en alerte, les autres nominaux, et un mois de charge au-delà de la capacité
 de son rôle aussi : WF-IHM-0070 ne fixe aucun seuil intermédiaire pour l'un ni l'autre.
+
+*Remplacé en partie par US-0701/L1 (#1601, M-08) : depuis la spécification du 2026-10-22
+(WF-RAE-0010) et le recadrage du 2026-10-28, une tâche non démarrée ne compte plus son budgété
+projeté, mais le montant réestimé de ses lignes, calculé, faute de réestimation, depuis les
+grandeurs de la référence aux taux conservés par la révision courante, sur son année de
+consommation courante (« Le réestimé d'une ligne non réestimée », dans « Le contrat figé »).*
 
 **Ce que disent les exemples.** `estimate_indicators` : 121 534,56 de devis, dont 500 de
 provision du risque identifié, le poste du lotissement que porte le lot « Poste de commande », et
@@ -2356,6 +2394,10 @@ reste à engager 21 234,56, ces deux tâches non démarrées y comptant leur bud
 (WF-RAE-0010). Un test d'invariant tient le budget de l'offre de toute ligne que l'avenant ne
 désigne pas, un autre l'unicité du taux d'une catégorie dans chaque révision.
 
+*Remplacé en partie par US-0701/L1 (#1601, M-08, WF-RAE-0010 du 2026-10-22, recadrage du
+2026-10-28) : les tâches non démarrées comptent au reste à engager le montant réestimé de leurs lignes, aux taux de 2026 que la
+révision conserve, et non leur budget projeté, aux taux de l'offre.*
+
 **Le reste des points repris** : les risques lus dans 102 citent les structures de 102, à leurs
 identifiants propres, 204 à 206 (`structures`, #461 ; WF-DAT-0030) ; l'évolution des indices
 choisit ses révisions d'après l'état du projet au marquage, lu dans `state_transitions`, et non
@@ -2436,6 +2478,11 @@ d'EP-02/L24, un point par jour où un montant commence ou finit, gardée — ; l
 risques ne change pas (910 face à 500 et 200). Le plan de charge compte 1 465,75 h d'ingénieur
 électricien en juin 2026, dont les 12,5 du cœur ; la ligne du témoin au portefeuille est celle de
 ses indicateurs, et les vues du portefeuille la somment.
+
+*Remplacé en partie par US-0701/L1 (#1601, L-01 et M-08 ; spécification des 10 et 22 octobre 2026,
+recadrage du 2026-10-28) : les montants sont inflation comprise, et
+les tâches non démarrées comptent leur montant réestimé ; le reste à engager, le budget de référence
+et le devis du témoin changent (« Le contrat figé »).*
 
 **Les variantes déclarées.** `cost_curve_subproject_empty` et sa variante aux délais de paiement,
 qui montraient un sous-projet dont aucune ligne ne relève, deviennent des variantes
@@ -8391,6 +8438,103 @@ adoptent sont d'US-0660/L3 et L4.
   au lieu de la clé factice `tasks_imported`.
 
 **Corrélations** 1563 à 1567 ; **collage** 996.
+
+### Les montants inflation comprise (US-0701/L1, #1601, L-01)
+
+La spécification a tranché, les 10 et 22 octobre 2026, que les montants budgété et réestimé d'une
+ligne sont « exprimés inflation comprise, à l'année de consommation de la ligne (WF-DEV-0030,
+WF-DEV-0040) : c'est à ce titre qu'ils entrent au budget de référence, au reste à engager, à la
+valeur planifiée et à la valeur acquise » ; « le montant aux taux de l'année de référence, avant
+inflation, est une valeur de lecture » (WF-DEV-0020, WF-DEV-0050, glossaire). L'auteur l'a suivie
+au recadrage du 2026-10-28 (L-01 de la revue du contrat avant le gel), et réécrit EP-02/L7 (#235),
+EP-02/L16 et EP-02/L30 (#352), plus haut. Écarté : garder #235 et #352 et faire corriger la
+spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en dépendent.
+
+- **Trois montants par ligne, et par tâche et aux totaux.** `base_amount`, aux taux de l'année de
+  référence, avant inflation ; `budgeted_amount` et `reestimated_amount`, inflation comprise.
+  `inflated_amount` disparaît d'`EstimateLineFacet`, de `TaskFacet`, de `NodeTotals`, de
+  `NodeColumn` et de `ComputedValueField` ; `inflation` reste dans `ComputedDependency`, pour la
+  projection du budgété et du réestimé. La grille de devis présente `base_amount` et
+  `reestimated_amount` (WF-DEV-0050), celle de reste à engager le budgété et le réestimé.
+- **Le budgété est projeté sur l'année où la référence consommait la ligne** (WF-RAE-0010 : « le
+  montant budgété de la ligne reporté de l'année de consommation que lui donnait la référence ») :
+  fixé par elle, il ne suit pas les dates de la révision courante. Le réestimé suit l'année de
+  consommation courante. Sur un projet sans révision de référence, les deux sont confondus
+  (WF-DEV-0050). `NodeInflation` porte donc les deux, au lieu du seul montant corrigé.
+- **Une ligne de provision n'est pas projetée** (WF-DEV-0030, WF-PRJ-0040) : son montant est celui
+  que son risque calcule, le devis propre du risque portant déjà sa propre projection. La règle est
+  dite sur la facette de la ligne et sur `ComputedDependency.inflation`.
+- **Les indicateurs.** `EstimateIndicators.total`, ses ventilations et ses écarts sont des montants
+  réestimés, inflation comprise — `total` vaut `NodeTotals.reestimated_amount` — ; le reste à
+  engager et la marge de `RemainingIndicators` aussi, à l'année de consommation courante (le doute
+  de la revue sur « l'année des montants du reste à engager », lié à M-08, est levé ainsi).
+- **Le témoin.** `mockdating.price` projette le budgété et le réestimé ; `mockcore` lit l'année de
+  consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
+  Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
+  simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
+  l'avenant 1 ne désigne pas (#467). Elle est à trancher par l'auteur (#1628) :
+  l'issue en donne les options. Le devis du témoin vaut 68 923 691,06, son budget de référence
+  68 241 568,05 ; la valeur planifiée et la valeur acquise ne bougent pas, les tâches terminées étant
+  de 2026. Le reste à engager, d'abord inchangé, change avec M-08 (« Le réestimé d'une ligne non
+  réestimée », plus bas) : 67 470 132,98 dans l'état final, et le poste de commande, qui ne devait
+  plus être dépassé que de la facture des écrans, 2 400,00, l'est de 64 699,97.
+  `tools/tests/test_mockinflation.py` tient le Vérif de WF-DEV-0050 (4,04 % à 2 %, deux ans après
+  l'année de référence) et celui de la provision de WF-DEV-0030.
+- **Les préférences d'affichage** : une colonne gardée sous `inflated_amount` ne s'applique plus, et
+  revient à son réglage par défaut, comme au changement de clé d'EP-02/L16 ; `me_grid_settings`
+  connaît désormais `reestimated_amount`.
+
+### Les deux écarts de la comparaison (US-0701/L1, #1601, E-02)
+
+WF-REV-0080 présente « les écarts de montants budgétés et de montants réestimés, par nature de coût
+et par sous-projet », et son Vérif les distingue : « une ligne existante dont le différentiel ne
+modifie que le montant budgété ne présente aucun écart de montant réestimé ». Le contrat n'en
+portait qu'un, `delta`, d'une troisième grandeur, le montant à l'année de référence.
+`RevisionComparison.amount_deltas[]` porte désormais `budgeted_delta` et `reestimated_delta`,
+exigés, inflation comprise (« Les montants inflation comprise », ci-dessus), dans le sens d'EP-02/L35
+(la révision comparée moins la révision de base) ; `delta` disparaît. Écarté : le garder sous le nom
+de `base_delta`, l'écart du montant avant inflation — aucune grille ne le présente, et l'écran de la
+comparaison lit les deux écarts que la spécification nomme. Une clé dont les deux écarts sont nuls
+reste omise. `mockcomparisons` les calcule sur le budgété et le réestimé des lignes retenues ;
+`comparison*.json` et `volume/comparison_volume.json` sont régénérés, et
+`test_mockcomparison.py` tient le Vérif sur une révision dont un différentiel ne change que le
+budget d'une ligne.
+
+### Le réestimé d'une ligne non réestimée (US-0701/L1, #1601, M-08)
+
+WF-RAE-0010, réécrite le 2026-10-22, compte au reste à engager une tâche non démarrée pour « le
+montant réestimé de ses lignes, qui, faute de réestimation, se calcule depuis les grandeurs de la
+référence, aux taux conservés par la révision courante (WF-REV-0060) et sur son année de
+consommation courante » ; « à taux horaires inchangés, c'est le montant budgété de la ligne reporté
+de l'année de consommation que lui donnait la référence sur son année de consommation courante ».
+Le contrat ne disait rien de la valeur de `reestimated_amount` d'une ligne jamais réestimée, et deux
+décisions d'EP-02 disaient l'ancienne règle, « le budgété projeté d'une tâche non démarrée »
+(EP-02/L24, EP-02/L27, EP-14/L45a, réécrites plus haut). La proposition de la revue s'applique
+(décision de l'auteur du 2026-10-28, « la règle des autres majeurs ») :
+
+- **`EstimateLineFacet.reestimated_amount`** est celui de la dernière réestimation (WF-RAE-0040) ;
+  pour une ligne jamais réestimée, il est calculé depuis ses grandeurs courantes — celles de la
+  référence, ou de l'avenant dont la fusion les a changées (WF-REV-0050) — aux taux conservés par la
+  révision, sur son année de consommation courante. Le reste à engager compte ce montant pour toute
+  ligne d'une tâche non terminée (`RemainingIndicators`).
+- **Pas de booléen `is_reestimated`.** La revue le proposait « à trancher », pour que la grille
+  distingue une ligne réestimée et que l'avenant sache quelles lignes recalculer. La spécification
+  ne le rend pas nécessaire au contrat : WF-RAE-0010 compte le même montant réestimé dans les deux
+  cas, seule sa source change, et c'est le serveur qui la connaît ; WF-RAE-0040 présente à chaque
+  ligne ses grandeurs et son montant réestimé, précédents et courants, sans distinguer une ligne
+  réestimée d'une autre ; et la fusion d'un avenant (WF-REV-0050), qui ne donne ses grandeurs qu'à
+  la ligne « que personne n'a réestimée », est une écriture du serveur, dont le compte rendu
+  présente les lignes modifiées sans cet état. Ajouter le champ plus tard ne romprait aucun client.
+- **L'année des montants** : le reste à engager est inflation comprise, à l'année de consommation
+  courante de chaque ligne, comme le réestimé qu'il somme (L-01, ci-dessus) — le doute de la revue
+  est levé sans second total.
+- **Le témoin.** `mockindicators.remaining_of` compte le réestimé de toute ligne d'une tâche non
+  terminée, la provision d'un risque identifié pour son montant, et rien pour une tâche terminée.
+  Les lignes de main-d'œuvre tirées des tâches non démarrées, que l'avenant 1 ne désigne pas,
+  gardent le budget de l'offre, aux taux de 2025, et comptent désormais leurs heures aux taux de
+  2026 que la révision conserve : le reste à engager du témoin passe de 67 293 028,72 à
+  67 470 132,98, sa marge sur le budget de référence à -641 535,13, et le poste de commande dépasse
+  son budget de 64 699,97. `test_mockinflation.py` tient le Vérif de WF-RAE-0010 sur elles.
 
 ## Collage et annulation
 

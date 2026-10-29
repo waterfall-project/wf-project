@@ -629,11 +629,11 @@ def volumes() -> dict[str, JsonObject]:
             f"{mocktext.count(mockwrites.LENGTHENED_BY)} jours ouvrés dans la structure du témoin "
             "aux volumes du §4.6.2 : la tâche finit le 31 décembre 2026, dans sa marge, et "
             "« Reprise 2.1.30 », qui la suit, glisse au premier jour ouvré de 2027 ; ses lignes "
-            "sont consommées un an plus tard, leur montant corrigé de l'inflation et le sien "
-            "changent (reinflated), sa marge et celle des tâches de sa chaîne diminuent "
-            "(rescheduled), les récapitulatives au-dessus et les "
-            "totaux sont recalculés, le montant à l'année de référence inchangé (WF-PLA-0020, "
-            "WF-DEV-0040, WF-DEV-0050).",
+            "sont consommées un an plus tard, leur montant réestimé, inflation comprise, et le "
+            "sien changent (reinflated), sa marge et celle des tâches de sa chaîne diminuent "
+            "(rescheduled), les récapitulatives au-dessus et les totaux sont recalculés ; le "
+            "budgété, projeté sur l'année où la référence consommait les lignes, et le montant "
+            "aux taux de l'année de référence inchangés (WF-PLA-0020, WF-DEV-0020, WF-DEV-0040).",
             mockwrites.task_lengthened(),
         ),
         "estimate_indicators_volume.json": _example(

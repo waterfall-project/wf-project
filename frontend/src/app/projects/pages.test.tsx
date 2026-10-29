@@ -319,7 +319,7 @@ describe("the witness path", () => {
   it("asks the server for the sort, the search and the filtered sub-project the address holds, by the parameters of the contract", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
@@ -328,13 +328,13 @@ describe("the witness path", () => {
       inEnglish(await EstimatePage({ params, searchParams: search })),
     );
     expect(nodesQuery()).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
     });
     expect(html).toMatch(
-      /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount corrected for inflation/,
+      /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount \(reference year\)/,
     );
     // The grid reads its totals anew by the same filters, as they were sent.
     expect(grids.estimate[0]?.filters).toEqual({ search: "revue", subproject_id: "unassigned" });
@@ -364,8 +364,8 @@ describe("the witness path", () => {
     const { html } = await estimateWith({
       [NODES_READ]: "nodes_estimate",
     });
-    // The hours, the amount at the year of reference and the one corrected for inflation.
-    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
+    // The hours, the amount at the year of reference before inflation.
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
@@ -708,7 +708,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).

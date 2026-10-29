@@ -378,8 +378,10 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     return {
         "remaining_indicators": (
             f"Le reste à engager de la révision courante au {_TODAY}, sur toute la structure de "
-            f"mille tâches : {_money(left['total'])} — les tâches non démarrées à leur montant "
-            f"budgété projeté sur leur année de consommation, les tâches démarrées, le câblage des "
+            f"mille tâches : {_money(left['total'])}, inflation comprise — les tâches non "
+            f"démarrées à leur montant réestimé, calculé faute de réestimation depuis les "
+            f"grandeurs de la référence, aux taux de 2026 que la révision conserve et sur leur "
+            f"année de consommation courante, les tâches démarrées, le câblage des "
             f"armoires parmi elles, à leur montant réestimé, les tâches terminées pour rien, les "
             f"lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la "
             f"provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le "
