@@ -238,9 +238,11 @@ CommandCondition:
     déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la
     condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se
     ranger ; `createRisk` la nomme dans son 409, après les conditions d'état de la saisie des
-    risques, `project_not_terminal` puis `no_background_task_running`, et avant
-    `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans
-    révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks`
+    risques, `project_not_terminal` — nommée par le seul 409, un projet terminal ne listant aucune
+    commande — puis `no_background_task_running`, et avant `active_provision_category`. La
+    commande `declare_risk` de la révision, ou du projet sans révision en cours, dit d'avance, dans
+    cet ordre sur un état non terminal, `no_background_task_running`, `at_least_one_task` et
+    `active_provision_category`, puis les autres conditions d'`edit_risks`
     (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié
     sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category`
     (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
@@ -493,9 +495,10 @@ ProjectCommand:
     est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
     suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
     même ordre : celles de l'état d'abord, `project_not_terminal` — que seul le 409 nomme, un
-    projet terminal ne listant aucune commande — puis `no_background_task_running`, puis `at_least_one_task` et `active_provision_category`, puis
-    `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
-    marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
+    projet terminal ne listant aucune commande — puis `no_background_task_running`, puis
+    `at_least_one_task` et `active_provision_category`, puis `may_create_revision`. La révision
+    que la déclaration créerait copie la dernière révision marquée, et n'a aucune tâche si le
+    projet n'a aucune révision marquée, `at_least_one_task`
     manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
     `generate_skeleton` dit d'avance, tant que le projet n'a pas de révision en cours, si le
     squelette de planning s'engendrerait sur la révision que l'on ouvrirait (WF-PRJ-0030,

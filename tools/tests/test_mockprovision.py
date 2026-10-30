@@ -465,8 +465,11 @@ def test_the_declaration_names_the_state_of_the_entry_before_its_own_conditions(
     assert _in_order(told, [name for name in STATE_FIRST if name != "at_least_one_task"])
     assert told.index("`no_background_task_running`, et avant `active_provision_category`") > 0
     refused = _flat(_block("createRisk", "409"))
-    first = " puis ".join(f"`{name}`," for name in STATE_FIRST).rstrip(",")
+    # On a terminal project the command is not listed and the 409 names `project_not_terminal`
+    # (US-0702/L3); the order of the commands listed holds for the other states.
+    first = " puis ".join(f"`{name}`," for name in STATE_FIRST[1:]).rstrip(",")
     assert f"nomme la première qui manque : {first}" in refused
+    assert "`project_not_terminal`" in refused.split("nomme la première qui manque")[1]
     assert "de la révision en cours, ou de celle que la déclaration créerait" in refused
     # The examples name the conditions in that order, `project_not_terminal` first on a terminal
     # project; those of the entry of the risks alone, where the structure is not judged.

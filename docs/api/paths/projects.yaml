@@ -395,8 +395,9 @@
           `params.missing_condition` la première condition qui lui manque, dans l'ordre où la
           commande de la sortie (`complete`, `lose`, `abandon`) les nomme — `project_not_terminal`
           pour toute sortie d'un projet terminal, d'où aucune transition ne part (WF-CYC-0080),
-          que la commande y soit listée ou non ; puis `project_in_progress` pour `completed`
-          avant En cours, `project_in_pricing` pour `lost` hors de Chiffrage, Créé comme En cours
+          et où la commande n'est jamais listée : seul ce 409 la nomme ; puis
+          `project_in_progress` pour `completed` avant En cours, `project_in_pricing`
+          pour `lost` hors de Chiffrage, Créé comme En cours
           (WF-CYC-0060) ; puis `no_background_task_running` pendant un traitement de fond qui
           écrit dans la révision en cours ou la fige. Ou un nom de version déjà employé par une
           révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields`

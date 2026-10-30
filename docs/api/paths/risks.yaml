@@ -103,19 +103,22 @@
       '409':
         description: >-
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque.
-          Le projet est terminal, `project_not_terminal` (WF-CYC-0100), ou un traitement de fond
-          court sur la révision en cours, `no_background_task_running` : les conditions d'état de
-          la saisie des risques. Ou la structure principale de la révision en cours, ou de celle
+          Le projet est terminal, `project_not_terminal` (WF-CYC-0100) — il ne liste alors aucune
+          commande, et ce 409 est le seul endroit où la condition est nommée —, ou un traitement
+          de fond court sur la révision en cours, `no_background_task_running` : les conditions
+          d'état de la saisie des risques. Ou la structure principale de la révision en
+          cours, ou de celle
           que la déclaration créerait, ne comporte aucune tâche : « La déclaration d'un risque
           sur une structure principale sans tâche est refusée, en nommant la condition
           manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se ranger ;
           `at_least_one_task` (EP-14/L42s). Ou aucune catégorie de coût active n'est de type
           provision pour risques : la provision n'a pas de catégorie où se ranger (WF-RIS-0010) ;
           `active_provision_category`, que la création d'un projet exige aussi (WF-CYC-0120). Les
-          conditions se jugent dans l'ordre où la commande `declare_risk` les liste, et le refus
-          nomme la première qui manque : `project_not_terminal`, puis
-          `no_background_task_running`, puis `at_least_one_task`, puis
-          `active_provision_category`. Ce 409 précède le 422 : sans tâche ni catégorie active,
+          conditions se jugent dans l'ordre où la commande `declare_risk` les liste sur un état non
+          terminal, et le refus nomme la première qui manque : `no_background_task_running`, puis
+          `at_least_one_task`, puis `active_provision_category` ; sur un projet terminal, où la
+          commande n'est pas listée, il nomme `project_not_terminal`. Ce 409 précède le
+          422 : sans tâche ni catégorie active,
           aucune désignation ne serait valable, et les champs ne sont pas jugés. Rien n'est
           écrit.
         content:
@@ -219,9 +222,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
-          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
-          (`createRisk`) ;
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
+          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
+          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
+          la déclaration (`createRisk`) ;
           puis à `risk_not_occurred` pour un risque survenu, que la commande `update` dit
           indisponible ; sinon à `risk_identified`
           pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un
@@ -286,9 +290,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
-          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
-          (`createRisk`) ;
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
+          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
+          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
+          la déclaration (`createRisk`) ;
           puis à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et
           sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se
           supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred`
@@ -379,9 +384,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
-          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
-          (`createRisk`).
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
+          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
+          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
+          la déclaration (`createRisk`).
           Puis le risque est survenu : aucune transition n'en part (WF-RIS-0020),
           `params.missing_condition` à `risk_not_occurred`. Ou un
           risque écarté qui redeviendrait identifié sur une structure principale qui ne comporte
@@ -527,8 +533,9 @@
           L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
           première condition qui manque, celles du projet d'abord, dans l'ordre où sa commande
           `declare_risk_occurrence` les nomme — `project_not_terminal` sur un projet terminal,
-          qui ne la liste plus (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas de révision de
-          référence (WF-RIS-0060), `no_background_task_running` pendant un traitement de fond qui
+          qui ne la liste plus (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas
+          de révision de référence (WF-RIS-0060), `no_background_task_running` pendant
+          un traitement de fond qui
           écrit dans la révision en cours ou la crée —, puis celles du risque, dans l'ordre où sa
           commande `declare_occurrence` les nomme — `risk_identified` pour un risque survenu ou
           écarté, seul un risque identifié survenant (WF-RIS-0020), comme au compte rendu, puis

@@ -540,25 +540,45 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     assert unlisted == [{**each, "available_commands": None} for each in fixture("subprojects")]
 
 
-def test_a_terminal_project_lists_no_command_and_refuses_a_write_by_its_condition() -> None:
+def test_a_terminal_project_lists_no_command_and_refuses_a_write_by_its_condition(
+    examples: dict[str, Any],
+) -> None:
     # A terminal project lists no command, not even unavailable (decision of the author of the
-    # 2026-10-30, #1657, US-0702/L3): none will ever become available (WF-CYC-0080), and
-    # WF-IHM-0090 presents unavailable only what a state makes impossible « momentanément ». A call
-    # sent all the same is refused by 409, `project_not_terminal` (US-0702/L1). The contract says
-    # it where the rule of L42a lives.
+    # 2026-10-30, #1657, US-0702/L3): none will ever become available (WF-CYC-0080). A call sent
+    # all the same is refused by 409, `project_not_terminal` (US-0702/L1): the one place where
+    # that condition is named.
     completed = fixture("project_completed")
     assert completed["state"] in TERMINAL
     assert completed["current_revision_id"] is None
-    assert completed["available_commands"] == []
+    terminal = [
+        (name, project)
+        for name, listed in _projects(examples).items()
+        for project in listed
+        if project["state"] in TERMINAL
+    ]
+    assert "project_completed" in {name for name, _ in terminal}
+    for name, project in terminal:
+        assert project["available_commands"] == [], name
+    assert _subprojects(CLOSED)
+    for subproject in _subprojects(CLOSED):
+        assert _commands(subproject) == [], subproject["code"]
     for name in ("timeline_create_terminal", "project_exit_terminal", "actual_cost_scope_terminal"):
         assert fixture(name)["params"] == {"missing_condition": NOT_TERMINAL}, name
-    conventions = " ".join((API / "README.md").read_text(encoding="utf-8").split())
-    assert "Un projet terminal, lui, ne liste aucune commande" in conventions
-    told = " ".join((SCHEMAS / "projects.yaml").read_text(encoding="utf-8").split())
-    assert "Un projet terminal — Terminé, Perdu ou Abandonné — n'en liste aucune" in told
     assert NOT_TERMINAL in enumeration(
         (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
     )
+
+
+def test_no_command_an_example_lists_names_project_not_terminal(examples: dict[str, Any]) -> None:
+    listed = [
+        (name, entry["command"], entry["missing_conditions"])
+        for name, example in examples.items()
+        for found in _walk(example["value"])
+        for entry in cast("list[Entry]", found.get("available_commands") or [])
+    ]
+    assert listed
+    for name, command, missing in listed:
+        assert NOT_TERMINAL not in missing, (name, command)
 
 
 def test_the_citation_by_a_marked_revision_is_a_condition_of_the_catalogue() -> None:
