@@ -34,7 +34,11 @@
     description: >-
       Les réglages que tout projet hérite de l'installation (WF-REF-0140, WF-REF-0160,
       WF-REF-0170, WF-REF-0180), et le nom de l'entreprise utilisatrice, que portent les fichiers
-      exportés (WF-EXP-0020).
+      exportés (WF-EXP-0020). Lus par toute session ouverte, sans permission : la devise
+      accompagne chaque montant affiché (WF-REF-0140) et la langue par défaut sert à tout écran ;
+      les bornes, les seuils et le délai qualifient ce que tout lecteur de projet voit
+      (WF-REF-0160 à WF-REF-0180). Seule l'écriture relève des permissions de ses fonctions,
+      champ par champ (`updateReferenceSettings`).
     responses:
       '200':
         description: >-
@@ -46,7 +50,6 @@
             examples:
               witness: { $ref: ../../../fixtures/api/reference_settings.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateReferenceSettings
@@ -211,6 +214,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              bounds_inverted: { $ref: ../../../fixtures/api/org_nodes_bounds_inverted.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createOrgNode
@@ -652,7 +657,8 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
-          `/label` vides ou trop longs ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
+          `/label` vides ou trop longs ; un nœud envoyé autre que celui du rôle, `/org_node_id` par
+          `FIELD_READ_ONLY` — renvoyé inchangé, il ne l'est pas (WF-REF-0090) ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
           `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une
           catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle
           garde ne l'est jamais, aucune catégorie à laquelle un rôle est rattaché ne quittant la
@@ -1070,6 +1076,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              without_hours: { $ref: ../../../fixtures/api/calendar_default_without_hours.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}/activation:
@@ -1292,6 +1300,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               kind_frozen: { $ref: ../../../fixtures/api/cost_type_kind_refused.json }
+              code_taken: { $ref: ../../../fixtures/api/cost_type_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -1355,6 +1364,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_type_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1462,7 +1473,8 @@
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus : un code, un libellé ou un code
           comptable vides, `/code`, `/label` ou `/accounting_code` par `VALUE_REQUIRED`, ou plus
-          longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; une nature absente ou nulle — une
+          longs que le schéma ne l'admet, par `VALUE_TOO_LONG`, ou faits seulement de blancs, par
+          le motif `VALIDATION_FAILED` au même pointeur ; une nature absente ou nulle — une
           catégorie sans nature (WF-REF-0040) —, `/cost_type_id` par `VALUE_REQUIRED` ; une nature
           que le référentiel n'a pas, `/cost_type_id` par `UNKNOWN_COST_TYPE` ; une nature désactivée, qui n'est plus
           proposée à la saisie, `/cost_type_id` par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010).
@@ -1536,8 +1548,9 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code`,
-          `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, ou trop longs, par
-          `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie
+          `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, trop longs, par
+          `VALUE_TOO_LONG`, ou faits seulement de blancs, par le motif `VALIDATION_FAILED` ;
+          `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie
           ne reste pas sans nature (WF-REF-0040) —, inconnue, par `UNKNOWN_COST_TYPE`, ou par
           `INACTIVE_REFERENCE_OBJECT` quand la modification change la catégorie de nature pour une
           nature désactivée (WF-REF-0010). Rien n'est écrit.
@@ -1607,6 +1620,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_category_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1705,7 +1720,11 @@
     operationId: listHourlyRates
     tags: [reference]
     summary: Taux horaires annuels d'une catégorie
-    description: Au plus un taux par année (WF-REF-0050). Le taux de l'année en cours est exigé au chiffrage (WF-REF-0060).
+    description: >-
+      Les taux d'une catégorie, au plus un par année (WF-REF-0050) : la liste creuse que
+      `getHourlyRateGrid` présente en grille. Le chiffrage n'emploie que le taux de l'année de
+      référence du projet (WF-DEV-0010, `getMissingRates`) ; une année s'ajoute par son premier
+      taux (`setHourlyRate`, WF-REF-0060).
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
     responses:
@@ -1858,6 +1877,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              permission_missing: { $ref: ../../../fixtures/api/actual_cost_mapping_permission_missing.json }
       '412':
         description: >-
           La correspondance a été modifiée depuis sa lecture : `STALE_LOCK_VERSION`,

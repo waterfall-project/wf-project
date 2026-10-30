@@ -2,16 +2,29 @@
 
 SystemStatus:
   type: object
-  required: [version, components, storage, last_backup_copy, alerts]
+  required:
+    - version
+    - components
+    - storage
+    - operating_parameters
+    - last_identity_sync
+    - last_backup
+    - last_backup_copy
+    - last_restore_test
+    - alerts
   description: >-
-    Écran d'état, accessible sans qu'aucun projet ne soit ouvert. Il ne présente
-    que des valeurs issues des métriques (WF-ADM-0130, WF-OBS-0010).
+    Écran d'état, accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130). Les
+    disponibilités, espaces, taux et âges viennent des métriques (`getMetrics`) ; les dates et
+    résultats des dernières lecture des comptes, sauvegarde et test de restauration sont lus
+    dans la base (WF-OBS-0010) ; les paramètres d'exploitation, dans la configuration du
+    déploiement (§4.5.1).
   properties:
     version: { type: string }
     components:
       type: array
       items: { $ref: '#/ComponentHealth' }
     storage: { $ref: '#/StorageUsage' }
+    operating_parameters: { $ref: '#/OperatingParameters' }
     last_identity_sync:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
@@ -19,6 +32,9 @@ SystemStatus:
         (WF-ADM-0070, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu.
     last_backup:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
+      description: >-
+        Date et résultat de la dernière sauvegarde (WF-ADM-0150, WF-ADM-0130). Nulle tant
+        qu'aucune n'a eu lieu.
     last_backup_copy:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
       description: >-
@@ -30,10 +46,73 @@ SystemStatus:
         nommant pas les refus d'un emplacement.
     last_restore_test:
       anyOf: [{ $ref: '#/OperationOutcome' }, { type: 'null' }]
-      description: Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130).
+      description: >-
+        Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130). Nulle tant
+        qu'aucun n'a eu lieu.
     alerts:
       type: array
       items: { $ref: '#/Alert' }
+
+OperatingParameters:
+  type: object
+  required:
+    - cache_validity_seconds
+    - background_task_retention_days
+    - avatar_max_bytes
+    - task_queue_age_threshold_seconds
+    - storage_usage_threshold
+    - error_rate_threshold
+    - error_rate_window_seconds
+  description: >-
+    Les valeurs en vigueur des paramètres d'exploitation (§4.5.1, WF-ADM-0130) : fixées par
+    l'exploitant au déploiement, dans les valeurs du chart ou du fichier Compose (WF-ARC-0050),
+    hors du référentiel et de l'interface — aucune opération ne les écrit. Un champ par paramètre
+    que la spécification cite avec sa valeur livrée, dite dans sa description ; une durée en
+    secondes, un taux en décimal de 0 à 1, comme `Percent`. Le front les présente dans la langue
+    du lecteur (WF-ARC-0110).
+  properties:
+    cache_validity_seconds:
+      type: integer
+      minimum: 1
+      description: >-
+        La durée de validité d'une entrée du cache des indicateurs, qui borne chaque entrée en
+        plus de son invalidation par écriture (WF-DAT-0130) ; livrée à dix minutes, `600`. La
+        Vérif de WF-ADM-0130 la nomme.
+    background_task_retention_days:
+      type: integer
+      minimum: 1
+      description: >-
+        La rétention du résultat d'une tâche de fond, au terme de laquelle la tâche se supprime
+        (§4.4.1) ; livrée à trente jours, `30`. Le fichier d'un export disparaît pour sa part au
+        terme de vingt-quatre heures (WF-DAT-0120), qui n'est pas un paramètre.
+    avatar_max_bytes:
+      type: integer
+      minimum: 1
+      description: >-
+        La taille la plus grande d'un avatar, en octets (§4.4.1) ; livrée à 512 Ko, `524288`.
+        La même valeur que `Installation.avatar_max_bytes`, que le front lit sans session.
+    task_queue_age_threshold_seconds:
+      type: integer
+      minimum: 1
+      description: >-
+        L'attente de la plus ancienne tâche en file au-delà de laquelle l'alerte
+        `task_queue_stalled` se déclenche (WF-OBS-0030) ; livrée à quinze minutes, `900`.
+    storage_usage_threshold:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        Le taux d'occupation de l'espace de stockage au-delà duquel l'alerte
+        `storage_nearly_full` se déclenche (WF-OBS-0030) ; livré à 85 %, `0.85`.
+    error_rate_threshold:
+      allOf: [{ $ref: ../common.yaml#/Percent }]
+      description: >-
+        Le taux d'erreur des requêtes au-delà duquel l'alerte `error_rate_abnormal` se déclenche,
+        mesuré sur la fenêtre `error_rate_window_seconds` (WF-OBS-0030) ; livré à 5 %, `0.05`.
+    error_rate_window_seconds:
+      type: integer
+      minimum: 1
+      description: >-
+        La fenêtre sur laquelle le taux d'erreur se mesure, part du troisième seuil de
+        WF-OBS-0030 (« 5 % sur cinq minutes ») ; livrée à cinq minutes, `300`.
 
 ComponentHealth:
   type: object
@@ -227,8 +306,13 @@ BackupRetain:
 
 BackupSchedule:
   type: object
-  required: [is_enabled, retained_count, lock_version]
-  description: Planification et rétention des sauvegardes (WF-ADM-0170).
+  required: [is_enabled, frequency, at_time, weekday, retained_count, lock_version]
+  description: >-
+    Planification et rétention des sauvegardes, à une fréquence et une heure choisies par un
+    utilisateur habilité (WF-ADM-0170). Livrée activée, quotidienne, à `01:00` UTC, sept
+    sauvegardes conservées, sans copie externe (WF-ADM-0170, WF-EXP-0050) : une installation
+    neuve est sauvegardée chaque jour sans qu'aucune planification ait été saisie, et
+    `getBackupSchedule` ne répond jamais 404 faute d'en avoir une.
   properties:
     is_enabled: { type: boolean }
     frequency:
@@ -248,15 +332,19 @@ BackupSchedule:
         dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une
         sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif
         `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la
-        seule borne franchie.
+        seule borne franchie. Nul pour une planification hebdomadaire, refusé par le motif
+        `VALUE_REQUIRED` sur `/weekday` ; donné à une quotidienne, par le motif
+        `VALIDATION_FAILED` sur `/weekday`.
     retained_count:
       type: integer
       minimum: 1
       maximum: 365
       description: >-
-        Le nombre de sauvegardes planifiées gardées sur la plateforme, de 1 à 365 : hors de ces
-        bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur
-        `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.
+        Le nombre de sauvegardes conservées sur la plateforme, manuelles ou planifiées, celles
+        qui sont marquées à conserver exceptées, de 1 à 365 : au-delà, la plus ancienne
+        sauvegarde non marquée est supprimée (WF-ADM-0170). Hors de ces bornes, refusé par 422
+        `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`,
+        `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.
     external_copy:
       allOf: [{ $ref: '#/BackupExternalCopy' }]
       description: >-
@@ -408,7 +496,10 @@ RestoreRequest:
     caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et
     son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se
     restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune
-    sauvegarde ni restauration en cours.
+    sauvegarde ni restauration en cours. Elle désigne une sauvegarde et une seule : les deux à
+    la fois, ou aucune, est refusé par 422 `VALIDATION_FAILED` : deux, `fields` désignant
+    `/external_backup_upload_id` par le motif `VALIDATION_FAILED` ; aucune, `/backup_id` par
+    `VALUE_REQUIRED`.
   properties:
     backup_id: { $ref: ../common.yaml#/Uuid }
     external_backup_upload_id:
@@ -429,15 +520,53 @@ RestoreRequest:
     confirmed:
       type: boolean
       const: true
+      description: >-
+        La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée
+        par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et
+        rien n'est mis en file (WF-ADM-0160).
+
+IdentitySyncSchedule:
+  type: object
+  required: [is_enabled, frequency, at_time, weekday, lock_version]
+  description: >-
+    La périodicité de la lecture des comptes du fournisseur d'identité, choisie par un
+    utilisateur habilité, comme celle des sauvegardes (`BackupSchedule`, WF-ADM-0070,
+    WF-ADM-0170). Livrée activée, quotidienne, à `01:30` UTC, une demi-heure après la
+    sauvegarde livrée : une personne ajoutée à l'annuaire a un compte au terme de la
+    périodicité, sans que personne l'ait saisie, et `getIdentitySyncSchedule` ne répond jamais
+    404 faute d'en avoir une. La lecture planifiée se fait comme celle que l'on demande
+    (`startIdentitySync`), par la plateforme, et son échec est une alerte de l'écran d'état
+    (`identity_sync_failed`, WF-OBS-0030).
+  properties:
+    is_enabled:
+      type: boolean
+      description: Faux, aucune lecture n'est faite d'elle-même ; la lecture à la demande reste.
+    frequency:
+      type: string
+      enum: [daily, weekly]
+    at_time:
+      type: string
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      description: >-
+        Heure de la lecture, en temps universel (UTC), comme celle des sauvegardes
+        (`BackupSchedule.at_time`).
+    weekday:
+      anyOf: [{ type: integer, minimum: 1, maximum: 7 }, { type: 'null' }]
+      description: >-
+        Jour d'une lecture hebdomadaire, numéroté comme ISO 8601, 1 le lundi, 7 le dimanche, en
+        temps universel ; nul pour une lecture quotidienne. Refusé comme celui des sauvegardes :
+        hors de 1 à 7, par le motif `VALUE_OUT_OF_RANGE` sur `/weekday` ; nul pour une
+        hebdomadaire, par `VALUE_REQUIRED` ; donné à une quotidienne, par `VALIDATION_FAILED`.
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 IdentitySyncReport:
   type: object
   required: [task_id, finished_at, created, updated, deactivated, restored, skipped, removed]
   description: >-
     Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou
-    la lecture que la plateforme planifie). Les comptes créés dans Waterfall ne sont pas
-    modifiés : c'est dans le fournisseur que la lecture rétablit leur identité. Un compte que
-    WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). Un compte
+    la lecture que la plateforme planifie, `IdentitySyncSchedule`). Les comptes créés dans
+    Waterfall ne sont pas modifiés : c'est dans le fournisseur que la lecture rétablit leur
+    identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). Un compte
     de Waterfall n'y est désigné que par son identifiant, son nom étant lu à la consultation :
     le compte rendu ne garde aucune donnée personnelle d'un compte (WF-ADM-0060, #920).
   properties:

@@ -337,6 +337,7 @@ _KEYS = {
         "corrélations",
         "corrélations, suite",
         "corrélations, seconde suite",
+        "corrélations, troisième suite",
         "corrélations engendrées",
     ),
     "conflicting_object_id": (

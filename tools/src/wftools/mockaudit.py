@@ -27,7 +27,8 @@ written from the one journal: the whole of it, the latest first; its second page
 journal of the witness; that journal after its exit, after the estimate imported this morning
 is applied, and after its revision in progress is abandoned; a filter that retains nothing; the
 journal sorted by author; the inscriptions of one correlation; a search on the label of the
-object; and, a variant of its own, the administration of the accounts and the roles of today (#961).
+object; the journal of the witness as its auditor reads it, who may open no project; and, a
+variant of its own, the administration of the accounts and the roles of today (#961).
 The answer of ``listAuditFacets`` is read from the same journal: its authors and its projects
 (#550). Nothing here reads the clock.
 """
@@ -197,6 +198,7 @@ def _witness() -> list[Inscription]:
                 "import",
                 exchange["import_id"],
                 exchange["filename"],
+                params={"import_kind": exchange["kind"]},
             )
         )
     found.extend(
@@ -373,7 +375,11 @@ def inscriptions() -> list[Inscription]:
 
 
 def exit_today() -> Inscription:
-    """Return the exit of the witness from its lifecycle, confirmed today (`project_completed`)."""
+    """Return the exit of the witness from its lifecycle, confirmed today (`project_completed`).
+
+    It says the terminal state reached, the one the project reads, and its reason, none being
+    given to the confirmation of the example (B-02).
+    """
     project = fixture("project_completed")
     return Inscription(
         _instant(project["audit"]["updated_at"]),
@@ -383,6 +389,7 @@ def exit_today() -> Inscription:
         project["project_id"],
         project["label"],
         on_witness=True,
+        params={"to_state": project["state"], "reason": None},
     )
 
 
@@ -390,7 +397,8 @@ def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
     """Return an inscription as the journal reads it (`AuditEvent`), numbered in its order.
 
     Its correlation is that of the request that produced it, numbered in the order of the
-    requests: the inscriptions of one request share it.
+    requests: the inscriptions of one request share it. The journal is read by the account of the
+    witness, who consults every project: an inscription leads to the witness (`can_open`).
     """
     project = fixture("project")
     return {
@@ -413,6 +421,7 @@ def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
                 "project_id": project["project_id"],
                 "code": project["code"],
                 "label": project["label"],
+                "can_open": True,
             }
             if inscription.on_witness
             else None
@@ -443,6 +452,7 @@ def import_applied_today() -> Inscription:
         imported["filename"],
         on_witness=True,
         revision=_current_revision(),
+        params={"import_kind": imported["kind"]},
     )
 
 
@@ -770,6 +780,21 @@ def searched(events: list[JsonObject], text: str) -> list[JsonObject]:
     ]
 
 
+def unopenable(events: list[JsonObject]) -> list[JsonObject]:
+    """Return the journal as a reader who may not consult its projects reads it (WF-ADM-0190).
+
+    Each project still named by its code and its label, none leading to it (`can_open` false):
+    the auditor of the universe, who consults the journal and nothing else (`me_auditor`).
+    """
+    read: list[JsonObject] = []
+    for event in events:
+        project = cast("JsonObject | None", event["project"])
+        read.append(
+            {**event, "project": None if project is None else {**project, "can_open": False}}
+        )
+    return read
+
+
 def _merged(events: list[JsonObject]) -> list[JsonObject]:
     """Return the inscriptions of the request that merged the amendment 1, of one correlation."""
     [merge] = [event for event in events if event["action"] == "structure_merge"]
@@ -843,6 +868,13 @@ def examples() -> dict[str, JsonObject]:
             f"Les restaurations du journal d'audit le {day} (actions=restore) : la plateforme "
             f"n'a jamais été restaurée, et la liste est vide (WF-SEC-0030).",
             _page([event for event in events if event["action"] == "restore"]),
+        ),
+        "audit_events_auditor.json": mocktext.example(
+            f"Le journal d'audit du projet témoin le {day} (project_id), lu par Noé Vidal, "
+            f"auditeur (me_auditor), qui consulte le journal et rien d'autre : les mêmes "
+            f"inscriptions, chacune nommant le projet par son code et son libellé sans mener à "
+            f"lui, qu'il ne peut pas consulter (WF-ADM-0190, WF-ADM-0110).",
+            _page(unopenable(witness)),
         ),
         "audit_events_administration.json": mocktext.example(
             "Variante : le journal d'audit depuis aujourd'hui à 14 h 05 (from), après "

@@ -1,0 +1,17 @@
+{
+  "summary": "La lecture des comptes passée aujourd'hui à une périodicité hebdomadaire le jour 8, qu'aucune semaine ISO 8601 n'a : refusée, le jour au-dessus du plus grand admis, 7, le dimanche, le champ désigné avec la borne franchie ; rien n'est écrit (WF-ADM-0070).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/weekday",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {
+          "maximum": 7
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001605"
+  }
+}

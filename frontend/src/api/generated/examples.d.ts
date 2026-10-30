@@ -11,8 +11,11 @@ export interface Examples {
   "GET /access-roles": {
     200: "access_roles" | "access_roles_by_updated_by" | "access_roles_composed" | "access_roles_unheld" | "access_roles_updated_by_anonymized" | "access_roles_updated_by_deactivated";
   };
+  "GET /access-roles/{access_role_id}": {
+    200: "access_role";
+  };
   "GET /audit-events": {
-    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_revision_abandoned" | "audit_events_search";
+    200: "audit_events" | "audit_events_administration" | "audit_events_anonymized_actor" | "audit_events_anonymized_object" | "audit_events_auditor" | "audit_events_by_actor" | "audit_events_by_object_label" | "audit_events_correlation" | "audit_events_empty" | "audit_events_exited" | "audit_events_import_applied" | "audit_events_page" | "audit_events_project" | "audit_events_revision_abandoned" | "audit_events_search";
   };
   "GET /audit-events/facets": {
     200: "audit_facets" | "audit_facets_anonymized";
@@ -31,6 +34,12 @@ export interface Examples {
   };
   "GET /health": {
     200: "liveness" | "liveness_maintenance";
+  };
+  "GET /health/ready": {
+    200: "readiness";
+  };
+  "GET /identity-sync-schedule": {
+    200: "identity_sync_schedule";
   };
   "GET /identity-syncs/latest": {
     200: "identity_sync_report" | "identity_sync_report_anonymized" | "identity_sync_report_flagged";
@@ -391,6 +400,9 @@ export interface Examples {
   };
   "PUT /chunked-uploads/{chunked_upload_id}/parts/{part_number}": {
     200: "chunked_upload_part";
+  };
+  "PUT /identity-sync-schedule": {
+    200: "identity_sync_schedule_set";
   };
   "PUT /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope": {
     200: "actual_cost_excluded" | "actual_cost_reinstated";

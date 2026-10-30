@@ -2885,6 +2885,11 @@ projet terminé depuis cinq ans doit se lire tel quel, quand l'objet a changé d
 consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscription : seule l'action
 la produit (EP-03, US-0410).
 
+*Complétée par US-0701/L8 (#1608, B-01, B-03) : WF-ADM-0190, réécrite le 2026-10-09, veut que
+l'inscription mène au projet quand le lecteur peut le consulter ; `AuditProject` porte `can_open`,
+et son code est nul pour un projet qui n'en avait pas encore (décision de l'auteur du 2026-10-28,
+« La plateforme », recadrage d'EP-16 ; « La plateforme », dans « Le contrat figé »).*
+
 - **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
   corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un différentiel inscrit
   `structure_merge` sur sa structure, puis `revision_mark` et `reference_designate` sur la
@@ -6079,6 +6084,12 @@ plus que son objet rend un objet vide.
 d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
 qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
+
+*Complétée par US-0701/L8 (#1608, B-02) : la sortie du cycle de vie rend son état d'arrivée et son
+motif (WF-CYC-0060, WF-CYC-0130), la restauration la date de la sauvegarde remise en place
+(WF-ADM-0160), l'application d'un import sa nature, et les autres actions d'un projet, de la
+sauvegarde et de la restauration un objet vide, dit tel : « jusqu'à l'EPIC qui les réalise »
+disparaît d'`AuditParams` (décision de l'auteur du 2026-10-28, « La plateforme »).*
 L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
 donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
 et des rôles : un rôle créé sans permission, enregistré sans
@@ -9352,6 +9363,108 @@ survenance d'un risque ne budgète rien ».
   des risques, jugées avant celles du risque, comme `createRisk`. H-08 l'était déjà (US-0700/L1) ;
   H-05 et H-10 sont à US-0702 et à US-0701/L6.
 
+### La plateforme : lecture des comptes planifiée, renvoi de l'invitation, écran d'état, journal, devise (US-0701/L8, #1608, A-01 à A-04, B-01 à B-06, C-02, C-03, K-04)
+
+Les constats de la plateforme de la revue du contrat avant le gel. La spécification les a écrits
+dans ses passes du 6 octobre (le renvoi de WF-ADM-0140), du 9 octobre (la périodicité de
+WF-ADM-0070, la planification livrée de WF-ADM-0170, le lien de WF-ADM-0190) et du 10 octobre (les
+paramètres d'exploitation de WF-ADM-0130) ; la décision de l'auteur du 2026-10-28 (« La
+plateforme », « La devise (C-02) », recadrage d'EP-16) tranche ce que la revue laissait au choix,
+et sa proposition s'applique au reste (« la règle des autres majeurs »). Complétées, plus haut : le
+journal d'EP-02/L42 (B-01, B-03) et ses paramètres de #706 (B-02).
+
+- **La périodicité de la lecture des comptes** (A-02, WF-ADM-0070). `getIdentitySyncSchedule` et
+  `setIdentitySyncSchedule` (`/identity-sync-schedule`), symétriques de la planification des
+  sauvegardes : `IdentitySyncSchedule`, activation, fréquence, heure en temps universel, jour ISO
+  d'une hebdomadaire, compteur ; lecture sous `users.read`, écriture sous `users.write`, celle de
+  la lecture à la demande. Livrée activée et quotidienne, à `01:30` UTC, une demi-heure après la
+  sauvegarde livrée ; l'heure livrée est un choix du lot, la spécification ne la donnant pas, et
+  l'exemple du témoin la garde (`identity_sync_report`, achevée à 2 h). Écarté (décision de
+  l'auteur) : un paramètre d'exploitation, contraire à « choisie par un utilisateur habilité ».
+  Le schéma vit dans `platform.yaml`, à côté d'`IdentitySyncReport`.
+- **Le renvoi de l'invitation** (A-04, WF-ADM-0140). `resendInvitation`,
+  `POST /users/{user_id}/invitation` : 204 quand le fournisseur a envoyé le courriel, les refus du
+  lien (`is_local_account`, `is_active_account`), et 503 `identity_provider` pour un courriel qui
+  ne part pas, jamais présenté comme parti (WF-EXP-0040), l'écran proposant alors le lien. Le renvoi
+  s'inscrit comme la demande d'un lien, `password_link_create` : c'est le même lien, remis par un
+  autre canal, et `AuditAction` n'a pas d'action de plus. Écartés : le renvoi par la console du
+  fournisseur d'identité (décision de l'auteur) ; une réponse 202, quand l'envoi se fait dans la
+  requête comme le lien ; une action d'audit propre.
+- **Les paramètres d'exploitation** (A-03, WF-ADM-0130, §4.5.1).
+  `SystemStatus.operating_parameters`, exigé, un champ nommé par paramètre, sa valeur livrée dite
+  dans sa description — l'objet de la première proposition de la revue plutôt que la liste de codes
+  de sa seconde (K-02), qu'un client engendré ne type pas. La liste relevée dans la spécification,
+  chaque paramètre qu'elle cite avec sa valeur par défaut : la durée de validité du cache, dix minutes (WF-DAT-0130) ; la rétention d'une
+  tâche de fond, trente jours (§4.4.1) ; la taille d'un avatar, 512 Ko (§4.4.1) ; les trois seuils
+  d'alerte de WF-OBS-0030, quinze minutes d'attente en file, 85 % d'occupation, 5 % d'erreurs — et
+  la fenêtre de cinq minutes de ce dernier, part de sa valeur. Le fichier d'un export, supprimé au
+  bout de vingt-quatre heures (WF-DAT-0120), et la durée du lien de fixation, une heure
+  (WF-ADM-0140), sont des règles et non des paramètres ; la rétention des sauvegardes est un réglage
+  de l'utilisateur (`BackupSchedule`). Le témoin a ses valeurs livrées, sauf l'avatar, porté à
+  2 Mio comme `installation` le dit. La description de `SystemStatus` dit d'où vient chaque valeur
+  (K-10), et les quatre dernières opérations sont exigées (B-08). Écarté (décision de l'auteur) :
+  les cinq paramètres de la revue seulement.
+- **Le Manager du témoin** (A-01, K-09 ; WF-INTF-0020, WF-ADM-0010). Le rôle prédéfini reçoit
+  `risk_settings.write` et `indicator_settings.write` : `access_roles`, `access_role_updated`,
+  `access_role_renamed`, `me_manager` et `me_directory`, écrits à la main, et les exemples engendrés
+  qui les relisent (`make mock-data`) ; `mockaudit.WITHDRAWN` ne change pas, la modification de
+  l'administration ne retirant que la saisie des coûts et des ressources.
+- **Le journal** (B-01, B-02, B-03). `AuditProject.code` nul pour un projet sans code, rangé après
+  les autres au tri par projet ; `AuditProject.can_open`, exigé, évalué pour l'appelant comme le
+  portefeuille le fait (#389), dans les inscriptions et les facettes — faux pour un projet qui
+  n'existe plus ; un objet qui vit dans un projet ne mène à lui que si le projet s'ouvre.
+  `audit_events_auditor` lit le journal du témoin par l'auditeur, qui n'ouvre aucun projet.
+  `AuditParams` reçoit `to_state` et `reason` (`project_exit`), `backup_taken_at` (`restore`) et
+  `import_kind` (`import_apply`) ; `mockaudit` les inscrit, la sortie du témoin vers `completed`
+  sans motif, chaque import par sa nature. Écarté (décision de l'auteur) : aucun paramètre.
+  **Le service, qui n'a aucun projet avant EP-04, rend `can_open` faux** (`PROJECT_OPENS`,
+  `api/audit.py`) : un projet qu'il ne tient pas ne se consulte pas, et le modèle engendré, qui
+  exige le champ, refusait sinon toute inscription d'un projet. C'est la seule ligne du service que
+  le lot touche, à confirmer (option b de l'auteur sur #1457) ; EP-04 l'évaluera par appelant.
+- **`AuditEvent` garde son nom** (B-06 ; §4.4.1, table 10). La table nomme l'objet `audit_entry`, et
+  `user_account` le compte ; le contrat dit `AuditEvent`, `audit_event_id`, `/audit-events`, et
+  `User`, `user_id`, `/users`. `event` est le mot des journaux structurés de la plateforme, dont
+  l'inscription reprend la corrélation (WF-OBS-0020), et `User` celui de toutes les écritures des
+  comptes ; la table vaut pour les tables de la base, que le service nomme `audit_entry`
+  (migration 0003) et `user_account`. Écarté (décision de l'auteur) : le renommage en
+  `audit_entry`, un chemin et un client changés sans gain de sens.
+- **La sauvegarde planifiée** (B-04, B-05, K-12 ; WF-ADM-0170). `BackupSchedule` exige fréquence,
+  heure et jour, nul pour une quotidienne ; un jour nul pour une hebdomadaire est refusé par
+  `VALUE_REQUIRED`, un jour donné à une quotidienne par le motif `VALIDATION_FAILED`, sur
+  `/weekday` (`backup_schedule_weekday_missing`). La rétention compte toutes les sauvegardes non
+  marquées, manuelles ou planifiées, et la plus ancienne non marquée est supprimée au-delà :
+  `backup_released` le dit de la manuelle du 30 janvier. La planification livrée, activée,
+  quotidienne, à `01:00` UTC, sept conservées, sans copie externe, est la proposition de K-12 ; la
+  spécification ne donne que « quotidienne ».
+- **La devise** (C-02, WF-REF-0140). `getReferenceSettings` est lisible par toute session ouverte,
+  sans 404 ; l'écriture garde ses permissions par champ. Écarté (décision de l'auteur) :
+  `Installation.currency_code`, lisible sans session, quand la devise ne sert qu'à qui voit un
+  montant. Le front lit encore la devise sur le seul écran des coûts : US-0703 la montre avec chaque
+  montant.
+- **Le code comptable non blanc** (C-03, WF-REF-0040, WF-ARC-0110). `pattern: '\S'` sur le code
+  comptable reçu et lu, et sur les codes lus des nœuds, des natures et des catégories, comme
+  #837 l'a fait des autres ; les 422 de la création et de la modification d'une catégorie le disent.
+- **`structure_merge`** (K-04) était soldé par US-0640/L6b (#1594) — énumération, descriptions,
+  générateur, exemples et décision, plus haut ; le back sert encore `amendment_merge` jusqu'à EP-04.
+- **Les mineurs des fichiers touchés.** A-06 : la préférence des tâches ajoutées dit aussi les
+  lignes à budget nul. A-07 : `ActorRef` exige l'identifiant et le nom d'un compte (`if`/`then`, qui
+  garde le type engendré). A-08 : `org_node_id` et `has_avatar` exigés. A-09 : `BackgroundTaskRef`
+  exige ses huit champs, `result_url` une `uri-reference`. A-10 : `access_role`, engendré par
+  `mocklists`, `access_role_delete_refused`, `readiness` et `tasks_status_invalid`. A-11 :
+  « rôle d'habilitation », et le 409 de `TASK_INTERRUPTED_BY_RESTORE` dit. B-09 : `confirmed`
+  absent ou faux est un 400 `CONFIRMATION_REQUIRED`, deux sauvegardes ou aucune un 422. B-10 : la
+  date d'une restauration et le dépôt sans projet. B-11 : la permission de `getBackup` et de
+  `getBackupSchedule`. C-05 : `listHourlyRates` cite WF-DEV-0010. C-06 : `ReferenceSettings` et
+  `DurationUnits` portent leur `audit`. C-07 : les cinq refus sans exemple ont le leur, et
+  `cost_type_code_taken` est cité sous la modification. C-09 : un nœud autre que celui du rôle est
+  refusé par `FIELD_READ_ONLY`. M-12 : l'emploi du code comptable par les fichiers de devis. M-13 :
+  les bornes des zones d'un indice. J-12 : `listAccessRoles` dit pourquoi il n'est pas paginé.
+  K-11 et J-16 : le point de métriques, interne au cluster, et son 404. B-07 n'est pas touché :
+  ses exemples ne le sont pas. A-05 et C-01 sont à US-0702.
+
+**Corrélations** 1594 à 1605 ; « corrélations, troisième suite » (1600-1999), la seconde étant
+pleine.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`
@@ -9400,3 +9513,8 @@ l'ancien contrat : `estimate_line` est une ligne de devis, `cost_line` une ligne
 réel. L'ancien contrat appelait `cost-lines` les lignes de devis, ce qui aurait donné deux
 sens au même mot le jour où les coûts réels arrivent. De même, `org_node` pour
 l'organisation, réservé face aux nœuds de l'arbre commun.
+
+**`labor` et `LABOUR` coexistent** (C-08, US-0701/L8) : `CostTypeKind` écrit `labor` et
+`non_labor`, le catalogue des erreurs `LABOUR_CATEGORY_REQUIRED`. Les deux restent : renommer l'un
+ou l'autre change le client et le service sans gain de sens, comme `provision` (EP-14/L42p), et le
+front rend l'un et l'autre par son catalogue.

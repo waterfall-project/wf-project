@@ -1,5 +1,5 @@
 {
-  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, les comptes du fournisseur d'identité relus, la plateforme sauvegardée dans la nuit et sa sauvegarde copiée vers le site de secours, le dernier test de restauration du 1er juin réussi, aucune alerte (WF-ADM-0130, WF-EXP-0050).",
+  "summary": "L'état de l'installation au 3 juin 2026 à 14 h 05 : tous les composants disponibles, les comptes du fournisseur d'identité relus, la plateforme sauvegardée dans la nuit et sa sauvegarde copiée vers le site de secours, le dernier test de restauration du 1er juin réussi, aucune alerte ; les paramètres d'exploitation à leurs valeurs livrées — le cache valable dix minutes, les tâches de fond gardées trente jours, les trois seuils d'alerte à quinze minutes, 85 % et 5 % sur cinq minutes —, sauf l'avatar, que l'exploitant a porté à 2 Mio (`installation`) (WF-ADM-0130, WF-EXP-0050, §4.5.1).",
   "value": {
     "version": "1.0.0",
     "components": [
@@ -49,6 +49,15 @@
     "storage": {
       "used_bytes": 41875931136,
       "available_bytes": 172922789888
+    },
+    "operating_parameters": {
+      "cache_validity_seconds": 600,
+      "background_task_retention_days": 30,
+      "avatar_max_bytes": 2097152,
+      "task_queue_age_threshold_seconds": 900,
+      "storage_usage_threshold": "0.85",
+      "error_rate_threshold": "0.05",
+      "error_rate_window_seconds": 300
     },
     "last_identity_sync": {
       "at": "2026-06-03T02:00:00Z",

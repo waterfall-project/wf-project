@@ -1,5 +1,5 @@
 {
-  "summary": "La nature « Fournitures » créée sous le code DEB, celui des débours : refusée, le code d'une nature étant unique, et la nature qui le porte nommée ; rien n'est écrit (WF-REF-0030).",
+  "summary": "La nature « Fournitures » créée, ou une nature modifiée, sous le code DEB, celui des débours : refusée, le code d'une nature étant unique à sa création comme à sa modification, et la nature qui le porte nommée ; rien n'est écrit (WF-REF-0030).",
   "value": {
     "code": "ALREADY_EXISTS",
     "status": 409,
