@@ -134,6 +134,20 @@ def _commands(project: JsonObject) -> list[JsonObject]:
     return cast("list[JsonObject]", project["available_commands"])
 
 
+def _lacking(command: JsonObject, qualities: list[str]) -> JsonObject:
+    """Return a command unavailable for these qualities, named before its conditions of state."""
+    missing = cast("list[str]", command["missing_conditions"])
+    return {
+        **command,
+        "is_available": False,
+        "missing_conditions": cast("list[JsonValue]", [*qualities, *missing]),
+    }
+
+
+def _with_commands(project: JsonObject, commands: list[JsonObject]) -> JsonObject:
+    return {**project, "available_commands": cast("list[JsonValue]", commands)}
+
+
 def read_by_participant() -> JsonObject:
     """Return the witness as its participant reads it: the reserved commands lack her quality.
 
@@ -141,19 +155,13 @@ def read_by_participant() -> JsonObject:
     those of the project manager.
     """
     project = cast("JsonObject", fixture("project"))
-    return {
-        **project,
-        "available_commands": [
-            {
-                **each,
-                "is_available": False,
-                "missing_conditions": ["is_project_manager", *each["missing_conditions"]],
-            }
-            if each["command"] in RESERVED
-            else each
+    return _with_commands(
+        project,
+        [
+            _lacking(each, ["is_project_manager"]) if each["command"] in RESERVED else each
             for each in _commands(project)
         ],
-    }
+    )
 
 
 def read_by_rescuer() -> JsonObject:
@@ -169,14 +177,9 @@ def read_by_rescuer() -> JsonObject:
         if each["command"] == "manage_contributors":
             return {**each, "is_available": True, "missing_conditions": []}
         reserved = ["is_project_manager"] if each["command"] in RESERVED else []
-        quality = ["is_contributor", *reserved]
-        return {
-            **each,
-            "is_available": False,
-            "missing_conditions": [*quality, *each["missing_conditions"]],
-        }
+        return _lacking(each, ["is_contributor", *reserved])
 
-    return {**project, "available_commands": [lacking(each) for each in _commands(project)]}
+    return _with_commands(project, [lacking(each) for each in _commands(project)])
 
 
 def _contributors() -> list[JsonObject]:

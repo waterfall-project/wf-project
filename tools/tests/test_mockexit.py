@@ -127,11 +127,13 @@ def _projects() -> list[tuple[str, Entry]]:
     found: list[tuple[str, Entry]] = []
     keys = {"project_id", "state", "available_commands"}
     for path in sorted(FIXTURES.glob("*.json")):
-        value = json.loads(path.read_text("utf-8")).get("value")
-        rows = value.get("items") if isinstance(value, dict) and "meta" in value else [value]
-        listed = rows if isinstance(rows, list) else []
+        value: Any = json.loads(path.read_text("utf-8"))["value"]
+        paged = isinstance(value, dict) and "meta" in value
+        rows = cast("list[Any]", value["items"] if paged else [value])
         found.extend(
-            (path.stem, row) for row in listed if isinstance(row, dict) and keys <= set(row)
+            (path.stem, cast("Entry", row))
+            for row in rows
+            if isinstance(row, dict) and keys <= set(cast("Entry", row))
         )
     return found
 
@@ -153,7 +155,7 @@ def test_an_exit_that_will_never_become_possible_is_not_listed() -> None:
     # permises depuis cet état. Une sortie qui le deviendra dans un état ultérieur — Terminer
     # depuis Chiffrage — y est présentée indisponible, avec sa condition (WF-IHM-0090) ; une
     # sortie qui ne le deviendra jamais — Déclarer perdu depuis En cours — n'y figure pas. »
-    states = set()
+    states: set[str] = set()
     for name, project in _projects():
         commands = _commands(project)
         exits = {
