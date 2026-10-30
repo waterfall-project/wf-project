@@ -234,6 +234,8 @@ describe("the body of the move a gesture asks", () => {
   it("puts the active task, a summary with its group, under the task above it, last [WF-PLA-0080-A]", () => {
     // Part of the criterion — the active row, not a selection of several tasks (US-0460/L5): the
     // summary is moved by its identifier alone, its subordinates going with it on the server.
+    // The milestone is forced into a task to isolate the shape of the body (the real case,
+    // Transport under Relance, is covered just below).
     const rows = estimate.items.map((each) =>
       each.node_id === MILESTONE.node_id
         ? { ...each, task: { ...each.task, is_milestone: false } }
@@ -329,8 +331,8 @@ describe("the body of the move a gesture asks", () => {
 
   it("asks nothing where the grid does not show the sibling above the first node, the one shown being farther [WF-PLA-0080-A]", () => {
     const withoutRelance = estimate.items.filter((each) => each.node_id !== RELANCE.node_id);
-    // The sub-task of rank 1 is not shown above the one of rank 2, which would go under it: the
-    // risk occurred, of rank 3, shows the factory acceptance of rank 2 above it and bears nothing.
+    // Without Relance shown, Transport has no sibling above it in the grid: nothing is asked,
+    // Relance being the sibling that would bear it but not shown.
     expect(moveOf("indent", [TRANSPORT], offered({ rows: withoutRelance }))).toBeUndefined();
     expect(moveOf("indent", [TRANSPORT], offered())).toBeDefined();
   });
