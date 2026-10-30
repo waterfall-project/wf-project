@@ -8674,13 +8674,14 @@ spécification, quand le glossaire, WF-RIS-0050 et le budget de référence en d
   consommation que la référence 101, revue précédente de la révision 102, donnait à chaque ligne.
   Toutes les révisions du témoin sont projetées depuis 2026, l'offre de 2025 comprise : une
   simplification déclarée, qui garde à la référence le budget que l'offre a fixé aux lignes que
-  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628) : la décision
-  d'appliquer est prise (l'offre et la référence recevront la même année de référence), sa mise
-  en œuvre est en question — WF-REV-0060 oblige à redater l'offre en 2026, ce qui retire au témoin
-  son récit de mise à jour des taux (commentaire de #1628) — et la part détachée US-0701/L2b
-  (#1641) la porte ; le raccourci reste déclaré tant que #1641 n'est pas livré. Le Vérif de
-  WF-REV-0080 (`test_mockcomparison.py`, aujourd'hui 2 768 lignes de main-d'œuvre réestimées
-  seules, aux taux de 2026) et les récits du témoin en dépendent. Le devis du témoin vaut
+  l'avenant 1 ne désigne pas (#467). L'auteur l'a tranchée le 2026-10-29 (#1628, option 4) : le
+  raccourci reste déclaré et l'offre n'est pas redatée — WF-REV-0060 l'aurait datée de 2026 et
+  aurait retiré au témoin son récit de mise à jour des taux —, et la part détachée US-0701/L2b
+  (#1641) est fermée sans code. C'est le Vérif de WF-REV-0080 qui change (spécification 1.0.1,
+  #1645) : entre deux révisions d'années de référence différentes, les montants réestimés diffèrent
+  en outre sur chaque ligne dont le taux a été mis à jour ou projeté, ce que
+  `test_mockcomparison.py` tient de l'offre à la référence (2 768 lignes de main-d'œuvre réestimées
+  seules, aux taux de 2026). Les récits du témoin en dépendent. Le devis du témoin vaut
   68 923 691,06, son budget de référence 68 241 568,05 ; la valeur planifiée et la valeur acquise
   ne bougent pas, les tâches terminées étant de 2026. Le reste à engager, d'abord inchangé,
   change avec M-08 (« Le réestimé d'une ligne non réestimée », plus bas) : 67 470 132,98 dans

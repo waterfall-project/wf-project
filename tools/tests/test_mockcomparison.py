@@ -153,10 +153,13 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     # Vérif : « les montants réestimés n'y diffèrent que par les lignes que le différentiel ajoute
     # ou retire, par celles des tâches démarrées qu'il termine et par celles dont il change l'année
     # de consommation ; une ligne existante dont le différentiel ne modifie que le montant budgété
-    # ne présente aucun écart de montant réestimé ». From the offer 100 to the reference 101, the
-    # amendment changes the hours of one line alone, and keeps the budget of the others (#467): a
-    # line modified for its re-estimate alone bears the quantities it bore, and moves because its
-    # year of consumption changes or, for labour, because the revision keeps the rates of 2026.
+    # ne présente aucun écart de montant réestimé », and, between two reference years (#1645) :
+    # « les montants réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou
+    # projeté jusqu'à la nouvelle année de référence (WF-REV-0060) ». From the offer 100 (2025) to
+    # the reference 101 (2026), the amendment changes the hours of one line alone, and keeps the
+    # budget of the others (#467): a line modified for its re-estimate alone bears the quantities
+    # it bore, and moves because its year of consumption changes or, for labour, because the
+    # revision keeps the rates of 2026.
     offered = _lines_by_id(mockhistory.offer_rows())
     marked = _lines_by_id(mockhistory.reference_rows())
     lines = [node for node in whole["items"] if node["kind"] == "estimate_line"]
