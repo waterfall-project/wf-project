@@ -69,8 +69,9 @@ DATA = {
     "ChunkedUpload.filename": "a name of a file",
     "FileUpload.filename": "a name of a file",
     # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
-    # project, a task, a line and its structure, a subproject, and the labels of a column of the
-    # extraction of actual costs, as the mapping declares them (``ProblemParams``, #768).
+    # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
+    # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the
+    # risk, US-0702/L2).
     "ProblemResourceRole.code": "a code",
     "ProblemResourceRole.label": "a label",
     "ProblemProject.project_label": "a label",
@@ -80,6 +81,7 @@ DATA = {
     "ProblemEstimateLine.structure_label": "a label",
     "ProblemEstimateLine.label": "a label",
     "ProblemSubproject.label": "a label",
+    "ProblemRisk.label": "a label",
     "ProblemMissingColumn.labels": "labels of the extraction",
     # A category of labour without an hourly rate, by its label, as the reference names it
     # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
