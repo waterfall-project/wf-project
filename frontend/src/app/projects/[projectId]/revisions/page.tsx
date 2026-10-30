@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The revisions of a project (FBS-4.1, US-0210), under the banner of its reading context
- * (WF-IHM-0020): the commands of the revision the address carries, each available or naming what
- * it lacks (WF-IHM-0090), its marking wired; the history of the revisions; the comparison of two
- * marked ones, as `compareRevisions` gives it — « Écarts seulement » retaining the differences alone, said in
- * the banner (US-0700) —, read whole and reduced by `fields` to what the grid
- * of the comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
+ * (WF-IHM-0020): the commands of the revision the address carries, each available or naming what it
+ * lacks (WF-IHM-0090), its marking wired; the history of the revisions; the comparison of two
+ * marked ones, as `compareRevisions` gives it — « Écarts seulement » retaining the differences
+ * alone, said in the banner (US-0700) —, read whole and reduced by `fields` to what the grid of the
+ * comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
  * (`readEveryPage`, #303), so that the comparison offers every marked revision —; and, of the
  * revision the address carries, its cost structures and — for the current revision, the one a rate
  * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of

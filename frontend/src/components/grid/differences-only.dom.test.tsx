@@ -64,6 +64,22 @@ describe("« Écarts seulement » [WF-REV-0100-A] [WF-REV-0080-A]", () => {
     });
   });
 
+  it("goes on to the three differences of the contract from an address that names some of them alone", async () => {
+    page.search = "structure=s&difference=added";
+    router.push.mockImplementation(() => {
+      startTransition(() => new Promise<void>(() => undefined));
+    });
+    render(button(["added"]));
+    const only = screen.getByRole("button", { name: "Écarts seulement" });
+    expect(only).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(only);
+    expect(router.push).toHaveBeenLastCalledWith(
+      "/projects/p/revisions/r/planning?structure=s&difference=added%2Cremoved%2Cmodified",
+      { scroll: false },
+    );
+    expect(only).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("is not pressed for some of the differences alone, and is absent where the structure bears none", () => {
     const { rerender } = render(button(["added"]));
     expect(screen.getByRole("button", { name: "Écarts seulement" })).toHaveAttribute(

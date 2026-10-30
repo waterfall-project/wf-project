@@ -5,31 +5,32 @@
  * (`functions.json`): the banner of its reading context (WF-IHM-0020), which names the structure
  * read and offers the others of the revision, and the grid on the structure the address names — the
  * main one by default, a differential, the own estimate of a risk (US-0500) —, mounted anew for
- * each (#819.3), its tasks alone — the server renders no line for it (`kinds`) —,
- * asked and handed the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer,
- * with the totals of the answer: a header clicked or a search entered changes the address, and
- * this page reads anew (`grid-screen.ts`). The Gantt is the last column of the grid, row for row
- * (FBS-4.3.3). Its head leads to the leaves of the planning with a screen of their own — the
- * timelines (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree
- * (FBS-4.3.5) —, in the same context.
+ * each (#819.3), its tasks alone — the server renders no line for it (`kinds`) —, asked and handed
+ * the fields it shows alone (`grid-screen.ts`). The rows come in the order of the answer, with the
+ * totals of the answer: a header clicked or a search entered changes the address, and this page
+ * reads anew (`grid-screen.ts`). The Gantt is the last column of the grid, row for row (FBS-4.3.3).
+ * Its head leads to the leaves of the planning with a screen of their own — the timelines
+ * (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree (FBS-4.3.5) —, in
+ * the same context.
  *
- * On a differential, « Écarts seulement » (`DifferencesOnly`, US-0700) is written in the address, said in
- * the banner, and the server retains the nodes whose difference is added, removed or modified.
+ * On a differential, « Écarts seulement » (`DifferencesOnly`, US-0700) is written in the address,
+ * said in the banner, and the server retains the nodes whose difference is added, removed or
+ * modified.
  *
  * The grid is filtered by a lot or a post of the work breakdown of the project, read whole, above
  * it (`BreakdownFilterChoice`): the server retains the subtree of the task that bears it and its
- * ancestors, and the banner shows the filter active; the filter is not offered when the API
- * refuses the work breakdown. Where the revision lists `edit_planning` available, the attachment
- * of a task is entered in its column, chosen among the same posts and lots (WF-PLA-0170), and the
- * screen cannot do without the work breakdown; in the empty grid of the main structure, the skeleton
- * is offered as the revision lists `generate_skeleton` (WF-PRJ-0030) — never on a differential nor on
+ * ancestors, and the banner shows the filter active; the filter is not offered when the API refuses
+ * the work breakdown. Where the revision lists `edit_planning` available, the attachment of a task
+ * is entered in its column, chosen among the same posts and lots (WF-PLA-0170), and the screen
+ * cannot do without the work breakdown; in the empty grid of the main structure, the skeleton is
+ * offered as the revision lists `generate_skeleton` (WF-PRJ-0030) — never on a differential nor on
  * the own estimate of a risk, which the skeleton, generated on the main structure, would not fill.
  * The timelines of the project (`listTimelines`) name the inscriptions of its tasks, in a column
  * hidden until shown, and are the boxes of the submenu « Chronologies » of the menu of their cells
  * (US-0480). The Gantt reads the hours of a day of the installation (`getDurationUnits`), which
  * graduate its finest level, and is exported with the date its dates were calculated at
- * (`meta.scheduled_at`). Once, under its header, the screen then says that the fake back keeps none of what they write
- * (`MockupNotice`, EP-14/L44d).
+ * (`meta.scheduled_at`). Once, under its header, the screen then says that the fake back keeps none
+ * of what they write (`MockupNotice`, EP-14/L44d).
  */
 import type { Metadata } from "next";
 import Link from "next/link";

@@ -6,23 +6,23 @@
  * calculation lacks and its indicators (`EstimateSummary`), read for the sub-project the address
  * filters; and the grid on the structure the address names — the main one by default, a
  * differential, the own estimate of a risk (US-0500), which the banner names and offers to change,
- * mounted anew for each (#819.3) —, its tasks and their lines, asked
- * and handed the fields it shows alone (`grid-screen.ts`), filtered by a lot or a post of the work
- * breakdown read whole, which the banner says restricts the grid alone: the indicators are those of
- * the whole project, or of its sub-project — as « Écarts seulement » of a differential (US-0700). The rows come in the order of the answer, with the
- * totals of the answer: a header clicked or a search entered changes the address, and this page
- * reads anew (`grid-screen.ts`). The
- * indicators and the rates are read alongside the grid, and so are the categories and the roles a
- * line is chosen from (US-0120) — the server names those a line bears (#305). The grid is entered from the keyboard, and takes
- * a block pasted from a spreadsheet, its tasks and its lines created and deleted, when the structure
- * read lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
+ * mounted anew for each (#819.3) —, its tasks and their lines, asked and handed the fields it shows
+ * alone (`grid-screen.ts`), filtered by a lot or a post of the work breakdown read whole, which the
+ * banner says restricts the grid alone: the indicators are those of the whole project, or of its
+ * sub-project — as « Écarts seulement » of a differential (US-0700). The rows come in the order of
+ * the answer, with the totals of the answer: a header clicked or a search entered changes the
+ * address, and this page reads anew (`grid-screen.ts`). The indicators and the rates are read
+ * alongside the grid, and so are the categories and the roles a line is chosen from (US-0120) — the
+ * server names those a line bears (#305). The grid is entered from the keyboard, and takes a block
+ * pasted from a spreadsheet, its tasks and its lines created and deleted, when the structure read
+ * lists `edit_estimate` available to the caller (WF-IHM-0040, WF-IHM-0050): on a project in
  * progress the main one lists it unavailable, and its grid is read only, where a differential and
- * the own estimate of a risk list it available (WF-DEV-0050). Its head leads to the workload of the project, a leaf of the estimate
- * with a screen of its own (FBS-4.4.4), in the same context, and, when the project lists the import
- * of an estimate, to the imports and exports, where it is exercised (#521). A refused read of the rates
- * or of the reference data is thrown for the pages of the shell to say, as the grid's; indicators
- * refused as expected are said unavailable, the rest of the screen shown: the screen never shows
- * a figure it did not read.
+ * the own estimate of a risk list it available (WF-DEV-0050). Its head leads to the workload of the
+ * project, a leaf of the estimate with a screen of its own (FBS-4.4.4), in the same context, and,
+ * when the project lists the import of an estimate, to the imports and exports, where it is
+ * exercised (#521). A refused read of the rates or of the reference data is thrown for the pages of
+ * the shell to say, as the grid's; indicators refused as expected are said unavailable, the rest of
+ * the screen shown: the screen never shows a figure it did not read.
  */
 import type { Metadata } from "next";
 import Link from "next/link";
