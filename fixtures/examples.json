@@ -282,9 +282,9 @@
       "sentence": "Après un avenant qui porte de 100 à 150 heures une ligne non réestimée d'une tâche non démarrée, le reste à engager compte 150 heures ; une ligne réestimée à 140 avant l'avenant garde 140."
     },
     {
-      "key": "WF-RAE-0020-A#71b655664115",
+      "key": "WF-RAE-0020-A#05bb86431330",
       "requirement": "WF-RAE-0020-A",
-      "sentence": "Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, l'écart au budget vaut + 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de − 50."
+      "sentence": "Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, la marge sur le budget vaut − 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de − 50."
     },
     {
       "key": "WF-RAE-0040-A#a27e44651c10",
