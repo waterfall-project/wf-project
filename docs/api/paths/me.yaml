@@ -43,6 +43,9 @@
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              session_required: { $ref: ../../../fixtures/api/session_required.json }
+              session_expired: { $ref: ../../../fixtures/api/session_expired.json }
+              session_revoked: { $ref: ../../../fixtures/api/session_revoked.json }
               deactivated: { $ref: ../../../fixtures/api/account_deactivated.json }
               not_admitted: { $ref: ../../../fixtures/api/account_not_admitted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
