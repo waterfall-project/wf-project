@@ -1803,7 +1803,7 @@ défauts du front proposés avec lui (#1438, #1428) sont partis à EP-17.
 
 ## US-0700 — Le filtre des écarts d'un différentiel, et le décompte de la matrice des risques
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : `listNodes`, `compareRevisions` (filtre `difference`, ajouté) ;
   `getProjectRiskMatrix`, `getPortfolioRisks` (`cells` précisé)

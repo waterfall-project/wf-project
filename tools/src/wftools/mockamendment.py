@@ -193,6 +193,19 @@ def nodes_amendment() -> JsonObject:
     }
 
 
+def nodes_amendment_differences() -> JsonObject:
+    """Return what listNodes answers of the whole differential read by its differences alone.
+
+    ``difference=added,removed,modified``, « Écarts seulement » (#1398): the nodes it adds,
+    withdraws or modifies, their ancestors with them; the totals those of the whole differential,
+    which the filter does not restrict (`NodeTotals`).
+    """
+    return {
+        **mockcore.whole(rows()),
+        "items": cast("list[JsonValue]", mockdiff.differences(marked(), mockdiff.DIFFERENCES)),
+    }
+
+
 # --- The report before the merge -----------------------------------------------------------------
 
 DESIGNATED = {N.COMMISSIONING: ["duration", "parent"], N.COMMISSIONING_LINE: ["hours"]}
@@ -350,6 +363,13 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
     relinked, before, after = (_label(whole, number) for number in RELINKED)
     amendment_id = structure("amendment")["structure_id"]
     report = structure_merge_report()
+    differences_read = nodes_amendment_differences()
+    differences = cast("list[JsonObject]", differences_read["items"])
+    _, _, values, contents = mockdiff.grouped(differences)
+    changed, content = (
+        [f"« {cast('JsonObject', node[cast('str', node['kind'])])['label']} »" for node in nodes]
+        for nodes in (values, contents)
+    )
     return {
         "revision_marked_merge_offered.json": mocktext.example(
             "La révision de référence du projet le 1er février 2026, juste après son marquage par "
@@ -386,6 +406,20 @@ def examples(reference: JsonObject) -> dict[str, JsonObject]:
             f"les totaux sont ceux du sous-arbre lu, sans la ligne retirée (WF-REV-0080, "
             f"WF-REV-0100, WF-PLA-0170, C-361).",
             reading,
+        ),
+        "nodes_amendment_differences.json": mocktext.example(
+            f"Le différentiel « {LABEL} » (structure {amendment_id}) lu entier le "
+            f"{mocktext.day(mockcore.READ_ON)} par ses seuls écarts, « Écarts seulement » "
+            f"(difference=added,removed,modified) : {mocktext.count(len(differences))} nœuds des "
+            f"{mocktext.count(len(whole))} de l'arbre marqué — les nœuds ajoutés, "
+            f"{_said(differences, mockdiff.ADDED)} ; ceux retirés, à leur place, en lecture "
+            f"seule, {_said(differences, mockdiff.REMOVED)} ; ceux modifiés par leurs propres "
+            f"valeurs, {mocktext.listed(changed)} ; ceux modifiés par leur seul contenu, "
+            f"`changes` vide, {mocktext.listed(content)} —, chaque ancêtre d'un nœud retenu "
+            f"l'étant lui-même, si bien que l'arbre filtré reste un arbre sans aucun nœud "
+            f"inchangé. Les totaux sont ceux du différentiel entier, sans la ligne retirée : "
+            f"`difference` ne les restreint pas (WF-REV-0080, WF-REV-0100, C-361, #1398).",
+            differences_read,
         ),
         "structure_merge_report.json": mocktext.example(
             f"Le compte rendu préalable de la fusion de l'avenant 2 du témoin, « {LABEL} », "

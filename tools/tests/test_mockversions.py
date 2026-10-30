@@ -21,6 +21,7 @@ COUNTERFACTUAL = "Variante contrefactuelle"
 ELSEWHERE = {
     "comparison.json": "the reference 101 compared with the offer 100",
     "volume/comparison_volume.json": "the same comparison, of the whole structure (#1201)",
+    "comparison_differences.json": "the same comparison, by its differences alone (#1398)",
 }
 """The readings of nodes exempt from #421, besides the declared counterfactual variants: the
 comparisons of two marked revisions, which name their nodes by the identifiers of the current

@@ -135,7 +135,7 @@ export interface Examples {
     200: "revisions" | "revisions_designation_open" | "revisions_empty" | "revisions_marked" | "revisions_project_created";
   };
   "GET /projects/{project_id}/revisions/comparison": {
-    200: "comparison" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";
+    200: "comparison" | "comparison_differences" | "comparison_identical" | "comparison_moved" | "volume/comparison_volume";
   };
   "GET /projects/{project_id}/revisions/{revision_id}": {
     200: "revision" | "revision_estimator" | "revision_importing" | "revision_marked" | "revision_marked_merge_offered" | "revision_marking" | "revision_offer" | "revision_rate_update_offered" | "revision_reader" | "revision_without_tasks";
@@ -150,7 +150,7 @@ export interface Examples {
     200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_amendment" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";

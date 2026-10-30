@@ -570,6 +570,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_nested": nested,
         "nodes_summaries": nested,
         "nodes_amendment": mockamendment.rows(),
+        "nodes_amendment_differences": mockamendment.rows(),
         "nodes_risk_estimate": mockriskwrites.risk_estimate(),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
@@ -605,7 +606,13 @@ def test_every_reading_of_nodes_says_when_its_structure_was_last_dated() -> None
             read = cast("dict[str, str]", meta)
             assert set(read) == {"summary_depth", "scheduled_at"}, path.name
             said[path.stem] = read["scheduled_at"]
-    marked = {"comparison", "comparison_moved", "comparison_volume", "comparison_identical"}
+    marked = {
+        "comparison",
+        "comparison_differences",
+        "comparison_moved",
+        "comparison_volume",
+        "comparison_identical",
+    }
     assert marked <= set(said)
     for name, at in said.items():
         if name == "comparison_identical":

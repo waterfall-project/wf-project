@@ -598,8 +598,9 @@ RiskMatrix:
     Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
     se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
     la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
-    projets retenus pour celle du portefeuille. Elle les compte par case (`cells`) et les
-    rend un par un (`points`), les mêmes.
+    projets retenus pour celle du portefeuille. Elle compte par case les risques identifiés
+    (`cells`), et rend un par un les risques qu'elle retient (`points`), avec leur état ; ses
+    totaux de provisions portent sur les trois états (`totals`, WF-RIS-0040).
   properties:
     probability_levels:
       type: array
@@ -618,6 +619,12 @@ RiskMatrix:
       items: { $ref: '#/RiskMatrixLevel' }
     cells:
       type: array
+      description: >-
+        Les seize cases et leur zone, chacune avec le nombre des seuls risques identifiés qu'elle
+        porte, les mêmes que le graphique trace en bulles : un risque survenu ou écarté reste un
+        point (`points`), mais n'est compté dans aucune case. Le serveur compte, le front jamais
+        (WF-RIS-0040, WF-ARC-0020, #1395). Dans la matrice du portefeuille, dont les points ne
+        sont que des risques identifiés, chaque point est compté dans sa case.
       items:
         type: object
         required: [probability_level, severity_level, count, zone]
@@ -629,9 +636,9 @@ RiskMatrix:
     points:
       type: array
       description: >-
-        Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son
-        état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque
-        n'est retenu.
+        Un point par risque que la matrice retient, avec son état, que l'écran filtre comme il
+        filtre la grille (#1053) — ses cases ne comptent que les identifiés (`cells`, #1395) — ;
+        vide quand aucun risque n'est retenu.
       items: { $ref: '#/RiskMatrixPoint' }
     totals: { $ref: '#/ProvisionTotals' }
 
