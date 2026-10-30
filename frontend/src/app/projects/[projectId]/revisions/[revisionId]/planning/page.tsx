@@ -13,6 +13,9 @@
  * timelines (FBS-4.3.1), the imports and exports of the project (FBS-4.3.4), the task tree
  * (FBS-4.3.5) —, in the same context.
  *
+ * On a differential, « Écarts seulement » (`DifferencesOnly`, US-0700) is written in the address, said in
+ * the banner, and the server retains the nodes whose difference is added, removed or modified.
+ *
  * The grid is filtered by a lot or a post of the work breakdown of the project, read whole, above
  * it (`BreakdownFilterChoice`): the server retains the subtree of the task that bears it and its
  * ancestors, and the banner shows the filter active; the filter is not offered when the API
@@ -40,6 +43,7 @@ import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
+import { DifferencesOnly } from "@/components/grid/differences-only";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
@@ -219,6 +223,7 @@ export default async function PlanningPage({
       kinds: PLANNING_KINDS,
       fields: PLANNING_FIELDS,
       byBreakdown: true,
+      byDifference: true,
       // The attachment of a task is chosen among the lots and the posts where it is entered.
       needsBreakdown: (reading) => reading.edits.has("edit_planning"),
       chooses: true,
@@ -239,6 +244,7 @@ export default async function PlanningPage({
         reading={screen.reading}
         structure={screen.structures}
         breakdown={breakdownChip(screen.breakdownFilter, screen.breakdown?.items)}
+        difference={screen.difference}
       />
       <Screen density={FUNCTION_DENSITY.planning} fill>
         <PlanningHeader label={screen.label} totals={screen.nodes.totals} context={at.context} />
@@ -251,6 +257,7 @@ export default async function PlanningPage({
         {screen.breakdown === undefined ? null : (
           <BreakdownFilterChoice choices={screen.breakdown} />
         )}
+        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}

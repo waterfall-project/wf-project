@@ -277,3 +277,34 @@ describe("the filter of the estimate by a lot or a post", () => {
     expect(grids.estimate).not.toHaveLength(0);
   });
 });
+
+describe("« Écarts seulement » on the grid of the estimate [WF-REV-0100-A]", () => {
+  const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+  const RISK = "01926f3a-7c00-7000-8000-000000000204";
+  const ALL = "added,removed,modified";
+  const BUTTON =
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+
+  it("passes the differences to the server on a differential, presses the button and says in the banner it restricts the grid alone", async () => {
+    const page = await estimatePage("me", { structure: AMENDMENT, difference: ALL });
+    expect(queryOf("/nodes")?.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(page).toContain("Differences only, on the grid only");
+    expect(grids.estimate.at(-1)?.filters.difference).toEqual(["added", "removed", "modified"]);
+  });
+
+  it("offers it unpressed on a differential the address names no differences of", async () => {
+    const page = await estimatePage("me", { structure: AMENDMENT });
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(queryOf("/nodes")?.has("difference")).toBe(false);
+  });
+
+  it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
+    for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
+      server.clients = [];
+      const page = await estimatePage("me", search);
+      expect(queryOf("/nodes")?.has("difference")).toBe(false);
+      expect(page).not.toContain("Differences only");
+    }
+  });
+});

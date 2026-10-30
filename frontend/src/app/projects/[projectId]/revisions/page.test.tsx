@@ -562,3 +562,46 @@ describe("the address of the screen of the revisions", () => {
     );
   });
 });
+
+describe("« Écarts seulement » on the comparison of two revisions [WF-REV-0080-A] [WF-REV-0100-A]", () => {
+  const ALL = "added,removed,modified";
+  const COMPARISON_ROUTE = "GET /projects/{project_id}/revisions/comparison";
+  const BUTTON =
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Écarts seulement<\/button>/;
+  const chips = (page: string) =>
+    /<ul aria-label="Filtres actifs"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+
+  it("passes the differences to the server, presses the button, says it in the banner and keeps it through the choice of the pair, the grid reading the answer", async () => {
+    server.answers = { ...server.answers, [COMPARISON_ROUTE]: "comparison_differences" };
+    const page = html(
+      await RevisionsPage(
+        at({ from_revision_id: OFFER, to_revision_id: REFERENCE, difference: ALL }),
+      ),
+    );
+    expect(callTo(COMPARISON_ROUTE)?.query.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(chips(page)).toContain("Écarts seulement");
+    expect(chips(page)).toContain("Lever le filtre");
+    expect(page).toContain(`<input type="hidden" name="difference" value="${ALL}"`);
+    const answered = example("comparison_differences") as RevisionComparison;
+    const grid = table(page, "Nœuds comparés");
+    for (const node of answered.items) {
+      expect(grid).toContain(node.task?.label ?? node.estimate_line?.label ?? "");
+    }
+  });
+
+  it("offers it unpressed, and asks the server nothing of the differences, when the address names none", async () => {
+    const page = html(
+      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
+    );
+    expect(callTo(COMPARISON_ROUTE)?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(chips(page)).toBe("");
+  });
+
+  it("neither offers nor says it while no pair is compared", async () => {
+    const page = html(await RevisionsPage(at({ difference: ALL })));
+    expect(callTo(COMPARISON_ROUTE)).toBeUndefined();
+    expect(page).not.toContain("Écarts seulement");
+  });
+});
