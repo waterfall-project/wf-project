@@ -148,15 +148,33 @@ def test_a_permission_outside_the_catalogue_is_refused_by_the_core_too(database:
     ]
 
 
+# The back lags behind the contract until EP-04, without a change of the service in EP-16
+# (decision of the author of 2026-10-28 on #1457, option b): the predefined manager of the witness
+# writes the settings of risks and of indicators (US-0701/L8, A-01, WF-INTF-0020), which the
+# bootstrap does not give it yet.
+TO_SEED_BY_EP04 = {"Manager": ("risk_settings.write", "indicator_settings.write")}
+
+
 def test_the_predefined_roles_are_those_of_the_example_of_the_contract() -> None:
     # The administrator reads the journal of audit (WF-ADM-0100 revised); the bootstrap gives
     # this description to the installation, in its default language.
     witness = json.loads(WITNESS.read_text(encoding="utf-8"))["value"]
     delivered = {
-        entry["label"]: tuple(entry["permissions"]) for entry in witness if entry["is_predefined"]
+        entry["label"]: tuple(
+            code
+            for code in entry["permissions"]
+            if code not in TO_SEED_BY_EP04.get(entry["label"], ())
+        )
+        for entry in witness
+        if entry["is_predefined"]
     }
     described = predefined_roles("fr")
     assert {entry.label: entry.permissions for entry in described} == delivered
+    # A gap that the back has closed fails here, to be struck off the list above.
+    for label, codes in TO_SEED_BY_EP04.items():
+        [role] = [entry for entry in witness if entry["label"] == label]
+        assert set(codes) <= set(role["permissions"])
+        assert not set(codes) & set(next(e for e in described if e.label == label).permissions)
     assert "audit_log.read" in next(e for e in described if e.key == "administrator").permissions
     assert [entry.label for entry in predefined_roles("en")] == [
         "Administrator",

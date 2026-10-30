@@ -9408,7 +9408,9 @@ journal d'EP-02/L42 (B-01, B-03) et ses paramètres de #706 (B-02).
   `risk_settings.write` et `indicator_settings.write` : `access_roles`, `access_role_updated`,
   `access_role_renamed`, `me_manager` et `me_directory`, écrits à la main, et les exemples engendrés
   qui les relisent (`make mock-data`) ; `mockaudit.WITHDRAWN` ne change pas, la modification de
-  l'administration ne retirant que la saisie des coûts et des ressources.
+  l'administration ne retirant que la saisie des coûts et des ressources. Le service, en retard
+  sur le contrat jusqu'à EP-04 (option b de l'auteur, #1457), amorce encore le Manager sans elles :
+  `test_access_roles_guard.py` nomme l'écart (`TO_SEED_BY_EP04`) et échoue dès qu'il est comblé.
 - **Le journal** (B-01, B-02, B-03). `AuditProject.code` nul pour un projet sans code, rangé après
   les autres au tri par projet ; `AuditProject.can_open`, exigé, évalué pour l'appelant comme le
   portefeuille le fait (#389), dans les inscriptions et les facettes — faux pour un projet qui
