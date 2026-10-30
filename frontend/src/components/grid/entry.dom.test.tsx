@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { loginHref } from "@/navigation/login";
@@ -629,11 +630,15 @@ describe("a write the server refuses", () => {
   });
 
   it("explains a conflict, and says the API is out of reach", async () => {
-    serve({ [LINE]: { problem: { code: "REVISION_MARKED", status: 409 } } });
+    serve({
+      [LINE]: {
+        problem: example("node_create_marked_refused") as Problem & { status: 409 },
+      },
+    });
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/marquée/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/élaboration/);
     server.client = unreachable();
     rerender(grid());
     cell(LABOUR, "quantity").focus();
@@ -646,13 +651,18 @@ describe("a write the server refuses", () => {
 
   it("lets a refusal told be dismissed from the keyboard, the focus back on the active cell and the entry going on [WF-IHM-0040-A]", async () => {
     serve({
-      [LINE]: [{ problem: { code: "REVISION_MARKED", status: 409 } }, "estimate_line_updated"],
+      [LINE]: [
+        {
+          problem: example("node_create_marked_refused") as Problem & { status: 409 },
+        },
+        "estimate_line_updated",
+      ],
     });
     render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/marquée/);
+    expect(alert).toHaveTextContent(/élaboration/);
     // The cursor went down a row; Shift+Tab leaves the grid backwards, to the notice above it.
     expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
     await userEvent.tab({ shift: true });

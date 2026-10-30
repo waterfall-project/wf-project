@@ -152,6 +152,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/audit_events_period_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /audit-events/facets:
@@ -185,4 +186,5 @@
               anonymized: { $ref: ../../../fixtures/api/audit_facets_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

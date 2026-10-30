@@ -157,10 +157,13 @@ Problem:
       description: >-
         Paramètres du code, selon le cas — ceux que plusieurs refus partagent sont typés par
         `ProblemParams`, les autres restent ouverts : `missing_permission` (un `PermissionCode`),
-        `missing_condition` (une `CommandCondition`), `conflicting_object_id`,
-        `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412
+        `missing_condition` (une `CommandCondition`), `conflicting_object_id` et
+        `conflicting_object_label` (l'objet, et son libellé, qu'une modification postérieure a
+        repris et qu'une annulation ou un rétablissement défairait, `UNDO_CONFLICT`, WF-IHM-0110),
+        `missing_rates` (les catégories de main-d'œuvre sans taux horaire pour l'année de référence,
+        `HOURLY_RATE_MISSING`, WF-DEV-0010), `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412
         `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une
-        récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
+        récapitulative, `SUMMARY_TASK_DERIVED`, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne
         calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030),
         `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui
         interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat
@@ -410,18 +413,23 @@ ErrorCode:
     - SESSION_REVOKED
     - ACCOUNT_DEACTIVATED
     - ACCOUNT_NOT_ADMITTED
-    # 403 — permission présente, condition manquante : `params.missing_permission`
-    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
-    # structurante ou le paramétrage du projet exigent la qualité de chef de projet
-    # (WF-PRJ-0060).
+    # 403 — l'écriture n'est pas permise à l'appelant : une permission qui lui manque,
+    # `params.missing_permission` la nommant, ou sa qualité sur le projet, `params.missing_condition`
+    # la nommant — `is_contributor` pour qui n'en est pas contributeur, `is_project_manager` pour
+    # qui n'en est que contributeur, une action structurante ou le paramétrage du projet exigeant
+    # la qualité de chef de projet (WF-ADM-0110, WF-PRJ-0060, WF-IHM-0090). Un état n'est jamais
+    # un 403 : un projet terminal, une révision marquée se refusent par 409
+    # `STATE_FORBIDS_OPERATION` (README, « Conventions » ; US-0702/L1).
     - PERMISSION_MISSING
     - NOT_CONTRIBUTOR
     - NOT_PROJECT_MANAGER
-    - PROJECT_TERMINAL
-    - REVISION_MARKED
     # 404 — objet inexistant ou invisible, sans distinction (WF-ADM-0110).
     - NOT_FOUND
-    # 409 — l'état courant interdit l'opération ; `params` nomme l'objet ou l'état.
+    # 409 — l'état courant interdit l'opération : le refus de toute commande qu'un état rend
+    # indisponible, `params.missing_condition` nommant la condition qui manque, comme la commande
+    # de l'objet la dit d'avance — sur un projet terminal `project_not_terminal`, sur une révision
+    # marquée `revision_draft` (WF-CYC-0100, WF-DAT-0020, WF-IHM-0090) ; ou `params` nomme l'objet
+    # ou l'état.
     - STATE_FORBIDS_OPERATION
     # Une valeur unique déjà portée par un autre objet ; aussi motif par champ du 409 qui dit
     # quel champ la porte, `fields[].params.conflicting_object_id` nommant l'objet qui la porte
@@ -430,6 +438,10 @@ ErrorCode:
     - ALREADY_EXISTS
     - CURRENT_REVISION_EXISTS
     - REFERENCE_NOT_CORRECTABLE
+    # Une annulation ou un rétablissement qui défairait une modification postérieure portée sur le
+    # même objet — qu'un autre contributeur a depuis reprise — : `params.conflicting_object_id` et
+    # `params.conflicting_object_label` nomment cet objet, une tâche, une ligne de devis ou un
+    # risque (`undoLastChange`, `redoLastUndo`, WF-IHM-0110 ; E-07, US-0702/L1).
     - UNDO_CONFLICT
     # Des rôles envoyés, ou un rôle modifié, qui retireraient au dernier compte actif qui les
     # porte la permission de modifier les comptes ou les rôles d'habilitation (WF-ADM-0120) ;
@@ -442,8 +454,6 @@ ErrorCode:
     # commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_PROJECT_MANAGER
     - ACCESS_ROLE_IN_USE
-    - TASK_ALREADY_STARTED
-    - TASK_COMPLETED
     # Un projet créé alors que le référentiel minimal est incomplet ;
     # `params.missing_prerequisites` nomme chaque prérequis (WF-CYC-0120).
     - REFERENCE_INCOMPLETE
@@ -461,6 +471,11 @@ ErrorCode:
     # rôle (`EstimateLineWrite`, `EstimateLineUpdate` ; WF-DEV-0020) ; `fields` la nomme, et
     # `getComputedValueDependencies` dit ce dont elle dépend.
     - COMPUTED_VALUE
+    # Une valeur qu'une récapitulative tire de ses subordonnées, envoyée à la saisie : son état
+    # (`setTaskProgress`), ses dates (`/start`, `/finish`, `updateTaskFacet`) ; `params` — ou
+    # `fields[].params` pour une date — `subordinate_node_ids` nomme ses subordonnées directes
+    # (WF-PLA-0040, WF-IHM-0030 ; F-05, J-04, US-0702/L1). Aussi le signalement d'une récapitulative
+    # en mode manuel importée en mode automatique (`ImportSignal`, WF-INTF-0040).
     - SUMMARY_TASK_DERIVED
     # Des prédécesseurs qui fermeraient une boucle de liaisons, `params.cycle` nommant ses
     # tâches, ou une liaison entre une récapitulative et l'une de ses subordonnées, sans
@@ -475,13 +490,20 @@ ErrorCode:
     # (WF-PLA-0030 ; #1582).
     - LINK_CYCLE
     - LINK_FORBIDDEN
+    # Une ligne de main-d'œuvre sans rôle : le rôle retiré d'une ligne qui en porte un
+    # (`/resource_role_id`, `updateEstimateLine`), une ligne d'une catégorie de main-d'œuvre créée
+    # sans rôle (`/estimate_line/resource_role_id`, `createNode` ; WF-DEV-0020 ; J-06, US-0702/L1).
     - RESOURCE_ROLE_REQUIRED
     # Une catégorie hors main-d'œuvre là où il en faut une : le taux d'une catégorie
     # (`setHourlyRate`, WF-REF-0050), et le motif par champ de la catégorie d'un rôle de ressource
     # (`/cost_category_id`, WF-REF-0090).
     - LABOUR_CATEGORY_REQUIRED
+    # Un calcul refusé tant qu'une catégorie de main-d'œuvre employée par le rôle d'une ligne n'a
+    # pas de taux horaire pour l'année de référence de la révision : `params.missing_rates` nomme
+    # les catégories une par une (`MissingRate`) — une saisie de ligne qui le demanderait
+    # (`createNode`, `updateEstimateLine`), et le motif de l'échec d'un marquage
+    # (`BackgroundTaskRef.problem`, `markRevision` ; WF-DEV-0010 ; J-06, US-0702/L1).
     - HOURLY_RATE_MISSING
-    - PROJECT_CODE_REQUIRED
     - PASTE_TOO_WIDE
     # Le motif d'un bloc collé dont la cellule visée est sur un nœud qu'un différentiel retire,
     # qui n'accepte aucun champ : le bloc est refusé entier, dit une fois sur sa première ligne et
@@ -668,8 +690,9 @@ ErrorCode:
     # pièce et le même poste, nul compris (`ImportRejection`, WF-INTF-0140, D-4 ; EP-16/US-0630) :
     # chacune est rejetée, `params.rows` nommant les rangs des autres.
     - DUPLICATE_COST_LINE
-    # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
-    # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
+    # 5xx — composant indisponible, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), ou
+    # erreur inattendue, suivie par son `correlation_id` (WF-OBS-0020, 500 `InternalError`, que
+    # toute opération déclare ; J-07, US-0702/L1).
     - COMPONENT_UNAVAILABLE
     - INTERNAL_ERROR
 
@@ -709,6 +732,20 @@ ProblemParams:
     `state_enum` voyagent toujours ensemble.
   properties:
     state_enum: { $ref: '#/StateEnumeration' }
+    subordinate_node_ids:
+      type: array
+      minItems: 1
+      description: >-
+        Les subordonnées directes d'une récapitulative, dont elle tire la valeur envoyée — son état,
+        ses dates —, dans l'ordre du plan (`SUMMARY_TASK_DERIVED`, WF-PLA-0040, WF-IHM-0030).
+      items: { $ref: '#/Uuid' }
+    missing_rates:
+      type: array
+      minItems: 1
+      description: >-
+        Les catégories de main-d'œuvre sans taux horaire pour l'année de référence de la révision,
+        une par une, comme `getMissingRates` les liste (`HOURLY_RATE_MISSING`, WF-DEV-0010).
+      items: { $ref: schemas/indicators.yaml#/MissingRate }
     resource_roles:
       type: array
       description: >-
@@ -881,7 +918,10 @@ BackgroundTaskRef:
         reprend depuis le début ; une archive d'une version plus récente que l'installation est
         refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION`
         (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du
-        fournisseur d'identité (WF-ADM-0070).
+        fournisseur d'identité (WF-ADM-0070) ; `revision_mark` fige la révision et calcule ses
+        indicateurs, et échoue sans rien figer par `HOURLY_RATE_MISSING`, `params.missing_rates`
+        nommant les catégories de main-d'œuvre sans taux pour l'année de référence (`markRevision`,
+        WF-DEV-0010).
       enum:
         - import_analysis
         - import_apply

@@ -270,7 +270,8 @@ by = "make fixtures"
 # projects, the subprojects, the contributors, the accounts, the access roles, the work
 # breakdown and the backups (wftools.mocklists), and the exit of the witness, its code refused and
 # its readings by the quality of its reader (wftools.mockproject, held by
-# tools/tests/test_mockexit.py).
+# tools/tests/test_mockexit.py), and the refusals of one form each (wftools.mockrefusals, held by
+# tools/tests/test_mockrefusals.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -493,6 +494,37 @@ paths = [
     "fixtures/api/project_rescue.json",
     "fixtures/api/contributors_without_active_manager.json",
     "fixtures/api/contributors_set_by_rescuer.json",
+    "fixtures/api/timeline_create_terminal.json",
+    "fixtures/api/node_create_marked_refused.json",
+    "fixtures/api/skeleton_marked_refused.json",
+    "fixtures/api/project_update_not_manager.json",
+    "fixtures/api/next_state_pricing_without_code.json",
+    "fixtures/api/undo_history_empty.json",
+    "fixtures/api/redo_history_empty.json",
+    "fixtures/api/task_progress_summary_refused.json",
+    "fixtures/api/task_summary_date_refused.json",
+    "fixtures/api/estimate_line_rate_missing.json",
+    "fixtures/api/estimate_line_role_required.json",
+    "fixtures/api/internal_error.json",
+    "fixtures/api/nodes_fields_unknown.json",
+    "fixtures/api/node_create_without_hours.json",
+    "fixtures/api/estimate_line_without_hours.json",
+    "fixtures/api/node_create_field_not_accepted.json",
+    "fixtures/api/task_milestone_duration_refused.json",
+    "fixtures/api/estimate_line_field_not_accepted.json",
+    "fixtures/api/estimate_line_provision_reserved.json",
+    "fixtures/api/remaining_completed_refused.json",
+    "fixtures/api/session_required.json",
+    "fixtures/api/account_deactivated.json",
+    "fixtures/api/account_not_admitted.json",
+    "fixtures/api/avatar_malformed.json",
+    "fixtures/api/avatar_too_large.json",
+    "fixtures/api/project_update_not_contributor.json",
+    "fixtures/api/access_roles_number_invalid.json",
+    "fixtures/api/access_roles_date_invalid.json",
+    "fixtures/api/resource_role_calendar_unknown.json",
+    "fixtures/api/import_actual_costs_wbs_invalid.json",
+    "fixtures/api/import_remaining_ambiguous_label.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

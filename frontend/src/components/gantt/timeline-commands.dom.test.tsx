@@ -207,13 +207,13 @@ describe("the commands of the timelines of a project", () => {
   it("tells a deletion refused for a terminal project, and keeps the link [WF-CYC-0100-A]", async () => {
     serve(undefined, {
       "DELETE /projects/{project_id}/timelines/{timeline_id}": {
-        problem: example("timeline_delete_terminal") as Problem & { status: 403 },
+        problem: example("timeline_delete_terminal") as Problem & { status: 409 },
       },
     });
     render(choice(AVAILABLE));
     await deleteShown();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Le projet est clos : il ne se modifie plus.",
+      "Condition non remplie : projet non clos.",
     );
     expect(offered()).toEqual(["Comité de pilotage", "Revue client"]);
     expect(router.replace).not.toHaveBeenCalled();

@@ -13,10 +13,14 @@ from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata
 from wftools.mockids import universe
 from wftools.mocksort import LINE_COLUMNS, LineSort
+
+BOUNDS_CITED_BY = {"listNodes", "compareRevisions"}
+"""The readings that cite the bounds of a column inverted: those that filter the columns."""
 
 type Node = dict[str, Any]
 
@@ -162,6 +166,17 @@ def test_an_upper_bound_below_the_lower_is_refused_naming_the_lower_bound(
         "code": "VALUE_OUT_OF_RANGE",
         "params": {"minimum": "10000.00"},
     }
-    contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
-    cited = contract.count("fixtures/api/nodes_bounds_inverted.json")
-    assert cited == 2  # listNodes and compareRevisions
+    paths = yaml.safe_load((REPOSITORY / "docs/api/paths/revisions.yaml").read_text("utf-8"))
+    citing = {
+        operation["operationId"]
+        for item in paths.values()
+        for operation in item.values()
+        for example in operation["responses"]
+        .get("422", {})
+        .get("content", {})
+        .get("application/problem+json", {})
+        .get("examples", {})
+        .values()
+        if example.get("$ref", "").endswith("/nodes_bounds_inverted.json")
+    }
+    assert citing == BOUNDS_CITED_BY

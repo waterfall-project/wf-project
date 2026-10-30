@@ -38,6 +38,10 @@ WITHOUT_COSTS = "subproject_without_actual_costs"
 NOT_CITED = "subproject_not_cited"
 WITHOUT_LINES = "subproject_without_estimate_lines"
 FORBIDDEN = (409, "STATE_FORBIDS_OPERATION")
+QUALITY_REFUSALS = (
+    ("NOT_CONTRIBUTOR", {"missing_condition": "is_contributor"}),
+    ("NOT_PROJECT_MANAGER", {"missing_condition": "is_project_manager"}),
+)
 """The one envelope of a command a state makes unavailable, its condition named (EP-02/L42a)."""
 
 OPEN = ("created", "pricing")
@@ -818,10 +822,9 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
     } <= named.keys()
     for name, refused in named.items():
         if refused["status"] == 403:
-            # A terminal project refuses any write by 403, naming the condition as the 403 of the
-            # contract do (ErrorCode, `Forbidden`; #803).
-            assert refused["code"] == "PROJECT_TERMINAL", name
-            assert refused["params"] == {"missing_condition": NOT_TERMINAL}, name
+            # A 403 names a quality on the project, never a state: a terminal project and a marked
+            # revision are refused by the 409 of their condition (`Forbidden`; US-0702/L1).
+            assert (refused["code"], refused["params"]) in QUALITY_REFUSALS, name
         else:
             assert (refused["status"], refused["code"]) == FORBIDDEN, name
         assert "fields" not in refused, name

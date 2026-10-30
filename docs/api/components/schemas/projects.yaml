@@ -111,7 +111,30 @@ CommandCondition:
     `is_project_manager` manque à qui n'est que contributeur pour une action structurante
     ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110), et,
     avec `is_contributor`, à un non-contributeur. Une commande nomme sa qualité manquante avant
-    ses conditions d'état.
+    ses conditions d'état ; envoyée malgré elle, l'écriture est refusée par 403, `NOT_CONTRIBUTOR`
+    ou `NOT_PROJECT_MANAGER`, la qualité nommée (`Forbidden`). Toute autre condition qui manque se
+    refuse par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant (README,
+    « Conventions » ; US-0702/L1).
+    `project_not_terminal` manque à toute commande qui modifierait un projet terminal — Terminé,
+    Perdu ou Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) ; `revision_draft` à
+    toute commande qui modifierait une révision marquée, qui ne se modifie plus (WF-DAT-0020) —
+    toute révision d'un projet terminal l'est. `project_in_progress` manque hors de l'état En cours
+    à ce qui ne se fait qu'en réalisation : la sortie vers Terminé (`complete`, WF-CYC-0060), la
+    saisie du reste à engager (plus bas). `project_in_pricing` manque à la déclaration de perte
+    (`lose`) d'un projet Créé : un projet ne se déclare perdu que depuis Chiffrage (WF-CYC-0060).
+    `no_current_revision` manque à l'ouverture d'une révision (`create_revision`) tant que le
+    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010).
+    `reference_revision_designated` manque, tant que le projet n'a pas de révision de référence, à
+    la déclaration d'un risque survenu (`declare_risk_occurrence`, WF-RIS-0060) ; et
+    `reference_revision_designated` et `project_code_set`, tant que le projet n'a pas de code
+    projet, sont les conditions du passage à En cours, que le prochain état nomme une par une, dans
+    l'ordre de l'énumération (`NextState.missing_conditions`, `getProjectNextState`, WF-CYC-0030,
+    WF-CYC-0050, WF-PRJ-0010 ; J-11, US-0702/L1).
+    `undo_history_not_empty` manque à l'annulation quand l'historique de l'appelant sur la révision
+    est vide, `redo_history_not_empty` au rétablissement quand aucune annulation n'est à rétablir :
+    `undoLastChange` et `redoLastUndo` les nomment dans leur 409, aucune commande ne les disant
+    d'avance — `UndoResult.remaining_depth` dit ce qui reste à annuler (WF-IHM-0110 ; E-07,
+    US-0702/L1).
     `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
@@ -323,7 +346,6 @@ CommandCondition:
     - project_code_set
     - reference_revision_designated
     - at_least_one_task
-    - at_least_one_estimate_line
     - no_current_revision
     - revision_draft
     - revision_marked
@@ -337,7 +359,6 @@ CommandCondition:
     - task_not_milestone
     - task_without_lines
     - completed_milestone
-    - hourly_rates_set
     - no_background_task_running
     - may_create_revision
     - restored_subproject_exists
@@ -371,6 +392,8 @@ CommandCondition:
     - is_deactivated_account
     - is_not_anonymized
     - actual_cost_mapping_complete
+    - undo_history_not_empty
+    - redo_history_not_empty
 
 ProjectCommand:
   type: string

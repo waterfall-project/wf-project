@@ -105,7 +105,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_analysed" | "import_analysing" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_analysed" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked" | "project_indicators_without_current_revision";
@@ -123,7 +123,7 @@ export interface Examples {
     200: "milestone_tracking" | "milestone_tracking_none";
   };
   "GET /projects/{project_id}/next-state": {
-    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing";
+    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing" | "next_state_pricing_without_code";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";

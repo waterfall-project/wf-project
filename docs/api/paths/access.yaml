@@ -152,6 +152,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/users_period_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createUser
@@ -212,6 +213,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unknown_references: { $ref: ../../../fixtures/api/user_creation_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}:
@@ -234,6 +236,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateUser
@@ -290,6 +293,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               external_account: { $ref: ../../../fixtures/api/user_external_update_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/activation:
@@ -340,6 +344,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_reactivation_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/anonymization:
@@ -398,6 +403,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_anonymization_repeated.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/access-roles:
@@ -463,6 +469,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unknown_access_role: { $ref: ../../../fixtures/api/user_access_roles_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/password-link:
@@ -508,6 +515,7 @@
             examples:
               not_local: { $ref: ../../../fixtures/api/password_link_not_local.json }
               deactivated: { $ref: ../../../fixtures/api/password_link_deactivated.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/invitation:
@@ -549,6 +557,7 @@
             examples:
               not_local: { $ref: ../../../fixtures/api/invitation_not_local.json }
               deactivated: { $ref: ../../../fixtures/api/invitation_deactivated.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/avatar:
@@ -570,6 +579,7 @@
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /identity-syncs:
@@ -605,6 +615,7 @@
               queued: { $ref: ../../../fixtures/api/identity_sync_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /identity-syncs/latest:
@@ -633,6 +644,7 @@
               anonymized: { $ref: ../../../fixtures/api/identity_sync_report_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /identity-sync-schedule:
@@ -656,6 +668,7 @@
               witness: { $ref: ../../../fixtures/api/identity_sync_schedule.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setIdentitySyncSchedule
@@ -699,6 +712,7 @@
             examples:
               weekday_out_of_range: { $ref: ../../../fixtures/api/identity_sync_schedule_weekday_out_of_range.json }
               weekday_missing: { $ref: ../../../fixtures/api/identity_sync_schedule_weekday_missing.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /permissions:
@@ -721,6 +735,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/permissions.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles:
@@ -837,6 +852,9 @@
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/access_roles_bounds_inverted.json }
               period_inverted: { $ref: ../../../fixtures/api/access_roles_period_inverted.json }
+              number_invalid: { $ref: ../../../fixtures/api/access_roles_number_invalid.json }
+              date_invalid: { $ref: ../../../fixtures/api/access_roles_date_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createAccessRole
@@ -862,6 +880,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles/{access_role_id}:
@@ -884,6 +903,7 @@
               witness: { $ref: ../../../fixtures/api/access_role.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateAccessRole
@@ -924,6 +944,7 @@
               last_administrator: { $ref: ../../../fixtures/api/access_role_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteAccessRole
@@ -951,4 +972,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               in_use: { $ref: ../../../fixtures/api/access_role_delete_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

@@ -49,6 +49,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createRevision
@@ -96,6 +97,7 @@
             examples:
               current_revision_exists: { $ref: ../../../fixtures/api/current_revision_exists.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}:
@@ -129,6 +131,7 @@
               rate_update_offered: { $ref: ../../../fixtures/api/revision_rate_update_offered.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: abandonRevision
@@ -157,6 +160,7 @@
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/mark:
@@ -169,7 +173,11 @@
       (WF-REV-0020, WF-DAT-0040) ; une révision marquée avant l'état En cours ne
       conserve que les indicateurs de devis. Le nom de version est unique parmi les
       révisions marquées du projet. Confié au worker (WF-ARC-0090), et inscrit au
-      journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande.
+      journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande. Le calcul
+      est refusé tant qu'une catégorie de main-d'œuvre employée par le rôle d'une ligne n'a pas de
+      taux horaire pour l'année de référence de la révision : la tâche échoue sans rien figer, son
+      motif `HOURLY_RATE_MISSING`, `params.missing_rates` nommant les catégories une par une
+      (`BackgroundTaskRef.problem`, `task_failed` ; WF-DEV-0010, WF-IHM-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -202,6 +210,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/reference-revision:
@@ -259,6 +268,7 @@
               without_tasks: { $ref: ../../../fixtures/api/reference_without_tasks.json }
               not_correctable: { $ref: ../../../fixtures/api/reference_not_correctable.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/rate-update:
@@ -285,6 +295,7 @@
               reference_created: { $ref: ../../../fixtures/api/rate_update.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: applyRateUpdate
@@ -343,6 +354,7 @@
               not_available: { $ref: ../../../fixtures/api/rate_update_not_available.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/comparison:
@@ -470,7 +482,6 @@
               volume: { $ref: ../../../fixtures/api/volume/comparison_volume.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
               moved: { $ref: ../../../fixtures/api/comparison_moved.json }
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -480,13 +491,16 @@
           la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne
           inférieure donnée, une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE`
           sur `/query/<colonne>_to`, `params.minimum` le début donné (WF-IHM-0130) ; `fields`
-          sur le paramètre.
+          sur le paramètre. Une propriété inconnue de `fields`, comme `listNodes` la refuse
+          (`NodeFields`, `fields_unknown`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/nodes_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
+              fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures:
@@ -518,6 +532,7 @@
               estimator: { $ref: ../../../fixtures/api/structures_estimator.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostStructure
@@ -551,6 +566,7 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409': { $ref: ../components/responses.yaml#/Conflict }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}:
@@ -611,6 +627,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               non_working_day: { $ref: ../../../fixtures/api/structure_start_non_working_day.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge:
@@ -669,6 +686,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: mergeCostStructure
@@ -776,6 +794,7 @@
             examples:
               report_stale: { $ref: ../../../fixtures/api/merge_report_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes:
@@ -826,10 +845,9 @@
       une borne haute inférieure à la basse ou une fin antérieure au début par
       `VALUE_OUT_OF_RANGE`, `fields` sur le paramètre (README). Les prédécesseurs, une liste de
       liaisons, ne se filtrent pas ; le libellé se cherche (`search`). Le filtre par lot ou par
-      poste
-      (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au lot
-      ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que seule
-      la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
+      poste (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au
+      lot ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que
+      seule la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
       que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
       pas avec lui.
 
@@ -969,7 +987,6 @@
               empty: { $ref: ../../../fixtures/api/nodes_empty.json }
               amendment: { $ref: ../../../fixtures/api/nodes_amendment.json }
               risk_estimate: { $ref: ../../../fixtures/api/nodes_risk_estimate.json }
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -979,21 +996,27 @@
           haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
           `params.minimum` la borne inférieure donnée (`bounds_inverted`), une fin de période
           antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`,
-          `params.minimum` le début donné (`period_inverted`, WF-IHM-0130).
+          `params.minimum` le début donné (`period_inverted`, WF-IHM-0130). Une propriété
+          inconnue de `fields`, `VALIDATION_FAILED`, `fields` désignant `/query/fields` par
+          `FIELD_NOT_ACCEPTED`, comme tout paramètre de requête refusé (`NodeFields`,
+          `fields_unknown`, WF-ARC-0110).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/nodes_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
+              fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createNode
     tags: [revisions]
     summary: Créer une tâche ou une ligne de devis
     description: >-
-      Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). La
-      même écriture depuis les trois grilles : la phase du projet ne refuse rien ici, c'est la
+      Refusé sur une révision marquée (WF-DAT-0020) — toute révision d'un projet terminal l'est
+      (WF-CYC-0100) — par 409, comme toute écriture de la révision. La même écriture depuis les
+      trois grilles : la phase du projet ne refuse rien ici, c'est la
       commande de la structure qui dit quelle grille la saisit (`CostStructure.available_commands`).
       Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne
       les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans
@@ -1054,13 +1077,16 @@
           terminée, qui se rouvre d'abord depuis le Kanban (WF-DEV-0050, WF-RAE-0030),
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`
           (`completed_refused` ; #1184) ; ou un traitement de fond qui court sur la révision,
-          `no_background_task_running`, comme la commande de la structure le dit.
+          `no_background_task_running`, comme la commande de la structure le dit. Sur une révision
+          marquée, `revision_draft`, comme la révision le dit d'avance de ses saisies
+          (`Revision.available_commands`, `marked_refused`, WF-DAT-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               completed_refused:
                 $ref: ../../../fixtures/api/estimate_line_completed_refused.json
+              marked_refused: { $ref: ../../../fixtures/api/node_create_marked_refused.json }
       '422':
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de
@@ -1069,11 +1095,14 @@
           paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
           `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le
           parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la
-          ligne n'accepte pas
-          (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une catégorie qui n'est pas
+          ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une
+          catégorie qui n'est pas
           celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`,
           `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une
-          ligne sans rôle (`VALUE_REQUIRED`) ; ou une ligne qui laisserait sa
+          ligne sans rôle (`VALUE_REQUIRED`), une catégorie de main-d'œuvre sans rôle
+          (`/estimate_line/resource_role_id`, `RESOURCE_ROLE_REQUIRED`, WF-DEV-0020) ; ou, sans
+          `fields`, une ligne dont la catégorie n'a pas de taux horaire pour l'année de référence
+          (`HOURLY_RATE_MISSING`, `params.missing_rates`, WF-DEV-0010) ; ou une ligne qui laisserait sa
           tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
           `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
           (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Ou une date d'une tâche en
@@ -1092,6 +1121,9 @@
               non_working_day: { $ref: ../../../fixtures/api/node_create_non_working_day.json }
               line_category_mismatch:
                 $ref: ../../../fixtures/api/estimate_line_category_mismatch.json
+              without_hours: { $ref: ../../../fixtures/api/node_create_without_hours.json }
+              field_not_accepted: { $ref: ../../../fixtures/api/node_create_field_not_accepted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}:
@@ -1144,6 +1176,7 @@
             examples:
               unknown: { $ref: ../../../fixtures/api/row_number_unknown.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}:
@@ -1213,6 +1246,7 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies:
@@ -1224,8 +1258,7 @@
       Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur
       calcule — ainsi la catégorie d'une ligne de main-d'œuvre, tirée de son rôle
       (`labour_category`) — : les règles qui la calculent, et les lignes dont elle est tirée,
-      nommées par
-      leur numéro et leur libellé, que la recherche ou les filtres de la grille les
+      nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les
       retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
       nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
       sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
@@ -1271,6 +1304,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               entered: { $ref: ../../../fixtures/api/dependencies_entered.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task:
@@ -1335,7 +1369,9 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce
-          dont elle dépend (`getComputedValueDependencies`) —, ou le mode d'une récapitulative,
+          dont elle dépend (`getComputedValueDependencies`) ; une date d'une récapitulative, qui la
+          tire de ses subordonnées, par `SUMMARY_TASK_DERIVED`, `fields[].params.subordinate_node_ids`
+          les nommant (`summary_date_refused`, Vérif de WF-IHM-0030) —, ou le mode d'une récapitulative,
           toujours automatique (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020,
           WF-IHM-0030), ou un rattachement au lotissement refusé —
           tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble,
@@ -1359,6 +1395,9 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
+              summary_date_refused: { $ref: ../../../fixtures/api/task_summary_date_refused.json }
+              milestone_duration_refused:
+                $ref: ../../../fixtures/api/task_milestone_duration_refused.json
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
               non_working_day: { $ref: ../../../fixtures/api/task_date_non_working_day.json }
               hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
@@ -1368,6 +1407,7 @@
               attach_exclusive: { $ref: ../../../fixtures/api/task_attach_exclusive.json }
               attach_main_structure_only: { $ref: ../../../fixtures/api/task_attach_main_structure_only.json }
               attach_exclusive_attached: { $ref: ../../../fixtures/api/task_attach_exclusive_attached.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line:
@@ -1422,8 +1462,12 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne
-          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
+          Un calcul que la ligne demanderait sans taux horaire : une catégorie de main-d'œuvre
+          employée par son rôle sans taux pour l'année de référence de la révision,
+          `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories une par
+          une (`rate_missing`, WF-DEV-0010) ; ou le rôle retiré d'une ligne de main-d'œuvre,
+          `VALIDATION_FAILED`, `fields` sur `/resource_role_id`, motif `RESOURCE_ROLE_REQUIRED`
+          (`role_required`, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
           sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre
           rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la
           semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
@@ -1446,6 +1490,12 @@
             examples:
               payment_delay_out_of_range: { $ref: ../../../fixtures/api/estimate_line_payment_delay_out_of_range.json }
               subproject_has_actual_costs: { $ref: ../../../fixtures/api/estimate_line_subproject_has_actual_costs.json }
+              rate_missing: { $ref: ../../../fixtures/api/estimate_line_rate_missing.json }
+              role_required: { $ref: ../../../fixtures/api/estimate_line_role_required.json }
+              without_hours: { $ref: ../../../fixtures/api/estimate_line_without_hours.json }
+              field_not_accepted: { $ref: ../../../fixtures/api/estimate_line_field_not_accepted.json }
+              provision_reserved: { $ref: ../../../fixtures/api/estimate_line_provision_reserved.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
@@ -1506,6 +1556,7 @@
               cycle_refused: { $ref: ../../../fixtures/api/predecessors_cycle_refused.json }
               forbidden: { $ref: ../../../fixtures/api/predecessors_forbidden.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/predecessors_horizon_exceeded.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress:
@@ -1520,7 +1571,8 @@
       démarrée, jalon compris, prend pour date de démarrage celle de sa terminaison — un jalon
       sans passer par l'état démarré —, et un jalon rouvert perd l'une et l'autre
       (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`). Refusé sur une
-      récapitulative, dont l'état est dérivé (WF-PLA-0040).
+      récapitulative, dont l'état est dérivé de ses subordonnées (WF-PLA-0040) : 422
+      `SUMMARY_TASK_DERIVED`, qui les nomme (WF-IHM-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1564,8 +1616,8 @@
           `completed`, que la saisie de son reste à engager termine (WF-RAE-0040) ;
           `task_not_milestone`, un jalon envoyé à `started`, qui ne passe pas par l'état
           démarré (WF-PLA-0050) ; `completed_milestone`, `not_started` envoyé pour une tâche qui
-          n'est
-          pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les conditions
+          n'est pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les
+          conditions
           de la saisie du reste à engager (`StructureCommand.edit_remaining`) :
           `project_in_progress`, `no_background_task_running`.
         content:
@@ -1575,7 +1627,18 @@
               reopen_not_started_refused:
                 $ref: ../../../fixtures/api/task_reopen_not_started_refused.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Une récapitulative, dont l'état n'est pas saisissable : `SUMMARY_TASK_DERIVED`,
+          `params.subordinate_node_ids` nommant ses subordonnées directes, dans l'ordre du plan, dont
+          elle tire son état (WF-PLA-0040, WF-IHM-0030) ; rien n'est écrit. Ou une valeur hors
+          règle, `fields` la localisant, comme la réponse commune `UnprocessableEntity` le dit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              summary_refused: { $ref: ../../../fixtures/api/task_progress_summary_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining:
@@ -1620,7 +1683,7 @@
           La ligne n'accepte pas la réestimation, rien n'étant écrit :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première des
           conditions que sa `remaining_entry` dit manquer — `task_not_completed`, une ligne d'une
-          tâche terminée (WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le
+          tâche terminée (`completed_refused`, WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le
           montant est celui que son risque calcule (`remaining_provision_refused`, WF-RIS-0010,
           WF-RAE-0010) —, ou un traitement de fond qui court sur la révision,
           `no_background_task_running`.
@@ -1629,6 +1692,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/remaining_provision_refused.json }
+              completed_refused: { $ref: ../../../fixtures/api/remaining_completed_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -1640,6 +1704,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               completion_date_required: { $ref: ../../../fixtures/api/remaining_completion_date_required.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking:
@@ -1696,6 +1761,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               milestone_refused: { $ref: ../../../fixtures/api/node_tracking_milestone_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move:
@@ -1778,8 +1844,7 @@
           `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` et
           `order_item_tasks` nommant la tâche du lot et celles des postes par leur nœud et leur
           libellé, comme l'échec d'une fusion (`NodeMove`, WF-IHM-0080). Ou une ligne de
-          main-d'œuvre déplacée
-          change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
+          main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
           (WF-PLA-0010). Ou un nœud après lequel se placer qui n'est pas un frère sous le parent
@@ -1808,6 +1873,7 @@
               indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
               cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
               provision_refused: { $ref: ../../../fixtures/api/nodes_move_provision_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview:
@@ -1871,6 +1937,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               too_wide: { $ref: ../../../fixtures/api/paste_too_wide.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste:
@@ -1920,7 +1987,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La structure n'accepte plus la saisie de sa grille, rien n'étant écrit :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition que sa
+          commande dit manquer (`StructureCommand`) — `revision_draft` sur une révision marquée,
+          `no_background_task_running` pendant un traitement de fond qui court sur la révision
+          (WF-IHM-0050, WF-IHM-0090). Le refus d'une ligne du bloc n'est pas un 409 : elle est
+          rendue dans `rejected`, avec son motif (`PasteRejection`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412':
         description: >-
           Le compteur envoyé est périmé, ou la structure a changé depuis l'aperçu, quel que soit le
@@ -1932,6 +2009,7 @@
             examples:
               stale: { $ref: ../../../fixtures/api/paste_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/undo:
@@ -1971,9 +2049,12 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre,
-          rien n'étant défait (`later_change` ; #1531) —, ou l'historique de l'appelant sur la
-          révision est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé
+          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
+          depuis, une tâche, une ligne de devis ou un risque, rien n'étant défait : « Elle est
+          refusée, en nommant l'objet en conflit » (`later_change`, WF-IHM-0110 ; #1531, E-07) —,
+          ou l'historique de l'appelant sur la révision est vide, `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `undo_history_not_empty` (`history_empty`). Ou l'annulation rendrait un sous-projet supprimé
           depuis — à la provision d'un risque dont elle défait la création, la modification ou la
           suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
           suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
@@ -1996,8 +2077,10 @@
             examples:
               risk_without_task: { $ref: ../../../fixtures/api/undo_risk_without_task.json }
               later_change: { $ref: ../../../fixtures/api/undo_later_change.json }
+              history_empty: { $ref: ../../../fixtures/api/undo_history_empty.json }
               restored_subproject_deleted:
                 $ref: ../../../fixtures/api/undo_restored_subproject_deleted.json
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/redo:
@@ -2023,9 +2106,11 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre,
-          rien n'étant rétabli (`later_change` ; #1531) —, ou rien n'est à rétablir
-          (WF-IHM-0110). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
+          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
+          depuis, rien n'étant rétabli (`later_change`, WF-IHM-0110 ; #1531, E-07) —, ou aucune
+          annulation n'est à rétablir, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `redo_history_not_empty` (`history_empty`). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
           provision d'un risque dont il rétablit la création, la modification ou la suppression, ou
           à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une
           ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`,
@@ -2047,6 +2132,8 @@
               risk_category_deactivated:
                 $ref: ../../../fixtures/api/redo_risk_category_deactivated.json
               later_change: { $ref: ../../../fixtures/api/redo_later_change.json }
+              history_empty: { $ref: ../../../fixtures/api/redo_history_empty.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/skeleton:
@@ -2068,8 +2155,8 @@
       sur un projet sans révision en cours, c'est le projet qui le dit
       (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran
       l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue
-      (EP-15/US-0490/L4) ; refusée sur une révision marquée ou un projet terminal, par 403,
-      comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres :
+      (EP-15/US-0490/L4) ; refusée sur une révision marquée, toute révision d'un projet terminal
+      l'étant, par 409, comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres :
       elle rend les tâches créées, les totaux et le compteur de la structure (`NodesWritten`),
       pour que la grille vide se remplisse et que la saisie suivante porte le bon compteur
       (WF-IHM-0110).
@@ -2097,10 +2184,13 @@
           commande les liste (`generate_skeleton`) — `main_structure_without_tasks` dès que la
           structure principale comporte une tâche (Vérif de WF-PRJ-0030), puis
           `no_background_task_running` pendant un marquage, un import, le traitement d'une
-          survenance de risque ou une fusion (WF-IHM-0080).
+          survenance de risque ou une fusion (WF-IHM-0080). Sur une révision marquée, la commande
+          ne manque que de `revision_draft` (`marked_refused`, WF-DAT-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               structure_not_empty: { $ref: ../../../fixtures/api/skeleton_structure_not_empty.json }
+              marked_refused: { $ref: ../../../fixtures/api/skeleton_marked_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

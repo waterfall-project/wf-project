@@ -240,6 +240,9 @@ au contrat ; ne rien changer, qui laisserait le back lourd. `editable_fields` pe
 5,70 Mo du volume de mille tâches, mesuré avant L30 (#238) ; une grille qui ne l'emploie pas l'omet par `fields` ;
 une table par nature de nœud n'est décidée que si la seconde du §4.6.2 n'est pas tenue, mesurée
 en EP-13 (EP-02/L30).
+*Depuis US-0702/L1 (#1610, J-10, sur la règle des autres majeurs de l'auteur du 2026-10-28), une
+propriété inconnue de `fields` est refusée par 422 `VALIDATION_FAILED`, `/query/fields` par
+`FIELD_NOT_ACCEPTED`, comme tout paramètre de requête (EP-03, #799), et non plus par 400.*
 
 **`row_number` numérote toute la structure** (EP-02/L4, #158) : ses tâches et ses lignes, dans
 l'ordre du plan, quels que soient `kinds`, les filtres, la recherche et le tri. Une liaison
@@ -5439,7 +5442,12 @@ pendant un marquage, un import, le traitement d'une survenance de risque ou une 
 manque que de `revision_draft`, comme `merge_structure` (hors de la dernière révision marquée d'un
 projet sans révision en cours, depuis EP-16/US-0640/L3). Le 409 de `generatePlanningSkeleton` est
 `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première qui manque ; une révision
-marquée ou un projet terminal restent des 403, comme toute saisie. Ni différentiel ni devis propre
+marquée ou un projet terminal restent des 403, comme toute saisie. *Remplacé par US-0702/L1
+(#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une révision marquée —
+toute révision d'un projet terminal l'est — refuse le squelette par 409 `STATE_FORBIDS_OPERATION`,
+`revision_draft`, la seule condition que `generate_skeleton` nomme alors, comme toute saisie
+(`skeleton_marked_refused`) ; plus aucun état n'est un 403. La phrase est gardée pour l'histoire.*
+Ni différentiel ni devis propre
 d'un risque : la commande est de la révision, et l'opération, qui ne nomme aucune structure,
 engendre sur la principale. Les révisions des huit exemples écrits à la main qui listent
 `edit_planning` listent la commande : indisponible dans les sept qui portent les tâches du témoin,
@@ -5642,7 +5650,12 @@ engendrées.
 supprime physiquement. »). Le cadrage disait qu'une chronologie citée par une révision marquée
 serait marquée supprimée ; la spécification à jour depuis #708 la supprime physiquement, et la
 conclusion ne change pas : rien ne la refuse. La conception d'EP-14 est corrigée de même. Un projet
-terminal reste un 403, comme toute écriture. `createTimeline` déclare son 422 — un nom vide ou trop
+terminal reste un 403, comme toute écriture. *Remplacé par US-0702/L1 (#1610), sur la décision de
+l'auteur du 2026-10-28 (D-05, J-01, J-02) : un projet terminal refuse la création et la suppression
+d'une chronologie par 409 `STATE_FORBIDS_OPERATION`, `project_not_terminal`, comme
+`manage_timelines` le dit d'avance et comme toute autre écriture du projet
+(`timeline_create_terminal`, `timeline_delete_terminal`) ; la suppression n'a pas d'autre 409. La
+phrase est gardée pour l'histoire.* `createTimeline` déclare son 422 — un nom vide ou trop
 long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/label` — et dit le nom non unique, la spécification
 ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALREADY_EXISTS`, que
 WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
@@ -5757,7 +5770,11 @@ contredit pas les 403 des saisies de la révision, dont celui du squelette (EP-1
 terminal n'a pas de révision en cours, si bien que la déclaration y passe par le projet, qui porte
 alors `edit_risks` et `declare_risk` et nomme `project_not_terminal`, comme les imports qu'il porte
 refusent un projet terminal par leur 409 ; une saisie de la révision, elle, n'a plus de révision en
-cours où s'écrire, et reste un 403. Sur le projet,
+cours où s'écrire, et reste un 403. *Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur
+du 2026-10-28 (D-05, J-01, J-02) : une saisie de la révision sur une révision marquée — toute
+révision d'un projet terminal l'est — se refuse, elle aussi, par le 409 de sa condition,
+`revision_draft`, et non par un 403 : le 409 de `createRisk` et celui des saisies de la révision ne
+font plus qu'une règle. La phrase est gardée pour l'histoire.* Sur le projet,
 la structure jugée est celle de la révision que la déclaration créerait, sans tâche quand le projet
 n'a aucune révision marquée. Les révisions et les projets écrits à la main qui listent `edit_risks`
 listent la commande : indisponible sur la révision 103, sur le projet créé et sur l'offre en
@@ -7046,7 +7063,9 @@ révision n'est pas marquée (C-362).
   `RevisionCommand` ne la dit d'avance : son 409 seul nomme `revision_draft`, ou
   `no_background_task_running` pendant un traitement de fond sur la révision.
   *Remplacé par US-0640/L6 (#1351) : `RevisionCommand.apply_rate_update` la dit d'avance, et le
-  409 nomme la première condition qui manque à la commande.*
+  409 nomme la première condition qui manque à la commande.* *Et depuis US-0702/L1 (#1610, décision de
+  l'auteur du 2026-10-28), une saisie de grille sur une révision marquée l'est de même par 409,
+  `revision_draft`, et non par 403.*
 - **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
   `expected_lock_version` est le compteur courant du différentiel.
 
@@ -8197,6 +8216,9 @@ Sans objet ou hors du lot :
   (412, engendré par `wftools.mocklists` : le compteur de `work_breakdown_saved`). Le 403 d'un projet
   terminal porte `params.missing_condition` à `project_not_terminal`, comme le catalogue le dit des
   403 (`ErrorCode`, `Forbidden`) : c'est le premier exemple de ce refus.
+*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : `timeline_delete_terminal` est
+  un 409 `STATE_FORBIDS_OPERATION`, `project_not_terminal` ; `PROJECT_TERMINAL` sort du catalogue, et
+  le 403 ne dit plus que la permission ou la qualité de l'appelant. Le texte ci-dessus est gardé pour l'histoire.*
 - **Un refus du rattachement à deux motifs** (#817 point 2b). Exemple écrit à la main,
   `task_attach_exclusive_attached`, dernier des 422 d'`updateTaskFacet` : « Câblage des armoires »
   envoyée avec le lot et le poste à la fois, le lot porté par « Poste de commande » —
@@ -8427,7 +8449,8 @@ Aucune opération nouvelle.
     une saisie de grille, qu'une révision marquée refuse par 403. Le contrôle et le dépôt de la
     tâche se font sous le verrou du projet, qui tient sa révision en cours. Les compteurs d'une
     révision marquée ne bougent pas : c'est ce 409, et non le 412, qui dit qu'un compte rendu lu sans
-    révision en cours ne vaut plus.
+    révision en cours ne vaut plus. *Depuis US-0702/L1 (#1610, décision de l'auteur du 2026-10-28), une
+    saisie de grille sur une révision marquée est refusée par ce même 409, et non par 403.*
   - *L'échec après la création.* La tâche est une seule opération, comme la fusion que WF-REV-0050
     dit appliquée « en une seule opération », et comme le marquage (§ « Le marquage d'une
     révision ») : en échec, sur un cycle, l'horizon ou tout autre motif, elle ne laisse ni révision en
@@ -8606,7 +8629,9 @@ adoptent sont d'US-0660/L3 et L4.
   charge du « Raccordement des borniers » modifiée depuis par Lucas Petit ;
   `undo_restored_subproject_deleted`, `STATE_FORBIDS_OPERATION` à `restored_subproject_exists`,
   une ligne rendue à un sous-projet supprimé depuis. Les descriptions des deux 409 nomment
-  `UNDO_CONFLICT`.
+  `UNDO_CONFLICT`. *Depuis US-0702/L1 (#1610, E-07), `UNDO_CONFLICT` nomme l'objet en conflit
+  (`params.conflicting_object_id`, `conflicting_object_label`), et un historique vide a sa
+  condition ; « sans paramètre » ne vaut plus.*
 - **#1573, la part back** : la ligne trop longue de l'entrée « Les comptes rendus et les paramètres
   des refus » est coupée, et le test des paramètres typés valides prend un paramètre `(nom, valeur)`
   au lieu de la clé factice `tasks_imported`.
@@ -9570,6 +9595,134 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   US-0702/L2 (#1611), D-13 à US-0702.
 
 **Corrélations** 1606 et 1607 ; la tâche de fond 955.
+
+### Une seule forme pour chaque refus (US-0702/L1, #1610)
+
+La revue du contrat avant le gel (`2026-10-28-contrat-avant-gel.md`, D-05, J-01 à J-11, E-07, F-05)
+relevait deux formes pour un même refus et un catalogue qui porte des codes que rien ne rend. Le
+lot donne à chaque refus un statut, un code, ses paramètres et un exemple, ou retire le code ; les
+exemples nouveaux sont engendrés par `make mock-data` (`wftools.mockrefusals`). Les décisions
+qu'il contredit sont réécrites à leur place, en citant la décision de l'auteur du 2026-10-28.
+
+- **La règle unique des refus d'état** (D-05, J-01, J-02 ; décision de l'auteur du 2026-10-28 ;
+  WF-IHM-0090, WF-CYC-0100, WF-DAT-0020). La règle d'EP-02/L42a — « le refus d'une commande qu'un
+  état rend indisponible est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat, et le
+  README la dit (« Conventions ») : 409, `params.missing_condition` la condition que l'objet dit
+  d'avance de sa commande ; un projet terminal, `project_not_terminal`, une révision marquée,
+  `revision_draft`. `createTimeline` et `deleteTimeline` déclarent ce 409
+  (`timeline_create_terminal`, engendré ; `timeline_delete_terminal`, écrit à la main par #803,
+  passé de 403 à 409) ; `createNode` et `generatePlanningSkeleton` le nomment sur une révision
+  marquée (`node_create_marked_refused`, `skeleton_marked_refused`, sur la référence 101). Toute
+  révision d'un projet terminal est marquée — la sortie marque ou abandonne la révision en cours
+  (US-0701/L9) — : une saisie de grille sur un projet terminal n'a donc que `revision_draft` à
+  nommer. `PROJECT_TERMINAL` et `REVISION_MARKED` sortent d'`ErrorCode` ; `Forbidden` ne dit plus
+  que la permission (`PERMISSION_MISSING`) ou la qualité de l'appelant (`NOT_CONTRIBUTOR`,
+  `NOT_PROJECT_MANAGER`), et `Conflict` dit la règle. Réécrits : EP-14/L42k (le squelette et la
+  chronologie restés des 403), EP-14/L42s (« les 403 des saisies de la révision ») et
+  US-0640/L1 #803 (« le premier exemple de ce refus »). Écartés, par l'auteur : 409 hors grille et
+  403 sur la grille, deux règles pour un même fait ; 403 partout, contraire à L42a, L42i, L42l et à
+  la lecture commune des conditions par le front. Les commandes d'un projet clos restent listées,
+  `project_not_terminal` manquante (#1657, à trancher par l'auteur).
+
+- **Le catalogue sans code mort** (J-03, J-11 ; WF-ARC-0110, WF-IHM-0090). Chaque code
+  d'`ErrorCode` est nommé par une opération ou un schéma, et chaque valeur de `CommandCondition`
+  dite par sa description et nommée par une opération, un schéma ou un exemple :
+  `tools/tests/test_contract_catalogue.py` le tient, et tient aussi que chaque code est porté par un
+  exemple, sans liste d'attente. Les onze codes rendus par une opération sans exemple — J-17 et les
+  deux motifs d'une ligne importée — ont le leur, engendré (`wftools.mockrefusals`), sous
+  l'opération qui le déclare : `SESSION_REQUIRED` (réponse commune `Unauthorized`),
+  `ACCOUNT_DEACTIVATED` et `ACCOUNT_NOT_ADMITTED` (`getMe`), `MALFORMED_REQUEST` et
+  `FILE_TOO_LARGE` (`putMyAvatar`, qui déclare ses deux réponses), `NOT_CONTRIBUTOR`
+  (`updateProject`), `NUMBER_INVALID` et `DATE_INVALID` (`listAccessRoles`), `UNKNOWN_CALENDAR`
+  (`createResourceRole`), `WBS_ELEMENT_INVALID` (`getImport`, variante de l'extraction d'avril,
+  l'élément « /SP-CAB ») et `AMBIGUOUS_TASK_LABEL` (`getImport`, un reste à engager dont une ligne
+  cite « Mise en service », libellé que portent deux tâches du témoin). Aucun code n'est retiré
+  pour cette raison. Rendus : `NOT_PROJECT_MANAGER`, le 403 de qui n'est que
+  contributeur pour une commande réservée, `params.missing_condition` à `is_project_manager`
+  (`project_update_not_manager`, le modèle d'EP-02/L7, enfin rattaché à une opération) ;
+  `project_code_set`, que `getProjectNextState` nomme tant que le code manque
+  (`next_state_pricing_without_code`, Vérif de WF-PRJ-0010) ; `project_in_pricing`,
+  `no_current_revision`, `project_not_terminal`, `project_in_progress`, `revision_draft` et
+  `reference_revision_designated`, employés et désormais décrits. Retirés : `TASK_ALREADY_STARTED`
+  et `TASK_COMPLETED`, doublons de `STATE_FORBIDS_OPERATION` sous la règle unique — le refus de
+  `deleteNode` sur une tâche démarrée ou terminée sera une condition (F-04, US-0702/L2, #1611).
+  **Écart connu :** jusqu'à ce lot, `deleteNode` n'a donc aucun refus nommé pour une tâche démarrée
+  ou terminée ; l'écart est suivi par #1611 (F-04) et se referme à US-0702/L2. Retirés aussi :
+  `PROJECT_CODE_REQUIRED`, que rien ne refuse, le passage à En cours étant automatique et sa
+  condition nommée par `project_code_set` ; `at_least_one_estimate_line` et `hourly_rates_set`,
+  qu'aucune commande ne nomme. Écarté : garder les codes d'état pour `deleteNode`, deux formes pour
+  un même refus.
+- **Le taux manquant et le rôle absent nommés** (J-06 ; WF-DEV-0010, WF-DEV-0020). Le calcul
+  qu'une ligne demanderait sans taux horaire pour l'année de référence est refusé par 422
+  `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories (`MissingRate`,
+  le schéma de `getMissingRates`), sur `createNode` et `updateEstimateLine`
+  (`estimate_line_rate_missing`, l'ingénierie électrique sans taux 2026, comme `missing_rates` le
+  suppose) ; l'échec d'un marquage porte le même motif (`markRevision`, `BackgroundTaskRef.kind`,
+  `task_failed`, écrit à la main, qui reçoit les paramètres). Le rôle retiré d'une ligne de
+  main-d'œuvre, `/resource_role_id` par `RESOURCE_ROLE_REQUIRED` (`estimate_line_role_required`).
+  `missing_rates` est typé dans `ProblemParams`. Écarté : un motif par champ sur
+  `/cost_category_id`, que la revue proposait — la catégorie d'une ligne de main-d'œuvre est celle
+  de son rôle et ne se saisit plus (F-09, US-0701/L3), et une saisie de la seule charge n'aurait
+  aucun champ à désigner : c'est le calcul de la ligne qui est refusé, comme celui du marquage.
+- **L'annulation refusée en nommant l'objet en conflit** (E-07, J-05 ; WF-IHM-0110). Une
+  annulation ou un rétablissement qui défairait une modification postérieure sur le même objet :
+  409 `UNDO_CONFLICT`, `params.conflicting_object_id` et `conflicting_object_label` — les
+  paramètres que le front lit déjà pour l'objet en conflit (`conflictingOf`, #714) —, sur
+  `undo_later_change` et `redo_later_change`, variantes écrites à la main qui reçoivent la ligne du
+  « Raccordement des borniers ». Un historique vide n'est pas un conflit : 409
+  `STATE_FORBIDS_OPERATION`, `undo_history_not_empty` ou `redo_history_not_empty`, conditions
+  nouvelles qu'aucune commande ne dit d'avance (`undo_history_empty`, `redo_history_empty`).
+  Écartés : un paramètre par nature d'objet (`conflicting_node_id`, `conflicting_risk_id`), puis un
+  `conflicting_object_kind`, que la revue proposait — l'identifiant et le libellé suffisent à
+  nommer l'objet, comme pour `ALREADY_EXISTS`.
+- **Les valeurs d'une récapitulative** (F-05, J-04 ; WF-PLA-0040, WF-IHM-0030). Son état envoyé à
+  `setTaskProgress` est refusé par 422 `SUMMARY_TASK_DERIVED`, `params.subordinate_node_ids` ses
+  subordonnées directes dans l'ordre du plan (`task_progress_summary_refused`, « Études ») ; une
+  date envoyée à `updateTaskFacet`, par le même code en motif de champ, `fields[].params`
+  (`task_summary_date_refused`, « Poste de commande », Vérif de WF-IHM-0030). `COMPUTED_VALUE`
+  reste le motif d'une date d'une tâche en mode automatique qui n'est pas une récapitulative, et
+  celui du mode d'une récapitulative (US-0701/L3). `subordinate_node_ids` est typé dans
+  `ProblemParams`. La décision « Calculé contre saisi » (EP-02) reçoit enfin ses opérations.
+  Écarté : `COMPUTED_VALUE` avec les subordonnées, et `SUMMARY_TASK_DERIVED` retiré — le code
+  dit déjà la récapitulative au compte rendu d'un import (`ImportSignal`).
+
+- **Le 500 déclaré** (J-07 ; WF-ARC-0060, WF-OBS-0020). Une réponse partagée, `InternalError` —
+  `INTERNAL_ERROR`, sans paramètre, son `correlation_id` la référence que le front affiche
+  (`internal_error`) —, que chacune des 168 opérations déclare sous `'500'`, et une règle de
+  `redocly.yaml`, `rule/operation-declares-500`, qui le tient, comme le 401 et le 503 des
+  opérations gardées. Le service la rend déjà (US-0640/L2, `CorrelationMiddleware`). Écarté : une
+  réponse `default`, qui coûtait autant de lignes et aurait promis l'enveloppe `Problem` pour tout
+  statut non déclaré — un 502 ou un 504 d'une passerelle n'en porte pas, et le front le lit comme
+  l'API injoignable —, et que le client engendré n'aurait pas lue plus précisément qu'un 500
+  nommé ; une règle seule, sans la réponse dans les opérations, que le client engendré ne verrait
+  pas.
+- **`fields` refusé en 422** (J-10 ; WF-ARC-0110, WF-IHM-0130). Une propriété inconnue de
+  `fields` : 422 `VALIDATION_FAILED`, `/query/fields` par `FIELD_NOT_ACCEPTED`
+  (`nodes_fields_unknown`, cité par `listNodes` et `compareRevisions`) ; le `400` sort de ces deux
+  lectures, les seules opérations sans corps qui le déclaraient. Réécrit : EP-02/L4 (« refusée
+  (400) »).
+
+- **Les refus de l'arbre commun sans exemple** (F-17, #1648). Engendrés : une ligne de
+  main-d'œuvre qui laisserait le « Câblage des armoires » sans heure travaillée, créée
+  (`node_create_without_hours`) ou passée à un autre rôle (`estimate_line_without_hours`), les
+  calendriers supposés autres, comme `import_estimate_task_without_hours` le fait — ceux du témoin
+  se recoupent tous ; un champ que le nœud n'accepte pas, sur `createNode`, `updateTaskFacet` — la
+  durée d'un jalon — et `updateEstimateLine` (`node_create_field_not_accepted`,
+  `task_milestone_duration_refused`, `estimate_line_field_not_accepted`) ; une catégorie de
+  provision donnée à une ligne saisie (`estimate_line_provision_reserved`) ; une ligne d'une tâche
+  terminée réestimée (`remaining_completed_refused`). Le 409 d'`applyPaste` est décrit : la
+  commande de la structure, une ligne refusée du bloc restant dans `rejected`. `COMPUTED_VALUE`
+  était déjà nommé dans le 422 d'`updateEstimateLine`.
+- **Les mineurs des fichiers touchés.** #1646 : les lignes orphelines du repli à 100 colonnes de
+  `paths/revisions.yaml`. #1647 : le test de `nodes_bounds_inverted` liste les opérations qui le
+  citent, l'en-tête de `test_mockbreakdown.py` ne compte plus ses tests, la docstring de
+  `mockcore.dependencies` est refluée. #1654 : le test des rôles prédéfinis dit ce qu'il couvre de
+  la Vérif de WF-ADM-0010-A et où le reste est éprouvé. Les autres refus du lot US-0702/L2 (#1611)
+  — D-03, E-05, E-12 à E-14, F-03, F-04, F-11, H-08, I-06, I-17, A-05, C-01, et le compteur des
+  cinq écritures — attendent ce lot.
+
+**Corrélations** 1610 à 1637 ; les deux imports nouveaux, A30 et A31, et leurs tâches d'analyse,
+956 et 957.
 
 ## Collage et annulation
 

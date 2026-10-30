@@ -1,0 +1,10 @@
+{
+  "summary": "Les « Études », récapitulative, envoyées à l'état terminé : son état est dérivé de ses subordonnées et n'est pas saisissable ; refusé en nommant ses 5 subordonnées directes, dans l'ordre du plan ; rien n'est écrit (WF-PLA-0040, WF-IHM-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "SUMMARY_TASK_DERIVED",
+    "status": 422,
+    "params": {"subordinate_node_ids":["01926f3a-7c00-7000-8000-000000000522","01926f3a-7c00-7000-8000-000000000523","01926f3a-7c00-7000-8000-000000000524","01926f3a-7c00-7000-8000-000000000525","01926f3a-7c00-7000-8000-000000000526"]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001616"
+  }
+}

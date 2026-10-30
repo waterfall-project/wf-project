@@ -91,7 +91,9 @@ NodeFields:
   in: query
   description: >-
     Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une
-    propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même.
+    propriété inconnue est refusée comme tout paramètre de requête : 422 `VALIDATION_FAILED`,
+    `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED` (WF-ARC-0110 ; J-10, US-0702/L1).
+    `listNodes` et `compareRevisions` le lisent de même.
   schema:
     type: array
     minItems: 1

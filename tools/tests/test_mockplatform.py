@@ -120,5 +120,5 @@ def test_the_currency_is_read_by_any_session() -> None:
     # hide them.
     reading = _operation("reference.yaml", "/reference/settings", "get")
     assert "404" not in reading["responses"]
-    assert set(reading["responses"]) == {"200", "401", "503"}
+    assert set(reading["responses"]) == {"200", "401", "500", "503"}
     assert mockwitness.fixture("reference_settings")["currency_code"] == "EUR"

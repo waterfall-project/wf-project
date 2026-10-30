@@ -5,9 +5,9 @@
 They try the examples of #586 and of the timelines against the universe they illustrate and
 against the contract: the command of the skeleton, where it is offered and its refusal, the
 skeleton of the work breakdown by default, the refusals of the attachment by field and the merge
-that fails, the command of the timelines and the timeline created — not the Vérif of a
-requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »), but the
-one of the float of a summary, which cites WF-PLA-0100-A.
+that fails, the command of the timelines and the timeline created. A test cites a requirement
+only where it takes up its Vérif — the float of a summary, WF-PLA-0100-A —; the others hold the
+contract and the universe (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json
@@ -801,7 +801,8 @@ def test_the_refusals_of_the_timelines_and_of_a_stale_breakdown_have_their_examp
     assert label["fields"] == [{"pointer": "/label", "code": "VALUE_REQUIRED"}]
     assert _cited_under("createTimeline", "422")[-1] == "timeline_label_required"
     terminal = fixture("timeline_delete_terminal")
-    assert (terminal["status"], terminal["code"]) == (403, "PROJECT_TERMINAL")
+    # A terminal project is refused by its condition, as any write of the project (US-0702/L1).
+    assert (terminal["status"], terminal["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert terminal["params"] == {"missing_condition": "project_not_terminal"}
     assert fixture("project_completed")["state"] in TERMINAL
     said = _summary("timeline_delete_terminal")
@@ -809,7 +810,7 @@ def test_the_refusals_of_the_timelines_and_of_a_stale_breakdown_have_their_examp
         "Revue client"
     ]
     assert "project_completed" in _summary("timeline_delete_terminal")
-    assert _cited_under("deleteTimeline", "403") == ["timeline_delete_terminal"]
+    assert _cited_under("deleteTimeline", "409") == ["timeline_delete_terminal"]
     stale = fixture("work_breakdown_stale")
     assert (stale["status"], stale["code"]) == (412, "STALE_LOCK_VERSION")
     assert (

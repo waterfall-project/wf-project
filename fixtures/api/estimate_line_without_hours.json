@@ -1,0 +1,10 @@
+{
+  "summary": "Le rôle du « Raccordement des borniers », seule ligne de main-d'œuvre du « Câblage des armoires », passé au monteur câbleur, dont le calendrier n'aurait aucune heure dans la semaine : refusé, le rôle et la tâche nommés ; rien n'est écrit (WF-PLA-0010). Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi au jeudi : les calendriers sont supposés ici autres.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "TASK_WITHOUT_WORKING_HOURS",
+    "status": 422,
+    "params": {"resource_role_ids":["01926f3a-7c00-7000-8000-000000000454"],"tasks":[{"project_id":"01926f3a-7c00-7000-8000-000000000001","node_id":"01926f3a-7c00-7000-8000-000000000552","label":"Câblage des armoires"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001623"
+  }
+}

@@ -40,6 +40,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /chunked-uploads:
@@ -90,6 +91,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               size_out_of_range: { $ref: ../../../fixtures/api/chunked_upload_size_out_of_range.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /chunked-uploads/{chunked_upload_id}/parts/{part_number}:
@@ -138,6 +140,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               part_size_mismatch: { $ref: ../../../fixtures/api/chunked_upload_part_size_mismatch.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /chunked-uploads/{chunked_upload_id}/completion:
@@ -192,6 +195,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unreadable: { $ref: ../../../fixtures/api/chunked_upload_unreadable.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports:
@@ -227,6 +231,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: openImport
@@ -334,6 +339,7 @@
               format_unreadable: { $ref: ../../../fixtures/api/import_format_unreadable.json }
               actual_costs_column_missing: { $ref: ../../../fixtures/api/import_actual_costs_column_missing.json }
               purpose_mismatch: { $ref: ../../../fixtures/api/import_upload_purpose_mismatch.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports/{import_id}:
@@ -386,8 +392,11 @@
               planning_non_working_day: { $ref: ../../../fixtures/api/import_planning_non_working_day.json }
               planning_provision_moved: { $ref: ../../../fixtures/api/import_planning_provision_moved.json }
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
+              actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
+              remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: abandonImport
@@ -408,6 +417,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/imports/{import_id}/apply:
@@ -467,6 +477,7 @@
             examples:
               file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/exports:
@@ -528,4 +539,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               depth_out_of_range: { $ref: ../../../fixtures/api/export_depth_out_of_range.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

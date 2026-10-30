@@ -25,14 +25,19 @@ Unauthorized:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
       examples:
+        session_required: { $ref: ../../../fixtures/api/session_required.json }
         session_expired: { $ref: ../../../fixtures/api/session_expired.json }
         session_revoked: { $ref: ../../../fixtures/api/session_revoked.json }
 
 Forbidden:
   description: >-
-    Permission présente mais condition manquante : qualité de contributeur,
-    état du projet, révision marquée. `params` nomme la condition (WF-ADM-0110,
-    WF-CYC-0100, WF-DAT-0020).
+    L'écriture n'est pas permise à l'appelant, qui peut consulter l'objet : une permission
+    manquante, `PERMISSION_MISSING`, `params.missing_permission` la nommant ; ou sa qualité sur
+    le projet, `params.missing_condition` la nommant — `NOT_CONTRIBUTOR`, `is_contributor`, à qui
+    n'en est pas contributeur ; `NOT_PROJECT_MANAGER`, `is_project_manager`, à qui n'en est que
+    contributeur, pour une action structurante ou le paramétrage du projet (WF-ADM-0110,
+    WF-PRJ-0060). L'état d'un objet ne se refuse jamais par 403 : un projet terminal, une révision
+    marquée sont des 409 `STATE_FORBIDS_OPERATION` (`Conflict`).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
@@ -49,7 +54,10 @@ Conflict:
   description: >-
     L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par
     exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante,
-    ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée.
+    ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. Toute
+    commande qu'un état rend indisponible se refuse ainsi, comme l'objet la dit d'avance : sur un
+    projet terminal, `project_not_terminal` (WF-CYC-0100) ; sur une révision marquée — toute
+    révision d'un projet terminal l'est —, `revision_draft` (WF-DAT-0020).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
@@ -94,6 +102,19 @@ PortfolioPeriodRefused:
       examples:
         period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
         open_period_inverted: { $ref: ../../../fixtures/api/portfolio_open_period_inverted.json }
+
+InternalError:
+  description: >-
+    Erreur inattendue du service : `INTERNAL_ERROR`, sans paramètre, la cause écrite au seul
+    journal avec la trace et l'identifiant de corrélation, que la réponse porte
+    (`correlation_id`) et que le front affiche comme la référence de l'erreur (WF-OBS-0020,
+    WF-ARC-0060). Toute opération la déclare, aucune n'en dit davantage : rien de ce qui a échoué
+    n'est rendu ; `make lint-openapi` le vérifie (`rule/operation-declares-500`).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+      examples:
+        internal_error: { $ref: ../../../fixtures/api/internal_error.json }
 
 ServiceUnavailable:
   description: >-
