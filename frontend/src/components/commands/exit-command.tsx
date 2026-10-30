@@ -85,6 +85,9 @@ function ExitForm({
   const t = useTranslations();
   const field = useId();
   const statement = `${field}-statement`;
+  const revision = `${field}-revision`;
+  // What the confirmation says to the field and to the button, the abandon of the revision too.
+  const described = hasCurrentRevision ? `${statement} ${revision}` : statement;
   const [reason, setReason] = useState("");
   // Busy from the confirmation to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
@@ -104,8 +107,8 @@ function ExitForm({
       to_state: state,
       confirmed: true as const,
       ...(reason.trim() === "" ? {} : { reason }),
-      // The simplest sort that keeps the call valid: the choice between marking and abandoning
-      // is the confirmation's of US-0703/L4, not this one's.
+      // The confirmation says it: the revision is abandoned (WF-CYC-0090-A). The choice between
+      // marking and abandoning is the confirmation's of US-0703/L4, not this one's.
       ...(hasCurrentRevision ? { current_revision: { action: "abandon" as const } } : {}),
     };
     setBusy(true);
@@ -132,6 +135,7 @@ function ExitForm({
       <p id={statement}>
         {t("exitProject.statement", { state: t(`enums.ProjectState.${state}`) })}
       </p>
+      {hasCurrentRevision ? <p id={revision}>{t("exitProject.abandonedRevision")}</p> : null}
       <label htmlFor={field} className="block font-medium">
         {t("exitProject.reason")}
       </label>
@@ -140,14 +144,14 @@ function ExitForm({
         ref={input}
         value={reason}
         rows={3}
-        aria-describedby={statement}
+        aria-describedby={described}
         onChange={(event) => {
           setReason(event.target.value);
         }}
         className={FIELD}
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" aria-describedby={statement}>
+        <Button type="submit" size="sm" aria-describedby={described}>
           {commandIcon(PROJECT_COMMAND_ICONS[command])}
           {t("exitProject.submit")}
         </Button>

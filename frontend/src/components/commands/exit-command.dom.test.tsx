@@ -38,7 +38,6 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
-const LABEL = "Modernisation du poste de commande";
 const EXIT = "POST /projects/{project_id}/exit";
 const CONFLICT = {
   problem: {
@@ -56,16 +55,12 @@ function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
 }
 
 /** The exits of a project of the contract, in French. */
-function exitsOf(name: string, projectId?: string) {
+function exitsOf(name: string) {
   const project = example(name) as Project;
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <main>
-        <LifecycleCommands
-          project={
-            projectId === undefined ? project : { ...project, project_id: projectId, label: LABEL }
-          }
-        />
+        <LifecycleCommands project={project} />
       </main>
     </NextIntlClientProvider>
   );
@@ -202,6 +197,31 @@ describe("the exits of the lifecycle of a project", () => {
     ]);
   });
 
+  it("says that the current revision will be abandoned, only when the project carries one [WF-CYC-0090-A]", async () => {
+    // Avec une révision en cours, la confirmation dit qu'elle sera abandonnée ; sans, elle se tait.
+    const sentence = "La révision en cours du projet sera abandonnée";
+    const view = open();
+    await userEvent.click(exit("Terminer le projet"));
+    const form = screen.getByRole("form", { name: "Terminer le projet" });
+    expect(form).toHaveTextContent(sentence);
+    expect(
+      within(form).getByRole("button", { name: "Confirmer la sortie" }),
+    ).toHaveAccessibleDescription(new RegExp(sentence));
+    view.unmount();
+    open("project_without_current_revision");
+    await userEvent.click(exit("Terminer le projet"));
+    expect(screen.getByRole("form", { name: "Terminer le projet" })).not.toHaveTextContent(
+      "révision",
+    );
+  });
+
+  it("sends no current revision when the project carries none [WF-CYC-0090-A]", async () => {
+    const client = serve({ [EXIT]: "project_completed" });
+    open("project_without_current_revision");
+    await confirm("Terminer le projet");
+    expect(exits(client)).toEqual([{ to_state: "completed", confirmed: true }]);
+  });
+
   it("sends no motive when the user gives none", async () => {
     const client = serve({ [EXIT]: "project_completed" });
     open();
@@ -240,22 +260,15 @@ describe("the exits of the lifecycle of a project", () => {
       expect(status).toBeEmptyDOMElement();
     }
 
-    // The page read again: the project went back to pricing meanwhile. The exit withdrawn hides its form at
-    // once, but the confirmation is closed by an effect (`withdrawn` → `onClose`), a commit later:
+    // The page read again: the project is completed meanwhile, and lists no exit. The exit
+    // withdrawn hides its form at once, but the confirmation is closed by an effect (`withdrawn` → `onClose`), a commit later:
     // waited for, not assumed (one failure under a load of 7, #315).
-    view.rerender(exitsOf("project_pricing", PROJECT));
+    view.rerender(exitsOf("project_completed"));
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });
-    expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
-    const complete = exit("Terminer le projet");
-    expect(complete).toHaveFocus();
-    expect(complete).toHaveAttribute("aria-disabled", "true");
-    expect(complete).toHaveAttribute("aria-expanded", "false");
-    // The command has the focus: its tooltip, open, adds its help to the condition said beside it.
-    expect(complete).toHaveAccessibleDescription(
-      "Condition non remplie\u00A0: projet en cours. Termine le projet, après confirmation.",
-    );
+    // No exit is listed, so none keeps a refusal to say.
+    expect(screen.queryByRole("button", { name: "Terminer le projet" })).toBeNull();
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {

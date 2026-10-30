@@ -782,7 +782,25 @@ describe("the lifecycle of a project", () => {
   });
 
   it("offers no command that leads to pricing or in progress, whichever state the project is in [WF-CYC-0020-A]", async () => {
-    // Aucun écran ne propose de commande menant à Chiffrage ou En cours.
+    // Aucun écran ne propose de commande menant à Chiffrage ou En cours : seules les sorties.
+    for (const [project, next] of [
+      ["project_created", "next_state_created"],
+      ["project_pricing", "next_state_pricing"],
+      ["project", "next_state"],
+    ] as const) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}": project,
+        "GET /projects/{project_id}/next-state": next,
+      };
+      const page = html(await LifecyclePage(at()));
+      for (const name of buttons(page).filter((each) => each !== "Help")) {
+        expect(name).toMatch(/^(Complete|Declare|Abandon) the project/);
+      }
+    }
+  });
+
+  it("lists the exits each state offers, the loss no longer offered once the project is in progress [WF-CYC-0060-A]", async () => {
     for (const [project, next, lose] of [
       ["project_created", "next_state_created", true],
       ["project_pricing", "next_state_pricing", true],
