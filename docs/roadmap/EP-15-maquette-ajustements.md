@@ -941,12 +941,17 @@ travaille, sans table à plat.
   la marque `M`, que le serveur rend (`difference`, `changes` dont `parent`), sur l'exemple du faux
   back.
 - écart : `WF-REV-0080-A` — « La comparaison d’une révision obtenue par fusion d’un différentiel
-  avec la révision marquée qui la précède, lorsqu’aucune autre modification n’a été faite entre les
-  deux, restitue exactement les tâches et les montants budgétés de ce différentiel. » : EP-07.
+  avec la révision marquée qui la précède, de même année de référence, lorsqu’aucune autre
+  modification n’a été faite entre les deux, restitue exactement les tâches et les montants
+  budgétés de ce différentiel. » : EP-07.
 - écart : `WF-REV-0080-A` — « Les montants réestimés n’y diffèrent que par les lignes que le
   différentiel ajoute ou retire, par celles des tâches démarrées qu’il termine et par celles dont il
   change l’année de consommation ; une ligne existante dont le différentiel ne modifie que le
   montant budgété ne présente aucun écart de montant réestimé. » : EP-07.
+- écart : `WF-REV-0080-A` — « Entre deux révisions d’années de référence différentes, les montants
+  réestimés diffèrent en outre sur chaque ligne dont le taux a été mis à jour ou projeté jusqu’à la
+  nouvelle année de référence (WF-REV-0060) ; les tâches et les montants budgétés restent ceux du
+  différentiel. » : EP-07.
 - `WF-REV-0100-A` — « Deux structures différentielles coexistent dans une même révision, et la
   fusion de l'une laisse l'autre intacte. » : le choix de la structure liste chaque différentiel de
   la révision (`structures_amendments`) ; l'indépendance des fusions est du service — EP-08.
