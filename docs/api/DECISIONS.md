@@ -9,7 +9,10 @@ dizaines d'opérations : c'est pourquoi elles sont écrites ici plutôt que déc
 **Un état est une ressource, pas un verbe.** `PUT /users/{id}/activation`,
 `PUT /projects/{id}/reference-revision`, `PUT .../actual-costs/{id}/tracked-scope` plutôt
 que `/deactivate`, `/designate`, `/exclude`. Un `PUT` idempotent porte la valeur visée, ce
-qui rend l'opération rejouable sans effet de bord — utile pour un client qui réessaie.
+qui rend l'opération rejouable sans effet de bord — utile pour un client qui réessaie. Réécrit
+le 2026-10-28 (décision de l'auteur, US-0702/L2) : la désignation de la référence porte le
+compteur du projet, qu'elle écrit, et ne se rejoue plus telle quelle — le compteur a avancé,
+refusée par 412, le client relit ; le périmètre suivi reste rejouable, sans compteur.
 Trois exceptions assumées, où l'action n'est pas un état : `POST .../mark`,
 `POST .../merge`, `POST .../occurrence`. Elles sont irréversibles et méritent un verbe.
 
@@ -9646,8 +9649,8 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   `reference_revision_designated`, employés et désormais décrits. Retirés : `TASK_ALREADY_STARTED`
   et `TASK_COMPLETED`, doublons de `STATE_FORBIDS_OPERATION` sous la règle unique — le refus de
   `deleteNode` sur une tâche démarrée ou terminée sera une condition (F-04, US-0702/L2, #1611).
-  **Écart connu :** jusqu'à ce lot, `deleteNode` n'a donc aucun refus nommé pour une tâche démarrée
-  ou terminée ; l'écart est suivi par #1611 (F-04) et se referme à US-0702/L2. Retirés aussi :
+  **Écart soldé :** de ce lot à US-0702/L2, `deleteNode` n'avait aucun refus nommé pour une tâche
+  démarrée ou terminée ; US-0702/L2 le rend par `task_not_started` (F-04, plus bas). Retirés aussi :
   `PROJECT_CODE_REQUIRED`, que rien ne refuse, le passage à En cours étant automatique et sa
   condition nommée par `project_code_set` ; `at_least_one_estimate_line` et `hourly_rates_set`,
   qu'aucune commande ne nomme. Écarté : garder les codes d'état pour `deleteNode`, deux formes pour
@@ -9717,12 +9720,98 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   `paths/revisions.yaml`. #1647 : le test de `nodes_bounds_inverted` liste les opérations qui le
   citent, l'en-tête de `test_mockbreakdown.py` ne compte plus ses tests, la docstring de
   `mockcore.dependencies` est refluée. #1654 : le test des rôles prédéfinis dit ce qu'il couvre de
-  la Vérif de WF-ADM-0010-A et où le reste est éprouvé. Les autres refus du lot US-0702/L2 (#1611)
-  — D-03, E-05, E-12 à E-14, F-03, F-04, F-11, H-08, I-06, I-17, A-05, C-01, et le compteur des
-  cinq écritures — attendent ce lot.
+  la Vérif de WF-ADM-0010-A et où le reste est éprouvé. Les autres refus — D-03, E-05, E-12 à
+  E-14, F-03, F-04, F-11, H-08, I-06, I-17, A-05, C-01, et le compteur des cinq écritures — sont
+  ceux d'US-0702/L2 (#1611), ci-dessous.
 
 **Corrélations** 1610 à 1637 ; les deux imports nouveaux, A30 et A31, et leurs tâches d'analyse,
 956 et 957.
+
+### Les refus sans code ni exemple, et le compteur des écritures concurrentes (US-0702/L2, #1611)
+
+La revue du contrat avant le gel relevait des refus déclarés sans code, sans condition ni exemple
+(D-03, D-10, E-05, E-12 à E-14, F-03, F-04 et son double H-05, F-11, H-08, I-06, I-17, A-05,
+C-01), et cinq écritures sans compteur (E-13, E-24, « Doutes »). Chaque refus suit la règle unique
+d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockdeclared`).
+
+- **Le compteur des cinq écritures** (décision de l'auteur du 2026-10-28 ; WF-IHM-0110).
+  `abandonRevision`, `deleteRisk` et `deleteSubproject`, suppressions sans corps, exigent
+  `lock_version` en paramètre, le compteur de l'objet supprimé, comme `deleteNode` (#1210), et
+  déclarent le 412 ; un compteur absent ou mal formé est le 422 partagé `LockVersionInvalid`,
+  que `deleteNode` reprend. `exitProject` et `designateReferenceRevision` le portent dans leur
+  corps (`ProjectExit.lock_version`, `ReferenceDesignation.lock_version`), celui du projet,
+  qu'elles écrivent. **Exception écrite** : le `PUT` du périmètre suivi
+  (`setActualCostTrackedScope`) reste idempotent, sans compteur ni 412 — il pose l'état visé sans
+  dépendre d'aucune autre valeur de la ligne, et deux requêtes concurrentes ne peuvent que donner
+  le même état ou le dernier demandé ; sa description et le README (« Conventions ») le disent.
+  Réécrit : « Un état est une ressource, pas un verbe » (plus haut) — `designateReferenceRevision`
+  n'est plus rejouable telle quelle, son compteur ayant avancé à la première désignation. Écartés,
+  par l'auteur : le compteur partout, `tracked-scope` compris, dont l'idempotence était décidée ;
+  rien, contraire à la convention.
+- **La sortie** (D-03 ; WF-CYC-0060, WF-CYC-0080, WF-CYC-0090). Son 409 est
+  `STATE_FORBIDS_OPERATION`, la première condition de sa commande : `project_not_terminal` pour
+  toute sortie d'un projet terminal, que la commande y soit listée ou non (`project_exit_terminal`),
+  puis `project_in_progress` pour Terminé, `project_in_pricing` pour Perdu
+  (`project_exit_lost_in_progress`, Perdu depuis En cours), puis `no_background_task_running`.
+  `confirmed` absent ou faux est un 400 `CONFIRMATION_REQUIRED` (`project_exit_unconfirmed`),
+  comme pour la restauration (B-09, US-0701/L8). Écarté : un 422 `VALUE_REQUIRED` sur
+  `/confirmed`, que la revue proposait aussi — le catalogue dit déjà la confirmation absente par
+  ce 400, et deux formes pour une même garde en feraient deux règles.
+- **Les révisions et leurs structures** (E-05, E-12 à E-14 ; WF-REV-0010, WF-REV-0020,
+  WF-REV-0100). Le marquage, l'abandon et l'ouverture d'un différentiel nomment `revision_draft`
+  puis `no_background_task_running` (`mark_revision_marked`, `revision_abandon_marked`,
+  `structure_create_revision_marked`, sur la référence 101) ; `RevisionCommand` dit les conditions
+  de `mark`, `abandon` et `designate_reference`. `project_not_terminal` n'y est pas nommée : toute
+  révision d'un projet terminal est marquée, et `revision_draft` y suffit (US-0702/L1).
+  L'ouverture d'une révision nomme aussi `project_not_terminal` et `no_background_task_running`
+  pendant un traitement qui la crée (`revision_create_background_running`, variante de l'offre).
+  Le nom de version déjà employé est refusé par le marquage et par la fusion comme par la sortie,
+  `ALREADY_EXISTS` sur `/version_name` (`mark_version_name_taken`, `merge_version_name_taken`),
+  jugé au dépôt de la fusion : aucune révision en cours n'est créée pour échouer au marquage
+  (#790). Un différentiel naît copie de la structure principale, ses nœuds `unchanged` ; son
+  libellé n'est pas unique, plusieurs coexistant (#1211).
+- **L'arbre commun** (F-03, F-04, H-05, F-11 ; WF-PLA-0030, WF-PLA-0060, WF-PLA-0070,
+  WF-RIS-0010). Un prédécesseur nommé deux fois : 422, motif nouveau `DUPLICATE_PREDECESSOR`
+  sur chaque occurrence après la première (`predecessors_duplicate`) — ni `ALREADY_EXISTS`, l'unicité
+  d'un objet, ni `DUPLICATE_WORK_BREAKDOWN_ITEM`, propre au lotissement. La suppression d'une tâche
+  démarrée ou terminée, ou d'une récapitulative dont une subordonnée l'est : condition nouvelle
+  `task_not_started` (`node_delete_started_refused`, le « Câblage des armoires »), que l'état de
+  la tâche montre d'avance, aucune commande du nœud ne la disant ; la citation fautive « portant un
+  coût réel » est retirée. Les lignes de provision des tâches supprimées passent sur la tâche que
+  WF-RIS-0010 désigne, rendues dans `nodes` ; la suppression qui laisserait sans tâche une
+  structure principale qui en porte est refusée par `at_least_one_task`, la condition qui dit déjà
+  qu'une ligne de provision doit avoir une tâche où se ranger, `params.risks` nommant les risques
+  (`ProblemRisk` ; `node_delete_last_provision_task_refused`, variante contrefactuelle). Écartés :
+  `TASK_ALREADY_STARTED` et `TASK_COMPLETED`, retirés par US-0702/L1 ; une condition nouvelle
+  pour la dernière tâche, que la revue proposait (`provision_task_remaining`), quand
+  `at_least_one_task` dit le même fait. L'inscription aux suivis a son 409, celui de
+  `edit_planning` (`node_tracking_marked_refused`) ; `TrackingEntry` dit sa règle : `timeline_id`
+  exigé pour `timeline` (`VALUE_REQUIRED`), d'une chronologie du projet (motif nouveau
+  `UNKNOWN_TIMELINE`), refusé pour `milestone_tracking` (`FIELD_NOT_ACCEPTED`), une entrée répétée
+  à l'identique n'en faisant qu'une (`node_tracking_timeline_required`,
+  `node_tracking_timeline_unknown`). Écarté : refuser l'entrée répétée, qui ne porte rien d'autre
+  que ce qu'elle répète.
+- **La survenance, le périmètre suivi, l'export, le résultat d'une tâche** (H-08, I-06, I-17,
+  A-05). Le 409 de `declareRiskOccurrence` dit l'ordre : les conditions du projet, puis celles du
+  risque (`risk_occurrence_not_identified`, US-0700/L1). Celui de `setActualCostTrackedScope` nomme
+  `project_not_terminal` puis `project_in_progress`, comme `exclude_cost_lines`
+  (`actual_cost_scope_terminal`). Le 409 de `requestExport` est retiré : un export ne manque
+  d'aucune condition (EP-02/L17). Celui de `getBackgroundTaskResult` nomme la condition nouvelle
+  `task_succeeded` pour une tâche en file, en cours ou en échec (`task_result_not_succeeded`) ; une
+  tâche qui ne produit pas de fichier est un 404, comme un résultat supprimé. Écarté : le même
+  `task_succeeded` pour une tâche aboutie sans fichier, que la revue proposait — la condition ne
+  dirait pas la vraie cause.
+- **Le référentiel** (C-01, D-10 ; WF-REF-0150, WF-ADM-0100, WF-ADM-0110). `listOrgNodes`,
+  `listCalendars` et `listCostTypes` déclarent le 403 de `include_inactive` et `is_active` faux,
+  `PERMISSION_MISSING` à `resource_settings.write` ou `cost_settings.write`, avec un exemple chacune
+  (`*_inactive_forbidden`). La question « qui lit les objets actifs », que la revue laissait au
+  passage, n'est pas tranchée ici : le 404 reste tel qu'il était. `createSubproject` déclare le 404.
+- **L'outil** (#1662). `mockrefusals.problem`, `state_refused` et `field_refused` restent publics :
+  `mockdeclared` les reprend, et aucune règle ne demande le préfixe à une fonction partagée entre
+  générateurs ; le rapport d'import qu'il réécrit est typé (`_ImportReport`) au lieu de
+  `dict[str, Any]`.
+
+**Corrélations** 1638 à 1657.
 
 ## Collage et annulation
 

@@ -270,6 +270,14 @@
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          Le compteur du risque supprimé, tel que l'écran l'a lu (`Risk.lock_version`) : périmé,
+          la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110 ; décision de
+          l'auteur du 2026-10-28, US-0702/L2).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
         description: Risque supprimé, son devis propre et sa ligne de provision avec lui.
@@ -290,6 +298,8 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               cited: { $ref: ../../../fixtures/api/risk_delete_cited.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -515,9 +525,15 @@
       '409':
         description: >-
           L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
-          condition qui manque, comme la commande `declare_occurrence` du risque la dit — ainsi
-          `risk_identified` pour un risque survenu ou écarté, seul un risque identifié survenant
-          (WF-RIS-0020), comme au compte rendu.
+          première condition qui manque, celles du projet d'abord, dans l'ordre où sa commande
+          `declare_risk_occurrence` les nomme — `project_not_terminal` sur un projet terminal
+          (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas de révision de
+          référence (WF-RIS-0060), `no_background_task_running` pendant un traitement de fond qui
+          écrit dans la révision en cours ou la crée —, puis celles du risque, dans l'ordre où sa
+          commande `declare_occurrence` les nomme — `risk_identified` pour un risque survenu ou
+          écarté, seul un risque identifié survenant (WF-RIS-0020), comme au compte rendu, puis
+          `may_create_revision`, sans révision en cours, pour qui n'a pas `revisions.write`
+          (WF-RIS-0060). Rien n'est écrit (H-08, US-0702/L2).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

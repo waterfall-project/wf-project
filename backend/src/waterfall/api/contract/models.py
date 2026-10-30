@@ -67,6 +67,8 @@ class ErrorCode(StrEnum):
     ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
     NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
     MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
+    UNKNOWN_TIMELINE = "UNKNOWN_TIMELINE"
+    DUPLICATE_PREDECESSOR = "DUPLICATE_PREDECESSOR"
     UPLOAD_PURPOSE_MISMATCH = "UPLOAD_PURPOSE_MISMATCH"
     BACKUP_FROM_NEWER_VERSION = "BACKUP_FROM_NEWER_VERSION"
     TASK_INTERRUPTED_BY_RESTORE = "TASK_INTERRUPTED_BY_RESTORE"
@@ -156,6 +158,11 @@ class ProblemEstimateLine(ContractModel):
     label: str
 
 
+class ProblemRisk(ContractModel):
+    risk_id: Uuid
+    label: str
+
+
 class ProblemSubproject(ContractModel):
     subproject_id: Uuid
     label: str
@@ -215,6 +222,13 @@ class ProblemParams(ContractModel):
         list[ProblemEstimateLine] | None,
         Field(
             description="Les lignes de devis de la révision en cours qui portent un sous-projet dont la suppression est refusée (`STATE_FORBIDS_OPERATION`, `subproject_without_estimate_lines`, WF-DAT-0080)."
+        ),
+    ] = None
+    risks: Annotated[
+        list[ProblemRisk] | None,
+        Field(
+            description="Les risques dont la ligne de provision n'aurait plus de tâche où se ranger, chacun par son identifiant et son libellé, dans l'ordre de la liste des risques : la suppression qui laisserait sans tâche une structure principale qui en porte une (`STATE_FORBIDS_OPERATION`, `at_least_one_task`, `deleteNode`, WF-RIS-0010 ; H-05, US-0702/L2).",
+            min_length=1,
         ),
     ] = None
     subproject: Annotated[
@@ -914,6 +928,7 @@ class CommandCondition(StrEnum):
     unmerged_amendment_exists = "unmerged_amendment_exists"
     rate_update_available = "rate_update_available"
     task_not_completed = "task_not_completed"
+    task_not_started = "task_not_started"
     line_not_provision = "line_not_provision"
     task_is_milestone = "task_is_milestone"
     task_not_milestone = "task_not_milestone"
@@ -954,6 +969,7 @@ class CommandCondition(StrEnum):
     actual_cost_mapping_complete = "actual_cost_mapping_complete"
     undo_history_not_empty = "undo_history_not_empty"
     redo_history_not_empty = "redo_history_not_empty"
+    task_succeeded = "task_succeeded"
 
 
 class UserCommandAvailability(ContractModel):
@@ -2588,7 +2604,7 @@ class ProjectExit(ContractModel):
     confirmed: Annotated[
         Literal[True],
         Field(
-            description="Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090."
+            description="Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`)."
         ),
     ]
     reason: Annotated[
@@ -2603,6 +2619,12 @@ class ProjectExit(ContractModel):
             description="Le sort de la révision en cours, exigé quand le projet en porte une (`Project.current_revision_id`) : absent ou nul, la sortie est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/current_revision` par `VALUE_REQUIRED`, et rien n'est écrit (`project_exit_revision_required`). Absent ou nul quand le projet n'en porte pas (D-01, US-0701/L9)."
         ),
     ] = None
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du projet lu (`Project.lock_version`) : périmé, la sortie est refusée par 412 et rien n'est écrit (WF-IHM-0110 ; décision de l'auteur du 2026-10-28, US-0702/L2)."
+        ),
+    ]
 
 
 class WorkBreakdownKind(StrEnum):
@@ -2973,6 +2995,12 @@ class RevisionMark(ContractModel):
 class ReferenceDesignation(ContractModel):
     revision_id: Uuid
     confirmed: Literal[True]
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur du projet lu (`Project.lock_version`), dont la désignation écrit la référence et l'état : périmé, elle est refusée par 412 et rien n'est écrit (WF-IHM-0110 ; décision de l'auteur du 2026-10-28, E-24, US-0702/L2)."
+        ),
+    ]
 
 
 class Source(StrEnum):
@@ -3137,7 +3165,12 @@ class Kind4(StrEnum):
 
 class TrackingEntry(ContractModel):
     kind: Kind4
-    timeline_id: Uuid | None = None
+    timeline_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La chronologie, exigée pour `timeline` : absente ou nulle, 422 `VALIDATION_FAILED`, `fields` sur `/entries/<n>/timeline_id` par `VALUE_REQUIRED` ; une chronologie qui n'est pas du projet, ou que le serveur n'a pas, par `UNKNOWN_TIMELINE`. Nulle ou absente pour `milestone_tracking`, qui ne vise aucune chronologie : envoyée, par `FIELD_NOT_ACCEPTED`."
+        ),
+    ] = None
 
 
 class ExternalId(RootModel[str]):
@@ -4421,7 +4454,12 @@ class EstimateLineUpdate(ContractModel):
 
 
 class PredecessorsReplace(ContractModel):
-    predecessors: list[PredecessorWrite]
+    predecessors: Annotated[
+        list[PredecessorWrite],
+        Field(
+            description="Les prédécesseurs de la tâche, qui remplacent les siens. « Deux tâches ne sont reliées que par une liaison au plus » (WF-PLA-0030) : un `predecessor_node_id` n'y figure qu'une fois, et chaque occurrence après la première est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/predecessors/<n>/predecessor_node_id`, `n` son rang à partir de 0, motif `DUPLICATE_PREDECESSOR`, sans paramètre ; rien n'est écrit (F-03, US-0702/L2)."
+        ),
+    ]
     lock_version: LockVersion
 
 

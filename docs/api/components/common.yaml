@@ -400,7 +400,9 @@ ErrorCode:
     une modification du contrat ; le front n'en rencontre aucun qu'il ne sache
     rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
   enum:
-    # 400 — requête mal formée ou confirmation absente.
+    # 400 — requête mal formée ou confirmation absente : `confirmed` absent ou faux d'une
+    # opération irréversible, la restauration (`startRestore`) comme la sortie du cycle de vie
+    # (`exitProject` ; D-03, US-0702/L2).
     - MALFORMED_REQUEST
     - CONFIRMATION_REQUIRED
     # 401 — aucun jeton valide (WF-SEC-0020) ; ou compte désactivé (WF-ADM-0060), ou que
@@ -557,6 +559,14 @@ ErrorCode:
     # temps/temps est celui des jalons (`/entries/<n>/kind`, `setNodeTracking`, WF-PLA-0060 ;
     # #1159).
     - MILESTONE_REQUIRED
+    # Une entrée `timeline` dont la chronologie n'est pas une chronologie du projet, ou que le
+    # serveur n'a pas (`/entries/<n>/timeline_id`, `setNodeTracking`, WF-PLA-0060, WF-PLA-0140 ;
+    # F-11, US-0702/L2).
+    - UNKNOWN_TIMELINE
+    # Un prédécesseur nommé deux fois dans les prédécesseurs envoyés pour une tâche : deux tâches
+    # ne sont reliées que par une liaison au plus (`/predecessors/<n>/predecessor_node_id` de
+    # chaque occurrence après la première, `setPredecessors`, WF-PLA-0030 ; F-03, US-0702/L2).
+    - DUPLICATE_PREDECESSOR
     # Un dépôt désigné pour un autre usage que le sien : un import ouvert sur une sauvegarde
     # déposée pour une restauration, ou une restauration sur un dépôt d'import (`uploadFile`,
     # `FileUploadPurpose`).
@@ -784,6 +794,15 @@ ProblemParams:
         Les lignes de devis de la révision en cours qui portent un sous-projet dont la suppression
         est refusée (`STATE_FORBIDS_OPERATION`, `subproject_without_estimate_lines`, WF-DAT-0080).
       items: { $ref: '#/ProblemEstimateLine' }
+    risks:
+      type: array
+      minItems: 1
+      description: >-
+        Les risques dont la ligne de provision n'aurait plus de tâche où se ranger, chacun par son
+        identifiant et son libellé, dans l'ordre de la liste des risques : la suppression qui
+        laisserait sans tâche une structure principale qui en porte une (`STATE_FORBIDS_OPERATION`,
+        `at_least_one_task`, `deleteNode`, WF-RIS-0010 ; H-05, US-0702/L2).
+      items: { $ref: '#/ProblemRisk' }
     subproject:
       allOf: [{ $ref: '#/ProblemSubproject' }]
       description: >-
@@ -859,6 +878,14 @@ ProblemEstimateLine:
     structure_label: { type: string }
     node_id: { $ref: '#/Uuid' }
     row_number: { type: integer, minimum: 1 }
+    label: { type: string }
+
+ProblemRisk:
+  type: object
+  required: [risk_id, label]
+  description: Un risque nommé par un refus (`ProblemParams.risks`).
+  properties:
+    risk_id: { $ref: '#/Uuid' }
     label: { type: string }
 
 ProblemSubproject:

@@ -165,7 +165,10 @@
       l'arbre se lise sans trou ; un ancêtre rendu pour cela seul peut ne pas les satisfaire.
       Chaque nœud porte la commande qui change son état, disponible ou non (`available_commands`,
       WF-IHM-0090) : la réactivation d'un nœud dont le parent est désactivé est indisponible
-      (WF-REF-0080).
+      (WF-REF-0080). Les nœuds désactivés (`include_inactive`, `is_active` faux) restent sous la
+      permission de modifier les paramètres de ressources (`resource_settings.write`,
+      WF-ADM-0100) : sans elle, l'un et l'autre sont refusés par 403 `PERMISSION_MISSING`,
+      `params.missing_permission` la nommant (WF-REF-0150 ; C-01, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
@@ -208,6 +211,16 @@
               with_inactive: { $ref: ../../../fixtures/api/org_nodes_with_inactive.json }
               reader: { $ref: ../../../fixtures/api/org_nodes_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          Les nœuds désactivés demandés sans la permission de modifier les paramètres de
+          ressources : `PERMISSION_MISSING`, `params.missing_permission` à
+          `resource_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/org_nodes_inactive_forbidden.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
@@ -843,7 +856,11 @@
       Chaque calendrier porte ses commandes, disponibles ou
       non (`available_commands`, WF-IHM-0090) : celle qui change son état, la désactivation du
       calendrier par défaut indisponible, et, sauf pour le calendrier par défaut, sa
-      désignation, indisponible pour un calendrier désactivé (WF-REF-0120).
+      désignation, indisponible pour un calendrier désactivé (WF-REF-0120). Les calendriers
+      désactivés (`include_inactive`, `is_active` faux) restent sous la permission de modifier les
+      paramètres de ressources (`resource_settings.write`, WF-ADM-0100) : sans elle, l'un et
+      l'autre sont refusés par 403 `PERMISSION_MISSING`, `params.missing_permission` la nommant
+      (WF-REF-0150 ; C-01, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -891,6 +908,16 @@
               with_inactive: { $ref: ../../../fixtures/api/calendars_with_inactive.json }
               reader: { $ref: ../../../fixtures/api/calendars_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          Les calendriers désactivés demandés sans la permission de modifier les paramètres de
+          ressources : `PERMISSION_MISSING`, `params.missing_permission` à
+          `resource_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/calendars_inactive_forbidden.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -1168,7 +1195,11 @@
       filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes
       (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son
       type, indisponible dès qu'une de ses catégories est employée, porte un taux horaire ou est
-      rattachée à un rôle de ressource (WF-REF-0030).
+      rattachée à un rôle de ressource (WF-REF-0030). Les natures désactivées
+      (`include_inactive`, `is_active` faux) restent sous la permission de modifier les
+      paramètres de coûts (`cost_settings.write`, WF-ADM-0100) : sans elle, l'un et l'autre sont
+      refusés par 403 `PERMISSION_MISSING`, `params.missing_permission` la nommant (WF-REF-0150 ;
+      C-01, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1211,6 +1242,16 @@
               reader: { $ref: ../../../fixtures/api/cost_types_reader.json }
               with_inactive: { $ref: ../../../fixtures/api/cost_types_with_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          Les natures désactivées demandées sans la permission de modifier les paramètres de
+          coûts : `PERMISSION_MISSING`, `params.missing_permission` à `cost_settings.write`
+          (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/cost_types_inactive_forbidden.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }

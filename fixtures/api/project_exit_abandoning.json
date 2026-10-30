@@ -5,6 +5,7 @@
     "to_state": "completed",
     "confirmed": true,
     "reason": null,
-    "current_revision": {"action":"abandon"}
+    "current_revision": {"action":"abandon"},
+    "lock_version": 7
   }
 }

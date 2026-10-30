@@ -88,6 +88,11 @@ RESCUER = universe(302)
 the variant: the settings of the project and « consulter tous les projets »."""
 
 
+def _witness_version() -> JsonValue:
+    """Return the counter of the witness as read, which its exit carries (WF-IHM-0110)."""
+    return cast("JsonObject", fixture("project"))["lock_version"]
+
+
 def exit_abandoning() -> JsonObject:
     """Return the exit of the witness to completed that abandons its revision in progress."""
     return {
@@ -95,6 +100,7 @@ def exit_abandoning() -> JsonObject:
         "confirmed": True,
         "reason": None,
         "current_revision": {"action": "abandon"},
+        "lock_version": _witness_version(),
     }
 
 
@@ -109,6 +115,7 @@ def exit_marking() -> JsonObject:
             "version_name": VERSION_NAME,
             "description": "La révision en cours, marquée à la sortie du projet.",
         },
+        "lock_version": _witness_version(),
     }
 
 
@@ -141,8 +148,11 @@ def _refusal(
     }
 
 
-def _name_taken() -> JsonObject:
-    """Return the 409 of a version name a marked revision bears already, as `markRevision`."""
+def name_taken(pointer: str, correlation: str) -> JsonObject:
+    """Return the 409 of a version name a marked revision bears already, as `markRevision`.
+
+    The field named by its pointer: the exit, the marking and the merge each name theirs.
+    """
     [holder] = [
         each
         for each in cast("list[JsonObject]", fixture("revisions")["items"])
@@ -153,12 +163,12 @@ def _name_taken() -> JsonObject:
         "status": 409,
         "fields": [
             {
-                "pointer": "/current_revision/version_name",
+                "pointer": pointer,
                 "code": "ALREADY_EXISTS",
                 "params": {"conflicting_object_id": holder["revision_id"]},
             }
         ],
-        "correlation_id": NAME_TAKEN_CORRELATION,
+        "correlation_id": correlation,
     }
 
 
@@ -317,7 +327,7 @@ def examples() -> dict[str, JsonObject]:
             f"sous « {TAKEN_NAME} », le nom que la révision marquée 101 porte déjà : refusée, "
             f"le champ désigné et la révision qui le porte nommée, comme `markRevision` ; rien "
             f"n'est écrit (WF-CYC-0090, WF-REV-0020).",
-            _name_taken(),
+            name_taken("/current_revision/version_name", NAME_TAKEN_CORRELATION),
         ),
         "project_code_invalid.json": mocktext.example(
             f"Un projet créé sous le code « {INVALID_CODE} » : refusé, le code désigné, la barre "

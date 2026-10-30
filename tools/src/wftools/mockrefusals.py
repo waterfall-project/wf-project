@@ -61,7 +61,7 @@ Nothing here reads the clock or draws at random, nor a file the same command wri
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, TypedDict, cast
 
 from wftools import mockcore, mockexchanges, mocktext, mockwitness
 from wftools.mockids import hex_identifier, universe
@@ -279,8 +279,27 @@ def _reference() -> str:
 
 
 def problem(code: str, status: int, correlation: str) -> JsonObject:
-    """Return a refusal that says its code alone, without a parameter nor a field."""
+    """Return a refusal that says its code alone, without a parameter nor a field.
+
+    Public, as ``state_refused`` and ``field_refused``: the refusals of US-0702/L2
+    (``mockdeclared``) are written by the same helpers.
+    """
     return {"code": code, "status": status, "correlation_id": correlation}
+
+
+class _ImportReport(TypedDict):
+    """The parts of the report of an import read that its variants rewrite (``ImportReport``)."""
+
+    rejected: list[JsonObject]
+    differences: list[JsonValue]
+    read_count: int
+    unchanged_count: int
+    requires_confirmation_reasons: list[JsonValue]
+
+
+def _report(imported: JsonObject) -> _ImportReport:
+    """Return the report of an import read, typed by the parts its variants rewrite."""
+    return cast("_ImportReport", imported["report"])
 
 
 def _rejecting(
@@ -293,8 +312,8 @@ def _rejecting(
 
     The lines read are those it differs by, and the one rejected.
     """
-    task = cast("dict[str, JsonValue]", imported["task"])
-    report = cast("dict[str, Any]", imported["report"])
+    task = cast("JsonObject", imported["task"])
+    report = _report(imported)
     imported["import_id"], task["task_id"] = identifiers
     opened, analysed, expires = instants
     imported["created_at"], task["submitted_at"] = opened, opened
@@ -307,7 +326,7 @@ def _rejecting(
 def import_wbs_invalid() -> JsonObject:
     """Return the extraction of April whose line of another project is a malformed element."""
     imported = mockexchanges.import_actual_costs_first()
-    report = cast("dict[str, Any]", imported["report"])
+    report = _report(imported)
     [outside] = report["rejected"]
     rejected: JsonObject = {
         "sheet": None,
@@ -526,8 +545,8 @@ def _tree_examples() -> dict[str, JsonObject]:
 
 def _april_row() -> int:
     """Return the row of the line of the extraction of April the analysis rejected."""
-    report = cast("dict[str, Any]", mockexchanges.import_actual_costs_first()["report"])
-    return int(report["rejected"][0]["row"])
+    [rejected] = _report(mockexchanges.import_actual_costs_first())["rejected"]
+    return int(cast("int", rejected["row"]))
 
 
 def _named_examples() -> dict[str, JsonObject]:

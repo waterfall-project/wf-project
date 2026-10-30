@@ -5,6 +5,7 @@
     "to_state": "completed",
     "confirmed": true,
     "reason": null,
-    "current_revision": {"action":"mark","version_name":"Clôture","description":"La révision en cours, marquée à la sortie du projet."}
+    "current_revision": {"action":"mark","version_name":"Clôture","description":"La révision en cours, marquée à la sortie du projet."},
+    "lock_version": 7
   }
 }
