@@ -486,11 +486,12 @@ describe("the accounts", () => {
     });
   });
 
-  it("are not found when the periodicity of the reading is refused: an installation always has one, and the screen hides none [WF-ADM-0070-A]", async () => {
+  it("list the accounts without the periodicity of the reading where the service does not serve it yet (404, EP-04) [WF-ADM-0070-A]", async () => {
     server.answers = { ...server.answers, "GET /identity-sync-schedule": NOT_FOUND };
-    await expect(UsersPage(searched())).rejects.toMatchObject({
-      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
-    });
+    const said = text(rendered(await UsersPage(searched())));
+    expect(said).not.toContain("Périodicité de la lecture");
+    expect(said).toContain("Lecture des comptes du fournisseur d’identité Lire les comptes");
+    expect(said).toContain("Comptes utilisateurs");
   });
 });
 

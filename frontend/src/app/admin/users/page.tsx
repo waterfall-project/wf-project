@@ -22,16 +22,17 @@
  * the accounts of the identity provider that ended (`getLatestIdentitySync`, US-0370, WF-ADM-0070)
  * — the screen says none has yet when the API finds none (404) — and, to a session that may modify
  * the accounts, the command that asks a new one; then its periodicity (`getIdentitySyncSchedule`,
- * WF-ADM-0070), which that session sets (`IdentitySync`) and which an installation always has: a
- * read refused finds the page not found. A read the API refuses, or cannot answer, is thrown for
- * the pages of the shell to say; a tree of the organisation it does not find leaves the screen
- * standing, without a node to choose.
+ * WF-ADM-0070), which that session sets (`IdentitySync`): an installation always has one, but the
+ * service, behind the contract until EP-04, does not serve it yet, and a 404 leaves the section
+ * out rather than the page. A read the API refuses, or cannot answer, is thrown for the pages of
+ * the shell to say; a tree of the organisation it does not find leaves the screen standing,
+ * without a node to choose.
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrFail, readOrRefused, readUnlessRefused } from "@/api/problem";
+import { readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { IdentitySync } from "@/components/admin/identity-sync";
@@ -151,9 +152,11 @@ export default async function UsersPage({
     readUnlessRefused("getLatestIdentitySync", [{ status: 404 }], () =>
       serverClient().GET("/identity-syncs/latest"),
     ),
-    // An installation always reads the periodicity delivered: the 404 of the contract is the read
-    // refused, which the page is not found for, as for any read it cannot do without.
-    readOrFail("getIdentitySyncSchedule", () => serverClient().GET("/identity-sync-schedule")),
+    // The periodicity: the contract always serves one, the service not yet (EP-04); its 404 leaves
+    // the section out, the accounts still listed.
+    readUnlessRefused("getIdentitySyncSchedule", [{ status: 404 }], () =>
+      serverClient().GET("/identity-sync-schedule"),
+    ),
   ]);
   // A period refused leaves the list unread, the side said at its field.
   const users =
