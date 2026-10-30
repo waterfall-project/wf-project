@@ -83,7 +83,7 @@ export interface AuthorChoice {
 /** A project of the journal, by its identifier, its code and its label. */
 export interface ProjectChoice {
   readonly id: string;
-  readonly code: string;
+  readonly code: string | null;
   readonly label: string;
 }
 
@@ -241,7 +241,7 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
   }));
   const authors = users.map((user) => ({ value: user.id, text: naming.kept(user.name) }));
   const projectName = ({ code, label }: Omit<ProjectChoice, "id">) =>
-    t("admin.auditLog.project", { code, label });
+    code === null ? label : t("admin.auditLog.project", { code, label });
   const offered = projects.map((project) => ({ value: project.id, text: projectName(project) }));
   const kinds = OBJECT_KINDS.map((kind) => ({
     value: kind,

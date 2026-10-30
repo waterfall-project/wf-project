@@ -150,14 +150,8 @@ export function EndLog({ log }: { readonly log: readonly EndLine[] }) {
   );
 }
 
-/** How far a running task has gone, when the API says it; a bar without a value otherwise. */
-function Progress({
-  name,
-  progress,
-}: {
-  readonly name: string;
-  readonly progress: number | undefined;
-}) {
+/** How far a running task has gone, as the API says it. */
+function Progress({ name, progress }: { readonly name: string; readonly progress: number }) {
   const t = useTranslations("tasks");
   return (
     <div className="flex items-center gap-2">
@@ -169,11 +163,9 @@ function Progress({
         aria-valuenow={progress}
         className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
       >
-        {progress === undefined ? null : (
-          <div className="h-full bg-primary" style={{ width: `${String(progress)}%` }} />
-        )}
+        <div className="h-full bg-primary" style={{ width: `${String(progress)}%` }} />
       </div>
-      {progress === undefined ? null : <span>{t("progress", { progress })}</span>}
+      <span>{t("progress", { progress })}</span>
     </div>
   );
 }

@@ -107,15 +107,11 @@ export function BackupScheduleFacts({ schedule }: { readonly schedule: BackupSch
     [t("state"), schedule.is_enabled ? t("enabled") : t("disabled")],
   ];
   if (schedule.is_enabled) {
-    if (schedule.frequency !== undefined) {
-      facts.push([t("frequency"), frequencies(schedule.frequency)]);
-    }
+    facts.push([t("frequency"), frequencies(schedule.frequency)]);
     if (weekday !== undefined) {
       facts.push([t("weekday"), t(`weekdays.${weekday}`)]);
     }
-    if (schedule.at_time !== undefined) {
-      facts.push([t("at"), t("universalTime", { time: schedule.at_time })]);
-    }
+    facts.push([t("at"), t("universalTime", { time: schedule.at_time })]);
   }
   facts.push([t("retained"), t("count", { count: schedule.retained_count })]);
   const copy = schedule.external_copy;
@@ -145,9 +141,9 @@ function draftOf(schedule: BackupSchedule): Draft {
   const copy = schedule.external_copy;
   return {
     [ENABLED]: String(schedule.is_enabled),
-    [FREQUENCY]: schedule.frequency ?? "",
+    [FREQUENCY]: schedule.frequency,
     [WEEKDAY]: schedule.weekday == null ? "" : String(schedule.weekday),
-    [AT]: schedule.at_time ?? "",
+    [AT]: schedule.at_time,
     [RETAINED]: String(schedule.retained_count),
     [LOCATION]: copy?.location ?? "",
     [PATH]: copy?.path ?? "",
@@ -156,15 +152,15 @@ function draftOf(schedule: BackupSchedule): Draft {
   };
 }
 
-/** The frequency a value of the form names, as the contract writes it; none for any other. */
-function frequencyOf(value: string | undefined): Frequency | undefined {
-  return FREQUENCIES.find((frequency) => frequency === value);
+/** The frequency a value of the form names, as the contract writes it; daily for any other. */
+function frequencyOf(value: string | undefined): Frequency {
+  return FREQUENCIES.find((frequency) => frequency === value) ?? "daily";
 }
 
 /**
  * The schedule the form writes, whole, from the values checked and the version it opened on: the day
- * of a weekly schedule alone — none otherwise —, the frequency and the time when they are chosen —
- * a suspended schedule may leave them —, and no copy when no location is chosen, which withdraws the
+ * of a weekly schedule alone — none otherwise —, the frequency and the time, which a suspended
+ * schedule keeps too, and no copy when no location is chosen, which withdraws the
  * copy set.
  */
 function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
@@ -173,8 +169,8 @@ function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
   const location = values[LOCATION] ?? "";
   return {
     is_enabled: values[ENABLED] === "true",
-    ...(frequency === undefined ? {} : { frequency }),
-    ...(at === "" ? {} : { at_time: at }),
+    frequency,
+    at_time: at,
     weekday: frequency === "weekly" ? Number(values[WEEKDAY]) : null,
     retained_count: Number(values[RETAINED]),
     ...(location === ""
@@ -189,11 +185,6 @@ function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
         }),
     lock_version: lockVersion,
   };
-}
-
-/** Whether the schedule is on, which names its frequency and its time — a suspended one may not. */
-function scheduled(draft: Draft): boolean {
-  return draft[ENABLED] === "true";
 }
 
 /**
@@ -434,7 +425,7 @@ function ScheduleForm({
       name: FREQUENCY,
       label: t("frequency"),
       control: "choice",
-      required: scheduled,
+      required: true,
       choices: FREQUENCIES.map((frequency) => [frequency, frequencies(frequency)] as const),
     },
     {
@@ -451,7 +442,7 @@ function ScheduleForm({
       name: AT,
       label: t("form.at"),
       control: "time",
-      required: scheduled,
+      required: true,
       note: localTime,
       invalid: t("form.atInvalid"),
     },

@@ -2897,6 +2897,19 @@
       "storage_full": "Espace épuisé",
       "timed_out": "Délai dépassé"
     },
+    "AuditParams": {
+      "to_state": {
+        "completed": "Terminé",
+        "lost": "Perdu",
+        "abandoned": "Abandonné"
+      }
+    },
+    "IdentitySyncSchedule": {
+      "frequency": {
+        "daily": "Quotidienne",
+        "weekly": "Hebdomadaire"
+      }
+    },
     "AuditAction": {
       "project_create": "Création d’un projet",
       "revision_mark": "Marquage d’une révision",

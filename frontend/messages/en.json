@@ -2897,6 +2897,19 @@
       "storage_full": "No space left",
       "timed_out": "Timed out"
     },
+    "AuditParams": {
+      "to_state": {
+        "completed": "Completed",
+        "lost": "Lost",
+        "abandoned": "Abandoned"
+      }
+    },
+    "IdentitySyncSchedule": {
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      }
+    },
     "AuditAction": {
       "project_create": "Project created",
       "revision_mark": "Revision marked",

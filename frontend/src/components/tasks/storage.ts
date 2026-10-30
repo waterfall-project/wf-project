@@ -80,7 +80,16 @@ export function restoreTasks(): TrackedTask[] {
     .filter(isKept)
     .map(({ key, task_id, kind, status, subject }) => ({
       key,
-      task: { task_id, kind, status },
+      task: {
+        task_id,
+        kind,
+        status,
+        progress: 0,
+        submitted_at: new Date(0).toISOString(),
+        finished_at: null,
+        problem: null,
+        result_url: null,
+      },
       subject,
       command: undefined,
       outcome: undefined,

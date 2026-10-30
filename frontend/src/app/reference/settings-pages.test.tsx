@@ -105,7 +105,9 @@ describe("the forms of the settings of the risks and of the indicators", () => {
   });
 
   it("offer neither form to a session that may only read the settings, nor say anything of the fake back [WF-IHM-0090-A]", async () => {
+    // The predefined Manager role writes both since the contract's A-01: withdraw them.
     servedTo("me_manager");
+    withdrawn.permissions = ["risk_settings.write", "indicator_settings.write"];
     const risks = rendered(await RiskSettingsPage());
     const indicators = rendered(await IndicatorSettingsPage());
     expect(risks).not.toContain("Modifier la matrice de risques");
