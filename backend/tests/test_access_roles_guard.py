@@ -15,7 +15,7 @@ import pytest
 from access_rows import ADMINISTRATION, DAY, holder, role
 from pydantic import ValidationError
 from sqlalchemy import select, text, update
-from support import CONTRACT
+from support import CONTRACT, TO_SEED_BY_EP04
 
 from waterfall.api.contract.base import NUL_FAULT, nul_path
 from waterfall.api.contract.models import AccessRoleWrite, Description, DisplayPreferences
@@ -146,13 +146,6 @@ def test_a_permission_outside_the_catalogue_is_refused_by_the_core_too(database:
     assert [(field.pointer, field.code) for field in raised.value.fields] == [
         ("/permissions/1", "VALIDATION_FAILED")
     ]
-
-
-# The back lags behind the contract until EP-04, without a change of the service in EP-16
-# (decision of the author of 2026-10-28 on #1457, option b): the predefined manager of the witness
-# writes the settings of risks and of indicators (US-0701/L8, A-01, WF-INTF-0020), which the
-# bootstrap does not give it yet.
-TO_SEED_BY_EP04 = {"Manager": ("risk_settings.write", "indicator_settings.write")}
 
 
 @pytest.mark.requirement("WF-ADM-0010-A")
