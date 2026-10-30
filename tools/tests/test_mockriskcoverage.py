@@ -34,9 +34,7 @@ def _items() -> list[Entry]:
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
-def test_the_completion_of_the_merged_tasks_changes_neither_the_cost_of_the_occurred_nor_the_variance() -> (
-    None
-):
+def test_the_completion_of_merged_tasks_changes_neither_cost_of_occurred_nor_variance() -> None:
     today, rows = mockcore.current(), mockhistory.reference_rows()
     read = mockhistory.coverage(today, rows)
     # The witness's merged tasks are completed, in May: the coverage counts the cost at occurrence.
@@ -57,8 +55,10 @@ def test_the_completion_of_the_merged_tasks_changes_neither_the_cost_of_the_occu
         read["occurred_cost"],
         read["coverage_variance"],
     )
-    reserve, remaining = Decimal(read["reserve"]), Decimal(read["remaining_provisions"])
-    assert Decimal(read["coverage_variance"]) == reserve - remaining - Decimal("200.00")
+    amounts = {key: Decimal(cast("str", read[key])) for key in read if key != "context"}
+    assert amounts["coverage_variance"] == (
+        amounts["reserve"] - amounts["remaining_provisions"] - amounts["occurred_cost"]
+    )
 
 
 @pytest.mark.requirement("WF-RIS-0050-A")
