@@ -1716,6 +1716,15 @@ Timeline:
     timeline_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
 
+TimelineCreate:
+  type: object
+  required: [label]
+  description: >-
+    Une chronologie créée, sans inscription (`createTimeline`, WF-PLA-0140) : son nom, de 1 à 200
+    caractères, jamais blanc, comme celui qu'elle porte lue (`Timeline.label` ; D-12, J-13).
+  properties:
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
+
 NodeCreate:
   type: object
   required: [kind, parent_id]

@@ -133,12 +133,15 @@
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`
           (WF-PRJ-0080), ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` ; `/client` vide,
           `VALUE_REQUIRED`, ou plus long que le schéma ne l'admet, `VALUE_TOO_LONG` (WF-PRJ-0080) ;
-          `/code` plus long que le schéma ne l'admet, `VALUE_TOO_LONG`.
+          `/code` vide, `VALUE_REQUIRED`, fait seulement de blancs, `VALIDATION_FAILED`, portant une
+          barre oblique, `PROJECT_CODE_INVALID`, ou plus long que le schéma ne l'admet,
+          `VALUE_TOO_LONG` (`ProjectCode`, WF-PRJ-0010, WF-CRE-0020).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
+              code_invalid: { $ref: ../../../fixtures/api/project_code_invalid.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}:
@@ -167,6 +170,8 @@
               completed: { $ref: ../../../fixtures/api/project_completed.json }
               revision_opened: { $ref: ../../../fixtures/api/project_revision_opened.json }
               actual_cost_mapping_incomplete: { $ref: ../../../fixtures/api/project_actual_cost_mapping_incomplete.json }
+              participant: { $ref: ../../../fixtures/api/project_participant.json }
+              rescue: { $ref: ../../../fixtures/api/project_rescue.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -179,10 +184,11 @@
       terminal (WF-CYC-0100), comme la commande `update` du projet le dit d'avance. Le nom du
       client s'y saisit et s'y efface à tout moment, aucune transition ne l'exigeant
       (WF-PRJ-0080). La probabilité de gain n'est plus modifiable à partir de En cours (WF-PRJ-0090) : la commande
-      `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par
-      champ (422) ; le taux d'inflation l'est à tout moment et n'affecte aucune révision marquée
-      (WF-PRJ-0040). L'un et l'autre sont des rapports de `0` à `1`, hors desquels la valeur est
-      refusée par champ (422).
+      `update_win_probability` le dit d'avance, et la valeur envoyée malgré elle est refusée par 409
+      `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_before_in_progress` ; le
+      taux d'inflation l'est à tout moment et n'affecte aucune révision marquée (WF-PRJ-0040).
+      L'un et l'autre sont des rapports de `0` à `1`, hors desquels la valeur est refusée par champ
+      (422, `VALUE_OUT_OF_RANGE`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -224,8 +230,9 @@
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/win_probability` ou
           `/inflation_rate` hors de `0` à `1`, `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` ou
           `fields[].params.maximum` la borne franchie (WF-PRJ-0040, WF-PRJ-0090) ; `/label` ou
-          `/client` vides, `VALUE_REQUIRED`, ou, comme `/code`, plus longs que le schéma ne
-          l'admet, `VALUE_TOO_LONG` (WF-PRJ-0080). Rien n'est écrit.
+          `/client` vides, `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet,
+          `VALUE_TOO_LONG` (WF-PRJ-0080) ; `/code` refusé comme à la création (`ProjectCode`,
+          WF-PRJ-0010, WF-CRE-0020). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -302,7 +309,20 @@
       (WF-CYC-0080), appliquée après une confirmation qui énonce ce qu'elle rend non
       modifiable et propose un motif, que la transition conserve (WF-CYC-0090,
       WF-CYC-0130), réservée aux chefs de projet (WF-PRJ-0060), et inscrite au journal
-      d'audit (WF-SEC-0030).
+      d'audit (WF-SEC-0030). Lorsque le projet porte une révision en cours, la sortie reçoit son
+      sort, la marquer avec un nom de version ou l'abandonner, et n'est appliquée qu'avec lui, dans
+      la même opération (WF-CYC-0090, `ProjectExit.current_revision`) : abandonner, ou sortir un
+      projet sans révision en cours, s'applique dans la requête, qui rend 200 et le projet ;
+      marquer se confie au worker, qui calcule les indicateurs de la révision (WF-REV-0020,
+      WF-ARC-0090), et la requête rend 202 et la tâche de fond, `revision_mark`. La sortie
+      s'applique quand la tâche réussit, sous la même corrélation que le marquage : le projet
+      passe à l'état visé, sans révision en cours, la révision marquée sous le nom donné ; une
+      tâche qui échoue n'applique rien, et le projet garde son état et sa révision en cours.
+      Pendant ce marquage, les trois sorties nomment `no_background_task_running`
+      (`ProjectCommand`). Une sortie qui abandonne inscrit l'abandon de la révision et la sortie,
+      sous une corrélation (`audit_events_exited`) ; une sortie qui marque, le marquage et la
+      sortie. Après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se
+      lisent dans sa dernière révision marquée (WF-CYC-0090, WF-IND-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -310,24 +330,58 @@
       content:
         application/json:
           schema: { $ref: ../components/schemas/projects.yaml#/ProjectExit }
+          examples:
+            abandoning: { $ref: ../../../fixtures/api/project_exit_abandoning.json }
+            marking: { $ref: ../../../fixtures/api/project_exit_marking.json }
     responses:
       '200':
-        description: Sortie appliquée ; le projet passe en lecture seule (WF-CYC-0100).
+        description: >-
+          Sortie appliquée, la révision en cours abandonnée s'il en portait une ; le projet passe
+          en lecture seule (WF-CYC-0100), sans révision en cours (WF-CYC-0090).
         content:
           application/json:
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               completed: { $ref: ../../../fixtures/api/project_completed.json }
+      '202':
+        description: >-
+          Sortie qui marque la révision en cours : le marquage mis en file, la transition appliquée
+          quand il réussit (WF-CYC-0090, WF-ARC-0090).
+        content:
+          application/json:
+            schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
+            examples:
+              marking: { $ref: ../../../fixtures/api/task_exit_mark_queued.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
-        description: Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080).
+        description: >-
+          Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080), ou pendant un
+          traitement de fond qui écrit dans la révision en cours ou la fige, comme la commande le
+          dit (`no_background_task_running`). Ou un nom de version déjà employé par une révision
+          marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields` désignant
+          `/current_revision/version_name` par `ALREADY_EXISTS`,
+          `fields[].params.conflicting_object_id` la révision qui le porte (WF-REV-0020). Rien
+          n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+            examples:
+              version_name_taken: { $ref: ../../../fixtures/api/project_exit_version_name_taken.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : un projet qui porte une révision
+          en cours, sans son sort, `/current_revision` par `VALUE_REQUIRED` — la sortie n'est
+          appliquée qu'avec ce choix (WF-CYC-0090) — ; un marquage sans nom de version,
+          `/current_revision/version_name` par `VALUE_REQUIRED` (WF-REV-0020). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_required: { $ref: ../../../fixtures/api/project_exit_revision_required.json }
+              version_name_required: { $ref: ../../../fixtures/api/project_exit_version_name_required.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/work-breakdown:
@@ -389,8 +443,8 @@
     tags: [projects]
     summary: Saisir le lotissement
     description: >-
-      Croise le découpage fonctionnel et le découpage produit du projet (WF-PRJ-0020). Un lot
-      ou un poste que la saisie omet est supprimé : les tâches de la révision en cours qui le
+      Saisit le lotissement entier, qui reproduit le bon de commande : ses lots, leurs postes, leurs
+      livrables (WF-PRJ-0020), au moins un lot. Un lot ou un poste que la saisie omet est supprimé : les tâches de la révision en cours qui le
       portaient restent et perdent leur rattachement ; les révisions marquées le conservent, et
       le lot ou le poste est alors marqué supprimé (WF-PLA-0170, WF-DAT-0080) ; « la
       suppression d'un lot emporte ses postes » (WF-DAT-0080), un livrable omis se supprime
@@ -464,7 +518,7 @@
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ refusé : un compteur nul, celui
           d'une lecture filtrée (`WorkBreakdownReading`), `/lock_version` par `VALUE_REQUIRED` ;
-          un libellé vide ou trop long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
+          aucun lot, `/work_packages` par `VALUE_REQUIRED` (WF-PRJ-0020) ; un libellé vide ou trop long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur
           `/work_packages/<i>/label`, `/work_packages/<i>/order_items/<j>/label` ou
           `/work_packages/<i>/order_items/<j>/deliverables/<k>/label` (WF-PRJ-0020) ; un
           identifiant que le lotissement lu n'a pas sous la nature de son élément,
@@ -489,8 +543,8 @@
     tags: [projects]
     summary: Sous-projets
     description: >-
-      Les sous-projets, qui regroupent des tâches sans dupliquer l'arbre (WF-PRJ-0050), chacun
-      avec ses commandes (`Subproject.available_commands`, WF-IHM-0090). Une
+      Les sous-projets, codes de l'ERP sous lesquels les lignes de devis se ventilent et les coûts
+      réels s'imputent — jamais une tâche (WF-PRJ-0050, §3.2.3) —, chacun avec ses commandes (`Subproject.available_commands`, WF-IHM-0090). Une
       table plate, triée et filtrée par le serveur sur chacune de ses colonnes (WF-IHM-0060,
       WF-IHM-0130) : la recherche porte sur le code et le libellé, la colonne des coûts réels
       se filtre par `has_actual_costs`. Sans pagination : le §4.6.2 compte dix sous-projets
@@ -781,6 +835,7 @@
               search: { $ref: ../../../fixtures/api/contributors_search.json }
               inactive: { $ref: ../../../fixtures/api/contributors_inactive.json }
               anonymized: { $ref: ../../../fixtures/api/contributors_anonymized.json }
+              without_active_manager: { $ref: ../../../fixtures/api/contributors_without_active_manager.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
@@ -791,7 +846,18 @@
     summary: Inscrire ou retirer des contributeurs
     description: >-
       La liste, chacun avec sa qualité, vaut habilitation à consulter et à saisir sur le
-      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Une liste qui ne
+      projet ; réservée aux chefs de projet (WF-PRJ-0060, WF-ADM-0110). Toutefois, quand aucun chef
+      de projet du projet n'a de compte actif (WF-ADM-0060), l'appelant qui porte la permission du
+      paramétrage du projet (`project_settings.write`, FBS-4.2) et « consulter tous les projets »
+      (`all_projects_read`) l'écrit sans être contributeur, pour y inscrire un chef de projet : la
+      seule saisie ouverte à un non-contributeur (WF-PRJ-0060), que la commande
+      `manage_contributors` lui dit d'avance (`project_rescue`). Il lit la liste et son compteur
+      par `listContributors`, que « consulter tous les projets » lui ouvre
+      (`contributors_without_active_manager`) ; la liste qu'il envoie porte un chef de projet au
+      compte actif, nouveau ou passé de participant, sinon elle est refusée par 409
+      `LAST_PROJECT_MANAGER` ; toute autre saisie lui reste refusée, par 403 `NOT_CONTRIBUTOR`. Dès
+      qu'un chef de projet actif est inscrit, la liste redevient celle de ses seuls chefs de
+      projet. Une liste qui ne
       garderait aucun chef de projet est refusée (409, `LAST_PROJECT_MANAGER`) ; un compte que
       l'installation n'a pas, ou un compte désactivé inscrit ou changé de qualité, l'est par 422,
       `fields` désignant le compte à sa ligne (`/contributors/<n>/user_id`) par `UNKNOWN_USER` ou
@@ -818,6 +884,7 @@
             schema: { $ref: ../components/schemas/projects.yaml#/ContributorList }
             examples:
               set: { $ref: ../../../fixtures/api/contributors_set.json }
+              set_by_rescuer: { $ref: ../../../fixtures/api/contributors_set_by_rescuer.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -825,7 +892,7 @@
       '409':
         description: >-
           La liste ne garderait aucun chef de projet (`LAST_PROJECT_MANAGER`, sans paramètre,
-          WF-PRJ-0060) ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`,
+          WF-PRJ-0060), ou, écrite par un non-contributeur, aucun chef de projet au compte actif ; ou un projet terminal (WF-CYC-0100), `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` à `project_not_terminal`. Rien n'est écrit.
         content:
           application/problem+json:
@@ -913,11 +980,7 @@
       required: true
       content:
         application/json:
-          schema:
-            type: object
-            required: [label]
-            properties:
-              label: { type: string, minLength: 1, maxLength: 200 }
+          schema: { $ref: ../components/schemas/revisions.yaml#/TimelineCreate }
     responses:
       '201':
         description: Chronologie créée.
@@ -932,8 +995,9 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
-          Un nom vide ou trop long : `VALIDATION_FAILED`, `fields` désignant `/label` par
-          `VALUE_REQUIRED` ou `VALUE_TOO_LONG` (WF-PLA-0140).
+          Un nom vide, trop long ou fait seulement de blancs : `VALIDATION_FAILED`, `fields`
+          désignant `/label` par `VALUE_REQUIRED`, `VALUE_TOO_LONG` ou, comme tout libellé,
+          `VALIDATION_FAILED` (WF-PLA-0140).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

@@ -830,6 +830,7 @@ def test_the_filtered_readings_the_contract_cites_have_no_counter_the_others_hav
             "search": False,
             "inactive": False,
             "anonymized": True,
+            "without_active_manager": True,
         },
     }
     for (operation, path), counted in expected.items():

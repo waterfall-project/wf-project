@@ -1911,6 +1911,7 @@
   },
   "exitProject": {
     "statement": "Cette sortie est définitive : le projet passera à l’état « {state} », et lui comme toutes ses données — plannings, devis, restes à engager, coûts réels — passeront en lecture seule. Aucune transition ne part d’un état terminal.",
+    "abandonedRevision": "La révision en cours du projet sera abandonnée : elle sera supprimée, sans retour possible.",
     "reason": "Motif (facultatif)",
     "submit": "Confirmer la sortie",
     "cancel": "Annuler",
@@ -2613,6 +2614,7 @@
     "FIELD_NOT_ACCEPTED": "Ce champ ne se saisit pas sur cette ligne.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le sous-projet a reçu des coûts réels.",
     "SUBPROJECT_CODE_INVALID": "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager.",
+    "PROJECT_CODE_INVALID": "Le code du projet ne peut pas contenir de barre oblique.",
     "DUPLICATE_COLUMN_LABEL": "Cet intitulé de colonne figure déjà dans la correspondance, sans égard à la casse, aux accents ni aux espaces en bout : chacun ne désigne qu’une colonne.",
     "DUPLICATE_COST_LINE": "Cette ligne partage sa pièce et son poste, poste vide compris, avec d’autres lignes du fichier : toutes sont rejetées, aucune n’est préférée. Corrigez ou retirez les doublons dans le fichier.",
     "COMPONENT_UNAVAILABLE": "Un composant du service est indisponible.",

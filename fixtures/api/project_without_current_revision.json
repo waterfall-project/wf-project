@@ -51,13 +51,6 @@
         "missing_conditions": []
       },
       {
-        "command": "lose",
-        "is_available": false,
-        "missing_conditions": [
-          "project_in_pricing"
-        ]
-      },
-      {
         "command": "abandon",
         "is_available": true,
         "missing_conditions": []

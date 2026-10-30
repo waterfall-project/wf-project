@@ -71,7 +71,8 @@ SUBPROJECTS = (
 """The examples that read or write subprojects, each with its commands."""
 CLOSED = "subprojects_completed"
 """The subprojects of the witness completed (`project_completed`), their commands all unavailable
-(EP-14/L42o, #673)."""
+(EP-14/L42o, #673); the exit abandoned the revision in progress, whose lines bear them no more
+(US-0701/L9)."""
 
 TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
     "project_code_taken": (409, "ALREADY_EXISTS", [("/code", "ALREADY_EXISTS")], {}),
@@ -205,6 +206,23 @@ def _commands(entry: Entry) -> list[tuple[str, bool, list[str]]]:
     ]
 
 
+QUALITIES = ("is_contributor", "is_project_manager")
+"""The qualities a command lacks before its conditions of state (WF-IHM-0090, US-0701/L9)."""
+
+
+def _stated(entry: Entry) -> list[tuple[str, bool, list[str]]]:
+    """Return the commands of a project as its project manager would read them.
+
+    Its qualities are left out, which ``tests/test_mockexit.py`` tries (`project_participant`,
+    `project_rescue`).
+    """
+    stated = [
+        (command, [each for each in missing if each not in QUALITIES])
+        for command, _, missing in _commands(entry)
+    ]
+    return [(command, not missing, missing) for command, missing in stated]
+
+
 def enumeration(text: str, schema: str, field: str | None = None) -> list[str]:
     """Return the values an enumeration of a schema file declares, in line or one a line."""
     block = text.split(f"\n{schema}:\n", 1)[1].split("\n\n", 1)[0]
@@ -227,7 +245,7 @@ def test_the_win_probability_command_follows_update_and_is_frozen_from_in_progre
     assert {"project", "projects", "project_completed", "project_reader"} <= projects.keys()
     for name, listed in projects.items():
         for project in listed:
-            commands = _commands(project)
+            commands = _stated(project)
             names = [command for command, _, _ in commands]
             if "update" not in names:
                 assert WIN_PROBABILITY not in names, name
@@ -514,7 +532,8 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     assert _order_said(refusal, "dans l'ordre où la commande `delete` les liste") == ORDER
     # The order a project lists its own commands in (`project_completed`): the condition proper to
     # the command first, `project_not_terminal` last. The subprojects of the witness completed
-    # follow it (`subprojects_completed`, EP-14/L42o); a variant built here, uncited and
+    # follow it (`subprojects_completed`, EP-14/L42o) — no revision in progress bears them any
+    # more, the exit having abandoned it (US-0701/L9); a variant built here, uncited and
     # uncharged, misses the closing alone.
     assert fixture("project_completed")["state"] in TERMINAL
     completed = {
@@ -526,10 +545,10 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     closed = _subprojects(CLOSED)
     for subproject in closed:
         assert subproject["subproject_id"] in cited, subproject["code"]
-        assert _commands(subproject) == _listed(subproject, cited, terminal=True)
+        assert _commands(subproject) == _listed(subproject, cited, terminal=True, borne=set())
         assert _commands(subproject) == [
             ("update", False, [NOT_TERMINAL]),
-            ("delete", False, ORDER),
+            ("delete", False, [NOT_CITED, WITHOUT_COSTS, NOT_TERMINAL]),
         ]
     # The same subprojects as those of the project in progress, their commands apart.
     unlisted = [{**each, "available_commands": None} for each in closed]

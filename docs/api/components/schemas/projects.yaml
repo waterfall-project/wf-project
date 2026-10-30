@@ -30,10 +30,10 @@ Project:
         Le nom du client du projet (WF-PRJ-0080) : facultatif, nul tant qu'il n'est pas saisi,
         exigé par aucune transition. `createProject` et `updateProject` l'écrivent (EP-16/US-0610).
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
       description: >-
         Code sous lequel l'ERP connaît le projet, unique dans l'installation et
-        exigé pour le passage à En cours (WF-PRJ-0010).
+        exigé pour le passage à En cours (WF-PRJ-0010) ; nul tant qu'il n'est pas saisi.
     state: { $ref: '#/ProjectState' }
     inflation_rate:
       allOf: [{ $ref: ../common.yaml#/Percent }]
@@ -68,7 +68,15 @@ Project:
         devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
         celle de créer une révision, indisponible, `may_create_revision` manquante ; la
         génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la
-        permission du planning (EP-15/US-0490/L4).
+        permission du planning (EP-15/US-0490/L4). Une commande que la permission de l'appelant
+        lui donnerait, mais que sa qualité sur le projet ne permet pas, est listée indisponible
+        en nommant cette qualité (WF-IHM-0090) : `is_contributor` à qui ouvre le projet par
+        « consulter tous les projets » sans en être contributeur, et `is_project_manager` en plus
+        pour une commande réservée aux chefs de projet ; `is_project_manager` seule à un
+        participant (`project_participant`). La qualité vient avant les conditions d'état. Une
+        seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de
+        projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet
+        et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`).
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -95,8 +103,15 @@ CommandCondition:
   description: >-
     Condition qu'une commande exige, nommée par le serveur quand elle manque, et
     rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+    `is_contributor` manque à qui ouvre le projet par « consulter tous les projets » sans en être
+    contributeur, pour toute commande que sa permission lui donnerait : elle est listée
+    indisponible, la qualité nommée (WF-IHM-0090, WF-PRJ-0060) — sauf `manage_contributors`, que
+    WF-PRJ-0060 lui ouvre quand aucun chef de projet du projet n'a de compte actif
+    (`ProjectCommand`).
     `is_project_manager` manque à qui n'est que contributeur pour une action structurante
-    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
+    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110), et,
+    avec `is_contributor`, à un non-contributeur. Une commande nomme sa qualité manquante avant
+    ses conditions d'état.
     `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
@@ -115,7 +130,10 @@ CommandCondition:
     Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage,
     fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement
     (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la
-    révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s).
+    révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s) ; ce
+    sont aussi les trois sorties du cycle de vie (`complete`, `lose`, `abandon`), dont le sort
+    marquerait ou abandonnerait la révision en cours (WF-CYC-0090) — le marquage qu'une sortie a
+    lancé compris (`exitProject`, US-0701/L9).
     Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule
     transaction (WF-INTF-0080), le traitement d'une survenance et la fusion d'un différentiel de
     la dernière révision marquée créent la révision en cours qu'ils écrivent (WF-INTF-0090,
@@ -386,12 +404,26 @@ ProjectCommand:
     d'`update` d'abord — `project_not_terminal` sur un projet terminal —, puis
     `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
     cours ou la fige — sa saisie retire le rattachement des tâches de la révision en cours
-    (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs ;
+    (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs — `manage_contributors`,
+    réservée aux chefs de projet, et listée en outre, quand aucun chef de projet du projet n'a de
+    compte actif, au non-contributeur qui porte la permission du paramétrage du projet
+    (`project_settings.write`) et « consulter tous les projets » (`all_projects_read`) : la seule
+    commande qui lui soit ouverte, pour y inscrire un chef de projet (WF-PRJ-0060), qu'il lit avec
+    son compteur par `listContributors` ;
     ses chronologies — en créer une, en supprimer une (`createTimeline`, `deleteTimeline`) :
     `manage_timelines`, gardée par `planning.write`, la permission du planning dont elles sont
     une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et indisponible sur
     un projet terminal, `project_not_terminal` manquante (WF-CYC-0100) — ;
-    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
+    ouvrir une révision ; les trois sorties du cycle de vie (`exitProject`, WF-CYC-0060), chacune
+    listée tant qu'elle peut le devenir et absente dès qu'elle ne le deviendra jamais — « une
+    sortie qui ne le deviendra jamais — Déclarer perdu depuis En cours — n'y figure pas » (Vérif
+    de WF-CYC-0060) : `complete` listée à tout état non terminal, indisponible avant En cours,
+    `project_in_progress` manquante ; `lose` listée aux états Créé, indisponible,
+    `project_in_pricing` manquante, et Chiffrage, absente dès En cours, d'où aucun retour ne mène
+    à Chiffrage (WF-CYC-0080) ; `abandon` listée à tout état non terminal. Un projet terminal
+    n'en liste aucune : aucune transition n'en part (WF-CYC-0080). Chacune nomme ensuite
+    `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
+    cours ou la fige, comme `update_work_breakdown` ; déclarer un risque
     survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
     fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
     (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
@@ -458,8 +490,26 @@ ProjectSummary:
     project_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
     code:
-      anyOf: [{ type: string }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
     state: { $ref: '#/ProjectState' }
+
+ProjectCode:
+  type: string
+  minLength: 1
+  maxLength: 50
+  pattern: '^[^/]*[^/\s][^/]*$'
+  description: >-
+    Le code sous lequel l'ERP connaît le projet (WF-PRJ-0010) : de 1 à 50 caractères, jamais
+    blanc, sans barre oblique — seul séparateur de l'élément d'OTP qui le porte, suivi
+    facultativement d'une barre oblique et du code sous-projet, le code projet pouvant contenir des
+    points (WF-CRE-0020). Partagé par la lecture et l'écriture (`Project`, `ProjectSummary`,
+    `ProjectCreate`, `ProjectUpdate`). Une écriture qui ne le respecte pas est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement
+    de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par
+    `PROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` à `["/"]` ; trop long, par
+    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`. Un code à la fois
+    blanc et porteur d'une barre oblique (« / », « /  ») ne reçoit qu'un refus,
+    `PROJECT_CODE_INVALID`, la barre oblique d'abord (D-07, US-0701/L9).
 
 ProjectClient:
   type: string
@@ -485,7 +535,7 @@ ProjectCreate:
       description: >-
         Le nom du client (WF-PRJ-0080), facultatif : nul, ou absent, le projet n'en a pas.
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
 
 ProjectUpdate:
   type: object
@@ -500,7 +550,7 @@ ProjectUpdate:
         Le nom du client (WF-PRJ-0080), saisissable à tout moment tant que le projet n'est pas
         terminal : nul, il s'efface ; absent, il ne change pas.
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
     inflation_rate:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: De `0` à `1` inclus, un rapport (WF-PRJ-0040).
@@ -570,7 +620,11 @@ ProjectExit:
   description: >-
     Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné
     depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et
-    appliquée après confirmation explicite (WF-CYC-0090).
+    appliquée après confirmation explicite (WF-CYC-0090). « Lorsque le projet porte une
+    révision en cours, la confirmation demande de la marquer, avec un nom de version
+    (WF-REV-0020), ou de l'abandonner (WF-REV-0010) ; la sortie n'est appliquée qu'avec ce
+    choix, dans la même opération. Un projet terminal ne porte donc aucune révision en cours »
+    (WF-CYC-0090) : le corps porte ce choix (`current_revision`).
   properties:
     to_state:
       type: string
@@ -582,6 +636,56 @@ ProjectExit:
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
+    current_revision:
+      anyOf: [{ $ref: '#/CurrentRevisionFate' }, { type: 'null' }]
+      description: >-
+        Le sort de la révision en cours, exigé quand le projet en porte une
+        (`Project.current_revision_id`) : absent ou nul, la sortie est refusée par 422
+        `VALIDATION_FAILED`, `fields` désignant `/current_revision` par `VALUE_REQUIRED`, et rien
+        n'est écrit (`project_exit_revision_required`). Absent ou nul quand le projet n'en porte
+        pas (D-01, US-0701/L9).
+
+CurrentRevisionFate:
+  description: >-
+    Ce que la sortie fait de la révision en cours (WF-CYC-0090) : l'une des deux variantes, que
+    `action` distingue. `mark` la marque comme `markRevision` (WF-REV-0020), et `abandon`
+    l'abandonne comme `abandonRevision` (WF-REV-0010).
+  oneOf:
+    - { $ref: '#/CurrentRevisionMark' }
+    - { $ref: '#/CurrentRevisionAbandon' }
+  discriminator:
+    propertyName: action
+    mapping:
+      mark: '#/CurrentRevisionMark'
+      abandon: '#/CurrentRevisionAbandon'
+
+CurrentRevisionMark:
+  type: object
+  required: [action, version_name]
+  description: >-
+    Marquer la révision en cours à la sortie (WF-CYC-0090, WF-REV-0020), sous `version_name`,
+    exigé et borné comme celui de `markRevision` — absent, refusé par 422 `VALIDATION_FAILED`,
+    `fields` désignant `/current_revision/version_name` par `VALUE_REQUIRED` —, unique parmi les
+    révisions marquées du projet — pris, refusé par 409 `ALREADY_EXISTS`, `fields` désignant
+    `/current_revision/version_name` par `ALREADY_EXISTS`,
+    `fields[].params.conflicting_object_id` la révision qui le porte —, avec sa description
+    facultative : le marquage calcule les indicateurs et se confie au worker (WF-ARC-0090), et la
+    sortie rend 202 et la tâche, la transition s'appliquant quand elle réussit.
+  properties:
+    action: { type: string, const: mark }
+    version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+CurrentRevisionAbandon:
+  type: object
+  required: [action]
+  description: >-
+    Abandonner la révision en cours à la sortie (WF-CYC-0090, WF-REV-0010), comme
+    `abandonRevision`, dans la requête : la sortie rend 200 et le projet. Aucun nom de version ni
+    description, que seul un marquage fige.
+  properties:
+    action: { type: string, const: abandon }
 
 WorkBreakdown:
   type: object
@@ -597,10 +701,15 @@ WorkBreakdown:
     supprimé (WF-DAT-0080) — est refusé (`UNKNOWN_WORK_BREAKDOWN_ITEM`) : le client ne forge
     aucun identifiant (EP-14/L42k). Un élément ne s'écrit qu'une fois : un identifiant envoyé
     deux fois est refusé à chaque occurrence après la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`,
-    sur `/…/<nature>_id`).
+    sur `/…/<nature>_id`). Une saisie porte au moins un lot : sans lot, elle est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/work_packages` par `VALUE_REQUIRED` — un lotissement
+    vaut toujours au moins un lot (WF-PRJ-0020). Tant qu'aucune saisie ne l'a écrit, le lot et le
+    poste par défaut portent le libellé du projet, et le suivent quand il change (D-11,
+    US-0701/L9).
   properties:
     work_packages:
       type: array
+      minItems: 1
       items: { $ref: '#/WorkPackage' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -905,7 +1014,8 @@ ContributorsWrite:
   required: [contributors, lock_version]
   description: >-
     La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet
-    (WF-PRJ-0060).
+    (WF-PRJ-0060). Écrite par un non-contributeur, quand aucun chef de projet n'a de compte actif
+    (`setContributors`), elle porte un chef de projet au compte actif.
   properties:
     contributors:
       type: array

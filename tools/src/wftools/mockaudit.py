@@ -17,8 +17,9 @@ them; an import is by the actor its journal names; what the platform does by its
 platform. A label is the one the object bears in its example, and an object that lives in a
 revision names it — the risk that occurred, the amendment merged; the lines of cost and the imports
 of actual costs live in the project. And the immediate sequel of the exit of the witness from its
-lifecycle, confirmed today (``project_completed``), and that of the abandon of its revision in
-progress, today too (``project_without_current_revision``, #1577).
+lifecycle, confirmed today (``project_completed``), which abandons its revision in progress in
+the same request (US-0701/L9), and that of the abandon of its revision in progress, today too
+(``project_without_current_revision``, #1577).
 
 What the same command writes — the risks of ``mockhistory``, the journal of the imports of
 ``mockcosts`` — is read in memory, never from its file, so that one run reaches its fixed point;
@@ -393,6 +394,18 @@ def exit_today() -> Inscription:
     )
 
 
+def exit_abandon_today() -> Inscription:
+    """Return the abandon of the revision in progress the exit of today orders.
+
+    « La sortie n'est appliquée qu'avec ce choix, dans la même opération » (WF-CYC-0090): the
+    exit of the witness (`project_completed`) abandons its revision 102
+    (``project_exit_abandoning``), inscribed before the exit, by its author, at its instant, under
+    its correlation, as `abandon_today` inscribes an abandon (US-0701/L9).
+    """
+    exited = exit_today()
+    return replace(abandon_today(), at=exited.at, actor=exited.actor)
+
+
 def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
     """Return an inscription as the journal reads it (`AuditEvent`), numbered in its order.
 
@@ -478,15 +491,20 @@ def abandon_today() -> Inscription:
     )
 
 
-def _sequels() -> tuple[Inscription, ...]:
+def _sequels() -> tuple[tuple[Inscription, ...], ...]:
     """Return the actions that take effect just after today, each the sequel of a write of today.
 
     Each is read alone, a variant of the journal: the exit of the witness, the application of the
     estimate and the abandon of its revision in progress do not follow one another — a project
     completed takes no import (WF-CYC-0100), and the estimate applies to the revision abandoned.
+    The exit abandons the revision in progress in the same request, inscribed before it.
     """
-    return exit_today(), import_applied_today(), abandon_today()
+    return (exit_abandon_today(), exit_today()), (import_applied_today(),), (abandon_today(),)
 
+
+WRITTEN_VARIANTS = 2
+"""The inscriptions the variants of the journal written by hand number past the sequels
+(``audit_events_anonymized_actor``, ``audit_events_anonymized_object``)."""
 
 EXIT, IMPORT, ABANDON = range(3)
 """The sequels by their rank in ``_sequels``, which numbers them apart from one another."""
@@ -498,7 +516,9 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
     Two inscriptions of one instant come in the order they were inscribed, reversed. A sequel —
     an action that takes effect just after today, by its rank — is inscribed last, by a request of
     its own; its number and its request's follow those of the sequels before it, so that two
-    variants never give one identifier to two inscriptions.
+    variants never give one identifier to two inscriptions. What a sequel inscribes before its
+    own action, under its request, is numbered past every sequel and the variants of the journal
+    written by hand (``WRITTEN_VARIANTS``).
     """
     found = inscriptions()
     events: list[JsonObject] = []
@@ -507,7 +527,12 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
         request += 0 if each.joined else 1
         events.append(_event(number, request, each))
     if sequel is not None:
-        events.append(_event(len(found) + 1 + sequel, request + 1 + sequel, _sequels()[sequel]))
+        sequels = _sequels()
+        *before, action = sequels[sequel]
+        for rank, each in enumerate(before):
+            number = len(found) + len(sequels) + WRITTEN_VARIANTS + 1 + rank
+            events.append(_event(number, request + 1 + sequel, each))
+        events.append(_event(len(found) + 1 + sequel, request + 1 + sequel, action))
     return events[::-1]
 
 
@@ -842,9 +867,11 @@ def examples() -> dict[str, JsonObject]:
         ),
         "audit_events_exited.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après sa sortie du cycle de vie, "
-            f"confirmée le {day} à 14 h 05 (project_completed) : la sortie en tête, puis les "
-            f"mêmes inscriptions qu'avant elle. Le journal d'un projet terminé se lit par le "
-            f"même filtre, aussi longtemps que les projets sont conservés (WF-SEC-0030).",
+            f"confirmée le {day} à 14 h 05 (project_completed) : la sortie en tête, puis "
+            f"l'abandon de sa révision en cours, qu'elle a ordonné dans la même requête, sous sa "
+            f"corrélation (WF-CYC-0090), puis les mêmes inscriptions qu'avant elle. Le journal "
+            f"d'un projet terminé se lit par le même filtre, aussi longtemps que les projets sont "
+            f"conservés (WF-SEC-0030).",
             _page(exited),
         ),
         "audit_events_import_applied.json": mocktext.example(

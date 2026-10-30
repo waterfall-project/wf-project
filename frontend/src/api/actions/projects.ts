@@ -197,5 +197,13 @@ export async function exitProject(
   if (outcome.kind === "done" || outcome.kind === "conflict") {
     refresh();
   }
-  return outcome.kind === "done" ? { kind: "done", data: outcome.data.state } : outcome;
+  if (outcome.kind !== "done") {
+    return outcome;
+  }
+  // The abandon, or an exit without a current revision, answers the project (200). A marking
+  // would answer its task (202), the exit applying only when it succeeds, which may fail: this
+  // exit never marks, so no state is told for it — what follows the task is US-0703/L4's.
+  return "state" in outcome.data
+    ? { kind: "done", data: outcome.data.state }
+    : { kind: "unreachable" };
 }

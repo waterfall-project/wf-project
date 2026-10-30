@@ -44,11 +44,14 @@ export interface ExitCommandsProps {
   readonly exits: readonly ExitOffer[];
   readonly projectId: string;
   readonly names: ObjectNames;
+  /** Whether the project carries a current revision, which an exit must abandon or mark. */
+  readonly hasCurrentRevision: boolean;
 }
 
 /** An exit, whether its confirmation is the one open, and what opens and closes it. */
 interface ExitCommandProps extends ExitOffer {
   readonly projectId: string;
+  readonly hasCurrentRevision: boolean;
   readonly names: ObjectNames;
   readonly open: boolean;
   readonly onToggle: () => void;
@@ -60,6 +63,7 @@ interface ExitFormProps {
   readonly id: string;
   readonly command: ExitCommandName;
   readonly projectId: string;
+  readonly hasCurrentRevision: boolean;
   readonly onClose: () => void;
   readonly onDone: (state: ProjectState) => void;
   readonly onRefused: (outcome: Outcome<unknown>) => void;
@@ -69,10 +73,21 @@ const FIELD = "w-full max-w-md rounded-md border border-input bg-background px-2
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
 /** Confirm an exit, with its motive if the user gives one, and ask the API for it. */
-function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFormProps) {
+function ExitForm({
+  id,
+  command,
+  projectId,
+  hasCurrentRevision,
+  onClose,
+  onDone,
+  onRefused,
+}: ExitFormProps) {
   const t = useTranslations();
   const field = useId();
   const statement = `${field}-statement`;
+  const revision = `${field}-revision`;
+  // What the confirmation says to the field and to the button, the abandon of the revision too.
+  const described = hasCurrentRevision ? `${statement} ${revision}` : statement;
   const [reason, setReason] = useState("");
   // Busy from the confirmation to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
@@ -92,6 +107,9 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
       to_state: state,
       confirmed: true as const,
       ...(reason.trim() === "" ? {} : { reason }),
+      // The confirmation says it: the revision is abandoned (WF-CYC-0090-A). The choice between
+      // marking and abandoning is the confirmation's of US-0703/L4, not this one's.
+      ...(hasCurrentRevision ? { current_revision: { action: "abandon" as const } } : {}),
     };
     setBusy(true);
     void exitProject(projectId, exit)
@@ -117,6 +135,7 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
       <p id={statement}>
         {t("exitProject.statement", { state: t(`enums.ProjectState.${state}`) })}
       </p>
+      {hasCurrentRevision ? <p id={revision}>{t("exitProject.abandonedRevision")}</p> : null}
       <label htmlFor={field} className="block font-medium">
         {t("exitProject.reason")}
       </label>
@@ -125,14 +144,14 @@ function ExitForm({ id, command, projectId, onClose, onDone, onRefused }: ExitFo
         ref={input}
         value={reason}
         rows={3}
-        aria-describedby={statement}
+        aria-describedby={described}
         onChange={(event) => {
           setReason(event.target.value);
         }}
         className={FIELD}
       />
       <div className="flex gap-2">
-        <Button type="submit" size="sm" aria-describedby={statement}>
+        <Button type="submit" size="sm" aria-describedby={described}>
           {commandIcon(PROJECT_COMMAND_ICONS[command])}
           {t("exitProject.submit")}
         </Button>
@@ -162,6 +181,7 @@ function ExitCommand({
   command,
   offer,
   projectId,
+  hasCurrentRevision,
   names,
   open,
   onToggle,
@@ -216,6 +236,7 @@ function ExitCommand({
           id={form}
           command={command}
           projectId={projectId}
+          hasCurrentRevision={hasCurrentRevision}
           onClose={close}
           onDone={(state) => {
             setDone({ state });
@@ -247,7 +268,7 @@ function ExitCommand({
 }
 
 /** The exits a project offers, each in the list of its commands; one confirmation open at most. */
-export function ExitCommands({ exits, projectId, names }: ExitCommandsProps) {
+export function ExitCommands({ exits, projectId, names, hasCurrentRevision }: ExitCommandsProps) {
   const [open, setOpen] = useState<ExitCommandName>();
   return exits.map(({ command, offer }) => (
     <li key={command}>
@@ -255,6 +276,7 @@ export function ExitCommands({ exits, projectId, names }: ExitCommandsProps) {
         command={command}
         offer={offer}
         projectId={projectId}
+        hasCurrentRevision={hasCurrentRevision}
         names={names}
         open={open === command}
         onToggle={() => {

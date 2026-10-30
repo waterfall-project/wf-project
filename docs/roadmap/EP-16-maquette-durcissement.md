@@ -1841,7 +1841,7 @@ calculerait côté front.
 
 ## US-0701 — Le contrat rattrape la spécification 1.0.0
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `getIdentitySyncSchedule`, `setIdentitySyncSchedule`, `resendInvitation`,
   `updateCostStructure`, ajoutées au contrat ; celles que touchent les bloquants et les majeurs de

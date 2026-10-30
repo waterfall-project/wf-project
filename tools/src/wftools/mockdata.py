@@ -57,7 +57,9 @@ that core or on the structure of a thousand tasks, written beside them by ``wfto
 ``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
 refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
 the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
-witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2).
+witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2);
+and its exit, its code refused and its readings by the quality of its reader, by
+``wftools.mockproject`` (US-0701/L9).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -100,6 +102,7 @@ from wftools import (
     mocknonworking,
     mockplanning,
     mockportfoliotime,
+    mockproject,
     mockreference,
     mockriskwrites,
     mocksnapshot,
@@ -299,7 +302,8 @@ def named() -> dict[str, JsonObject]:
     journal of audit of the universe (``mockaudit``); the readings of the lists of the
     reference written by hand (``mockreference``), and those of the projects, the subprojects
     and the contributors (``mocklists``), the contributors once an account is anonymised
-    (``mockanonymized``).
+    (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
+    (``mockproject``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -323,6 +327,7 @@ def named() -> dict[str, JsonObject]:
         **mockreference.named(),
         **mocklists.examples(),
         **mockanonymized.examples(),
+        **mockproject.examples(),
     }
 
 

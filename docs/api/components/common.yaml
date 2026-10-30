@@ -338,7 +338,9 @@ Problem:
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160) ;
         `max_length`, dans `fields[].params`, le plus grand nombre de caractères qu'admet le code
         d'un sous-projet trop long (`VALUE_TOO_LONG`, `31`, WF-PRJ-0050), et
-        `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` : les
+        `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` — et
+        `forbidden_characters`, de `PROJECT_CODE_INVALID`, `["/"]` (`createProject`,
+        `updateProject`, WF-PRJ-0010 ; D-07, US-0701/L9) — : les
         caractères interdits que porte le code, en tableau, chacun une fois dans l'ordre où il les
         porte, ou le nom réservé qu'il vaut, « Synthèse » ou « Hors sous-projet », tel que
         Waterfall l'écrit (`createSubproject`, `updateSubproject`, WF-PRJ-0050 ; EP-16/US-0610) ;
@@ -433,8 +435,9 @@ ErrorCode:
     # porte la permission de modifier les comptes ou les rôles d'habilitation (WF-ADM-0120) ;
     # la désactivation de ce compte, que sa commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_ADMINISTRATOR
-    # Une liste de contributeurs qui ne garderait aucun chef de projet (`setContributors`,
-    # WF-PRJ-0060) ; la suppression d'un sous-projet auquel des coûts réels sont imputés, qu'une
+    # Une liste de contributeurs qui ne garderait aucun chef de projet, ou, écrite par un
+    # non-contributeur quand aucun n'a de compte actif, aucun chef de projet actif
+    # (`setContributors`, WF-PRJ-0060 ; D-06, US-0701/L9) ; la suppression d'un sous-projet auquel des coûts réels sont imputés, qu'une
     # révision marquée cite ou que portent des lignes de devis de la révision en cours, que sa
     # commande dit d'avance, est `STATE_FORBIDS_OPERATION`.
     - LAST_PROJECT_MANAGER
@@ -648,6 +651,13 @@ ErrorCode:
     # nom réservé, sans égard à la casse, `fields[].params.reserved_name` le nommant. Un code trop
     # long est `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`.
     - SUBPROJECT_CODE_INVALID
+    # Un code projet qui porte une barre oblique, le seul séparateur de l'élément d'OTP qui le
+    # porte (`/code`, `createProject`, `updateProject` ; `ProjectCode`, WF-PRJ-0010, WF-CRE-0020 ;
+    # D-07, US-0701/L9) : `fields[].params.forbidden_characters` nomme le caractère interdit, `["/"]`,
+    # comme pour `SUBPROJECT_CODE_INVALID`. Un code à la fois blanc et porteur d'une barre oblique
+    # reçoit ce refus, la barre oblique d'abord. Un code vide est `VALUE_REQUIRED`, fait seulement de
+    # blancs `VALIDATION_FAILED`, comme tout libellé, trop long `VALUE_TOO_LONG`.
+    - PROJECT_CODE_INVALID
     # Un intitulé de la correspondance de l'extraction des coûts réels qui en double un autre,
     # comparé sans égard à la casse, aux accents ni aux espaces en bout — d'une même colonne lue,
     # de deux colonnes lues, ou d'une colonne lue et d'une colonne conservée (`setActualCostMapping`,
