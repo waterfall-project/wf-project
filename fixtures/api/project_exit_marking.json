@@ -1,0 +1,10 @@
+{
+  "summary": "La sortie du projet témoin vers Terminé, confirmée sans motif, qui marque sa révision en cours, la 102, sous le nom de version « Clôture », qu'aucune révision marquée ne porte : le marquage calcule ses indicateurs et se confie au worker, la sortie rend la tâche (task_exit_mark_queued) et s'applique quand elle réussit ; après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, « Clôture » (WF-CYC-0090, WF-REV-0020, WF-ARC-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "to_state": "completed",
+    "confirmed": true,
+    "reason": null,
+    "current_revision": {"action":"mark","version_name":"Clôture","description":"La révision en cours, marquée à la sortie du projet."}
+  }
+}

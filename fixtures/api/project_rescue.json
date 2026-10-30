@@ -1,0 +1,35 @@
+{
+  "summary": "Variante contrefactuelle : le compte de Camille Martin, seule cheffe de projet du projet témoin, désactivé, et Dominique Bernard, manager, qui n'en est pas contributeur, portant aussi le rôle « Direction de projet » — la permission du paramétrage du projet et « consulter tous les projets » : il lit le projet, dont il peut inscrire un chef de projet (manage_contributors), la seule saisie ouverte à un non-contributeur ; toute autre commande que ses permissions lui donneraient est présentée indisponible en nommant sa qualité de contributeur, et de chef de projet pour une commande réservée (WF-PRJ-0060, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "project_id": "01926f3a-7c00-7000-8000-000000000001",
+    "label": "Modernisation du poste de commande",
+    "code": "PRJ-001",
+    "description": null,
+    "client": "Papeteries de la Vienne",
+    "state": "in_progress",
+    "inflation_rate": "0.03",
+    "win_probability": "1",
+    "order_received_on": "2026-01-15",
+    "reference_revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "current_revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "available_commands": [
+      {"command":"update","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"update_win_probability","is_available":false,"missing_conditions":["is_contributor","is_project_manager","project_before_in_progress"]},
+      {"command":"update_work_breakdown","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"manage_contributors","is_available":true,"missing_conditions":[]},
+      {"command":"manage_timelines","is_available":false,"missing_conditions":["is_contributor"]},
+      {"command":"create_revision","is_available":false,"missing_conditions":["is_contributor","no_current_revision"]},
+      {"command":"complete","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"abandon","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"declare_risk_occurrence","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"import_actual_costs","is_available":false,"missing_conditions":["is_contributor"]},
+      {"command":"exclude_cost_lines","is_available":false,"missing_conditions":["is_contributor","is_project_manager"]},
+      {"command":"import_planning","is_available":false,"missing_conditions":["is_contributor"]},
+      {"command":"import_estimate","is_available":false,"missing_conditions":["is_contributor"]},
+      {"command":"import_remaining","is_available":false,"missing_conditions":["is_contributor"]}
+    ],
+    "audit": {"created_at":"2025-10-06T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-02-02T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 7
+  }
+}

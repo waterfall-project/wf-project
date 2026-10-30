@@ -8217,6 +8217,11 @@ Sans objet ou hors du lot :
   listant aussi `generate_skeleton`, avant les imports, le fichier le porte, indisponible,
   `project_not_terminal` puis `main_structure_without_tasks`. `wftools.mockaudit` ne lit de ce
   fichier que la date et l'auteur de la sortie.
+  *Complétée par US-0701/L9 (#1609, D-01, D-02) : WF-CYC-0090, réécrite le 2026-10-10, dit
+  comment le projet terminal n'en porte aucune — la sortie marque ou abandonne la révision en
+  cours ; celle du témoin abandonne la 102, et `project_completed` ne liste plus aucune sortie
+  (« Les projets : la sortie marque ou abandonne la révision en cours », dans « Le contrat
+  figé »).*
 - **Le rôle seul d'une tâche, au refus d'`updateCalendar`** (#795 point 1). Le 422 dit le second cas,
   comme ses routes sœurs depuis EP-14/L42s : le calendrier du seul rôle d'une tâche qui n'a plus
   aucune heure dans la semaine.
@@ -9468,6 +9473,96 @@ journal d'EP-02/L42 (B-01, B-03) et ses paramètres de #706 (B-02).
 
 **Corrélations** 1594 à 1605 ; « corrélations, troisième suite » (1600-1999), la seconde étant
 pleine.
+
+### Les projets : la sortie marque ou abandonne la révision en cours (US-0701/L9, #1609, D-01, D-02, D-06, D-07)
+
+Les constats des projets de la revue du contrat avant le gel. La spécification les a écrits dans
+ses passes du 9 octobre (l'inscription d'un chef de projet par un non-contributeur, WF-PRJ-0060,
+WF-ADM-0110) et du 10 octobre (le sort de la révision en cours à la sortie, WF-CYC-0090 ; la
+présence des sorties, Vérif de WF-CYC-0060 ; la qualité nommée, WF-IHM-0090) ; la décision de
+l'auteur du 2026-10-28 (« La sortie (D-01, L-02) », recadrage d'EP-16) tranche la réponse de la
+sortie, et la proposition de la revue s'applique au reste (« la règle des autres majeurs »).
+Complétées, plus haut : « Le projet terminal n'a pas de révision en cours » (US-0640/L1, #795) et
+« Le projet et la révision portent leurs commandes disponibles » (EP-02).
+
+- **La sortie reçoit le sort de la révision en cours** (D-01, L-02 ; WF-CYC-0090).
+  `ProjectExit.current_revision` (`CurrentRevisionFate`) : `action`, `mark` ou `abandon`, et pour
+  `mark` le nom de version, exigé, borné comme celui de `markRevision`, et sa description. Exigé
+  quand le projet porte une révision en cours : absent ou nul, 422 `VALIDATION_FAILED`,
+  `/current_revision` par `VALUE_REQUIRED`, la forme du contrat pour un champ exigé ; un marquage
+  sans nom, `/current_revision/version_name` par `VALUE_REQUIRED` ; un nom pris, 409
+  `ALREADY_EXISTS` sur ce pointeur, comme `markRevision`. Marquer rend 202 `BackgroundTaskRef` de
+  nature `revision_mark`, la sortie s'appliquant quand la tâche réussit, rien quand elle échoue ;
+  abandonner, ou sortir un projet sans révision en cours, rend 200 `Project`. Écartés (décision de
+  l'auteur) : toujours 200, le marquage fait dans la requête, contraire à WF-ARC-0090 ; toujours
+  202, quand rien n'est à calculer. Écartés par le lot : une nature de tâche `project_exit` — la
+  tâche est le marquage, la transition sa suite — ; l'identifiant de la révision dans le sort,
+  le projet n'en portant qu'une en cours. Pendant le marquage, comme pendant tout traitement de
+  fond qui écrit dans la révision en cours ou la fige, les trois sorties nomment
+  `no_background_task_running`, comme `update_work_breakdown`. Le journal inscrit l'abandon et la
+  sortie, ou le marquage et la sortie, sous une corrélation : `mockaudit` inscrit l'abandon de la
+  102 avant la sortie du témoin (`audit_events_exited`). Les exemples : `project_exit_abandoning`,
+  dont la réponse est `project_completed`, qui dit la 102 abandonnée ; `project_exit_marking`, dont
+  la réponse est `task_exit_mark_queued`, sous « Clôture » ; `project_exit_revision_required`. Les
+  trois premiers disent mot pour mot qu'« après la sortie, le projet n'a plus de révision en cours,
+  et ses indicateurs se lisent dans sa dernière révision marquée » (Vérif de WF-CYC-0090,
+  `tools/tests/test_mockexit.py`). `subprojects_completed` ne nomme plus
+  `subproject_without_estimate_lines` : aucune révision en cours ne porte plus leurs lignes. Restent
+  à US-0702 : le compteur de la sortie (E-13, E-24) — le sort ne porte pas celui de la révision — et
+  les codes des autres refus d'`exitProject` (D-03), dont un sort envoyé à un projet sans révision
+  en cours, que ni la spécification ni la revue ne disent.
+- **Une sortie qui ne le deviendra jamais n'est pas listée** (D-02, L-03 ; Vérif de
+  WF-CYC-0060). `ProjectCommand` dit la règle : `complete` listée à tout état non terminal,
+  `project_in_progress` manquante avant En cours ; `lose` aux états Créé, `project_in_pricing`
+  manquante, et Chiffrage, absente dès En cours ; `abandon` à tout état non terminal. Un projet
+  clos n'en liste aucune, à la lettre de la spécification : aucune ne le deviendra (WF-CYC-0080), et
+  WF-IHM-0090 ne présente indisponible que ce qu'un état rend « momentanément » impossible.
+  Écartée : les lister avec `project_not_terminal`, la règle antérieure du contrat, qui présente
+  une commande qui ne sera jamais possible. Les autres commandes d'un projet clos gardent leur
+  forme, que US-0702 tranche avec D-05. `lose` quitte `project`, `project_updated`,
+  `project_without_current_revision`, `project_actual_cost_mapping_incomplete`,
+  `reference_designated` et le projet en cours de `projects` ; les trois sorties quittent
+  `project_completed`.
+- **L'inscription d'un chef de projet par un non-contributeur** (D-06, L-17 ; WF-PRJ-0060).
+  Quand aucun chef de projet du projet n'a de compte actif, l'appelant qui porte
+  `project_settings.write` et `all_projects_read` écrit la liste sans être contributeur, pour y
+  inscrire un chef de projet ; il la lit avec son compteur par `listContributors`, que « consulter
+  tous les projets » lui ouvre. Sans chef de projet actif, sa liste est refusée par 409
+  `LAST_PROJECT_MANAGER` ; toute autre saisie lui reste refusée par 403 `NOT_CONTRIBUTOR`, la règle
+  commune, dont l'exception ne couvre que cette inscription. `manage_contributors` lui est listée,
+  disponible, dans ce seul cas. Écartée : une condition `project_manager_active` (L-17), qu'une
+  commande disponible n'a pas à nommer. Les exemples sont une variante contrefactuelle — Camille
+  Martin désactivée, Dominique Bernard portant aussi « Direction de projet » —, aucun compte du
+  témoin ne réunissant les deux permissions sans être contributeur :
+  `contributors_without_active_manager`, `contributors_set_by_rescuer` (Inès Roux passée cheffe de
+  projet) et `project_rescue`.
+- **La qualité nommée** (L-25, J-18 ; WF-IHM-0090). Une commande que la permission donne et que
+  la qualité ne permet pas est listée indisponible : `is_contributor` à un non-contributeur, et
+  `is_project_manager` avec elle pour une commande réservée ; `is_project_manager` seule à un
+  participant ; la qualité avant les conditions d'état, comme le 403 vient avant le 409. Les
+  commandes réservées du projet sont le paramétrage (FBS-4.2 : attributs, lotissement,
+  contributeurs) et les actions structurantes qu'il porte — les sorties, la survenance, l'exclusion
+  d'une ligne (WF-ADM-0100) — ; `manage_timelines`, les imports et l'ouverture d'une révision ne le
+  sont pas. `project_participant` le montre pour Inès Roux ; `project_reader` reste vide, le
+  Manager n'ayant aucune permission d'écriture du projet. `task_not_milestone` (J-18) reste sans
+  exemple : il tient à `setTaskProgress`, hors des fichiers du lot.
+- **Le code projet borné** (D-07 ; WF-PRJ-0010, WF-CRE-0020). `ProjectCode`, partagé par
+  `Project`, `ProjectSummary`, `ProjectCreate` et `ProjectUpdate` : de 1 à 50 caractères, jamais
+  blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
+  (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
+  `SUBPROJECT_CODE_INVALID` l'est pour le sous-projet (US-0610), et son exemple,
+  `project_code_invalid`. Écarté : le motif commun `VALIDATION_FAILED` pour la barre oblique, qui
+  ne laisserait pas le formulaire dire pourquoi. Le doute de la revue sur `code: null` d'un projet
+  en cours n'est pas tranché ici.
+- **Les mineurs des fichiers touchés.** D-04 : `updateProject` dit le 409 de la probabilité
+  figée. D-08 : les sous-projets regroupent des lignes de devis, jamais une tâche. D-09 : le
+  lotissement reproduit le bon de commande. D-11 : une saisie porte au moins un lot (`minItems`,
+  422 `VALUE_REQUIRED` sur `/work_packages`), et le lotissement par défaut suit le libellé du
+  projet tant qu'aucune saisie ne l'a écrit ; écartée, la saisie vide qui ramènerait le défaut,
+  sous des identifiants nouveaux. D-12, J-13 : `TimelineCreate`, son nom jamais blanc. D-10 est à
+  US-0702/L2 (#1611), D-13 à US-0702.
+
+**Corrélations** 1606 et 1607 ; la tâche de fond 955.
 
 ## Collage et annulation
 

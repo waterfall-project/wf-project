@@ -1,5 +1,5 @@
 {
-  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05 : il passe en lecture seule, et aucune de ses commandes n'est plus disponible.",
+  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05, qui abandonne dans la même opération sa révision en cours, la 102 (project_exit_abandoning) : après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, la « Référence » 101, avec le coût réel du jour (project_indicators_without_current_revision). Il passe en lecture seule : aucune de ses commandes n'est plus disponible, et il ne liste plus aucune sortie, aucune transition ne partant d'un état terminal (WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-IND-0010).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
     "label": "Modernisation du poste de commande",
@@ -51,27 +51,6 @@
       },
       {
         "command": "create_revision",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "complete",
-        "is_available": false,
-        "missing_conditions": [
-          "project_in_progress"
-        ]
-      },
-      {
-        "command": "lose",
-        "is_available": false,
-        "missing_conditions": [
-          "project_in_pricing"
-        ]
-      },
-      {
-        "command": "abandon",
         "is_available": false,
         "missing_conditions": [
           "project_not_terminal"

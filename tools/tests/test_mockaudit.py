@@ -226,13 +226,18 @@ def test_the_other_readings_are_pages_and_filters_of_the_one_journal(
         "items": [],
         "meta": {"limit": 50, "offset": 0, "total": 0},
     }
-    # The exit confirmed today heads the journal of the witness, which is otherwise the same.
+    # The exit confirmed today heads the journal of the witness, which is otherwise the same; the
+    # abandon of the revision in progress it orders follows it, under its correlation (US-0701/L9).
     exited = _events(journal["audit_events_exited"])
     completed = fixture("project_completed")
     assert exited[0]["action"] == "project_exit"
     assert exited[0]["occurred_at"] == completed["audit"]["updated_at"] == mockhistory.stamp(TODAY)
     assert exited[0]["object"]["object_id"] == completed["project_id"]
-    assert exited[1:] == _events(journal["audit_events_project"])
+    assert exited[1]["action"] == "revision_abandon"
+    assert exited[1]["object"]["object_id"] == fixture("project")["current_revision_id"]
+    assert exited[1]["occurred_at"] == exited[0]["occurred_at"]
+    assert exited[1]["correlation_id"] == exited[0]["correlation_id"]
+    assert exited[2:] == _events(journal["audit_events_project"])
 
 
 def test_each_actor_is_the_one_who_did_the_action(journal: dict[str, Node]) -> None:

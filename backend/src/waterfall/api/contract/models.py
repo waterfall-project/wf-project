@@ -101,6 +101,7 @@ class ErrorCode(StrEnum):
     AMBIGUOUS_TASK_LABEL = "AMBIGUOUS_TASK_LABEL"
     SUBPROJECT_HAS_ACTUAL_COSTS = "SUBPROJECT_HAS_ACTUAL_COSTS"
     SUBPROJECT_CODE_INVALID = "SUBPROJECT_CODE_INVALID"
+    PROJECT_CODE_INVALID = "PROJECT_CODE_INVALID"
     DUPLICATE_COLUMN_LABEL = "DUPLICATE_COLUMN_LABEL"
     DUPLICATE_COST_LINE = "DUPLICATE_COST_LINE"
     COMPONENT_UNAVAILABLE = "COMPONENT_UNAVAILABLE"
@@ -2380,6 +2381,18 @@ class ProjectClient(RootModel[str]):
     ]
 
 
+class ProjectCode(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Le code sous lequel l'ERP connaît le projet (WF-PRJ-0010) : de 1 à 50 caractères, jamais blanc, sans barre oblique — seul séparateur de l'élément d'OTP qui le porte, suivi facultativement d'une barre oblique et du code sous-projet, le code projet pouvant contenir des points (WF-CRE-0020). Partagé par la lecture et l'écriture (`Project`, `ProjectSummary`, `ProjectCreate`, `ProjectUpdate`). Une écriture qui ne le respecte pas est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par `PROJECT_CODE_INVALID` ; trop long, par `VALUE_TOO_LONG`, `fields[].params.max_length` à `50` (D-07, US-0701/L9).",
+            max_length=50,
+            min_length=1,
+            pattern="^[^/]*[^/\\s][^/]*$",
+        ),
+    ]
+
+
 class PlanningDate(RootModel[date_aliased]):
     root: Annotated[date_aliased, Field(description="Date sans heure, en ISO 8601 (WF-DAT-0100).")]
 
@@ -2413,16 +2426,6 @@ class ProjectCommandAvailability(ContractModel):
     ]
 
 
-class Code1(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Code sous lequel l'ERP connaît le projet, unique dans l'installation et exigé pour le passage à En cours (WF-PRJ-0010).",
-            max_length=50,
-        ),
-    ]
-
-
 class Project(ContractModel):
     project_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
@@ -2434,9 +2437,9 @@ class Project(ContractModel):
         ),
     ] = None
     code: Annotated[
-        Code1 | None,
+        ProjectCode | None,
         Field(
-            description="Code sous lequel l'ERP connaît le projet, unique dans l'installation et exigé pour le passage à En cours (WF-PRJ-0010)."
+            description="Code sous lequel l'ERP connaît le projet, unique dans l'installation et exigé pour le passage à En cours (WF-PRJ-0010) ; nul tant qu'il n'est pas saisi."
         ),
     ] = None
     state: ProjectState
@@ -2466,7 +2469,7 @@ class Project(ContractModel):
     available_commands: Annotated[
         list[ProjectCommandAvailability],
         Field(
-            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante ; la génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la permission du planning (EP-15/US-0490/L4)."
+            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante ; la génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la permission du planning (EP-15/US-0490/L4). Une commande que la permission de l'appelant lui donnerait, mais que sa qualité sur le projet ne permet pas, est listée indisponible en nommant cette qualité (WF-IHM-0090) : `is_contributor` à qui ouvre le projet par « consulter tous les projets » sans en être contributeur, et `is_project_manager` en plus pour une commande réservée aux chefs de projet ; `is_project_manager` seule à un participant (`project_participant`). La qualité vient avant les conditions d'état. Une seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`)."
         ),
     ]
     audit: Audit
@@ -2475,10 +2478,6 @@ class Project(ContractModel):
 
 class ProjectListMeta(PaginationMeta):
     states: Annotated[list[ProjectState], Field(min_length=1)]
-
-
-class Code2(RootModel[str]):
-    root: Annotated[str, Field(max_length=50)]
 
 
 class ProjectCreate(ContractModel):
@@ -2490,7 +2489,7 @@ class ProjectCreate(ContractModel):
             description="Le nom du client (WF-PRJ-0080), facultatif : nul, ou absent, le projet n'en a pas."
         ),
     ] = None
-    code: Code2 | None = None
+    code: ProjectCode | None = None
 
 
 class ProjectUpdate(ContractModel):
@@ -2502,7 +2501,7 @@ class ProjectUpdate(ContractModel):
             description="Le nom du client (WF-PRJ-0080), saisissable à tout moment tant que le projet n'est pas terminal : nul, il s'efface ; absent, il ne change pas."
         ),
     ] = None
-    code: Code2 | None = None
+    code: ProjectCode | None = None
     inflation_rate: Annotated[
         Percent | None, Field(description="De `0` à `1` inclus, un rapport (WF-PRJ-0040).")
     ] = None
@@ -2549,6 +2548,17 @@ class NextState(ContractModel):
     ]
 
 
+class CurrentRevisionFateAction(StrEnum):
+    mark = "mark"
+    abandon = "abandon"
+
+
+class CurrentRevisionFate(ContractModel):
+    action: CurrentRevisionFateAction
+    version_name: Annotated[str | None, Field(max_length=100, min_length=1, pattern="\\S")] = None
+    description: str | None = None
+
+
 class ProjectExit(ContractModel):
     to_state: ToState
     confirmed: Annotated[
@@ -2561,6 +2571,12 @@ class ProjectExit(ContractModel):
         str | None,
         Field(
             description="Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130)."
+        ),
+    ] = None
+    current_revision: Annotated[
+        CurrentRevisionFate | None,
+        Field(
+            description="Le sort de la révision en cours, exigé quand le projet en porte une (`Project.current_revision_id`) : absent ou nul, la sortie est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/current_revision` par `VALUE_REQUIRED`, et rien n'est écrit (`project_exit_revision_required`). Absent ou nul quand le projet n'en porte pas (D-01, US-0701/L9)."
         ),
     ] = None
 
@@ -2636,7 +2652,7 @@ class WorkPackage(ContractModel):
 
 
 class WorkBreakdown(ContractModel):
-    work_packages: list[WorkPackage]
+    work_packages: Annotated[list[WorkPackage], Field(min_length=1)]
     lock_version: Annotated[
         LockVersion,
         Field(
@@ -2777,6 +2793,10 @@ class ContributorSuggestion(ContractModel):
 
 class Timeline(ContractModel):
     timeline_id: Uuid
+    label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
+
+
+class TimelineCreate(ContractModel):
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
 
 
@@ -6169,7 +6189,7 @@ class PortfolioCostCurve(ContractModel):
     ]
 
 
-class Code4(StrEnum):
+class Code1(StrEnum):
     review_overdue = "review_overdue"
     risks_not_reviewed = "risks_not_reviewed"
     no_actual_cost_since_last_review = "no_actual_cost_since_last_review"
@@ -6193,7 +6213,7 @@ class Signal(ContractModel):
         ),
     ]
     zone: AlertZone
-    code: Code4
+    code: Code1
     params: Annotated[
         Params3 | None,
         Field(

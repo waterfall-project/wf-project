@@ -63,9 +63,17 @@ TOLD: dict[str, tuple[str, str, dict[str, Any]]] = {
 """What each refusal of the attachment of `updateTaskFacet` tells: the field it names, its motive
 and its parameters, none when it has none (`TaskFacetUpdate`, WF-PLA-0170)."""
 
-READERS = {"project_reader": universe(302), "project_pricing_estimator": universe(305)}
+READERS = {
+    "project_reader": universe(302),
+    "project_pricing_estimator": universe(305),
+    "project_participant": universe(306),
+}
 """Who reads the examples of a project that are not read by Camille Martin, the project director:
-Dominique Bernard, manager, and Lucas Petit, estimator, as their summaries say."""
+Dominique Bernard, manager, Lucas Petit, estimator, and Inès Roux, participant, as their summaries
+say; the rescuer of `project_rescue` holds the role of Camille Martin in its variant."""
+
+QUALITIES = ("is_contributor", "is_project_manager")
+"""The qualities a command lacks before its conditions of state (WF-IHM-0090, US-0701/L9)."""
 
 SAID = {
     "task_attach_refused": ["« Études »", "« Poste de commande » porte déjà", "un lot n'est"],
@@ -415,9 +423,14 @@ def test_the_timelines_are_listed_to_whoever_may_write_the_planning_unless_the_p
     assert "Dominique Bernard" in _summary("project_reader")
     assert "chiffreur" in _summary("project_pricing_estimator")
     for name, project in projects:
-        commands = _commands(project)
+        stated = [
+            (command, [each for each in missing if each not in QUALITIES])
+            for command, _, missing in _commands(project)
+        ]
+        commands = [(command, not missing, missing) for command, missing in stated]
         names = [command for command, _, _ in commands]
-        # The command is guarded by the permission of the planning (`planning.write`).
+        # The command is guarded by the permission of the planning (`planning.write`); its
+        # qualities apart (`tests/test_mockexit.py`).
         reader = READERS.get(name, universe(301))
         if "planning.write" not in _permissions(reader):
             assert TIMELINES not in names, name
@@ -744,7 +757,11 @@ def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_i
                 continue
             breakdown = listed["update_work_breakdown"]
             assert breakdown["missing_conditions"] == listed["update"]["missing_conditions"], path
-            missing += [each for each in breakdown["missing_conditions"] if each not in missing]
+            missing += [
+                each
+                for each in breakdown["missing_conditions"]
+                if each not in missing and each not in QUALITIES
+            ]
     assert missing == ["project_not_terminal"]
     refused = fixture("work_breakdown_background_task")
     assert refused["params"] == {"missing_condition": "no_background_task_running"}

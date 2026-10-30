@@ -2491,7 +2491,10 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   cherchées et filtrées comme leurs écrans les demandent, avec la saisie du lotissement, sa réponse
   et ses refus (`wftools.mocklists`, tenu par `tools/tests/test_mocklists.py`) ; et les
   contributeurs du témoin une fois un compte anonymisé (`wftools.mockanonymized`, tenu par
-  `tools/tests/test_mockfindings.py`).
+  `tools/tests/test_mockfindings.py`) ; et la sortie du témoin, qui marque ou abandonne sa révision
+  en cours, son code refusé, et ses lectures selon la qualité du lecteur — participant, ou
+  non-contributeur qui inscrit un chef de projet quand aucun n'a de compte actif —
+  (`wftools.mockproject`, tenu par `tools/tests/test_mockproject.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
