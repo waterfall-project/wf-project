@@ -366,13 +366,13 @@ describe("the modification of a project", () => {
     expect(client.calls[0]?.body).toMatchObject({ client: "Aciéries du Nord" });
   });
 
-  it("says the client on the settings, and offers no form to a terminal project [WF-PRJ-0080-A]", async () => {
+  it("says the client on the settings, and offers no command to modify a terminal project, which lists none [WF-PRJ-0080-A]", () => {
     // Le nom du client se saisit tant que le projet n'est pas terminal.
     serve();
     render(inFrench(<ProjectIdentity project={completed} />));
     const settings = screen.getByLabelText("Paramètres du projet");
     expect(settings).toHaveTextContent("ClientPapeteries de la Vienne");
-    await userEvent.click(screen.getByRole("button", { name: "Modifier le projet" }));
+    expect(screen.queryByRole("button", { name: "Modifier le projet" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     cleanup();
     render(inFrench(<ProjectIdentity project={{ ...witness, client: null }} />));

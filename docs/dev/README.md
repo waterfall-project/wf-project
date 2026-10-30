@@ -471,8 +471,9 @@ commandes comme le projet liste `update` (`subproject-commands.tsx`) — absente
 « Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible ou non, sur chaque
 ligne, la modification et la suppression comme la ligne les liste (`Subproject.available_commands`,
 EP-14/L44e) — absente, rien ; indisponible, présentée `aria-disabled`, décrite par ses conditions, et
-un appui les dit dans la région de la liste (`UnavailableCellCommand`) : sur un projet clos, chacune
-nomme `project_not_terminal` (WF-IHM-0090). La création et la modification ouvrent le formulaire du
+un appui les dit dans la région de la liste (`UnavailableCellCommand`) : un projet clos ne liste
+plus aucune commande, ni la sienne ni celles de ses lignes (US-0702/L3), et l'écran n'en présente
+aucune ; le refus d'un appel direct, `project_not_terminal`, reste au serveur (WF-IHM-0090). La création et la modification ouvrent le formulaire du
 référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`,
 `fields[]`) dit au champ, son porteur nommé par le libellé que le refus donne
 (`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
@@ -481,8 +482,7 @@ de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée 
 (`subproject_not_cited`, §4.4.1), auquel des coûts réels sont imputés
 (`subproject_without_actual_costs`, WF-PRJ-0050) ou que portent des lignes de devis de la révision en
 cours (`subproject_without_estimate_lines`, EP-14/L42q) ; l'écran n'en déduit rien de
-`has_actual_costs`. Lue indisponible faute de cette seule dernière condition — `project_not_terminal`
-mise à part —, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
+`has_actual_costs`. Lue indisponible faute de cette seule dernière condition, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
 cours filtré sur le sous-projet (`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la
 liste avec ses conditions ; il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune
 ligne déplacée ne lève. Il atteint les lignes de la structure principale, jamais celles d'une autre
@@ -3093,7 +3093,7 @@ le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précéd
 sous-projet créé, qu'aucune révision marquée ne cite, déchargé de ses coûts réels, sa suppression
 listée disponible comme le serveur la listerait alors, pour la suppression d'un sous-projet, les deux
 du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne
-(EP-14/L44e, `subproject-commands.dom.test.tsx`) — celles d'un projet clos, toutes indisponibles,
+(EP-14/L44e, `subproject-commands.dom.test.tsx`) — celles d'un projet clos, aucune depuis US-0702/L3,
 ont leur exemple depuis L42o (`subprojects_completed`), qui remplace la variante (EP-14/L52) — ; et l'écart à la revue précédente absent du reste à engager
 (`remaining-summary.test.tsx`).
 

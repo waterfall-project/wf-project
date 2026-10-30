@@ -171,16 +171,16 @@ describe("the screen of the timelines", () => {
     expect(page).toContain(COMMISSIONING.replace("LANE", "2"));
   });
 
-  it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
+  it("offers the commands of the timelines as the project lists `manage_timelines`, none on a project that ended (US-0702/L3), and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
     const page = await timelinesAt();
     expect(page).toMatch(/<button[^>]*>.*?New timeline<\/button>/);
     expect(page).toContain('aria-label="Delete the timeline “Comité de pilotage”"');
     expect(page).toContain('role="note"');
-    // A terminal project lists the command unavailable: presented, it writes nothing to warn of.
+    // A terminal project lists no command: none presented, it writes nothing to warn of.
     server.clients = [];
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const closed = await timelinesAt();
-    expect(closed).toMatch(/<button[^>]*aria-disabled="true"[^>]*>.*?New timeline<\/button>/);
+    expect(closed).not.toContain("New timeline");
     expect(closed).not.toContain('role="note"');
   });
 

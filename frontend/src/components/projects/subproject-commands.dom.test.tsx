@@ -636,31 +636,14 @@ describe("the commands a sub-project lists", () => {
 });
 
 describe("the commands a project lists", () => {
-  it("presents on a terminal project the creation and the commands of each row unavailable, naming the conditions, and asks nothing", async () => {
-    // The sub-projects of the witness terminated: each command unavailable, `project_not_terminal`
-    // last (EP-14/L42o).
+  it("offers neither the creation nor the commands of each row on a terminal project, which lists none, and asks nothing (US-0702/L3)", () => {
+    // The sub-projects of the witness terminated, the project lists no command (EP-14/L42o).
     const rows = example("subprojects_completed") as Subproject[];
     const client = serve();
-    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }, rows));
-    const create = screen.getByRole("button", { name: "Nouveau sous-projet" });
-    expect(create).toHaveAttribute("aria-disabled", "true");
-    expect(create).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
-    const modify = within(grid()).getByRole("button", { name: "Modifier « SP-ESS »" });
-    expect(modify).toHaveAttribute("aria-disabled", "true");
-    expect(modify).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
-    const remove = within(grid()).getByRole("button", { name: "Supprimer « SP-ESS »" });
-    expect(remove).toHaveAttribute("aria-disabled", "true");
-    expect(remove).toHaveAccessibleDescription(
-      "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût " +
-        "réel imputé au sous-projet et projet non clos.",
-    );
-    await userEvent.click(modify);
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(announced()).toContain(
-      `Modifier «\u00a0SP-ESS\u00a0»\u00a0: indisponible. Condition non remplie\u00a0: projet non clos.`,
-    );
+    render(list(null, rows));
+    expect(within(grid()).getByText("SP-ESS")).toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: /Nouveau|Modifier|Supprimer/ })).toEqual([]);
     expect(client.calls).toEqual([]);
-    // Nothing was sent: the history notes nothing.
     expect(readMessages().messages).toEqual([]);
   });
 

@@ -135,12 +135,17 @@ afterEach(() => {
 });
 
 describe("the first step of an import", () => {
-  it("offers the import of each kind as the server offers it, an unavailable one with what it lacks", async () => {
+  it("offers no import on a project that ended, which lists none (US-0702/L3)", () => {
     serve({});
-    const { container } = open(importCommands("project_completed"));
-    const main = screen.getByRole("main");
+    open(importCommands("project_completed"));
+    expect(within(screen.getByRole("main")).queryAllByRole("button")).toEqual([]);
+  });
+
+  it("offers the import of each kind as the server lists it", async () => {
+    serve({});
+    const { container } = open(importCommands());
     expect(
-      within(main)
+      within(screen.getByRole("main"))
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual([
@@ -149,11 +154,6 @@ describe("the first step of an import", () => {
       "Importer un reste à engager",
       "Importer des coûts réels",
     ]);
-    const costs = screen.getByRole("button", { name: "Importer des coûts réels" });
-    expect(costs).toHaveAttribute("aria-disabled", "true");
-    expect(costs).toHaveAccessibleDescription("Condition non remplie : projet non clos.");
-    await userEvent.click(costs);
-    expect(screen.queryByRole("form")).toBeNull();
     await expectAccessible(container);
   });
 
