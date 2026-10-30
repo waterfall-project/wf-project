@@ -7,7 +7,7 @@ the predefined « Manager » of the witness, the journal read by one who may ope
 the reading of the currency by any session.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -30,6 +30,11 @@ def _operation(file: str, path: str, method: str) -> dict[str, Any]:
     paths = yaml.safe_load((_PATHS / file).read_text(encoding="utf-8"))
     operation: dict[str, Any] = paths[path][method]
     return operation
+
+
+def _projects(events: list[Any]) -> list[dict[str, Any]]:
+    """Return the projects the inscriptions name, in their order, those without one left out."""
+    return [each["project"] for each in cast("list[dict[str, Any]]", events) if each["project"]]
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")
@@ -81,23 +86,18 @@ def test_an_inscription_on_a_project_the_reader_cannot_consult_names_it_without_
     # « Une inscription sur un projet que le lecteur ne peut pas consulter nomme ce projet sans
     # l'ouvrir » : the auditor reads the code and the label of the witness, and no link.
     witness = [each for each in mockaudit.journal() if each["project"] is not None]
-    read = mockaudit.unopenable(witness)
-    assert all(each["project"]["can_open"] for each in witness)
-    assert [each["project"]["code"] for each in read] == [
-        each["project"]["code"] for each in witness
-    ]
-    assert not any(each["project"]["can_open"] for each in read)
+    named, read = _projects(witness), _projects(mockaudit.unopenable(witness))
+    assert all(project["can_open"] for project in named)
+    assert [project["code"] for project in read] == [project["code"] for project in named]
+    assert not any(project["can_open"] for project in read)
 
 
 def test_the_exit_and_the_imports_say_their_parameters() -> None:
     # B-02: the exit says the state it reached, an import its nature.
     exited = mockaudit.exit_today().params
     assert exited == {"to_state": "completed", "reason": None}
-    kinds = {
-        each["params"]["import_kind"]
-        for each in mockaudit.journal()
-        if each["action"] == "import_apply"
-    }
+    events = cast("list[dict[str, Any]]", mockaudit.journal())
+    kinds = {each["params"]["import_kind"] for each in events if each["action"] == "import_apply"}
     assert kinds == {"actual_costs"}
 
 
