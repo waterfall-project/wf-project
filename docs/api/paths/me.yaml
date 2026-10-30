@@ -34,6 +34,7 @@
               manager: { $ref: ../../../fixtures/api/me_manager.json }
               auditor: { $ref: ../../../fixtures/api/me_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/sessions:
@@ -55,6 +56,7 @@
       '204':
         description: Sessions du compte fermées.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/preferences:
@@ -124,6 +126,7 @@
               column_width_out_of_range: { $ref: ../../../fixtures/api/preferences_column_width_out_of_range.json }
               lane_out_of_range: { $ref: ../../../fixtures/api/preferences_lane_out_of_range.json }
               page_size_out_of_range: { $ref: ../../../fixtures/api/preferences_page_size_out_of_range.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /me/avatar:
@@ -156,6 +159,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteMyAvatar
@@ -167,4 +171,5 @@
       '204':
         description: Avatar retiré ; le compte s'affiche avec une image par défaut (WF-ADM-0080).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

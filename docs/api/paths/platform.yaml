@@ -125,6 +125,7 @@
             examples:
               period_inverted: { $ref: ../../../fixtures/api/backups_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/backups_bounds_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: startBackup
@@ -164,6 +165,7 @@
             examples:
               backup_running: { $ref: ../../../fixtures/api/backup_start_refused.json }
               restore_running: { $ref: ../../../fixtures/api/backup_start_during_restore_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}:
@@ -188,6 +190,7 @@
               pending: { $ref: ../../../fixtures/api/backup_pending.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: retainBackup
@@ -229,6 +232,7 @@
             examples:
               restore_running: { $ref: ../../../fixtures/api/backup_retain_refused.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}/content:
@@ -293,6 +297,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unverified: { $ref: ../../../fixtures/api/backup_download_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backup-schedule:
@@ -318,6 +323,7 @@
               disabled: { $ref: ../../../fixtures/api/backup_schedule_disabled.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setBackupSchedule
@@ -373,6 +379,7 @@
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
               weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
               weekday_missing: { $ref: ../../../fixtures/api/backup_schedule_weekday_missing.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations:
@@ -400,6 +407,7 @@
               none: { $ref: ../../../fixtures/api/external_backup_locations_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations/{location_name}/test:
@@ -450,6 +458,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               path_invalid: { $ref: ../../../fixtures/api/external_backup_location_test_path_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /restores:
@@ -571,4 +580,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

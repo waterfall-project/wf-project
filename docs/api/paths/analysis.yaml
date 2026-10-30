@@ -43,6 +43,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/estimate-indicators/missing-rates:
@@ -73,6 +74,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/workload:
@@ -139,6 +141,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_refused: { $ref: ../../../fixtures/api/workload_revision_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators:
@@ -167,6 +170,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators/startable-tasks:
@@ -212,6 +216,7 @@
               milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators:
@@ -267,6 +272,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/milestone-tracking:
@@ -295,6 +301,7 @@
               none: { $ref: ../../../fixtures/api/milestone_tracking_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/cost-curve:
@@ -372,6 +379,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/earned-value-curves:
@@ -421,6 +429,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/index-history:
@@ -464,4 +473,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

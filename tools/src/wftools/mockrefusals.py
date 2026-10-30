@@ -33,6 +33,11 @@ example (J-03, J-06, J-11, E-07, F-05, J-04):
   the reference year, as ``missing_rates`` supposes it, and its role withdrawn (WF-DEV-0010,
   WF-DEV-0020).
 
+And the answers every operation may give (J-07, J-10): ``internal_error.json``, the unexpected
+error any operation declares by the shared ``InternalError``, its correlation the reference the
+front shows (WF-OBS-0020); ``nodes_fields_unknown.json``, a reading of the nodes asked for a
+property ``Node`` does not have, refused as any parameter of a query, by 422 on ``/query/fields``.
+
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
@@ -64,6 +69,12 @@ MANAGER_CORRELATION, UNDO_CORRELATION, REDO_CORRELATION = (
 PROGRESS_CORRELATION, DATE_CORRELATION = universe(1616), universe(1617)
 RATE_CORRELATION, ROLE_CORRELATION = universe(1618), universe(1619)
 """The correlations of the refusals of the catalogue."""
+
+INTERNAL_CORRELATION, FIELDS_CORRELATION = universe(1620), universe(1621)
+"""The correlations of the answers every operation, or every reading of the nodes, may give."""
+
+UNKNOWN_FIELD = "task.duration_days"
+"""A property a grid would ask for that ``Node`` does not have: the duration is ``task.duration``."""
 
 REFERENCE = universe(101)
 """The reference of the witness, its marked revision 101."""
@@ -178,8 +189,31 @@ def _reference() -> str:
 
 
 def examples() -> dict[str, JsonObject]:
-    """Return the refusals of a state and those of the catalogue, by file."""
-    return {**_state_examples(), **_catalogue_examples()}
+    """Return the refusals of a state, those of the catalogue and the shared answers, by file."""
+    return {**_state_examples(), **_catalogue_examples(), **_shared_examples()}
+
+
+def _shared_examples() -> dict[str, JsonObject]:
+    return {
+        "internal_error.json": mocktext.example(
+            "Une erreur inattendue du service, sur n'importe quelle opération : rien de ce qui a "
+            "échoué n'est rendu, la cause est écrite au seul journal, avec sa trace, sous "
+            "l'identifiant de corrélation que la réponse porte et que le front affiche comme sa "
+            "référence (WF-OBS-0020, WF-ARC-0060).",
+            {"code": "INTERNAL_ERROR", "status": 500, "correlation_id": INTERNAL_CORRELATION},
+        ),
+        "nodes_fields_unknown.json": mocktext.example(
+            f"La structure principale du témoin lue avec fields={UNKNOWN_FIELD}, une propriété que "
+            f"le nœud n'a pas — sa durée est task.duration : refusée comme tout paramètre de "
+            f"requête, le paramètre désigné ; rien n'est lu (WF-ARC-0110, WF-IHM-0130).",
+            {
+                "code": "VALIDATION_FAILED",
+                "status": 422,
+                "fields": [{"pointer": "/query/fields", "code": "FIELD_NOT_ACCEPTED"}],
+                "correlation_id": FIELDS_CORRELATION,
+            },
+        ),
+    }
 
 
 def _state_examples() -> dict[str, JsonObject]:

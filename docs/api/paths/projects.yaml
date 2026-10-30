@@ -86,6 +86,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/projects_period_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createProject
@@ -142,6 +143,7 @@
             examples:
               refused: { $ref: ../../../fixtures/api/project_creation_refused.json }
               code_invalid: { $ref: ../../../fixtures/api/project_code_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}:
@@ -174,6 +176,7 @@
               rescue: { $ref: ../../../fixtures/api/project_rescue.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateProject
@@ -249,6 +252,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               rates_out_of_range: { $ref: ../../../fixtures/api/project_rates_out_of_range.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/state-transitions:
@@ -276,6 +280,7 @@
               exited: { $ref: ../../../fixtures/api/state_transitions_exited.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/next-state:
@@ -310,6 +315,7 @@
               pricing_without_code: { $ref: ../../../fixtures/api/next_state_pricing_without_code.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/exit:
@@ -396,6 +402,7 @@
             examples:
               revision_required: { $ref: ../../../fixtures/api/project_exit_revision_required.json }
               version_name_required: { $ref: ../../../fixtures/api/project_exit_version_name_required.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/work-breakdown:
@@ -451,6 +458,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setWorkBreakdown
@@ -549,6 +557,7 @@
               label_required: { $ref: ../../../fixtures/api/work_breakdown_label_required.json }
               unknown_item: { $ref: ../../../fixtures/api/work_breakdown_unknown_item.json }
               duplicate_item: { $ref: ../../../fixtures/api/work_breakdown_duplicate_item.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects:
@@ -605,6 +614,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createSubproject
@@ -659,6 +669,7 @@
             examples:
               code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
               code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/subprojects/{subproject_id}:
@@ -718,6 +729,7 @@
             examples:
               code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
               code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteSubproject
@@ -781,6 +793,7 @@
               cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
               estimated: { $ref: ../../../fixtures/api/subproject_delete_estimated.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/contributors:
@@ -853,6 +866,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setContributors
@@ -926,6 +940,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               accounts_refused: { $ref: ../../../fixtures/api/contributors_accounts_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/contributors/suggestions:
@@ -954,6 +969,7 @@
               none: { $ref: ../../../fixtures/api/contributor_suggestions_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines:
@@ -977,6 +993,7 @@
               none: { $ref: ../../../fixtures/api/timelines_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createTimeline
@@ -1028,6 +1045,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               label_required: { $ref: ../../../fixtures/api/timeline_label_required.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/timelines/{timeline_id}:
@@ -1061,4 +1079,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               terminal: { $ref: ../../../fixtures/api/timeline_delete_terminal.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

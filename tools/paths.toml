@@ -505,6 +505,8 @@ paths = [
     "fixtures/api/task_summary_date_refused.json",
     "fixtures/api/estimate_line_rate_missing.json",
     "fixtures/api/estimate_line_role_required.json",
+    "fixtures/api/internal_error.json",
+    "fixtures/api/nodes_fields_unknown.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

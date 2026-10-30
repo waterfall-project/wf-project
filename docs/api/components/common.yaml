@@ -690,8 +690,9 @@ ErrorCode:
     # pièce et le même poste, nul compris (`ImportRejection`, WF-INTF-0140, D-4 ; EP-16/US-0630) :
     # chacune est rejetée, `params.rows` nommant les rangs des autres.
     - DUPLICATE_COST_LINE
-    # 5xx — composant indisponible, `params.component` (WF-EXP-0040), ou erreur
-    # inattendue, suivie par son `correlation_id` (WF-OBS-0020).
+    # 5xx — composant indisponible, `params.component` (WF-EXP-0040, 503 `ServiceUnavailable`), ou
+    # erreur inattendue, suivie par son `correlation_id` (WF-OBS-0020, 500 `InternalError`, que
+    # toute opération déclare ; J-07, US-0702/L1).
     - COMPONENT_UNAVAILABLE
     - INTERNAL_ERROR
 

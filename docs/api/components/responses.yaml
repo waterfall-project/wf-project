@@ -102,6 +102,19 @@ PortfolioPeriodRefused:
         period_inverted: { $ref: ../../../fixtures/api/portfolio_period_inverted.json }
         open_period_inverted: { $ref: ../../../fixtures/api/portfolio_open_period_inverted.json }
 
+InternalError:
+  description: >-
+    Erreur inattendue du service : `INTERNAL_ERROR`, sans paramètre, la cause écrite au seul
+    journal avec la trace et l'identifiant de corrélation, que la réponse porte
+    (`correlation_id`) et que le front affiche comme la référence de l'erreur (WF-OBS-0020,
+    WF-ARC-0060). Toute opération la déclare, aucune n'en dit davantage : rien de ce qui a échoué
+    n'est rendu ; `make lint-openapi` le vérifie (`rule/operation-declares-500`).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+      examples:
+        internal_error: { $ref: ../../../fixtures/api/internal_error.json }
+
 ServiceUnavailable:
   description: >-
     Un composant indisponible empêche l'opération ; `params.component` le nomme et

@@ -240,6 +240,9 @@ au contrat ; ne rien changer, qui laisserait le back lourd. `editable_fields` pe
 5,70 Mo du volume de mille tâches, mesuré avant L30 (#238) ; une grille qui ne l'emploie pas l'omet par `fields` ;
 une table par nature de nœud n'est décidée que si la seconde du §4.6.2 n'est pas tenue, mesurée
 en EP-13 (EP-02/L30).
+*Depuis US-0702/L1 (#1610, J-10, sur la règle des autres majeurs de l'auteur du 2026-10-28), une
+propriété inconnue de `fields` est refusée par 422 `VALIDATION_FAILED`, `/query/fields` par
+`FIELD_NOT_ACCEPTED`, comme tout paramètre de requête (EP-03, #799), et non plus par 400.*
 
 **`row_number` numérote toute la structure** (EP-02/L4, #158) : ses tâches et ses lignes, dans
 l'ordre du plan, quels que soient `kinds`, les filtres, la recherche et le tri. Une liaison
@@ -9669,7 +9672,23 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   Écarté : `COMPUTED_VALUE` avec les subordonnées, et `SUMMARY_TASK_DERIVED` retiré — le code
   dit déjà la récapitulative au compte rendu d'un import (`ImportSignal`).
 
-**Corrélations** 1610 à 1619.
+- **Le 500 déclaré** (J-07 ; WF-ARC-0060, WF-OBS-0020). Une réponse partagée, `InternalError` —
+  `INTERNAL_ERROR`, sans paramètre, son `correlation_id` la référence que le front affiche
+  (`internal_error`) —, que chacune des 168 opérations déclare sous `'500'`, et une règle de
+  `redocly.yaml`, `rule/operation-declares-500`, qui le tient, comme le 401 et le 503 des
+  opérations gardées. Le service la rend déjà (US-0640/L2, `CorrelationMiddleware`). Écarté : une
+  réponse `default`, qui coûtait autant de lignes et aurait promis l'enveloppe `Problem` pour tout
+  statut non déclaré — un 502 ou un 504 d'une passerelle n'en porte pas, et le front le lit comme
+  l'API injoignable —, et que le client engendré n'aurait pas lue plus précisément qu'un 500
+  nommé ; une règle seule, sans la réponse dans les opérations, que le client engendré ne verrait
+  pas.
+- **`fields` refusé en 422** (J-10 ; WF-ARC-0110, WF-IHM-0130). Une propriété inconnue de
+  `fields` : 422 `VALIDATION_FAILED`, `/query/fields` par `FIELD_NOT_ACCEPTED`
+  (`nodes_fields_unknown`, cité par `listNodes` et `compareRevisions`) ; le `400` sort de ces deux
+  lectures, les seules opérations sans corps qui le déclaraient. Réécrit : EP-02/L4 (« refusée
+  (400) »).
+
+**Corrélations** 1610 à 1621.
 
 ## Collage et annulation
 

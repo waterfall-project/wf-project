@@ -92,19 +92,57 @@ def test_no_state_has_a_code_of_its_own_and_no_403_says_a_state() -> None:
         assert not re.search(r"(terminal|marquée)[^.]{0,80}par 403", text), path.name
 
 
+def _shared() -> dict[str, Entry]:
+    return cast(
+        "dict[str, Entry]",
+        yaml.safe_load((API / "components" / "responses.yaml").read_text("utf-8")),
+    )
+
+
 @pytest.mark.parametrize("name", sorted(mockrefusals.examples()))
 def test_every_example_of_the_module_is_cited_by_an_operation(name: str) -> None:
-    stem = name.removesuffix(".json")
-    cited = {
-        stem
+    answers = [
+        answer
         for operation in _operations().values()
         for answer in cast("dict[str, Entry]", operation["responses"]).values()
-        if isinstance(answer, dict) and "content" in answer
+    ]
+    cited = [
+        example["$ref"]
+        for answer in [*answers, *_shared().values()]
+        if "content" in answer
         for content in cast("dict[str, Entry]", answer["content"]).values()
         for example in cast("dict[str, Entry]", content.get("examples", {})).values()
         if cast("str", example.get("$ref", "")).endswith(f"/{name}")
-    }
-    assert cited == {stem}
+    ]
+    assert cited
+
+
+def test_every_operation_declares_the_unexpected_error_with_its_correlation() -> None:
+    # J-07: the 500 is declared, by one shared answer, with its correlation (WF-OBS-0020).
+    shared = "../components/responses.yaml#/InternalError"
+    undeclared = [
+        name
+        for name, operation in _operations().items()
+        if operation["responses"].get("500") != {"$ref": shared}
+    ]
+    assert undeclared == []
+    [example] = _shared()["InternalError"]["content"]["application/problem+json"]["examples"]
+    assert example == "internal_error"
+    error = fixture("internal_error")
+    assert (error["status"], error["code"]) == (500, "INTERNAL_ERROR")
+    assert set(error) == {"code", "status", "correlation_id"}
+
+
+def test_an_unknown_property_of_fields_is_refused_by_422_as_any_parameter_of_a_query() -> None:
+    # J-10: no reading of the contract answers 400 for a parameter of its query.
+    refused = fixture("nodes_fields_unknown")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/query/fields", "code": "FIELD_NOT_ACCEPTED"}]
+    for operation in ("listNodes", "compareRevisions"):
+        assert "400" not in _operations()[operation]["responses"], operation
+        assert "nodes_fields_unknown" in _cited(operation, "422"), operation
+    parameters = yaml.safe_load((API / "components" / "parameters.yaml").read_text("utf-8"))
+    assert "(400)" not in parameters["NodeFields"]["description"]
 
 
 # --- The catalogue: every code rendered by an operation, with an example (J-03, J-06, J-11) ----
