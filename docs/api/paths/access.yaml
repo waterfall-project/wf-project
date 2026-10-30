@@ -472,17 +472,16 @@
     summary: Obtenir le lien de fixation du mot de passe d'un compte
     description: >-
       Engendre, pour un compte local, le lien par lequel son porteur fixe ou réinitialise son
-      mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal
-      (WF-ADM-0140) — le renvoi du courriel qui le porte est `resendInvitation` — : c'est ainsi que
-      le premier administrateur fixe son mot de passe à l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
-      sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité
-      porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le
-      mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois :
-      un lien précédent du même compte cesse de valoir. Sous la permission de modifier les
-      comptes (`users.write`, WF-ADM-0100) ;
-      chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran
-      ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément
-      d'authentification que Waterfall montre (WF-ADM-0140).
+      mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal (WF-ADM-0140) —
+      le renvoi du courriel qui le porte est `resendInvitation` — : c'est ainsi que le premier
+      administrateur fixe son mot de passe à l'installation (WF-EXP-0020) et que la réinitialisation
+      se fait sur une installation sans messagerie (WF-CMP-0030). Le lien est celui que le courriel
+      du fournisseur d'identité porterait — à usage unique, valable une heure, vers la page de ce
+      fournisseur qui fixe le mot de passe, et non vers un écran de Waterfall —, créé par lui, et
+      rendu une seule fois : un lien précédent du même compte cesse de valoir. Sous la permission de
+      modifier les comptes (`users.write`, WF-ADM-0100) ; chaque demande est inscrite au journal
+      d'audit, sans le jeton (WF-SEC-0030). Aucun écran ne présente, ne demande ni ne saisit de mot
+      de passe : ce lien est le seul élément d'authentification que Waterfall montre (WF-ADM-0140).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     responses:

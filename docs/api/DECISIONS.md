@@ -2886,10 +2886,8 @@ projet terminé depuis cinq ans doit se lire tel quel, quand l'objet a changé d
 consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscription : seule l'action
 la produit (EP-03, US-0410).
 
-*Note du 2026-10-30 (US-0701/L8, #1608, B-01, B-03) : WF-ADM-0190, réécrite le 2026-10-09, veut
-que l'inscription mène au projet quand le lecteur peut le consulter ; la phrase sur `AuditProject`
-a été réécrite en conséquence, d'après la décision de l'auteur du 2026-10-28 (recadrage d'EP-16,
-« La plateforme », dans « Le contrat figé »).*
+*Note du 2026-10-30 : la phrase sur `AuditProject` est réécrite ; la spécification a changé le
+2026-10-09 (WF-ADM-0190), recadrage d'EP-16 décidé le 2026-10-28.*
 
 - **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
   corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un différentiel inscrit
@@ -6108,10 +6106,8 @@ une liberté déclarée, dans le résumé comme ici :
   la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
   adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
 
-*Note du 2026-10-30 (US-0701/L8, #1608, B-02) : la phrase sur les actions sans paramètre a été
-réécrite, `AuditParams` ne disant plus « jusqu'à l'EPIC qui les réalise » ; la sortie, la
-restauration et l'import portent leur paramètre d'après la décision de l'auteur du 2026-10-28
-(recadrage d'EP-16, « La plateforme »).*
+*Note du 2026-10-30 : la phrase sur les actions sans paramètre est réécrite ; recadrage d'EP-16
+décidé le 2026-10-28.*
 
 Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
 `test_mockaudit.py` le tient.

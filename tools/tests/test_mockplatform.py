@@ -104,7 +104,9 @@ def test_an_inscription_on_a_project_the_reader_cannot_consult_names_it_without_
 
 @pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_exit_and_the_imports_say_their_parameters() -> None:
-    # B-02: the exit says the state it reached, an import its nature.
+    # B-02: the exit says the state it reached, an import its nature. This covers, of the Vérif
+    # of WF-SEC-0030, the parameters that an entry carries; its other points (author, instant,
+    # correlation) are left to test_mockaudit.
     exited = mockaudit.exit_today().params
     assert exited == {"to_state": "completed", "reason": None}
     events = cast("list[dict[str, Any]]", mockaudit.journal())

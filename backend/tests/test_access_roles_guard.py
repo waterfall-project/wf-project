@@ -155,7 +155,7 @@ def test_a_permission_outside_the_catalogue_is_refused_by_the_core_too(database:
 TO_SEED_BY_EP04 = {"Manager": ("risk_settings.write", "indicator_settings.write")}
 
 
-@pytest.mark.requirement("WF-INTF-0020-A")
+@pytest.mark.requirement("WF-ADM-0010-A")
 def test_the_predefined_roles_are_those_of_the_example_of_the_contract() -> None:
     # The administrator reads the journal of audit (WF-ADM-0100 revised); the bootstrap gives
     # this description to the installation, in its default language.
