@@ -74,9 +74,8 @@ SUBPROJECTS = (
 )
 """The examples that read or write subprojects, each with its commands."""
 CLOSED = "subprojects_completed"
-"""The subprojects of the witness completed (`project_completed`), their commands all unavailable
-(EP-14/L42o, #673); the exit abandoned the revision in progress, whose lines bear them no more
-(US-0701/L9)."""
+"""The subprojects of the witness completed (`project_completed`, EP-14/L42o, #673), which list no
+command, as their project (US-0702/L3)."""
 
 TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
     "project_code_taken": (409, "ALREADY_EXISTS", [("/code", "ALREADY_EXISTS")], {}),
@@ -256,8 +255,9 @@ def test_the_win_probability_command_follows_update_and_is_frozen_from_in_progre
                 continue
             assert names.index(WIN_PROBABILITY) == names.index("update") + 1, name
             state = project["state"]
+            # A terminal project lists no command (US-0702/L3).
+            assert state not in TERMINAL, (name, state)
             missing = [] if state in OPEN else [BEFORE_IN_PROGRESS]
-            missing += [NOT_TERMINAL] if state in TERMINAL else []
             assert (WIN_PROBABILITY, not missing, missing) in commands, (name, state)
 
 
@@ -403,25 +403,20 @@ def _listed(
     subproject: Entry,
     cited: set[str],
     *,
-    terminal: bool = False,
     borne: set[str] | None = None,
 ) -> list[tuple[str, bool, list[str]]]:
-    """Return the commands a subproject lists to whom bears `update`.
+    """Return the commands a subproject of a project not closed lists to whom bears `update`.
 
     Its citation by a marked revision (§4.4.1, decision of the author of 2026-10-10, #634), then its
-    costs (WF-PRJ-0050), then the lines of the current revision that bear it (WF-DAT-0080, C-273),
-    then the closing of its project (WF-CYC-0100) say them, in that order — the order the contract
-    says (`_order_said`): from the condition that never lifts to the one a move of the lines lifts,
-    the conditions of the subproject before the one of the project, as a project lists its commands
-    (`project_completed`).
+    costs (WF-PRJ-0050), then the lines of the current revision that bear it (WF-DAT-0080, C-273)
+    say them, in that order — the order the contract says (`_order_said`): from the condition that
+    never lifts to the one a move of the lines lifts. A closed project lists none (US-0702/L3).
     """
     borne = _borne_by_the_current_revision() if borne is None else borne
-    closed = [NOT_TERMINAL] if terminal else []
     missing = [NOT_CITED] if subproject["subproject_id"] in cited else []
     missing += [WITHOUT_COSTS] if subproject["has_actual_costs"] else []
     missing += [WITHOUT_LINES] if subproject["subproject_id"] in borne else []
-    missing += closed
-    return [("update", not closed, closed), ("delete", not missing, missing)]
+    return [("update", True, []), ("delete", not missing, missing)]
 
 
 ORDER = [NOT_CITED, WITHOUT_COSTS, WITHOUT_LINES, NOT_TERMINAL]
@@ -534,51 +529,36 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     refusal = deletion.split("'409':", 1)[1].split("content:", 1)[0]
     assert _order_said(command, "la commande les liste dans cet ordre") == ORDER
     assert _order_said(refusal, "dans l'ordre où la commande `delete` les liste") == ORDER
-    # The order a project lists its own commands in (`project_completed`): the condition proper to
-    # the command first, `project_not_terminal` last. The subprojects of the witness completed
-    # follow it (`subprojects_completed`, EP-14/L42o) — no revision in progress bears them any
-    # more, the exit having abandoned it (US-0701/L9); a variant built here, uncited and
-    # uncharged, misses the closing alone.
-    assert fixture("project_completed")["state"] in TERMINAL
-    completed = {
-        each["command"]: each for each in fixture("project_completed")["available_commands"]
-    }
-    assert completed["update"]["missing_conditions"] == [NOT_TERMINAL]
-    assert completed[WIN_PROBABILITY]["missing_conditions"] == [BEFORE_IN_PROGRESS, NOT_TERMINAL]
-    cited = _cited_by_a_marked_revision()
-    closed = _subprojects(CLOSED)
-    for subproject in closed:
-        assert subproject["subproject_id"] in cited, subproject["code"]
-        assert _commands(subproject) == _listed(subproject, cited, terminal=True, borne=set())
-        assert _commands(subproject) == [
-            ("update", False, [NOT_TERMINAL]),
-            ("delete", False, [NOT_CITED, WITHOUT_COSTS, NOT_TERMINAL]),
-        ]
+    # The subprojects of the witness completed (`subprojects_completed`, EP-14/L42o) list no
+    # command, as their project (US-0702/L3): their deletion sent all the same is refused by the
+    # first condition in that order — the citation by the reference, before the closing.
+    assert _subprojects(CLOSED)
+    for subproject in _subprojects(CLOSED):
+        assert _commands(subproject) == [], subproject["code"]
     # The same subprojects as those of the project in progress, their commands apart.
-    unlisted = [{**each, "available_commands": None} for each in closed]
+    unlisted = [{**each, "available_commands": None} for each in _subprojects(CLOSED)]
     assert unlisted == [{**each, "available_commands": None} for each in fixture("subprojects")]
-    bare = {**fixture("subproject_created"), "has_actual_costs": False}
-    assert _listed(bare, cited, terminal=True) == [
-        ("update", False, [NOT_TERMINAL]),
-        ("delete", False, [NOT_TERMINAL]),
-    ]
 
 
-def test_a_terminal_project_has_no_current_revision_and_lists_the_risk_commands() -> None:
-    # The contract (`ProjectCommand`, `DECISIONS.md`, « Le risque déclaré sur une structure
-    # principale sans tâche »): a terminal project has no current revision, so it carries
-    # `edit_risks` and `declare_risk`, unavailable, naming `project_not_terminal` alone — the
-    # witness has tasks and an active provision category (#795).
+def test_a_terminal_project_lists_no_command_and_refuses_a_write_by_its_condition() -> None:
+    # A terminal project lists no command, not even unavailable (decision of the author of the
+    # 2026-10-30, #1657, US-0702/L3): none will ever become available (WF-CYC-0080), and
+    # WF-IHM-0090 presents unavailable only what a state makes impossible « momentanément ». A call
+    # sent all the same is refused by 409, `project_not_terminal` (US-0702/L1). The contract says
+    # it where the rule of L42a lives.
     completed = fixture("project_completed")
     assert completed["state"] in TERMINAL
     assert completed["current_revision_id"] is None
-    commands = _commands(completed)
-    names = [name for name, _, _ in commands]
-    assert names.index("declare_risk") == names.index("edit_risks") + 1
-    assert ("edit_risks", False, [NOT_TERMINAL]) in commands
-    assert ("declare_risk", False, [NOT_TERMINAL]) in commands
-    assert ("create_revision", False, [NOT_TERMINAL]) in commands
-    assert not any(available for _, available, _ in commands)
+    assert completed["available_commands"] == []
+    for name in ("timeline_create_terminal", "project_exit_terminal", "actual_cost_scope_terminal"):
+        assert fixture(name)["params"] == {"missing_condition": NOT_TERMINAL}, name
+    conventions = " ".join((API / "README.md").read_text(encoding="utf-8").split())
+    assert "Un projet terminal, lui, ne liste aucune commande" in conventions
+    told = " ".join((SCHEMAS / "projects.yaml").read_text(encoding="utf-8").split())
+    assert "Un projet terminal — Terminé, Perdu ou Abandonné — n'en liste aucune" in told
+    assert NOT_TERMINAL in enumeration(
+        (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
+    )
 
 
 def test_the_citation_by_a_marked_revision_is_a_condition_of_the_catalogue() -> None:

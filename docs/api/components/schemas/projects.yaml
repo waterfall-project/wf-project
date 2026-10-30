@@ -76,7 +76,12 @@ Project:
         participant (`project_participant`). La qualité vient avant les conditions d'état. Une
         seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de
         projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet
-        et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`).
+        et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`). Un projet terminal
+        — Terminé, Perdu ou Abandonné — n'en liste aucune : rien ne le modifie plus, et aucune ne
+        le redeviendra, quand WF-IHM-0090 ne présente indisponible que ce qu'un état rend
+        « momentanément » impossible (WF-CYC-0080, WF-CYC-0100 ; `project_completed`, US-0702/L3).
+        Un appel envoyé malgré la liste est refusé par 409 `STATE_FORBIDS_OPERATION`,
+        `params.missing_condition` à `project_not_terminal`.
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -115,8 +120,11 @@ CommandCondition:
     ou `NOT_PROJECT_MANAGER`, la qualité nommée (`Forbidden`). Toute autre condition qui manque se
     refuse par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant (README,
     « Conventions » ; US-0702/L1).
-    `project_not_terminal` manque à toute commande qui modifierait un projet terminal — Terminé,
-    Perdu ou Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) ; `revision_draft` à
+    `project_not_terminal` manque à toute écriture d'un projet terminal — Terminé, Perdu ou
+    Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) : aucune commande ne la
+    nomme, un projet terminal et ses objets ne listant aucune commande qui les modifierait
+    (`Project.available_commands`), et le 409 `STATE_FORBIDS_OPERATION` d'un appel direct la
+    nomme, dans l'ordre que l'opération dit (US-0702/L3) ; `revision_draft` à
     toute commande qui modifierait une révision marquée, qui ne se modifie plus (WF-DAT-0020) —
     toute révision d'un projet terminal l'est. `project_in_progress` manque hors de l'état En cours
     à ce qui ne se fait qu'en réalisation : la sortie vers Terminé (`complete`, WF-CYC-0060), la
@@ -437,7 +445,7 @@ ProjectCommand:
     `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à
     partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090), et le lotissement,
     dont `update_work_breakdown`, toujours listée avec `update`, dit les conditions : celles
-    d'`update` d'abord — `project_not_terminal` sur un projet terminal —, puis
+    d'`update` d'abord — la qualité de l'appelant —, puis
     `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
     cours ou la fige — sa saisie retire le rattachement des tâches de la révision en cours
     (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs — `manage_contributors`,
@@ -448,8 +456,8 @@ ProjectCommand:
     son compteur par `listContributors` ;
     ses chronologies — en créer une, en supprimer une (`createTimeline`, `deleteTimeline`) :
     `manage_timelines`, gardée par `planning.write`, la permission du planning dont elles sont
-    une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et indisponible sur
-    un projet terminal, `project_not_terminal` manquante (WF-CYC-0100) — ;
+    une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et absente d'un
+    projet terminal comme toute commande (WF-CYC-0100) — ;
     ouvrir une révision ; les trois sorties du cycle de vie (`exitProject`, WF-CYC-0060), chacune
     listée tant qu'elle peut le devenir et absente dès qu'elle ne le deviendra jamais — « une
     sortie qui ne le deviendra jamais — Déclarer perdu depuis En cours — n'y figure pas » (Vérif
@@ -462,8 +470,8 @@ ProjectCommand:
     cours ou la fige, comme `update_work_breakdown` ; déclarer un risque
     survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
     fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
-    (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
-    `reference_revision_designated`, `no_background_task_running`), celles du risque sur le
+    (WF-ADM-0100) ; les conditions du projet s'y nomment (`reference_revision_designated`,
+    `no_background_task_running`), celles du risque sur le
     risque (`RiskCommand.declare_occurrence`) ; importer les
     coûts réels — `import_actual_costs` nomme `actual_cost_mapping_complete` tant que la
     correspondance de l'extraction de l'installation est incomplète, après les conditions de
@@ -484,8 +492,8 @@ ProjectCommand:
     et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
     est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
     suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
-    même ordre : celles de l'état d'abord, `project_not_terminal` puis
-    `no_background_task_running`, puis `at_least_one_task` et `active_provision_category`, puis
+    même ordre : celles de l'état d'abord, `project_not_terminal` — que seul le 409 nomme, un
+    projet terminal ne listant aucune commande — puis `no_background_task_running`, puis `at_least_one_task` et `active_provision_category`, puis
     `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
     marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
     manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
@@ -498,7 +506,8 @@ ProjectCommand:
     la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la
     révision que la création rend (`generatePlanningSkeleton`), qui liste à son tour
     `generate_skeleton`. Ses conditions, dans l'ordre de `declare_risk` : celles de l'état
-    d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre (WF-CYC-0100), puis
+    d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre et que seul le 409 de
+    `createRevision` nomme (WF-CYC-0100), puis
     `no_background_task_running` pendant l'application d'un import, le traitement d'une
     survenance ou la fusion d'un différentiel de la dernière révision marquée, qui créent la
     révision en cours ; puis `main_structure_without_tasks`, jugée sur
@@ -652,7 +661,7 @@ NextState:
 
 ProjectExit:
   type: object
-  required: [to_state, confirmed, lock_version]
+  required: [to_state, lock_version]
   description: >-
     Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné
     depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et
@@ -667,10 +676,11 @@ ProjectExit:
       enum: [completed, lost, abandoned]
     confirmed:
       type: boolean
-      const: true
       description: >-
         Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est
-        écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`).
+        écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`). Le
+        schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse,
+        et non la validation du corps par 422 (US-0702/L3).
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
@@ -916,10 +926,9 @@ Subproject:
         Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou
         non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
         `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour
-        qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos
-        (WF-CYC-0100), après les conditions propres au sous-projet, comme le projet liste les
-        siennes (`project_completed`). Un appel envoyé malgré la liste est refusé par son code
-        d'erreur.
+        qui ne la porte pas, et sur un projet clos, qui n'en liste aucune (WF-CYC-0100 ;
+        `subprojects_completed`, US-0702/L3). Un appel envoyé malgré la liste est refusé par son
+        code d'erreur.
       items: { $ref: '#/SubprojectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -955,14 +964,15 @@ SubprojectCommand:
     (WF-PRJ-0050), tant que des lignes de devis de la révision en cours le portent, dans quelque
     structure que ce soit — une ligne de provision comprise, dont le risque l'a désigné
     (WF-RIS-0010) —,
-    `subproject_without_estimate_lines` manquante (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273),
-    et sur un projet clos, `project_not_terminal` manquante (WF-CYC-0100). Quand plusieurs
-    manquent, la commande les liste dans cet ordre : `subproject_not_cited`, puis
+    `subproject_without_estimate_lines` manquante (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273).
+    Sur un projet clos, aucune n'est listée (US-0702/L3), et `deleteSubproject` nomme aussi
+    `project_not_terminal` (WF-CYC-0100). Quand plusieurs manquent, la commande les liste dans cet
+    ordre, que le 409 suit : `subproject_not_cited`, puis
     `subproject_without_actual_costs`, puis `subproject_without_estimate_lines` — de la condition
     qui ne se lève jamais, une révision marquée étant immuable (WF-DAT-0020), à celle que lève le
-    passage de ces lignes hors sous-projet ou à un autre —, puis `project_not_terminal` — les
-    conditions propres au sous-projet avant celle du projet, comme le projet liste les siennes. Un
-    sous-projet se crée par la commande `update` du projet.
+    passage de ces lignes hors sous-projet ou à un autre —, puis `project_not_terminal`, que seul
+    le 409 nomme — les conditions propres au sous-projet avant celle du projet. Un sous-projet se
+    crée par la commande `update` du projet.
 
 SubprojectCommandAvailability:
   type: object

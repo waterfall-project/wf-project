@@ -48,9 +48,10 @@ def _commands(holder: Entry) -> dict[str, list[str]]:
     }
 
 
-def test_a_terminal_project_refuses_its_timelines_by_the_condition_its_command_names() -> None:
-    commands = _commands(fixture("project_completed"))
-    assert commands["manage_timelines"] == ["project_not_terminal"]
+def test_a_terminal_project_refuses_its_timelines_by_the_condition_it_misses() -> None:
+    # It lists no command any more, `manage_timelines` included (US-0702/L3): the call sent all
+    # the same is refused by the condition, as any write of a terminal project.
+    assert _commands(fixture("project_completed")) == {}
     for operation, name in (
         ("createTimeline", "timeline_create_terminal"),
         ("deleteTimeline", "timeline_delete_terminal"),

@@ -431,13 +431,13 @@ def test_the_timelines_are_listed_to_whoever_may_write_the_planning_unless_the_p
         names = [command for command, _, _ in commands]
         # The command is guarded by the permission of the planning (`planning.write`); its
         # qualities apart (`tests/test_mockexit.py`).
+        # A closed project lists no command at all (US-0702/L3).
         reader = READERS.get(name, universe(301))
-        if "planning.write" not in _permissions(reader):
+        if "planning.write" not in _permissions(reader) or project["state"] in TERMINAL:
             assert TIMELINES not in names, name
             continue
         assert names.index(TIMELINES) == names.index("manage_contributors") + 1, name
-        missing = [NOT_TERMINAL] if project["state"] in TERMINAL else []
-        assert (TIMELINES, not missing, missing) in commands, name
+        assert (TIMELINES, True, []) in commands, name
     assert TIMELINES in _enumeration(_schemas("projects.yaml"), "ProjectCommand")
 
 
@@ -762,13 +762,17 @@ def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_i
                 for each in breakdown["missing_conditions"]
                 if each not in missing and each not in QUALITIES
             ]
-    assert missing == ["project_not_terminal"]
+    # No example lists it unavailable but for the qualities: a terminal project lists no command
+    # (US-0702/L3), and its 409 alone names `project_not_terminal`, before the task in the
+    # background.
+    assert missing == []
     refused = fixture("work_breakdown_background_task")
     assert refused["params"] == {"missing_condition": "no_background_task_running"}
     said = " ".join((PATHS / "projects.yaml").read_text(encoding="utf-8").split())
     said = said.split("operationId: setWorkBreakdown", 1)[1].split("operationId:", 1)[0]
     conflict = said.split("'409':", 1)[1].split("content:", 1)[0]
-    told = [conflict.index(f"`{each}`") for each in [*missing, "no_background_task_running"]]
+    order = ["project_not_terminal", "no_background_task_running"]
+    told = [conflict.index(f"`{each}`") for each in order]
     assert told == sorted(told)
     for counter in (
         "`Node.lock_version`",

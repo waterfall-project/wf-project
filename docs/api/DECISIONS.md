@@ -4367,7 +4367,8 @@ un code de cinquante-et-un caractères (`VALUE_TOO_LONG`). Les 422 de `createPro
 `SubprojectCommandAvailability` ; #592, WF-IHM-0090), sur le modèle de `UserCommand` et de
 `BackupCommand` : au plus deux, dans l'ordre de l'énumération, `update` (`updateSubproject`) et
 `delete` (`deleteSubproject`). Elles suivent la commande `update` du projet : la liste est vide pour
-qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100) ;
+qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100 ;
+réécrit par US-0702/L3, #1657 : un projet clos n'en liste aucune) ;
 la création d'un sous-projet, qu'aucun sous-projet ne peut lister, suit `update` aussi. Une
 condition s'ajoute au catalogue, nommée comme ce qui doit tenir : `subproject_without_actual_costs`
 manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) — les
@@ -4504,7 +4505,9 @@ ne nomme que `project_not_terminal`, comme `update`, qui n'a pas de condition pr
 `project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
 l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
 `test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
-exemples, et la confronte à `project_completed`.
+exemples, et la confronte à `project_completed`. **Réécrit par US-0702/L3** (#1657) : un projet clos
+ne liste plus aucune commande, ni ses sous-projets ; l'ordre décidé ici reste celui du 409 de
+`deleteSubproject`, `project_not_terminal` en dernier.
 
 Écartés : garder la suppression logique de L42i jusqu'à ce que l'auteur corrige le Vérif — le contrat
 aurait promis ce que l'auteur a refusé, et l'écran de L44e l'aurait appris ; nommer
@@ -4918,7 +4921,9 @@ modification indisponible faute de `project_not_terminal`, la suppression faute 
 de L42l. Écrit à la main comme `project_completed`, variante qu'il suit, et cité sous
 `listSubprojects` après `subprojects`, qui reste le premier. `test_mockproject.py` lui applique la
 règle `_listed` d'un projet clos, et vérifie que ce sont les sous-projets du projet en cours, leurs
-commandes à part. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
+commandes à part. **Réécrit par US-0702/L3** (#1657) : un projet clos ne liste aucune commande, et
+ses sous-projets non plus ; `subprojects_completed` les garde, sans commande, et l'ordre de L42l
+reste celui du 409 de `deleteSubproject`. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
 refusé par la forme (`NUMBER_INVALID`), `00.5` admis.
 
 Le client est régénéré. Le front n'est touché que par le client régénéré et par la valeur attendue
@@ -6483,7 +6488,8 @@ phase (WF-DEV-0050), et `edit_remaining` n'est jamais listée (WF-RAE-0040 : seu
 La condition de phase vient d'abord, puis les conditions d'état de la révision — `revision_draft`,
 `no_background_task_running`, `project_not_terminal` — telles que la commande de même nom de la
 révision les nomme : la condition propre à la commande d'abord, comme `update_win_probability`
-(« Sur un projet clos, `project_not_terminal` vient en dernier »). Les commandes de la révision
+(« Sur un projet clos, `project_not_terminal` vient en dernier » ; réécrit par US-0702/L3, #1657 :
+sur un projet clos, aucune n'est listée). Les commandes de la révision
 (`RevisionCommand`) ne changent pas, et gardent ce qui ne lit pas une structure : le squelette, le
 marquage, les exports, les risques. Écartés : une condition sur `RevisionCommand.edit_estimate`,
 qui aurait fermé avec la principale le devis propre d'un risque et le différentiel ; des
@@ -9551,8 +9557,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   clos n'en liste aucune, à la lettre de la spécification : aucune ne le deviendra (WF-CYC-0080), et
   WF-IHM-0090 ne présente indisponible que ce qu'un état rend « momentanément » impossible.
   Écartée : les lister avec `project_not_terminal`, la règle antérieure du contrat, qui présente
-  une commande qui ne sera jamais possible. Les autres commandes d'un projet clos gardent leur
-  forme, que US-0702 tranche avec D-05. `lose` quitte `project`, `project_updated`,
+  une commande qui ne sera jamais possible. **Réécrit par US-0702/L3** (décision de l'auteur du
+  2026-10-30, #1657) : les autres commandes d'un projet clos suivent la même règle, aucune n'est
+  listée. `lose` quitte `project`, `project_updated`,
   `project_without_current_revision`, `project_actual_cost_mapping_incomplete`,
   `reference_designated` et le projet en cours de `projects` ; les trois sorties quittent
   `project_completed`.
@@ -9624,8 +9631,8 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   chronologie restés des 403), EP-14/L42s (« les 403 des saisies de la révision ») et
   US-0640/L1 #803 (« le premier exemple de ce refus »). Écartés, par l'auteur : 409 hors grille et
   403 sur la grille, deux règles pour un même fait ; 403 partout, contraire à L42a, L42i, L42l et à
-  la lecture commune des conditions par le front. Les commandes d'un projet clos restent listées,
-  `project_not_terminal` manquante (#1657, à trancher par l'auteur).
+  la lecture commune des conditions par le front. **Réécrit par US-0702/L3** (décision de l'auteur
+  du 2026-10-30, #1657) : les commandes d'un projet clos ne sont plus listées ; le 409 reste.
 
 - **Le catalogue sans code mort** (J-03, J-11 ; WF-ARC-0110, WF-IHM-0090). Chaque code
   d'`ErrorCode` est nommé par une opération ou un schéma, et chaque valeur de `CommandCondition`
@@ -9754,7 +9761,8 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   puis `project_in_progress` pour Terminé, `project_in_pricing` pour Perdu
   (`project_exit_lost_in_progress`, Perdu depuis En cours), puis `no_background_task_running`.
   `confirmed` absent ou faux est un 400 `CONFIRMATION_REQUIRED` (`project_exit_unconfirmed`),
-  comme pour la restauration (B-09, US-0701/L8). Écarté : un 422 `VALUE_REQUIRED` sur
+  comme pour la restauration (B-09, US-0701/L8) ; le schéma le laisse à la garde depuis US-0702/L3
+  (#1664), sans `const: true` ni `required`. Écarté : un 422 `VALUE_REQUIRED` sur
   `/confirmed`, que la revue proposait aussi — le catalogue dit déjà la confirmation absente par
   ce 400, et deux formes pour une même garde en feraient deux règles.
 - **Les révisions et leurs structures** (E-05, E-12 à E-14 ; WF-REV-0010, WF-REV-0020,
@@ -9815,6 +9823,48 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   `dict[str, Any]`.
 
 **Corrélations** 1638 à 1657.
+
+### Un projet clos ne liste aucune commande ; la confirmation laissée à la garde (US-0702/L3, #1667)
+
+Deux décisions de l'auteur du 2026-10-30, sur les recommandations de US-0702/L1 (#1657) et de
+US-0702/L2 (#1664). Les décisions qu'elles contredisent sont réécrites à leur place.
+
+- **Un projet clos ne liste aucune commande** (#1657 ; WF-IHM-0090, WF-CYC-0060, WF-CYC-0080,
+  WF-CYC-0100). La règle d'EP-02/L42a, devenue celle de tout le contrat par US-0702/L1, reçoit sa
+  borne : un projet terminal ne liste aucune commande, ni sur lui-même, ni sur ses sous-projets,
+  ses révisions, leurs structures et leurs nœuds, ses risques — seuls les exports d'une révision
+  restent listés, disponibles, qui ne le modifient pas (WF-CYC-0110). WF-IHM-0090 ne présente
+  indisponible que ce qu'un état rend « momentanément » impossible, et un état terminal est
+  irréversible (WF-CYC-0080) : aucune de ces commandes ne le redeviendra. C'est la règle qu'US-0701/L9
+  posait pour les trois sorties (« Une sortie qui ne le deviendra jamais n'est pas listée », Vérif de
+  WF-CYC-0060), étendue à toutes. Le README (« Conventions ») et `Project.available_commands` le
+  disent ; `Subproject`, `Revision`, `CostStructure` (`StructureCommand`) et `Risk` le rappellent.
+  Un appel direct reste refusé par la règle unique : 409 `STATE_FORBIDS_OPERATION`,
+  `params.missing_condition` à `project_not_terminal`, dans l'ordre que chaque opération dit
+  (`timeline_create_terminal`, `timeline_delete_terminal`, `project_exit_terminal`,
+  `actual_cost_scope_terminal`). `project_completed` ne liste plus rien, ses quinze commandes
+  indisponibles retirées ; `subprojects_completed` garde ses deux sous-projets, sans commande. Réécrits :
+  US-0701/L9 (« Les autres commandes d'un projet clos gardent leur forme »), US-0702/L1 (« Les
+  commandes d'un projet clos restent listées »), EP-14/L42o et L42l (les commandes des sous-projets
+  d'un projet clos, toutes indisponibles, `project_not_terminal` en dernier — ce dernier ordre reste
+  celui du 409 de `deleteSubproject`).
+  **`project_not_terminal` reste dans `CommandCondition`** : aucune commande listée ne la nomme plus,
+  mais le 409 d'un appel direct la nomme, et `ProblemParams.missing_condition` est une
+  `CommandCondition` (J-03, J-11 : la condition est rendue par des opérations, avec leurs exemples).
+  Sa description le dit. Écartées : la retirer de l'énumération, qui laisserait le 409 sans valeur
+  typée ; lister les commandes avec elle, la règle antérieure, qui présente des commandes qui ne
+  seront jamais possibles.
+- **`confirmed` laissé à la garde** (#1664 ; WF-CYC-0090, WF-ADM-0160 ; B-09, D-03). `ProjectExit`,
+  `ReferenceDesignation` et le corps de `startRestore` (`RestoreRequest`) ne portent plus
+  `const: true`, et `confirmed` sort de leur `required` : `type: boolean`. Absente ou fausse, la
+  confirmation est refusée par 400 `CONFIRMATION_REQUIRED`, sans paramètre, comme US-0702/L2 et B-09
+  l'ont décidé ; avec `const: true` ou `required`, les modèles engendrés du service répondaient 422
+  `VALIDATION_FAILED` avant la garde, contre ce que le contrat promettait. `startRestore` le rend
+  (`waterfall.api.restores`) ; `designateReferenceRevision` décrit son 400. Écarté : garder
+  `confirmed` exigé, qui laisserait la confirmation absente au 422 du corps — deux formes pour une
+  même garde, que US-0702/L2 a écartées. Le client du front reçoit `confirmed?: boolean`. Les autres
+  confirmations du contrat (`ImportApply`, `StructureMerge`, `PasteApply`, `RiskOccurrence`) gardent
+  `const: true` : elles ne promettent aucun 400.
 
 ### Le filtre des écarts et le décompte de la matrice des risques (US-0700/L1, #1455, #1398, #1395)
 

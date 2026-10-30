@@ -1,5 +1,5 @@
 {
-  "summary": "La suppression de la chronologie « Revue client » du projet témoin terminé aujourd'hui (project_completed) : refusée par la condition que sa commande manage_timelines dit manquer, project_not_terminal, comme toute écriture d'un projet terminal ; rien n'est écrit (WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
+  "summary": "La suppression de la chronologie « Revue client » du projet témoin terminé aujourd'hui (project_completed) : le projet clos ne liste plus manage_timelines, et l'appel direct est refusé par la condition qui manque, project_not_terminal, comme toute écriture d'un projet terminal ; rien n'est écrit (WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",
     "status": 409,

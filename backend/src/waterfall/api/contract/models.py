@@ -1432,11 +1432,11 @@ class RestoreRequest1(ContractModel):
         ),
     ]
     confirmed: Annotated[
-        Literal[True],
+        bool | None,
         Field(
-            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160)."
+            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160). Le schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3)."
         ),
-    ]
+    ] = None
 
 
 class RestoreRequest2(ContractModel):
@@ -1454,11 +1454,11 @@ class RestoreRequest2(ContractModel):
         ),
     ]
     confirmed: Annotated[
-        Literal[True],
+        bool | None,
         Field(
-            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160)."
+            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160). Le schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3)."
         ),
-    ]
+    ] = None
 
 
 class RestoreRequest(RootModel[RestoreRequest1 | RestoreRequest2]):
@@ -2500,7 +2500,7 @@ class Project(ContractModel):
     available_commands: Annotated[
         list[ProjectCommandAvailability],
         Field(
-            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante ; la génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la permission du planning (EP-15/US-0490/L4). Une commande que la permission de l'appelant lui donnerait, mais que sa qualité sur le projet ne permet pas, est listée indisponible en nommant cette qualité (WF-IHM-0090) : `is_contributor` à qui ouvre le projet par « consulter tous les projets » sans en être contributeur, et `is_project_manager` en plus pour une commande réservée aux chefs de projet ; `is_project_manager` seule à un participant (`project_participant`). La qualité vient avant les conditions d'état. Une seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`)."
+            description="Commandes du projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une commande absente de la liste n'est pas présentée. Seule exception, décidée par l'utilisateur le 2026-10-05 : sans révision en cours, l'import d'un planning, d'un devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas celle de créer une révision, indisponible, `may_create_revision` manquante ; la génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la permission du planning (EP-15/US-0490/L4). Une commande que la permission de l'appelant lui donnerait, mais que sa qualité sur le projet ne permet pas, est listée indisponible en nommant cette qualité (WF-IHM-0090) : `is_contributor` à qui ouvre le projet par « consulter tous les projets » sans en être contributeur, et `is_project_manager` en plus pour une commande réservée aux chefs de projet ; `is_project_manager` seule à un participant (`project_participant`). La qualité vient avant les conditions d'état. Une seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`). Un projet terminal — Terminé, Perdu ou Abandonné — n'en liste aucune : rien ne le modifie plus, et aucune ne le redeviendra, quand WF-IHM-0090 ne présente indisponible que ce qu'un état rend « momentanément » impossible (WF-CYC-0080, WF-CYC-0100 ; `project_completed`, US-0702/L3). Un appel envoyé malgré la liste est refusé par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`."
         ),
     ]
     audit: Audit
@@ -2602,11 +2602,11 @@ class CurrentRevisionFate(RootModel[CurrentRevisionMark | CurrentRevisionAbandon
 class ProjectExit(ContractModel):
     to_state: ToState
     confirmed: Annotated[
-        Literal[True],
+        bool | None,
         Field(
-            description="Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`)."
+            description="Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`). Le schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3)."
         ),
-    ]
+    ] = None
     reason: Annotated[
         str | None,
         Field(
@@ -2748,7 +2748,7 @@ class Subproject(ContractModel):
     available_commands: Annotated[
         list[SubprojectCommandAvailability],
         Field(
-            description="Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100), après les conditions propres au sous-projet, comme le projet liste les siennes (`project_completed`). Un appel envoyé malgré la liste est refusé par son code d'erreur.",
+            description="Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour qui ne la porte pas, et sur un projet clos, qui n'en liste aucune (WF-CYC-0100 ; `subprojects_completed`, US-0702/L3). Un appel envoyé malgré la liste est refusé par son code d'erreur.",
             max_length=2,
         ),
     ]
@@ -2969,7 +2969,7 @@ class Revision(ContractModel):
     available_commands: Annotated[
         list[RevisionCommandAvailability],
         Field(
-            description="Commandes de la révision que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille dont la commande de saisie est absente ou indisponible se présente en lecture seule."
+            description="Commandes de la révision que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille dont la commande de saisie est absente ou indisponible se présente en lecture seule. Une révision d'un projet terminal ne liste que ses exports, qui ne le modifient pas : aucune autre commande ne le redeviendra (WF-CYC-0080, WF-CYC-0100, WF-IHM-0090 ; US-0702/L3)."
         ),
     ]
     audit: Audit
@@ -2994,7 +2994,12 @@ class RevisionMark(ContractModel):
 
 class ReferenceDesignation(ContractModel):
     revision_id: Uuid
-    confirmed: Literal[True]
+    confirmed: Annotated[
+        bool | None,
+        Field(
+            description="Faux ou absent, la désignation est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est écrit, comme la sortie (`ProjectExit.confirmed`) : le schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3)."
+        ),
+    ] = None
     lock_version: Annotated[
         LockVersion,
         Field(
@@ -5235,7 +5240,7 @@ class Risk(ContractModel):
     available_commands: Annotated[
         list[RiskCommandAvailability],
         Field(
-            description="Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et, pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code d'erreur."
+            description="Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et, pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). Le risque d'un projet terminal n'en liste aucune (US-0702/L3). Un appel envoyé malgré la liste est refusé par son code d'erreur."
         ),
     ]
     audit: Audit

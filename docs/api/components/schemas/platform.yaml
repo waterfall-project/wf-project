@@ -486,7 +486,7 @@ ExternalBackupLocationTest:
 
 RestoreRequest:
   type: object
-  required: [confirmed, acknowledged_backup_taken_at]
+  required: [acknowledged_backup_taken_at]
   oneOf:
     - required: [backup_id]
     - required: [external_backup_upload_id]
@@ -519,11 +519,11 @@ RestoreRequest:
         file.
     confirmed:
       type: boolean
-      const: true
       description: >-
         La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée
         par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et
-        rien n'est mis en file (WF-ADM-0160).
+        rien n'est mis en file (WF-ADM-0160). Le schéma ne l'exige pas et ne fixe pas sa valeur,
+        pour que ce soit la garde qui refuse, et non la validation du corps par 422 (US-0702/L3).
 
 IdentitySyncSchedule:
   type: object

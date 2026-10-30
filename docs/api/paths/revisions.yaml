@@ -91,7 +91,8 @@
           (WF-REV-0010). Une ouverture demandée depuis un écran lu avant qu'une autre ne
           l'ouvre — la première des deux écritures du squelette de planning sur un projet qui
           n'en avait pas — reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4). Ou
-          l'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit :
+          l'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit, ou
+          son absence d'un projet terminal :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal` sur un
           projet terminal (WF-CYC-0100), puis à `no_background_task_running` pendant
           l'application d'un import, le traitement d'une survenance ou la fusion d'un différentiel
@@ -282,7 +283,15 @@
             schema: { $ref: ../components/schemas/projects.yaml#/Project }
             examples:
               designated: { $ref: ../../../fixtures/api/reference_designated.json }
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '400':
+        description: >-
+          Un corps illisible, `MALFORMED_REQUEST` ; ou une désignation sans sa confirmation,
+          `confirmed` absent ou faux : `CONFIRMATION_REQUIRED`, sans paramètre, comme la sortie
+          (`exitProject`, `project_exit_unconfirmed`) et la restauration (US-0702/L3). Rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -526,8 +526,8 @@
         description: >-
           L'état interdit la survenance : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la
           première condition qui manque, celles du projet d'abord, dans l'ordre où sa commande
-          `declare_risk_occurrence` les nomme — `project_not_terminal` sur un projet terminal
-          (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas de révision de
+          `declare_risk_occurrence` les nomme — `project_not_terminal` sur un projet terminal,
+          qui ne la liste plus (WF-CYC-0100), `reference_revision_designated` tant qu'il n'a pas de révision de
           référence (WF-RIS-0060), `no_background_task_running` pendant un traitement de fond qui
           écrit dans la révision en cours ou la crée —, puis celles du risque, dans l'ordre où sa
           commande `declare_occurrence` les nomme — `risk_identified` pour un risque survenu ou

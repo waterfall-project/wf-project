@@ -1,5 +1,5 @@
 {
-  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05, qui abandonne dans la même opération sa révision en cours, la 102 (project_exit_abandoning) : après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, la « Référence » 101, avec le coût réel du jour (project_indicators_without_current_revision). Il passe en lecture seule : aucune de ses commandes n'est plus disponible, et il ne liste plus aucune sortie, aucune transition ne partant d'un état terminal (WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-IND-0010).",
+  "summary": "Le projet témoin terminé par sa sortie du cycle de vie, confirmée aujourd'hui à 14 h 05, qui abandonne dans la même opération sa révision en cours, la 102 (project_exit_abandoning) : après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, la « Référence » 101, avec le coût réel du jour (project_indicators_without_current_revision). Il passe en lecture seule : il ne liste plus aucune commande, aucune ne pouvant plus le redevenir — rien ne modifie un projet terminal, et aucune transition n'en part ; un appel direct est refusé par la condition qui manque, project_not_terminal (WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0100, WF-IHM-0090, WF-IND-0010 ; US-0702/L3).",
   "value": {
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
     "label": "Modernisation du poste de commande",
@@ -12,115 +12,7 @@
     "order_received_on": "2026-01-15",
     "reference_revision_id": "01926f3a-7c00-7000-8000-000000000101",
     "current_revision_id": null,
-    "available_commands": [
-      {
-        "command": "update",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "update_win_probability",
-        "is_available": false,
-        "missing_conditions": [
-          "project_before_in_progress",
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "update_work_breakdown",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "manage_contributors",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "manage_timelines",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "create_revision",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "edit_risks",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "declare_risk",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "declare_risk_occurrence",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "import_actual_costs",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "exclude_cost_lines",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "generate_skeleton",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal",
-          "main_structure_without_tasks"
-        ]
-      },
-      {
-        "command": "import_planning",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "import_estimate",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      },
-      {
-        "command": "import_remaining",
-        "is_available": false,
-        "missing_conditions": [
-          "project_not_terminal"
-        ]
-      }
-    ],
+    "available_commands": [],
     "audit": {
       "created_at": "2025-10-06T09:00:00Z",
       "created_by": {
