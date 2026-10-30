@@ -9816,6 +9816,71 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
 
 **Corrélations** 1638 à 1657.
 
+### Le filtre des écarts et le décompte de la matrice des risques (US-0700/L1, #1455, #1398, #1395)
+
+Les décisions de l'auteur du 2026-10-23 dans #1398 et #1395 font foi ; les « à trancher au lot »
+qu'elles nomment le sont ici. Rien ne filtrait encore sur l'écart d'un nœud : les filtres de
+colonne d'US-0701/L3 portent sur la grandeur que la comparaison affiche, « jamais sur l'écart que
+`difference` dit », et restent tels ; ce lot ajoute le seul filtre qui manquait.
+
+- **Le filtre `difference`** (#1398 ; WF-REV-0080, WF-REV-0100, WF-IHM-0130). Un paramètre partagé,
+  `NodeDifferenceFilter`, que `listNodes` et `compareRevisions` citent comme les autres filtres de
+  l'arbre (#1193), une liste (`explode: false`) de `added`, `removed` et `modified` ; « Écarts
+  seulement » les nomme toutes trois. `unchanged` n'en est pas : ce n'est pas un écart. Chaque
+  nœud, tâche ou ligne, se juge sur sa propre marque — une tâche retenue n'emporte pas ses lignes
+  inchangées, à la différence d'un filtre sur la tâche, qui retient ses lignes : l'écran ne montre
+  que ce qui change, et une ligne qui change est retenue par sa marque. Les ancêtres d'un nœud
+  retenu sont rendus, comme pour tout filtre, et sont `modified` par leur contenu (`NodeDifference`,
+  US-0500/L1) : avec `modified` parmi les valeurs, ils sont retenus par leur propre marque ; avec `added` ou
+  `removed` seuls, ils ne le sont que pour que l'arbre reste un arbre. Un nœud déplacé est retenu à sa place nouvelle, `parent` parmi ses
+  `changes`. `modified` ne se scinde pas entre « par ses valeurs » et « par son contenu » : la
+  grille le dit déjà par `changes`, comme l'auteur le pressentait.
+- **Les totaux ne changent pas avec lui** (#1398, recommandation de l'issue). `totals` est celui de
+  la lecture sans `difference` : de la structure entière sans autre filtre, comme l'issue le
+  recommande, et d'un sous-arbre lu par ses écarts, celui du sous-arbre. La somme des seules lignes
+  ajoutées et modifiées ne serait la grandeur de rien ; la grille d'un différentiel garde le total
+  de l'avenant, et l'écart se lit dans `amount_deltas`, qui reste « sur les lignes retenues »
+  (US-0500/L5) : celles que le filtre retient. **Réécrit, sous ce seul filtre** : « Les totaux sont
+  ceux des lignes retenues » (`listNodes`, `NodeTotals`) et le parallèle d'US-0500/L5, où
+  `amount_deltas` « se calcule de même » que `totals` ; `difference` se range avec `kinds`, qui ne
+  change pas les totaux (#487). `NodeTotals`, `RevisionComparison.totals`, `amount_deltas` et les
+  deux opérations le disent. Une ligne dont seul le sous-projet change reste `unchanged` —
+  `NodeChange` ne nomme pas le sous-projet — : « Écarts seulement » ne la retient pas, et ses écarts
+  par sous-projet, que la comparaison lue entière compte, n'y sont pas (relevé hors de ce lot).
+- **Sans effet sur la structure principale et le devis propre d'un risque**, où `difference` est
+  nul (#1398, « soit un refus, soit une lecture inchangée ») : la lecture est celle sans lui. Choisie
+  au plus près du contrat : l'auteur le dit « sans effet » ; `PortfolioStates` est déjà « sans
+  effet » sur ce que sa vue ne compte pas ; et aucun filtre de l'arbre n'est refusé pour ce qu'il
+  retiendrait — `subtree_of` sur une tâche retirée, dont le refus a été écarté (US-0500/L5),
+  `work_package_id` sur un différentiel. Écartés : un 422 `VALIDATION_FAILED`, `/query/difference`
+  par `FIELD_NOT_ACCEPTED`, motif qui dit un champ que le nœud ou `fields` n'accepte pas, et ne
+  dirait pas la vraie cause ; un 409 `STATE_FORBIDS_OPERATION`, une lecture n'étant pas une
+  commande, et aucune `CommandCondition` ne disant la nature d'une structure ; un code nouveau, hors
+  du catalogue unique d'US-0702/L1 ; une lecture vide, lecture stricte d'une marque nulle, qui
+  viderait la grille de la principale pour un paramètre qui n'y a pas de sens. Le front ne l'offre
+  que sur un différentiel et sur la comparaison (US-0700/L2).
+- **Les exemples**, engendrés, nommés comme leurs voisins (`nodes_estimate_filtered`,
+  `comparison_moved`) : `nodes_amendment_differences` (`listNodes`, `amendment_differences`),
+  l'avenant 2 lu entier par « Écarts seulement », 8 nœuds des 6 003 de l'arbre marqué, ses totaux
+  ceux du différentiel entier ; `comparison_differences` (`compareRevisions`, `differences`), l'offre
+  et la référence sur toute la structure par `difference=added,removed`, deux valeurs combinées —
+  5 ajoutés, 2 retirés et leurs 5 ancêtres modifiés par leur seul contenu —, les totaux de la
+  référence entière, ceux de `comparison_volume`, et les écarts des seules lignes retenues.
+  `comparison_differences` est exempté de #421 comme `comparison`, dont il nomme les nœuds de même
+  (`tools/tests/test_mockversions.py`). `mockdiff.differences` filtre l'arbre marqué ; prism, qui
+  ne lit pas les paramètres de requête, sert le premier exemple comme pour tout filtre.
+- **Le décompte de la matrice des risques** (#1395, part contrat ; WF-RIS-0040, WF-ARC-0020).
+  `RiskMatrix.cells` compte, par case, les seuls risques identifiés, ceux que le graphique trace en
+  bulles ; le serveur compte, le front jamais. `points` garde les risques lus avec leur état, que
+  l'écran filtre (#1053) — retirer du graphique les survenus et les écartés est la part front de
+  #1395, à EP-17 —, et `totals` reste sur les trois états. **Réécrit** : « Elle les compte par case
+  et les rend un par un, les mêmes » (`RiskMatrix`, #1053), et les points « que comptent ses
+  cases ». La matrice du portefeuille comptait et rendait déjà les seuls identifiés
+  (`identified_risks`, WF-PTF-0090) : `volume/portfolio_risks` ne change pas. `risk_matrix` compte
+  1 risque au lieu de 3, le « Risque de reprise du câblage », `risk_matrix_no_basis` de même.
+  Écarté : restreindre aux identifiés les points d'un projet, qui changerait ce que l'écran lit
+  avant qu'EP-17 n'en change la présentation.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

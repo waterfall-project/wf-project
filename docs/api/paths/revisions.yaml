@@ -422,7 +422,9 @@
       parent, et une récapitulative dont le contenu change, marquée modifiée. Les filtres, la
       recherche et le tri s'y appliquent comme à la lecture d'un différentiel : un nœud retiré
       s'y juge sur ses valeurs de la révision de base, comme tout autre nœud sur les siennes, et
-      sans tri il reste à la place qu'il avait (#1205). Un filtre de colonne porte sur la grandeur
+      sans tri il reste à la place qu'il avait (#1205). `difference` retient les seuls écarts
+      nommés, leurs ancêtres compris, comme sur un différentiel (`NodeDifferenceFilter`,
+      `differences`, #1398). Un filtre de colonne porte sur la grandeur
       que la comparaison affiche de la colonne, celle de la révision comparée (`to_revision_id`) —
       la durée, la marge, une date, un montant du nœud tel que cette révision le porte, jamais
       l'écart à la révision de base, que `difference` dit —, et sur celle de la base pour un nœud
@@ -433,9 +435,11 @@
       alors le sous-arbre qu'elle avait dans la révision de base, ses nœuds retirés à leur place,
       des totaux nuls — la révision comparée n'en a plus aucune ligne — et les écarts de ses lignes
       retirées. `totals` est celui de `listNodes` sur la révision comparée : les lignes retenues,
-      sans les nœuds retirés, qui n'en sont plus (`NodeTotals`) ; `meta` dit la structure de la
+      sans les nœuds retirés, qui n'en sont plus, `difference` ne le restreignant pas
+      (`NodeTotals`) ; `meta` dit la structure de la
       révision comparée (`NodeListMeta`). `amount_deltas` vient dans chaque réponse, comme `totals`,
-      et se calcule de même sur les lignes retenues, retirées comprises, quel que soit `kinds` : une
+      et se calcule sur les lignes retenues, retirées comprises, quel que soit `kinds`, celles que
+      `difference` retient seules sous ce filtre : une
       lecture sans filtre rend les écarts de toute la structure, celle d'un sous-arbre les siens
       (`comparison`) ; une ligne déplacée compte dans la fenêtre de son parent dans la révision
       comparée, pour son écart entier (`amount_deltas`). La grille de la comparaison est celle des
@@ -466,6 +470,7 @@
       - $ref: ../components/parameters.yaml#/NodeSummariesOnly
       - $ref: ../components/parameters.yaml#/NodeMaxLevel
       - $ref: ../components/parameters.yaml#/NodeTimelineFilter
+      - $ref: ../components/parameters.yaml#/NodeDifferenceFilter
       - $ref: ../components/parameters.yaml#/NodeDescriptionFilter
       - $ref: ../components/parameters.yaml#/NodeSchedulingModeFilter
       - $ref: ../components/parameters.yaml#/NodeDurationMin
@@ -522,6 +527,7 @@
               witness: { $ref: ../../../fixtures/api/comparison.json }
               volume: { $ref: ../../../fixtures/api/volume/comparison_volume.json }
               identical: { $ref: ../../../fixtures/api/comparison_identical.json }
+              differences: { $ref: ../../../fixtures/api/comparison_differences.json }
               moved: { $ref: ../../../fixtures/api/comparison_moved.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
@@ -894,7 +900,8 @@
       elle garde ses lignes. Les filtres se combinent, et les ancêtres des nœuds retenus
       sont rendus pour que l'arbre reste lisible — sauf avec `timeline_id` : une chronologie
       n'est pas un arbre, et ne présente que les tâches qui y sont inscrites (WF-PLA-0140).
-      Les totaux sont ceux des lignes retenues. Chaque colonne des trois grilles se filtre
+      Les totaux sont ceux des lignes retenues, sauf sous `difference`, qui ne les restreint
+      pas. Chaque colonne des trois grilles se filtre
       (WF-IHM-0060, WF-IHM-0130), selon la convention du README du contrat : une colonne de
       nombres par ses deux bornes incluses, `<colonne>_min` et `<colonne>_max`, une colonne de
       dates par sa période, `<colonne>_from` et `<colonne>_to`, fin incluse, une marque par un
@@ -948,9 +955,13 @@
       de la structure principale, qu'il porte encore —, comme tout autre nœud sur les siennes :
       un filtre sur une tâche le retient si ses valeurs de base le satisfont, un tri range une
       ligne retirée parmi les lignes de sa tâche par sa valeur de base dans la colonne triée, et
-      sans tri il reste à la place qu'il avait (#1205).
+      sans tri il reste à la place qu'il avait (#1205). `difference` n'en retient que les
+      écarts nommés, ajoutés, retirés ou modifiés — « Écarts seulement » les nomme tous trois —,
+      leurs ancêtres compris, eux-mêmes modifiés par leur contenu : l'arbre filtré reste un
+      arbre, et les totaux restent ceux de la lecture sans lui (`NodeDifferenceFilter`,
+      `amendment_differences`, #1398).
       Sur la structure principale et sur le devis propre d'un risque, `difference` est nul ou
-      omis.
+      omis, et le filtre `difference` y est sans effet : la lecture est celle sans lui.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -969,6 +980,7 @@
       - $ref: ../components/parameters.yaml#/NodeSummariesOnly
       - $ref: ../components/parameters.yaml#/NodeMaxLevel
       - $ref: ../components/parameters.yaml#/NodeTimelineFilter
+      - $ref: ../components/parameters.yaml#/NodeDifferenceFilter
       - $ref: ../components/parameters.yaml#/NodeDescriptionFilter
       - $ref: ../components/parameters.yaml#/NodeSchedulingModeFilter
       - $ref: ../components/parameters.yaml#/NodeDurationMin
@@ -1049,6 +1061,7 @@
               timeline: { $ref: ../../../fixtures/api/nodes_timeline.json }
               empty: { $ref: ../../../fixtures/api/nodes_empty.json }
               amendment: { $ref: ../../../fixtures/api/nodes_amendment.json }
+              amendment_differences: { $ref: ../../../fixtures/api/nodes_amendment_differences.json }
               risk_estimate: { $ref: ../../../fixtures/api/nodes_risk_estimate.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

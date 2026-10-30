@@ -16,6 +16,9 @@ them, and a predecessor is named by the row it is rendered at.
 A task is changed by its dates, its duration, its progress or its parent; a line by its amounts,
 its delay of payment (#1566) or its parent: the amount of a task is its lines', said by them
 (``wftools.mockhistory``, #287).
+
+A marked tree is read by a window (``window``, ``subtree_of``), or by its differences alone
+(``differences``, the filter ``difference``, #1398).
 """
 
 from __future__ import annotations
@@ -25,6 +28,8 @@ from typing import TYPE_CHECKING, cast
 from wftools import mockcore
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from wftools.mockstructure import JsonObject, JsonValue
 
 ADDED, REMOVED, MODIFIED, UNCHANGED = "added", "removed", "modified", "unchanged"
@@ -156,3 +161,44 @@ def window(nodes: list[JsonObject], root: str) -> list[JsonObject]:
         if node["parent_id"] in below:
             below.add(cast("str", node["node_id"]))
     return [node for node in nodes if node["node_id"] in below]
+
+
+DIFFERENCES = (ADDED, REMOVED, MODIFIED)
+"""What « Écarts seulement » asks of a marked tree: the three marks of a difference (#1398)."""
+
+
+def differences(nodes: list[JsonObject], asked: Collection[str]) -> list[JsonObject]:
+    """Return the nodes of a marked tree whose mark is one of those asked, with their ancestors.
+
+    ``difference`` as ``listNodes`` and ``compareRevisions`` read it (#1398): each node, task or
+    line, judged on its own mark, a task retained without its lines unchanged; its ancestors
+    rendered, each modified by its content, so that the tree filtered stays a tree.
+    """
+    parents = {cast("str", node["node_id"]): node["parent_id"] for node in nodes}
+    kept: set[str] = set()
+    for node in nodes:
+        if node["difference"] not in asked:
+            continue
+        at = cast("str | None", node["node_id"])
+        while at is not None and at not in kept:
+            kept.add(at)
+            at = cast("str | None", parents[at])
+    return [node for node in nodes if node["node_id"] in kept]
+
+
+def grouped(
+    nodes: list[JsonObject],
+) -> tuple[list[JsonObject], list[JsonObject], list[JsonObject], list[JsonObject]]:
+    """Return the nodes of a marked tree added, removed, changed by their values, by their content.
+
+    A task modified with no change of its own is modified by its content alone.
+    """
+    added = [node for node in nodes if node["difference"] == ADDED]
+    removed = [node for node in nodes if node["difference"] == REMOVED]
+    modified = [node for node in nodes if node["difference"] == MODIFIED]
+    return (
+        added,
+        removed,
+        [node for node in modified if node["changes"]],
+        [node for node in modified if not node["changes"]],
+    )

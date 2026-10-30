@@ -1087,7 +1087,9 @@ NodeTotals:
     Totaux de la requête, calculés par le serveur ; le front n'en somme aucun. Les
     montants et les heures sont ceux des seules lignes de devis retenues par les
     filtres — jamais les montants cumulés des tâches, qui les compteraient deux fois —,
-    et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre.
+    et les décomptes ignorent les ancêtres rendus pour la seule lisibilité de l'arbre. Le filtre
+    des écarts (`difference`) ne les restreint pas : ce sont ceux de la lecture sans lui, de la
+    structure entière sans autre filtre (#1398).
     Chaque montant est la somme du montant de même nom des lignes retenues
     (`EstimateLineFacet`) : aux taux de l'année de référence, avant inflation, pour
     `base_amount`, inflation comprise pour les montants budgété et réestimé (WF-DEV-0020,
@@ -2342,7 +2344,8 @@ RevisionComparison:
       allOf: [{ $ref: '#/NodeTotals' }]
       description: >-
         Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes
-        retenues, sans les nœuds retirés, qui ne sont plus de sa structure.
+        retenues, sans les nœuds retirés, qui ne sont plus de sa structure ; `difference` ne les
+        restreint pas (`NodeTotals`).
     meta:
       allOf: [{ $ref: '#/NodeListMeta' }]
       description: Ce que la lecture dit de la structure principale de la révision comparée.
@@ -2352,9 +2355,10 @@ RevisionComparison:
         Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature
         de coût et par sous-projet (WF-REV-0080), chacun nommé par
         son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien
-        (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les
-        lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux
-        de toute la structure ; d'un sous-arbre, les siens. L'écart se compte par ligne retenue,
+        (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés sur les lignes que
+        la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute
+        la structure ; d'un sous-arbre, les siens ; sous `difference`, ceux des seules lignes qu'il
+        retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue,
         selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y
         apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la
         révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux
