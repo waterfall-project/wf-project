@@ -21,7 +21,8 @@
  * to another, none. Above the table, the report of the last reading of the accounts of the identity
  * provider that ended (`getLatestIdentitySync`, US-0370, WF-ADM-0070) — the screen says none has yet
  * when the API finds none (404) — and, to a session that may modify the accounts, the command that
- * asks a new one (`IdentitySync`). A read the API refuses, or cannot answer, is thrown for the pages
+ * asks a new one, then its periodicity (`getIdentitySyncSchedule`, WF-ADM-0070), which that session sets
+ * (`IdentitySync`). A read the API refuses, or cannot answer, is thrown for the pages
  * of the shell to say; a tree of the organisation it does not find leaves the screen standing,
  * without a node to choose.
  */
@@ -136,7 +137,7 @@ export default async function UsersPage({
     ACCESS_ROLES,
     roles.map((role) => role.id),
   );
-  const [read, nodes, report] = await Promise.all([
+  const [read, nodes, report, schedule] = await Promise.all([
     readOrRefused("listUsers", PERIOD_REFUSED, () =>
       serverClient().GET("/users", {
         params: {
@@ -148,6 +149,10 @@ export default async function UsersPage({
     // No reading of the accounts has ended yet: the screen says so.
     readUnlessRefused("getLatestIdentitySync", [{ status: 404 }], () =>
       serverClient().GET("/identity-syncs/latest"),
+    ),
+    // The periodicity of the reading: left out where the API refuses or does not find it.
+    readUnlessRefused("getIdentitySyncSchedule", [{ status: 404 }], () =>
+      serverClient().GET("/identity-sync-schedule"),
     ),
   ]);
   // A period refused leaves the list unread, the side said at its field.
@@ -163,7 +168,7 @@ export default async function UsersPage({
       {/* The filters, the grid and the pages compose the changes they make to the address. */}
       <PendingAddress kept={USER_KEPT}>
         <UsersHeader />
-        <IdentitySync report={report} startable={editable} />
+        <IdentitySync report={report} schedule={schedule} startable={editable} />
         <UserList
           users={users.items}
           page={users.meta}

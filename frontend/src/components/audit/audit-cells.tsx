@@ -24,6 +24,7 @@ import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
+import { useLocalTimestamp } from "@/components/local-time";
 import { formatLocale } from "@/i18n/format";
 
 import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
@@ -56,6 +57,9 @@ export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
   );
 }
 
+/** An instant to format when an inscription keeps none: its result is unused. */
+const NO_INSTANT = "1970-01-01T00:00:00Z";
+
 /** The parameters of an inscription, as the contract gives them: codes, identifiers, labels kept. */
 type AuditParams = AuditEvent["params"];
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -70,9 +74,11 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-function useAuditDetails(): (params: AuditParams) => string | undefined {
+function useAuditDetails(params: AuditParams): string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
+  // The instant of the backup taken, in the time zone of the workstation once the browser has written it.
+  const taken = useLocalTimestamp(params.backup_taken_at ?? NO_INSTANT);
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
   const listed = (items: readonly string[]) => list.format(items);
   const permissions = (codes: readonly PermissionCode[]) =>
@@ -88,6 +94,16 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
       }),
     // Attached to the person of the directory who holds its address: it comes from it from now on.
     attached === true && said("attached", { origin: t("enums.UserOrigin.directory") }),
+  ];
+  // The parameters the contract keeps of an action (`AuditParams`): the state a project exited to,
+  // the reason given, the instant of the backup taken, the kind of exchange applied.
+  const action = ({ to_state, reason, backup_taken_at, import_kind }: AuditParams) => [
+    to_state !== undefined &&
+      said("toState", { state: t(`enums.ProjectExit.to_state.${to_state}`) }),
+    reason != null && reason !== "" && said("reason", { reason }),
+    backup_taken_at !== undefined && said("backupTakenAt", { at: taken }),
+    import_kind !== undefined &&
+      said("importKind", { kind: t(`enums.ExchangeKind.${import_kind}`) }),
   ];
   // A role: the label it bore before, its permissions, those granted and withdrawn.
   const role = (params: AuditParams): (string | false)[] => [
@@ -117,14 +133,15 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
         said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }),
     ];
   };
-  return (params) => {
-    const parts = [...account(params), ...role(params), ...attribution(params)].filter(
-      (part) => part !== false,
-    );
-    return parts.length === 0
-      ? undefined
-      : parts.reduce((first, second) => said("then", { first, second }));
-  };
+  const parts = [
+    ...action(params),
+    ...account(params),
+    ...role(params),
+    ...attribution(params),
+  ].filter((part) => part !== false);
+  return parts.length === 0
+    ? undefined
+    : parts.reduce((first, second) => said("then", { first, second }));
 }
 
 /**
@@ -137,7 +154,7 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
-  const details = useAuditDetails()(event.params);
+  const details = useAuditDetails(event.params);
   return details === undefined ? (
     t(event.action)
   ) : (

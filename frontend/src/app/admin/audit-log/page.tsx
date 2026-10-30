@@ -16,7 +16,7 @@
  * not found, as an address that leads nowhere (WF-ADM-0110). The authors and the projects are
  * offered from those the whole journal names (`listAuditFacets`), which that permission alone reads:
  * an auditor who may not read the accounts filters by author all the same. The links lead to the
- * projects the session may open (`listProjects`), and to the screens of their objects whose function
+ * projects the server says the session may open (`AuditProject.can_open`), and to the screens of their objects whose function
  * it may read (`auditReach`). A period that ends before it starts, which
  * the API refuses (422), is said in place of the inscriptions, the filters kept to be changed, and
  * at the field of its end, which names the start the API was given (`params.minimum`); any
@@ -26,7 +26,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 
-import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { type Problem, readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import {
@@ -60,7 +59,6 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
-import { PROJECT_STATES } from "@/navigation/home";
 import { problemMessage } from "@/i18n/problem";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
 import { type Account, requestSession } from "@/session/request";
@@ -69,12 +67,6 @@ import { screenMetadata } from "../../title";
 
 /** The refusal of filters the server cannot apply — a period inverted (`listAuditEvents`, 422). */
 const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
-
-/**
- * The list of the projects the API does not find: a service that serves none yet.
- * TODO(#962): withdraw once the service serves the projects (EP-04).
- */
-const PROJECTS_UNSERVED = [{ status: 404 }] as const;
 
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
@@ -114,21 +106,6 @@ async function readFacets(): Promise<{
       label: project.label,
     })),
   };
-}
-
-/**
- * The projects the session may open, in every state, by their identifiers: every page of them. None
- * where the API finds no list of projects — a service that serves none yet, the projects coming
- * with EP-04 —: the journal names its projects then, and leads to none.
- * TODO(#962): read every page again, without the refusal tolerated, once EP-04 serves them.
- */
-async function readOpenable(): Promise<string[]> {
-  const projects = await readEveryPageUnlessRefused("listProjects", PROJECTS_UNSERVED, (page) =>
-    serverClient().GET("/projects", {
-      params: { query: { ...page, states: [...PROJECT_STATES], sort_by: "code" } },
-    }),
-  );
-  return (projects ?? []).map((project) => project.project_id);
 }
 
 /**
@@ -264,10 +241,9 @@ export default async function AuditLogPage({
     preferences?.page_size,
   );
   const filters = readAuditFilters(search);
-  const [read, facets, openable] = await Promise.all([
+  const [read, facets] = await Promise.all([
     readJournal(filters, query, offsetOf(search.get(OFFSET_PARAMETER))),
     readFacets(),
-    readOpenable(),
   ]);
   const journal = "journal" in read ? read.journal : undefined;
   return (
@@ -290,7 +266,7 @@ export default async function AuditLogPage({
             narrowed={narrows(filters, query.search)}
             query={query}
             preferences={preferences}
-            reach={auditReach(permissions, openable)}
+            reach={auditReach(permissions)}
           />
         )}
       </PendingAddress>

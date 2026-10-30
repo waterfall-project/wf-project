@@ -67,7 +67,7 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-1.1": defined(userGrid({ roles: () => [], rename: undefined }).columns),
   "FBS-1.2": defined(accessRoleGrid(true).columns),
   "FBS-1.4": defined(backupGrid({ marks: true, downloads: true, restores: true }).columns),
-  "FBS-1.5": defined(auditGrid({ openable: [], functions: [], revision: false }).columns),
+  "FBS-1.5": defined(auditGrid({ functions: [], revision: false }).columns),
   "FBS-2.1": defined(PROJECT_GRID.columns),
   "FBS-4.3": defined(PLANNING_GRID.columns),
   "FBS-4.3.2": defined(PLANNING_GRID.columns),

@@ -3,7 +3,7 @@
 /**
  * The state of the platform (FBS-1.3, US-0250), outside any project (WF-ADM-0130): the version
  * installed; each component, available or not, and when it was last checked; the storage used and
- * available; the last reading of the accounts of the identity provider, the last backup and the
+ * available; the operating parameters in force (§4.5.1), the cache validity among them; the last reading of the accounts of the identity provider, the last backup and the
  * last restoration test, each dated with its outcome; the alerts under way. Every value as the API
  * gives it. A read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -15,6 +15,7 @@ import { serverClient } from "@/api/server";
 import {
   AlertList,
   ComponentList,
+  OperatingParametersFacts,
   OperationList,
   StorageFacts,
 } from "@/components/admin/platform-lists";
@@ -50,6 +51,7 @@ export default async function SystemStatusPage() {
       <AlertList alerts={status.alerts} />
       <ComponentList components={status.components} />
       <StorageFacts storage={status.storage} />
+      <OperatingParametersFacts parameters={status.operating_parameters} />
       <OperationList status={status} />
     </Screen>
   );

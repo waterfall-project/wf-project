@@ -199,3 +199,52 @@ describe("the link to set the password", () => {
     },
   );
 });
+
+describe("the email of the link to set the password", () => {
+  const ROUTE = "POST /users/{user_id}/invitation";
+
+  it("has the email sent again to a local account, says it went and gives the hand back, the link untouched [WF-ADM-0140-A]", async () => {
+    const client = serve({ [ROUTE]: { status: 204 } });
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+    });
+    await userEvent.click(command);
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Courriel de fixation du mot de passe renvoyé à « Camille Martin ».",
+      );
+    });
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/invitation`,
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(command).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("tells a provider that sends no email as a refusal, never as an email sent [WF-ADM-0140-A]", async () => {
+    serve({ [ROUTE]: { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
+    render(accounts());
+    await userEvent.click(
+      within(grid()).getByRole("button", {
+        name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeVisible();
+    });
+    expect(told().textContent).not.toContain("renvoyé");
+  });
+
+  it("presents the email of a deactivated local account unavailable, naming the condition it lacks, and asks nothing [WF-ADM-0140-A]", async () => {
+    const client = serve({});
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Alix Moreau »",
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription("Condition non remplie\u00a0: compte actif.");
+    await userEvent.click(command);
+    expect(writes(client)).toEqual([]);
+  });
+});

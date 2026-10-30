@@ -75,27 +75,25 @@ export const NEWEST_FIRST: GridSort<AuditSort> = { column: "occurred_at", order:
  * address of a revision leads to.
  */
 export interface AuditReach {
-  readonly openable: readonly string[];
   readonly functions: readonly FunctionPermission[];
   readonly revision: boolean;
 }
 
 /** What a session of these permissions may read of a project, given the projects it may open. */
-export function auditReach(
-  permissions: readonly PermissionCode[],
-  openable: readonly string[],
-): AuditReach {
+export function auditReach(permissions: readonly PermissionCode[]): AuditReach {
   const readable = readableGroups(permissions).flatMap((group) => group.functions);
   return {
-    openable,
     functions: [...new Set(readable.map((fn) => fn.permission))],
     revision: readable.some((fn) => fn.scope === "revision"),
   };
 }
 
-/** The address of a project the session may open, or none. */
-function projectHref(projectId: string, reach: AuditReach): string | undefined {
-  return reach.openable.includes(projectId) ? `/projects/${projectId}` : undefined;
+/**
+ * The address of a project the session may open, or none: the server says it (`AuditProject.can_open`),
+ * the front deduces nothing from the permissions of the session (WF-ADM-0110).
+ */
+function projectHref(project: NonNullable<AuditEvent["project"]>): string | undefined {
+  return project.can_open ? `/projects/${project.project_id}` : undefined;
 }
 
 /**
@@ -133,11 +131,11 @@ function inRevision(
  */
 function objectHref(event: AuditEvent, reach: AuditReach): string | undefined {
   const { object, project } = event;
-  if (object.kind === "project") {
-    return projectHref(object.object_id, reach);
-  }
-  if (project === null || !reach.openable.includes(project.project_id)) {
+  if (!project?.can_open) {
     return undefined;
+  }
+  if (object.kind === "project") {
+    return projectHref(project);
   }
   if (object.kind === "revision") {
     return reach.revision
@@ -229,11 +227,13 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
         format: "text",
         width: 300,
         contract: "project",
-        value: (event) => event.project?.code,
+        // A project without a code is named by its label, as the cell does: sorted and exported alike.
+        value: (event) =>
+          event.project === null ? null : (event.project.code ?? event.project.label),
         render: (event) => (
           <ProjectCell
             project={event.project}
-            href={event.project === null ? undefined : projectHref(event.project.project_id, reach)}
+            href={event.project === null ? undefined : projectHref(event.project)}
           />
         ),
       },
@@ -252,4 +252,4 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
 }
 
 /** The columns of the contract the server sorts the journal by. */
-export const AUDIT_SORTS = sortColumns(auditGrid({ openable: [], functions: [], revision: false }));
+export const AUDIT_SORTS = sortColumns(auditGrid({ functions: [], revision: false }));

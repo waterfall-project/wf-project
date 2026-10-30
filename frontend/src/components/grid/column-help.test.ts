@@ -46,7 +46,7 @@ describe("the definitions of the columns", () => {
     ["accounts, read only", userGrid().columns],
     ["access roles", accessRoleGrid(true).columns],
     ["backups", backupGrid({ marks: true, downloads: true, restores: true }).columns],
-    ["journal of audit", auditGrid({ openable: [], functions: [], revision: false }).columns],
+    ["journal of audit", auditGrid({ functions: [], revision: false }).columns],
     ["projects of the portfolio", PROJECT_GRID.columns],
     ["commands of the reference data", commandColumns(true, () => ({}) as never, undefined)],
   ] as const)(

@@ -107,6 +107,7 @@ beforeEach(() => {
     "GET /me": "me",
     "GET /users": "users",
     "GET /identity-syncs/latest": "identity_sync_report",
+    "GET /identity-sync-schedule": "identity_sync_schedule",
     "GET /reference/org-nodes": "org_nodes",
     "GET /access-roles": "access_roles",
     "GET /permissions": "permissions",
@@ -134,6 +135,14 @@ describe("the accounts", () => {
     expect(page).toContain('<time dateTime="2026-06-03T02:00:00Z">');
     expect(said.indexOf("Lire les comptes")).toBeLessThan(said.indexOf("Comptes utilisateurs"));
     expect(queriesOf("GET /identity-syncs/latest")).toEqual([{}]);
+  });
+
+  it("present the periodicity of the reading of the accounts, and the command that modifies it to a session that may modify the accounts [WF-ADM-0070-A]", async () => {
+    const page = rendered(await UsersPage(searched()));
+    const said = text(page);
+    expect(said).toContain("Périodicité de la lecture Modifier la périodicité");
+    expect(said).toContain("État Active Fréquence Quotidienne Heure 01:30 UTC");
+    expect(queriesOf("GET /identity-sync-schedule")).toEqual([{}]);
   });
 
   it("offer no reading of the accounts to a session that may not modify them, and say so when no reading has ended yet", async () => {
@@ -406,7 +415,7 @@ describe("the accounts", () => {
     expect(text(page)).not.toMatch(/Supprimer/);
     expect(buttons(page)).toContain("Créer un compte local");
     expect(rows(page, "Comptes utilisateurs")[0]).toBe(
-      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Anonymisation",
+      "Nom Prénom Adresse électronique Origine Rattachement Rôles d’habilitation État Créé le Créé par Modifié le Modifié par Lien de fixation Renvoi du courriel Anonymisation",
     );
     expect(page).toContain('aria-label="Anonymiser «\u00a0Alix Moreau\u00a0»"');
     expect(page).toContain('aria-label="Compte de «\u00a0Alix Moreau\u00a0» actif"');
@@ -766,6 +775,14 @@ describe("the state of the system", () => {
         "2026-06-01T03:00:00Z",
       ]),
     );
+  });
+
+  it("present the operating parameters in force, the validity of the cache among them [WF-ADM-0130-A]", async () => {
+    const page = rendered(await SystemStatusPage());
+    expect(text(page)).toContain(
+      "Paramètres d’exploitation Durée de validité du cache 600 secondes Rétention du résultat d’une tâche de fond 30 jours Taille maximale d’un avatar 2 mégaoctets",
+    );
+    expect(text(page)).toContain("Taux d’erreur déclenchant l’alerte 5 %");
   });
 
   it("present each component, available or not, checked when, and the storage used and available", async () => {

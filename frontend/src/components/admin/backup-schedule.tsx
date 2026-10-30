@@ -68,7 +68,7 @@ const EVERY_FREQUENCY: Readonly<Record<Frequency, number>> = { daily: 0, weekly:
 const FREQUENCIES = Object.keys(EVERY_FREQUENCY) as readonly Frequency[];
 
 /** The days of a weekly schedule, from 1, Monday, as the contract numbers them (ISO 8601). */
-const WEEKDAYS = [
+export const WEEKDAYS = [
   "monday",
   "tuesday",
   "wednesday",
@@ -357,7 +357,7 @@ interface Opened {
  * The first day from the one given, by the universal calendar, that falls on a day of the week
  * numbered as the contract does (1, Monday, to 7, Sunday): where a weekly time is taken this week.
  */
-function nextWeekday(from: Date, weekday: number): Date {
+export function nextWeekday(from: Date, weekday: number): Date {
   const today = from.getUTCDay() === 0 ? 7 : from.getUTCDay();
   return new Date(from.getTime() + ((weekday - today + 7) % 7) * 86_400_000);
 }

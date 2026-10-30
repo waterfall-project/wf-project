@@ -17,7 +17,13 @@ import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
 import { AUDIT_LIST, type AuditFilters, readAuditFilters } from "./audit-address";
-import { type AuditEvent, auditReach, type AuditSort, NEWEST_FIRST } from "./audit-columns";
+import {
+  type AuditEvent,
+  auditGrid,
+  auditReach,
+  type AuditSort,
+  NEWEST_FIRST,
+} from "./audit-columns";
 import { AuditFilterBar, type AuditFilterBarProps } from "./audit-filters";
 import { AuditGrid } from "./audit-grid";
 
@@ -108,11 +114,21 @@ function journal({
           refused={refused}
         />
         <AuditGrid
-          events={shown.items}
+          events={shown.items.map((event) =>
+            event.project === null
+              ? event
+              : {
+                  ...event,
+                  project: {
+                    ...event.project,
+                    can_open: openable.includes(event.project.project_id),
+                  },
+                },
+          )}
           page={shown.meta}
           query={query}
           preferences={undefined}
-          reach={auditReach(permissionsOf(session), openable)}
+          reach={auditReach(permissionsOf(session))}
         />
         <ListPages
           list={AUDIT_LIST}
@@ -152,7 +168,7 @@ describe("the grid of the journal", () => {
     render(journal());
     const row = within(grid()).getAllByRole("row")[1];
     expect(row?.textContent).toMatch(
-      /^.+Camille MartinApplication d’un importImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000035$/,
+      /^.+Camille MartinApplication d’un importImport : Coûts réelsImportcouts-reels-2026-05\.xlsxPRJ-001 · Modernisation du poste de commande01926f3a-7c00-7000-8000-000800000035$/,
     );
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("37 inscriptions");
     // The header of every column is grey, as that of every table (#508).
@@ -332,6 +348,36 @@ describe("the grid of the journal", () => {
     const options = within(screen.getByRole("combobox", { name: "Projet" })).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toContain(label);
     expect(options.some((option) => option.textContent.includes("null"))).toBe(false);
+  });
+
+  it("gives a project without a code its label as the value of the column, to sort, copy and export, never null [WF-SEC-0030-A]", () => {
+    const column = auditGrid({ functions: [], revision: false }).columns.find(
+      ({ key }) => key === "project",
+    );
+    const coded = witness.items.find(({ project }) => project?.code === "PRJ-001");
+    const project = coded?.project;
+    if (coded === undefined || project == null) {
+      throw new Error("the witness journal names a project");
+    }
+    expect(column?.value(coded)).toBe("PRJ-001");
+    expect(column?.value({ ...coded, project: { ...project, code: null } })).toBe(project.label);
+    expect(column?.value({ ...coded, project: null })).toBeNull();
+  });
+
+  it("says under the action the parameters the contract keeps of it: the state a project exited to, the reason, the kind of import [WF-SEC-0030-A]", () => {
+    const event = witness.items.find(({ action }) => action === "import_apply");
+    if (event === undefined) {
+      throw new Error("the witness journal holds an import");
+    }
+    const exit: AuditEvent = {
+      ...event,
+      action: "project_exit",
+      params: { to_state: "lost", reason: "Marché perdu" },
+    };
+    const other = { ...event, audit_event_id: "01926f3a-7c00-7000-8000-000700000099" };
+    render(journal({ shown: { ...witness, items: [exit, other] } }));
+    expect(within(grid()).getByText("Sortie vers : Perdu ; Motif : Marché perdu")).toBeVisible();
+    expect(within(grid()).getByText("Import : Coûts réels")).toBeVisible();
   });
 
   it("leads to the whole history of an object, every other filter lifted, its sort kept, back to the first page", async () => {

@@ -170,6 +170,7 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
     | "timeline"
     | "settings"
     | "backup_schedule"
+    | "identity_sync_schedule"
     | "risk";
   readonly title: string;
   readonly hint: string;

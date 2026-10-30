@@ -62,8 +62,9 @@ const PASSWORD_FIELD =
   /type[\s=:{]*["'`]password["'`]|autoComplete[\s=:{]*["'`](?:current|new)-password/i;
 // The texts of a password, in either language.
 const PASSWORD_TEXT = /mot de passe|password/i;
-// The one element of authentication a screen may show: the link that sets a password.
-const SETUP_LINK = /password_link|password-link/;
+// The one element of authentication a screen may show: the link that sets a password, and the email
+// that carries it again to its holder (`resendInvitation`, WF-ADM-0140), which asks for no password.
+const SETUP_LINK = /password_link|password-link|resend_invitation|admin\.users\.resent$/;
 // What would set up a directory, or the federation of one: LDAP, its binding, the provider itself.
 const DIRECTORY_SETUP =
   /ldap|federat|f[ée]d[ée]ration|bind dn|identity[-_]provider|realm|keycloak/i;
