@@ -225,6 +225,7 @@ def test_an_inscription_is_read_as_it_was_written_by_its_codes_and_its_data(
         "project_id": str(SECOND.project_id),
         "code": "PRJ-002",
         "label": "Extension de la sous-station",
+        "can_open": False,
     }
     assert (marked["params"], events[str(identifiers[4])]["actor"]) == ({}, {"kind": "platform"})
 
@@ -405,8 +406,18 @@ def test_the_facets_name_each_author_as_shown_today_and_each_project_once(
             {"user_id": str(bruno.user_id), "display_name": "bruno Petit"},
         ],
         "projects": [
-            {"project_id": str(FIRST.project_id), "code": "PRJ-001", "label": FIRST.label},
-            {"project_id": str(SECOND.project_id), "code": "PRJ-002", "label": SECOND.label},
+            {
+                "project_id": str(FIRST.project_id),
+                "code": "PRJ-001",
+                "label": FIRST.label,
+                "can_open": False,
+            },
+            {
+                "project_id": str(SECOND.project_id),
+                "code": "PRJ-002",
+                "label": SECOND.label,
+                "can_open": False,
+            },
         ],
     }
     names = {event["actor"].get("display_name") for event in read(api, reader)["items"]}
