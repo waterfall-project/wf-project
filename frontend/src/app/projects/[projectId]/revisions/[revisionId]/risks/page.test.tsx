@@ -303,13 +303,13 @@ describe("the screen of the risks", () => {
       "Probability Severity, as a share of the reference budget " +
         "0% to under 1% 1% to under 5% 5% to under 10% 10% and over",
     );
-    // The highest probability at the top, its cells as the server classes them.
+    // The highest probability at the top, its cells as the server classes them, counting only the identified risks (#1395).
     const rows = [...matrix.matchAll(/<tr>(.*?)<\/tr>/g)].slice(2).map((row) => row[1] ?? "");
     expect(rows.map((row) => text(row))).toEqual([
       "60% and over 0 0 0 0",
-      "30% to under 60% 1 1 0 0",
+      "30% to under 60% 0 1 0 0",
       "10% to under 30% 0 0 0 0",
-      "0% to under 10% 0 0 0 1",
+      "0% to under 10% 0 0 0 0",
     ]);
     const zones = (row: string) =>
       [...row.matchAll(/role="img" aria-label="(\w+)"/g)].map((m) => m[1]);

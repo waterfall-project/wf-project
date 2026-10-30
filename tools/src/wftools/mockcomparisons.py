@@ -14,7 +14,7 @@ lines (``wftools.sources``).
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockdiff, mocktext
 from wftools.mockhistory import (
@@ -44,6 +44,9 @@ from wftools.mockwitness import (
     by_identifier,
     fixture,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 _amount, _day = mocktext.amount, mocktext.day
 
@@ -143,27 +146,34 @@ def comparison(
     }
 
 
+def by_differences(
+    compared: JsonObject,
+    before: list[mockcore.Row],
+    after: list[mockcore.Row],
+    asked: Collection[str],
+) -> JsonObject:
+    """Return a comparison read by its differences alone, the filter ``difference`` (#1398).
+
+    The nodes whose mark is one of those asked, their ancestors with them (``mockdiff``); the
+    totals and the meta those of the reading without the filter; the deltas those of the lines it
+    retains, its rows ``before`` and ``after``.
+    """
+    nodes = mockdiff.differences(cast("list[JsonObject]", compared["items"]), asked)
+    kept = {cast("str", node["node_id"]) for node in nodes}
+
+    def retained(rows: list[mockcore.Row]) -> list[mockcore.Row]:
+        return [row for row in rows if row.node["node_id"] in kept]
+
+    return {
+        **compared,
+        "items": cast("list[JsonValue]", nodes),
+        "amount_deltas": _deltas(retained(before), retained(after)),
+    }
+
+
 def _label(node: JsonObject) -> str:
     """Return the label of a node rendered whole, from its facet."""
     return cast("str", cast("JsonObject", node[cast("str", node["kind"])])["label"])
-
-
-def _marks(
-    nodes: list[JsonObject],
-) -> tuple[list[JsonObject], list[JsonObject], list[JsonObject], list[JsonObject]]:
-    """Return the nodes of a marked tree added, removed, changed by their values, by their content.
-
-    A task modified with no change of its own is modified by its content alone (``mockdiff``).
-    """
-    added = [node for node in nodes if node["difference"] == mockdiff.ADDED]
-    removed = [node for node in nodes if node["difference"] == mockdiff.REMOVED]
-    modified = [node for node in nodes if node["difference"] == mockdiff.MODIFIED]
-    return (
-        added,
-        removed,
-        [node for node in modified if node["changes"]],
-        [node for node in modified if not node["changes"]],
-    )
 
 
 def _quoted(nodes: list[JsonObject]) -> str:
@@ -198,7 +208,7 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
     compared = comparison(offer_rows(), rows, OFFER, REFERENCE, N.INSTALLATION)
     nodes = cast("list[JsonObject]", compared["items"])
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
-    added, removed, changed, content = _marks(nodes)
+    added, removed, changed, content = mockdiff.grouped(nodes)
     rerated = (
         ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre "
         "et sont réestimées au taux de 2026 de leur catégorie"
@@ -237,7 +247,7 @@ def comparison_volume() -> JsonObject:
     """
     compared = comparison(offer_rows(), reference_rows(), OFFER, REFERENCE)
     nodes = cast("list[JsonObject]", compared["items"])
-    added, removed, changed, content = _marks(nodes)
+    added, removed, changed, content = mockdiff.grouped(nodes)
     unchanged = len(nodes) - len(added) - len(removed) - len(changed) - len(content)
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
     by_nature = [entry for entry in deltas if entry["dimension"] == "cost_type"]
@@ -260,6 +270,41 @@ def comparison_volume() -> JsonObject:
         f"de toute la structure, {_amount(budgeted)} et {_amount(reestimated)} en tout "
         f"(WF-REV-0080, WF-DAT-0030, #1193, #1201).",
         {**compared, "items": cast("list[JsonValue]", read)},
+    )
+
+
+def comparison_differences(rows: list[mockcore.Row]) -> JsonObject:
+    """Return the comparison read whole by its additions and its withdrawals alone (#1398).
+
+    ``difference=added,removed``: two of the three marks, to say that they combine and that the
+    ancestors come with the nodes retained, modified by their content; the totals those of the
+    whole reference, the deltas those of the lines retained.
+    """
+    before = offer_rows()
+    compared = by_differences(
+        comparison(before, rows, OFFER, REFERENCE),
+        before,
+        rows,
+        (mockdiff.ADDED, mockdiff.REMOVED),
+    )
+    nodes = cast("list[JsonObject]", compared["items"])
+    deltas = cast("list[JsonObject]", compared["amount_deltas"])
+    added, removed, changed, content = mockdiff.grouped(nodes)
+    ancestors = [node for node in nodes if node in changed or node in content]
+    return mocktext.example(
+        f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
+        f"structure, lues par leurs seuls ajouts et retraits (difference=added,removed) : "
+        f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan — {len(added)} ajoutés, "
+        f"{_quoted(added)} ; {len(removed)} retirés et rendus à leur place, {_quoted(removed)} ; "
+        f"et leurs ancêtres, {len(ancestors)} tâches modifiées par leur contenu, "
+        f"{_quoted(ancestors)}, si bien que l'arbre filtré reste un arbre. Aucun nœud inchangé "
+        f"n'est rendu, ni aucun nœud modifié qui ne soit l'ancêtre d'un ajout ou d'un retrait. "
+        f"Les totaux sont ceux de "
+        f"la référence entière, que `difference` ne restreint pas ; les écarts des montants "
+        f"budgétés et réestimés, ceux des seules lignes retenues, par nature — "
+        f"{_deltas_text(deltas, 'cost_type')} — et par sous-projet — "
+        f"{_deltas_text(deltas, 'subproject')} (WF-REV-0080, C-361, #1398).",
+        compared,
     )
 
 
@@ -296,6 +341,7 @@ def examples() -> dict[str, JsonObject]:
     identical = mocktext.count(len(core))
     return {
         "comparison.json": comparison_example(rows),
+        "comparison_differences.json": comparison_differences(rows),
         "comparison_moved.json": comparison_moved(rows),
         "comparison_identical.json": mocktext.example(
             "Variante contrefactuelle : l'offre v1.0 comparée à elle-même, son cœur lu seul, "

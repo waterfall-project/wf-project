@@ -3138,6 +3138,11 @@
       "modified": "Modified",
       "unchanged": "Unchanged"
     },
+    "NodeDifferenceFilter": {
+      "added": "Added",
+      "removed": "Removed",
+      "modified": "Modified"
+    },
     "RevisionComparison": {
       "amount_deltas": {
         "dimension": {

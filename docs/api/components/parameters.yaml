@@ -206,6 +206,26 @@ NodeTimelineFilter:
     inscription, ou qui n'est pas une chronologie du projet, ne retient rien.
   schema: { $ref: common.yaml#/Uuid }
 
+NodeDifferenceFilter:
+  name: difference
+  in: query
+  description: >-
+    Restreint aux nœuds dont l'écart (`NodeDifference`) est l'une de ces valeurs, combinables ;
+    « Écarts seulement » les nomme toutes trois (#1398). Chaque nœud, tâche ou ligne, se juge sur
+    sa propre marque : une tâche retenue n'emporte pas ses lignes inchangées. Les ancêtres d'un
+    nœud retenu sont rendus, et sont eux-mêmes modifiés par leur contenu (`changes` vide quand
+    rien d'autre ne change d'eux) : l'arbre filtré reste un arbre. Un nœud déplacé est retenu à
+    sa place nouvelle. `totals` ne change pas avec lui — ceux de la lecture sans lui, de la
+    structure entière sans autre filtre (`NodeTotals`) —, quand `amount_deltas` de la comparaison
+    se calcule sur les lignes qu'il retient. Sur la structure principale et sur le devis propre
+    d'un risque, où `difference` est nul, il est sans effet : la lecture est celle sans lui.
+    `listNodes` et `compareRevisions` le lisent de même.
+  schema:
+    type: array
+    minItems: 1
+    items: { type: string, enum: [added, removed, modified] }
+  explode: false
+
 # Les filtres de colonne de `listNodes` (US-0701/L3, F-06) : chaque colonne de nombres de ses trois
 # grilles par ses deux bornes, chaque colonne de dates par sa période (README du contrat).
 

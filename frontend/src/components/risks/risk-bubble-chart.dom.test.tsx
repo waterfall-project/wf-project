@@ -321,7 +321,7 @@ describe("the risk matrix as a bubble chart", () => {
     return (first?.textContent ?? "").trim();
   }
 
-  it("draws no bubble for a risk whose ratio the server could not compute, its cell still counting it", () => {
+  it("draws no bubble for a risk whose ratio the server could not compute, its cell counting it only if identified", () => {
     // #1240: on a base of nought, the ratio is not computable and the risk is at the lowest level
     // of severity; the chart has no ordinate for it, and computes none.
     const noBasis = example("risk_matrix_no_basis") as RiskMatrix;
@@ -329,9 +329,10 @@ describe("the risk matrix as a bubble chart", () => {
     const { bubbles, option, zones } = drawn();
     expect(bubbles.map((each) => each.data)).toEqual([[], [], []]);
     expect(zones?.markArea?.data).toHaveLength(16);
-    // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1).
-    expect(countAtLowestSeverity(3)).toBe("2");
-    expect(countAtLowestSeverity(1)).toBe("1");
+    // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1);
+    // a cell counts only the identified ones (#1395): one at level 3, none at level 1.
+    expect(countAtLowestSeverity(3)).toBe("1");
+    expect(countAtLowestSeverity(1)).toBe("0");
     // No ratio to lay out: the top of the axis is the one of the last level alone, a number.
     expect((option?.yAxis as { max: number }).max).toBeCloseTo(0.15);
   });

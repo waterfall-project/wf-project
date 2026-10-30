@@ -44,6 +44,10 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _subproject(row: mockcore.Row) -> str:
+    return cast("str | None", mockhistory.estimate_line(row)["subproject_id"]) or "unassigned"
+
+
 def _lines_by_id(rows: list[mockcore.Row]) -> dict[str, Node]:
     """Return the facets of the lines of a reading, by node identifier."""
     return {
@@ -297,3 +301,90 @@ def test_a_comparison_to_a_revision_in_progress_is_dated_at_the_instant_of_the_w
     )
 
     assert compared["meta"]["scheduled_at"] == mockcore.stamp(SCHEDULED_AT)
+
+
+@pytest.mark.parametrize(
+    "asked",
+    [
+        (mockdiff.ADDED,),
+        (mockdiff.REMOVED,),
+        (mockdiff.MODIFIED,),
+        (mockdiff.ADDED, mockdiff.REMOVED),
+        mockdiff.DIFFERENCES,
+    ],
+)
+def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancestors(
+    whole: Node, asked: tuple[str, ...]
+) -> None:
+    # #1398: each node judged on its own mark, a line unchanged not retained with its task; the
+    # ancestors of a node retained rendered, each modified by its content, so that the tree stays a
+    # tree; the totals those of the reading without the filter, the deltas those of its lines.
+    offer, reference = mockhistory.offer_rows(), mockhistory.reference_rows()
+    read = cast("Node", mockcomparisons.by_differences(whole, offer, reference, asked))
+    items: list[Node] = read["items"]
+    by_id = {node["node_id"]: node for node in whole["items"]}
+    expected: set[str] = set()
+    for node in whole["items"]:
+        if node["difference"] in asked:
+            at = node["node_id"]
+            while at is not None:
+                expected.add(at)
+                at = by_id[at]["parent_id"]
+    assert items == [node for node in whole["items"] if node["node_id"] in expected]
+    assert read["meta"] == whole["meta"]
+    for node in items:
+        assert node["parent_id"] is None or node["parent_id"] in expected
+        if node["difference"] not in asked:
+            assert (node["kind"], node["difference"]) == (mockcore.TASK, mockdiff.MODIFIED)
+    # The totals are those of the reference structure, recomputed on every row, not those of the
+    # lines retained (#1398): the sum of these alone is not the quantity of anything.
+    assert read["totals"] == mockcore.whole(reference)["totals"]
+    lines = {node["node_id"] for node in items if node["kind"] == mockcore.ESTIMATE_LINE}
+    retained_budget = sum(
+        (row.amounts.budgeted for row in reference if row.node["node_id"] in lines), Decimal(0)
+    )
+    assert Decimal(read["totals"]["budgeted_amount"]) != retained_budget
+
+    def delta(dimension: str, field: str, key: str | None = None) -> Decimal:
+        kept = [
+            Decimal(entry[f"{field}_delta"])
+            for entry in read["amount_deltas"]
+            if entry["dimension"] == dimension and key in (None, entry["key"])
+        ]
+        return sum(kept, Decimal(0))
+
+    def retained(rows: list[mockcore.Row], field: str, subproject: str | None = None) -> Decimal:
+        return sum(
+            (
+                getattr(row.amounts, field)
+                for row in rows
+                if row.node["node_id"] in lines and subproject in (None, _subproject(row))
+            ),
+            Decimal(0),
+        )
+
+    for field in ("budgeted", "reestimated"):
+        summed = retained(reference, field) - retained(offer, field)
+        assert delta("cost_type", field) == summed
+        assert delta("subproject", field) == summed
+    for entry in read["amount_deltas"]:
+        if entry["dimension"] == "subproject":
+            key = entry["key"]
+            for field in ("budgeted", "reestimated"):
+                assert Decimal(entry[f"{field}_delta"]) == retained(
+                    reference, field, key
+                ) - retained(offer, field, key)
+
+
+def test_the_example_of_the_differences_reads_the_additions_and_withdrawals_alone() -> None:
+    # #1398: two of the three marks combined over the whole structure, the ancestors with them,
+    # each a task modified by its content alone.
+    example = mockcomparisons.examples()["comparison_differences.json"]
+    items = cast("list[Node]", cast("Node", example["value"])["items"])
+    assert {node["difference"] for node in items} == {"added", "removed", "modified"}
+    assert all(
+        node["kind"] == mockcore.TASK and not node["changes"]
+        for node in items
+        if node["difference"] == mockdiff.MODIFIED
+    )
+    assert "difference=added,removed" in cast("str", example["summary"])

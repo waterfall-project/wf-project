@@ -3648,7 +3648,7 @@ class RevisionComparison(ContractModel):
     totals: Annotated[
         NodeTotals,
         Field(
-            description="Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes retenues, sans les nœuds retirés, qui ne sont plus de sa structure."
+            description="Les totaux de la révision comparée, comme `listNodes` les rend : ceux des lignes retenues, sans les nœuds retirés, qui ne sont plus de sa structure ; `difference` ne les restreint pas (`NodeTotals`)."
         ),
     ]
     meta: Annotated[
@@ -3660,7 +3660,7 @@ class RevisionComparison(ContractModel):
     amount_deltas: Annotated[
         list[AmountDelta],
         Field(
-            description="Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés de même sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens. L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
+            description="Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens ; sous `difference`, ceux des seules lignes qu'il retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
         ),
     ]
 
@@ -5470,11 +5470,16 @@ class RiskMatrix(ContractModel):
             min_length=4,
         ),
     ]
-    cells: list[Cell]
+    cells: Annotated[
+        list[Cell],
+        Field(
+            description="Les seize cases et leur zone, chacune avec le nombre des seuls risques identifiés qu'elle porte, les mêmes que le graphique trace en bulles : un risque survenu ou écarté reste un point (`points`), mais n'est compté dans aucune case. Le serveur compte, le front jamais (WF-RIS-0040, WF-ARC-0020, #1395). Dans la matrice du portefeuille, dont les points ne sont que des risques identifiés, chaque point est compté dans sa case."
+        ),
+    ]
     points: Annotated[
         list[RiskMatrixPoint],
         Field(
-            description="Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque n'est retenu."
+            description="Un point par risque que la matrice retient, avec son état, que l'écran filtre comme il filtre la grille (#1053) — ses cases ne comptent que les identifiés (`cells`, #1395) — ; vide quand aucun risque n'est retenu."
         ),
     ]
     totals: ProvisionTotals

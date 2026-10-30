@@ -471,11 +471,12 @@ def totals(rows: list[mockcore.Row]) -> JsonObject:
 def matrix(rows: list[mockcore.Row], budget: Decimal) -> JsonObject:
     """Return the matrix of the risks: its levels, its cells counted, its points, the totals.
 
-    Each risk in the cell its probability and its severity on the budget given place it in, and
-    a point at its exact values, in the order of the register (`RiskMatrix`, #1053).
+    Each identified risk counted in the cell its probability and its severity on the budget given
+    place it in, as the bubbles draw it (#1395); every risk a point at its exact values, with its
+    state, in the order of the register (`RiskMatrix`, #1053); the totals over the three states.
     """
     settings = fixture("reference_settings")["risk_matrix"]
-    cells = [matrix_cell(risk, budget) for risk in REGISTER]
+    cells = [matrix_cell(risk, budget) for risk in REGISTER if risk.last.state == IDENTIFIED]
 
     def levels(bounds: list[str]) -> list[JsonValue]:
         lowers, uppers = ["0", *bounds], [*bounds, None]
@@ -704,6 +705,12 @@ def examples() -> dict[str, JsonObject]:
         f"des {identified} risques encore identifiés",
     )
     occurred_text = _agreed(occurred, "du risque survenu", f"des {occurred} risques survenus")
+    identified_counted = (
+        "le seul encore identifié, "
+        + _named([f"« {item['label']} »" for item in items if item["state"] == IDENTIFIED])
+        if identified == 1
+        else f"les {identified} encore identifiés"
+    )
     scale = (
         f"la gravité lue sur le budget de référence de toute la structure, {_amount(budget)} : "
         + _named(
@@ -785,11 +792,12 @@ def examples() -> dict[str, JsonObject]:
             f"La matrice des risques de la révision courante : {len(probabilities) + 1} niveaux "
             f"de probabilité bornés à {_percents(probabilities)}, {len(severities) + 1} de "
             f"gravité bornés à {_percents(severities)} du budget de référence "
-            f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses "
-            f"risques — {counted} du registre, {scale} —, chacun aussi un point à ses valeurs "
-            f"exactes, sa probabilité, sa gravité en montant et en part du budget, sa provision, "
-            f"son état et la zone de sa case, que le graphique place sans rien calculer et que "
-            f"l'écran filtre par état (#1053) ; et les totaux de provisions "
+            f"(`reference_settings`) ; chaque case avec sa zone et le nombre de ses seuls "
+            f"risques identifiés, comme les bulles, que le serveur compte — {identified_counted} "
+            f"(#1395) — ; {counted} du registre, {scale}, chacun un point à ses valeurs exactes, "
+            f"sa probabilité, sa gravité en montant et en part du budget, sa provision, son état "
+            f"et la zone de sa case, que le graphique place sans rien calculer et que l'écran "
+            f"filtre par état (#1053) ; et les totaux de provisions, sur les trois états "
             "(WF-RIS-0040, WF-REF-0160).",
             read["risk_matrix"],
         ),
@@ -798,7 +806,8 @@ def examples() -> dict[str, JsonObject]:
             "sur un projet sans budget de référence dont le devis ne porte encore que des "
             "provisions. La gravité ne se rapporte à rien : la part de chaque risque n'est pas "
             "calculable (`no_reference_budget`), et chacun est au niveau de gravité le plus "
-            "bas, compté dans la case de sa probabilité ; le graphique ne trace pas de bulle "
+            "bas, dans la case de sa probabilité, qui ne compte que les risques identifiés "
+            "(#1395) ; le graphique ne trace pas de bulle "
             "sans ordonnée. Les niveaux, les zones et les totaux de provisions sont ceux de la "
             "matrice du témoin (WF-RIS-0040, WF-REF-0160, #1240).",
             matrix(reference_rows(), Decimal(0)),
