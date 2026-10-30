@@ -14,8 +14,8 @@ import { rowAt, scrollToPosition, withinBox } from "./scroll";
 // generator writes, which `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py)
 // holds: row 7, a task of the core completed off the critical path; row 311, started, which follows
 // row 291; row 39, a task of the critical path not started, which follows the factory acceptance of
-// row 18; row 13, a summary of the second level over the task of row 14, before row 18 — where the
-// fake back numbers the rows as it orders them.
+// row 13; row 14, a summary of the second level over the task of row 15, the last of its siblings,
+// before row 19 — where the fake back numbers the rows as it orders them.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
@@ -56,7 +56,7 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Non démarrée" })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Chemin critique" })).toBeVisible();
-  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("18");
+  await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("13");
 
   // Further down, a task started, which follows another by its row number.
   const follower = await scrollToPosition(grid, 311);
@@ -237,12 +237,12 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   ).toBeVisible();
 });
 
-test("enters a duration with its unit, then the predecessors « 18FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
+test("enters a duration with its unit, then the predecessors « 13FD+2 j » of the mounting, and the successor the server redated takes its place in the grid [WF-PLA-0030-A] [WF-PLA-0020-A]", async ({
   page,
 }) => {
   // The fake back keeps nothing and answers each write by its first example (`updateTaskFacet`: the
   // task of row 9 renamed; `setPredecessors`: the mounting of row 20, which follows the factory
-  // acceptance of row 18 two days later, written on 3 July 2026, and « Mise en service » of row 23,
+  // acceptance of row 13 two days later, written on 3 July 2026, and « Mise en service » of row 23,
   // which it redates without writing it, to 23 December 2026 – 5 January 2027): what each sends is
   // proven on the examples by `planning-entry.dom.test.tsx`; here the journey is the keyboard's,
   // and the grid shows what the server answered in place of what was read, the front dating nothing.
@@ -267,18 +267,18 @@ test("enters a duration with its unit, then the predecessors « 18FD+2 j » of t
 
   const mounting = grid.getByRole("row", { name: /^20 .*Montage des armoires sur site/ });
   const commissioning = grid.getByRole("row", { name: /^23 .*Mise en service/ });
-  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText("18");
+  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText("13");
   await expect(commissioning.getByRole("gridcell").nth(at.start)).toContainText("21/12/2026");
   const links = mounting.getByRole("gridcell").nth(at.predecessors);
   await links.click();
   await page.keyboard.press("F2");
   const field = grid.getByRole("textbox", { name: "Prédécesseurs" });
-  await expect(field).toHaveValue("18");
-  await field.fill("18FD+2 j");
+  await expect(field).toHaveValue("13");
+  await field.fill("13FD+2 j");
   const linksSent = page.waitForRequest((request) => request.method() === "POST");
   await page.keyboard.press("Enter");
   await linksSent;
-  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^18FD\+2\s*j$/);
+  await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^13FD\+2\s*j$/);
   await expect(mounting.getByRole("gridcell").nth(at.start)).toContainText("03/07/2026");
   await expect(commissioning.getByRole("gridcell").nth(at.start)).toContainText("23/12/2026");
   await expect(commissioning.getByRole("gridcell").nth(at.finish)).toContainText("05/01/2027");
@@ -419,21 +419,22 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await openHydrated(page, `${IN_REVISION}/planning`);
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
-  // A summary of the core at the second level, over the task of row 14, before its next sibling,
-  // the factory acceptance of row 18.
-  const summary = grid.getByRole("row", { name: /^13 .*Risque survenu — Retard de livraison/ });
-  const task = grid.getByRole("row", { name: /^14 .*Relance du fournisseur/ });
+  // A summary of the core at the second level, over the task of row 15, the last of its siblings:
+  // the row after it is the installation on site, row 19, of the first level.
+  const summary = grid.getByRole("row", { name: /^14 .*Risque survenu — Retard de livraison/ });
+  const task = grid.getByRole("row", { name: /^15 .*Relance du fournisseur/ });
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(summary).toHaveAttribute("aria-level", "2");
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
 
   // Une récapitulative pliée dans la grille l'est dans le Gantt: the rows under it leave both,
-  // the row after it is its next sibling, and its bracket in the Gantt offers to unfold it.
+  // the row after it is that of the next task of the first level, and its bracket in the Gantt offers
+  // to unfold it.
   await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
   await expect(summary).toHaveAttribute("aria-expanded", "false");
   await expect(task).toHaveCount(0);
-  await expect(rowAt(grid, 14)).toHaveAccessibleName(/^18 .*Réception usine/);
-  await expect(rowAt(grid, 14)).toHaveAttribute("aria-level", "2");
+  await expect(rowAt(grid, 15)).toHaveAccessibleName(/^19 .*Installation sur site/);
+  await expect(rowAt(grid, 15)).toHaveAttribute("aria-level", "1");
   await expect(grid).not.toHaveAttribute("aria-rowcount", "6002");
   const ganttOfSummary = summary.getByRole("gridcell").nth(at.gantt);
   await expect(ganttOfSummary.getByRole("img")).toBeVisible();

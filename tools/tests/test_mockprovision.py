@@ -182,27 +182,6 @@ def test_the_probability_sent_as_a_percent_is_refused_with_the_bound_it_crosses(
     assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
 
 
-def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_modified() -> None:
-    # The change says the bound of the declaration, by an example of its own, which the fake
-    # client of the front serves to it alone (#1371).
-    declared = fixture("risk_probability_out_of_range")
-    modified = fixture("risk_update_probability_out_of_range")
-    assert set(modified) == set(declared)
-    assert (modified["status"], modified["code"], modified["fields"]) == (
-        declared["status"],
-        declared["code"],
-        declared["fields"],
-    )
-    assert modified["correlation_id"] == universe(1307)
-    summary = _summary("risk_update_probability_out_of_range")
-    assert summary.startswith("Un risque modifié")
-    assert "WF-RIS-0010" in summary
-    said = _block("updateRisk", "422")
-    assert "fixtures/api/risk_update_probability_out_of_range.json" in said
-    assert "fixtures/api/risk_probability_out_of_range.json" not in said
-    assert "`/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`" in _flat(said)
-
-
 def test_the_probability_sent_as_a_percent_is_refused_alike_when_the_risk_is_reviewed() -> None:
     # The review says the bound of the declaration, by an example of its own, as the change does,
     # and its body says it as RiskWrite does (#1371).

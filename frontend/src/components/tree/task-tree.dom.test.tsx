@@ -55,13 +55,13 @@ describe("the task tree drawn", () => {
     await userEvent.keyboard("{ArrowDown}");
     expect(item(/^8 Poste/)).toHaveFocus();
     await userEvent.keyboard("{ArrowRight}");
-    expect(item(/^13 Risque/)).toHaveFocus();
+    expect(item(/^14 Risque/)).toHaveFocus();
     await userEvent.keyboard("{ArrowLeft}");
     expect(item(/^8 Poste/)).toHaveFocus();
     await userEvent.keyboard("{End}");
     expect(item(/^19 Installation/)).toHaveFocus();
     await userEvent.keyboard("{ArrowUp}");
-    expect(item(/^13 Risque/)).toHaveFocus();
+    expect(item(/^14 Risque/)).toHaveFocus();
     await userEvent.keyboard("{Home}");
     expect(root).toHaveFocus();
     // Only one item is in the tabulation; no key opens an entry.

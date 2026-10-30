@@ -141,8 +141,9 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     )
     assert planning[DESKS]["computed_fields"] == []
     assert {"task.start", "task.finish"} <= set(planning[DESKS]["editable_fields"])
-    # The two tasks of the occurrence, in parallel with the wiring, may wait for the end too.
-    assert facet(estimate[REMINDER])["total_float"] == {"value": "858.5", "unit": "d"}
+    # The two tasks of the occurrence: the reminder, without a predecessor in the own estimate, in
+    # manual mode (WF-RIS-0060), shows no float; the transport after it may wait for the end.
+    assert facet(estimate[REMINDER])["total_float"] is None
     assert facet(estimate[TRANSPORT])["total_float"] == {"value": "858.5", "unit": "d"}
 
 

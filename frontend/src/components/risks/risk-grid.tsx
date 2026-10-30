@@ -60,6 +60,7 @@ export interface RiskRows {
  */
 export function riskRow(risk: Risk): RiskRow {
   const { risk_id, label, probability, severity, provision_amount, state, computed_fields } = risk;
+  const { last_review_on, matrix_cell } = risk;
   return {
     risk_id,
     label,
@@ -68,8 +69,8 @@ export function riskRow(risk: Risk): RiskRow {
     provision_amount,
     state,
     computed_fields,
-    ...(risk.last_review_on === undefined ? {} : { last_review_on: risk.last_review_on }),
-    ...(risk.matrix_cell === undefined ? {} : { matrix_cell: risk.matrix_cell }),
+    last_review_on,
+    matrix_cell,
   };
 }
 
@@ -166,7 +167,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       width: 44,
       icon: Grid2x2,
       // The server does not sort by the cell of the matrix: the column offers no sort.
-      value: (risk) => risk.matrix_cell?.zone,
+      value: (risk) => risk.matrix_cell.zone,
       render: (risk) => <RiskZoneCell risk={risk} />,
     },
   ],

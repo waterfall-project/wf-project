@@ -221,8 +221,9 @@
     summary: Risques du portefeuille
     description: >-
       Total des provisions identifiées, risques les plus lourds tous projets confondus,
-      matrice remplie, couverture des risques agrégée — somme des réserves de référence
-      face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et
+      matrice remplie, couverture des risques agrégée — somme des réserves pour risques
+      face aux provisions restantes et aux coûts à la survenance des risques survenus
+      (WF-RIS-0050) —, et
       provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un
       projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans
       pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets

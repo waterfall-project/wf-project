@@ -830,8 +830,9 @@ RiskMatrixSettings:
   required: [probability_bounds, severity_bounds, zones]
   description: >-
     Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160,
-    WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage du budget de
-    référence.
+    WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage de l'assiette du
+    projet — son budget de référence ou, tant qu'il n'en a pas, le total hors provisions du
+    devis de sa révision courante.
   properties:
     probability_bounds:
       type: array

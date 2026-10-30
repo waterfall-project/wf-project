@@ -340,8 +340,8 @@ describe("the tree of the grid of the planning", () => {
       INSTALLATION,
       CONTROL_ROOM,
       WIRING,
-      OCCURRED,
       ACCEPTANCE,
+      OCCURRED,
       ASSEMBLY,
       COMMISSIONING,
     ]);

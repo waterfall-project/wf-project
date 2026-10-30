@@ -3120,7 +3120,7 @@ class ComparedEstimateLineFacet(ContractModel):
     budgeted_amount: Annotated[
         Money | None,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques (`RiskCoverageTotals.reserve`, qui garde aussi celle des risques sortis de l'état identifié avant la référence), jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ] = None
     reestimated_amount: Annotated[
@@ -3656,7 +3656,7 @@ class EstimateLineFacet(ContractModel):
     budgeted_amount: Annotated[
         Money,
         Field(
-            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
+            description="Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques (`RiskCoverageTotals.reserve`, qui garde aussi celle des risques sortis de l'état identifié avant la référence), jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants."
         ),
     ]
     reestimated_amount: Annotated[
@@ -4488,9 +4488,24 @@ class WorkloadPlan(ContractModel):
 
 
 class RiskCoverageTotals(ContractModel):
-    reserve: Money
-    remaining_provisions: Money
-    occurred_cost: Money
+    reserve: Annotated[
+        Money,
+        Field(
+            description="La réserve pour risques de la révision de référence (WF-RIS-0050) : la somme des provisions des risques identifiés qu'elle porte, ses lignes de provision, augmentée de la provision que portaient, dans la référence précédente, les risques survenus ou écartés avant elle — à chaque nouvelle référence, la réserve garde ce qu'elle devait aux risques sortis de l'état identifié. Un avenant ne la diminue jamais, même quand il intègre au budget de référence les lignes d'un risque survenu : la provision de ce risque a été consommée à sa survenance, et son coût reste compté à la couverture."
+        ),
+    ]
+    remaining_provisions: Annotated[
+        Money,
+        Field(
+            description="La somme des provisions des risques identifiés dans la révision lue, celles que portent leurs lignes de provision (`Risk.provision_amount`)."
+        ),
+    ]
+    occurred_cost: Annotated[
+        Money,
+        Field(
+            description="La somme des coûts à la survenance des risques survenus (`Risk.occurrence_cost`, WF-RIS-0010) : le total de leur devis propre au moment de la survenance, que ni les réestimations ni la terminaison des tâches fusionnées ne changent (WF-RIS-0050)."
+        ),
+    ]
     coverage_variance: Annotated[
         Money,
         Field(
@@ -4872,14 +4887,20 @@ class RiskCommandAvailability(ContractModel):
 class Risk(ContractModel):
     risk_id: Uuid
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
-    description: str | None = None
-    mitigation_notes: str | None = None
+    description: str | None
+    mitigation_notes: str | None
     probability: Percent
     severity: Annotated[Money, Field(description="Calculée, jamais saisie (WF-RIS-0010).")]
     provision_amount: Annotated[
         Money,
         Field(
-            description="Calculée, gravité pondérée par la probabilité ; celle que portait la révision de référence compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050)."
+            description="Pour un risque identifié, sa provision courante, la gravité pondérée par la probabilité, que porte sa ligne de provision. Pour un risque survenu ou écarté, qui ne porte plus de ligne, la provision qu'il portait dans la révision de référence, `0.00` s'il n'y était pas identifié (WF-RIS-0040, WF-RIS-0050) : la ligne du registre se somme ainsi aux totaux (`ProvisionTotals`). Jamais au budget de référence (WF-RIS-0050)."
+        ),
+    ]
+    occurrence_cost: Annotated[
+        Money | None,
+        Field(
+            description="Le coût à la survenance d'un risque survenu : le total de son devis propre au moment où il a été déclaré survenu, que ni les réestimations ni la terminaison des tâches fusionnées ne changent, et que la couverture compare à la réserve (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060 ; `RiskCoverageTotals.occurred_cost`). Une donnée de la révision, que l'abandon de la révision où le risque est survenu efface (WF-RIS-0020). Nul pour un risque identifié ou écarté."
         ),
     ]
     state: RiskState
@@ -4892,7 +4913,7 @@ class Risk(ContractModel):
     provision_node_id: Annotated[
         Uuid | None,
         Field(description="Ligne de provision portée par la structure principale (WF-RIS-0010)."),
-    ] = None
+    ]
     provision_cost_category_id: Annotated[
         Uuid,
         Field(
@@ -4929,8 +4950,13 @@ class Risk(ContractModel):
             description="La tâche de la structure principale de la révision lue qui porte la ligne de provision (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la première tâche de premier niveau (WF-RIS-0010, #786). Un risque écarté qui redevient identifié retrouve la tâche qu'il désignait si elle est encore une tâche de la structure principale, et sinon la première tâche de premier niveau (`reviewRisk`, #1227). Le formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision."
         ),
     ]
-    matrix_cell: RiskMatrixCell | None = None
-    last_review_on: PlanningDate | None = None
+    matrix_cell: RiskMatrixCell
+    last_review_on: Annotated[
+        PlanningDate | None,
+        Field(
+            description="Le jour de son dernier réexamen, que la grille présente (WF-RIS-0040) : sa déclaration, un réexamen (`reviewRisk`) ou sa survenance."
+        ),
+    ]
     computed_fields: Annotated[
         list[RiskComputedField],
         Field(
@@ -4959,7 +4985,12 @@ class ProvisionTotals(ContractModel):
     identified: Money
     occurred: Money
     dismissed: Money
-    reserve: Money
+    reserve: Annotated[
+        Money,
+        Field(
+            description="La réserve pour risques, celle de la couverture (`RiskCoverageTotals.reserve`)."
+        ),
+    ]
 
 
 class RiskWrite(ContractModel):
@@ -4989,7 +5020,28 @@ class RiskWrite(ContractModel):
     ] = None
 
 
-class RiskUpdate(RiskWrite):
+class RiskUpdate(ContractModel):
+    label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
+    description: str | None = None
+    mitigation_notes: str | None = None
+    provision_cost_category_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La catégorie que porte la ligne de provision, refusée par les motifs de la déclaration (`RiskWrite.provision_cost_category_id`). Omise, elle reste celle du risque ; `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque ; une autre, envoyée pour un risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit d'avance."
+        ),
+    ] = None
+    provision_subproject_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Le sous-projet de la ligne de provision (`RiskWrite.provision_subproject_id`). Omis, il reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé pour un risque qui n'est pas identifié, est refusé comme la catégorie, par `risk_identified`."
+        ),
+    ] = None
+    provision_task_id: Annotated[
+        Uuid | None,
+        Field(
+            description="La tâche qui porte la ligne de provision (`RiskWrite.provision_task_id`). Omise, elle reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`)."
+        ),
+    ] = None
     lock_version: LockVersion
 
 
@@ -5146,7 +5198,7 @@ class RiskMatrix(ContractModel):
     severity_levels: Annotated[
         list[RiskMatrixLevel],
         Field(
-            description="Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget de référence.",
+            description="Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage de l'assiette du projet — son budget de référence ou, avant lui, le total hors provisions du devis de sa révision courante (WF-REF-0160).",
             max_length=4,
             min_length=4,
         ),
@@ -5899,7 +5951,7 @@ class PortfolioRisks(ContractModel):
     coverage: Annotated[
         RiskCoverageTotals,
         Field(
-            description="Couverture des risques agrégée : la somme des réserves de référence des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050)."
+            description="Couverture des risques agrégée : la somme des réserves pour risques des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et des coûts à la survenance de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050)."
         ),
     ]
     period_outcome: PeriodOutcome

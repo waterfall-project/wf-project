@@ -59,10 +59,10 @@ describe("the cells of a structure the server computes", () => {
       "estimate_line.reestimated_amount",
       "task.reestimated_amount",
       "task.reestimated_amount",
-      "estimate_line.reestimated_amount",
       "task.reestimated_amount",
       "estimate_line.reestimated_amount",
       "task.reestimated_amount",
+      "estimate_line.reestimated_amount",
     ]);
     expect(summary === undefined ? null : COMPUTED_FLOAT.field(summary)).toBe("task.total_float");
   });
@@ -75,10 +75,10 @@ describe("the cells of a structure the server computes", () => {
     expect(estimate.items.filter((node) => COMPUTED_FLOAT.in(node)).map(labelOf)).toEqual([
       "Poste de commande",
       "Câblage des armoires",
+      "Réception usine",
       "Risque survenu — Retard de livraison des armoires",
       "Relance du fournisseur",
       "Transport exceptionnel",
-      "Réception usine",
     ]);
   });
 });

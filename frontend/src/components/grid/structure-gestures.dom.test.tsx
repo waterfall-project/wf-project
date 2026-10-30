@@ -582,8 +582,8 @@ describe("the refusal of a gesture, said to the row in cause", () => {
       [MOVE]: { problem: example("nodes_move_after_not_sibling") as Problem & { status: 422 } },
     });
     const view = render(estimateGrid(), { wrapper: Reading });
-    const risk = rowOf("Risque survenu — Retard de livraison des armoires");
-    await activate(risk);
+    const transport = rowOf("Transport exceptionnel");
+    await activate(transport);
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
     await screen.findByRole("alert");
     expect(router.refresh).toHaveBeenCalledTimes(1);
@@ -591,7 +591,7 @@ describe("the refusal of a gesture, said to the row in cause", () => {
       view.rerender(
         estimateGrid(true, true, {
           ...estimate,
-          items: estimate.items.filter((_, index) => index !== risk),
+          items: estimate.items.filter((_, index) => index !== transport),
         }),
       );
       await Promise.resolve();

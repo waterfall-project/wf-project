@@ -557,6 +557,7 @@ CONTROL_STATION = Task(
                 ),
             ),
         ),
+        Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
         Task(
             N.MERGED,
             "Risque survenu — Retard de livraison des armoires",
@@ -565,7 +566,7 @@ CONTROL_STATION = Task(
                     N.REMINDER,
                     "Relance du fournisseur",
                     days=5,
-                    links=(Link(N.WIRING, START_TO_START),),
+                    manual=(date(2026, 5, 4), date(2026, 5, 8)),
                     lines=(
                         Line(
                             N.REMINDER_LINE,
@@ -593,15 +594,16 @@ CONTROL_STATION = Task(
                 ),
             ),
         ),
-        Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
     ),
 )
 """The summary of the control station, which bears the lot 1: the wiring of the cabinets a week
 after the reception of the studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56
 and the provision of 500,000 of the risk 751, at the scale of the structure, budgeted at the
 250,000 the reference knew; the subtree merged into the current revision by the occurrence of the
-risk 752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at
-the end of the wiring."""
+risk 752, whose provision the control station bore, its lines of 120 and 80 budgeted nothing, the
+reminder, without a predecessor in the own estimate, in manual mode at the dates it had there
+(WF-RIS-0060), placed last under the task that bore the provision, after the factory acceptance,
+which stands at the end of the wiring."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025

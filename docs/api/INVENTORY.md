@@ -159,7 +159,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-IHM-0020, WF-REV-0070, WF-REV-0090 |
 | POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-PLA-0170, WF-REV-0010, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Marquer la révision | WF-ARC-0090, WF-DAT-0040, WF-REV-0020, WF-SEC-0030 |
 | PUT | `/projects/{project_id}/reference-revision` | Désigner la révision de référence | WF-CYC-0030, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Écart de taux proposé, catégorie par catégorie | WF-REV-0060 |
@@ -214,12 +214,12 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0060, WF-IHM-0130, WF-RIS-0030, WF-RIS-0040 |
 | POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
-| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
+| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0040 |
 | DELETE | `/projects/{project_id}/risks/{risk_id}` | Supprimer un risque | WF-IHM-0110, WF-RIS-0020 |
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}/occurrence` | Compte rendu préalable de la survenance d'un risque | WF-IHM-0110, WF-RIS-0060 |
-| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-IHM-0110, WF-PLA-0170, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
+| POST | `/projects/{project_id}/risks/{risk_id}/occurrence` | Déclarer un risque survenu | WF-ARC-0090, WF-DEV-0020, WF-IHM-0110, WF-PLA-0170, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/risks/coverage` | Couverture des risques | WF-RAE-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/matrix` | Matrice de risques du projet | WF-IHM-0070, WF-REF-0160, WF-RIS-0030, WF-RIS-0040 |
 

@@ -448,7 +448,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
   );
 
   it("writes the links typed in place of the task's, the four types and a lead among them, and takes the row answered and the successor the server redated in place of those read [WF-PLA-0030-A] [WF-PLA-0020-A]", async () => {
-    // « 19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50% »: the four types, a lag, none, a lead, a share. The
+    // « 14FD+2 j ; 10DD ; 16FF-1 sem ; 18DF+50% »: the four types, a lag, none, a lead, a share. The
     // fake back answers by its first example: the mounting 2 d after « Réception usine », and
     // « Mise en service », which it redates without writing it, moved from 21/12/2026 to
     // 23/12/2026 — the successor shown as the server dated it, the front dating nothing.
@@ -459,7 +459,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     expect(cellAt(commissioning, "start")).toHaveTextContent("21/12/2026");
     await retype(
       await entered(mounting, "predecessors"),
-      "19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50%",
+      "14FD+2 j ; 10DD ; 16FF-1 sem ; 18DF+50%",
     );
     await vi.waitFor(() => {
       expect(linksSent(client)).toHaveLength(1);
@@ -496,7 +496,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     // The row answered, and the successor the server redated, in place of the rows read.
     expect(await within(cellAt(commissioning, "start")).findByText("23/12/2026")).toBeVisible();
     expect(cellAt(commissioning, "finish")).toHaveTextContent("05/01/2027");
-    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^18FD\+2\s*j$/);
+    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^13FD\+2\s*j$/);
     expect(cellAt(mounting, "start")).toHaveTextContent("03/07/2026");
   });
 
@@ -504,7 +504,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     const client = serve({ [PREDECESSORS]: "predecessor_set" });
     render(grid(nested, { locale: "en" }));
     const mounting = rowOf(nested, "Montage des armoires sur site");
-    await retype(await entered(mounting, "predecessors"), "19FS+2 d; 10SF");
+    await retype(await entered(mounting, "predecessors"), "14FS+2 d; 10SF");
     await vi.waitFor(() => {
       expect(linksSent(client)).toHaveLength(1);
     });
@@ -568,14 +568,14 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
       }
       expect(cellAt(mounting, "predecessors")).toHaveAttribute("aria-invalid", "true");
       // Nothing is written: the row keeps the links it had.
-      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^19$/);
+      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^14$/);
     },
   );
 
   it.each([
     { text: "99", problem: "Aucune tâche de la structure ne porte l’un de ces numéros." },
-    { text: "19 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
-    { text: "19FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "14 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "14FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
   ])(
     "keeps the entry open, saying why, for « $text », a row unknown or a text that is no link, and sends nothing [WF-PLA-0030-A]",
     async ({ text, problem }) => {

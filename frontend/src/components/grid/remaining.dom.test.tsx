@@ -38,16 +38,16 @@ const STRUCTURE = {
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
 // The rows of the estimate of the witness, by their index: the wiring of the cabinets, started,
-// its line of labour, its disbursement and its provision; a line of a task completed; the
-// factory acceptance, a milestone not started.
+// its line of labour, its disbursement and its provision; the factory acceptance, a milestone not
+// started; a line of a task completed.
 const WIRING = 1;
 const LABOUR = 2;
 const DISBURSEMENT = 3;
 const PROVISION = 4;
-const COMPLETED_LINE = 7;
+const ACCEPTANCE = 5;
+const COMPLETED_LINE = 8;
 // A line the occurrence of a risk merged into the current revision after its previous review.
-const MERGED_LINE = 9;
-const ACCEPTANCE = 10;
+const MERGED_LINE = 10;
 // The rows of the studies of the witness: the operator desks, started and past their finish.
 const DESKS = 3;
 // The columns of the task alone the grid shows: the contract accepts a sort by them, but the sort of

@@ -248,7 +248,7 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     assert numbers("nodes.json") == [1, 2, 3, 4, 5, 6, 7]
     assert numbers("nodes_planning.json") == [1, 2, 4, 5, 6, 7]
     assert numbers("nodes_estimate.json") == list(range(8, 19))
-    assert numbers("nodes_risk_occurred.json") == [13, 14, 15, 16, 17]
+    assert numbers("nodes_risk_occurred.json") == [14, 15, 16, 17, 18]
     assert [node["level"] for node in readings["nodes_risk_occurred.json"]["items"]] == [
         2,
         3,
@@ -260,7 +260,7 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     wiring = nodes(readings["nodes_estimate.json"])[WIRING]
     assert wiring["predecessors"][0]["predecessor_row_number"] == 6
     # A search renders the ancestors of what it finds, and counts them in no total.
-    assert numbers("nodes_milestone.json") == [8, 18]
+    assert numbers("nodes_milestone.json") == [8, 13]
     assert readings["nodes_milestone.json"]["totals"]["task_count"] == 1
     assert readings["nodes_milestone.json"]["totals"]["estimate_line_count"] == 0
     # The tasks alone have the totals of the full reading: `kinds` renders, never sums (#487).

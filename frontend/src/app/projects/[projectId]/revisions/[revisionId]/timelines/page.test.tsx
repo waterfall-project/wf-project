@@ -112,7 +112,7 @@ describe("the screen of the timelines", () => {
     // The reading as a table of the frieze: each task, its dates and its lane.
     expect(text(table)).toContain(
       "1 Études 02/03/2026 24/04/2026 1 6 Réception des études 24/04/2026 24/04/2026 Milestone " +
-        "18 Réception usine 30/06/2026 30/06/2026 Milestone 23 Mise en service 21/12/2026 01/01/2027 1",
+        "13 Réception usine 30/06/2026 30/06/2026 Milestone 23 Mise en service 21/12/2026 01/01/2027 1",
     );
     // The frieze: a rectangle for each task, a line for each milestone, each named.
     expect(page).toContain('aria-label="Études, from 02/03/2026 to 24/04/2026, lane 1"');
@@ -140,7 +140,7 @@ describe("the screen of the timelines", () => {
     // The reading as a table of the frieze, which names every task inscribed.
     const table = text(page.slice(page.indexOf("<table")));
     expect(table).toContain("6 Réception des études");
-    expect(table).toContain("18 Réception usine");
+    expect(table).toContain("13 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");
     expect(table).not.toContain("Mise en service");
   });

@@ -444,27 +444,28 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (line(10)["label"], line(10)["hours"]) == ("Raccordement des borniers", "12.5")
     assert line(12)["is_computed"] is True
     assert row(12)["editable_fields"] == ["estimate_line.label"]
-    # Row 13, a summary of the second level, folds over rows 14 to 17, before the milestone of row
-    # 18; row 14, a task of the third level with its dates, over its line, row 15, before its
-    # sibling of row 16.
+    # Row 13, the milestone of the control station, after its wiring; row 14, a summary of the
+    # second level, the last under the task that bore the provision of 752 (WF-RIS-0060), folds
+    # over rows 15 to 18; row 15, a task of the third level with its dates, over its line, row 16,
+    # before its sibling of row 17.
     assert [
         (row(n)["level"], (row(n).get("task") or row(n)["estimate_line"])["label"])
-        for n in (13, 14, 15, 16, 18)
+        for n in (13, 14, 15, 16, 17)
     ] == [
+        (2, "Réception usine"),
         (2, "Risque survenu — Retard de livraison des armoires"),
         (3, "Relance du fournisseur"),
         (4, "Frais de relance"),
         (3, "Transport exceptionnel"),
-        (2, "Réception usine"),
     ]
-    assert task(13)["is_summary"] is True
-    assert task(14)["start"] is not None
+    assert task(14)["is_summary"] is True
+    assert task(15)["start"] is not None
     assert [row(n)["parent_id"] for n in (14, 15, 16, 17, 18)] == [
-        row(13)["node_id"],
+        row(8)["node_id"],
         row(14)["node_id"],
-        row(13)["node_id"],
-        row(16)["node_id"],
-        row(13)["parent_id"],
+        row(15)["node_id"],
+        row(14)["node_id"],
+        row(17)["node_id"],
     ]
     # Row 25, the first phase drawn; rows 28 to 30, the first lines drawn, where a label is
     # entered and a block pasted.
@@ -497,14 +498,14 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line.payment_delay_days",
         "estimate_line.subproject_id",
     ]
-    # Row 39, of the critical path, not started, after the factory acceptance of row 18; row 311,
+    # Row 39, of the critical path, not started, after the factory acceptance of row 13; row 311,
     # started, after row 291.
     assert (task(39)["label"], task(39)["progress"], task(39)["is_critical"]) == (
         "Revue 1.1.3",
         "not_started",
         True,
     )
-    assert [link["predecessor_row_number"] for link in row(39)["predecessors"]] == [18]
+    assert [link["predecessor_row_number"] for link in row(39)["predecessors"]] == [13]
     assert (task(39)["start"]["date"], task(39)["finish"]["date"]) == ("2026-07-01", "2026-07-16")
     assert (task(311)["label"], task(311)["progress"]) == ("Revue 1.2.11", "started")
     assert [link["predecessor_row_number"] for link in row(311)["predecessors"]] == [291]

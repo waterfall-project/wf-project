@@ -52,7 +52,8 @@ const TASK = rowOf("Câblage des armoires");
 const LABOUR = rowOf("Raccordement des borniers");
 const DISBURSEMENT = rowOf("Borniers");
 const PROVISION = rowOf("Provision — risque de reprise du câblage");
-const MILESTONE = rowOf("Réception usine");
+// The last row of the grid, a line under the last task of the plan.
+const LAST = rowOf("Affrètement");
 // The height of a row at the default size of the root font.
 const ROW_HEIGHT = ROW_REM * 16;
 
@@ -188,16 +189,16 @@ describe("the keyboard of a grid", () => {
   it.each([
     ["End", [1, "hours"], "{End}", [1, "base_amount"]],
     ["Home", [1, "base_amount"], "{Home}", [1, "row_number"]],
-    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [MILESTONE, "base_amount"]],
+    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [LAST, "base_amount"]],
     [
       "Ctrl+Home, then Page Down",
-      [MILESTONE, "base_amount"],
+      [LAST, "base_amount"],
       "{Control>}{Home}{/Control}{PageDown}",
-      [MILESTONE, "row_number"],
+      [LAST, "row_number"],
     ],
     [
       "the arrow down on the last row, Page Up and the arrow left on the first column",
-      [MILESTONE, "row_number"],
+      [LAST, "row_number"],
       "{ArrowDown}{PageUp}{ArrowLeft}",
       [0, "row_number"],
     ],
@@ -290,7 +291,7 @@ describe("the keyboard of a grid", () => {
     expect(header("Qté")).toHaveFocus();
     // Ctrl+End goes to the last cell of the rows.
     await userEvent.keyboard("{Control>}{End}{/Control}");
-    expect(cell(MILESTONE, "base_amount")).toHaveFocus();
+    expect(cell(LAST, "base_amount")).toHaveFocus();
   });
 
   it("keeps its one stop of the tabulation in the header when the answer has no row", () => {

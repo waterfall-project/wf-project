@@ -655,7 +655,7 @@ def project_coverage(row: JsonObject) -> tuple[Decimal, Decimal]:
     """Return the reserve of reference of a project in progress or completed, and its occurred cost.
 
     Its reserve from 2.5 to 5.5 % of its reference budget; one project in four has had risks
-    occur, whose re-estimated cost is from 0.1 to 1.5 % of its budget (WF-RIS-0050).
+    occur, whose cost at occurrence is from 0.1 to 1.5 % of its budget (WF-RIS-0050).
     """
     key = f"coverage/{row['project_id']}"
     budget = Decimal(cast("str", row["reference_budget"]))

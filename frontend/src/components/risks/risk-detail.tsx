@@ -65,7 +65,7 @@ function Note({ name, text }: { readonly name: string; readonly text: string | n
 function ProvisionLine({ risk }: { readonly risk: Risk }) {
   const t = useTranslations("risks.detail.provisionLine");
   const form = useTranslations("reference.form");
-  const present = risk.provision_node_id !== null && risk.provision_node_id !== undefined;
+  const present = risk.provision_node_id !== null;
   const Icon = present ? FileText : FileMinus;
   const said = present ? "present" : risk.state === "occurred" ? "withdrawn" : "absent";
   const category = risk.provision_cost_category_label;
@@ -171,7 +171,7 @@ export function RiskDetail({ risk, reviews, projectId, options }: RiskDetailProp
           <ComputedAmount amount={risk.provision_amount} />
         </Fact>
         <Fact name={t("grid.columns.lastReview")}>
-          {risk.last_review_on === null || risk.last_review_on === undefined
+          {risk.last_review_on === null
             ? t("risks.detail.neverReviewed")
             : formatPlanningDate(risk.last_review_on, locale)}
         </Fact>

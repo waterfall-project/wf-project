@@ -245,7 +245,12 @@ def reference_budget(rows: Iterable[mockcore.Row]) -> Decimal:
 
 
 def reserve(rows: Iterable[mockcore.Row]) -> Decimal:
-    """Return the reserve for risks of a reference: the sum of its lines of provision."""
+    """Return the reserve for risks of the reference: the sum of its lines of provision.
+
+    The reserve keeps, at each new reference, the provision the risks that occurred or were
+    dismissed before it bore in the previous one (WF-RIS-0050): the witness has a single
+    reference, marked while its three risks were identified, so its lines are the whole of it.
+    """
     return sum((row.amounts.base for row in rows if is_provision(row)), Decimal(0))
 
 
@@ -260,6 +265,26 @@ _COMPUTED: list[JsonValue] = [
 def provision(risk: Risk) -> Decimal:
     """Return the provision of a risk today: its severity at its probability (WF-RIS-0010)."""
     return (risk.last.severity * risk.last.probability).quantize(Decimal("0.01"))
+
+
+def provision_amount(risk: Risk) -> Decimal:
+    """Return the provision a risk is read with (`Risk.provision_amount`, H-03).
+
+    An identified risk its provision today; one that occurred or was dismissed, which bears no
+    line any more, the provision it bore in the reference, nothing if it was not identified there
+    (WF-RIS-0040, WF-RIS-0050): the line of the register sums to the totals.
+    """
+    return provision(risk) if risk.last.state == IDENTIFIED else reference_provision(risk)
+
+
+def occurrence_cost(risk: Risk) -> Decimal | None:
+    """Return the cost at occurrence of a risk that occurred, none for another (H-02).
+
+    The total of its own estimate when it was declared occurred, which the review of its
+    occurrence retains and which neither reestimation nor completion changes (WF-RIS-0010,
+    WF-RIS-0050).
+    """
+    return risk.last.severity if risk.last.state == OCCURRED else None
 
 
 def is_cited(risk: Risk) -> bool:
@@ -309,7 +334,7 @@ def matrix_point(risk: Risk, budget: Decimal) -> JsonObject:
         "probability": str(last.probability),
         "severity_amount": money(last.severity),
         "severity_ratio": ratio,
-        "provision_amount": money(provision(risk)),
+        "provision_amount": money(provision_amount(risk)),
         "state": last.state,
         "zone": matrix_cell(risk, budget)["zone"],
     }
@@ -390,6 +415,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
     last = risk.last
     actor = _actor()
     named = labels()
+    cost = occurrence_cost(risk)
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
@@ -397,7 +423,8 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
         "mitigation_notes": risk.mitigation_notes,
         "probability": str(last.probability),
         "severity": money(last.severity),
-        "provision_amount": money(provision(risk)),
+        "provision_amount": money(provision_amount(risk)),
+        "occurrence_cost": None if cost is None else money(cost),
         "state": last.state,
         "structure_id": universe(risk.own_structure),
         "provision_node_id": None
@@ -433,8 +460,7 @@ def totals(rows: list[mockcore.Row]) -> JsonObject:
     """
     by_state = {IDENTIFIED: Decimal(0), OCCURRED: Decimal(0), DISMISSED: Decimal(0)}
     for risk in REGISTER:
-        state = risk.last.state
-        by_state[state] += provision(risk) if state == IDENTIFIED else reference_provision(risk)
+        by_state[risk.last.state] += provision_amount(risk)
     return {
         **{state: money(amount) for state, amount in by_state.items()},
         "total": money(sum(by_state.values(), Decimal(0))),
@@ -529,12 +555,14 @@ def readings() -> dict[str, JsonObject]:
 def coverage(today: list[mockcore.Row], rows: list[mockcore.Row]) -> JsonObject:
     """Return the coverage of the risks in the current revision today (`RiskCoverage`).
 
-    The reserve of the reference, against the provisions of the identified risks and the amount
-    reestimated of the lines merged by the risks that occurred; the difference, signed
-    (WF-RIS-0050).
+    The reserve of the reference, against the provisions of the identified risks and the costs
+    at occurrence of the risks that occurred — not the amounts of their merged lines, which
+    reestimation and completion change (H-01) —; the difference, signed (WF-RIS-0050).
     """
     remaining = sum((row.amounts.base for row in today if is_provision(row)), Decimal(0))
-    occurred = sum((row.amounts.reestimated for row in merged_lines(today)), Decimal(0))
+    occurred = sum(
+        (cost for risk in REGISTER if (cost := occurrence_cost(risk)) is not None), Decimal(0)
+    )
     kept = reserve(rows)
     return {
         "context": {
@@ -693,8 +721,10 @@ def examples() -> dict[str, JsonObject]:
             f"« {rework.label} », identifié, porté au devis et au reste à engager par sa ligne de "
             f"provision de {_amount(provision(rework))} ; « {delay.label} », survenu le "
             f"{_day(delay.last.at.date())}, son devis propre fusionné dans la révision en cours à "
-            f"montant budgété nul et sa ligne de provision retirée (WF-RIS-0060) ; "
-            f"« {engineer.label} », écarté le {_day(engineer.last.at.date())}. Chacun dans sa "
+            f"montant budgété nul et sa ligne de provision retirée, son coût à la survenance "
+            f"gardé (WF-RIS-0060) ; « {engineer.label} », écarté le "
+            f"{_day(engineer.last.at.date())}, les deux derniers lus pour la provision qu'ils "
+            f"portaient dans la référence. Chacun dans sa "
             f"case de matrice, {scale} ; avec ses commandes — {commands_text} —, les trois "
             f"totaux de provisions — les survenus et les écartés pour la provision que portait "
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
@@ -718,8 +748,11 @@ def examples() -> dict[str, JsonObject]:
             f"« {delay.label} », survenu le {_day(delay.last.at.date())} : son devis propre est "
             f"fusionné dans la structure principale de la révision en cours, ses lignes à "
             f"montant budgété nul et réestimées à {merged}, et sa ligne de provision est "
-            f"retirée ; sa provision de {_amount(reference_provision(delay))} à la révision de "
-            f"référence reste comptée dans la réserve pour risques (WF-RIS-0050, WF-RIS-0060). "
+            f"retirée ; son coût à la survenance, le total de son devis propre ce jour-là, vaut "
+            f"{_amount(cast('Decimal', occurrence_cost(delay)))}, que ni réestimation ni "
+            f"terminaison ne changent ; sa provision, celle qu'il portait à la révision de "
+            f"référence, {_amount(reference_provision(delay))}, reste comptée dans la réserve "
+            f"pour risques (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060). "
             f"{_risk_commands_text(items[1])}",
             items[1],
         ),
@@ -787,8 +820,9 @@ def examples() -> dict[str, JsonObject]:
             f"révision courante : {reserve_text} face aux "
             f"{_amount(Decimal(cast('str', covered['remaining_provisions'])))} de provision "
             f"{identified_text} et aux "
-            f"{_amount(Decimal(cast('str', covered['occurred_cost'])))} réestimés des lignes "
-            f"fusionnées {occurred_text} ; l'écart de couverture vaut "
+            f"{_amount(Decimal(cast('str', covered['occurred_cost'])))} de coût à la survenance "
+            f"{occurred_text}, que la terminaison de ses tâches fusionnées ne change pas ; "
+            f"l'écart de couverture vaut "
             f"{_amount(Decimal(cast('str', covered['coverage_variance'])))} (WF-RIS-0050, "
             "WF-RAE-0020).",
             covered,

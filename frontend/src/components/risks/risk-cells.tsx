@@ -57,11 +57,9 @@ export function RiskStateCell({ state }: { readonly state: RiskState }) {
   return <span className="truncate">{t(state)}</span>;
 }
 
-/** Render the cell of the matrix a risk falls in, by its signal; none when the API gives none. */
+/** Render the cell of the matrix a risk falls in, by its signal. */
 export function RiskZoneCell({ risk }: { readonly risk: RiskRow }) {
-  return risk.matrix_cell === undefined ? null : (
-    <Signal zone={risk.matrix_cell.zone} variant="icon" />
-  );
+  return <Signal zone={risk.matrix_cell.zone} variant="icon" />;
 }
 
 /** Render the link that closes the detail of a risk: the same screen, its query kept, without it. */
