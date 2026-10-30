@@ -255,7 +255,7 @@ describe("the screen of the imports and exports", () => {
     );
     expect(text(page)).toContain("5 lines read.");
     expect(text(page)).toContain(
-      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
+      "2 lines rejected Line Reason 3 Unknown task. Value read in the file: “Essais de compatibilité électromagnétique”. 5 Unknown resource role. Value read in the file: “Soudeur (SOUD)”.",
     );
     expect(text(page)).toContain(
       "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Assistance à la reprise des essais Hours Removed Estimate line Câblage sur site",
@@ -278,10 +278,10 @@ describe("the screen of the imports and exports", () => {
     const french = text(await exchangesAt({ import: IMPORT }, "fr"));
     const english = text(await exchangesAt({ import: IMPORT }, "en"));
     expect(french).toContain(
-      "2 lignes rejetées Ligne Motif 3 Tâche inconnue. 5 Rôle de ressource inconnu.",
+      "2 lignes rejetées Ligne Motif 3 Tâche inconnue. Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ». 5 Rôle de ressource inconnu. Valeur lue dans le fichier : « Soudeur (SOUD) ».",
     );
     expect(english).toContain(
-      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
+      "2 lines rejected Line Reason 3 Unknown task. Value read in the file: “Essais de compatibilité électromagnétique”. 5 Unknown resource role. Value read in the file: “Soudeur (SOUD)”.",
     );
   });
 
