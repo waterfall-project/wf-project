@@ -8,6 +8,7 @@ H-02, WF-RIS-0050); the provision of a risk that occurred or was dismissed, that
 merges, placed and in their modes (M-05, WF-RIS-0060) — on the witness and its examples.
 """
 
+import json
 from dataclasses import replace
 from decimal import Decimal
 from typing import Any, cast
@@ -97,6 +98,7 @@ def test_the_provisions_of_the_register_sum_to_the_three_distinct_totals() -> No
             ).quantize(Decimal("0.01"))
 
 
+@pytest.mark.requirement("WF-RIS-0040-A")
 def test_a_risk_identified_after_the_reference_and_dismissed_is_read_at_no_provision() -> None:
     engineer = REGISTER[2]
     late = replace(
@@ -109,6 +111,7 @@ def test_a_risk_identified_after_the_reference_and_dismissed_is_read_at_no_provi
     assert mockhistory.provision_amount(late) == Decimal("0.00")
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 def test_the_modification_of_a_risk_does_not_receive_its_probability() -> None:
     # H-04: the probability is written by the review alone (decision of the author, 2026-10-28).
     schemas = _risks_schemas()
@@ -159,3 +162,12 @@ def test_the_merged_subtree_is_last_under_the_task_that_bore_the_provision() -> 
     # The tasks it merged come after it in the order of the plan.
     after = [row.number for row in rows if row.row >= first]
     assert after[:3] == [N.MERGED, N.REMINDER, N.REMINDER_LINE]
+
+
+@pytest.mark.requirement("WF-RIS-0050-A")
+def test_the_coverage_summaries_do_not_call_the_occurred_cost_merged_lines() -> None:
+    # H-01: the occurred cost is that at occurrence of the risks that occurred, not merged lines.
+    for name in ("estimate_indicators.json", "risk_coverage.json"):
+        path = REPOSITORY / "fixtures" / "api" / name
+        example = cast("Entry", json.loads(path.read_text(encoding="utf-8")))
+        assert "des lignes fusionnées par la survenance" not in example["summary"]

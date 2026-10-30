@@ -295,9 +295,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"référence, {_of(now['delta_to_reference'])}, est aussi celui avec la révision "
             f"marquée précédente, la référence elle-même : les "
             f"{_money(coverage['remaining_provisions'])} de provision et les "
-            f"{_money(coverage['occurred_cost'])} des lignes fusionnées par la survenance, face "
-            f"aux {_money(coverage['reserve'])} de provisions qu'elle portait (WF-DEV-0060, "
-            f"WF-RIS-0050)."
+            f"{_money(coverage['occurred_cost'])} de coût à la survenance des risques "
+            f"survenus, face aux {_money(coverage['reserve'])} de provisions qu'elle portait "
+            f"(WF-DEV-0060, WF-RIS-0050)."
         ),
         "estimate_indicators_breakdown": (
             f"Les indicateurs du devis de l'offre v1.0, tels que son marquage du "
