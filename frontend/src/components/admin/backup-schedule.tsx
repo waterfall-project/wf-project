@@ -152,11 +152,6 @@ function draftOf(schedule: BackupSchedule): Draft {
   };
 }
 
-/** The frequency a value of the form names, as the contract writes it; none for any other. */
-function frequencyOf(value: string | undefined): Frequency | undefined {
-  return FREQUENCIES.find((frequency) => frequency === value);
-}
-
 /**
  * The schedule the form writes, whole, from the values checked and the version it opened on: the day
  * of a weekly schedule alone — none otherwise —, the frequency and the time, which a suspended
@@ -164,18 +159,17 @@ function frequencyOf(value: string | undefined): Frequency | undefined {
  * copy set.
  */
 function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
-  const frequency = frequencyOf(values[FREQUENCY]);
-  if (frequency === undefined) {
-    // The rules refuse an empty or unknown frequency before the form asks: none is made up here.
-    throw new Error("The frequency of the schedule is required.");
-  }
+  // The field is required and offers the two frequencies alone: the form asks with one of them,
+  // so any value but the weekly one is the daily one, and none is made up.
+  const weekly = values[FREQUENCY] === "weekly";
+  const frequency: Frequency = weekly ? "weekly" : "daily";
   const at = values[AT] ?? "";
   const location = values[LOCATION] ?? "";
   return {
     is_enabled: values[ENABLED] === "true",
     frequency,
     at_time: at,
-    weekday: frequency === "weekly" ? Number(values[WEEKDAY]) : null,
+    weekday: weekly ? Number(values[WEEKDAY]) : null,
     retained_count: Number(values[RETAINED]),
     ...(location === ""
       ? {}

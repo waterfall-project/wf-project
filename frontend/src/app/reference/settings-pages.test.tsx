@@ -105,7 +105,8 @@ describe("the forms of the settings of the risks and of the indicators", () => {
   });
 
   it("offer neither form to a session that may only read the settings, nor say anything of the fake back [WF-IHM-0090-A]", async () => {
-    // The predefined Manager role writes both since the review of the contract (docs/api/2026-10-28-contrat-avant-gel.md, A-01, WF-INTF-0020): withdraw them.
+    // The predefined Manager role writes both since the review of the contract (A-01,
+    // docs/api/2026-10-28-contrat-avant-gel.md, WF-INTF-0020): withdraw them.
     servedTo("me_manager");
     withdrawn.permissions = ["risk_settings.write", "indicator_settings.write"];
     const risks = rendered(await RiskSettingsPage());
