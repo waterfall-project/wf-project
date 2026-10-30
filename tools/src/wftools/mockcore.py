@@ -789,10 +789,9 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     lines and its direct subordinates (WF-DEV-0050); the amount of a labour line, the hourly
     rate (WF-DEV-0020); the quantity and the subproject of a provision, its risk (WF-RIS-0010,
     EP-14/L42p); the float of a summary, its direct subordinates, that of a task in manual mode,
-    its mode (WF-PLA-0100); the category of a
-    labour line, its role (WF-DEV-0020). The rows are named
-    by their number in the whole structure and their label; read again after rows were inserted
-    above them, they bear their new numbers (WF-PLA-0080).
+    its mode (WF-PLA-0100); the category of a labour line, its role (WF-DEV-0020). The rows are
+    named by their number in the whole structure and their label; read again after rows were
+    inserted above them, they bear their new numbers (WF-PLA-0080).
     """
     row = next(each for each in rows if each.number == number)
     children = [each for each in rows if each.parent == number]

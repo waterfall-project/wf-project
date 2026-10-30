@@ -5,9 +5,9 @@
 They try the examples of #586 and of the timelines against the universe they illustrate and
 against the contract: the command of the skeleton, where it is offered and its refusal, the
 skeleton of the work breakdown by default, the refusals of the attachment by field and the merge
-that fails, the command of the timelines and the timeline created — not the Vérif of a
-requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »), but the
-one of the float of a summary, which cites WF-PLA-0100-A.
+that fails, the command of the timelines and the timeline created. A test cites a requirement
+only where it takes up its Vérif — the float of a summary, WF-PLA-0100-A —; the others hold the
+contract and the universe (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
 """
 
 import json

@@ -38,6 +38,13 @@ error any operation declares by the shared ``InternalError``, its correlation th
 front shows (WF-OBS-0020); ``nodes_fields_unknown.json``, a reading of the nodes asked for a
 property ``Node`` does not have, refused as any parameter of a query, by 422 on ``/query/fields``.
 
+And the refusals of the common tree its operations declared without an example (F-17, #1648):
+a line of labour that would leave its task without any hour of work, created or changed of role,
+the calendars supposed otherwise, those of the witness all meeting from Monday to Thursday
+(``*_without_hours``); a field a node does not accept (``*_field_not_accepted``,
+``task_milestone_duration_refused``); a category of provision given to a line entered; a line of a
+completed task re-estimated (``remaining_completed_refused``).
+
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
@@ -49,7 +56,15 @@ from wftools import mockcore, mocktext, mockwitness
 from wftools.mockids import universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
-from wftools.mockwitness import CREATED_TIMELINE, ELECTRICAL_ENGINEERING, N, fixture
+from wftools.mockwitness import (
+    CABLE_FITTER,
+    CREATED_TIMELINE,
+    ELECTRICAL_ENGINEERING,
+    ENGINEER,
+    PROVISIONS,
+    N,
+    fixture,
+)
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -72,6 +87,12 @@ RATE_CORRELATION, ROLE_CORRELATION = universe(1618), universe(1619)
 
 INTERNAL_CORRELATION, FIELDS_CORRELATION = universe(1620), universe(1621)
 """The correlations of the answers every operation, or every reading of the nodes, may give."""
+
+CREATE_HOURS_CORRELATION, ROLE_HOURS_CORRELATION = universe(1622), universe(1623)
+CREATE_FIELD_CORRELATION, MILESTONE_CORRELATION = universe(1624), universe(1625)
+LINE_FIELD_CORRELATION, PROVISION_CORRELATION = universe(1626), universe(1627)
+REMAINING_CORRELATION = universe(1628)
+"""The correlations of the refusals of the common tree (#1648)."""
 
 UNKNOWN_FIELD = "task.duration_days"
 """A property a grid would ask for that ``Node`` does not have: the duration is ``task.duration``."""
@@ -166,6 +187,35 @@ def role_required() -> JsonObject:
     }
 
 
+def field_refused(pointer: str, code: str, correlation: str) -> JsonObject:
+    """Return a 422 that names one field by its motive, without a parameter."""
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": pointer, "code": code}],
+        "correlation_id": correlation,
+    }
+
+
+def without_hours(roles: list[str], correlation: str) -> JsonObject:
+    """Return the refusal of a line of labour that would leave the wiring without hours of work.
+
+    The roles whose calendars never meet, by their identifiers, and the task by its project, its
+    node and its label (WF-PLA-0010).
+    """
+    task: JsonObject = {
+        "project_id": fixture("project")["project_id"],
+        "node_id": mockwitness.node_id(N.WIRING),
+        "label": {row.number: row for row in mockcore.current()}[N.WIRING].label,
+    }
+    return {
+        "code": "TASK_WITHOUT_WORKING_HOURS",
+        "status": 422,
+        "params": {"resource_role_ids": cast("list[JsonValue]", roles), "tasks": [task]},
+        "correlation_id": correlation,
+    }
+
+
 def next_state_without_code() -> JsonObject:
     """Return the next state of the offer, its reference designated before its code."""
     return {
@@ -190,7 +240,12 @@ def _reference() -> str:
 
 def examples() -> dict[str, JsonObject]:
     """Return the refusals of a state, those of the catalogue and the shared answers, by file."""
-    return {**_state_examples(), **_catalogue_examples(), **_shared_examples()}
+    return {
+        **_state_examples(),
+        **_catalogue_examples(),
+        **_shared_examples(),
+        **_tree_examples(),
+    }
 
 
 def _shared_examples() -> dict[str, JsonObject]:
@@ -303,5 +358,64 @@ def _catalogue_examples() -> dict[str, JsonObject]:
             f"Le rôle du « {wiring} », ligne de main-d'œuvre, retiré : une ligne de main-d'œuvre "
             f"porte un rôle, refusé sur son champ ; rien n'est écrit (WF-DEV-0020).",
             role_required(),
+        ),
+    }
+
+
+def _tree_examples() -> dict[str, JsonObject]:
+    rows = {row.number: row for row in mockcore.current()}
+    wiring, line, blocks = rows[N.WIRING].label, rows[N.LABOUR].label, rows[N.BLOCKS].label
+    supposed = (
+        "Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi au "
+        "jeudi : les calendriers sont supposés ici autres"
+    )
+    return {
+        "node_create_without_hours.json": mocktext.example(
+            f"Une ligne du monteur câbleur créée sous le « {wiring} », qui porte une ligne de "
+            f"l'ingénieur : leurs calendriers n'auraient aucun jour en commun, et la tâche aucune "
+            f"heure travaillée. Refusée, les deux rôles et la tâche nommés ; rien n'est créé "
+            f"(WF-PLA-0010). {supposed}.",
+            without_hours([ENGINEER, CABLE_FITTER], CREATE_HOURS_CORRELATION),
+        ),
+        "estimate_line_without_hours.json": mocktext.example(
+            f"Le rôle du « {line} », seule ligne de main-d'œuvre du « {wiring} », passé au "
+            f"monteur câbleur, dont le calendrier n'aurait aucune heure dans la semaine : refusé, "
+            f"le rôle et la tâche nommés ; rien n'est écrit (WF-PLA-0010). {supposed}.",
+            without_hours([CABLE_FITTER], ROLE_HOURS_CORRELATION),
+        ),
+        "node_create_field_not_accepted.json": mocktext.example(
+            f"Une ligne de l'ingénieur créée sous le « {wiring} » avec un débours unitaire : une "
+            f"ligne de main-d'œuvre n'en porte pas, refusée sur ce champ ; rien n'est créé "
+            f"(WF-DEV-0020).",
+            field_refused(
+                "/estimate_line/unit_disbursement", "FIELD_NOT_ACCEPTED", CREATE_FIELD_CORRELATION
+            ),
+        ),
+        "task_milestone_duration_refused.json": mocktext.example(
+            f"Une durée envoyée pour la « {rows[N.FACTORY_ACCEPTANCE].label} », un jalon, qui "
+            f"n'en a pas à saisir : refusée sur son champ, que le nœud n'accepte pas ; rien n'est "
+            f"écrit (WF-PLA-0050).",
+            field_refused("/duration", "FIELD_NOT_ACCEPTED", MILESTONE_CORRELATION),
+        ),
+        "estimate_line_field_not_accepted.json": mocktext.example(
+            f"Un débours unitaire envoyé pour le « {line} », ligne de main-d'œuvre, qui n'en "
+            f"porte pas : refusé sur son champ, que la ligne n'accepte pas (editable_fields) ; "
+            f"rien n'est écrit (WF-DEV-0020).",
+            field_refused("/unit_disbursement", "FIELD_NOT_ACCEPTED", LINE_FIELD_CORRELATION),
+        ),
+        "estimate_line_provision_reserved.json": mocktext.example(
+            f"Les « {blocks} » passés dans la catégorie « {labels()[PROVISIONS]} », de type "
+            f"provision pour risques : seule la déclaration d'un risque crée une ligne de "
+            f"provision ; refusé sur son champ, rien n'est écrit (WF-DEV-0020, WF-RIS-0010).",
+            field_refused(
+                "/cost_category_id", "PROVISION_CATEGORY_RESERVED", PROVISION_CORRELATION
+            ),
+        ),
+        "remaining_completed_refused.json": mocktext.example(
+            f"L'« {rows[N.STUDIES_LINE].label} », ligne des « {rows[N.DETAILED_STUDIES].label} », "
+            f"terminées, réestimée : les lignes d'une tâche terminée ne se modifient pas ; refusé "
+            f"par la condition que sa remaining_entry dit manquer, rien n'est écrit (WF-RAE-0040, "
+            f"WF-IHM-0090).",
+            state_refused("task_not_completed", REMAINING_CORRELATION),
         ),
     }

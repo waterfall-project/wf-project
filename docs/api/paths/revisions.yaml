@@ -845,10 +845,9 @@
       une borne haute inférieure à la basse ou une fin antérieure au début par
       `VALUE_OUT_OF_RANGE`, `fields` sur le paramètre (README). Les prédécesseurs, une liste de
       liaisons, ne se filtrent pas ; le libellé se cherche (`search`). Le filtre par lot ou par
-      poste
-      (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au lot
-      ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que seule
-      la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
+      poste (`work_package_id`, `order_item_id`) retient le sous-arbre de la tâche rattachée au
+      lot ou au poste : le lotissement sert de grille de lecture par ce seul rattachement, que
+      seule la structure principale porte (WF-PLA-0170). `kinds` n'est pas un filtre : il choisit ce
       que la grille rend — le planning ne rend pas les lignes —, et les totaux ne changent
       pas avec lui.
 
@@ -1096,8 +1095,8 @@
           paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
           `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le
           parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la
-          ligne n'accepte pas
-          (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une catégorie qui n'est pas
+          ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une
+          catégorie qui n'est pas
           celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`,
           `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une
           ligne sans rôle (`VALUE_REQUIRED`), une catégorie de main-d'œuvre sans rôle
@@ -1122,6 +1121,8 @@
               non_working_day: { $ref: ../../../fixtures/api/node_create_non_working_day.json }
               line_category_mismatch:
                 $ref: ../../../fixtures/api/estimate_line_category_mismatch.json
+              without_hours: { $ref: ../../../fixtures/api/node_create_without_hours.json }
+              field_not_accepted: { $ref: ../../../fixtures/api/node_create_field_not_accepted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1257,8 +1258,7 @@
       Lue à la demande, quand l'utilisateur tente de saisir une valeur que le serveur
       calcule — ainsi la catégorie d'une ligne de main-d'œuvre, tirée de son rôle
       (`labour_category`) — : les règles qui la calculent, et les lignes dont elle est tirée,
-      nommées par
-      leur numéro et leur libellé, que la recherche ou les filtres de la grille les
+      nommées par leur numéro et leur libellé, que la recherche ou les filtres de la grille les
       retiennent ou non. Une tentative de saisie sur une valeur calculée est refusée en
       nommant ce dont elle dépend (WF-IHM-0030) ; les subordonnées d'une récapitulative
       sont ses subordonnées directes (WF-PLA-0040). Un champ que le serveur ne calcule pas
@@ -1396,6 +1396,8 @@
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
               summary_date_refused: { $ref: ../../../fixtures/api/task_summary_date_refused.json }
+              milestone_duration_refused:
+                $ref: ../../../fixtures/api/task_milestone_duration_refused.json
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
               non_working_day: { $ref: ../../../fixtures/api/task_date_non_working_day.json }
               hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
@@ -1490,6 +1492,9 @@
               subproject_has_actual_costs: { $ref: ../../../fixtures/api/estimate_line_subproject_has_actual_costs.json }
               rate_missing: { $ref: ../../../fixtures/api/estimate_line_rate_missing.json }
               role_required: { $ref: ../../../fixtures/api/estimate_line_role_required.json }
+              without_hours: { $ref: ../../../fixtures/api/estimate_line_without_hours.json }
+              field_not_accepted: { $ref: ../../../fixtures/api/estimate_line_field_not_accepted.json }
+              provision_reserved: { $ref: ../../../fixtures/api/estimate_line_provision_reserved.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1611,8 +1616,8 @@
           `completed`, que la saisie de son reste à engager termine (WF-RAE-0040) ;
           `task_not_milestone`, un jalon envoyé à `started`, qui ne passe pas par l'état
           démarré (WF-PLA-0050) ; `completed_milestone`, `not_started` envoyé pour une tâche qui
-          n'est
-          pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les conditions
+          n'est pas un jalon terminé (`reopen_not_started_refused`, WF-RAE-0030) —, puis les
+          conditions
           de la saisie du reste à engager (`StructureCommand.edit_remaining`) :
           `project_in_progress`, `no_background_task_running`.
         content:
@@ -1678,7 +1683,7 @@
           La ligne n'accepte pas la réestimation, rien n'étant écrit :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première des
           conditions que sa `remaining_entry` dit manquer — `task_not_completed`, une ligne d'une
-          tâche terminée (WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le
+          tâche terminée (`completed_refused`, WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le
           montant est celui que son risque calcule (`remaining_provision_refused`, WF-RIS-0010,
           WF-RAE-0010) —, ou un traitement de fond qui court sur la révision,
           `no_background_task_running`.
@@ -1687,6 +1692,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               provision_refused: { $ref: ../../../fixtures/api/remaining_provision_refused.json }
+              completed_refused: { $ref: ../../../fixtures/api/remaining_completed_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -1838,8 +1844,7 @@
           `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` et
           `order_item_tasks` nommant la tâche du lot et celles des postes par leur nœud et leur
           libellé, comme l'échec d'une fusion (`NodeMove`, WF-IHM-0080). Ou une ligne de
-          main-d'œuvre déplacée
-          change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
+          main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
           heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
           (WF-PLA-0010). Ou un nœud après lequel se placer qui n'est pas un frère sous le parent
@@ -1982,7 +1987,17 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La structure n'accepte plus la saisie de sa grille, rien n'étant écrit :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition que sa
+          commande dit manquer (`StructureCommand`) — `revision_draft` sur une révision marquée,
+          `no_background_task_running` pendant un traitement de fond qui court sur la révision
+          (WF-IHM-0050, WF-IHM-0090). Le refus d'une ligne du bloc n'est pas un 409 : elle est
+          rendue dans `rejected`, avec son motif (`PasteRejection`).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '412':
         description: >-
           Le compteur envoyé est périmé, ou la structure a changé depuis l'aperçu, quel que soit le

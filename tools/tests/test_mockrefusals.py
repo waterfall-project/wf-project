@@ -248,3 +248,61 @@ def test_an_entry_and_a_marking_without_a_rate_are_refused_by_naming_the_categor
     assert role["fields"] == [{"pointer": "/resource_role_id", "code": "RESOURCE_ROLE_REQUIRED"}]
     cited = _cited("updateEstimateLine", "422")
     assert {"estimate_line_rate_missing", "estimate_line_role_required"} <= set(cited)
+
+
+# --- The refusals of the common tree declared without an example (F-17, #1648) ----------------
+
+
+def _node(number: int) -> Entry:
+    [node] = [each for each in _core() if each["node_id"] == mockrefusals.universe(number)]
+    return node
+
+
+def test_a_field_a_node_does_not_accept_is_refused_on_it_as_the_node_says() -> None:
+    milestone, labour = _node(556), _node(553)
+    assert milestone["task"]["is_milestone"]
+    assert "task.duration" not in milestone["editable_fields"]
+    assert "estimate_line.unit_disbursement" not in labour["editable_fields"]
+    for operation, name, pointer in (
+        ("createNode", "node_create_field_not_accepted", "/estimate_line/unit_disbursement"),
+        ("updateTaskFacet", "task_milestone_duration_refused", "/duration"),
+        ("updateEstimateLine", "estimate_line_field_not_accepted", "/unit_disbursement"),
+    ):
+        refused = fixture(name)
+        assert refused["fields"] == [{"pointer": pointer, "code": "FIELD_NOT_ACCEPTED"}], name
+        assert name in _cited(operation, "422"), name
+    reserved = fixture("estimate_line_provision_reserved")
+    assert reserved["fields"] == [
+        {"pointer": "/cost_category_id", "code": "PROVISION_CATEGORY_RESERVED"}
+    ]
+    assert "estimate_line_provision_reserved" in _cited("updateEstimateLine", "422")
+
+
+def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_task() -> None:
+    wiring = _node(552)
+    for operation, name, roles in (
+        ("createNode", "node_create_without_hours", [451, 454]),
+        ("updateEstimateLine", "estimate_line_without_hours", [454]),
+    ):
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == (422, "TASK_WITHOUT_WORKING_HOURS"), name
+        assert refused["params"] == {
+            "resource_role_ids": [mockrefusals.universe(each) for each in roles],
+            "tasks": [
+                {
+                    "project_id": fixture("project")["project_id"],
+                    "node_id": wiring["node_id"],
+                    "label": wiring["task"]["label"],
+                }
+            ],
+        }, name
+        assert name in _cited(operation, "422"), name
+
+
+def test_a_line_of_a_completed_task_re_estimated_is_refused_by_the_condition_it_names() -> None:
+    line = _node(527)
+    assert line["estimate_line"]["remaining_entry"]["missing_conditions"] == ["task_not_completed"]
+    refused = fixture("remaining_completed_refused")
+    assert refused["params"] == {"missing_condition": "task_not_completed"}
+    assert "remaining_completed_refused" in _cited("setLineRemaining", "409")
+    assert "description" in _operations()["applyPaste"]["responses"]["409"]

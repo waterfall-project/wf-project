@@ -9688,7 +9688,26 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   lectures, les seules opérations sans corps qui le déclaraient. Réécrit : EP-02/L4 (« refusée
   (400) »).
 
-**Corrélations** 1610 à 1621.
+- **Les refus de l'arbre commun sans exemple** (F-17, #1648). Engendrés : une ligne de
+  main-d'œuvre qui laisserait le « Câblage des armoires » sans heure travaillée, créée
+  (`node_create_without_hours`) ou passée à un autre rôle (`estimate_line_without_hours`), les
+  calendriers supposés autres, comme `import_estimate_task_without_hours` le fait — ceux du témoin
+  se recoupent tous ; un champ que le nœud n'accepte pas, sur `createNode`, `updateTaskFacet` — la
+  durée d'un jalon — et `updateEstimateLine` (`node_create_field_not_accepted`,
+  `task_milestone_duration_refused`, `estimate_line_field_not_accepted`) ; une catégorie de
+  provision donnée à une ligne saisie (`estimate_line_provision_reserved`) ; une ligne d'une tâche
+  terminée réestimée (`remaining_completed_refused`). Le 409 d'`applyPaste` est décrit : la
+  commande de la structure, une ligne refusée du bloc restant dans `rejected`. `COMPUTED_VALUE`
+  était déjà nommé dans le 422 d'`updateEstimateLine`.
+- **Les mineurs des fichiers touchés.** #1646 : les lignes orphelines du repli à 100 colonnes de
+  `paths/revisions.yaml`. #1647 : le test de `nodes_bounds_inverted` liste les opérations qui le
+  citent, l'en-tête de `test_mockbreakdown.py` ne compte plus ses tests, la docstring de
+  `mockcore.dependencies` est refluée. #1654 : le test des rôles prédéfinis dit ce qu'il couvre de
+  la Vérif de WF-ADM-0010-A et où le reste est éprouvé. Les autres refus du lot US-0702/L2 (#1611)
+  — D-03, E-05, E-12 à E-14, F-03, F-04, F-11, H-08, I-06, I-17, A-05, C-01, et le compteur des
+  cinq écritures — attendent ce lot.
+
+**Corrélations** 1610 à 1628.
 
 ## Collage et annulation
 
