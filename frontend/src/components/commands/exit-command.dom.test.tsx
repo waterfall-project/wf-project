@@ -55,8 +55,20 @@ function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
 }
 
 /** The exits of a project of the contract, in French. */
-function exitsOf(name: string) {
+function exitsOf(name: string, options: { marking?: boolean } = {}) {
   const project = example(name) as Project;
+  if (options.marking) {
+    // While a marking runs, no exit is available (WF-CYC-0080): only the offers change.
+    project.available_commands = project.available_commands.map((offer) =>
+      offer.command === "complete" || offer.command === "abandon"
+        ? {
+            ...offer,
+            is_available: false,
+            missing_conditions: ["no_background_task_running" as const],
+          }
+        : offer,
+    );
+  }
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <main>
@@ -260,15 +272,19 @@ describe("the exits of the lifecycle of a project", () => {
       expect(status).toBeEmptyDOMElement();
     }
 
-    // The page read again: the project is completed meanwhile, and lists no exit. The exit
-    // withdrawn hides its form at once, but the confirmation is closed by an effect (`withdrawn` → `onClose`), a commit later:
-    // waited for, not assumed (one failure under a load of 7, #315).
-    view.rerender(exitsOf("project_completed"));
+    // The page read again: a marking is running, so the three exits of the project stay listed but
+    // name `no_background_task_running`. The confirmation closes by an effect (`withdrawn` ->
+    // `onClose`), a commit later: waited for, not assumed (one failure under a load of 7, #315).
+    view.rerender(exitsOf("project", { marking: true }));
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });
-    // No exit is listed, so none keeps a refusal to say.
-    expect(screen.queryByRole("button", { name: "Terminer le projet" })).toBeNull();
+    const complete = exit("Terminer le projet");
+    expect(complete).toHaveAttribute("aria-disabled", "true");
+    expect(complete).toHaveAttribute("aria-expanded", "false");
+    expect(complete).toHaveFocus();
+    // The alert of the refusal is the one of the exit the user confirmed, and it stays.
+    expect(screen.getByRole("alert")).toHaveTextContent("Modernisation du poste de commande");
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {
