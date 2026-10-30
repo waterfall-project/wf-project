@@ -28,7 +28,7 @@ export function estimatedRevision(
 }
 
 /**
- * Whether a deletion lacks, `project_not_terminal` aside, the passing of the estimate lines that bear
+ * Whether a deletion lacks the passing of the estimate lines that bear
  * its sub-project alone — which the estimate lifts. A citation by a marked revision or actual costs,
  * which no line passed lifts, lead nowhere.
  */

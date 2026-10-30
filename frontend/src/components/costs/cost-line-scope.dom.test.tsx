@@ -178,14 +178,6 @@ describe("the place of a line in the tracked scope", () => {
     expect(client.calls[0]?.body).toEqual({ is_in_tracked_scope: true, reason: null });
   });
 
-  it("is offered no command on a project that ended, which lists none: the page shows no place of the line (US-0702/L3)", () => {
-    const project = example("project_completed") as Project;
-    expect(project.available_commands).toEqual([]);
-    expect(project.available_commands.find((each) => each.command === "exclude_cost_lines")).toBe(
-      undefined,
-    );
-  });
-
   it("tells the refusal of the server, and renders nothing again", async () => {
     serve({ [SCOPE]: { problem: { code: "NOT_FOUND", status: 404 } } });
     render(

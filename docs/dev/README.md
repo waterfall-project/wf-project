@@ -473,51 +473,52 @@ ligne, la modification et la suppression comme la ligne les liste (`Subproject.a
 EP-14/L44e) — absente, rien ; indisponible, présentée `aria-disabled`, décrite par ses conditions, et
 un appui les dit dans la région de la liste (`UnavailableCellCommand`) : un projet clos ne liste
 plus aucune commande, ni la sienne ni celles de ses lignes (US-0702/L3), et l'écran n'en présente
-aucune ; le refus d'un appel direct, `project_not_terminal`, reste au serveur (WF-IHM-0090). La création et la modification ouvrent le formulaire du
-référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`,
-`fields[]`) dit au champ, son porteur nommé par le libellé que le refus donne
+aucune ; le refus d'un appel direct, `project_not_terminal`, reste au serveur (WF-IHM-0090). La
+création et la modification ouvrent le formulaire du référentiel (`ReferenceForm`), le code et le
+libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`, `fields[]`) dit au champ, son porteur
+nommé par le libellé que le refus donne
 (`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
 par le serveur, 409 `STATE_FORBIDS_OPERATION` nommant la première condition qui manque, dit au-dessus
 de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée cite
 (`subproject_not_cited`, §4.4.1), auquel des coûts réels sont imputés
 (`subproject_without_actual_costs`, WF-PRJ-0050) ou que portent des lignes de devis de la révision en
 cours (`subproject_without_estimate_lines`, EP-14/L42q) ; l'écran n'en déduit rien de
-`has_actual_costs`. Lue indisponible faute de cette seule dernière condition, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
-cours filtré sur le sous-projet (`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la
-liste avec ses conditions ; il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune
-ligne déplacée ne lève. Il atteint les lignes de la structure principale, jamais celles d'une autre
-structure, la structure propre d'un risque.
-Les lignes ne sont nommées une à une que lorsque le serveur refuse une suppression lue disponible
-(`params.estimate_lines`) : chacune par son numéro dans sa structure, tel que la grille le montre, et
-son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile,
-hors de l'alerte, qui la lirait d'un trait, et décrite par sa phrase (`LINES_IN_SENTENCE`,
-`OutcomeNotice`, #765), et le refus rappelle qu'une ligne de provision change de
-sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une ligne
-par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas (`structure_label`,
-demandé dans #764). Les
-contributeurs, comme le projet liste `manage_contributors` (`contributor-commands.tsx`), se modifient
-en une liste entière dans un dialogue (`setContributors`) : la qualité de chacun, son retrait, et
-l'inscription, une à une, des propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070),
-chacune avec le nœud et les rôles qui la font proposer (`org_node_label`, `resource_role_labels`),
-inscrite active comme le serveur le dit (`is_active`), rien n'étant écrit avant l'enregistrement ; une
-liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
-(`/contributors/<n>/…`) — un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à la
-ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
-lecture entière, avec son compteur : quand la grille lit la liste filtrée, la page la relit entière
-pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
-ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
-compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
-l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le
-formulaire, la confirmation ou le dialogue d'où elle est partie, jamais un autre ouvert depuis
-(compteur d'ouvertures, `key`, #672). La commande qui ouvre une modification attend, inactive,
-`aria-busy` et décrite par « Enregistrement en cours… », la réponse d'une écriture du dialogue fermé,
-quelle qu'elle soit, pour que le dialogue s'ouvre sur la version qu'elle apporte (#661, #734) : celle
-d'un sous-projet tant que la modification de ce sous-projet est en route, les autres lignes restant
-offertes (`onWriting` de `ReferenceForm`, `writing` de `SubprojectCommands`, la description cachée
-mais pour un lecteur d'écran dans la cellule, son titre la disant à l'œil) ; celle des contributeurs
-tant que la liste s'écrit — le compteur d'ouvertures y reste en garde-fou. Les pièces communes du
-référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
-les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
+`has_actual_costs`. Lue indisponible faute de cette seule dernière condition, la suppression mène de
+plus, à une session qui lit le devis, au devis de la révision en cours filtré sur le sous-projet
+(`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la liste avec ses conditions ;
+il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune ligne déplacée ne lève.
+Il atteint les lignes de la structure principale, jamais celles d'une autre structure, la structure
+propre d'un risque. Les lignes ne sont nommées une à une que lorsque le serveur refuse une
+suppression lue disponible (`params.estimate_lines`) : chacune par son numéro dans sa structure, tel
+que la grille le montre, et son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà,
+une liste nommée qui défile, hors de l'alerte, qui la lirait d'un trait, et décrite par sa phrase
+(`LINES_IN_SENTENCE`, `OutcomeNotice`, #765), et le refus rappelle qu'une ligne de provision change
+de sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une
+ligne par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas
+(`structure_label`, demandé dans #764). Les contributeurs, comme le projet liste
+`manage_contributors` (`contributor-commands.tsx`), se modifient en une liste entière dans un
+dialogue (`setContributors`) : la qualité de chacun, son retrait, et l'inscription, une à une, des
+propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070), chacune avec le nœud et les
+rôles qui la font proposer (`org_node_label`, `resource_role_labels`), inscrite active comme le
+serveur le dit (`is_active`), rien n'étant écrit avant l'enregistrement ; une liste sans chef de
+projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ (`/contributors/<n>/…`) —
+un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à la ligne du compte qu'il
+désigne, en le nommant. L'écriture part d'une lecture entière, avec son compteur : quand la grille
+lit la liste filtrée, la page la relit entière pour le dialogue, et la grille garde ce que sa
+lecture retient. Une modification répondue remplace sa ligne, une suppression l'ôte, une liste
+répondue remplace celle d'une lecture entière, tant que leur compteur est plus récent — face au faux
+back, tant que l'écran reste ouvert (`MockupNotice`, sous l'en-tête) ; une création n'ajoute aucune
+ligne, la page relue la range. Une réponse ne ferme que le formulaire, la confirmation ou le
+dialogue d'où elle est partie, jamais un autre ouvert depuis (compteur d'ouvertures, `key`, #672).
+La commande qui ouvre une modification attend, inactive, `aria-busy` et décrite par « Enregistrement
+en cours… », la réponse d'une écriture du dialogue fermé, quelle qu'elle soit, pour que le dialogue
+s'ouvre sur la version qu'elle apporte (#661, #734) : celle d'un sous-projet tant que la
+modification de ce sous-projet est en route, les autres lignes restant offertes (`onWriting` de
+`ReferenceForm`, `writing` de `SubprojectCommands`, la description cachée mais pour un lecteur
+d'écran dans la cellule, son titre la disant à l'œil) ; celle des contributeurs tant que la liste
+s'écrit — le compteur d'ouvertures y reste en garde-fou. Les pièces communes du référentiel
+(`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont les leurs,
+sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
 
 ### La création et la modification du projet
 
