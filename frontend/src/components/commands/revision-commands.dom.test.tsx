@@ -166,7 +166,7 @@ describe("the abandon of the current revision", () => {
     expect(client.calls).toHaveLength(0);
   });
 
-  it("abandons the revision once confirmed, says so, and leaves its address for the revisions [WF-REV-0010-A]", async () => {
+  it("abandons the revision once confirmed, says so, and leaves its address for the revisions [WF-REV-0010-A] [WF-IHM-0110-A]", async () => {
     const client = serve({ [ABANDON]: { status: 204 } });
     show(commands());
     await userEvent.click(screen.getByRole("button", { name: "Abandonner la révision en cours" }));
@@ -290,7 +290,7 @@ describe("the designation of the reference", () => {
     );
   });
 
-  it("says what it fixes and that the project goes in progress, then designates and says the new state [WF-REV-0040-A]", async () => {
+  it("says what it fixes and that the project goes in progress, then designates and says the new state [WF-REV-0040-A] [WF-IHM-0110-A]", async () => {
     const client = serve({ [DESIGNATE]: { example: "reference_designated", status: 200 } });
     show(
       <ReferenceDesignation

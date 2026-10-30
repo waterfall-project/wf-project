@@ -122,7 +122,7 @@ describe("« Supprimer le risque »", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("asks a confirmation, deletes the risk, and leaves its detail for the address without it", async () => {
+  it("asks a confirmation, deletes the risk, and leaves its detail for the address without it [WF-IHM-0110-A]", async () => {
     const client = serve({ [DELETE]: { status: 204 } });
     render(detail(UNCITED));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));

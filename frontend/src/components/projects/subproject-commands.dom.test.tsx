@@ -424,7 +424,7 @@ describe("the creation and the modification of a sub-project", () => {
 });
 
 describe("the deletion of a sub-project", () => {
-  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing", async () => {
+  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing [WF-IHM-0110-A]", async () => {
     const client = serve();
     render(list(AVAILABLE, DELETABLE));
     const command = within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" });
