@@ -21,25 +21,6 @@ API = REPOSITORY / "docs" / "api"
 COMPONENTS = API / "components"
 FIXTURES = REPOSITORY / "fixtures" / "api"
 
-AWAITING_EXAMPLE = frozenset(
-    {
-        "MALFORMED_REQUEST",
-        "SESSION_REQUIRED",
-        "ACCOUNT_DEACTIVATED",
-        "ACCOUNT_NOT_ADMITTED",
-        "NOT_CONTRIBUTOR",
-        "FILE_TOO_LARGE",
-        "NUMBER_INVALID",
-        "DATE_INVALID",
-        "UNKNOWN_CALENDAR",
-        "WBS_ELEMENT_INVALID",
-        "AMBIGUOUS_TASK_LABEL",
-    }
-)
-"""Codes rendered by an operation that no example carries yet: the minor J-17 of the review, and
-two motives of an imported line, left after the freeze as minors (decision of the author of the
-2026-10-28) — the list shrinks, never grows."""
-
 
 def _catalogue(name: str, path: str) -> tuple[list[str], str]:
     """Return the values of an enumeration of the contract, and its description."""
@@ -89,11 +70,10 @@ def test_every_error_code_is_named_by_an_operation_or_a_schema() -> None:
     assert [code for code in codes if not _named(code, texts)] == []
 
 
-def test_every_error_code_is_carried_by_an_example_but_those_awaiting_one() -> None:
+def test_every_error_code_is_carried_by_an_example() -> None:
     codes, _ = _catalogue("ErrorCode", "common.yaml")
     carried = {code for text in _examples() for code in _codes(json.loads(text))}
-    assert {code for code in codes if code not in carried} == AWAITING_EXAMPLE
-    assert set(codes) >= AWAITING_EXAMPLE
+    assert [code for code in codes if code not in carried] == []
 
 
 def test_every_condition_is_said_by_its_description_and_named_beyond_it() -> None:

@@ -155,7 +155,38 @@ def test_the_project_manager_quality_is_refused_by_its_code_as_the_command_said_
     refused = fixture("project_update_not_manager")
     assert (refused["status"], refused["code"]) == (403, "NOT_PROJECT_MANAGER")
     assert refused["params"] == {"missing_condition": "is_project_manager"}
-    assert _cited("updateProject", "403") == ["project_update_not_manager"]
+    assert _cited("updateProject", "403") == [
+        "project_update_not_manager",
+        "project_update_not_contributor",
+    ]
+    not_contributor = fixture("project_update_not_contributor")
+    assert (not_contributor["status"], not_contributor["code"]) == (403, "NOT_CONTRIBUTOR")
+    assert not_contributor["params"] == {"missing_condition": "is_contributor"}
+
+
+def test_the_codes_the_catalogue_named_without_an_example_are_carried_by_their_operation() -> None:
+    # J-17: each code rendered by an operation is carried by an example that operation cites.
+    carried = {
+        "getMe": ("401", ["account_deactivated", "account_not_admitted"]),
+        "putMyAvatar": ("400", ["avatar_malformed"]),
+        "listAccessRoles": ("422", ["access_roles_number_invalid", "access_roles_date_invalid"]),
+        "createResourceRole": ("422", ["resource_role_calendar_unknown"]),
+    }
+    for operation, (status, names) in carried.items():
+        assert set(names) <= set(_cited(operation, status)), operation
+    assert "avatar_too_large" in _cited("putMyAvatar", "413")
+    shared = _shared()["Unauthorized"]["content"]["application/problem+json"]["examples"]
+    assert "session_required" in shared
+    codes = {
+        "import_actual_costs_wbs_invalid": "WBS_ELEMENT_INVALID",
+        "import_remaining_ambiguous_label": "AMBIGUOUS_TASK_LABEL",
+    }
+    served = _operations()["getImport"]["responses"]["200"]["content"]["application/json"]
+    cited = [each["$ref"] for each in served["examples"].values()]
+    for name, code in codes.items():
+        assert any(each.endswith(f"/{name}.json") for each in cited), name
+        [rejected] = fixture(name)["report"]["rejected"]
+        assert rejected["code"] == code
 
 
 @pytest.mark.requirement("WF-PRJ-0010-A")

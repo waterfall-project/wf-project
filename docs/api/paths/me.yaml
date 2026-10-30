@@ -33,7 +33,18 @@
               without_roles: { $ref: ../../../fixtures/api/me_without_roles.json }
               manager: { $ref: ../../../fixtures/api/me_manager.json }
               auditor: { $ref: ../../../fixtures/api/me_auditor.json }
-      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '401':
+        description: >-
+          Jeton absent, invalide ou expiré, comme la réponse commune `Unauthorized` le dit ; ou un
+          compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), ou que Waterfall n'admet pas
+          (`ACCOUNT_NOT_ADMITTED`), que le front distingue pour ne pas renvoyer à une connexion
+          qui bouclerait.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              deactivated: { $ref: ../../../fixtures/api/account_deactivated.json }
+              not_admitted: { $ref: ../../../fixtures/api/account_not_admitted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -155,9 +166,25 @@
     responses:
       '204':
         description: Avatar enregistré.
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '400':
+        description: >-
+          Un type annoncé autre que `image/png` ou `image/jpeg`, ou un corps vide :
+          `MALFORMED_REQUEST` ; l'avatar du compte n'est pas touché.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              empty_body: { $ref: ../../../fixtures/api/avatar_malformed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '413': { $ref: ../components/responses.yaml#/PayloadTooLarge }
+      '413':
+        description: >-
+          Image au-delà de `Installation.avatar_max_bytes` : `FILE_TOO_LARGE`, refusée avant
+          d'être lue (WF-ADM-0080, WF-CMP-0020).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              too_large: { $ref: ../../../fixtures/api/avatar_too_large.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

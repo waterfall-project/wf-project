@@ -221,6 +221,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_manager: { $ref: ../../../fixtures/api/project_update_not_manager.json }
+              not_contributor: { $ref: ../../../fixtures/api/project_update_not_contributor.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-

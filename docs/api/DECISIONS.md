@@ -5442,7 +5442,12 @@ pendant un marquage, un import, le traitement d'une survenance de risque ou une 
 manque que de `revision_draft`, comme `merge_structure` (hors de la dernière révision marquée d'un
 projet sans révision en cours, depuis EP-16/US-0640/L3). Le 409 de `generatePlanningSkeleton` est
 `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première qui manque ; une révision
-marquée ou un projet terminal restent des 403, comme toute saisie. Ni différentiel ni devis propre
+marquée ou un projet terminal restent des 403, comme toute saisie. *Remplacé par US-0702/L1
+(#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une révision marquée —
+toute révision d'un projet terminal l'est — refuse le squelette par 409 `STATE_FORBIDS_OPERATION`,
+`revision_draft`, la seule condition que `generate_skeleton` nomme alors, comme toute saisie
+(`skeleton_marked_refused`) ; plus aucun état n'est un 403. La phrase est gardée pour l'histoire.*
+Ni différentiel ni devis propre
 d'un risque : la commande est de la révision, et l'opération, qui ne nomme aucune structure,
 engendre sur la principale. Les révisions des huit exemples écrits à la main qui listent
 `edit_planning` listent la commande : indisponible dans les sept qui portent les tâches du témoin,
@@ -5455,9 +5460,6 @@ vise pas ; la permission du paramétrage du projet (`update`, `project_settings.
 chefs de projet (WF-PRJ-0060), au motif que le squelette naît du lotissement — il écrit des tâches
 dans le planning de la révision, comme une saisie de la grille, et la conception d'EP-14 l'offre
 dans la grille de planning vide, à qui peut y saisir (relecture 1).
-*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une révision marquée — toute révision d'un projet terminal l'est — refuse le squelette par 409
-`STATE_FORBIDS_OPERATION`, `revision_draft`, la seule condition que `generate_skeleton` nomme alors,
-comme toute saisie (`skeleton_marked_refused`) ; plus aucun état n'est un 403. Le texte ci-dessus est gardé pour l'histoire.*
 
 **L'état où le squelette est proposé a ses exemples** (relecture 1) : `revision_without_tasks`
 (`getRevision`), la révision ouverte aujourd'hui sur le projet créé à 14 h 05, « Rénovation du poste
@@ -5648,16 +5650,17 @@ engendrées.
 supprime physiquement. »). Le cadrage disait qu'une chronologie citée par une révision marquée
 serait marquée supprimée ; la spécification à jour depuis #708 la supprime physiquement, et la
 conclusion ne change pas : rien ne la refuse. La conception d'EP-14 est corrigée de même. Un projet
-terminal reste un 403, comme toute écriture. `createTimeline` déclare son 422 — un nom vide ou trop
+terminal reste un 403, comme toute écriture. *Remplacé par US-0702/L1 (#1610), sur la décision de
+l'auteur du 2026-10-28 (D-05, J-01, J-02) : un projet terminal refuse la création et la suppression
+d'une chronologie par 409 `STATE_FORBIDS_OPERATION`, `project_not_terminal`, comme
+`manage_timelines` le dit d'avance et comme toute autre écriture du projet
+(`timeline_create_terminal`, `timeline_delete_terminal`) ; la suppression n'a pas d'autre 409. La
+phrase est gardée pour l'histoire.* `createTimeline` déclare son 422 — un nom vide ou trop
 long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/label` — et dit le nom non unique, la spécification
 ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALREADY_EXISTS`, que
 WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
 comité et un client par exemple. Exemple de succès `timeline_created`, engendré par `make mock-data`
 (`mockdata`) : « Réunion de chantier », chronologie 1002, sans inscription.
-*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : un projet terminal refuse la création et la suppression d'une chronologie par 409
-`STATE_FORBIDS_OPERATION`, `project_not_terminal`, comme `manage_timelines` le dit d'avance et
-comme toute autre écriture du projet (`timeline_create_terminal`, `timeline_delete_terminal`) ; la
-suppression n'a pas d'autre 409. Le texte ci-dessus est gardé pour l'histoire.*
 
 **Chaque élément d'une lecture du lotissement dit s'il est retenu** (#574 ; WF-IHM-0130 : « Toute
 table se filtre sur chacune de ses colonnes, et le filtre s'applique aux totaux qu'elle présente » ;
@@ -5767,7 +5770,11 @@ contredit pas les 403 des saisies de la révision, dont celui du squelette (EP-1
 terminal n'a pas de révision en cours, si bien que la déclaration y passe par le projet, qui porte
 alors `edit_risks` et `declare_risk` et nomme `project_not_terminal`, comme les imports qu'il porte
 refusent un projet terminal par leur 409 ; une saisie de la révision, elle, n'a plus de révision en
-cours où s'écrire, et reste un 403. Sur le projet,
+cours où s'écrire, et reste un 403. *Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur
+du 2026-10-28 (D-05, J-01, J-02) : une saisie de la révision sur une révision marquée — toute
+révision d'un projet terminal l'est — se refuse, elle aussi, par le 409 de sa condition,
+`revision_draft`, et non par un 403 : le 409 de `createRisk` et celui des saisies de la révision ne
+font plus qu'une règle. La phrase est gardée pour l'histoire.* Sur le projet,
 la structure jugée est celle de la révision que la déclaration créerait, sans tâche quand le projet
 n'a aucune révision marquée. Les révisions et les projets écrits à la main qui listent `edit_risks`
 listent la commande : indisponible sur la révision 103, sur le projet créé et sur l'offre en
@@ -5779,9 +5786,6 @@ commande, le formulaire lisant les totaux de la structure principale (`listNodes
 `totals.task_count`), que la première rédaction retenait — le front aurait déduit la règle de
 l'état, ce que L42p a écarté pour `update_provision` ; la condition sur `edit_risks`, qui aurait
 fermé la modification, le réexamen et la suppression d'un risque, qui n'en dépendent pas.
-*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une saisie de la révision sur une révision marquée — toute révision d'un projet terminal l'est —
-se refuse, elle aussi, par le 409 de sa condition, `revision_draft`, et non par un 403 : le 409 de
-`createRisk` et celui des saisies de la révision ne font plus qu'une règle. Le texte ci-dessus est gardé pour l'histoire.*
 
 **La ligne de provision ne porte pas de délai de paiement** (#733 ; WF-DEV-0020 : « un délai de
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
@@ -9623,9 +9627,17 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
 - **Le catalogue sans code mort** (J-03, J-11 ; WF-ARC-0110, WF-IHM-0090). Chaque code
   d'`ErrorCode` est nommé par une opération ou un schéma, et chaque valeur de `CommandCondition`
   dite par sa description et nommée par une opération, un schéma ou un exemple :
-  `tools/tests/test_contract_catalogue.py` le tient, et tient aussi la liste des codes qu'aucun
-  exemple ne porte encore — les mineurs J-17 et deux motifs d'une ligne importée, laissés après le
-  gel —, qui ne peut que raccourcir. Rendus : `NOT_PROJECT_MANAGER`, le 403 de qui n'est que
+  `tools/tests/test_contract_catalogue.py` le tient, et tient aussi que chaque code est porté par un
+  exemple, sans liste d'attente. Les onze codes rendus par une opération sans exemple — J-17 et les
+  deux motifs d'une ligne importée — ont le leur, engendré (`wftools.mockrefusals`), sous
+  l'opération qui le déclare : `SESSION_REQUIRED` (réponse commune `Unauthorized`),
+  `ACCOUNT_DEACTIVATED` et `ACCOUNT_NOT_ADMITTED` (`getMe`), `MALFORMED_REQUEST` et
+  `FILE_TOO_LARGE` (`putMyAvatar`, qui déclare ses deux réponses), `NOT_CONTRIBUTOR`
+  (`updateProject`), `NUMBER_INVALID` et `DATE_INVALID` (`listAccessRoles`), `UNKNOWN_CALENDAR`
+  (`createResourceRole`), `WBS_ELEMENT_INVALID` (`getImport`, variante de l'extraction d'avril,
+  l'élément « /SP-CAB ») et `AMBIGUOUS_TASK_LABEL` (`getImport`, un reste à engager dont une ligne
+  cite « Mise en service », libellé que portent deux tâches du témoin). Aucun code n'est retiré
+  pour cette raison. Rendus : `NOT_PROJECT_MANAGER`, le 403 de qui n'est que
   contributeur pour une commande réservée, `params.missing_condition` à `is_project_manager`
   (`project_update_not_manager`, le modèle d'EP-02/L7, enfin rattaché à une opération) ;
   `project_code_set`, que `getProjectNextState` nomme tant que le code manque
@@ -9633,7 +9645,9 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   `no_current_revision`, `project_not_terminal`, `project_in_progress`, `revision_draft` et
   `reference_revision_designated`, employés et désormais décrits. Retirés : `TASK_ALREADY_STARTED`
   et `TASK_COMPLETED`, doublons de `STATE_FORBIDS_OPERATION` sous la règle unique — le refus de
-  `deleteNode` sur une tâche démarrée ou terminée sera une condition (F-04, US-0702/L2, #1611) ;
+  `deleteNode` sur une tâche démarrée ou terminée sera une condition (F-04, US-0702/L2, #1611).
+  **Écart connu :** jusqu'à ce lot, `deleteNode` n'a donc aucun refus nommé pour une tâche démarrée
+  ou terminée ; l'écart est suivi par #1611 (F-04) et se referme à US-0702/L2. Retirés aussi :
   `PROJECT_CODE_REQUIRED`, que rien ne refuse, le passage à En cours étant automatique et sa
   condition nommée par `project_code_set` ; `at_least_one_estimate_line` et `hourly_rates_set`,
   qu'aucune commande ne nomme. Écarté : garder les codes d'état pour `deleteNode`, deux formes pour
@@ -9707,7 +9721,8 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   — D-03, E-05, E-12 à E-14, F-03, F-04, F-11, H-08, I-06, I-17, A-05, C-01, et le compteur des
   cinq écritures — attendent ce lot.
 
-**Corrélations** 1610 à 1628.
+**Corrélations** 1610 à 1637 ; les deux imports nouveaux, A30 et A31, et leurs tâches d'analyse,
+956 et 957.
 
 ## Collage et annulation
 

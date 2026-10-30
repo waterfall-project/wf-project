@@ -606,6 +606,7 @@
             examples:
               node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
               attachments: { $ref: ../../../fixtures/api/resource_role_attachments_refused.json }
+              calendar_unknown: { $ref: ../../../fixtures/api/resource_role_calendar_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

@@ -25,6 +25,7 @@ Unauthorized:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
       examples:
+        session_required: { $ref: ../../../fixtures/api/session_required.json }
         session_expired: { $ref: ../../../fixtures/api/session_expired.json }
         session_revoked: { $ref: ../../../fixtures/api/session_revoked.json }
 

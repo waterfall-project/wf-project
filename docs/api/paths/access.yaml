@@ -852,6 +852,8 @@
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/access_roles_bounds_inverted.json }
               period_inverted: { $ref: ../../../fixtures/api/access_roles_period_inverted.json }
+              number_invalid: { $ref: ../../../fixtures/api/access_roles_number_invalid.json }
+              date_invalid: { $ref: ../../../fixtures/api/access_roles_date_invalid.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:

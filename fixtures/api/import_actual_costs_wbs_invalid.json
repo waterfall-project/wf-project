@@ -1,0 +1,18 @@
+{
+  "summary": "Une variante de l'extraction d'avril : la ligne 5 porte l'élément d'OTP « /SP-CAB », sans rien avant la barre oblique, qui n'a pas la forme d'un code projet suivi d'un code de sous-projet : rejetée, l'élément nommé tel que le fichier le porte ; les lignes lues avant elle sont ajoutées (WF-CRE-0020, WF-INTF-0140, WF-INTF-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a30",
+    "kind": "actual_costs",
+    "filename": "couts-reels-2026-04.xlsx",
+    "structure_id": null,
+    "revision_id": null,
+    "period_from": "2026-04-01",
+    "period_to": "2026-04-30",
+    "status": "analysed",
+    "created_at": "2026-05-04T09:25:00Z",
+    "expires_at": "2026-05-05T09:26:00Z",
+    "report": {"format_version":null,"read_count":4,"unchanged_count":0,"rejected":[{"sheet":null,"row":5,"code":"WBS_ELEMENT_INVALID","params":{"wbs_element":"/SP-CAB"}}],"refusals":[],"differences":[{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"AV-2026-0388","document_item":null,"predecessor_label":null,"fields":[]},{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"FA-2026-0409","document_item":"10","predecessor_label":null,"fields":[]},{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"FA-2026-0412","document_item":"10","predecessor_label":null,"fields":[]}],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":["unknown_subproject"]},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000956","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-05-04T09:25:00Z","finished_at":"2026-05-04T09:26:00Z","problem":null,"result_url":null}
+  }
+}

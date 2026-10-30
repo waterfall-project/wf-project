@@ -45,15 +45,26 @@ the calendars supposed otherwise, those of the witness all meeting from Monday t
 ``task_milestone_duration_refused``); a category of provision given to a line entered; a line of a
 completed task re-estimated (``remaining_completed_refused``).
 
+And the refusals the catalogue named without an example, each carried by an operation that says it
+(US-0702/L1, J-17): the 401 of a request without a token, of a deactivated account and of an
+account not admitted (``session_required``, ``account_deactivated``, ``account_not_admitted``); the
+avatar sent empty or too large (``avatar_malformed``, ``avatar_too_large``); the project updated by
+who is not even a contributor (``project_update_not_contributor``); a bound of a reading that is
+no number, an instant that is no date, a calendar the reference lacks
+(``access_roles_number_invalid``, ``access_roles_date_invalid``,
+``resource_role_calendar_unknown``); and two motives of a line imported, its element of the work
+breakdown structure malformed and its task named by a label several tasks bear
+(``import_actual_costs_wbs_invalid``, ``import_remaining_ambiguous_label``).
+
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from wftools import mockcore, mocktext, mockwitness
-from wftools.mockids import universe
+from wftools import mockcore, mockexchanges, mocktext, mockwitness
+from wftools.mockids import hex_identifier, universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
 from wftools.mockwitness import (
@@ -93,6 +104,35 @@ CREATE_FIELD_CORRELATION, MILESTONE_CORRELATION = universe(1624), universe(1625)
 LINE_FIELD_CORRELATION, PROVISION_CORRELATION = universe(1626), universe(1627)
 REMAINING_CORRELATION = universe(1628)
 """The correlations of the refusals of the common tree (#1648)."""
+
+SESSION_CORRELATION, DEACTIVATED_CORRELATION, NOT_ADMITTED_CORRELATION = (
+    universe(1629),
+    universe(1630),
+    universe(1631),
+)
+MALFORMED_CORRELATION, TOO_LARGE_CORRELATION = universe(1632), universe(1633)
+CONTRIBUTOR_CORRELATION = universe(1634)
+NUMBER_CORRELATION, INSTANT_CORRELATION, CALENDAR_CORRELATION = (
+    universe(1635),
+    universe(1636),
+    universe(1637),
+)
+"""The correlations of the refusals the catalogue named without an example."""
+
+WBS_IMPORT, WBS_IMPORT_TASK = hex_identifier(0xA30), universe(956)
+WBS_INSTANTS = ("2026-05-04T09:25:00Z", "2026-05-04T09:26:00Z", "2026-05-05T09:26:00Z")
+LABEL_IMPORT, LABEL_IMPORT_TASK = hex_identifier(0xA31), universe(957)
+LABEL_INSTANTS = ("2026-06-03T10:40:05Z", "2026-06-03T10:41:00Z", "2026-06-04T10:41:00Z")
+"""The imports whose line is rejected for its element of the work breakdown structure and for an
+ambiguous label, the tasks that analysed them, and the instants of their opening, their analysis
+and their expiry: each import has its own, an instant naming one task."""
+
+MALFORMED_ELEMENT = "/SP-CAB"
+"""An element of the work breakdown structure with nothing before the slash (WF-CRE-0020)."""
+
+AMBIGUOUS_LABEL = "Mise en service"
+"""A label two tasks of the witness bear: the commissioning of the installation, and a task of the
+volume of the portfolio."""
 
 UNKNOWN_FIELD = "task.duration_days"
 """A property a grid would ask for that ``Node`` lacks: its duration is ``task.duration``."""
@@ -238,6 +278,68 @@ def _reference() -> str:
     return str(revision["version_name"])
 
 
+def problem(code: str, status: int, correlation: str) -> JsonObject:
+    """Return a refusal that says its code alone, without a parameter nor a field."""
+    return {"code": code, "status": status, "correlation_id": correlation}
+
+
+def _rejecting(
+    imported: JsonObject,
+    identifiers: tuple[str, str],
+    instants: tuple[str, str, str],
+    rejected: JsonObject,
+) -> None:
+    """Rewrite an import read of the witness: its own identifiers and instants, one line rejected.
+
+    The lines read are those it differs by, and the one rejected.
+    """
+    task = cast("dict[str, JsonValue]", imported["task"])
+    report = cast("dict[str, Any]", imported["report"])
+    imported["import_id"], task["task_id"] = identifiers
+    opened, analysed, expires = instants
+    imported["created_at"], task["submitted_at"] = opened, opened
+    task["finished_at"], imported["expires_at"] = analysed, expires
+    report["rejected"] = [rejected]
+    report["read_count"] = len(report["differences"]) + 1
+    report["unchanged_count"] = 0
+
+
+def import_wbs_invalid() -> JsonObject:
+    """Return the extraction of April whose line of another project is a malformed element."""
+    imported = mockexchanges.import_actual_costs_first()
+    report = cast("dict[str, Any]", imported["report"])
+    [outside] = report["rejected"]
+    rejected: JsonObject = {
+        "sheet": None,
+        "row": outside["row"],
+        "code": "WBS_ELEMENT_INVALID",
+        "params": {"wbs_element": MALFORMED_ELEMENT},
+    }
+    _rejecting(imported, (WBS_IMPORT, WBS_IMPORT_TASK), WBS_INSTANTS, rejected)
+    report["requires_confirmation_reasons"] = [
+        each for each in report["requires_confirmation_reasons"] if each != "lines_outside_project"
+    ]
+    return imported
+
+
+def import_ambiguous_label() -> JsonObject:
+    """Return a remaining to commit whose second line cites a task by a label two tasks bear."""
+    imported = mockexchanges.import_remaining_subproject_held()
+    tasks: list[JsonValue] = [
+        {"lineage_id": mockcore.lineage(row.number), "label": row.label}
+        for row in mockcore.current()
+        if row.label == AMBIGUOUS_LABEL
+    ]
+    rejected: JsonObject = {
+        "sheet": mockexchanges.tab_name(mockexchanges.TAB),
+        "row": mockexchanges.FIRST_ROW + 1,
+        "code": "AMBIGUOUS_TASK_LABEL",
+        "params": {"label": AMBIGUOUS_LABEL, "tasks": tasks},
+    }
+    _rejecting(imported, (LABEL_IMPORT, LABEL_IMPORT_TASK), LABEL_INSTANTS, rejected)
+    return imported
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the refusals of a state, those of the catalogue and the shared answers, by file."""
     return {
@@ -245,6 +347,7 @@ def examples() -> dict[str, JsonObject]:
         **_catalogue_examples(),
         **_shared_examples(),
         **_tree_examples(),
+        **_named_examples(),
     }
 
 
@@ -417,5 +520,86 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"par la condition que sa remaining_entry dit manquer, rien n'est écrit (WF-RAE-0040, "
             f"WF-IHM-0090).",
             state_refused("task_not_completed", REMAINING_CORRELATION),
+        ),
+    }
+
+
+def _april_row() -> int:
+    """Return the row of the line of the extraction of April the analysis rejected."""
+    report = cast("dict[str, Any]", mockexchanges.import_actual_costs_first()["report"])
+    return int(report["rejected"][0]["row"])
+
+
+def _named_examples() -> dict[str, JsonObject]:
+    avatar_mio = int(cast("int", fixture("installation")["avatar_max_bytes"])) // 2**20
+    tab = mockexchanges.tab_name(mockexchanges.TAB)
+    return {
+        "session_required.json": mocktext.example(
+            "Une requête de la liste des projets envoyée sans jeton d'accès : refusée avant toute "
+            "lecture, sans rien dire de ce qu'elle demandait ; le front mène à la connexion "
+            "(WF-SEC-0020).",
+            problem("SESSION_REQUIRED", 401, SESSION_CORRELATION),
+        ),
+        "account_deactivated.json": mocktext.example(
+            "Le compte d'un contributeur désactivé lit son compte avec un jeton encore valable : "
+            "refusé à chaque requête, ses sessions étant fermées ; le front ne le renvoie pas à "
+            "une connexion qui bouclerait (WF-ADM-0060, WF-SEC-0020).",
+            problem("ACCOUNT_DEACTIVATED", 401, DEACTIVATED_CORRELATION),
+        ),
+        "account_not_admitted.json": mocktext.example(
+            "Un compte local du fournisseur d'identité que Waterfall n'a pas créé, sans adresse, "
+            "lit son compte : il n'est pas admis, et ne l'est pas davantage à la requête "
+            "suivante ; le front ne le renvoie pas à une connexion qui bouclerait "
+            "(WF-ADM-0180, WF-SEC-0020).",
+            problem("ACCOUNT_NOT_ADMITTED", 401, NOT_ADMITTED_CORRELATION),
+        ),
+        "avatar_malformed.json": mocktext.example(
+            "Un avatar déposé avec un corps vide : refusé comme une requête mal formée, l'avatar "
+            "du compte reste celui qu'il était (WF-ADM-0080).",
+            problem("MALFORMED_REQUEST", 400, MALFORMED_CORRELATION),
+        ),
+        "avatar_too_large.json": mocktext.example(
+            f"Un avatar de plus de {avatar_mio} Mio déposé alors que l'installation borne les "
+            f"siens à {avatar_mio} Mio (avatar_max_bytes) : refusé avant d'être lu, l'avatar du "
+            f"compte reste celui qu'il était (WF-ADM-0080, WF-CMP-0020).",
+            problem("FILE_TOO_LARGE", 413, TOO_LARGE_CORRELATION),
+        ),
+        "project_update_not_contributor.json": mocktext.example(
+            "Le libellé du projet témoin modifié par un compte qui peut le consulter — il lit "
+            "tous les projets — sans en être contributeur : refusé, la qualité nommée, "
+            "is_contributor ; rien n'est écrit (WF-PRJ-0060, WF-ADM-0110).",
+            quality_refused("NOT_CONTRIBUTOR", "is_contributor", CONTRIBUTOR_CORRELATION),
+        ),
+        "access_roles_number_invalid.json": mocktext.example(
+            "Les rôles d'habilitation demandés avec holder_count_min=beaucoup : la borne n'est "
+            "pas un entier, désignée par /query/holder_count_min ; rien n'est lu (WF-IHM-0130).",
+            field_refused("/query/holder_count_min", "NUMBER_INVALID", NUMBER_CORRELATION),
+        ),
+        "access_roles_date_invalid.json": mocktext.example(
+            "Les rôles d'habilitation demandés avec created_at_from=hier : l'instant n'est pas "
+            "une date, désigné par /query/created_at_from ; rien n'est lu (WF-IHM-0130).",
+            field_refused("/query/created_at_from", "DATE_INVALID", INSTANT_CORRELATION),
+        ),
+        "resource_role_calendar_unknown.json": mocktext.example(
+            "Un rôle créé rattaché à un calendrier que le référentiel n'a pas : refusé sur "
+            "/calendar_id ; rien n'est écrit (WF-REF-0090).",
+            field_refused("/calendar_id", "UNKNOWN_CALENDAR", CALENDAR_CORRELATION),
+        ),
+        "import_actual_costs_wbs_invalid.json": mocktext.example(
+            f"Une variante de l'extraction d'avril : la ligne {_april_row()} porte l'élément "
+            f"d'OTP « {MALFORMED_ELEMENT} », sans rien avant la barre oblique, qui n'a pas la "
+            f"forme d'un code projet suivi d'un code de sous-projet : rejetée, l'élément nommé "
+            f"tel que le fichier le porte ; les lignes lues avant elle sont ajoutées "
+            f"(WF-CRE-0020, WF-INTF-0140, WF-INTF-0080).",
+            import_wbs_invalid(),
+        ),
+        "import_remaining_ambiguous_label.json": mocktext.example(
+            f"Une variante du reste à engager importé aujourd'hui : la ligne "
+            f"{mockexchanges.FIRST_ROW + 1} de l'onglet « {tab} » désigne sa tâche par « "
+            f"{AMBIGUOUS_LABEL} », que portent deux tâches — celle de l'installation et celle du "
+            f"volume du portefeuille — alors que l'onglet « Tâches » ne la connaît pas : rejetée, "
+            f"le libellé et les deux tâches nommés par leur lignée ; l'autre ligne change de "
+            f"sous-projet (WF-INTF-0080, WF-INTF-0120).",
+            import_ambiguous_label(),
         ),
     }
