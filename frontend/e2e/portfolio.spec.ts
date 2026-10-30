@@ -165,8 +165,8 @@ test("offers the period of the projects completed to the S-curve and the structu
     await page.goto(`${route}?states=completed&from=2025-01-01&to=2025-12-31`);
     const period = page.getByRole("form", { name: "Période et date de calcul" });
     await expect(period).toBeVisible();
-    await expect(period.getByLabel("Du")).toHaveValue("2025-01-01");
-    await expect(period.getByLabel("Au")).toHaveValue("2025-12-31");
+    await expect(period.getByLabel("Du", { exact: true })).toHaveValue("2025-01-01");
+    await expect(period.getByLabel("Au", { exact: true })).toHaveValue("2025-12-31");
   }
 });
 

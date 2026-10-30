@@ -261,7 +261,8 @@ function Signals({ signals }: { readonly signals: Report["signals"] }) {
 
 /**
  * The tasks the import completes, each with the date it takes: the date of the review the file
- * bears, which the analysis read (WF-INTF-0120, WF-INTF-0130), in the order received.
+ * bears, which the analysis read (WF-INTF-0120, WF-INTF-0130), in the order received. An import
+ * never leaves the date null (the contract); only a merge does, and it shows no date.
  */
 function CompletedTasks({ completed }: { readonly completed: Report["completed_tasks"] }) {
   const t = useTranslations("exchanges.report");
@@ -274,9 +275,7 @@ function CompletedTasks({ completed }: { readonly completed: Report["completed_t
           <TableRow key={task.lineage_id}>
             <TableCell className={CELL}>{task.label}</TableCell>
             <TableCell className={CELL}>
-              {task.completed_on == null
-                ? t("noDate")
-                : formatPlanningDate(task.completed_on, locale)}
+              {task.completed_on === null ? null : formatPlanningDate(task.completed_on, locale)}
             </TableCell>
           </TableRow>
         ))}

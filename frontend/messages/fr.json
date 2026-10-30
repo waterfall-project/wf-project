@@ -2665,7 +2665,12 @@
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",
     "horizon_task": "Tâche en cause : {task}.",
-    "taskName": "« {label} »"
+    "taskName": "« {label} »",
+    "unknown_value": "Valeur lue dans le fichier : « {value} ».",
+    "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",
+    "wbs_element": "Élément d’OTP lu : « {element} ».",
+    "project_code": "Code projet lu : « {code} ».",
+    "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}."
   },
   "permissions": {
     "users": {
@@ -3604,7 +3609,6 @@
       "completed": "{count, plural, one {# tâche terminée par l’import} other {# tâches terminées par l’import}}",
       "completedTable": "Tâches terminées par l’import",
       "completedOn": "Terminée le",
-      "noDate": "Date non fixée",
       "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
       "differencesTable": "Écarts avec les données existantes",
       "change": "Changement",

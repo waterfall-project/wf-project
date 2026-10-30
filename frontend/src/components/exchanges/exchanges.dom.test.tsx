@@ -421,7 +421,11 @@ describe("the report of an import", () => {
       within(rejected)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["LigneMotif", `4${sentence}`, `5${sentence}`]);
+    ).toEqual([
+      "LigneMotif",
+      `4${sentence} Autre ligne du fichier de même pièce et de même poste\u00a0: 5.`,
+      `5${sentence} Autre ligne du fichier de même pièce et de même poste\u00a0: 4.`,
+    ]);
     const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
     expect(differences).toHaveTextContent("Ligne de coût réelFA-2026-0412, poste 10");
   });
@@ -447,7 +451,11 @@ describe("the report of an import", () => {
       within(rejected)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["LigneMotif", "3Tâche inconnue.", "5Rôle de ressource inconnu."]);
+    ).toEqual([
+      "LigneMotif",
+      "3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
+      "5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
+    ]);
 
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
@@ -744,6 +752,27 @@ describe("the report of an import", () => {
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "3Ce libellé est porté par plusieurs tâches",
     );
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
+    );
+  });
+
+  it("names the value no object has, in the motive of the line rejected [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_analysed") as Import));
+    const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
+    expect(rejected).toHaveTextContent(
+      "Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ».",
+    );
+    expect(rejected).toHaveTextContent("Valeur lue dans le fichier : « Soudeur (SOUD) ».");
+  });
+
+  it("names the rank of the other line of the same document and item, in the motive of each line rejected [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_duplicate_line") as Import));
+    const rows = within(screen.getByRole("table", { name: "Lignes rejetées" })).getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("Autre ligne du fichier de même pièce et de même poste : 5.");
+    expect(rows[2]).toHaveTextContent("Autre ligne du fichier de même pièce et de même poste : 4.");
   });
 
   it("names the element of work breakdown a line of actual cost is rejected for [WF-CRE-0020-A]", () => {
@@ -751,6 +780,9 @@ describe("the report of an import", () => {
     open(report(example("import_actual_costs_wbs_invalid") as Import));
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "5L’élément d’OTP de la ligne n’a pas la forme attendue",
+    );
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "Élément d’OTP lu : « /SP-CAB ».",
     );
   });
 
@@ -778,24 +810,16 @@ describe("the report of an import", () => {
     );
   });
 
-  it("names the tasks the import completes with the date of the review the file bears [WF-INTF-0120-A] [WF-INTF-0130-A]", () => {
-    const entry = example("import_remaining_analysed") as Import & { report: Report };
-    const completed = [
-      {
-        lineage_id: "01926f3a-7c00-7000-8000-000000000665",
-        label: "Mise en service",
-        completed_on: "2026-05-29",
-      },
-      { lineage_id: "01926f3a-7c00-7000-8000-000000000666", label: "Essais", completed_on: null },
-    ] satisfies Report["completed_tasks"];
+  it("names the tasks the import completes with the date of the review the file bears, not the day of the import [WF-INTF-0120-A] [WF-INTF-0130-A]", () => {
+    const entry = example("import_remaining_completed_tasks") as Import;
     serve({});
-    open(report({ ...entry, report: { ...entry.report, completed_tasks: completed } }));
+    open(report(entry));
     const table = screen.getByRole("table", { name: "Tâches terminées par l’import" });
     expect(
       within(table)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["TâcheTerminée le", "Mise en service29 mai 2026", "EssaisDate non fixée"]);
+    ).toEqual(["TâcheTerminée le", "Mise en service1 juin 2026", "Revue 1.2.111 juin 2026"]);
   });
 });
 
