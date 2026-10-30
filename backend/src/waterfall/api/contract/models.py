@@ -4082,7 +4082,7 @@ class NodesWritten(ContractModel):
     nodes: Annotated[
         list[Node],
         Field(
-            description="Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud."
+            description="Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; après une suppression, les seules lignes de provision qu'elle déplace sous leur tâche nouvelle, vide quand elle n'en déplace aucune, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud."
         ),
     ]
     ancestors: Annotated[

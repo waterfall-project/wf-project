@@ -9781,7 +9781,10 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   WF-RIS-0010 désigne, rendues dans `nodes` ; la suppression qui laisserait sans tâche une
   structure principale qui en porte est refusée par `at_least_one_task`, la condition qui dit déjà
   qu'une ligne de provision doit avoir une tâche où se ranger, `params.risks` nommant les risques
-  (`ProblemRisk` ; `node_delete_last_provision_task_refused`, variante contrefactuelle). Écartés :
+  (`ProblemRisk` ; `node_delete_last_provision_task_refused`, variante contrefactuelle). Le déplacement a son exemple
+  engendré, `node_deleted_provision_moved` (L-11) : variante contrefactuelle du témoin, dont la seule
+  tâche porteuse de provision est démarrée, où une tâche non démarrée la porte seule ; `nodes` rend la
+  ligne sous sa tâche parente, le risque, que `NodesWritten` ne porte pas, se relit par `getRisk`. Écartés :
   `TASK_ALREADY_STARTED` et `TASK_COMPLETED`, retirés par US-0702/L1 ; une condition nouvelle
   pour la dernière tâche, que la revue proposait (`provision_task_remaining`), quand
   `at_least_one_task` dit le même fait. L'inscription aux suivis a son 409, celui de

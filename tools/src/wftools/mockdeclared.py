@@ -25,13 +25,17 @@ three, on the examples written by hand and the core of the witness:
   F-03), an inscription to a timeline without one or with one of another project
   (``node_tracking_timeline_required``, ``node_tracking_timeline_unknown``, F-11);
 - the deactivated objects of three lists of the reference asked for without the permission that
-  modifies them (``*_inactive_forbidden``, C-01).
+  modifies them (``*_inactive_forbidden``, C-01);
+- and the answer the deletion of a task bearing a provision gives, which the witness cannot give —
+  the one task that bears a provision is started — on a variant of its core
+  (``node_deleted_provision_moved``, F-04, L-11).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mocktext
@@ -39,8 +43,10 @@ from wftools.mockgestures import TRACKED_TASK
 from wftools.mockids import universe
 from wftools.mockproject import TAKEN_NAME, name_taken
 from wftools.mockrefusals import REFERENCE, field_refused, problem, state_refused
-from wftools.mockwitness import N, fixture
+from wftools.mockstructure import described
+from wftools.mockwitness import CONTROL_STATION, CORE, N, Task, fixture
 from wftools.mockwitnessrisks import IDENTIFIED, REGISTER
+from wftools.mockwrites import amended, totals_said, written
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -139,6 +145,51 @@ def last_provision_task_refused() -> JsonObject:
     }
 
 
+def provision_readings() -> tuple[JsonObject, JsonObject]:
+    """Return the structure read before and after the deletion of a task bearing a provision.
+
+    A counterfactual variant of the core: the mounting on site, not started, bears the line of
+    provision of the risk 751 alone, instead of its own lines (the witness bears it on a task
+    that is started). Deleted, the mounting leaves the line, which passes on its parent task, the
+    installation; the commissioning, which followed it, loses its link (WF-PLA-0070, WF-RIS-0010).
+    """
+    [provision] = [
+        each
+        for task in CONTROL_STATION.children
+        for each in task.lines
+        if each.number == N.PROVISION
+    ]
+
+    def bearing(each: Task) -> Task:
+        if each.number == N.WIRING:
+            return replace(each, lines=tuple(kept for kept in each.lines if kept != provision))
+        if each.number == N.MOUNTING:
+            return replace(each, lines=(provision,))
+        return each
+
+    def deleting(each: Task) -> Task:
+        if each.number == N.INSTALLATION:
+            kept = tuple(child for child in each.children if child.number != N.MOUNTING)
+            return replace(each, children=kept, lines=(provision,))
+        if each.number == N.COMMISSIONING:
+            return replace(each, links=())
+        return each
+
+    bearing_core = amended(CORE, task=bearing)
+    return (
+        mockcore.whole(mockcore.current(described(bearing_core))),
+        mockcore.whole(mockcore.current(described(amended(bearing_core, task=deleting)))),
+    )
+
+
+def node_deleted_provision_moved() -> JsonObject:
+    """Return what deleteNode answers for a task, not started, that bears a line of provision."""
+    before, after = provision_readings()
+    return written(
+        before, after, [universe(N.PROVISION)], deleted=[universe(N.MOUNTING)], structure_version=2
+    )
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the refusals declared without a code, a condition nor an example, by file."""
     return {
@@ -146,6 +197,7 @@ def examples() -> dict[str, JsonObject]:
         **_revision_examples(),
         **_tree_examples(),
         **_other_examples(),
+        **_moved_examples(),
     }
 
 
@@ -283,6 +335,23 @@ def _tree_examples() -> dict[str, JsonObject]:
             field_refused(
                 "/entries/0/timeline_id", "UNKNOWN_TIMELINE", TIMELINE_UNKNOWN_CORRELATION
             ),
+        ),
+    }
+
+
+def _moved_examples() -> dict[str, JsonObject]:
+    labels = _labels()
+    moved = node_deleted_provision_moved()
+    return {
+        "node_deleted_provision_moved.json": mocktext.example(
+            f"La suppression du « {labels[N.MOUNTING]} », non démarré, variante contrefactuelle "
+            f"du témoin où il porte seul la ligne de provision « {labels[N.PROVISION]} » du "
+            f"risque 751 : la ligne n'est pas emportée, elle passe sous sa tâche parente, "
+            f"« {labels[N.INSTALLATION]} », et est rendue écrite dans nodes, une version de "
+            f"plus ; le risque voit sa tâche de provision changer, et son compteur avec elle, "
+            f"que lit getRisk. {totals_said(moved)}, inchangés, et le compteur de la "
+            f"structure, passé à 2 (WF-PLA-0070, WF-RIS-0010, WF-IHM-0110).",
+            moved,
         ),
     }
 

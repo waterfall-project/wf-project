@@ -115,9 +115,8 @@
       (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100). Une écriture sans compteur,
       par exception à la règle de `lock_version` (README, « Conventions ») : le `PUT` idempotent
       pose l'état visé, exclue ou suivie, sans dépendre d'aucune autre valeur de la ligne, si
-      bien que deux requêtes concurrentes ne peuvent
-      que donner le même état ou le dernier demandé, et le rejouer ne change rien ; il n'a ni
-      `lock_version` ni 412 (« Un état est une ressource », DECISIONS.md ; décision de l'auteur
+      bien que deux requêtes concurrentes ne peuvent que donner le même état ou le dernier
+      demandé, et le rejouer ne change rien ; il n'a ni `lock_version` ni 412 (« Un état est une ressource », DECISIONS.md ; décision de l'auteur
       du 2026-10-28, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

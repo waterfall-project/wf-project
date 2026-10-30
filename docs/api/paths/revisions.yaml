@@ -1260,12 +1260,12 @@
       écrites sous leur tâche nouvelle, `ancestors` cette tâche et ses ancêtres, et chaque risque
       concerné voit sa tâche de provision (`Risk.provision_node_id`) et son compteur changer. La
       suppression qui laisserait sans tâche une structure principale qui porte une ligne de
-      provision est refusée en nommant les risques (WF-RIS-0010). Une récapitulative qui perd sa dernière
-      subordonnée devient une tâche feuille en mode automatique : elle prend pour durée celle
-      qu'elle calculait, conserve son état, ses lignes propres et son rattachement au lotissement
-      (WF-PLA-0170), et ses dates sont recalculées ; si cette durée est nulle, elle devient un
-      jalon, à l'état non démarré ou terminé qu'elle avait ; démarrée, elle prend une durée d'un
-      jour (WF-PLA-0040, WF-PLA-0160). Elle est rendue telle qu'elle devient dans `ancestors`,
+      provision est refusée en nommant les risques (WF-RIS-0010). Une récapitulative qui perd sa
+      dernière subordonnée devient une tâche feuille en mode automatique : elle prend pour
+      durée celle qu'elle calculait, conserve son état, ses lignes propres et son rattachement
+      au lotissement (WF-PLA-0170), et ses dates sont recalculées ; si cette durée est nulle,
+      elle devient un jalon, à l'état non démarré ou terminé qu'elle avait ; démarrée, elle
+      prend une durée d'un jour (WF-PLA-0040, WF-PLA-0160). Elle est rendue telle qu'elle devient dans `ancestors`,
       ses `computed_fields` et `editable_fields` changés avec elle. Une écriture de grille
       comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la
       structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage
@@ -1290,13 +1290,15 @@
     responses:
       '200':
         description: >-
-          Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, vide quand il
-          n'en portait pas, les ancêtres et les totaux sont recalculés sans lui.
+          Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, écrites sous
+          leur tâche nouvelle (`provision_moved`), vide quand il n'en portait pas (`deleted`) ;
+          les ancêtres et les totaux sont recalculés sans lui.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               deleted: { $ref: ../../../fixtures/api/node_deleted.json }
+              provision_moved: { $ref: ../../../fixtures/api/node_deleted_provision_moved.json }
               summary_deleted: { $ref: ../../../fixtures/api/node_summary_deleted.json }
               summary_emptied: { $ref: ../../../fixtures/api/node_summary_emptied.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }

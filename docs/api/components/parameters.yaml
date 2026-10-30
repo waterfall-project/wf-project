@@ -38,7 +38,10 @@ SubprojectFilter:
 IncludeInactive:
   name: include_inactive
   in: query
-  description: Inclut les objets désactivés, qui restent lisibles (WF-REF-0150).
+  description: >-
+    Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que
+    l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme
+    pour `is_active` faux.
   schema: { type: boolean, default: false }
 
 IsActive:

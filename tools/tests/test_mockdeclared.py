@@ -17,7 +17,7 @@ import yaml
 
 from wftools import REPOSITORY, mockdeclared
 from wftools.mockids import universe
-from wftools.mockwitness import fixture
+from wftools.mockwitness import N, fixture
 
 type Entry = dict[str, Any]
 
@@ -109,6 +109,7 @@ def test_an_exit_from_a_terminal_project_is_refused() -> None:
     assert fixture("project_completed")["state"] == "completed"
 
 
+@pytest.mark.requirement("WF-CYC-0090-A")
 def test_an_exit_without_its_confirmation_is_refused_by_its_code() -> None:
     # D-03: `confirmed` absent or false is a 400, as for the restoration (B-09).
     refused = fixture("project_exit_unconfirmed")
@@ -130,6 +131,7 @@ def test_the_deletion_of_a_started_task_is_refused_by_naming_its_condition() -> 
     assert "démarrée ou terminée" in description
 
 
+@pytest.mark.requirement("WF-RIS-0010-A")
 def test_the_deletion_that_would_leave_a_provision_without_a_task_names_the_risks() -> None:
     # H-05, WF-RIS-0010: « la suppression de la dernière tâche d'une structure principale qui
     # porte une ligne de provision est refusée en nommant le risque ».
@@ -171,11 +173,12 @@ def test_a_marking_under_a_version_name_already_borne_is_refused() -> None:
 @pytest.mark.parametrize(
     ("operation", "name", "pointer", "code"),
     [
-        (
+        pytest.param(
             "setPredecessors",
             "predecessors_duplicate",
             "/predecessors/1/predecessor_node_id",
             "DUPLICATE_PREDECESSOR",
+            marks=pytest.mark.requirement("WF-PLA-0030-A"),
         ),
         (
             "setNodeTracking",
@@ -220,6 +223,7 @@ def test_a_tracking_entry_says_its_rule() -> None:
         ("listCostTypes", "cost_types_inactive_forbidden", "cost_settings.write"),
     ],
 )
+@pytest.mark.requirement("WF-REF-0150-A")
 def test_the_deactivated_objects_of_a_list_are_refused_without_their_permission(
     operation: str, name: str, permission: str
 ) -> None:
@@ -241,6 +245,7 @@ IN_QUERY = ("abandonRevision", "deleteRisk", "deleteSubproject")
 IN_BODY = {"exitProject": "ProjectExit", "designateReferenceRevision": "ReferenceDesignation"}
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
 def test_the_five_writes_require_their_counter_and_declare_the_412() -> None:
     operations = _operations()
     for name in IN_QUERY:
@@ -255,6 +260,12 @@ def test_the_five_writes_require_their_counter_and_declare_the_412() -> None:
         assert "lock_version" in schemas[schema]["required"], name
     for name in (*IN_QUERY, *IN_BODY):
         assert "412" in operations[name]["responses"], name
+    # The deletions have no body: a counter absent or malformed is the 422 they share.
+    for name in (*IN_QUERY, "deleteNode"):
+        assert operations[name]["responses"]["422"] == {
+            "$ref": "../components/responses.yaml#/LockVersionInvalid"
+        }, name
+        assert "requestBody" not in operations[name], name
 
 
 def test_the_tracked_scope_stays_idempotent_without_a_counter_and_says_it() -> None:
@@ -263,3 +274,35 @@ def test_the_tracked_scope_stays_idempotent_without_a_counter_and_says_it() -> N
     assert "Une écriture sans compteur" in operation["description"]
     schema = _schemas("costs")["ScopeExclusion"]
     assert "lock_version" not in schema.get("properties", {})
+
+
+@pytest.mark.requirement("WF-PLA-0070-A")
+@pytest.mark.requirement("WF-RIS-0010-A")
+def test_a_task_deleted_leaves_its_provision_on_its_parent_task_and_the_quote_unchanged() -> None:
+    # WF-PLA-0070: the provision lines of a task deleted are not deleted, they pass on another
+    # task (WF-RIS-0010: the total of the quote is unchanged). The risk, not part of
+    # `NodesWritten`, is read through getRisk; the line it bears is written one version further.
+    moved = cast("Entry", fixture("node_deleted_provision_moved"))
+    before, after = (cast("Entry", each) for each in mockdeclared.provision_readings())
+    [line] = cast("list[Entry]", moved["nodes"])
+    assert line["node_id"] == universe(N.PROVISION)
+    assert line["kind"] == "estimate_line"
+    assert line["parent_id"] == universe(N.INSTALLATION)
+    ancestors = cast("list[Entry]", moved["ancestors"])
+    assert [node["node_id"] for node in ancestors] == [universe(N.INSTALLATION)]
+    totals = cast("Entry", moved["totals"])
+    assert totals["base_amount"] == before["totals"]["base_amount"]
+    assert totals["estimate_line_count"] == before["totals"]["estimate_line_count"]
+    assert totals == after["totals"]
+    [was] = [node for node in before["items"] if node["node_id"] == line["node_id"]]
+    assert was["parent_id"] == universe(N.MOUNTING)
+    assert line["lock_version"] == was["lock_version"] + 1
+    assert universe(N.MOUNTING) not in {node["node_id"] for node in after["items"]}
+    assert "provision_moved" in _cited_ok("deleteNode")
+    assert "écrites sous" in _operations()["deleteNode"]["responses"]["200"]["description"]
+
+
+def _cited_ok(operation: str) -> list[str]:
+    """Return the examples the 200 of an operation cites, by their name in the contract."""
+    answer = _operations()[operation]["responses"]["200"]
+    return list(answer["content"]["application/json"]["examples"])

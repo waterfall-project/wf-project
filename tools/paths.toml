@@ -316,6 +316,7 @@ paths = [
     "fixtures/api/estimate_line_subproject_changed.json",
     "fixtures/api/estimate_line_subproject_has_actual_costs.json",
     "fixtures/api/node_deleted.json",
+    "fixtures/api/node_deleted_provision_moved.json",
     "fixtures/api/node_delete_stale.json",
     "fixtures/api/predecessor_set.json",
     "fixtures/api/task_started.json",
