@@ -391,10 +391,10 @@ def import_remaining_completed_tasks() -> JsonObject:
 def _completed_said(nodes: dict[int, Node]) -> str:
     """Say what the remaining to commit that completes two tasks presents, from its report."""
     commissioning, drawn = completed_by_import(nodes)
-    report = cast("dict[str, Any]", completing_report(nodes))
+    read_count = len(lines_of(nodes, commissioning)) + len(lines_of(nodes, drawn))
     labels = {label: key for key, label in subprojects().items()}
 
-    def borne(task: int) -> str:
+    def describe(task: int) -> str:
         lines = lines_of(nodes, task)
         named = ", ".join(f"« {nodes[line]['estimate_line']['label']} »" for line in lines)
         [subproject] = {nodes[line]["estimate_line"]["subproject_id"] for line in lines}
@@ -407,10 +407,11 @@ def _completed_said(nodes: dict[int, Node]) -> str:
         f"L'import d'un reste à engager lu aujourd'hui à {mocktext.hour(COMPLETED_SUBMITTED)} et "
         f"analysé à {mocktext.hour(COMPLETED_ANALYSED)}, une variante qu'imports ne reprend pas : "
         f"le fichier exporté à la revue du {review}, date qu'il porte en « Synthèse », et "
-        f"{report['read_count']} lignes lues, chacune réestimée à zéro dans l'onglet de son "
-        f"sous-projet — {borne(commissioning)} ; {borne(drawn)}. Toutes les lignes de deux tâches "
-        f"portant un reste nul, le compte rendu les nomme terminées à la date de la revue, le "
-        f"{review}, et non au jour de l'import : « {nodes[commissioning]['task']['label']} », "
+        f"{read_count} lignes lues, chacune réestimée à zéro dans l'onglet de son "
+        f"sous-projet — {describe(commissioning)} ; {describe(drawn)}. Toutes les lignes de "
+        f"deux tâches portant un reste nul, le compte rendu les nomme terminées "
+        f"à la date de la revue, le {review}, et non au jour de l'import : "
+        f"« {nodes[commissioning]['task']['label']} », "
         f"non démarrée et qui n'est pas un jalon, démarrée et terminée à cette date ; "
         f"« {nodes[drawn]['task']['label']} », démarrée le {started}, terminée à cette date "
         f"(WF-INTF-0120, WF-INTF-0130, WF-RAE-0040, WF-RAE-0030)."
