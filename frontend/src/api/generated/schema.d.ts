@@ -1314,7 +1314,7 @@ export interface paths {
         };
         /**
          * Prochain état, déclencheur et conditions restantes
-         * @description Consultable à tout moment avant En cours, sans avoir tenté d'action (WF-CYC-0050) : le prochain état, le fait qui y mène (`LifecycleTrigger`) et, une par une, les conditions qui restent. Les transitions vers Chiffrage et En cours ne sont jamais des commandes (WF-CYC-0020). D'un projet en cours ou dans un état terminal, l'opération répond 200 : le prochain état et le déclencheur nuls, aucune condition — aucun fait ne le mène plus loin, et les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060).
+         * @description Consultable à tout moment avant En cours, sans avoir tenté d'action (WF-CYC-0050) : le prochain état, le fait qui y mène (`LifecycleTrigger`) et, une par une, les conditions qui restent — vers En cours, `project_code_set` et `reference_revision_designated`, dans l'ordre de l'énumération (`CommandCondition`), le code projet étant exigé pour le passage (WF-CYC-0030, WF-PRJ-0010). Les transitions vers Chiffrage et En cours ne sont jamais des commandes (WF-CYC-0020). D'un projet en cours ou dans un état terminal, l'opération répond 200 : le prochain état et le déclencheur nuls, aucune condition — aucun fait ne le mène plus loin, et les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060).
          */
         get: operations["getProjectNextState"];
         put?: never;
@@ -1476,7 +1476,7 @@ export interface paths {
         put?: never;
         /**
          * Créer une chronologie
-         * @description Une chronologie nommée, sans inscription, à laquelle les tâches et les jalons s'inscrivent ensuite depuis le planning (WF-PLA-0140, WF-PLA-0060). « Un projet peut porter plusieurs chronologies. Chacune porte un nom » : le nom n'est pas unique, et deux chronologies d'un projet peuvent le partager. Le projet dit d'avance si l'appelant peut en créer (`ProjectCommand.manage_timelines`).
+         * @description Une chronologie nommée, sans inscription, à laquelle les tâches et les jalons s'inscrivent ensuite depuis le planning (WF-PLA-0140, WF-PLA-0060). « Un projet peut porter plusieurs chronologies. Chacune porte un nom » : le nom n'est pas unique, et deux chronologies d'un projet peuvent le partager. Le projet dit d'avance si l'appelant peut en créer (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée par 409, comme toute écriture du projet (WF-CYC-0100).
          */
         post: operations["createTimeline"];
         delete?: never;
@@ -1497,7 +1497,7 @@ export interface paths {
         post?: never;
         /**
          * Supprimer une chronologie
-         * @description Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140). « Un livrable ou une chronologie se supprime physiquement » (WF-DAT-0080) : aucune révision marquée ne la retient, ni ne la fait marquer supprimée, et la suppression n'a pas de 409, ses inscriptions partant avec elle. Le projet dit d'avance si l'appelant peut en supprimer (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée par 403, comme toute écriture (WF-CYC-0100).
+         * @description Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140). « Un livrable ou une chronologie se supprime physiquement » (WF-DAT-0080) : aucune révision marquée ne la retient, ni ne la fait marquer supprimée, ses inscriptions partant avec elle. Le projet dit d'avance si l'appelant peut en supprimer (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée par 409, comme toute écriture du projet (WF-CYC-0100).
          */
         delete: operations["deleteTimeline"];
         options?: never;
@@ -1564,7 +1564,7 @@ export interface paths {
         put?: never;
         /**
          * Marquer la révision
-         * @description Fige la révision et calcule ses indicateurs dans la même transaction (WF-REV-0020, WF-DAT-0040) ; une révision marquée avant l'état En cours ne conserve que les indicateurs de devis. Le nom de version est unique parmi les révisions marquées du projet. Confié au worker (WF-ARC-0090), et inscrit au journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande.
+         * @description Fige la révision et calcule ses indicateurs dans la même transaction (WF-REV-0020, WF-DAT-0040) ; une révision marquée avant l'état En cours ne conserve que les indicateurs de devis. Le nom de version est unique parmi les révisions marquées du projet. Confié au worker (WF-ARC-0090), et inscrit au journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande. Le calcul est refusé tant qu'une catégorie de main-d'œuvre employée par le rôle d'une ligne n'a pas de taux horaire pour l'année de référence de la révision : la tâche échoue sans rien figer, son motif `HOURLY_RATE_MISSING`, `params.missing_rates` nommant les catégories une par une (`BackgroundTaskRef.problem`, `task_failed` ; WF-DEV-0010, WF-IHM-0080).
          */
         post: operations["markRevision"];
         delete?: never;
@@ -1725,7 +1725,7 @@ export interface paths {
         put?: never;
         /**
          * Créer une tâche ou une ligne de devis
-         * @description Refusé sur une révision marquée (WF-DAT-0020) et sur un projet terminal (WF-CYC-0100). La même écriture depuis les trois grilles : la phase du projet ne refuse rien ici, c'est la commande de la structure qui dit quelle grille la saisit (`CostStructure.available_commands`). Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans prédécesseur (WF-DEV-0050, WF-RAE-0040). Une tâche créée sous une feuille en mode manuel fait de celle-ci une récapitulative, toujours en mode automatique (WF-PLA-0040). Une ligne créée sans libellé reçoit celui que le serveur compose de celui de sa tâche et de celui de son rôle, et une ligne de main-d'œuvre, la catégorie de son rôle (`EstimateLineWrite`, `line_created_labelled`, WF-DEV-0020). Une ligne ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — est refusée par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ; une tâche créée rattachée à un lot ou à un poste suit les règles du rattachement (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type provision n'est créée que par la déclaration d'un risque : sa création à la main est refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul (WF-PLA-0150). Une tâche créée en mode manuel dont le début ou la fin tombe un jour sans aucune heure travaillée à son calendrier — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée comme à la modification (`updateTaskFacet`) : 422 `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`, le jour travaillé suivant nommé ; rien n'est créé (WF-PLA-0020 ; #1345).
+         * @description Refusé sur une révision marquée (WF-DAT-0020) — toute révision d'un projet terminal l'est (WF-CYC-0100) — par 409, comme toute écriture de la révision. La même écriture depuis les trois grilles : la phase du projet ne refuse rien ici, c'est la commande de la structure qui dit quelle grille la saisit (`CostStructure.available_commands`). Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans prédécesseur (WF-DEV-0050, WF-RAE-0040). Une tâche créée sous une feuille en mode manuel fait de celle-ci une récapitulative, toujours en mode automatique (WF-PLA-0040). Une ligne créée sans libellé reçoit celui que le serveur compose de celui de sa tâche et de celui de son rôle, et une ligne de main-d'œuvre, la catégorie de son rôle (`EstimateLineWrite`, `line_created_labelled`, WF-DEV-0020). Une ligne ajoutée après la référence porte un montant budgété nul (WF-RAE-0050). Une ligne de main-d'œuvre dont le rôle laisserait sa tâche sans aucune heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — est refusée par 422 `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les rôles et la tâche (WF-PLA-0010) ; une tâche créée rattachée à un lot ou à un poste suit les règles du rattachement (`TaskFacetWrite`, WF-PLA-0170). Une ligne dont la catégorie relève d'une nature de type provision n'est créée que par la déclaration d'un risque : sa création à la main est refusée par 422 `VALIDATION_FAILED`, `fields` sur `/estimate_line/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020, WF-RIS-0010). Une tâche créée dont la durée ou les dates porteraient la durée du projet au-delà de quinze ans est refusée par 422 `PROJECT_HORIZON_EXCEEDED`, `params.task` la nommant par le libellé envoyé, son nœud nul (WF-PLA-0150). Une tâche créée en mode manuel dont le début ou la fin tombe un jour sans aucune heure travaillée à son calendrier — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée comme à la modification (`updateTaskFacet`) : 422 `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`, le jour travaillé suivant nommé ; rien n'est créé (WF-PLA-0020 ; #1345).
          */
         post: operations["createNode"];
         delete?: never;
@@ -1865,7 +1865,7 @@ export interface paths {
         get?: never;
         /**
          * Démarrer, terminer ou rouvrir une tâche
-         * @description Le geste d'une carte du Kanban, l'état envoyé étant celui que la carte nomme (`KanbanCommandAvailability.progress`). La date du geste fait foi et situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130) : une tâche terminée sans avoir été démarrée, jalon compris, prend pour date de démarrage celle de sa terminaison — un jalon sans passer par l'état démarré —, et un jalon rouvert perd l'une et l'autre (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`). Refusé sur une récapitulative, dont l'état est dérivé (WF-PLA-0040).
+         * @description Le geste d'une carte du Kanban, l'état envoyé étant celui que la carte nomme (`KanbanCommandAvailability.progress`). La date du geste fait foi et situe la valeur acquise (WF-RAE-0030, WF-IND-0030, WF-PLA-0130) : une tâche terminée sans avoir été démarrée, jalon compris, prend pour date de démarrage celle de sa terminaison — un jalon sans passer par l'état démarré —, et un jalon rouvert perd l'une et l'autre (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`). Refusé sur une récapitulative, dont l'état est dérivé de ses subordonnées (WF-PLA-0040) : 422 `SUMMARY_TASK_DERIVED`, qui les nomme (WF-IHM-0030).
          */
         put: operations["setTaskProgress"];
         post?: never;
@@ -2026,7 +2026,7 @@ export interface paths {
         put?: never;
         /**
          * Engendrer le squelette de planning depuis le lotissement
-         * @description Une récapitulative par lot et par poste, chacune rattachée au lot ou au poste qu'elle représente (`TaskFacet.work_package_id`, `order_item_id`, WF-PLA-0170), celle d'un poste subordonnée à celle de son lot, une feuille par livrable, un jalon de fin par poste et par lot, avec leurs liaisons. Engendré sur la structure principale de la révision, seule à porter des rattachements — jamais sur un différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ; sur un projet sans révision en cours, c'est le projet qui le dit (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue (EP-15/US-0490/L4) ; refusée sur une révision marquée ou un projet terminal, par 403, comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres : elle rend les tâches créées, les totaux et le compteur de la structure (`NodesWritten`), pour que la grille vide se remplisse et que la saisie suivante porte le bon compteur (WF-IHM-0110).
+         * @description Une récapitulative par lot et par poste, chacune rattachée au lot ou au poste qu'elle représente (`TaskFacet.work_package_id`, `order_item_id`, WF-PLA-0170), celle d'un poste subordonnée à celle de son lot, une feuille par livrable, un jalon de fin par poste et par lot, avec leurs liaisons. Engendré sur la structure principale de la révision, seule à porter des rattachements — jamais sur un différentiel ni sur le devis propre d'un risque, que l'opération ne désigne pas —, et proposé seulement quand elle ne comporte aucune tâche, sans créer d'autre lien avec le lotissement que ce rattachement : modifier ensuite le lotissement ne déplace ni ne supprime aucune tâche, seul le rattachement le suit (WF-PRJ-0030, WF-PLA-0170). La révision dit d'avance si la génération est proposée (`RevisionCommand.generate_skeleton`) ; sur un projet sans révision en cours, c'est le projet qui le dit (`ProjectCommand.generate_skeleton`), et la génération n'ouvre pas la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la révision rendue (EP-15/US-0490/L4) ; refusée sur une révision marquée, toute révision d'un projet terminal l'étant, par 409, comme toute saisie (WF-DAT-0020, WF-CYC-0100). Une écriture de grille comme les autres : elle rend les tâches créées, les totaux et le compteur de la structure (`NodesWritten`), pour que la grille vide se remplisse et que la saisie suivante porte le bon compteur (WF-IHM-0110).
          */
         post: operations["generatePlanningSkeleton"];
         delete?: never;
@@ -2771,7 +2771,7 @@ export interface components {
          * @description Catalogue des codes d'erreur : chaque refus que l'API peut opposer, et chaque motif de rejet d'une ligne collée ou importée, y a son code, que le front rend en phrase par son propre catalogue de textes (WF-ARC-0110). Un code nouveau est une modification du contrat ; le front n'en rencontre aucun qu'il ne sache rendre. Les paramètres qu'un code porte sont nommés par `Problem.params`.
          * @enum {string}
          */
-        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "PROJECT_TERMINAL" | "REVISION_MARKED" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "TASK_ALREADY_STARTED" | "TASK_COMPLETED" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PROJECT_CODE_REQUIRED" | "PASTE_TOO_WIDE" | "PASTE_TARGET_REMOVED" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_CALENDAR" | "UNKNOWN_RESOURCE_ROLE" | "EMAIL_MISSING" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "ORG_NODE_CYCLE" | "NODE_NOT_SIBLING" | "MILESTONE_REQUIRED" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "TASK_INTERRUPTED_BY_RESTORE" | "PROVISION_CATEGORY_RESERVED" | "PROVISION_CATEGORY_REQUIRED" | "PROVISION_LINE_MOVED_BY_RISK" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "DURATION_UNIT_NOT_POSITIVE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "ORDER_ITEM_OUTSIDE_WORK_PACKAGE" | "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY" | "DUPLICATE_WORK_BREAKDOWN_ITEM" | "PROJECT_HORIZON_EXCEEDED" | "FIELD_NOT_ACCEPTED" | "NON_WORKING_DAY" | "WBS_ELEMENT_INVALID" | "WBS_ELEMENT_OUTSIDE_PROJECT" | "AMBIGUOUS_TASK_LABEL" | "SUBPROJECT_HAS_ACTUAL_COSTS" | "SUBPROJECT_CODE_INVALID" | "PROJECT_CODE_INVALID" | "DUPLICATE_COLUMN_LABEL" | "DUPLICATE_COST_LINE" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
+        ErrorCode: "MALFORMED_REQUEST" | "CONFIRMATION_REQUIRED" | "SESSION_REQUIRED" | "SESSION_EXPIRED" | "SESSION_REVOKED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED" | "PERMISSION_MISSING" | "NOT_CONTRIBUTOR" | "NOT_PROJECT_MANAGER" | "NOT_FOUND" | "STATE_FORBIDS_OPERATION" | "ALREADY_EXISTS" | "CURRENT_REVISION_EXISTS" | "REFERENCE_NOT_CORRECTABLE" | "UNDO_CONFLICT" | "LAST_ADMINISTRATOR" | "LAST_PROJECT_MANAGER" | "ACCESS_ROLE_IN_USE" | "REFERENCE_INCOMPLETE" | "STALE_LOCK_VERSION" | "FILE_TOO_LARGE" | "VALIDATION_FAILED" | "COMPUTED_VALUE" | "SUMMARY_TASK_DERIVED" | "LINK_CYCLE" | "LINK_FORBIDDEN" | "RESOURCE_ROLE_REQUIRED" | "LABOUR_CATEGORY_REQUIRED" | "HOURLY_RATE_MISSING" | "PASTE_TOO_WIDE" | "PASTE_TARGET_REMOVED" | "FILE_FORMAT_UNREADABLE" | "TASK_WITHOUT_WORKING_HOURS" | "VALUE_REQUIRED" | "VALUE_TOO_LONG" | "VALUE_OUT_OF_RANGE" | "NUMBER_INVALID" | "DATE_INVALID" | "UNKNOWN_COST_CATEGORY" | "UNKNOWN_COST_TYPE" | "UNKNOWN_CALENDAR" | "UNKNOWN_RESOURCE_ROLE" | "EMAIL_MISSING" | "UNKNOWN_ACCESS_ROLE" | "UNKNOWN_ORG_NODE" | "FIELD_READ_ONLY" | "UNKNOWN_SUBPROJECT" | "UNKNOWN_TASK" | "INACTIVE_REFERENCE_OBJECT" | "ORG_NODE_CYCLE" | "NODE_NOT_SIBLING" | "MILESTONE_REQUIRED" | "UPLOAD_PURPOSE_MISMATCH" | "BACKUP_FROM_NEWER_VERSION" | "TASK_INTERRUPTED_BY_RESTORE" | "PROVISION_CATEGORY_RESERVED" | "PROVISION_CATEGORY_REQUIRED" | "PROVISION_LINE_MOVED_BY_RISK" | "COMPLETION_DATE_REQUIRED" | "UNKNOWN_USER" | "USER_INACTIVE" | "UNKNOWN_EXTERNAL_BACKUP_LOCATION" | "PATH_INVALID" | "BOUNDS_NOT_ORDERED" | "THRESHOLD_NOT_BELOW_WATCH" | "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE" | "DURATION_UNIT_NOT_POSITIVE" | "UNKNOWN_WORK_BREAKDOWN_ITEM" | "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" | "WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED" | "ORDER_ITEM_OUTSIDE_WORK_PACKAGE" | "WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY" | "DUPLICATE_WORK_BREAKDOWN_ITEM" | "PROJECT_HORIZON_EXCEEDED" | "FIELD_NOT_ACCEPTED" | "NON_WORKING_DAY" | "WBS_ELEMENT_INVALID" | "WBS_ELEMENT_OUTSIDE_PROJECT" | "AMBIGUOUS_TASK_LABEL" | "SUBPROJECT_HAS_ACTUAL_COSTS" | "SUBPROJECT_CODE_INVALID" | "PROJECT_CODE_INVALID" | "DUPLICATE_COLUMN_LABEL" | "DUPLICATE_COST_LINE" | "COMPONENT_UNAVAILABLE" | "INTERNAL_ERROR";
         /**
          * @description Le nom de l'énumération du contrat dont `Problem.params.state` est une valeur, rendu avec lui, pour que le front nomme l'état par son propre catalogue (WF-ARC-0110). Une énumération qu'un refus nommerait de plus est une modification du contrat.
          * @enum {string}
@@ -2782,6 +2782,13 @@ export interface components {
          * @description Identifiant engendré par le serveur, ordonné dans le temps (WF-DAT-0060).
          */
         Uuid: string;
+        Year: number;
+        /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
+        MissingRate: {
+            cost_category_id: components["schemas"]["Uuid"];
+            label?: string;
+            year: components["schemas"]["Year"];
+        };
         /** @description Un rôle de ressource nommé par un refus, actif ou désactivé (`ProblemParams.resource_roles`). */
         ProblemResourceRole: {
             resource_role_id: components["schemas"]["Uuid"];
@@ -2831,6 +2838,10 @@ export interface components {
         /** @description Les paramètres d'un refus (`Problem.params`), d'un motif par champ (`FieldProblem.params`), et du motif d'une ligne collée ou importée, d'un refus d'un compte rendu ou d'un signalement (`PasteRejection.params`, `ImportRejection.params`, `ReportRefusal.params`, `ImportSignal.params`), qui portent les paramètres de leur code dans un refus pour que la saisie, le collage et l'import se disent d'une même phrase (WF-ARC-0110). Ceux que plusieurs refus partagent sont déclarés ici, facultatifs et typés, chacun dans la forme que ses refus lui donnent ; les autres restent ouverts, décrits par `Problem.params` (#768, point 3 ; EP-16). Un schéma par code d'erreur a été écarté : il doublerait le catalogue (`ErrorCode`). `state` et `state_enum` voyagent toujours ensemble. */
         ProblemParams: {
             state_enum?: components["schemas"]["StateEnumeration"];
+            /** @description Les subordonnées directes d'une récapitulative, dont elle tire la valeur envoyée — son état, ses dates —, dans l'ordre du plan (`SUMMARY_TASK_DERIVED`, WF-PLA-0040, WF-IHM-0030). */
+            subordinate_node_ids?: components["schemas"]["Uuid"][];
+            /** @description Les catégories de main-d'œuvre sans taux horaire pour l'année de référence de la révision, une par une, comme `getMissingRates` les liste (`HOURLY_RATE_MISSING`, WF-DEV-0010). */
+            missing_rates?: components["schemas"]["MissingRate"][];
             /** @description Les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé, que l'auteur lise ou non les rôles (`STATE_FORBIDS_OPERATION`, `cost_type_without_role`, `cost_category_without_role`, WF-REF-0030, WF-REF-0040 ; EP-14/L42r) ; et ceux d'une ligne importée qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection.params`, WF-PLA-0010 ; #768). */
             resource_roles?: components["schemas"]["ProblemResourceRole"][];
             /** @description Les projets qu'une modification du référentiel laisserait avec une tâche sans heure travaillée, chacun par son libellé et son code, sans identifiant ni tâche (`TASK_WITHOUT_WORKING_HOURS`, `updateCalendar`, `setDefaultCalendar`, `updateResourceRole`, WF-PLA-0010, WF-ADM-0110). */
@@ -2859,7 +2870,7 @@ export interface components {
         Problem: {
             code: components["schemas"]["ErrorCode"];
             status: number;
-            /** @description Paramètres du code, selon le cas — ceux que plusieurs refus partagent sont typés par `ProblemParams`, les autres restent ouverts : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id`, `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde hebdomadaire, au moins `1`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de `updateTaskFacet`), au moins `0`, ou la largeur d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là, jamais `0` — un jour sans heure travaillée est refusé par sa date, `NON_WORKING_DAY` (#1244, #1271) —, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160), et `expected_version` absent pour une extraction de coûts réels, qui n'a pas de version (`expected_format` à `actual_costs`) — ; `missing_columns` pour une extraction de coûts réels à laquelle manque une colonne exigée (`FILE_FORMAT_UNREADABLE`, `openImport`, WF-REF-0190) : chaque colonne exigée que le fichier ne porte sous aucun de ses intitulés, dans l'ordre de la correspondance, par son identifiant (`column`, un `ActualCostSourceColumn`) et les intitulés que la correspondance déclare pour elle (`labels`) ; `columns` quand `missing_condition` nomme `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`, `openImport`, WF-REF-0190) : les colonnes exigées de la correspondance qui n'ont aucun intitulé, chacune par son identifiant (`ActualCostSourceColumn`), dans l'ordre de la correspondance ; `resource_role_ids` pour une écriture qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que la session d'une modification du référentiel peut nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes (`resource_role_label`) — non le motif d'une ligne importée, que le compte rendu lit sans relire les rôles, et qui les nomme par `resource_roles` (#768, point 1) ; `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`, `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son projet — au motif d'une ligne importée, par sa lignée et son libellé (`lineage_id`, `label`), comme le compte rendu nomme ses objets (#768, point 2) ; `projects` pour une modification du référentiel qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`, WF-DAT-0080) : ces lignes, chacune par sa structure, le libellé de celle-ci, son nœud, son numéro de ligne et son libellé (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`) ; `work_package_task` et `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ; EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif (`ImportReport.refusals`) et le compte rendu préalable d'une fusion (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que le fichier ou le différentiel crée ; pour une fusion (`mergeCostStructure`, `StructureMergeReport.refusals` ; #788), la tâche de la structure fusionnée qui finit la dernière, hors récapitulatives, qui tirent leurs dates de leurs subordonnées (WF-PLA-0040), la première dans l'ordre du plan à égalité — et, pour une saisie qui déplace une date (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460), la tâche que la saisie écrit : celle dont la durée, les dates ou les prédécesseurs se saisissent, celle que la création ajouterait, nommée par le libellé envoyé et son nœud nul, la tâche déplacée ou celle qui reçoit la ligne déplacée ; `cycle` pour des prédécesseurs qui fermeraient une boucle de liaisons (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030) : les tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée, pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et pour un déplacement ou une mise en retrait qui fermerait une boucle à travers la récapitulative qui recevrait le nœud (`moveNodes`, WF-PLA-0030, WF-PLA-0040 ; #1164, #1167) — une récapitulative couvre ses subordonnées : ce qui la précède les précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la tâche reçue et de ses subordonnées dans l'ordre du plan ; pour une sélection, jugée sur la structure que le déplacement laisserait, tous ses nœuds déplacés, la boucle que ferme le premier nœud en cause dans l'ordre du plan de la structure lue — non dans celui de `node_ids`, qui ne règle que leur placement (`NodeMove` ; #1169) ; et pour une fusion qui fermerait une boucle dans la structure principale (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030, WF-REV-0050 ; #788), les tâches de la boucle que porterait la structure fusionnée, chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute, de la première dans l'ordre du plan de cette structure à celle qui la précède, chacune précédant la suivante — la plus courte quand il y en a plusieurs, puis celle dont la première tâche vient d'abord dans l'ordre du plan. Une chaîne d'une seule liaison est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans paramètre pour une saisie ou un déplacement ; pour une fusion qui ferait naître cette liaison (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030 ; #1582), `link` nomme les deux tâches, la récapitulative d'abord, chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute — `tasks` ne convient pas, qui exige un projet et un nœud. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et traverse la hiérarchie, une récapitulative couvrant ses subordonnées : d'une tâche atteinte à son début à l'une de ses subordonnées, que ce qui la précède précède, et d'une tâche à sa récapitulative, que ce qui la suit suit ; elle nomme chaque tâche qu'elle traverse, la récapitulative et la subordonnée — une boucle P → W, W récapitulative d'une tâche Z qui précède M, M déplacée sous P, nomme P, W, Z et M (#1169). Entre deux chaînes aussi courtes, celle qui est rendue prend, à chaque tâche, ses liaisons avant la hiérarchie, et ses subordonnées avant sa récapitulative. Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170 ; EP-14/L42k) ; `work_package_task` et `order_item_tasks`, la tâche du lot et celles de ses postes qui sortiraient de son sous-arbre, chacune par son nœud et son libellé (`node_id`, `label`), comme l'échec d'une fusion (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `subproject`, dans `fields[].params`, le sous-projet qu'une ligne d'une tâche démarrée ou terminée ne peut pas quitter, parce qu'il a reçu des coûts réels, par son identifiant et son libellé (`subproject_id`, `label` ; `SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050), et le même paramètre au motif d'une cellule de sous-projet collée (`PasteRejection.params`) ou d'une ligne d'import rejetée (`ImportRejection.params`, WF-INTF-0100, WF-INTF-0120) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `risk`, dans `fields[].params`, le risque dont une ligne de provision déplacée dans la grille relève, par son identifiant et son libellé (`risk_id`, `label` ; `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227) : la ligne se déplace par le formulaire du risque ; `date` et `next_working_day`, dans `fields[].params`, la date d'une tâche manuelle envoyée un jour sans aucune heure travaillée au calendrier de la tâche, et le jour travaillé suivant, que la saisie peut prendre — « le refus nomme le jour travaillé suivant » (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020 ; #1271) —, et les mêmes paramètres au signalement d'une telle date importée (`ImportSignal.params`) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160) ; `max_length`, dans `fields[].params`, le plus grand nombre de caractères qu'admet le code d'un sous-projet trop long (`VALUE_TOO_LONG`, `31`, WF-PRJ-0050), et `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` — et `forbidden_characters`, de `PROJECT_CODE_INVALID`, `["/"]` (`createProject`, `updateProject`, WF-PRJ-0010 ; D-07, US-0701/L9) — : les caractères interdits que porte le code, en tableau, chacun une fois dans l'ordre où il les porte, ou le nom réservé qu'il vaut, « Synthèse » ou « Hors sous-projet », tel que Waterfall l'écrit (`createSubproject`, `updateSubproject`, WF-PRJ-0050 ; EP-16/US-0610) ; `duplicate_of`, dans `fields[].params`, le pointeur de l'intitulé qu'un intitulé de la correspondance de l'extraction des coûts réels double (`DUPLICATE_COLUMN_LABEL`, `setActualCostMapping`, WF-REF-0190 ; EP-16/US-0620) ; `rows`, les rangs, en tableau d'entiers, des autres lignes du fichier qui portent la même pièce et le même poste qu'une ligne d'une extraction de coûts réels rejetée (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140 ; EP-16/US-0630) ; `wbs_element`, l'élément d'OTP d'une ligne d'une extraction de coûts réels rejetée, tel que le fichier le porte, et `project_code`, le code projet qu'il porte quand c'est celui d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020) ; `value`, la valeur de la cellule telle que le fichier la porte, d'une ligne d'un devis ou d'un reste à engager qui cite une tâche, un rôle ou un sous-projet inconnu (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100) ; `label`, le libellé d'une tâche que portent plusieurs tâches, avec `tasks` celles qui le portent (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, ANNEXE B) ; `start` et `finish`, les dates qu'un planning MS Project donne à une récapitulative en mode manuel, importée en mode automatique (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040). */
+            /** @description Paramètres du code, selon le cas — ceux que plusieurs refus partagent sont typés par `ProblemParams`, les autres restent ouverts : `missing_permission` (un `PermissionCode`), `missing_condition` (une `CommandCondition`), `conflicting_object_id` et `conflicting_object_label` (l'objet, et son libellé, qu'une modification postérieure a repris et qu'une annulation ou un rétablissement défairait, `UNDO_CONFLICT`, WF-IHM-0110), `missing_rates` (les catégories de main-d'œuvre sans taux horaire pour l'année de référence, `HOURLY_RATE_MISSING`, WF-DEV-0010), `expected_lock_version` (la version courante de l'objet, seul paramètre d'un 412 `STALE_LOCK_VERSION`, WF-IHM-0110), `subordinate_node_ids` (les subordonnées directes d'une récapitulative, `SUMMARY_TASK_DERIVED`, WF-IHM-0030, WF-PLA-0040), `field` (un champ que le serveur ne calcule pas pour le nœud dont on demande de quoi il dépend, WF-IHM-0030), `missing_prerequisites` (WF-CYC-0120), `state` et `state_enum` (l'état de l'objet qui interdit l'opération, `STATE_FORBIDS_OPERATION`, et le nom de l'énumération du contrat dont il est une valeur, qui voyagent toujours ensemble — l'un ne se rend jamais sans l'autre : seul `ProjectState` en relève aujourd'hui — l'état d'un projet qui n'a pas atteint l'état En cours, dont on demande les indicateurs (WF-IND-0010), ou sans révision de référence, dont on demande le plan de charge sur une base qu'il n'a pas (WF-DEV-0070) ; une énumération nouvelle est une modification du contrat), `max_columns` (collage trop large, WF-IHM-0050), `minimum` (la plus petite valeur admise d'une valeur trop petite, `VALUE_OUT_OF_RANGE` ; dans `fields[].params` pour un champ, ainsi la rétention de la copie externe des sauvegardes, au moins celle de la plateforme, WF-EXP-0050, la rétention des sauvegardes, au moins `1`, le délai entre deux revues, au moins `1` semaine, la probabilité de gain et le taux d'inflation d'un projet, au moins `0`, les heures d'un jour d'un calendrier et la capacité d'un rôle, au moins `0`, le délai de paiement d'une ligne, au moins `0`, le niveau d'une image d'arborescence, au moins `1`, le jour d'une sauvegarde hebdomadaire, au moins `1`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de `updateTaskFacet`), au moins `0`, ou la largeur d'une colonne des préférences de grille, au moins `20`), `maximum` (la plus grande valeur admise d'une valeur trop grande, `VALUE_OUT_OF_RANGE`, dans `fields[].params` : ainsi le début d'une période du portefeuille postérieur à la fin que le serveur a complétée, la probabilité de gain et le taux d'inflation d'un projet, au plus `1`, la rétention des sauvegardes, au plus `365`, le délai entre deux revues, au plus `104` semaines, les heures d'un jour d'un calendrier, au plus `24`, les heures d'un instant de travail envoyé (`/start/hours`, `/finish/hours` de `updateTaskFacet`), au plus les heures que le calendrier de la tâche accorde ce jour-là, jamais `0` — un jour sans heure travaillée est refusé par sa date, `NON_WORKING_DAY` (#1244, #1271) —, ou le jour d'une sauvegarde hebdomadaire, au plus `7`), `component` (un `PlatformComponent`, WF-EXP-0040), `expected_format` (un `ExchangeKind`) et `expected_version` (une chaîne) pour un fichier d'import au format ou à la version non reconnus (`FILE_FORMAT_UNREADABLE`, WF-INTF-0070) — absents pour une sauvegarde déposée dont l'archive ne se lit pas (`uploadFile`, WF-ADM-0160), et `expected_version` absent pour une extraction de coûts réels, qui n'a pas de version (`expected_format` à `actual_costs`) — ; `missing_columns` pour une extraction de coûts réels à laquelle manque une colonne exigée (`FILE_FORMAT_UNREADABLE`, `openImport`, WF-REF-0190) : chaque colonne exigée que le fichier ne porte sous aucun de ses intitulés, dans l'ordre de la correspondance, par son identifiant (`column`, un `ActualCostSourceColumn`) et les intitulés que la correspondance déclare pour elle (`labels`) ; `columns` quand `missing_condition` nomme `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`, `openImport`, WF-REF-0190) : les colonnes exigées de la correspondance qui n'ont aucun intitulé, chacune par son identifiant (`ActualCostSourceColumn`), dans l'ordre de la correspondance ; `resource_role_ids` pour une écriture qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par leurs seuls identifiants, que la session d'une modification du référentiel peut nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes (`resource_role_label`) — non le motif d'une ligne importée, que le compte rendu lit sans relire les rôles, et qui les nomme par `resource_roles` (#768, point 1) ; `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`, `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son projet — au motif d'une ligne importée, par sa lignée et son libellé (`lineage_id`, `label`), comme le compte rendu nomme ses objets (#768, point 2) ; `projects` pour une modification du référentiel qui produirait le même effet (`updateCalendar`, `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans identifiant ni tâche — « sans autre détail », l'auteur pouvant ne pas consulter le projet (WF-PLA-0010, WF-ADM-0110) ; `estimate_lines` pour la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (`STATE_FORBIDS_OPERATION`, `missing_condition` à `subproject_without_estimate_lines`, WF-DAT-0080) : ces lignes, chacune par sa structure, le libellé de celle-ci, son nœud, son numéro de ligne et son libellé (`structure_id`, `structure_label`, `node_id`, `row_number`, `label`) ; `work_package_task` et `order_item_tasks` pour une fusion qui sortirait la tâche d'un poste du sous-arbre de la tâche de son lot (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `mergeCostStructure`, WF-PLA-0170) : la tâche du lot et celles des postes qui en sortiraient, nœuds de la structure principale, chacune par son nœud et son libellé (`node_id`, `label`), comme les tâches de `TASK_WITHOUT_WORKING_HOURS` — « l'échec nomme ce qui a échoué » (WF-IHM-0080 ; EP-14/L42k) —, et de même pour le fichier d'import qui serait rejeté entier pour ce motif (`ImportReport.refusals`) et le compte rendu préalable d'une fusion (`StructureMergeReport.refusals` ; EP-14/L42s) ; `task` pour un planning qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150) : la tâche en cause, par son nœud et son libellé (`node_id`, `label`), le nœud nul pour une tâche que le fichier ou le différentiel crée ; pour une fusion (`mergeCostStructure`, `StructureMergeReport.refusals` ; #788), la tâche de la structure fusionnée qui finit la dernière, hors récapitulatives, qui tirent leurs dates de leurs subordonnées (WF-PLA-0040), la première dans l'ordre du plan à égalité — et, pour une saisie qui déplace une date (`updateTaskFacet`, `setPredecessors`, `createNode`, `moveNodes` ; EP-15/US-0460), la tâche que la saisie écrit : celle dont la durée, les dates ou les prédécesseurs se saisissent, celle que la création ajouterait, nommée par le libellé envoyé et son nœud nul, la tâche déplacée ou celle qui reçoit la ligne déplacée ; `cycle` pour des prédécesseurs qui fermeraient une boucle de liaisons (`LINK_CYCLE`, `setPredecessors`, WF-PLA-0030) : les tâches de la boucle, chacune par son nœud et son libellé (`node_id`, `label`), de celle dont les prédécesseurs se saisissent au prédécesseur envoyé qui la suit déjà, chacune précédant la suivante — « la raison en est nommée à l'utilisateur », la grille, filtrée, pouvant ne pas les lire ; quand plusieurs prédécesseurs envoyés ferment une boucle, la plus courte est rendue, puis, à longueur égale, la première dans l'ordre des liaisons, et une tâche donnée comme son propre prédécesseur rend la boucle de cette seule tâche ; et pour un déplacement ou une mise en retrait qui fermerait une boucle à travers la récapitulative qui recevrait le nœud (`moveNodes`, WF-PLA-0030, WF-PLA-0040 ; #1164, #1167) — une récapitulative couvre ses subordonnées : ce qui la précède les précède, ce qui la suit les suit —, les tâches de la chaîne de liaisons qui mène de cette récapitulative, ou de l'un de ses ancêtres, à la tâche qu'elle recevrait ou à l'une de ses subordonnées, ou de celles-ci à celle-là, chacune précédant la suivante : la plus courte, puis, à longueur égale, celle qui part de l'ancêtre le plus proche, puis de la tâche reçue et de ses subordonnées dans l'ordre du plan ; pour une sélection, jugée sur la structure que le déplacement laisserait, tous ses nœuds déplacés, la boucle que ferme le premier nœud en cause dans l'ordre du plan de la structure lue — non dans celui de `node_ids`, qui ne règle que leur placement (`NodeMove` ; #1169) ; et pour une fusion qui fermerait une boucle dans la structure principale (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030, WF-REV-0050 ; #788), les tâches de la boucle que porterait la structure fusionnée, chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute, de la première dans l'ordre du plan de cette structure à celle qui la précède, chacune précédant la suivante — la plus courte quand il y en a plusieurs, puis celle dont la première tâche vient d'abord dans l'ordre du plan. Une chaîne d'une seule liaison est la liaison d'une récapitulative et de sa subordonnée : `LINK_FORBIDDEN`, sans paramètre pour une saisie ou un déplacement ; pour une fusion qui ferait naître cette liaison (`mergeCostStructure`, `StructureMergeReport.refusals`, WF-PLA-0030 ; #1582), `link` nomme les deux tâches, la récapitulative d'abord, chacune par son nœud de la structure principale et son libellé, le nœud nul pour une tâche que le différentiel ajoute — `tasks` ne convient pas, qui exige un projet et un nœud. Une chaîne, d'un déplacement comme de prédécesseurs, suit les liaisons et traverse la hiérarchie, une récapitulative couvrant ses subordonnées : d'une tâche atteinte à son début à l'une de ses subordonnées, que ce qui la précède précède, et d'une tâche à sa récapitulative, que ce qui la suit suit ; elle nomme chaque tâche qu'elle traverse, la récapitulative et la subordonnée — une boucle P → W, W récapitulative d'une tâche Z qui précède M, M déplacée sous P, nomme P, W, Z et M (#1169). Entre deux chaînes aussi courtes, celle qui est rendue prend, à chaque tâche, ses liaisons avant la hiérarchie, et ses subordonnées avant sa récapitulative. Les paramètres d'un motif par champ sont dans `fields[].params` : ainsi `conflicting_object_id` et `conflicting_object_label`, le nœud et le libellé de la tâche qui porte déjà le lot ou le poste qu'une autre voudrait porter (`WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, WF-PLA-0170 ; EP-14/L42k) ; `work_package_task` et `order_item_tasks`, la tâche du lot et celles de ses postes qui sortiraient de son sous-arbre, chacune par son nœud et son libellé (`node_id`, `label`), comme l'échec d'une fusion (`ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `updateTaskFacet`, `createNode`, `moveNodes`, WF-PLA-0170 ; EP-14/L42s) — le nœud nul pour la tâche que `createNode` crée, nommée par le libellé envoyé, et les mêmes paramètres au motif d'une cellule `work_breakdown` collée (`PasteRejection.params`) ; `task_node_id`, dans `fields[].params`, la tâche qu'une réestimation terminerait sans sa date de terminaison (`COMPLETION_DATE_REQUIRED`, WF-RAE-0040) ; `subproject`, dans `fields[].params`, le sous-projet qu'une ligne d'une tâche démarrée ou terminée ne peut pas quitter, parce qu'il a reçu des coûts réels, par son identifiant et son libellé (`subproject_id`, `label` ; `SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050), et le même paramètre au motif d'une cellule de sous-projet collée (`PasteRejection.params`) ou d'une ligne d'import rejetée (`ImportRejection.params`, WF-INTF-0100, WF-INTF-0120) ; `location`, l'emplacement externe des sauvegardes que l'installation ne déclare pas (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`, WF-ADM-0170) ; `conflicting_object_id`, dans `fields[].params`, l'objet qui porte déjà la valeur unique d'un champ (`ALREADY_EXISTS`, WF-REF-0030, WF-REF-0040), et `conflicting_object_label`, à côté de lui, son libellé, quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet (WF-PRJ-0010), celui d'un sous-projet (WF-PRJ-0050), celui d'un nœud d'organisation (WF-REF-0070) et celui d'un rôle de ressource (WF-REF-0090) ; `backup_version` et `installed_version`, dans `params`, la version de l'application qui a pris la sauvegarde et celle de l'installation qui refuse de la restaurer (`BACKUP_FROM_NEWER_VERSION`, motif de l'échec de la tâche `restore`, WF-ADM-0160) ; `risk`, dans `fields[].params`, le risque dont une ligne de provision déplacée dans la grille relève, par son identifiant et son libellé (`risk_id`, `label` ; `PROVISION_LINE_MOVED_BY_RISK`, `moveNodes`, WF-RIS-0010, #1227) : la ligne se déplace par le formulaire du risque ; `date` et `next_working_day`, dans `fields[].params`, la date d'une tâche manuelle envoyée un jour sans aucune heure travaillée au calendrier de la tâche, et le jour travaillé suivant, que la saisie peut prendre — « le refus nomme le jour travaillé suivant » (`NON_WORKING_DAY`, `updateTaskFacet`, WF-PLA-0020 ; #1271) —, et les mêmes paramètres au signalement d'une telle date importée (`ImportSignal.params`) ; `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160) ; `max_length`, dans `fields[].params`, le plus grand nombre de caractères qu'admet le code d'un sous-projet trop long (`VALUE_TOO_LONG`, `31`, WF-PRJ-0050), et `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` — et `forbidden_characters`, de `PROJECT_CODE_INVALID`, `["/"]` (`createProject`, `updateProject`, WF-PRJ-0010 ; D-07, US-0701/L9) — : les caractères interdits que porte le code, en tableau, chacun une fois dans l'ordre où il les porte, ou le nom réservé qu'il vaut, « Synthèse » ou « Hors sous-projet », tel que Waterfall l'écrit (`createSubproject`, `updateSubproject`, WF-PRJ-0050 ; EP-16/US-0610) ; `duplicate_of`, dans `fields[].params`, le pointeur de l'intitulé qu'un intitulé de la correspondance de l'extraction des coûts réels double (`DUPLICATE_COLUMN_LABEL`, `setActualCostMapping`, WF-REF-0190 ; EP-16/US-0620) ; `rows`, les rangs, en tableau d'entiers, des autres lignes du fichier qui portent la même pièce et le même poste qu'une ligne d'une extraction de coûts réels rejetée (`DUPLICATE_COST_LINE`, `ImportRejection.params`, WF-INTF-0140 ; EP-16/US-0630) ; `wbs_element`, l'élément d'OTP d'une ligne d'une extraction de coûts réels rejetée, tel que le fichier le porte, et `project_code`, le code projet qu'il porte quand c'est celui d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, `ImportRejection.params`, WF-CRE-0020) ; `value`, la valeur de la cellule telle que le fichier la porte, d'une ligne d'un devis ou d'un reste à engager qui cite une tâche, un rôle ou un sous-projet inconnu (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `ImportRejection.params`, WF-INTF-0100) ; `label`, le libellé d'une tâche que portent plusieurs tâches, avec `tasks` celles qui le portent (`AMBIGUOUS_TASK_LABEL`, `ImportRejection.params`, ANNEXE B) ; `start` et `finish`, les dates qu'un planning MS Project donne à une récapitulative en mode manuel, importée en mode automatique (`SUMMARY_TASK_DERIVED`, `ImportSignal.params`, WF-INTF-0040). */
             params?: components["schemas"]["ProblemParams"];
             /** @description Erreurs par champ, pour une entité refusée à la validation (422), ou par une unicité (409 `ALREADY_EXISTS`), chaque champ dont la valeur est déjà portée désigné. Une clé portée par le chemin, et non par le corps — la catégorie et l'année d'un taux horaire (`setHourlyRate`) —, n'a pas de champ à désigner : son `ALREADY_EXISTS` n'a pas de `fields`. */
             fields?: components["schemas"]["FieldProblem"][];
@@ -2979,7 +2990,7 @@ export interface components {
         BackgroundTaskRef: {
             task_id: components["schemas"]["Uuid"];
             /**
-             * @description Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ; `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début ; une archive d'une version plus récente que l'installation est refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du fournisseur d'identité (WF-ADM-0070).
+             * @description Ce que la tâche fait. `backup` prend la sauvegarde des deux bases et la vérifie ; `restore` suit la restauration entière, de la mise en maintenance à sa levée : elle ne passe à `succeeded` qu'une fois la maintenance levée, et une restauration interrompue reprend depuis le début ; une archive d'une version plus récente que l'installation est refusée avant la maintenance, la tâche échouant par `BACKUP_FROM_NEWER_VERSION` (WF-ARC-0090, WF-ADM-0160) ; `identity_sync` lit les comptes du fournisseur d'identité (WF-ADM-0070) ; `revision_mark` fige la révision et calcule ses indicateurs, et échoue sans rien figer par `HOURLY_RATE_MISSING`, `params.missing_rates` nommant les catégories de main-d'œuvre sans taux pour l'année de référence (`markRevision`, WF-DEV-0010).
              * @enum {string}
              */
             kind: "import_analysis" | "import_apply" | "revision_mark" | "structure_merge" | "risk_occurrence" | "export" | "backup" | "restore" | "identity_sync";
@@ -3136,10 +3147,10 @@ export interface components {
          */
         UserCommand: "deactivate" | "reactivate" | "anonymize" | "set_access_roles";
         /**
-         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_contributor` manque à qui ouvre le projet par « consulter tous les projets » sans en être contributeur, pour toute commande que sa permission lui donnerait : elle est listée indisponible, la qualité nommée (WF-IHM-0090, WF-PRJ-0060) — sauf `manage_contributors`, que WF-PRJ-0060 lui ouvre quand aucun chef de projet du projet n'a de compte actif (`ProjectCommand`). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110), et, avec `is_contributor`, à un non-contributeur. Une commande nomme sa qualité manquante avant ses conditions d'état. `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque (`declare_risk`), l'ouverture d'un différentiel, sa fusion, la mise à jour des taux, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`, `edit_remaining`, `edit_risks`, `declare_risk`, `create_structure`, `merge_structure`, `apply_rate_update`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage, fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s) ; ce sont aussi les trois sorties du cycle de vie (`complete`, `lose`, `abandon`), dont le sort marquerait ou abandonnerait la révision en cours (WF-CYC-0090) — le marquage qu'une sortie a lancé compris (`exitProject`, US-0701/L9). Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule transaction (WF-INTF-0080), le traitement d'une survenance et la fusion d'un différentiel de la dernière révision marquée créent la révision en cours qu'ils écrivent (WF-INTF-0090, WF-RIS-0060, WF-REV-0050 ; #790), invisible jusqu'à leur fin. Pendant ce temps, le projet nomme la condition aux commandes qu'il porte et qui créeraient ou ouvriraient cette révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4) —, et la dernière révision marquée à sa fusion (`RevisionCommand.merge_structure`). L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s), la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) et la fusion d'un différentiel de la dernière révision marquée (`RevisionCommand.merge_structure`, WF-REV-0050 ; #790) ; et pour une commande qui demande d'ouvrir la révision d'abord : la génération du squelette de planning (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). `restored_subproject_exists` manque à toute annulation et à tout rétablissement (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision de l'auteur, #732). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. `cost_type_active` manque à la réactivation d'une catégorie de coût dont la nature est désactivée : « une catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010 ; EP-14/L42s, C-291) ; la catégorie la nomme (`CostCategory.available_commands`), et `setCostCategoryActivation` dans son 409. Trois tiennent aux catégories d'une nature de coût, et la nature les nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée, `cost_type_unrated` quand l'une porte un taux horaire, `cost_type_without_role` quand un rôle de ressource, actif ou désactivé, est rattaché à l'une (WF-REF-0030) ; `updateCostType` nomme dans son 409 la première qui manque, dans cet ordre, avec les catégories en cause pour les deux premières (`params.cost_categories`, EP-14/L42s) et les rôles en cause pour la dernière (`params.resource_roles`). Trois tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577), `cost_category_without_role` quand un rôle de ressource, actif ou désactivé, lui est rattaché (WF-REF-0040) ; `updateCostCategory` nomme dans son 409 la première qui manque, dans cet ordre, et pour la dernière les rôles en cause (`params.resource_roles`). `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à tout rétablissement qui recréeraient la ligne de provision d'un risque avec une catégorie qui n'est plus active et de type provision pour risques, quelles que soient les autres : n'envoyant rien, ils ne peuvent pas en désigner une autre (`undoLastChange`, `redoLastUndo` ; #795). `at_least_one_task` manque à la déclaration d'un risque sur une révision dont la structure principale ne comporte aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se ranger ; `createRisk` la nomme dans son 409, après les conditions d'état de la saisie des risques, `project_not_terminal` puis `no_background_task_running`, et avant `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks` (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category` (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste offert, et `applyImport` la nomme dans son 409 (EP-14/L42s). Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ; `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser` nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Elle manque aussi à la saisie du devis de la structure principale (`StructureCommand.edit_estimate`) dès En cours, la grille de devis restant lisible, et `project_in_progress` à celle de son reste à engager (`StructureCommand.edit_remaining`) hors de l'état En cours, avant lui comme dans un état terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ; C-358). `project_before_in_progress` manque de même à l'import d'un devis sur la structure principale, que `openImport` et `applyImport` nomment dans leur 409 (WF-INTF-0100 ; C-358). Trois tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, WF-DAT-0080, WF-PRJ-0050) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) ; `subproject_without_estimate_lines` à la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`). `main_structure_without_tasks` manque à la génération du squelette de planning (`RevisionCommand.generate_skeleton`) dès que la structure principale de la révision comporte une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche » (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (EP-14/L42k). Sur un projet sans révision en cours (`ProjectCommand.generate_skeleton`), elle se juge sur la révision que son ouverture créerait : elle manque quand la structure principale de la dernière révision marquée, que cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4). `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040), et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214). `line_not_provision` manque à la réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`, WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409. Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone` au démarrage d'un jalon, qui ne passe pas par l'état démarré, et à la réouverture d'un jalon terminé vers l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque. `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun différentiel de la révision n'est à fusionner, et la révision la nomme (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). `rate_update_available` manque à la mise à jour des taux (`apply_rate_update`) d'une révision en cours dont la proposition ne présente aucune catégorie — son année de référence est celle de la révision dont elle est la copie, ou chaque catégorie présentée a déjà été acceptée (WF-REV-0060) — ; la révision la nomme, et `applyRateUpdate` dans son 409 (#1351). Deux tiennent à la désignation de la référence (`designate_reference`), après `revision_marked`, qui manque à une révision en cours : `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la première qui manque, dans cet ordre — `reference_correctable` par son code propre, `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490). `actual_cost_mapping_complete` manque à l'import des coûts réels (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont la correspondance est vide (WF-REF-0190) ; la commande la nomme après les conditions de l'état du projet et des traitements de fond, et `openImport` dans son 409, avec `params.columns`, les colonnes exigées sans intitulé (EP-16/US-0620).
+         * @description Condition qu'une commande exige, nommée par le serveur quand elle manque, et rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110). `is_contributor` manque à qui ouvre le projet par « consulter tous les projets » sans en être contributeur, pour toute commande que sa permission lui donnerait : elle est listée indisponible, la qualité nommée (WF-IHM-0090, WF-PRJ-0060) — sauf `manage_contributors`, que WF-PRJ-0060 lui ouvre quand aucun chef de projet du projet n'a de compte actif (`ProjectCommand`). `is_project_manager` manque à qui n'est que contributeur pour une action structurante ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110), et, avec `is_contributor`, à un non-contributeur. Une commande nomme sa qualité manquante avant ses conditions d'état ; envoyée malgré elle, l'écriture est refusée par 403, `NOT_CONTRIBUTOR` ou `NOT_PROJECT_MANAGER`, la qualité nommée (`Forbidden`). Toute autre condition qui manque se refuse par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant (README, « Conventions » ; US-0702/L1). `project_not_terminal` manque à toute commande qui modifierait un projet terminal — Terminé, Perdu ou Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) ; `revision_draft` à toute commande qui modifierait une révision marquée, qui ne se modifie plus (WF-DAT-0020) — toute révision d'un projet terminal l'est. `project_in_progress` manque hors de l'état En cours à ce qui ne se fait qu'en réalisation : la sortie vers Terminé (`complete`, WF-CYC-0060), la saisie du reste à engager (plus bas). `project_in_pricing` manque à la déclaration de perte (`lose`) d'un projet Créé : un projet ne se déclare perdu que depuis Chiffrage (WF-CYC-0060). `no_current_revision` manque à l'ouverture d'une révision (`create_revision`) tant que le projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010). `reference_revision_designated` manque, tant que le projet n'a pas de révision de référence, à la déclaration d'un risque survenu (`declare_risk_occurrence`, WF-RIS-0060) ; et `reference_revision_designated` et `project_code_set`, tant que le projet n'a pas de code projet, sont les conditions du passage à En cours, que le prochain état nomme une par une, dans l'ordre de l'énumération (`NextState.missing_conditions`, `getProjectNextState`, WF-CYC-0030, WF-CYC-0050, WF-PRJ-0010 ; J-11, US-0702/L1). `undo_history_not_empty` manque à l'annulation quand l'historique de l'appelant sur la révision est vide, `redo_history_not_empty` au rétablissement quand aucune annulation n'est à rétablir : `undoLastChange` et `redoLastUndo` les nomment dans leur 409, aucune commande ne les disant d'avance — `UndoResult.remaining_depth` dit ce qui reste à annuler (WF-IHM-0110 ; E-07, US-0702/L1). `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment. Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque (`declare_risk`), l'ouverture d'un différentiel, sa fusion, la mise à jour des taux, le marquage, la désignation de la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la lisent, restent disponibles. Pendant l'application d'un import de planning, de devis ou de reste à engager (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance, qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`, `edit_remaining`, `edit_risks`, `declare_risk`, `create_structure`, `merge_structure`, `apply_rate_update`, `mark`, `abandon` —, la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles. Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage, fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s) ; ce sont aussi les trois sorties du cycle de vie (`complete`, `lose`, `abandon`), dont le sort marquerait ou abandonnerait la révision en cours (WF-CYC-0090) — le marquage qu'une sortie a lancé compris (`exitProject`, US-0701/L9). Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule transaction (WF-INTF-0080), le traitement d'une survenance et la fusion d'un différentiel de la dernière révision marquée créent la révision en cours qu'ils écrivent (WF-INTF-0090, WF-RIS-0060, WF-REV-0050 ; #790), invisible jusqu'à leur fin. Pendant ce temps, le projet nomme la condition aux commandes qu'il porte et qui créeraient ou ouvriraient cette révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4) —, et la dernière révision marquée à sa fusion (`RevisionCommand.merge_structure`). L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010, WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`) pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s), la déclaration d'un risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) et la fusion d'un différentiel de la dernière révision marquée (`RevisionCommand.merge_structure`, WF-REV-0050 ; #790) ; et pour une commande qui demande d'ouvrir la révision d'abord : la génération du squelette de planning (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). `restored_subproject_exists` manque à toute annulation et à tout rétablissement (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision de l'auteur, #732). Trois conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ; `deleteRisk` la nomme dans son 409. Quatre tiennent à l'état d'un objet du référentiel, et l'objet les nomme (`ReferenceCommand`, `CalendarCommand`) : `org_node_parent_active` manque à la réactivation d'un nœud dont le parent est désactivé, `org_node_active` à celle d'un rôle dont le nœud est désactivé (WF-REF-0080) ; `calendar_not_default` à la désactivation du calendrier par défaut, tant qu'un autre n'a pas été désigné (WF-REF-0120) ; `calendar_active` à la désignation par défaut d'un calendrier désactivé, le calendrier par défaut étant actif (WF-REF-0120). Les opérations d'activation et `setDefaultCalendar` les nomment dans leur 409. `cost_type_active` manque à la réactivation d'une catégorie de coût dont la nature est désactivée : « une catégorie ne peut être réactivée que si sa nature est active » (WF-REF-0010 ; EP-14/L42s, C-291) ; la catégorie la nomme (`CostCategory.available_commands`), et `setCostCategoryActivation` dans son 409. Trois tiennent aux catégories d'une nature de coût, et la nature les nomme (`CostType.available_commands`) : `cost_type_unused` manque à la modification du type d'une nature dont une catégorie rattachée est employée, `cost_type_unrated` quand l'une porte un taux horaire, `cost_type_without_role` quand un rôle de ressource, actif ou désactivé, est rattaché à l'une (WF-REF-0030) ; `updateCostType` nomme dans son 409 la première qui manque, dans cet ordre, avec les catégories en cause pour les deux premières (`params.cost_categories`, EP-14/L42s) et les rôles en cause pour la dernière (`params.resource_roles`). Trois tiennent à une catégorie de coût, et la catégorie les nomme (`CostCategory.available_commands`) : `cost_category_unused` manque à son rattachement à une nature d'un autre type quand elle est employée, `cost_category_unrated` quand elle porte des taux horaires (WF-REF-0030, WF-REF-0050, #577), `cost_category_without_role` quand un rôle de ressource, actif ou désactivé, lui est rattaché (WF-REF-0040) ; `updateCostCategory` nomme dans son 409 la première qui manque, dans cet ordre, et pour la dernière les rôles en cause (`params.resource_roles`). `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à tout rétablissement qui recréeraient la ligne de provision d'un risque avec une catégorie qui n'est plus active et de type provision pour risques, quelles que soient les autres : n'envoyant rien, ils ne peuvent pas en désigner une autre (`undoLastChange`, `redoLastUndo` ; #795). `at_least_one_task` manque à la déclaration d'un risque sur une révision dont la structure principale ne comporte aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se ranger ; `createRisk` la nomme dans son 409, après les conditions d'état de la saisie des risques, `project_not_terminal` puis `no_background_task_running`, et avant `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks` (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category` (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste offert, et `applyImport` la nomme dans son 409 (EP-14/L42s). Une tient aux comptes, et le compte la nomme (`User.available_commands`) : `last_administrator` manque à la désactivation du dernier compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ; `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ; `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser` nomme dans son 409. Le retrait de l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition. Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`, `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une sauvegarde dont la vérification n'a pas réussi, en attente ou échouée (WF-ADM-0150) ; `no_backup_running` manque, pendant qu'une sauvegarde s'exécute — de sa mise en file à la production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —, à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running` manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment dans leur 409. `project_before_in_progress` manque à la modification de la probabilité de gain (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré la commande, `updateProject` la nomme dans son 409. Elle manque aussi à la saisie du devis de la structure principale (`StructureCommand.edit_estimate`) dès En cours, la grille de devis restant lisible, et `project_in_progress` à celle de son reste à engager (`StructureCommand.edit_remaining`) hors de l'état En cours, avant lui comme dans un état terminal : en chiffrage le devis, en réalisation le reste à engager (WF-DEV-0050, WF-RAE-0040 ; C-358). `project_before_in_progress` manque de même à l'import d'un devis sur la structure principale, que `openImport` et `applyImport` nomment dans leur 409 (WF-INTF-0100 ; C-358). Trois tiennent à un sous-projet, et le sous-projet les nomme (`Subproject.available_commands`) : `subproject_not_cited` manque à la suppression d'un sous-projet qu'une révision marquée cite — il ne se supprime pas, les sous-projets déterminant la courbe de la valeur acquise (§4.4.1, WF-DAT-0080, WF-PRJ-0050) — ; `subproject_without_actual_costs` à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) ; `subproject_without_estimate_lines` à la suppression d'un sous-projet que portent des lignes de devis de la révision en cours (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273). `deleteSubproject` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (`SubprojectCommand`). `main_structure_without_tasks` manque à la génération du squelette de planning (`RevisionCommand.generate_skeleton`) dès que la structure principale de la révision comporte une tâche : « Elle n'est plus proposée dès que la structure principale comporte une tâche » (Vérif de WF-PRJ-0030) ; `generatePlanningSkeleton` nomme dans son 409 la première qui manque, dans l'ordre où la commande les liste (EP-14/L42k). Sur un projet sans révision en cours (`ProjectCommand.generate_skeleton`), elle se juge sur la révision que son ouverture créerait : elle manque quand la structure principale de la dernière révision marquée, que cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4). `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040), et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214). `line_not_provision` manque à la réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`, WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409. Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone` au démarrage d'un jalon, qui ne passe pas par l'état démarré, et à la réouverture d'un jalon terminé vers l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque. `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun différentiel de la révision n'est à fusionner, et la révision la nomme (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). `rate_update_available` manque à la mise à jour des taux (`apply_rate_update`) d'une révision en cours dont la proposition ne présente aucune catégorie — son année de référence est celle de la révision dont elle est la copie, ou chaque catégorie présentée a déjà été acceptée (WF-REV-0060) — ; la révision la nomme, et `applyRateUpdate` dans son 409 (#1351). Deux tiennent à la désignation de la référence (`designate_reference`), après `revision_marked`, qui manque à une révision en cours : `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte aucune tâche ou aucune ligne de devis — « La désignation comme référence d'une révision qui ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la première qui manque, dans cet ordre — `reference_correctable` par son code propre, `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490). `actual_cost_mapping_complete` manque à l'import des coûts réels (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont la correspondance est vide (WF-REF-0190) ; la commande la nomme après les conditions de l'état du projet et des traitements de fond, et `openImport` dans son 409, avec `params.columns`, les colonnes exigées sans intitulé (EP-16/US-0620).
          * @enum {string}
          */
-        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "at_least_one_estimate_line" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "revision_has_tasks_and_lines" | "unmerged_amendment_exists" | "rate_update_available" | "task_not_completed" | "line_not_provision" | "task_is_milestone" | "task_not_milestone" | "task_without_lines" | "completed_milestone" | "hourly_rates_set" | "no_background_task_running" | "may_create_revision" | "restored_subproject_exists" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "active_provision_category" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "calendar_active" | "cost_type_active" | "cost_type_unused" | "cost_type_unrated" | "cost_type_without_role" | "cost_category_unused" | "cost_category_unrated" | "cost_category_without_role" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs" | "subproject_without_estimate_lines" | "main_structure_without_tasks" | "import_file_accepted" | "is_local_account" | "is_active_account" | "is_deactivated_account" | "is_not_anonymized" | "actual_cost_mapping_complete";
+        CommandCondition: "is_contributor" | "is_project_manager" | "project_not_terminal" | "project_in_progress" | "project_in_pricing" | "project_code_set" | "reference_revision_designated" | "at_least_one_task" | "no_current_revision" | "revision_draft" | "revision_marked" | "reference_correctable" | "revision_has_tasks_and_lines" | "unmerged_amendment_exists" | "rate_update_available" | "task_not_completed" | "line_not_provision" | "task_is_milestone" | "task_not_milestone" | "task_without_lines" | "completed_milestone" | "no_background_task_running" | "may_create_revision" | "restored_subproject_exists" | "risk_not_cited" | "risk_not_occurred" | "risk_identified" | "active_provision_category" | "org_node_parent_active" | "org_node_active" | "calendar_not_default" | "calendar_active" | "cost_type_active" | "cost_type_unused" | "cost_type_unrated" | "cost_type_without_role" | "cost_category_unused" | "cost_category_unrated" | "cost_category_without_role" | "last_administrator" | "backup_verified" | "no_backup_running" | "no_restore_running" | "project_before_in_progress" | "subproject_not_cited" | "subproject_without_actual_costs" | "subproject_without_estimate_lines" | "main_structure_without_tasks" | "import_file_accepted" | "is_local_account" | "is_active_account" | "is_deactivated_account" | "is_not_anonymized" | "actual_cost_mapping_complete" | "undo_history_not_empty" | "redo_history_not_empty";
         UserCommandAvailability: {
             command: components["schemas"]["UserCommand"];
             is_available: boolean;
@@ -3787,7 +3798,6 @@ export interface components {
         CostCategoryUpdate: components["schemas"]["CostCategoryWrite"] & {
             lock_version: components["schemas"]["LockVersion"];
         };
-        Year: number;
         /** @description Montant dans la devise unique de l'installation (WF-REF-0140), à deux décimales. */
         Money: components["schemas"]["Decimal"];
         /** @description Taux horaire d'une catégorie de main-d'œuvre, au plus un par année (WF-REF-0050). Sa correction n'affecte aucune révision marquée (WF-REF-0130). */
@@ -4286,12 +4296,6 @@ export interface components {
          * @enum {string}
          */
         NotComputableReason: "no_actual_cost" | "no_earned_value" | "no_planned_value" | "no_reference_budget" | "no_budgeted_amount" | "no_actual_or_remaining" | "no_capacity" | "no_offer_out_of_pricing" | "no_total" | "hourly_rate_missing" | "work_package_without_task";
-        /** @description Une catégorie de main-d'œuvre employée par un chiffrage, sans taux horaire pour une année (WF-DEV-0010) : ce que `getMissingRates` liste, et ce qu'un montant non calculable nomme (`Computable.params.missing_rates`). */
-        MissingRate: {
-            cost_category_id: components["schemas"]["Uuid"];
-            label?: string;
-            year: components["schemas"]["Year"];
-        };
         /** @description Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010). */
         Computable: {
             is_computable: boolean;
@@ -4966,7 +4970,7 @@ export interface components {
          * @enum {string}
          */
         UndoneKind: "cell" | "node_create" | "node_delete" | "node_move" | "paste" | "link" | "progress" | "remaining" | "tracking" | "structure_update" | "risk_create" | "risk_update" | "risk_review" | "risk_delete";
-        /** @description Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque — création, modification, réexamen, suppression — sont dans le même historique que celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). */
+        /** @description Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une modification postérieure porte sur le même objet, `UNDO_CONFLICT` le nommant (WF-IHM-0110). Les saisies de risque — création, modification, réexamen, suppression — sont dans le même historique que celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout rétablissement qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche, ou avec une catégorie qui n'est plus active et de type provision pour risques, sont refusés par `at_least_one_task` ou `active_provision_category` (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795). */
         UndoResult: {
             undone: {
                 kind: components["schemas"]["UndoneKind"];
@@ -5828,6 +5832,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description Erreur inattendue du service : `INTERNAL_ERROR`, sans paramètre, la cause écrite au seul journal avec la trace et l'identifiant de corrélation, que la réponse porte (`correlation_id`) et que le front affiche comme la référence de l'erreur (WF-OBS-0020, WF-ARC-0060). Toute opération la déclare, aucune n'en dit davantage : rien de ce qui a échoué n'est rendu ; `make lint-openapi` le vérifie (`rule/operation-declares-500`). */
+        InternalError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Un composant indisponible empêche l'opération ; `params.component` le nomme et l'opération n'est jamais présentée comme réussie (WF-EXP-0040). Pendant la maintenance d'une restauration (`startRestore`), toute opération répond ainsi, `component` à `database`, sauf `getLiveness`, qui dit la maintenance (WF-ADM-0160, #604). Toute opération gardée le déclare : la lecture des clés du royaume et l'admission d'un compte attendent le fournisseur d'identité (`identity_provider`). */
         ServiceUnavailable: {
             headers: {
@@ -5855,7 +5868,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. */
+        /** @description L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante, ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. Toute commande qu'un état rend indisponible se refuse ainsi, comme l'objet la dit d'avance : sur un projet terminal, `project_not_terminal` (WF-CYC-0100) ; sur une révision marquée — toute révision d'un projet terminal l'est —, `revision_draft` (WF-DAT-0020). */
         Conflict: {
             headers: {
                 [name: string]: unknown;
@@ -5891,7 +5904,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Permission présente mais condition manquante : qualité de contributeur, état du projet, révision marquée. `params` nomme la condition (WF-ADM-0110, WF-CYC-0100, WF-DAT-0020). */
+        /** @description L'écriture n'est pas permise à l'appelant, qui peut consulter l'objet : une permission manquante, `PERMISSION_MISSING`, `params.missing_permission` la nommant ; ou sa qualité sur le projet, `params.missing_condition` la nommant — `NOT_CONTRIBUTOR`, `is_contributor`, à qui n'en est pas contributeur ; `NOT_PROJECT_MANAGER`, `is_project_manager`, à qui n'en est que contributeur, pour une action structurante ou le paramétrage du projet (WF-ADM-0110, WF-PRJ-0060). L'état d'un objet ne se refuse jamais par 403 : un projet terminal, une révision marquée sont des 409 `STATE_FORBIDS_OPERATION` (`Conflict`). */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -6075,7 +6088,7 @@ export interface components {
         NodeInactiveObjectFilter: boolean;
         /** @description Colonne du tri des lignes de devis ; absente, l'ordre du plan. Le tri ne réordonne que les lignes sous chaque tâche, chacune parmi celles de sa tâche ; les tâches et leurs sous-arbres gardent l'ordre de l'arbre, et chaque nœud son `row_number` (WF-IHM-0060) : trié par montant décroissant, chaque tâche rend ses lignes du plus grand montant au plus petit, et les tâches restent à leur place. Un nombre se compare par sa valeur ; le libellé, en texte, et la catégorie, le rôle et le sous-projet, par leur libellé, caractère par caractère dans l'ordre des points de code Unicode ; une ligne sans valeur — sans heures, sans rôle, sans sous-projet… — vient après les autres dans l'ordre croissant, avant dans le décroissant. Des lignes d'une même valeur, ou toutes deux sans valeur, gardent l'ordre du plan ; une colonne de la seule tâche, de `description` à `work_breakdown`, que les lignes n'ont pas, les y laisse toutes. Ce que chaque opération trie ainsi, et les grilles qui le proposent, l'opération le dit. Une colonne de ligne qui manquerait ici est un constat sur le contrat. */
         NodeSortBy: components["schemas"]["NodeColumn"];
-        /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
+        /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée comme tout paramètre de requête : 422 `VALIDATION_FAILED`, `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED` (WF-ARC-0110 ; J-10, US-0702/L1). `listNodes` et `compareRevisions` le lisent de même. */
         NodeFields: string[];
         StructureId: components["schemas"]["Uuid"];
         /** @description Un numéro de ligne dans la numérotation de toute la structure, à partir de 1, comme `Node.row_number` (`resolveRowNumber`). */
@@ -6134,6 +6147,7 @@ export interface operations {
                     };
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6159,6 +6173,7 @@ export interface operations {
                     };
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6189,6 +6204,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
         };
     };
     getSystemStatus: {
@@ -6211,6 +6227,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6232,6 +6249,7 @@ export interface operations {
                     "application/json": components["schemas"]["Installation"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6273,6 +6291,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6298,6 +6317,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6328,6 +6348,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6350,6 +6371,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6386,6 +6408,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6406,6 +6429,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6434,6 +6458,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6454,6 +6479,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6524,6 +6550,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6570,6 +6597,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6595,6 +6623,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6645,6 +6674,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6687,6 +6717,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6729,6 +6760,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6779,6 +6811,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6814,6 +6847,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6847,6 +6881,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6873,6 +6908,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6896,6 +6932,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6919,6 +6956,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6942,6 +6980,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -6980,6 +7019,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7002,6 +7042,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7063,6 +7104,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7092,6 +7134,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7117,6 +7160,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7150,6 +7194,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7192,6 +7237,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7248,6 +7294,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7280,6 +7327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7305,6 +7353,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7346,6 +7395,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7385,6 +7435,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7408,6 +7459,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7446,6 +7498,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7469,6 +7522,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7518,6 +7572,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7581,6 +7636,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7643,6 +7699,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7666,6 +7723,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7688,6 +7746,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7710,6 +7769,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7764,6 +7824,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7811,6 +7872,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7857,6 +7919,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7915,6 +7978,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -7971,6 +8035,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8036,6 +8101,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8082,6 +8148,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8140,6 +8207,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8193,6 +8261,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8215,6 +8284,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8261,6 +8331,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8301,6 +8372,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8347,6 +8419,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8405,6 +8478,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8466,6 +8540,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8519,6 +8594,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8561,6 +8637,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8607,6 +8684,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8657,6 +8735,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8701,6 +8780,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8744,6 +8824,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8790,6 +8871,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8840,6 +8922,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8893,6 +8976,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8945,6 +9029,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -8970,6 +9055,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9029,6 +9115,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9052,6 +9139,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9106,6 +9194,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9158,6 +9247,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9204,6 +9294,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9229,6 +9320,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9258,7 +9350,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            /** @description Une qualité manquante, la commande `update` la disant d'avance : `NOT_PROJECT_MANAGER`, `params.missing_condition` à `is_project_manager`, à qui n'est que contributeur du projet — le paramétrage est réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) — ; `NOT_CONTRIBUTOR`, `is_contributor`, à qui ne l'est pas ; ou une permission manquante, comme la réponse commune `Forbidden` le dit. Rien n'est écrit. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             /** @description Un code déjà employé par un autre projet (WF-PRJ-0010) : `ALREADY_EXISTS`, `fields` désignant `/code` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id` le projet qui le porte et `fields[].params.conflicting_object_label` son libellé, que le formulaire dit au champ ; ou une commande indisponible, `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant : `project_before_in_progress` pour `/win_probability` envoyée à un projet qui a atteint En cours, figée comme sa commande `update_win_probability` le disait d'avance (WF-PRJ-0090, WF-IHM-0090) ; `project_not_terminal` sur un projet terminal (WF-CYC-0100). Rien n'est écrit. */
             409: {
@@ -9279,6 +9379,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9304,6 +9405,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9329,6 +9431,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9387,6 +9490,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9418,6 +9522,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9476,6 +9581,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9511,6 +9617,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9559,6 +9666,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9593,6 +9701,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9644,6 +9753,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9681,6 +9791,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9731,6 +9842,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9756,6 +9868,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9781,6 +9894,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9812,6 +9926,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien n'est créé. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Un nom vide, trop long ou fait seulement de blancs : `VALIDATION_FAILED`, `fields` désignant `/label` par `VALUE_REQUIRED`, `VALUE_TOO_LONG` ou, comme tout libellé, `VALIDATION_FAILED` (WF-PLA-0140). */
             422: {
                 headers: {
@@ -9821,6 +9944,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9844,8 +9968,10 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
-            /** @description Permission présente mais condition manquante, comme pour toute écriture du projet : `params.missing_permission` ou `params.missing_condition` la nomme (WF-ADM-0110) — `NOT_CONTRIBUTOR` à qui n'est pas contributeur, et sur un projet terminal `PROJECT_TERMINAL`, `params.missing_condition` à `project_not_terminal` (WF-CYC-0100). Rien n'est écrit. */
-            403: {
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien n'est supprimé. Aucune révision marquée ne retient une chronologie (WF-DAT-0080). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9853,7 +9979,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9890,6 +10016,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9931,6 +10058,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9957,6 +10085,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -9983,6 +10112,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10026,6 +10156,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10067,6 +10198,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10093,6 +10225,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10139,6 +10272,7 @@ export interface operations {
             };
             412: components["responses"]["PreconditionFailed"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10262,7 +10396,7 @@ export interface operations {
                 sort_by?: components["parameters"]["NodeSortBy"];
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
-                /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
+                /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée comme tout paramètre de requête : 422 `VALIDATION_FAILED`, `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED` (WF-ARC-0110 ; J-10, US-0702/L1). `listNodes` et `compareRevisions` le lisent de même. */
                 fields?: components["parameters"]["NodeFields"];
             };
             header?: never;
@@ -10282,10 +10416,9 @@ export interface operations {
                     "application/json": components["schemas"]["RevisionComparison"];
                 };
             };
-            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Un filtre de colonne refusé, comme `listNodes` le refuse (README) : une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne inférieure donnée, une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`, `params.minimum` le début donné (WF-IHM-0130) ; `fields` sur le paramètre. */
+            /** @description Un filtre de colonne refusé, comme `listNodes` le refuse (README) : une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne inférieure donnée, une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`, `params.minimum` le début donné (WF-IHM-0130) ; `fields` sur le paramètre. Une propriété inconnue de `fields`, comme `listNodes` la refuse (`NodeFields`, `fields_unknown`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10294,6 +10427,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10320,6 +10454,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10354,6 +10489,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10398,6 +10534,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10434,6 +10571,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10486,6 +10624,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10607,7 +10746,7 @@ export interface operations {
                 sort_by?: components["parameters"]["NodeSortBy"];
                 /** @description Sens du tri demandé par `sort_by`. */
                 sort_order?: components["parameters"]["SortOrder"];
-                /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée (400). `listNodes` et `compareRevisions` le lisent de même. */
+                /** @description Les propriétés à rendre de chaque nœud (`Node`), en plus de celles toujours rendues ; une propriété inconnue est refusée comme tout paramètre de requête : 422 `VALIDATION_FAILED`, `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED` (WF-ARC-0110 ; J-10, US-0702/L1). `listNodes` et `compareRevisions` le lisent de même. */
                 fields?: components["parameters"]["NodeFields"];
             };
             header?: never;
@@ -10633,10 +10772,9 @@ export interface operations {
                     };
                 };
             };
-            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Un filtre de colonne refusé, selon la convention du README, `fields` sur le paramètre : une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne inférieure donnée (`bounds_inverted`), une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`, `params.minimum` le début donné (`period_inverted`, WF-IHM-0130). */
+            /** @description Un filtre de colonne refusé, selon la convention du README, `fields` sur le paramètre : une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne inférieure donnée (`bounds_inverted`), une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_to`, `params.minimum` le début donné (`period_inverted`, WF-IHM-0130). Une propriété inconnue de `fields`, `VALIDATION_FAILED`, `fields` désignant `/query/fields` par `FIELD_NOT_ACCEPTED`, comme tout paramètre de requête refusé (`NodeFields`, `fields_unknown`, WF-ARC-0110). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10645,6 +10783,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10678,7 +10817,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description L'état d'un nœud interdit la création, rien n'étant créé : une ligne sous une tâche terminée, qui se rouvre d'abord depuis le Kanban (WF-DEV-0050, WF-RAE-0030), `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed` (`completed_refused` ; #1184) ; ou un traitement de fond qui court sur la révision, `no_background_task_running`, comme la commande de la structure le dit. */
+            /** @description L'état d'un nœud interdit la création, rien n'étant créé : une ligne sous une tâche terminée, qui se rouvre d'abord depuis le Kanban (WF-DEV-0050, WF-RAE-0030), `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed` (`completed_refused` ; #1184) ; ou un traitement de fond qui court sur la révision, `no_background_task_running`, comme la commande de la structure le dit. Sur une révision marquée, `revision_draft`, comme la révision le dit d'avance de ses saisies (`Revision.available_commands`, `marked_refused`, WF-DAT-0020). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10687,7 +10826,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), un délai de paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une catégorie qui n'est pas celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`, `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une ligne sans rôle (`VALUE_REQUIRED`) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Ou une date d'une tâche en mode manuel envoyée un jour sans aucune heure travaillée au calendrier de la tâche : `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant, comme `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010 ; #1345). */
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une ligne de type provision pour risques créée à la main (`PROVISION_CATEGORY_RESERVED`, WF-DEV-0020), un rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), un délai de paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une catégorie qui n'est pas celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`, `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une ligne sans rôle (`VALUE_REQUIRED`), une catégorie de main-d'œuvre sans rôle (`/estimate_line/resource_role_id`, `RESOURCE_ROLE_REQUIRED`, WF-DEV-0020) ; ou, sans `fields`, une ligne dont la catégorie n'a pas de taux horaire pour l'année de référence (`HOURLY_RATE_MISSING`, `params.missing_rates`, WF-DEV-0010) ; ou une ligne qui laisserait sa tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Ou une date d'une tâche en mode manuel envoyée un jour sans aucune heure travaillée au calendrier de la tâche : `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant, comme `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010 ; #1345). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10696,6 +10835,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10734,6 +10874,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10785,6 +10926,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10825,6 +10967,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10861,7 +11004,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce dont elle dépend (`getComputedValueDependencies`) —, ou le mode d'une récapitulative, toujours automatique (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020, WF-IHM-0030), ou un rattachement au lotissement refusé — tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble, lot ou poste déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche d'un poste sortie du sous-arbre de la tâche de son lot, les tâches du lot et des postes nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans : `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé (WF-PLA-0150). Ou une date envoyée un jour sans aucune heure travaillée au calendrier de la tâche : `fields` sur `/start/date` ou `/finish/date` par `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant — « le refus nomme le jour travaillé suivant ; rien n'est écrit » (WF-PLA-0020, WF-PLA-0010 ; #1271). Ou des heures envoyées avec un jour travaillé hors de `0` aux heures que le calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie, jamais nulle — un jour chômé est refusé par sa date, ses heures n'étant pas jugées (`WorkInstantWrite`, WF-PLA-0010, WF-DAT-0100, #1244). */
+            /** @description Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce dont elle dépend (`getComputedValueDependencies`) ; une date d'une récapitulative, qui la tire de ses subordonnées, par `SUMMARY_TASK_DERIVED`, `fields[].params.subordinate_node_ids` les nommant (`summary_date_refused`, Vérif de WF-IHM-0030) —, ou le mode d'une récapitulative, toujours automatique (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020, WF-IHM-0030), ou un rattachement au lotissement refusé — tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble, lot ou poste déjà porté par une autre tâche, nommée par son nœud et son libellé, tâche d'un poste sortie du sous-arbre de la tâche de son lot, les tâches du lot et des postes nommées par leur nœud et leur libellé (WF-PLA-0170, `TaskFacetUpdate`). Ou, sans `fields`, une saisie qui porterait la durée du projet au-delà de quinze ans : `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche par son nœud et son libellé (WF-PLA-0150). Ou une date envoyée un jour sans aucune heure travaillée au calendrier de la tâche : `fields` sur `/start/date` ou `/finish/date` par `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant — « le refus nomme le jour travaillé suivant ; rien n'est écrit » (WF-PLA-0020, WF-PLA-0010 ; #1271). Ou des heures envoyées avec un jour travaillé hors de `0` aux heures que le calendrier de la tâche accorde ce jour-là : `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie, jamais nulle — un jour chômé est refusé par sa date, ses heures n'étant pas jugées (`WorkInstantWrite`, WF-PLA-0010, WF-DAT-0100, #1244). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10870,6 +11013,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10906,7 +11050,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ; ou une catégorie envoyée sur une ligne de main-d'œuvre qui n'est pas celle de son rôle, calculée : `fields` sur `/cost_category_id`, motif `COMPUTED_VALUE`, la grille lisant ce dont elle dépend (`resource_role`, WF-DEV-0020, WF-IHM-0030) ; ou un délai de paiement négatif : `fields` sur `/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100) ; ou un champ que la ligne n'accepte pas — le délai de paiement d'une ligne de provision, qui n'en porte pas —, motif `FIELD_NOT_ACCEPTED` sur son champ (`EstimateLineUpdate` ; EP-14/L42s) ; ou une ligne d'une tâche démarrée ou terminée passée hors d'un sous-projet qui a reçu des coûts réels : `fields` sur `/subproject_id`, motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant ce sous-projet (WF-PRJ-0050). */
+            /** @description Un calcul que la ligne demanderait sans taux horaire : une catégorie de main-d'œuvre employée par son rôle sans taux pour l'année de référence de la révision, `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories une par une (`rate_missing`, WF-DEV-0010) ; ou le rôle retiré d'une ligne de main-d'œuvre, `VALIDATION_FAILED`, `fields` sur `/resource_role_id`, motif `RESOURCE_ROLE_REQUIRED` (`role_required`, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`, `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ; ou une catégorie envoyée sur une ligne de main-d'œuvre qui n'est pas celle de son rôle, calculée : `fields` sur `/cost_category_id`, motif `COMPUTED_VALUE`, la grille lisant ce dont elle dépend (`resource_role`, WF-DEV-0020, WF-IHM-0030) ; ou un délai de paiement négatif : `fields` sur `/payment_delay_days`, `VALUE_OUT_OF_RANGE`, `params.minimum` à `0` (WF-IND-0100) ; ou un champ que la ligne n'accepte pas — le délai de paiement d'une ligne de provision, qui n'en porte pas —, motif `FIELD_NOT_ACCEPTED` sur son champ (`EstimateLineUpdate` ; EP-14/L42s) ; ou une ligne d'une tâche démarrée ou terminée passée hors d'un sous-projet qui a reçu des coûts réels : `fields` sur `/subproject_id`, motif `SUBPROJECT_HAS_ACTUAL_COSTS`, `params.subproject` nommant ce sous-projet (WF-PRJ-0050). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10915,6 +11059,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -10960,6 +11105,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11004,7 +11150,16 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            422: components["responses"]["UnprocessableEntity"];
+            /** @description Une récapitulative, dont l'état n'est pas saisissable : `SUMMARY_TASK_DERIVED`, `params.subordinate_node_ids` nommant ses subordonnées directes, dans l'ordre du plan, dont elle tire son état (WF-PLA-0040, WF-IHM-0030) ; rien n'est écrit. Ou une valeur hors règle, `fields` la localisant, comme la réponse commune `UnprocessableEntity` le dit. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11039,7 +11194,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La ligne n'accepte pas la réestimation, rien n'étant écrit : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première des conditions que sa `remaining_entry` dit manquer — `task_not_completed`, une ligne d'une tâche terminée (WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le montant est celui que son risque calcule (`remaining_provision_refused`, WF-RIS-0010, WF-RAE-0010) —, ou un traitement de fond qui court sur la révision, `no_background_task_running`. */
+            /** @description La ligne n'accepte pas la réestimation, rien n'étant écrit : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première des conditions que sa `remaining_entry` dit manquer — `task_not_completed`, une ligne d'une tâche terminée (`completed_refused`, WF-RAE-0040) ; `line_not_provision`, une ligne de provision, dont le montant est celui que son risque calcule (`remaining_provision_refused`, WF-RIS-0010, WF-RAE-0010) —, ou un traitement de fond qui court sur la révision, `no_background_task_running`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11058,6 +11213,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11105,6 +11261,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11157,6 +11314,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11200,6 +11358,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11233,7 +11392,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description La structure n'accepte plus la saisie de sa grille, rien n'étant écrit : `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition que sa commande dit manquer (`StructureCommand`) — `revision_draft` sur une révision marquée, `no_background_task_running` pendant un traitement de fond qui court sur la révision (WF-IHM-0050, WF-IHM-0090). Le refus d'une ligne du bloc n'est pas un 409 : elle est rendue dans `rejected`, avec son motif (`PasteRejection`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Le compteur envoyé est périmé, ou la structure a changé depuis l'aperçu, quel que soit le compteur envoyé (`PasteApply`) : `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant de la structure ; rien n'est écrit (WF-IHM-0050, WF-IHM-0110). */
             412: {
                 headers: {
@@ -11244,6 +11411,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11271,7 +11439,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre, rien n'étant défait (`later_change` ; #1531) —, ou l'historique de l'appelant sur la révision est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé depuis — à la provision d'un risque dont elle défait la création, la modification ou la suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category` : une annulation subit les règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est défait (#795). */
+            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris depuis, une tâche, une ligne de devis ou un risque, rien n'étant défait : « Elle est refusée, en nommant l'objet en conflit » (`later_change`, WF-IHM-0110 ; #1531, E-07) —, ou l'historique de l'appelant sur la révision est vide, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `undo_history_not_empty` (`history_empty`). Ou l'annulation rendrait un sous-projet supprimé depuis — à la provision d'un risque dont elle défait la création, la modification ou la suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est défait (décision de l'auteur, #732). Ou l'annulation recréerait la ligne de provision d'un risque — elle défait la suppression d'un risque identifié, le réexamen qui l'a écarté ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category` : une annulation subit les règles de la saisie (WF-IHM-0110), qui refuse le retour d'un risque à l'état identifié sur une telle structure ou sans telle catégorie (WF-RIS-0010) ; n'envoyant rien, elle ne peut pas désigner une autre catégorie comme le réexamen. Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est défait (#795). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11280,6 +11448,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11307,7 +11476,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre, rien n'étant rétabli (`later_change` ; #1531) —, ou rien n'est à rétablir (WF-IHM-0110). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la provision d'un risque dont il rétablit la création, la modification ou la suppression, ou à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli (décision de l'auteur, #732). Ou le rétablissement recréerait la ligne de provision d'un risque — il rétablit sa création, le réexamen qui l'a rendu identifié ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category`, comme l'annulation (`undoLastChange`, WF-RIS-0010, WF-IHM-0110). Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est rétabli (#795). */
+            /** @description Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris depuis, rien n'étant rétabli (`later_change`, WF-IHM-0110 ; #1531, E-07) —, ou aucune annulation n'est à rétablir, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `redo_history_not_empty` (`history_empty`). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la provision d'un risque dont il rétablit la création, la modification ou la suppression, ou à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et rien n'est rétabli (décision de l'auteur, #732). Ou le rétablissement recréerait la ligne de provision d'un risque — il rétablit sa création, le réexamen qui l'a rendu identifié ou le changement de la catégorie de sa provision — sur une structure principale qui ne comporte plus aucune tâche, `at_least_one_task`, ou avec une catégorie qui n'est plus active et de type provision pour risques, désactivée ou rattachée à une nature d'un autre type depuis, `active_provision_category`, comme l'annulation (`undoLastChange`, WF-RIS-0010, WF-IHM-0110). Ces conditions se jugent dans l'ordre de l'énumération (`CommandCondition`) — `at_least_one_task`, `restored_subproject_exists`, `active_provision_category` —, le refus nommant la première qui manque, et rien n'est rétabli (#795). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11316,6 +11485,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11343,7 +11513,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description La génération n'est pas proposée : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui manque, dans l'ordre où la commande les liste (`generate_skeleton`) — `main_structure_without_tasks` dès que la structure principale comporte une tâche (Vérif de WF-PRJ-0030), puis `no_background_task_running` pendant un marquage, un import, le traitement d'une survenance de risque ou une fusion (WF-IHM-0080). */
+            /** @description La génération n'est pas proposée : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui manque, dans l'ordre où la commande les liste (`generate_skeleton`) — `main_structure_without_tasks` dès que la structure principale comporte une tâche (Vérif de WF-PRJ-0030), puis `no_background_task_running` pendant un marquage, un import, le traitement d'une survenance de risque ou une fusion (WF-IHM-0080). Sur une révision marquée, la commande ne manque que de `revision_draft` (`marked_refused`, WF-DAT-0020). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11352,6 +11522,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11390,6 +11561,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11418,6 +11590,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11468,6 +11641,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11496,6 +11670,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11525,6 +11700,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11575,6 +11751,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11600,6 +11777,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11652,6 +11830,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11702,6 +11881,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11739,6 +11919,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11784,6 +11965,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11833,6 +12015,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11863,6 +12046,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11897,6 +12081,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11948,6 +12133,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -11978,6 +12164,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12029,6 +12216,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12064,6 +12252,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12115,6 +12304,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12144,6 +12334,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12173,6 +12364,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12227,6 +12419,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12260,6 +12453,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12292,6 +12486,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12325,6 +12520,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12363,6 +12559,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12405,6 +12602,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12449,6 +12647,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12481,6 +12680,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12530,6 +12730,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12556,6 +12757,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12581,6 +12783,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12623,6 +12826,7 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12672,6 +12876,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12721,6 +12926,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12756,6 +12962,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12799,6 +13006,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12834,6 +13042,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12869,6 +13078,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12902,6 +13112,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12939,6 +13150,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["PortfolioPeriodRefused"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -12968,6 +13180,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };

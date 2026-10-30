@@ -94,7 +94,7 @@ describe("the decoder of an answer of the API", () => {
 
   it("explains a conflict with the state of an object, which it names (409)", async () => {
     const conflict = {
-      code: "TASK_COMPLETED",
+      code: "STATE_FORBIDS_OPERATION",
       status: 409,
       params: { conflicting_object_id: TASK.node_id },
     } as const;

@@ -635,7 +635,11 @@ describe("the rows written together while a cell of theirs is under way", () => 
     const { entry, refuse } = held<EstimateNode, NodeTotals>();
     const marked: Outcome<never> = {
       kind: "conflict",
-      problem: { code: "REVISION_MARKED", status: 409 },
+      problem: {
+        code: "STATE_FORBIDS_OPERATION",
+        status: 409,
+        params: { missing_condition: "revision_draft" },
+      },
       conflictingObjectId: null,
     };
     await enter(result.current, TASK, "label", entry);

@@ -123,7 +123,7 @@ export interface Examples {
     200: "milestone_tracking" | "milestone_tracking_none";
   };
   "GET /projects/{project_id}/next-state": {
-    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing";
+    200: "next_state" | "next_state_completed" | "next_state_created" | "next_state_pricing" | "next_state_pricing_without_code";
   };
   "GET /projects/{project_id}/remaining-indicators": {
     200: "remaining_indicators" | "remaining_indicators_over_budget";
