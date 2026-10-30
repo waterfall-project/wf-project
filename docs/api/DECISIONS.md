@@ -8622,7 +8622,9 @@ adoptent sont d'US-0660/L3 et L4.
   charge du « Raccordement des borniers » modifiée depuis par Lucas Petit ;
   `undo_restored_subproject_deleted`, `STATE_FORBIDS_OPERATION` à `restored_subproject_exists`,
   une ligne rendue à un sous-projet supprimé depuis. Les descriptions des deux 409 nomment
-  `UNDO_CONFLICT`.
+  `UNDO_CONFLICT`. *Depuis US-0702/L1 (#1610, E-07), `UNDO_CONFLICT` nomme l'objet en conflit
+  (`params.conflicting_object_id`, `conflicting_object_label`), et un historique vide a sa
+  condition ; « sans paramètre » ne vaut plus.*
 - **#1573, la part back** : la ligne trop longue de l'entrée « Les comptes rendus et les paramètres
   des refus » est coupée, et le test des paramètres typés valides prend un paramètre `(nom, valeur)`
   au lieu de la clé factice `tasks_imported`.
@@ -9615,7 +9617,59 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   la lecture commune des conditions par le front. Les commandes d'un projet clos restent listées,
   `project_not_terminal` manquante (#1657, à trancher par l'auteur).
 
-**Corrélations** 1610 à 1612.
+- **Le catalogue sans code mort** (J-03, J-11 ; WF-ARC-0110, WF-IHM-0090). Chaque code
+  d'`ErrorCode` est nommé par une opération ou un schéma, et chaque valeur de `CommandCondition`
+  dite par sa description et nommée par une opération, un schéma ou un exemple :
+  `tools/tests/test_contract_catalogue.py` le tient, et tient aussi la liste des codes qu'aucun
+  exemple ne porte encore — les mineurs J-17 et deux motifs d'une ligne importée, laissés après le
+  gel —, qui ne peut que raccourcir. Rendus : `NOT_PROJECT_MANAGER`, le 403 de qui n'est que
+  contributeur pour une commande réservée, `params.missing_condition` à `is_project_manager`
+  (`project_update_not_manager`, le modèle d'EP-02/L7, enfin rattaché à une opération) ;
+  `project_code_set`, que `getProjectNextState` nomme tant que le code manque
+  (`next_state_pricing_without_code`, Vérif de WF-PRJ-0010) ; `project_in_pricing`,
+  `no_current_revision`, `project_not_terminal`, `project_in_progress`, `revision_draft` et
+  `reference_revision_designated`, employés et désormais décrits. Retirés : `TASK_ALREADY_STARTED`
+  et `TASK_COMPLETED`, doublons de `STATE_FORBIDS_OPERATION` sous la règle unique — le refus de
+  `deleteNode` sur une tâche démarrée ou terminée sera une condition (F-04, US-0702/L2, #1611) ;
+  `PROJECT_CODE_REQUIRED`, que rien ne refuse, le passage à En cours étant automatique et sa
+  condition nommée par `project_code_set` ; `at_least_one_estimate_line` et `hourly_rates_set`,
+  qu'aucune commande ne nomme. Écarté : garder les codes d'état pour `deleteNode`, deux formes pour
+  un même refus.
+- **Le taux manquant et le rôle absent nommés** (J-06 ; WF-DEV-0010, WF-DEV-0020). Le calcul
+  qu'une ligne demanderait sans taux horaire pour l'année de référence est refusé par 422
+  `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories (`MissingRate`,
+  le schéma de `getMissingRates`), sur `createNode` et `updateEstimateLine`
+  (`estimate_line_rate_missing`, l'ingénierie électrique sans taux 2026, comme `missing_rates` le
+  suppose) ; l'échec d'un marquage porte le même motif (`markRevision`, `BackgroundTaskRef.kind`,
+  `task_failed`, écrit à la main, qui reçoit les paramètres). Le rôle retiré d'une ligne de
+  main-d'œuvre, `/resource_role_id` par `RESOURCE_ROLE_REQUIRED` (`estimate_line_role_required`).
+  `missing_rates` est typé dans `ProblemParams`. Écarté : un motif par champ sur
+  `/cost_category_id`, que la revue proposait — la catégorie d'une ligne de main-d'œuvre est celle
+  de son rôle et ne se saisit plus (F-09, US-0701/L3), et une saisie de la seule charge n'aurait
+  aucun champ à désigner : c'est le calcul de la ligne qui est refusé, comme celui du marquage.
+- **L'annulation refusée en nommant l'objet en conflit** (E-07, J-05 ; WF-IHM-0110). Une
+  annulation ou un rétablissement qui défairait une modification postérieure sur le même objet :
+  409 `UNDO_CONFLICT`, `params.conflicting_object_id` et `conflicting_object_label` — les
+  paramètres que le front lit déjà pour l'objet en conflit (`conflictingOf`, #714) —, sur
+  `undo_later_change` et `redo_later_change`, variantes écrites à la main qui reçoivent la ligne du
+  « Raccordement des borniers ». Un historique vide n'est pas un conflit : 409
+  `STATE_FORBIDS_OPERATION`, `undo_history_not_empty` ou `redo_history_not_empty`, conditions
+  nouvelles qu'aucune commande ne dit d'avance (`undo_history_empty`, `redo_history_empty`).
+  Écartés : un paramètre par nature d'objet (`conflicting_node_id`, `conflicting_risk_id`), puis un
+  `conflicting_object_kind`, que la revue proposait — l'identifiant et le libellé suffisent à
+  nommer l'objet, comme pour `ALREADY_EXISTS`.
+- **Les valeurs d'une récapitulative** (F-05, J-04 ; WF-PLA-0040, WF-IHM-0030). Son état envoyé à
+  `setTaskProgress` est refusé par 422 `SUMMARY_TASK_DERIVED`, `params.subordinate_node_ids` ses
+  subordonnées directes dans l'ordre du plan (`task_progress_summary_refused`, « Études ») ; une
+  date envoyée à `updateTaskFacet`, par le même code en motif de champ, `fields[].params`
+  (`task_summary_date_refused`, « Poste de commande », Vérif de WF-IHM-0030). `COMPUTED_VALUE`
+  reste le motif d'une date d'une tâche en mode automatique qui n'est pas une récapitulative, et
+  celui du mode d'une récapitulative (US-0701/L3). `subordinate_node_ids` est typé dans
+  `ProblemParams`. La décision « Calculé contre saisi » (EP-02) reçoit enfin ses opérations.
+  Écarté : `COMPUTED_VALUE` avec les subordonnées, et `SUMMARY_TASK_DERIVED` retiré — le code
+  dit déjà la récapitulative au compte rendu d'un import (`ImportSignal`).
+
+**Corrélations** 1610 à 1619.
 
 ## Collage et annulation
 

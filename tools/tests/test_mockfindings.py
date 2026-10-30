@@ -335,7 +335,8 @@ def test_the_undo_and_the_redo_have_the_examples_of_their_refusals() -> None:
     later, again = fixture("undo_later_change"), fixture("redo_later_change")
     for refused in (later, again):
         assert (refused["code"], refused["status"]) == ("UNDO_CONFLICT", 409)
-        assert "params" not in refused
+        # The object in conflict is named since US-0702/L1 (E-07, WF-IHM-0110).
+        assert set(refused["params"]) == {"conflicting_object_id", "conflicting_object_label"}
     deleted = fixture("undo_restored_subproject_deleted")
     assert deleted["params"] == {"missing_condition": "restored_subproject_exists"}
     assert {"undo_later_change", "undo_restored_subproject_deleted"} <= set(

@@ -2044,7 +2044,7 @@ UndoResult:
     Annule ou rétablit la dernière modification de l'historique de l'appelant sur la révision
     (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une
     autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une
-    modification postérieure porte sur le même objet (WF-IHM-0110). Les saisies de risque —
+    modification postérieure porte sur le même objet, `UNDO_CONFLICT` le nommant (WF-IHM-0110). Les saisies de risque —
     création, modification, réexamen, suppression — sont dans le même historique que celles des
     grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute
     annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision

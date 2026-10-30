@@ -169,7 +169,11 @@
       (WF-REV-0020, WF-DAT-0040) ; une révision marquée avant l'état En cours ne
       conserve que les indicateurs de devis. Le nom de version est unique parmi les
       révisions marquées du projet. Confié au worker (WF-ARC-0090), et inscrit au
-      journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande.
+      journal d'audit (WF-SEC-0030). La révision suivante n'est créée qu'à la demande. Le calcul
+      est refusé tant qu'une catégorie de main-d'œuvre employée par le rôle d'une ligne n'a pas de
+      taux horaire pour l'année de référence de la révision : la tâche échoue sans rien figer, son
+      motif `HOURLY_RATE_MISSING`, `params.missing_rates` nommant les catégories une par une
+      (`BackgroundTaskRef.problem`, `task_failed` ; WF-DEV-0010, WF-IHM-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1077,7 +1081,10 @@
           (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une catégorie qui n'est pas
           celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`,
           `COMPUTED_VALUE`, `line_category_mismatch`, WF-DEV-0020), une catégorie absente d'une
-          ligne sans rôle (`VALUE_REQUIRED`) ; ou une ligne qui laisserait sa
+          ligne sans rôle (`VALUE_REQUIRED`), une catégorie de main-d'œuvre sans rôle
+          (`/estimate_line/resource_role_id`, `RESOURCE_ROLE_REQUIRED`, WF-DEV-0020) ; ou, sans
+          `fields`, une ligne dont la catégorie n'a pas de taux horaire pour l'année de référence
+          (`HOURLY_RATE_MISSING`, `params.missing_rates`, WF-DEV-0010) ; ou une ligne qui laisserait sa
           tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) ; ou, sans
           `fields`, une tâche qui porterait la durée du projet au-delà de quinze ans
           (`PROJECT_HORIZON_EXCEEDED`, `params.task`, WF-PLA-0150). Ou une date d'une tâche en
@@ -1339,7 +1346,9 @@
         description: >-
           Entité refusée par une règle métier, `fields` localisant chaque refus : une valeur
           calculée — une date d'une tâche en mode automatique, sans paramètre, la grille lisant ce
-          dont elle dépend (`getComputedValueDependencies`) —, ou le mode d'une récapitulative,
+          dont elle dépend (`getComputedValueDependencies`) ; une date d'une récapitulative, qui la
+          tire de ses subordonnées, par `SUMMARY_TASK_DERIVED`, `fields[].params.subordinate_node_ids`
+          les nommant (`summary_date_refused`, Vérif de WF-IHM-0030) —, ou le mode d'une récapitulative,
           toujours automatique (`/scheduling_mode`, WF-PLA-0040) (`COMPUTED_VALUE`, WF-PLA-0020,
           WF-IHM-0030), ou un rattachement au lotissement refusé —
           tâche hors de la structure principale, lot ou poste inconnu, lot et poste ensemble,
@@ -1363,6 +1372,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               date_computed: { $ref: ../../../fixtures/api/task_date_computed_refused.json }
+              summary_date_refused: { $ref: ../../../fixtures/api/task_summary_date_refused.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/task_horizon_exceeded.json }
               non_working_day: { $ref: ../../../fixtures/api/task_date_non_working_day.json }
               hours_beyond_day: { $ref: ../../../fixtures/api/task_hours_beyond_day.json }
@@ -1426,8 +1436,12 @@
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          Taux horaire manquant pour l'année de référence, ou rôle absent sur une ligne
-          de main-d'œuvre (WF-DEV-0010, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
+          Un calcul que la ligne demanderait sans taux horaire : une catégorie de main-d'œuvre
+          employée par son rôle sans taux pour l'année de référence de la révision,
+          `HOURLY_RATE_MISSING`, sans `fields`, `params.missing_rates` nommant les catégories une par
+          une (`rate_missing`, WF-DEV-0010) ; ou le rôle retiré d'une ligne de main-d'œuvre,
+          `VALIDATION_FAILED`, `fields` sur `/resource_role_id`, motif `RESOURCE_ROLE_REQUIRED`
+          (`role_required`, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
           sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre
           rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la
           semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
@@ -1450,6 +1464,8 @@
             examples:
               payment_delay_out_of_range: { $ref: ../../../fixtures/api/estimate_line_payment_delay_out_of_range.json }
               subproject_has_actual_costs: { $ref: ../../../fixtures/api/estimate_line_subproject_has_actual_costs.json }
+              rate_missing: { $ref: ../../../fixtures/api/estimate_line_rate_missing.json }
+              role_required: { $ref: ../../../fixtures/api/estimate_line_role_required.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors:
@@ -1524,7 +1540,8 @@
       démarrée, jalon compris, prend pour date de démarrage celle de sa terminaison — un jalon
       sans passer par l'état démarré —, et un jalon rouvert perd l'une et l'autre
       (`ProgressUpdate`, `milestone_completed`, `milestone_reopened`). Refusé sur une
-      récapitulative, dont l'état est dérivé (WF-PLA-0040).
+      récapitulative, dont l'état est dérivé de ses subordonnées (WF-PLA-0040) : 422
+      `SUMMARY_TASK_DERIVED`, qui les nomme (WF-IHM-0030).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1579,7 +1596,17 @@
               reopen_not_started_refused:
                 $ref: ../../../fixtures/api/task_reopen_not_started_refused.json
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Une récapitulative, dont l'état n'est pas saisissable : `SUMMARY_TASK_DERIVED`,
+          `params.subordinate_node_ids` nommant ses subordonnées directes, dans l'ordre du plan, dont
+          elle tire son état (WF-PLA-0040, WF-IHM-0030) ; rien n'est écrit. Ou une valeur hors
+          règle, `fields` la localisant, comme la réponse commune `UnprocessableEntity` le dit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              summary_refused: { $ref: ../../../fixtures/api/task_progress_summary_refused.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining:
@@ -1975,9 +2002,12 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre,
-          rien n'étant défait (`later_change` ; #1531) —, ou l'historique de l'appelant sur la
-          révision est vide (WF-IHM-0110). Ou l'annulation rendrait un sous-projet supprimé
+          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
+          depuis, une tâche, une ligne de devis ou un risque, rien n'étant défait : « Elle est
+          refusée, en nommant l'objet en conflit » (`later_change`, WF-IHM-0110 ; #1531, E-07) —,
+          ou l'historique de l'appelant sur la révision est vide, `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `undo_history_not_empty` (`history_empty`). Ou l'annulation rendrait un sous-projet supprimé
           depuis — à la provision d'un risque dont elle défait la création, la modification ou la
           suppression, ou à une ligne de devis dont elle défait une écriture de la grille, la
           suppression d'une ligne ou d'une tâche et de ses lignes comprise — :
@@ -2000,6 +2030,7 @@
             examples:
               risk_without_task: { $ref: ../../../fixtures/api/undo_risk_without_task.json }
               later_change: { $ref: ../../../fixtures/api/undo_later_change.json }
+              history_empty: { $ref: ../../../fixtures/api/undo_history_empty.json }
               restored_subproject_deleted:
                 $ref: ../../../fixtures/api/undo_restored_subproject_deleted.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -2027,9 +2058,11 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`, sans paramètre,
-          rien n'étant rétabli (`later_change` ; #1531) —, ou rien n'est à rétablir
-          (WF-IHM-0110). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
+          Une modification postérieure porte sur le même objet — `UNDO_CONFLICT`,
+          `params.conflicting_object_id` et `params.conflicting_object_label` nommant l'objet repris
+          depuis, rien n'étant rétabli (`later_change`, WF-IHM-0110 ; #1531, E-07) —, ou aucune
+          annulation n'est à rétablir, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `redo_history_not_empty` (`history_empty`). Ou le rétablissement rendrait un sous-projet supprimé depuis — à la
           provision d'un risque dont il rétablit la création, la modification ou la suppression, ou
           à une ligne de devis dont il rétablit une écriture de la grille, la suppression d'une
           ligne ou d'une tâche et de ses lignes comprise — : `STATE_FORBIDS_OPERATION`,
@@ -2051,6 +2084,7 @@
               risk_category_deactivated:
                 $ref: ../../../fixtures/api/redo_risk_category_deactivated.json
               later_change: { $ref: ../../../fixtures/api/redo_later_change.json }
+              history_empty: { $ref: ../../../fixtures/api/redo_history_empty.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/revisions/{revision_id}/skeleton:

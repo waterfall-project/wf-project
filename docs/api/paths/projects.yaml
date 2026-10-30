@@ -206,7 +206,18 @@
               updated: { $ref: ../../../fixtures/api/project_updated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '403':
+        description: >-
+          Une qualité manquante, la commande `update` la disant d'avance : `NOT_PROJECT_MANAGER`,
+          `params.missing_condition` à `is_project_manager`, à qui n'est que contributeur du projet
+          — le paramétrage est réservé aux chefs de projet (WF-PRJ-0060, WF-ADM-0110) — ;
+          `NOT_CONTRIBUTOR`, `is_contributor`, à qui ne l'est pas ; ou une permission manquante,
+          comme la réponse commune `Forbidden` le dit. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_manager: { $ref: ../../../fixtures/api/project_update_not_manager.json }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
@@ -275,7 +286,9 @@
     description: >-
       Consultable à tout moment avant En cours, sans avoir tenté d'action
       (WF-CYC-0050) : le prochain état, le fait qui y mène (`LifecycleTrigger`) et, une par une,
-      les conditions qui restent. Les transitions vers Chiffrage et En cours ne sont jamais des
+      les conditions qui restent — vers En cours, `project_code_set` et
+      `reference_revision_designated`, dans l'ordre de l'énumération (`CommandCondition`), le code
+      projet étant exigé pour le passage (WF-CYC-0030, WF-PRJ-0010). Les transitions vers Chiffrage et En cours ne sont jamais des
       commandes (WF-CYC-0020). D'un projet en cours ou dans un état terminal, l'opération répond
       200 : le prochain état et le déclencheur nuls, aucune condition — aucun fait ne le mène plus
       loin, et les sorties du cycle de vie sont des commandes du projet (WF-CYC-0060).
@@ -294,6 +307,7 @@
               pricing: { $ref: ../../../fixtures/api/next_state_pricing.json }
               created: { $ref: ../../../fixtures/api/next_state_created.json }
               completed: { $ref: ../../../fixtures/api/next_state_completed.json }
+              pricing_without_code: { $ref: ../../../fixtures/api/next_state_pricing_without_code.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

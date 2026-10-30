@@ -1,8 +1,12 @@
 {
-  "summary": "Le rétablissement de la saisie de la charge du « Raccordement des borniers », annulée, que Lucas Petit a modifiée depuis l'annulation : une modification postérieure porte sur le même objet ; refusé, rien n'est rétabli. Une variante contrefactuelle : le témoin ne rétablit rien (WF-IHM-0110, #1531).",
+  "summary": "Le rétablissement de la saisie de la charge du « Raccordement des borniers », annulée, que Lucas Petit, un autre contributeur, a modifiée depuis l'annulation : une modification postérieure porte sur le même objet ; refusé en nommant l'objet en conflit, la ligne, par son nœud et son libellé, comme l'annulation ; rien n'est rétabli. Une variante contrefactuelle : le témoin ne rétablit rien (WF-IHM-0110, #1531, E-07).",
   "value": {
     "code": "UNDO_CONFLICT",
     "status": 409,
+    "params": {
+      "conflicting_object_id": "01926f3a-7c00-7000-8000-000000000553",
+      "conflicting_object_label": "Raccordement des borniers"
+    },
     "correlation_id": "01926f3a-7c00-7000-8000-000000001566"
   }
 }
