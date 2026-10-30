@@ -10,6 +10,7 @@
 import "server-only";
 
 import { useTranslations } from "next-intl";
+import type { ComponentProps } from "react";
 
 import { type Answer, readOrRefused } from "@/api/problem";
 import { type PeriodRefusals, refusedPeriod } from "@/components/grid/period";
@@ -45,12 +46,15 @@ export function RefusedView({
   refused,
   takes,
   nodes,
+  view,
 }: {
   readonly fn: PortfolioFunction;
   readonly perimeter: Perimeter;
   readonly refused: PeriodRefusals | undefined;
   readonly takes?: Takes;
   readonly nodes?: readonly NodeChoice[];
+  /** The parameters of the view, kept as the address asks them (the horizon of the S-curve). */
+  readonly view?: ComponentProps<typeof PerimeterBar>["view"];
 }) {
   const t = useTranslations("portfolio");
   return (
@@ -61,6 +65,7 @@ export function RefusedView({
         refused={refused}
         {...(takes === undefined ? {} : { takes })}
         {...(nodes === undefined ? {} : { nodes })}
+        {...(view === undefined ? {} : { view })}
       />
       <p className="text-sm text-destructive">{t("periodRefused")}</p>
     </Screen>

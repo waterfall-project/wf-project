@@ -8,7 +8,6 @@
  */
 import type { Metadata } from "next";
 
-import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { perimeterQuery, readPerimeter } from "@/components/portfolio/address";
@@ -21,9 +20,10 @@ import { type PageSearchParams, pageSearch } from "@/navigation/context";
 
 import { screenMetadata } from "../../title";
 import { readNodes } from "../nodes";
+import { readView, RefusedView } from "../refused";
 
-/** The structure of the costs takes no period, and a node of organisation. */
-const TAKES = { period: false, node: true } as const;
+/** The structure of the costs takes a period (WF-PTF-0010) and a node of organisation. */
+const TAKES = { period: true, node: true } as const;
 
 /** Title the tab with the function. */
 export function generateMetadata(): Promise<Metadata> {
@@ -38,24 +38,37 @@ export default async function PortfolioCostStructurePage({
 }) {
   const perimeter = readPerimeter(pageSearch(await searchParams));
   const [answer, nodes] = await Promise.all([
-    readOrFail("getPortfolioCostStructure", () =>
+    readView("getPortfolioCostStructure", () =>
       serverClient().GET("/portfolio/cost-structure", {
         params: { query: perimeterQuery(perimeter, TAKES) },
       }),
     ),
     readNodes(),
   ]);
-  return (
-    <PendingAddress>
-      <Screen density={FUNCTION_DENSITY.portfolio_cost_structure}>
-        <PortfolioHeader fn="portfolio_cost_structure" scope={answer.scope} />
-        <PerimeterBar
+  if (answer.kind === "refused") {
+    return (
+      <PendingAddress>
+        <RefusedView
+          fn="portfolio_cost_structure"
           perimeter={perimeter}
-          retained={answer.scope.states}
+          refused={answer.refused}
           takes={TAKES}
           nodes={nodes}
         />
-        <CostStructureView structure={answer} />
+      </PendingAddress>
+    );
+  }
+  return (
+    <PendingAddress>
+      <Screen density={FUNCTION_DENSITY.portfolio_cost_structure}>
+        <PortfolioHeader fn="portfolio_cost_structure" scope={answer.data.scope} />
+        <PerimeterBar
+          perimeter={perimeter}
+          retained={answer.data.scope.states}
+          takes={TAKES}
+          nodes={nodes}
+        />
+        <CostStructureView structure={answer.data} />
       </Screen>
     </PendingAddress>
   );

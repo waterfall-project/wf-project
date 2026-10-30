@@ -28,6 +28,7 @@ import {
   planningInstant,
   timeAxis,
 } from "@/components/chart/chart";
+import { ComputableValue } from "@/components/computable-value";
 import {
   formatDecimal,
   formatLocale,
@@ -37,7 +38,6 @@ import {
 } from "@/i18n/format";
 
 import type { PortfolioScope } from "./address";
-import { ComputableValue } from "./portfolio-value";
 import { usePortfolioExport } from "./provenance";
 
 type Quarter = components["schemas"]["PortfolioPerformance"]["quarterly"][number];

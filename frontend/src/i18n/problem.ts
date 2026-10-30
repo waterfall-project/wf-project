@@ -294,6 +294,19 @@ const DETAILS: readonly Reader[] = [
           },
         ]
       : undefined,
+  // The dates a summary task takes from its subordinates, given by the server and written in the
+  // language of the reader (`SUMMARY_TASK_DERIVED`, WF-PLA-0040): what an import corrects of the
+  // summary task a file holds in manual mode.
+  ({ start, finish }, _label, locale) =>
+    typeof start === "string" &&
+    typeof finish === "string" &&
+    isPlanningDate(start) &&
+    isPlanningDate(finish)
+      ? [
+          "summary_dates",
+          { start: formatPlanningDay(start, locale), finish: formatPlanningDay(finish, locale) },
+        ]
+      : undefined,
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>

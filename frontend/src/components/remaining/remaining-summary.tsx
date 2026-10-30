@@ -23,7 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
-import { ComputableValue } from "@/components/portfolio/portfolio-value";
+import { ComputableValue } from "@/components/computable-value";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
 import { formatMoney, formatShare } from "@/i18n/format";

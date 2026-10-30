@@ -761,7 +761,7 @@ describe("the journal of the imports", () => {
     return example(name) as { readonly items: CostImport[]; readonly meta: ListPage };
   }
 
-  it("presents each import with its date, its author, the period extracted and its counts of lines [WF-CRE-0050-A]", async () => {
+  it("presents each import with its date, its author, the period extracted and its counts of lines created, updated, unchanged and rejected [WF-CRE-0050-A]", async () => {
     const journal = journalOf("cost_imports");
     const { container } = render(
       inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />),
@@ -769,12 +769,12 @@ describe("the journal of the imports", () => {
     const table = screen.getByRole("table", { name: "Journal des imports" });
     const rows = within(table).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "DateParPériode extraiteCrééesMises à jourRejetées",
-      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/20262200$/),
-      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260612\s345$/),
-      expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),
-      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026301$/),
-      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/2026300$/),
+      "DateParPériode extraiteCrééesMises à jourInchangéesRejetées",
+      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/202622000$/),
+      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/202606012\s345$/),
+      expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée00637$/),
+      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/20263001$/),
+      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/20263000$/),
     ]);
     await expectAccessible(container);
   });
@@ -787,7 +787,9 @@ describe("the journal of the imports", () => {
       .slice(1);
     expect(within(rows[0] ?? document.body).getByText("à partir du 01/05/2026")).toBeVisible();
     expect(within(rows[1] ?? document.body).getByText("jusqu’au 30/04/2026")).toBeVisible();
-    expect(rows[1]?.querySelectorAll("td")[5]).toHaveTextContent(/^12\s345$/);
+    expect(rows[1]?.querySelectorAll("td")[6]).toHaveTextContent(/^12\s345$/);
+    // The lines the file carries as they were imported, counted apart from the rejected.
+    expect(rows[2]?.querySelectorAll("td")[5]).toHaveTextContent(/^6$/);
     expect(within(rows[2] ?? document.body).getByText("Non renseignée")).toBeVisible();
   });
 

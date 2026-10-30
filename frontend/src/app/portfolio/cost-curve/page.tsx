@@ -8,14 +8,16 @@
  * cash-out when the address asks it (`payment_delays`, the convention of the indicators of a
  * project), the server shifts the curves of each project by its payment delays and details the
  * cash-out month by month, the past and the forecast, which a second chart shows. Nothing is
- * summed nor shifted here; the command only changes the address, the rest of it kept.
+ * summed nor shifted here; the command only changes the address, the rest of it kept. The period
+ * of the projects completed it adds to the perimeter is the address's (`from`, `to`), the months of
+ * the curve those of the horizon, whatever the period (WF-PTF-0100); a period the server refuses is
+ * said at its field, the view unread (`RefusedView`).
  */
 import { Banknote } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { readOrFail } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { PAYMENT_DELAYS } from "@/components/indicators/indicator-sections";
@@ -34,9 +36,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { type PageSearchParams, pageSearch } from "@/navigation/context";
 
 import { screenMetadata } from "../../title";
+import { readView, RefusedView } from "../refused";
 
-/** The S-curve takes neither a period nor a node of organisation. */
-const TAKES = { period: false, node: false } as const;
+/** The S-curve takes a period (WF-PTF-0010), not a node of organisation. */
+const TAKES = { period: true, node: false } as const;
 
 /** The route of the screen. */
 const ROUTE = "/portfolio/cost-curve";
@@ -93,7 +96,7 @@ export default async function PortfolioCostCurvePage({
   const perimeter = readPerimeter(search);
   const horizon = readHorizon(search);
   const delays = search.get(PAYMENT_DELAYS) === "true";
-  const answer = await readOrFail("getPortfolioCostCurve", () =>
+  const read = await readView("getPortfolioCostCurve", () =>
     serverClient().GET("/portfolio/cost-curve", {
       params: {
         query: {
@@ -104,6 +107,20 @@ export default async function PortfolioCostCurvePage({
       },
     }),
   );
+  if (read.kind === "refused") {
+    return (
+      <PendingAddress>
+        <RefusedView
+          fn="portfolio_cost_curve"
+          perimeter={perimeter}
+          refused={read.refused}
+          takes={TAKES}
+          view={{ horizon }}
+        />
+      </PendingAddress>
+    );
+  }
+  const answer = read.data;
   return (
     <PendingAddress>
       <Screen density={FUNCTION_DENSITY.portfolio_cost_curve}>

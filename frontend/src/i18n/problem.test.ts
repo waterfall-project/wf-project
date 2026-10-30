@@ -312,6 +312,19 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("tells the dates a summary task takes from its subordinates, in the language of the reader, when a file corrects its manual mode [WF-PLA-0040-A]", () => {
+    const signal = {
+      code: "SUMMARY_TASK_DERIVED",
+      params: { start: "2026-03-02", finish: "2026-04-30" },
+    } as const;
+    expect(say(signal, "en")).toBe(
+      "A summary task takes its values from its subtasks. Its dates run from Monday 2 March to Thursday 30 April, those of its subtasks.",
+    );
+    expect(say({ code: "SUMMARY_TASK_DERIVED", params: { start: "2026-03-02" } }, "en")).toBe(
+      "A summary task takes its values from its subtasks.",
+    );
+  });
+
   it("keeps the short sentence alone when the day without a working hour is not fully given [WF-PLA-0020-A]", () => {
     const short = "Date on a day without a working hour.";
     expect(say({ code: "NON_WORKING_DAY" }, "en")).toBe(short);

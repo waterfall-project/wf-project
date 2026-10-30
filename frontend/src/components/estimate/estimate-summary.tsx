@@ -26,6 +26,7 @@ import { FUNCTION_ICONS } from "@/components/shell/function-display";
 
 import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
+import { ComputableValue } from "@/components/computable-value";
 import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -175,9 +176,14 @@ function Breakdown({
               <span>{label}</span>
               <span className="tabular-nums">
                 <Figured value={item.amount} format={(value) => formatMoney(value, locale)} />
-                {share.is_computable && share.value !== null && share.value !== undefined
-                  ? t("estimateSummary.shareOf", {
-                      share: formatShare(share.value, locale, bounds),
+                {item.amount.is_computable
+                  ? t.rich("estimateSummary.shareOf", {
+                      share: () => (
+                        <ComputableValue
+                          value={share}
+                          format={(value) => formatShare(value, locale, bounds)}
+                        />
+                      ),
                     })
                   : null}
               </span>
