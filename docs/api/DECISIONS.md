@@ -2879,16 +2879,17 @@ pour ce que la plateforme fait d'elle-même — une sauvegarde planifiée, un co
 l'annuaire ou à sa première connexion —, et pour ce que l'installation crée), son action
 (`AuditAction`), l'objet (`AuditObject` : sa nature, son identifiant, son libellé au moment de
 l'action, nul pour une sauvegarde qui n'en a pas), le projet s'il y en a un (`AuditProject` :
-identifiant, code, libellé), et l'identifiant de corrélation de la requête qui l'a produite
+identifiant, code — nul pour un projet qui n'en avait pas encore —, libellé et `can_open`, qui dit
+si le lecteur peut le consulter), et l'identifiant de corrélation de la requête qui l'a produite
 (WF-OBS-0020). Le libellé est gardé dans l'inscription, et non relu de l'objet : le journal d'un
 projet terminé depuis cinq ans doit se lire tel quel, quand l'objet a changé de nom ou n'est plus
 consultable. Aucune opération n'inscrit, ne modifie ni ne supprime une inscription : seule l'action
 la produit (EP-03, US-0410).
 
-*Complétée par US-0701/L8 (#1608, B-01, B-03) : WF-ADM-0190, réécrite le 2026-10-09, veut que
-l'inscription mène au projet quand le lecteur peut le consulter ; `AuditProject` porte `can_open`,
-et son code est nul pour un projet qui n'en avait pas encore (décision de l'auteur du 2026-10-28,
-« La plateforme », recadrage d'EP-16 ; « La plateforme », dans « Le contrat figé »).*
+*Note du 2026-10-30 (US-0701/L8, #1608, B-01, B-03) : WF-ADM-0190, réécrite le 2026-10-09, veut
+que l'inscription mène au projet quand le lecteur peut le consulter ; la phrase sur `AuditProject`
+a été réécrite en conséquence, d'après la décision de l'auteur du 2026-10-28 (recadrage d'EP-16,
+« La plateforme », dans « Le contrat figé »).*
 
 - **Une action qui en produit d'autres les inscrit toutes**, au même instant et sous la même
   corrélation (décision de la revue d'EP-02/L42b) : la fusion d'un différentiel inscrit
@@ -6079,17 +6080,15 @@ l'annuaire qui porte son adresse, ce rattachement (`attached`, #707), les permis
 créé, données ou retirées par sa modification et son libellé d'avant, les rôles donnés ou
 retirés à un compte, chacun par son identifiant et son libellé du moment —, en codes, en
 identifiants et en libellés, jamais en phrase (WF-ARC-0110). Une action qui n'a rien à dire de
-plus que son objet rend un objet vide.
+plus que son objet rend un objet vide, dit tel dans `AuditParams`, sauf celles dont la
+spécification demande un paramètre : la sortie du cycle de vie rend son état d'arrivée et son
+motif (WF-CYC-0060, WF-CYC-0130), la restauration la date de la sauvegarde remise en place
+(WF-ADM-0160), l'application d'un import sa nature.
 Écarté : un schéma par action, choisi par `action` (`oneOf` à discriminant), que le discriminant
 d'OpenAPI ne sait pas lire hors de l'objet qu'il choisit et que le client engendré rendrait en
 dix-neuf types pour neuf actions servies ; les valeurs d'une identité modifiée, avant et après,
 qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
 
-*Complétée par US-0701/L8 (#1608, B-02) : la sortie du cycle de vie rend son état d'arrivée et son
-motif (WF-CYC-0060, WF-CYC-0130), la restauration la date de la sauvegarde remise en place
-(WF-ADM-0160), l'application d'un import sa nature, et les autres actions d'un projet, de la
-sauvegarde et de la restauration un objet vide, dit tel : « jusqu'à l'EPIC qui les réalise »
-disparaît d'`AuditParams` (décision de l'auteur du 2026-10-28, « La plateforme »).*
 L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
 donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
 et des rôles : un rôle créé sans permission, enregistré sans
@@ -6108,6 +6107,11 @@ une liberté déclarée, dans le résumé comme ici :
 - un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
   la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
   adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
+
+*Note du 2026-10-30 (US-0701/L8, #1608, B-02) : la phrase sur les actions sans paramètre a été
+réécrite, `AuditParams` ne disant plus « jusqu'à l'EPIC qui les réalise » ; la sortie, la
+restauration et l'import portent leur paramètre d'après la décision de l'auteur du 2026-10-28
+(recadrage d'EP-16, « La plateforme »).*
 
 Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
 `test_mockaudit.py` le tient.
@@ -9394,8 +9398,9 @@ journal d'EP-02/L42 (B-01, B-03) et ses paramètres de #706 (B-02).
   `SystemStatus.operating_parameters`, exigé, un champ nommé par paramètre, sa valeur livrée dite
   dans sa description — l'objet de la première proposition de la revue plutôt que la liste de codes
   de sa seconde (K-02), qu'un client engendré ne type pas. La liste relevée dans la spécification,
-  chaque paramètre qu'elle cite avec sa valeur par défaut : la durée de validité du cache, dix minutes (WF-DAT-0130) ; la rétention d'une
-  tâche de fond, trente jours (§4.4.1) ; la taille d'un avatar, 512 Ko (§4.4.1) ; les trois seuils
+  chaque paramètre qu'elle cite avec sa valeur par défaut : la durée de validité du cache, dix
+  minutes (WF-DAT-0130) ; la rétention d'une tâche de fond, trente jours (§4.4.1) ; la taille d'un
+  avatar, 512 Ko (§4.4.1) ; les trois seuils
   d'alerte de WF-OBS-0030, quinze minutes d'attente en file, 85 % d'occupation, 5 % d'erreurs — et
   la fenêtre de cinq minutes de ce dernier, part de sa valeur. Le fichier d'un export, supprimé au
   bout de vingt-quatre heures (WF-DAT-0120), et la durée du lien de fixation, une heure
@@ -9412,9 +9417,10 @@ journal d'EP-02/L42 (B-01, B-03) et ses paramètres de #706 (B-02).
   sur le contrat jusqu'à EP-04 (option b de l'auteur, #1457), amorce encore le Manager sans elles :
   `test_access_roles_guard.py` nomme l'écart (`TO_SEED_BY_EP04`) et échoue dès qu'il est comblé.
 - **Le journal** (B-01, B-02, B-03). `AuditProject.code` nul pour un projet sans code, rangé après
-  les autres au tri par projet ; `AuditProject.can_open`, exigé, évalué pour l'appelant comme le
-  portefeuille le fait (#389), dans les inscriptions et les facettes — faux pour un projet qui
-  n'existe plus ; un objet qui vit dans un projet ne mène à lui que si le projet s'ouvre.
+  les autres au tri par projet ; `AuditProject.can_open`, exigé : le contrat veut qu'il soit évalué
+  pour l'appelant comme le portefeuille le fait (#389), dans les inscriptions et les facettes —
+  faux pour un projet qui n'existe plus ; un objet qui vit dans un projet ne mène à lui que si le
+  projet s'ouvre ; le service, jusqu'à EP-04, rend faux (voir plus bas).
   `audit_events_auditor` lit le journal du témoin par l'auditeur, qui n'ouvre aucun projet.
   `AuditParams` reçoit `to_state` et `reason` (`project_exit`), `backup_taken_at` (`restore`) et
   `import_kind` (`import_apply`) ; `mockaudit` les inscrit, la sortie du témoin vers `completed`

@@ -566,8 +566,9 @@ IdentitySyncReport:
     Compte rendu d'une lecture des comptes du fournisseur d'identité (`startIdentitySync`, ou
     la lecture que la plateforme planifie, `IdentitySyncSchedule`). Les comptes créés dans
     Waterfall ne sont pas modifiés : c'est dans le fournisseur que la lecture rétablit leur
-    identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé (WF-ADM-0070). Un compte
-    de Waterfall n'y est désigné que par son identifiant, son nom étant lu à la consultation :
+    identité. Un compte que WF-ADM-0120 interdit de désactiver est conservé actif et signalé
+    (WF-ADM-0070). Un compte de Waterfall n'y est désigné que par son identifiant, son nom étant
+    lu à la consultation :
     le compte rendu ne garde aucune donnée personnelle d'un compte (WF-ADM-0060, #920).
   properties:
     task_id:

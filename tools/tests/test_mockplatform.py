@@ -15,6 +15,7 @@ import yaml
 from wftools import REPOSITORY, mockaudit, mockwitness
 
 _PATHS = REPOSITORY / "docs/api/paths"
+_SCHEMAS = REPOSITORY / "docs/api/components/schemas"
 _STATUSES = (
     "system_status",
     "system_status_backup_failed",
@@ -50,6 +51,15 @@ def test_the_reading_of_the_accounts_is_scheduled_daily_by_default_and_set_by_a_
     chosen = mockwitness.fixture("identity_sync_schedule_set")
     assert (chosen["frequency"], chosen["weekday"]) == ("weekly", 1)
     assert chosen["lock_version"] == delivered["lock_version"] + 1
+    # The hour delivered is half past one, in the two readings, and the schedule is the one of the
+    # backups: the same fields are required of it, bar the number of copies retained.
+    assert (delivered["at_time"], chosen["at_time"]) == ("01:30", "01:30")
+    schemas = yaml.safe_load((_SCHEMAS / "platform.yaml").read_text(encoding="utf-8"))
+    backup = set(schemas["BackupSchedule"]["required"])
+    assert set(schemas["IdentitySyncSchedule"]["required"]) == backup - {"retained_count"}
+    reading = _operation("access.yaml", "/identity-sync-schedule", "get")
+    assert reading["operationId"] == "getIdentitySyncSchedule"
+    assert "`users.read`" in reading["description"]
     writing = _operation("access.yaml", "/identity-sync-schedule", "put")
     assert writing["operationId"] == "setIdentitySyncSchedule"
     assert "users.write" in writing["description"]
@@ -92,6 +102,7 @@ def test_an_inscription_on_a_project_the_reader_cannot_consult_names_it_without_
     assert not any(project["can_open"] for project in read)
 
 
+@pytest.mark.requirement("WF-SEC-0030-A")
 def test_the_exit_and_the_imports_say_their_parameters() -> None:
     # B-02: the exit says the state it reached, an import its nature.
     exited = mockaudit.exit_today().params
@@ -101,10 +112,10 @@ def test_the_exit_and_the_imports_say_their_parameters() -> None:
     assert kinds == {"actual_costs"}
 
 
-@pytest.mark.requirement("WF-REF-0140-A")
 def test_the_currency_is_read_by_any_session() -> None:
-    # « La devise apparaît partout où un montant est affiché » : the settings that bear it are
-    # read by any open session, without a permission that would hide them.
+    # No claim on the Vérif of WF-REF-0140 (the currency shown wherever an amount is, US-0703):
+    # the settings that bear it are read by any open session, without a permission that would
+    # hide them.
     reading = _operation("reference.yaml", "/reference/settings", "get")
     assert "404" not in reading["responses"]
     assert set(reading["responses"]) == {"200", "401", "503"}

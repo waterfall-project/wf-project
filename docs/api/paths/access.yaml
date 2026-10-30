@@ -473,8 +473,8 @@
     description: >-
       Engendre, pour un compte local, le lien par lequel son porteur fixe ou réinitialise son
       mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal
-      (WF-ADM-0140) — le renvoi du courriel qui le porte est `resendInvitation` — : c'est ainsi que le premier administrateur fixe son mot de passe à
-      l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
+      (WF-ADM-0140) — le renvoi du courriel qui le porte est `resendInvitation` — : c'est ainsi que
+      le premier administrateur fixe son mot de passe à l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
       sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité
       porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le
       mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois :

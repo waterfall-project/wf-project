@@ -230,6 +230,24 @@ def test_an_inscription_is_read_as_it_was_written_by_its_codes_and_its_data(
     assert (marked["params"], events[str(identifiers[4])]["actor"]) == ({}, {"kind": "platform"})
 
 
+@pytest.mark.requirement("WF-ADM-0190-A")
+def test_an_inscription_and_the_facet_name_a_project_the_service_does_not_open_yet(
+    api: ContractClient, database: Database, reader: dict[str, str]
+) -> None:
+    # « Une inscription sur un projet que le lecteur ne peut pas consulter nomme ce projet sans
+    # l'ouvrir » : until EP-04 the service holds no project, so none can be opened (`can_open`
+    # false), in the inscriptions and in the facet, the code and the label named all the same.
+    write(database)
+    projects = [event["project"] for event in read(api, reader)["items"] if event["project"]]
+    assert projects
+    assert all(project["can_open"] is False and project["code"] for project in projects)
+    response = api.get(FACETS, headers=reader)
+    assert response.status_code == 200, response.text
+    facet = response.json()["projects"]
+    assert facet
+    assert all(project["can_open"] is False and project["code"] for project in facet)
+
+
 # The seven columns of the journal, the correlation among them.
 COLUMNS = [
     "occurred_at",

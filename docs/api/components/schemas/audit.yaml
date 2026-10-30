@@ -11,9 +11,9 @@ AuditAction:
     ligne de coût, l'application d'un import, la création et la modification des comptes — dont leur
     désactivation et leur réactivation, leur anonymisation (`user_anonymize`, WF-ADM-0060), et le
     lien qui fixe un mot de passe, obtenu ou renvoyé par courriel, sans son jeton
-    (`password_link_create`, `createPasswordSetupLink` et `resendInvitation`, WF-ADM-0140) —, la création, la modification et
-    la suppression des rôles, l'attribution des rôles aux comptes, la sauvegarde et la restauration.
-    Une action nouvelle est une modification du contrat.
+    (`password_link_create`, `createPasswordSetupLink` et `resendInvitation`, WF-ADM-0140) —, la
+    création, la modification et la suppression des rôles, l'attribution des rôles aux comptes, la
+    sauvegarde et la restauration. Une action nouvelle est une modification du contrat.
   enum:
     - project_create
     - revision_mark
@@ -85,11 +85,11 @@ AuditObject:
         numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché
         d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a
         pas : pour l'action `backup`, sa date est celle de l'inscription ; pour `restore`, elle
-        est dans `params.backup_taken_at`, l'inscription datant la fin de la restauration ; nul pour une révision en cours abandonnée, qui
-        n'a pas encore de nom de version (WF-REV-0010) ; nul pour un compte anonymisé, dont
-        l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule
-        modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente
-        sous le libellé neutre de son catalogue.
+        est dans `params.backup_taken_at`, l'inscription datant la fin de la restauration ; nul pour
+        une révision en cours abandonnée, qui n'a pas encore de nom de version (WF-REV-0010) ; nul
+        pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui
+        le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le
+        front le présente sous le libellé neutre de son catalogue.
     revision:
       anyOf: [{ $ref: '#/AuditRevision' }, { type: 'null' }]
       description: >-
