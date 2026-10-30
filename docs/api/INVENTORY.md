@@ -139,7 +139,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0080, WF-PRJ-0090 |
 | GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0050, WF-CYC-0060 |
-| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-PRJ-0060, WF-SEC-0030 |
+| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-ARC-0090, WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-IND-0010, WF-PRJ-0060, WF-REV-0020, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PLA-0170, WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-DAT-0080, WF-IHM-0080, WF-IHM-0090, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
