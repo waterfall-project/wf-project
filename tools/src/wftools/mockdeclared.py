@@ -362,7 +362,7 @@ def _other_examples() -> dict[str, JsonObject]:
         "actual_cost_scope_terminal.json": mocktext.example(
             f"Une ligne de coût réel du projet témoin, « {completed['label']} », exclue du "
             f"périmètre suivi après sa clôture (project_completed) : ses coûts réels sont en "
-            f"lecture seule, et sa commande exclude_cost_lines le disait d'avance ; refusée par la "
+            f"lecture seule, et le projet clos ne liste plus exclude_cost_lines ; refusée par la "
             f"condition qui manque, project_not_terminal ; rien n'est écrit (WF-CYC-0100, "
             f"WF-CRE-0030, WF-IHM-0090).",
             state_refused("project_not_terminal", SCOPE_CORRELATION),

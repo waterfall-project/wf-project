@@ -278,7 +278,7 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists it unavailable (EP-14/L44c)", async () => {
+  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists no command (EP-14/L44c, US-0702/L3)", async () => {
     const open = handed<ComponentProps<typeof WorkBreakdownList>>(
       await SettingsPage(at()),
       WorkBreakdownList,
@@ -294,7 +294,7 @@ describe("the settings of a project", () => {
       await SettingsPage(at()),
       WorkBreakdownList,
     );
-    expect(closed?.props.editing?.offer?.is_available).toBe(false);
+    expect(closed?.props.editing?.offer).toBeUndefined();
     expect(closed?.props.editing?.whole).toBeUndefined();
     // Read whole, the work breakdown is read once a page.
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toHaveLength(2);
@@ -613,7 +613,7 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Modify the contributors");
   });
 
-  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable, those of its sub-projects' rows too", async () => {
+  it("says nothing of the fake back on a terminal project, which lists no command, nor do its sub-projects' rows (US-0702/L3)", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
@@ -621,25 +621,10 @@ describe("the settings of a project", () => {
     };
     const page = html(await SettingsPage(at()));
     expect(text(page)).not.toContain("Mock-up:");
-    const every = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)];
-    const named = (unavailable: boolean) =>
-      every
-        .filter(
-          ([, attributes = ""]) => attributes.includes('aria-disabled="true"') === unavailable,
-        )
-        .map(([, , content = ""]) => text(content));
-    expect(named(true)).toEqual(
-      expect.arrayContaining(["Edit the project", "New subproject", "Modify the contributors"]),
-    );
-    // Nothing is offered that writes, the commands of the sub-projects' rows neither.
-    expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
-    for (const code of ["SP-CMD", "SP-ESS"]) {
-      for (const command of ["Modify", "Delete"]) {
-        expect(page).toMatch(
-          new RegExp(`aria-label="${command} “${code}”"[^>]*aria-disabled="true"`),
-        );
-      }
-    }
+    // Nothing is offered that writes, the commands of the sub-projects' rows neither: the
+    // project lists none, so the screen presents none, available or not.
+    expect(buttons(page).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
+    expect(page).not.toContain('aria-disabled="true"');
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
   });
 
@@ -672,14 +657,11 @@ describe("the settings of a project", () => {
     expect(page).not.toContain('role="note"');
   });
 
-  it("presents the modification of a terminal project unavailable, naming the condition it lacks [WF-CYC-0100-A]", async () => {
-    // Toute modification d'un projet terminal est refusée : la commande le dit d'avance.
+  it("offers no modification of a terminal project, which lists no command [WF-CYC-0100-A]", async () => {
+    // Toute modification d'un projet terminal est refusée : le projet ne liste plus la commande.
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const page = html(await SettingsPage(at()));
-    expect(page).toMatch(
-      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Edit the project/,
-    );
-    expect(text(page)).toContain("Edit the project Unmet condition: project not closed.");
+    expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
     // Nothing can be written: the screen says nothing of what the fake back keeps.
     expect(page).not.toContain('role="note"');
   });

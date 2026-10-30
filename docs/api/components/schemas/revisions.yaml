@@ -97,7 +97,9 @@ Revision:
         Commandes de la révision que l'appelant a la permission d'exercer, chacune
         disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090). Une grille
         dont la commande de saisie est absente ou indisponible se présente en lecture
-        seule.
+        seule. Une révision d'un projet terminal ne liste que ses exports, qui ne le modifient
+        pas : aucune autre commande ne le redeviendra (WF-CYC-0080, WF-CYC-0100, WF-IHM-0090 ;
+        US-0702/L3).
       items: { $ref: '#/RevisionCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -158,10 +160,11 @@ RevisionCommand:
     révision en cours, elle en crée une au préalable » (WF-REV-0050) : la fusion se demande sur
     le différentiel de cette révision, et crée la révision en cours par copie de celle-ci
     (WF-REV-0010 ; #790).
-    Ses conditions y sont, dans cet ordre, `project_not_terminal`, `no_background_task_running`
-    pendant l'application d'un import, le traitement d'une survenance ou une autre fusion, qui
-    créent la révision en cours, `unmerged_amendment_exists`, puis `may_create_revision` à qui n'a
-    pas la permission de créer une révision (`revisions.write`), comme toute commande qui la crée.
+    Ses conditions y sont, dans cet ordre, `no_background_task_running` pendant l'application d'un
+    import, le traitement d'une survenance ou une autre fusion, qui créent la révision en cours,
+    `unmerged_amendment_exists`, puis `may_create_revision` à qui n'a pas la permission de créer
+    une révision (`revisions.write`), comme toute commande qui la crée. Sur un projet terminal,
+    elle n'est pas listée, et le 409 de la fusion nomme `project_not_terminal` d'abord.
     Sur toute autre révision marquée, et sur celle-ci dès qu'une révision est en cours, elle ne
     manque que de `revision_draft`.
 
@@ -169,7 +172,7 @@ RevisionCommand:
     toujours listée juste après `edit_risks`, là où elle l'est et sous la même permission,
     `risks.write` (EP-14/L42s), ses conditions dans l'ordre où le 409 de `createRisk` les juge :
     les conditions d'état d'`edit_risks` d'abord — `project_not_terminal` sur un projet terminal,
-    puis `no_background_task_running` pendant un traitement de fond qui écrit dans la révision
+    que seul ce 409 nomme, puis `no_background_task_running` pendant un traitement de fond qui écrit dans la révision
     en cours ou la fige —, comme `ProjectCommand.update_work_breakdown` ; puis ses conditions
     propres — `at_least_one_task`, une structure principale sans tâche, puis
     `active_provision_category`, aucune catégorie active de type provision pour risques
@@ -290,7 +293,7 @@ RevisionMark:
 
 ReferenceDesignation:
   type: object
-  required: [revision_id, confirmed, lock_version]
+  required: [revision_id, lock_version]
   description: >-
     Désigne la révision de référence parmi les révisions marquées. Corrigible tant que le
     projet n'a reçu aucun coût réel et qu'aucune révision n'a été marquée depuis la dernière
@@ -300,7 +303,11 @@ ReferenceDesignation:
     revision_id: { $ref: ../common.yaml#/Uuid }
     confirmed:
       type: boolean
-      const: true
+      description: >-
+        Faux ou absent, la désignation est refusée par 400 `CONFIRMATION_REQUIRED`, et rien
+        n'est écrit, comme la sortie (`ProjectExit.confirmed`) : le schéma ne l'exige pas et ne
+        fixe pas sa valeur, pour que ce soit la garde qui refuse, et non la validation du corps
+        par 422 (US-0702/L3).
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
       description: >-
@@ -434,8 +441,8 @@ StructureCommand:
     La condition de phase vient d'abord, propre à la commande ; puis les conditions d'état de la
     révision, telles que la commande de même nom de la révision les nomme — `revision_draft` sur
     une révision marquée, `no_background_task_running` pendant un traitement de fond qui écrit
-    dans la révision en cours ou la fige, `project_not_terminal` sur un projet clos —, dans le
-    même ordre. Les commandes de la révision gardent ce qui ne lit pas une structure : le
+    dans la révision en cours ou la fige —, dans le même ordre. Sur un projet clos, aucune n'est
+    listée (US-0702/L3). Les commandes de la révision gardent ce qui ne lit pas une structure : le
     squelette, le marquage, les exports, les risques (C-358, #1067).
 
 StructureCommandAvailability:

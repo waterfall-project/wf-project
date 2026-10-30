@@ -1115,6 +1115,8 @@ exports sur les révisions lues avec toutes les permissions et sur `revision_rea
 sans rien modifier ; le devis et le reste à engager pour le chiffreur (`revision_estimator`), qui
 les lit sans lire le planning. Les imports sont disponibles sur le projet témoin et sur le projet
 en chiffrage sans révision, indisponibles sur le projet terminé (`project_not_terminal`).
+**Réécrit par US-0702/L3** (#1657) : le projet terminé ne liste aucun import, et le 409 de l'appel
+direct nomme seul `project_not_terminal`.
 
 **Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
 d'une saisie sur la gravité ou la provision d'un risque nomme ce dont elles dépendent, et
@@ -4310,7 +4312,9 @@ qui garde encore sa liste et son « déclencheur non reconnu », l'adoptera.
 `CommandCondition.project_before_in_progress` ; #590, WF-PRJ-0090, WF-IHM-0090). Une commande du
 projet, toujours listée juste après `update`, dont elle est une part : disponible aux états Créé et
 Chiffrage, `project_before_in_progress` manquante dès En cours — `project_not_terminal` avec elle sur
-un projet clos, comme `update` la nomme (`project_completed`). La règle d'EP-02 : un objet dit ses
+un projet clos, comme `update` la nomme (`project_completed`) ; **réécrit par US-0702/L3** (#1657) :
+un projet clos ne liste plus la commande, et seul le 409 de l'appel direct nomme
+`project_not_terminal`. La règle d'EP-02 : un objet dit ses
 commandes d'avance, et l'écran ne déduit rien de son état. Écartés : un booléen du projet
 (`is_win_probability_frozen`), qui doublerait une commande sans nommer sa condition ; garder le
 champ dans `update` seule, qui ne peut dire qu'une part de ses champs est figée ; la condition
@@ -4367,7 +4371,8 @@ un code de cinquante-et-un caractères (`VALUE_TOO_LONG`). Les 422 de `createPro
 `SubprojectCommandAvailability` ; #592, WF-IHM-0090), sur le modèle de `UserCommand` et de
 `BackupCommand` : au plus deux, dans l'ordre de l'énumération, `update` (`updateSubproject`) et
 `delete` (`deleteSubproject`). Elles suivent la commande `update` du projet : la liste est vide pour
-qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100) ;
+qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos (WF-CYC-0100 ;
+réécrit par US-0702/L3, #1657 : un projet clos n'en liste aucune) ;
 la création d'un sous-projet, qu'aucun sous-projet ne peut lister, suit `update` aussi. Une
 condition s'ajoute au catalogue, nommée comme ce qui doit tenir : `subproject_without_actual_costs`
 manque à la suppression d'un sous-projet auquel des coûts réels sont imputés (WF-PRJ-0050) — les
@@ -4387,13 +4392,15 @@ ne le déclarait, et le refus d'une commande qu'un état rend indisponible est
 `STATE_FORBIDS_OPERATION` (EP-02/L42a). Le 409 de `deleteSubproject` le dit,
 `params.missing_condition` nommant la première condition qui manque
 (`subproject_delete_refused`) — `project_not_terminal` en dernier sur un projet clos (EP-14/L42l,
-plus bas).
+plus bas ; réécrit par US-0702/L3, #1657 : le projet clos ne liste plus la commande, et seul ce 409
+la nomme).
 
 **`update` couvre le paramétrage du projet, sous-projets compris** (#592, point 3 ; FBS-4.2.3,
 WF-PRJ-0050, WF-PRJ-0060) : la description de `ProjectCommand` le dit — les attributs
 (WF-PRJ-0080), le lotissement (WF-PRJ-0020) et les sous-projets (WF-PRJ-0050), que chaque sous-projet
 détaille. Écarté : `manage_subprojects`, une commande du projet de plus, qui aurait la permission, les
-porteurs et la condition d'`update` — les chefs de projet, `project_not_terminal` — et doublerait ce
+porteurs et la condition d'`update` — les chefs de projet, `project_not_terminal`, qu'un projet clos
+ne liste plus depuis US-0702/L3 — et doublerait ce
 que chaque sous-projet dit déjà : une permission, une commande. `manage_contributors` reste à part,
 parce que la liste des contributeurs a son propre compteur et sa propre règle (WF-PRJ-0060).
 
@@ -4504,7 +4511,9 @@ ne nomme que `project_not_terminal`, comme `update`, qui n'a pas de condition pr
 `project_not_terminal` d'abord, que la relecture proposait — l'ordre du contrat aurait dépendu de
 l'objet qui porte la commande. Aucun exemple ne lit les sous-projets d'un projet clos :
 `test_mockproject.py` fixe sur une variante construite dans le test la règle qu'il applique aux
-exemples, et la confronte à `project_completed`.
+exemples, et la confronte à `project_completed`. **Réécrit par US-0702/L3** (#1657) : un projet clos
+ne liste plus aucune commande, ni ses sous-projets ; l'ordre décidé ici reste celui du 409 de
+`deleteSubproject`, `project_not_terminal` en dernier.
 
 Écartés : garder la suppression logique de L42i jusqu'à ce que l'auteur corrige le Vérif — le contrat
 aurait promis ce que l'auteur a refusé, et l'écran de L44e l'aurait appris ; nommer
@@ -4918,7 +4927,9 @@ modification indisponible faute de `project_not_terminal`, la suppression faute 
 de L42l. Écrit à la main comme `project_completed`, variante qu'il suit, et cité sous
 `listSubprojects` après `subprojects`, qui reste le premier. `test_mockproject.py` lui applique la
 règle `_listed` d'un projet clos, et vérifie que ce sont les sous-projets du projet en cours, leurs
-commandes à part. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
+commandes à part. **Réécrit par US-0702/L3** (#1657) : un projet clos ne liste aucune commande, et
+ses sous-projets non plus ; `subprojects_completed` les garde, sans commande, et l'ordre de L42l
+reste celui du 409 de `deleteSubproject`. Le point 2 de #683 : `test_mocksettings.py` dit le motif de chaque seuil, `0.`
 refusé par la forme (`NUMBER_INVALID`), `00.5` admis.
 
 Le client est régénéré. Le front n'est touché que par le client régénéré et par la valeur attendue
@@ -5159,7 +5170,8 @@ la révision en cours, sur toute la structure : `subprojects` et `subproject_upd
 main, listent les trois conditions, les listes dérivées sont engendrées, et `subproject_delete_cited`
 dit « la première des trois » ; le sous-projet créé n'en porte aucune ; ceux du projet clos
 (`subprojects_completed`, EP-14/L42o), dont la révision en cours reste la 102, listent la nouvelle
-condition avant `project_not_terminal`. Nouvel exemple, en dernier :
+condition avant `project_not_terminal` (réécrit par US-0702/L3, #1657 : ces sous-projets ne listent
+plus aucune commande, et seul le 409 nomme `project_not_terminal`). Nouvel exemple, en dernier :
 `subproject_delete_estimated` (corrélation 1101), contrefactuel — la réception sur site délestée de
 sa facture, à laquelle les lignes 10 et 11, « Raccordement des borniers » et « Borniers », auraient
 été passées. La description de `deleteSubproject` ne dit plus que la décision de L42l contredit le
@@ -5641,7 +5653,9 @@ WF-PLA-0140 : « Un projet peut porter plusieurs chronologies. Chacune porte un 
 liste des tâches et des jalons qui y sont inscrits, peut être supprimée, et peut être exportée au
 format PNG. »). Une commande pour créer et supprimer, après `manage_contributors`, gardée par
 `planning.write` — les chronologies sont une vue du planning (FBS-4.3.1) —, non réservée aux chefs
-de projet, indisponible sur un projet terminal (`project_not_terminal`, WF-CYC-0100). Écartés : deux
+de projet, indisponible sur un projet terminal (`project_not_terminal`, WF-CYC-0100 ; **réécrit par
+US-0702/L3**, #1657 : un projet terminal ne la liste plus, et seul le 409 de l'appel direct nomme
+`project_not_terminal`). Écartés : deux
 commandes, créer et supprimer, quand un seul écran les offre sous la même permission et les mêmes
 conditions, comme `manage_contributors` ; des commandes sur chaque chronologie, qu'aucune condition
 propre ne distinguerait ; la seule permission de la session, contraire à la règle d'EP-02 qu'un
@@ -5658,7 +5672,9 @@ l'auteur du 2026-10-28 (D-05, J-01, J-02) : un projet terminal refuse la créati
 d'une chronologie par 409 `STATE_FORBIDS_OPERATION`, `project_not_terminal`, comme
 `manage_timelines` le dit d'avance et comme toute autre écriture du projet
 (`timeline_create_terminal`, `timeline_delete_terminal`) ; la suppression n'a pas d'autre 409. La
-phrase est gardée pour l'histoire.* `createTimeline` déclare son 422 — un nom vide ou trop
+phrase est gardée pour l'histoire. **Réécrit par US-0702/L3** (#1657) : `manage_timelines` ne dit
+plus rien d'avance sur un projet terminal, qui ne liste aucune commande ; le 409 reste, pour
+l'appel direct.* `createTimeline` déclare son 422 — un nom vide ou trop
 long, `VALUE_REQUIRED` ou `VALUE_TOO_LONG` sur `/label` — et dit le nom non unique, la spécification
 ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALREADY_EXISTS`, que
 WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
@@ -5777,7 +5793,10 @@ cours où s'écrire, et reste un 403. *Remplacé par US-0702/L1 (#1610), sur la 
 du 2026-10-28 (D-05, J-01, J-02) : une saisie de la révision sur une révision marquée — toute
 révision d'un projet terminal l'est — se refuse, elle aussi, par le 409 de sa condition,
 `revision_draft`, et non par un 403 : le 409 de `createRisk` et celui des saisies de la révision ne
-font plus qu'une règle. La phrase est gardée pour l'histoire.* Sur le projet,
+font plus qu'une règle. La phrase est gardée pour l'histoire.* **Réécrit par US-0702/L3** (#1657) :
+sur un projet terminal, ni `edit_risks` ni `declare_risk` ne sont listées ; le 409 de `createRisk`
+nomme `project_not_terminal` pour l'appel direct, et l'ordre ci-dessus ne vaut que pour les états
+non terminaux. Sur le projet,
 la structure jugée est celle de la révision que la déclaration créerait, sans tâche quand le projet
 n'a aucune révision marquée. Les révisions et les projets écrits à la main qui listent `edit_risks`
 listent la commande : indisponible sur la révision 103, sur le projet créé et sur l'offre en
@@ -5926,7 +5945,8 @@ commande nouvelle du projet, `update_work_breakdown`, toujours listée après `u
 et sous les conditions d'`update`, le dit (`no_background_task_running`), comme
 `update_win_probability` dit la probabilité figée (L42i) ; `setWorkBreakdown` déclare son 409, qui
 nomme la première condition qui manque dans l'ordre de la commande, `project_not_terminal` puis
-`no_background_task_running` (relecture 1 ; défaut n° 2 du guide, la route sœur d'`updateProject`) ;
+`no_background_task_running` (depuis US-0702/L3, #1657, la commande n'est plus listée sur un projet
+terminal, et cet ordre ne vaut d'avance que pour les états non terminaux ; relecture 1 ; défaut n° 2 du guide, la route sœur d'`updateProject`) ;
 exemple `work_breakdown_background_task` (corrélation 1154). Les compteurs : celui du lotissement,
 toujours ; quand des rattachements sont retirés, celui de chaque tâche touchée et celui de la
 structure principale, comme une écriture de grille. Les huit projets écrits à la main listent la
@@ -6483,7 +6503,8 @@ phase (WF-DEV-0050), et `edit_remaining` n'est jamais listée (WF-RAE-0040 : seu
 La condition de phase vient d'abord, puis les conditions d'état de la révision — `revision_draft`,
 `no_background_task_running`, `project_not_terminal` — telles que la commande de même nom de la
 révision les nomme : la condition propre à la commande d'abord, comme `update_win_probability`
-(« Sur un projet clos, `project_not_terminal` vient en dernier »). Les commandes de la révision
+(« Sur un projet clos, `project_not_terminal` vient en dernier » ; réécrit par US-0702/L3, #1657 :
+sur un projet clos, aucune n'est listée). Les commandes de la révision
 (`RevisionCommand`) ne changent pas, et gardent ce qui ne lit pas une structure : le squelette, le
 marquage, les exports, les risques. Écartés : une condition sur `RevisionCommand.edit_estimate`,
 qui aurait fermé avec la principale le devis propre d'un risque et le différentiel ; des
@@ -7217,8 +7238,9 @@ et de la saisie des risques :
   (WF-REV-0010) : `main_structure_without_tasks` manque quand sa structure principale comporte
   une tâche, comme `at_least_one_task` à `declare_risk` quand elle n'en comporte aucune ;
 - ses conditions dans l'ordre de `declare_risk`, sa sœur au niveau du projet : celles de l'état
-  d'abord, `project_not_terminal` puis `no_background_task_running`, puis la condition propre,
-  `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
+  d'abord, `project_not_terminal` puis `no_background_task_running` (la première, depuis
+  US-0702/L3, #1657, nommée par le seul 409 : un projet terminal ne liste plus la commande), puis
+  la condition propre, `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
   révision, comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
   (`Project.available_commands`), étendue à cette commande.
 
@@ -8241,7 +8263,9 @@ Sans objet ou hors du lot :
   le témoin a des tâches et une catégorie de provision active. Un projet sans révision en cours
   listant aussi `generate_skeleton`, avant les imports, le fichier le porte, indisponible,
   `project_not_terminal` puis `main_structure_without_tasks`. `wftools.mockaudit` ne lit de ce
-  fichier que la date et l'auteur de la sortie.
+  fichier que la date et l'auteur de la sortie. *Réécrit par US-0702/L3 (#1657) : le projet
+  terminal ne liste plus aucune de ces commandes ; `project_not_terminal` n'est plus nommée que
+  par le 409 de l'appel direct.*
   *Complétée par US-0701/L9 (#1609, D-01, D-02) : WF-CYC-0090, réécrite le 2026-10-10, dit
   comment le projet terminal n'en porte aucune — la sortie marque ou abandonne la révision en
   cours ; celle du témoin abandonne la 102, et `project_completed` ne liste plus aucune sortie
@@ -8435,7 +8459,8 @@ Aucune opération nouvelle.
     décrivant la révision à créer, qui ne dirait rien de plus que le chemin et la confirmation ; une
     lecture à part, sur le projet.
   - *Les conditions de la commande.* Sur la dernière révision marquée d'un projet sans révision en
-    cours, `merge_structure` nomme, dans cet ordre, `project_not_terminal`,
+    cours, `merge_structure` nomme, dans cet ordre, `project_not_terminal` (avant US-0702/L3, #1657 ;
+    un projet terminal ne liste plus la commande, et seul le 409 de l'appel direct la nomme),
     `no_background_task_running` pendant un traitement qui crée la révision en cours — un import
     appliqué, une survenance, une autre fusion de cette révision —, `unmerged_amendment_exists`,
     puis `may_create_revision` à qui n'a pas `revisions.write`, comme les autres commandes qui
@@ -9551,8 +9576,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   clos n'en liste aucune, à la lettre de la spécification : aucune ne le deviendra (WF-CYC-0080), et
   WF-IHM-0090 ne présente indisponible que ce qu'un état rend « momentanément » impossible.
   Écartée : les lister avec `project_not_terminal`, la règle antérieure du contrat, qui présente
-  une commande qui ne sera jamais possible. Les autres commandes d'un projet clos gardent leur
-  forme, que US-0702 tranche avec D-05. `lose` quitte `project`, `project_updated`,
+  une commande qui ne sera jamais possible. **Réécrit par US-0702/L3** (décision de l'auteur du
+  2026-10-30, #1657) : les autres commandes d'un projet clos suivent la même règle, aucune n'est
+  listée. `lose` quitte `project`, `project_updated`,
   `project_without_current_revision`, `project_actual_cost_mapping_incomplete`,
   `reference_designated` et le projet en cours de `projects` ; les trois sorties quittent
   `project_completed`.
@@ -9624,8 +9650,8 @@ qu'il contredit sont réécrites à leur place, en citant la décision de l'aute
   chronologie restés des 403), EP-14/L42s (« les 403 des saisies de la révision ») et
   US-0640/L1 #803 (« le premier exemple de ce refus »). Écartés, par l'auteur : 409 hors grille et
   403 sur la grille, deux règles pour un même fait ; 403 partout, contraire à L42a, L42i, L42l et à
-  la lecture commune des conditions par le front. Les commandes d'un projet clos restent listées,
-  `project_not_terminal` manquante (#1657, à trancher par l'auteur).
+  la lecture commune des conditions par le front. **Réécrit par US-0702/L3** (décision de l'auteur
+  du 2026-10-30, #1657) : les commandes d'un projet clos ne sont plus listées ; le 409 reste.
 
 - **Le catalogue sans code mort** (J-03, J-11 ; WF-ARC-0110, WF-IHM-0090). Chaque code
   d'`ErrorCode` est nommé par une opération ou un schéma, et chaque valeur de `CommandCondition`
@@ -9750,11 +9776,13 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   rien, contraire à la convention.
 - **La sortie** (D-03 ; WF-CYC-0060, WF-CYC-0080, WF-CYC-0090). Son 409 est
   `STATE_FORBIDS_OPERATION`, la première condition de sa commande : `project_not_terminal` pour
-  toute sortie d'un projet terminal, que la commande y soit listée ou non (`project_exit_terminal`),
+  toute sortie d'un projet terminal, où la commande n'est jamais listée depuis US-0702/L3, #1657
+  (`project_exit_terminal`),
   puis `project_in_progress` pour Terminé, `project_in_pricing` pour Perdu
   (`project_exit_lost_in_progress`, Perdu depuis En cours), puis `no_background_task_running`.
   `confirmed` absent ou faux est un 400 `CONFIRMATION_REQUIRED` (`project_exit_unconfirmed`),
-  comme pour la restauration (B-09, US-0701/L8). Écarté : un 422 `VALUE_REQUIRED` sur
+  comme pour la restauration (B-09, US-0701/L8) ; le schéma le laisse à la garde depuis US-0702/L3
+  (#1664), sans `const: true` ni `required`. Écarté : un 422 `VALUE_REQUIRED` sur
   `/confirmed`, que la revue proposait aussi — le catalogue dit déjà la confirmation absente par
   ce 400, et deux formes pour une même garde en feraient deux règles.
 - **Les révisions et leurs structures** (E-05, E-12 à E-14 ; WF-REV-0010, WF-REV-0020,
@@ -9798,7 +9826,8 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   A-05). Le 409 de `declareRiskOccurrence` dit l'ordre : les conditions du projet, puis celles du
   risque (`risk_occurrence_not_identified`, US-0700/L1). Celui de `setActualCostTrackedScope` nomme
   `project_not_terminal` puis `project_in_progress`, comme `exclude_cost_lines`
-  (`actual_cost_scope_terminal`). Le 409 de `requestExport` est retiré : un export ne manque
+  (`actual_cost_scope_terminal`) ; depuis US-0702/L3 (#1657), un projet terminal ne liste plus
+  ces commandes, et seul ce 409 nomme `project_not_terminal`. Le 409 de `requestExport` est retiré : un export ne manque
   d'aucune condition (EP-02/L17). Celui de `getBackgroundTaskResult` nomme la condition nouvelle
   `task_succeeded` pour une tâche en file, en cours ou en échec (`task_result_not_succeeded`) ; une
   tâche qui ne produit pas de fichier est un 404, comme un résultat supprimé. Écarté : le même
@@ -9815,6 +9844,48 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   `dict[str, Any]`.
 
 **Corrélations** 1638 à 1657.
+
+### Un projet clos ne liste aucune commande ; la confirmation laissée à la garde (US-0702/L3, #1667)
+
+Deux décisions de l'auteur du 2026-10-30, sur les recommandations de US-0702/L1 (#1657) et de
+US-0702/L2 (#1664). Les décisions qu'elles contredisent sont réécrites à leur place.
+
+- **Un projet clos ne liste aucune commande** (#1657 ; WF-IHM-0090, WF-CYC-0060, WF-CYC-0080,
+  WF-CYC-0100). La règle d'EP-02/L42a, devenue celle de tout le contrat par US-0702/L1, reçoit sa
+  borne : un projet terminal ne liste aucune commande, ni sur lui-même, ni sur ses sous-projets,
+  ses révisions, leurs structures et leurs nœuds, ses risques — seuls les exports d'une révision
+  restent listés, disponibles, qui ne le modifient pas (WF-CYC-0110). WF-IHM-0090 ne présente
+  indisponible que ce qu'un état rend « momentanément » impossible, et un état terminal est
+  irréversible (WF-CYC-0080) : aucune de ces commandes ne le redeviendra. C'est la règle qu'US-0701/L9
+  posait pour les trois sorties (« Une sortie qui ne le deviendra jamais n'est pas listée », Vérif de
+  WF-CYC-0060), étendue à toutes. Le README (« Conventions ») et `Project.available_commands` le
+  disent ; `Subproject`, `Revision`, `CostStructure` (`StructureCommand`) et `Risk` le rappellent.
+  Un appel direct reste refusé par la règle unique : 409 `STATE_FORBIDS_OPERATION`,
+  `params.missing_condition` à `project_not_terminal`, dans l'ordre que chaque opération dit
+  (`timeline_create_terminal`, `timeline_delete_terminal`, `project_exit_terminal`,
+  `actual_cost_scope_terminal`). `project_completed` ne liste plus rien, ses quinze commandes
+  indisponibles retirées ; `subprojects_completed` garde ses deux sous-projets, sans commande. Réécrits :
+  US-0701/L9 (« Les autres commandes d'un projet clos gardent leur forme »), US-0702/L1 (« Les
+  commandes d'un projet clos restent listées »), EP-14/L42o et L42l (les commandes des sous-projets
+  d'un projet clos, toutes indisponibles, `project_not_terminal` en dernier — ce dernier ordre reste
+  celui du 409 de `deleteSubproject`).
+  **`project_not_terminal` reste dans `CommandCondition`** : aucune commande listée ne la nomme plus,
+  mais le 409 d'un appel direct la nomme, et `ProblemParams.missing_condition` est une
+  `CommandCondition` (J-03, J-11 : la condition est rendue par des opérations, avec leurs exemples).
+  Sa description le dit. Écartées : la retirer de l'énumération, qui laisserait le 409 sans valeur
+  typée ; lister les commandes avec elle, la règle antérieure, qui présente des commandes qui ne
+  seront jamais possibles.
+- **`confirmed` laissé à la garde** (#1664 ; WF-CYC-0090, WF-ADM-0160 ; B-09, D-03). `ProjectExit`,
+  `ReferenceDesignation` et le corps de `startRestore` (`RestoreRequest`) ne portent plus
+  `const: true`, et `confirmed` sort de leur `required` : `type: boolean`. Absente ou fausse, la
+  confirmation est refusée par 400 `CONFIRMATION_REQUIRED`, sans paramètre, comme US-0702/L2 et B-09
+  l'ont décidé ; avec `const: true` ou `required`, les modèles engendrés du service répondaient 422
+  `VALIDATION_FAILED` avant la garde, contre ce que le contrat promettait. `startRestore` le rend
+  (`waterfall.api.restores`) ; `designateReferenceRevision` décrit son 400. Écarté : garder
+  `confirmed` exigé, qui laisserait la confirmation absente au 422 du corps — deux formes pour une
+  même garde, que US-0702/L2 a écartées. Le client du front reçoit `confirmed?: boolean`. Les autres
+  confirmations du contrat (`ImportApply`, `StructureMerge`, `PasteApply`, `RiskOccurrence`) gardent
+  `const: true` : elles ne promettent aucun 400.
 
 ### Le filtre des écarts et le décompte de la matrice des risques (US-0700/L1, #1455, #1398, #1395)
 

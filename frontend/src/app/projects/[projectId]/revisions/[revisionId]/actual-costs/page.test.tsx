@@ -367,6 +367,17 @@ describe("the screen of the actual costs", () => {
     expect(page).not.toContain("Line FA-2026-0412");
   });
 
+  it("shows no line, and links none, on a project that ended, which lists no command (US-0702/L3)", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_completed",
+    };
+    const page = await costsAt({ line: "01926f3a-7c00-7000-8000-000000000c01" });
+    expect(grids.costs.at(-1)?.linked).toBe(false);
+    expect(page).not.toContain("Line FA-2026-0412");
+    expect(page).not.toContain("Exclude from the tracked scope");
+  });
+
   it("shows no line the page does not hold", async () => {
     const page = await costsAt({ line: "01926f3a-7c00-7000-8000-000000000c99" });
     expect(page).not.toContain("Exclude from the tracked scope");

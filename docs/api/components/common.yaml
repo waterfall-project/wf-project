@@ -429,9 +429,9 @@ ErrorCode:
     - NOT_FOUND
     # 409 — l'état courant interdit l'opération : le refus de toute commande qu'un état rend
     # indisponible, `params.missing_condition` nommant la condition qui manque, comme la commande
-    # de l'objet la dit d'avance — sur un projet terminal `project_not_terminal`, sur une révision
-    # marquée `revision_draft` (WF-CYC-0100, WF-DAT-0020, WF-IHM-0090) ; ou `params` nomme l'objet
-    # ou l'état.
+    # de l'objet la dit d'avance — sur une révision marquée `revision_draft` —, ou de toute écriture
+    # d'un projet terminal, qui ne liste plus aucune commande, `project_not_terminal` (WF-CYC-0100,
+    # WF-DAT-0020, WF-IHM-0090 ; US-0702/L3) ; ou `params` nomme l'objet ou l'état.
     - STATE_FORBIDS_OPERATION
     # Une valeur unique déjà portée par un autre objet ; aussi motif par champ du 409 qui dit
     # quel champ la porte, `fields[].params.conflicting_object_id` nommant l'objet qui la porte

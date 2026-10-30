@@ -3,18 +3,17 @@
 /**
  * The commands of the sub-projects of a project (FBS-4.2.3, EP-02/L44b): create one, modify one,
  * delete one (WF-PRJ-0050). They follow the command `update` the project lists — the settings of a
- * project are its project managers' (WF-PRJ-0060), and a terminal project lists it unavailable,
- * `project_not_terminal` lacking —: absent, nothing is offered; listed, available or not, the list
+ * project are its project managers' (WF-PRJ-0060), and a terminal project lists no command at all
+ * (US-0702/L3): absent, nothing is offered; listed, available or not, the list
  * offers the creation in its head — unavailable, « New sub-project » presented `aria-disabled`,
  * described by the conditions it lacks — and each row its modification and its deletion as the row
  * lists them (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
  * `aria-disabled`, described by the conditions it lacks — a sub-project a marked revision cites
  * deletes not, `subproject_not_cited` lacking (§4.4.1), nor one charged with actual costs,
  * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor one estimate lines of the current
- * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), nor any of a terminal
- * project, `project_not_terminal` lacking —, a press saying them in the region of the list without
+ * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), a press saying them in the region of the list without
  * asking anything (`UnavailableCellCommand`); a deletion that lacks the passing of the estimate lines
- * that bear the sub-project alone, `project_not_terminal` aside, leads besides to the estimate of the
+ * that bear the sub-project alone leads besides to the estimate of the
  * revision in progress, filtered on it, where those of its main structure show (`subproject_id`) —
  * those of another structure it does not reach —, a citation or actual costs, which no line passed
  * lifts, leading nowhere (`leadsToEstimate`). A deletion is confirmed first, and a refusal of the

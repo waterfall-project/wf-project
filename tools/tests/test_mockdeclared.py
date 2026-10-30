@@ -95,9 +95,9 @@ def _commands(holder: Entry) -> dict[str, list[str]]:
 def test_the_conditions_refused_are_the_ones_the_objects_say_beforehand() -> None:
     marked = _commands(fixture("revision_marked"))
     assert marked["mark"] == marked["abandon"] == marked["create_structure"] == ["revision_draft"]
-    completed = _commands(fixture("project_completed"))
-    assert completed["exclude_cost_lines"] == ["project_not_terminal"]
-    assert not {"complete", "lose", "abandon"} & completed.keys()
+    # A terminal project lists no command, not even unavailable: none would ever become available
+    # (US-0702/L3); its refusals name `project_not_terminal` all the same.
+    assert _commands(fixture("project_completed")) == {}
     assert "lose" not in _commands(fixture("project"))
 
 

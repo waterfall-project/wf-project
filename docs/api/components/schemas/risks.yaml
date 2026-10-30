@@ -156,8 +156,8 @@ Risk:
         nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et,
         pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la
         révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`,
-        `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code
-        d'erreur.
+        `RevisionCommand.edit_risks`). Le risque d'un projet terminal n'en liste aucune
+        (US-0702/L3). Un appel envoyé malgré la liste est refusé par son code d'erreur.
       items: { $ref: '#/RiskCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version:

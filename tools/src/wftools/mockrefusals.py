@@ -8,8 +8,9 @@ revision are refused everywhere by 409 ``STATE_FORBIDS_OPERATION`` and their mis
 never by a 403 (US-0702/L1):
 
 - ``timeline_create_terminal.json``, a timeline created on the witness completed today
-  (``project_completed``), refused by ``project_not_terminal``, as ``manage_timelines`` says it
-  beforehand — and ``timeline_delete_terminal``, written by hand (#803), refused alike;
+  (``project_completed``), which lists no command any more (US-0702/L3), refused by
+  ``project_not_terminal`` — and ``timeline_delete_terminal``, written by hand (#803), refused
+  alike;
 - ``node_create_marked_refused.json`` and ``skeleton_marked_refused.json``, a task created and the
   skeleton generated on the reference, the marked revision 101, refused by ``revision_draft``,
   the condition the revision names for its entries (``revision_marked``).
@@ -400,9 +401,10 @@ def _state_examples() -> dict[str, JsonObject]:
     return {
         "timeline_create_terminal.json": mocktext.example(
             f"Une chronologie « {timeline} » créée sur le projet témoin, « {project['label']} », "
-            f"terminé aujourd'hui (project_completed) : refusée par la condition que sa commande "
-            f"manage_timelines dit manquer, project_not_terminal, comme toute écriture d'un "
-            f"projet terminal ; rien n'est créé (WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
+            f"terminé aujourd'hui (project_completed) : le projet clos ne liste plus "
+            f"manage_timelines, et l'appel direct est refusé par la condition qui manque, "
+            f"project_not_terminal, comme toute écriture d'un projet terminal ; rien n'est créé "
+            f"(WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
             state_refused("project_not_terminal", TIMELINE_CORRELATION),
         ),
         "node_create_marked_refused.json": mocktext.example(

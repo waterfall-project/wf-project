@@ -395,8 +395,9 @@
           `params.missing_condition` la première condition qui lui manque, dans l'ordre où la
           commande de la sortie (`complete`, `lose`, `abandon`) les nomme — `project_not_terminal`
           pour toute sortie d'un projet terminal, d'où aucune transition ne part (WF-CYC-0080),
-          que la commande y soit listée ou non ; puis `project_in_progress` pour `completed`
-          avant En cours, `project_in_pricing` pour `lost` hors de Chiffrage, Créé comme En cours
+          et où la commande n'est jamais listée : seul ce 409 la nomme ; puis
+          `project_in_progress` pour `completed` avant En cours, `project_in_pricing`
+          pour `lost` hors de Chiffrage, Créé comme En cours
           (WF-CYC-0060) ; puis `no_background_task_running` pendant un traitement de fond qui
           écrit dans la révision en cours ou la fige. Ou un nom de version déjà employé par une
           révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields`
@@ -537,7 +538,8 @@
           Une condition que la commande `update_work_breakdown` dit manquante :
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première qui manque, dans
           l'ordre où la commande les liste — `project_not_terminal` sur un projet terminal, dont
-          le paramétrage ne se modifie plus (WF-CYC-0100), comme `updateProject` le refuse, puis
+          le paramétrage ne se modifie plus et qui ne la liste plus (WF-CYC-0100), comme
+          `updateProject` le refuse, puis
           `no_background_task_running` tant qu'un traitement de fond écrit dans la révision en
           cours ou la fige — marquage, fusion, survenance, application d'un import —, la saisie,
           qui en retirerait des rattachements, attendant qu'il finisse (WF-IHM-0080, WF-IHM-0090 ;
@@ -1060,7 +1062,7 @@
       '409':
         description: >-
           Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
-          `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien
+          `project_not_terminal`, le projet ne listant plus `manage_timelines` (WF-CYC-0100) ; rien
           n'est créé.
         content:
           application/problem+json:
@@ -1104,7 +1106,7 @@
       '409':
         description: >-
           Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
-          `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien
+          `project_not_terminal`, le projet ne listant plus `manage_timelines` (WF-CYC-0100) ; rien
           n'est supprimé. Aucune révision marquée ne retient une chronologie (WF-DAT-0080).
         content:
           application/problem+json:

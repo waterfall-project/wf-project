@@ -55,9 +55,9 @@ Conflict:
     L'état courant interdit l'opération, ou une unicité est violée ; `code` dit lequel, par
     exemple `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition manquante,
     ou `ALREADY_EXISTS`, `fields` désignant le champ dont la valeur est déjà portée. Toute
-    commande qu'un état rend indisponible se refuse ainsi, comme l'objet la dit d'avance : sur un
-    projet terminal, `project_not_terminal` (WF-CYC-0100) ; sur une révision marquée — toute
-    révision d'un projet terminal l'est —, `revision_draft` (WF-DAT-0020).
+    commande qu'un état rend indisponible se refuse ainsi, comme l'objet la dit d'avance : sur une
+    révision marquée, `revision_draft` (WF-DAT-0020). Toute écriture d'un projet terminal, qui
+    ne liste plus aucune commande, aussi : `project_not_terminal` (WF-CYC-0100 ; US-0702/L3).
   content:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }

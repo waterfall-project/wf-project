@@ -58,7 +58,7 @@ function line(document: string): CostRow {
 }
 
 /** The offer of the exclusion a project of the contract lists, by the name of its example. */
-function offerOf(name: "project" | "project_completed"): CommandOffer {
+function offerOf(name: "project"): CommandOffer {
   const project = example(name) as Project;
   const offer = project.available_commands.find((each) => each.command === "exclude_cost_lines");
   if (offer === undefined) {
@@ -176,24 +176,6 @@ describe("the place of a line in the tracked scope", () => {
       expect(refresh).toHaveBeenCalledOnce();
     });
     expect(client.calls[0]?.body).toEqual({ is_in_tracked_scope: true, reason: null });
-  });
-
-  it("offers the command unavailable with what it lacks on a project that ended, and runs nothing", async () => {
-    const client = serve({});
-    render(
-      inFrench(
-        <CostLineScope
-          projectId={PROJECT}
-          line={line("FA-2026-0412")}
-          offer={offerOf("project_completed")}
-        />,
-      ),
-    );
-    const command = screen.getByRole("button", { name: "Exclure du périmètre suivi" });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription(/projet/i);
-    await userEvent.click(command);
-    expect(client.calls).toEqual([]);
   });
 
   it("tells the refusal of the server, and renders nothing again", async () => {

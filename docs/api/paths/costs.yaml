@@ -144,8 +144,8 @@
           La commande `exclude_cost_lines` du projet est indisponible : `STATE_FORBIDS_OPERATION`,
           `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle les
           nomme — `project_not_terminal` sur un projet terminal, dont les coûts réels sont en
-          lecture seule (WF-CYC-0100), `project_in_progress` avant En cours (WF-CRE-0030) ; I-06,
-          US-0702/L2. Rien n'est écrit.
+          lecture seule et qui ne la liste plus (WF-CYC-0100), `project_in_progress` avant En
+          cours (WF-CRE-0030) ; I-06, US-0702/L2. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
