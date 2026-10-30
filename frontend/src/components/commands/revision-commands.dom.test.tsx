@@ -40,6 +40,7 @@ vi.mock("next/navigation", async (original) => ({
 type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const LOCK = 3;
 const DRAFT = "01926f3a-7c00-7000-8000-000000000102";
 const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const CREATED = "01926f3a-7c00-7000-8000-000000000103";
@@ -174,6 +175,10 @@ describe("the abandon of the current revision", () => {
     expect(client.calls.filter((call) => call.route === ABANDON).map((call) => call.path)).toEqual([
       `/projects/${PROJECT}/revisions/${DRAFT}`,
     ]);
+    // The counter of the revision as read, which a concurrent write would have moved (WF-IHM-0110).
+    expect(client.calls.find((call) => call.route === ABANDON)?.query.get("lock_version")).toBe(
+      String((example("revision") as Revision).lock_version),
+    );
     // The other commands of the revision keep their own region of status, empty.
     await vi.waitFor(() => {
       expect(screen.getAllByRole("status").map((status) => status.textContent)).toContainEqual(
@@ -214,7 +219,7 @@ describe("the designation of the reference", () => {
       is_available: true,
       missing_conditions: [],
     });
-    show(<ReferenceDesignation revisions={listed} projectId={PROJECT} />);
+    show(<ReferenceDesignation revisions={listed} projectId={PROJECT} projectLockVersion={LOCK} />);
     const offered = screen.getAllByRole("button", { name: "Désigner comme référence" });
     expect(offered).toHaveLength(1);
     expect(screen.queryByRole("listitem", { name: "Révision en cours" })).toBeNull();
@@ -227,7 +232,11 @@ describe("the designation of the reference", () => {
     for (const name of ["revisions", "revisions_marked"]) {
       const client = serve({});
       const { unmount } = show(
-        <ReferenceDesignation revisions={history(name)} projectId={PROJECT} />,
+        <ReferenceDesignation
+          revisions={history(name)}
+          projectId={PROJECT}
+          projectLockVersion={LOCK}
+        />,
       );
       // Every marked revision lists it, and none can take it.
       const offers = screen.getAllByRole("button", { name: "Désigner comme référence" });
@@ -250,6 +259,7 @@ describe("the designation of the reference", () => {
       <ReferenceDesignation
         revisions={history("revisions_designation_open")}
         projectId={PROJECT}
+        projectLockVersion={LOCK}
       />,
     );
     const command = screen.getByRole("button", { name: "Désigner comme référence" });
@@ -260,7 +270,11 @@ describe("the designation of the reference", () => {
     const frame = (revisions: DesignatedRevision[]) => (
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
         <main>
-          <ReferenceDesignation revisions={revisions} projectId={PROJECT} />
+          <ReferenceDesignation
+            revisions={revisions}
+            projectId={PROJECT}
+            projectLockVersion={LOCK}
+          />
         </main>
       </NextIntlClientProvider>
     );
@@ -282,6 +296,7 @@ describe("the designation of the reference", () => {
       <ReferenceDesignation
         revisions={history("revisions_designation_open")}
         projectId={PROJECT}
+        projectLockVersion={LOCK}
       />,
     );
     await userEvent.click(
@@ -295,7 +310,9 @@ describe("the designation of the reference", () => {
     await expectAccessible(form);
 
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la désignation" }));
-    expect(bodies(client, DESIGNATE)).toEqual([{ revision_id: OFFER, confirmed: true }]);
+    expect(bodies(client, DESIGNATE)).toEqual([
+      { revision_id: OFFER, confirmed: true, lock_version: LOCK },
+    ]);
     const row = screen.getByRole("listitem", { name: "Offre v1.0" });
     expect(await within(row).findByText(/est la révision de référence/)).toHaveTextContent(
       "« Offre v1.0 » est la révision de référence : le projet est à l’état « En cours ».",
@@ -310,6 +327,7 @@ describe("the designation of the reference", () => {
       <ReferenceDesignation
         revisions={history("revisions_designation_open")}
         projectId={PROJECT}
+        projectLockVersion={LOCK}
       />,
     );
     await userEvent.click(
@@ -327,6 +345,7 @@ describe("the designation of the reference", () => {
       <ReferenceDesignation
         revisions={history("revisions_designation_open")}
         projectId={PROJECT}
+        projectLockVersion={LOCK}
       />,
     );
     await userEvent.click(
@@ -345,7 +364,7 @@ describe("the designation of the reference", () => {
         (offer) => offer.command !== "designate_reference",
       ),
     }));
-    show(<ReferenceDesignation revisions={listed} projectId={PROJECT} />);
+    show(<ReferenceDesignation revisions={listed} projectId={PROJECT} projectLockVersion={LOCK} />);
     expect(screen.queryByRole("button")).toBeNull();
   });
 });

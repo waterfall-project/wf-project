@@ -464,7 +464,9 @@ function DeleteConfirmation({
     // The reading the deletion is confirmed on: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await held(deleteSubproject(commands.project, row.subproject_id));
+      const outcome = await held(
+        deleteSubproject(commands.project, row.subproject_id, row.lock_version),
+      );
       if (outcome.kind === "done") {
         commands.remove(row.subproject_id);
         commands.say(t("deleted", { code: row.code }), { object: row.code });

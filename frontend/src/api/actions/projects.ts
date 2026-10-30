@@ -92,14 +92,21 @@ export async function writeSubproject(
 /**
  * Delete a sub-project (WF-PRJ-0050): refused (409) while a marked revision cites it or actual costs
  * are charged to it, or its project is terminal, the first condition it lacks named
- * (`params.missing_condition`).
+ * (`params.missing_condition`), or when it moved since the counter read (412, WF-IHM-0110).
  */
-export async function deleteSubproject(projectId: string, subprojectId: string): Promise<Settled> {
+export async function deleteSubproject(
+  projectId: string,
+  subprojectId: string,
+  lockVersion: number,
+): Promise<Settled> {
   return readAnew(
     settled(
       await decode(() =>
         serverClient().DELETE("/projects/{project_id}/subprojects/{subproject_id}", {
-          params: { path: { project_id: projectId, subproject_id: subprojectId } },
+          params: {
+            path: { project_id: projectId, subproject_id: subprojectId },
+            query: { lock_version: lockVersion },
+          },
         }),
       ),
     ),

@@ -85,11 +85,18 @@ export async function reviewRisk(
  * marked revision cites it (`risk_not_cited`) or it occurred (`risk_not_occurred`). The page is not
  * read anew here: it names the risk, which is gone, and the screen leaves it for the address without.
  */
-export async function deleteRisk(projectId: string, riskId: string): Promise<Settled> {
+export async function deleteRisk(
+  projectId: string,
+  riskId: string,
+  lockVersion: number,
+): Promise<Settled> {
   return settled(
     await decode(() =>
       serverClient().DELETE("/projects/{project_id}/risks/{risk_id}", {
-        params: { path: { project_id: projectId, risk_id: riskId } },
+        params: {
+          path: { project_id: projectId, risk_id: riskId },
+          query: { lock_version: lockVersion },
+        },
       }),
     ),
   );

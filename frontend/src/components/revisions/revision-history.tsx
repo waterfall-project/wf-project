@@ -130,9 +130,12 @@ export type DesignatedRevision = HistoryRevision &
 export function ReferenceDesignation({
   revisions,
   projectId,
+  projectLockVersion,
 }: {
   readonly revisions: readonly DesignatedRevision[];
   readonly projectId: string;
+  /** The counter of the project as the page read it, which the designation carries. */
+  readonly projectLockVersion: number;
 }) {
   const t = useTranslations("revisionScreen.designation");
   const name = useRevisionName();
@@ -158,6 +161,7 @@ export function ReferenceDesignation({
               <DesignateCommand
                 offer={offer}
                 revision={{ projectId, revisionId: revision.revision_id, name: named }}
+                projectLockVersion={projectLockVersion}
                 names={{ [revision.revision_id]: named }}
               />
             </li>

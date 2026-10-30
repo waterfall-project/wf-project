@@ -38,6 +38,8 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+/** The counter the examples of the projects of the contract carry, which an exit sends back (WF-IHM-0110). */
+const LOCK = 7;
 const EXIT = "POST /projects/{project_id}/exit";
 const CONFLICT = {
   problem: {
@@ -172,6 +174,7 @@ describe("the exits of the lifecycle of a project", () => {
       {
         to_state: "completed",
         confirmed: true,
+        lock_version: LOCK,
         reason: "Recette prononcée",
         current_revision: { action: "abandon" },
       },
@@ -231,7 +234,13 @@ describe("the exits of the lifecycle of a project", () => {
     const client = serve({ [EXIT]: "project_completed" });
     open("project_without_current_revision");
     await confirm("Terminer le projet");
-    expect(exits(client)).toEqual([{ to_state: "completed", confirmed: true }]);
+    expect(exits(client)).toEqual([
+      {
+        to_state: "completed",
+        confirmed: true,
+        lock_version: (example("project_without_current_revision") as Project).lock_version,
+      },
+    ]);
   });
 
   it("sends no motive when the user gives none", async () => {
@@ -241,7 +250,12 @@ describe("the exits of the lifecycle of a project", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Motif (facultatif)" }), "   ");
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
     expect(exits(client)).toEqual([
-      { to_state: "abandoned", confirmed: true, current_revision: { action: "abandon" } },
+      {
+        to_state: "abandoned",
+        confirmed: true,
+        lock_version: LOCK,
+        current_revision: { action: "abandon" },
+      },
     ]);
   });
 

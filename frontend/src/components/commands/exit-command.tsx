@@ -46,11 +46,14 @@ export interface ExitCommandsProps {
   readonly names: ObjectNames;
   /** Whether the project carries a current revision, which an exit must abandon or mark. */
   readonly hasCurrentRevision: boolean;
+  /** The counter of the project as the screen read it, which the exit carries. */
+  readonly lockVersion: number;
 }
 
 /** An exit, whether its confirmation is the one open, and what opens and closes it. */
 interface ExitCommandProps extends ExitOffer {
   readonly projectId: string;
+  readonly lockVersion: number;
   readonly hasCurrentRevision: boolean;
   readonly names: ObjectNames;
   readonly open: boolean;
@@ -63,6 +66,7 @@ interface ExitFormProps {
   readonly id: string;
   readonly command: ExitCommandName;
   readonly projectId: string;
+  readonly lockVersion: number;
   readonly hasCurrentRevision: boolean;
   readonly onClose: () => void;
   readonly onDone: (state: ProjectState) => void;
@@ -77,6 +81,7 @@ function ExitForm({
   id,
   command,
   projectId,
+  lockVersion,
   hasCurrentRevision,
   onClose,
   onDone,
@@ -106,6 +111,7 @@ function ExitForm({
     const exit = {
       to_state: state,
       confirmed: true as const,
+      lock_version: lockVersion,
       ...(reason.trim() === "" ? {} : { reason }),
       // The confirmation says it: the revision is abandoned (WF-CYC-0090-A). The choice between
       // marking and abandoning is the confirmation's of US-0703/L4, not this one's.
@@ -181,6 +187,7 @@ function ExitCommand({
   command,
   offer,
   projectId,
+  lockVersion,
   hasCurrentRevision,
   names,
   open,
@@ -236,6 +243,7 @@ function ExitCommand({
           id={form}
           command={command}
           projectId={projectId}
+          lockVersion={lockVersion}
           hasCurrentRevision={hasCurrentRevision}
           onClose={close}
           onDone={(state) => {
@@ -268,7 +276,13 @@ function ExitCommand({
 }
 
 /** The exits a project offers, each in the list of its commands; one confirmation open at most. */
-export function ExitCommands({ exits, projectId, names, hasCurrentRevision }: ExitCommandsProps) {
+export function ExitCommands({
+  exits,
+  projectId,
+  lockVersion,
+  names,
+  hasCurrentRevision,
+}: ExitCommandsProps) {
   const [open, setOpen] = useState<ExitCommandName>();
   return exits.map(({ command, offer }) => (
     <li key={command}>
@@ -276,6 +290,7 @@ export function ExitCommands({ exits, projectId, names, hasCurrentRevision }: Ex
         command={command}
         offer={offer}
         projectId={projectId}
+        lockVersion={lockVersion}
         hasCurrentRevision={hasCurrentRevision}
         names={names}
         open={open === command}

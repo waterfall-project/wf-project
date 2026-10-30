@@ -452,6 +452,8 @@ describe("the deletion of a sub-project", () => {
         body: undefined,
       },
     ]);
+    const deleted = client.calls.find((call) => call.route === DELETE);
+    expect(deleted?.query.get("lock_version")).toBe(String(CREATED.lock_version));
     expect(within(grid()).queryByText("SP-REC")).toBeNull();
     expect(announced()).toContain("« SP-REC » supprimé.");
     // Noted once in the history of the messages, about the sub-project it names.
