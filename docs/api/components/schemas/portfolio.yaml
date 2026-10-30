@@ -309,9 +309,9 @@ PortfolioRisks:
     coverage:
       allOf: [{ $ref: risks.yaml#/RiskCoverageTotals }]
       description: >-
-        Couverture des risques agrégée : la somme des réserves de référence des projets en
-        cours et terminés du périmètre, face aux sommes de leurs provisions restantes et du
-        coût de leurs risques survenus, et l'écart de couverture agrégé, différence des
+        Couverture des risques agrégée : la somme des réserves pour risques des projets en
+        cours et terminés du périmètre, face aux sommes de leurs provisions restantes et des
+        coûts à la survenance de leurs risques survenus, et l'écart de couverture agrégé, différence des
         sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090,
         WF-RIS-0050).
     period_outcome:

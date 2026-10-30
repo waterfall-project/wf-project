@@ -505,7 +505,9 @@ def readings() -> dict[str, JsonObject]:
         "nodes_risk_occurred.json": _example(
             f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
             f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
-            f"seul (subtree_of) le {day} : ses deux tâches, terminées en mai, et leurs lignes de "
+            f"seul (subtree_of) le {day} : ses deux tâches, terminées en mai — la relance, sans "
+            f"prédécesseur dans le devis propre, en mode manuel aux dates qu'elle y avait, le "
+            f"transport à sa suite —, et leurs lignes de "
             f"120 et 80, aux montants budgétés nuls — la survenance ne déplace pas la référence — "
             f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
             f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",

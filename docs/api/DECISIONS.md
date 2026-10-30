@@ -373,6 +373,10 @@ nul et réestimée à son montant, la ligne de provision retirée, sans marquage
 la référence ; l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue — 0 et
 0 pour 120 et 80.
 
+*Complété par US-0701/L4 (#1604, M-05) : WF-RIS-0060, réécrite le 2026-10-09, dit la place des
+tâches fusionnées, leurs modes et le réestimé « que leurs grandeurs et leurs dates donnent » ;
+`declareRiskOccurrence` les dit (« Les risques », dans « Le contrat figé »).*
+
 **La liste des projets du portefeuille porte l'écart à la référence** (`delta_to_reference`,
 WF-PTF-0040), nul hors d'un projet en cours. La projection du chef de projet que la même
 exigence nomme est `project_manager_projection`, qui existait : un second champ l'aurait
@@ -616,7 +620,8 @@ de gravité, propres à un projet et faux pour le portefeuille.
 révision du 2026-10-04 les veut « en regard de la réserve pour risques » (WF-RIS-0050) : le
 front ne somme rien (WF-ARC-0020), le serveur rend donc le total et la réserve de la révision
 de référence, sur les mêmes risques retenus que les trois autres (décision de l'auteur du
-2026-10-06 : le total reste).
+2026-10-06 : le total reste). *La réserve est désormais un cumul à travers les références
+(WF-RIS-0050 du 2026-10-09 ; US-0701/L4, M-01, « Les risques », dans « Le contrat figé »).*
 
 **Exemples** : `risks` (trois risques, un par état — le survenu est celui de
 `nodes_risk_occurred`, gravité 200 à 30 %, son devis propre fusionné à budgété nul et sa ligne
@@ -1214,7 +1219,14 @@ risques survenus, écart signé — est une lecture : `RiskCoverageTotals` porte
 `revision_id` comme les autres lectures des risques) les rend avec leur contexte (`RiskCoverage`),
 `RemainingIndicators.coverage` les répète pour l'écran du reste à engager (WF-RAE-0020), et
 `PortfolioRisks.coverage` les somme sur les projets en cours (WF-PTF-0090). `ProvisionTotals`
-porte la réserve en plus du total général. `CurveSeries.steps[].cause` ne connaît plus que
+porte la réserve en plus du total général.
+
+*Réécrit par US-0701/L4 (#1604, H-01, M-01) : la passe de cohérence de la spécification du
+2026-10-09 compare à la réserve le **coût à la survenance** des risques survenus, le total de leur
+devis propre au moment de la survenance, que ni réestimation ni terminaison ne changent
+(WF-RIS-0010, WF-RIS-0050, glossaire), et non le coût réestimé des lignes issues des risques
+survenus ; elle fait de la réserve un cumul à travers les références. Décision du recadrage du
+2026-10-28, « Les risques » (« Les risques », dans « Le contrat figé »).* `CurveSeries.steps[].cause` ne connaît plus que
 `amendment` : seul l'avenant déplace la référence (WF-REV-0040), et `RiskOccurrence` n'a plus que
 `confirmed`, la survenance ne marquant aucune révision. `budget_change.cause` à `risk_occurred` et
 `last_risk_dismissed`, et `version_name` de la survenance, sont retirés.
@@ -7326,6 +7338,11 @@ déclaration. Le résumé de chacun dit son geste, et le test 422 de « Modifier
 d'US-0520/L3 aurait à élargir encore. Le réexamen (`reviewRisk`) dira sa borne avec US-0520/L3
 (#1114).
 
+*Remplacé par US-0701/L4 (#1604, H-04) : la modification ne reçoit plus la probabilité, que seul
+le réexamen écrit (WF-RIS-0010, WF-RIS-0040 ; décision du recadrage du 2026-10-28, « Les
+risques ») ; `risk_update_probability_out_of_range` est retiré, et la corrélation 1307 n'est plus
+employée (« Les risques », dans « Le contrat figé »).*
+
 **Le réexamen dit la même borne, et ses réponses ont leurs exemples** (US-0520/L3, #1371, #1114).
 `RiskReviewWrite.probability`, le corps du réexamen, dit la borne de `RiskWrite.probability` : « De
 `0` à `1` inclus, un rapport (WF-RIS-0010). » ; le 422 de `reviewRisk` dit `/probability` hors de 0 à
@@ -8985,8 +9002,9 @@ d'EP-02/L7 (L-16), la fusion de l'avenant 1 d'EP-02/L27 (#467, L-14) et l'annula
   en mode manuel ; la structure du projet créé aujourd'hui, le 3 juin 2026. L'exemple
   `structure_planning_start_advanced` (`volume/`) est une variante contrefactuelle déclarée, lue
   le 20 février 2026, avant qu'aucune tâche ne démarre par ses dates : la date avancée d'une
-  semaine, au 23 février, redate 959 tâches — aujourd'hui, avancer la date d'une structure dont
-  les tâches ont démarré changerait leur état, que le générateur lit des dates. `mockdating` et
+  semaine, au 23 février, redate 958 tâches (959 avant US-0701/L4, qui passe en mode manuel la
+  « Relance du fournisseur » fusionnée par la survenance) — aujourd'hui, avancer la date d'une
+  structure dont les tâches ont démarré changerait leur état, que le générateur lit des dates. `mockdating` et
   `mockcore` prennent la date de début de planning en paramètre ;
   `tools/tests/test_mockrevisions.py` tient le Vérif de WF-PLA-0020 sur l'exemple, et
   `structure_start_non_working_day` (`mocknonworking`) montre le refus. La lecture de la date par
@@ -9262,6 +9280,74 @@ gestes du Kanban » (EP-15/US-0540, F-13) et « Toute liste se filtre sur ce que
   hors de l'énumération par 422 sur `/query/field`, comme `resolveRowNumber` le numéro de ligne,
   sans 400. De F-17, ce lot ne fait que les exemples des refus qu'il crée — la catégorie
   discordante, la ligne de provision réestimée — ; le reste est à US-0702/L1 (#1610).
+
+### Les risques : coût à la survenance, provision de référence, probabilité par le réexamen (US-0701/L4, #1604, H-01, H-02, H-03, H-04, M-01, M-04, M-05)
+
+La passe de cohérence de la spécification du 2026-10-09 donne au risque survenu son **coût à la
+survenance**, fait de la réserve un cumul à travers les références, dit ce que l'abandon fait des
+risques et où la survenance range ses tâches (WF-RIS-0010, WF-RIS-0020, WF-RIS-0050, WF-RIS-0060,
+glossaire). La décision de l'auteur du 2026-10-28 (« Les risques », recadrage d'EP-16) tranche ce
+que la revue laissait au choix ; la proposition de la revue s'applique au reste (« la règle des
+autres majeurs »). Réécrits, plus haut : la couverture de la « Révision de la spécification du
+2026-10-04 » (décision de l'auteur du 2026-10-06, « le coût réestimé des lignes issues des risques
+survenus »), la réserve d'US-0230/L2 et la borne de la modification d'US-0520/L2b ; complétée : « La
+survenance d'un risque ne budgète rien ».
+
+- **Le coût à la survenance** (H-01, H-02). `Risk.occurrence_cost`, exigé, nul pour un risque
+  identifié ou écarté : le total du devis propre au moment de la survenance, qui ne change plus.
+  `RiskCoverageTotals.occurred_cost` en est la somme, et la couverture le compare à la réserve ; le
+  nom du champ reste (compatible, et `occurred` dit l'état des risques sommés). La couverture du
+  portefeuille, qui reprend `RiskCoverageTotals`, le dit aussi. Sur le témoin, 200,00 pour « Retard
+  de livraison des armoires », la gravité que retient le réexamen de sa survenance, égale aux 120 et
+  80 réestimés de ses lignes fusionnées tant que rien n'a bougé : `mockhistory.coverage` somme
+  désormais les coûts à la survenance, et non ces lignes ; les valeurs des exemples ne changent pas.
+  `tools/tests/test_mockriskcoverage.py` tient le Vérif de WF-RIS-0050 : les lignes fusionnées
+  réestimées et leurs tâches terminées, le coût des survenus et l'écart restent.
+- **La provision d'un survenu ou d'un écarté** (H-03). `Risk.provision_amount` est la provision
+  courante d'un risque identifié, et pour un survenu ou un écarté la provision qu'il portait dans la
+  révision de référence, `0.00` s'il n'y était pas identifié : la ligne du registre se somme aux
+  totaux, et le tri par provision compare des grandeurs de même nature. `RiskMatrixPoint` la
+  reprend. `mockhistory.provision_amount` le calcule, comme les totaux le faisaient ; 752 et 753
+  valaient déjà, par coïncidence, leur provision de référence. Écarté (décision de l'auteur) : un
+  second champ, `reference_provision_amount`.
+- **La probabilité par le seul réexamen** (H-04). `RiskUpdate` est défini en propre — libellé,
+  description, actions de mitigation, catégorie, sous-projet et tâche de la provision, compteur —,
+  sans `probability` ; `updateRisk` le dit, son 422 n'a plus d'exemple de probabilité, et
+  `risk_update_probability_out_of_range` est retiré. Écarté (décision de l'auteur) : un réexamen
+  implicite produit par `updateRisk`, deux chemins pour la même grandeur. Le formulaire de
+  modification présente encore la probabilité : US-0703/L3 (#1614) la retire de l'écran.
+- **La réserve cumulée** (M-01). `RiskCoverageTotals.reserve` dit la règle une fois — les lignes de
+  provision de la référence, augmentées de la provision que portaient, dans la référence
+  précédente, les risques survenus ou écartés avant elle ; un avenant ne la diminue jamais —, et
+  `ProvisionTotals.reserve`, `EstimateLineFacet.budgeted_amount`, `getProjectRiskCoverage` et le
+  portefeuille y renvoient. Le témoin n'a qu'une référence, marquée quand ses trois risques étaient
+  identifiés : sa réserve reste 850 060,00, et aucun exemple ne montre un second avenant fusionné.
+- **L'abandon ramène l'évaluation des risques** (M-04). `abandonRevision` dit qu'un risque créé
+  dans la révision abandonnée disparaît, qu'un réexamen est défait, et qu'un risque déclaré survenu
+  redevient identifié avec sa ligne de provision et sans coût à la survenance ; `RiskState`,
+  `RiskOccurrence` et `declareRiskOccurrence` disent la survenance définitive, sauf par l'abandon.
+  Sans exemple : le témoin n'abandonne aucune révision qui porte une saisie de risque (« Révisions
+  et risques », EP-02/L23), et un exemple contrefactuel ne montrerait qu'un registre déjà lu.
+- **La place des tâches fusionnées** (M-05). `declareRiskOccurrence` et `RiskOccurrence` disent la
+  règle de WF-RIS-0060 — en dernière position sous la tâche porteuse, ou immédiatement après un
+  jalon porteur, qui reste un jalon sans sous-tâche ; subordonnées, liaisons internes, durées et
+  modes conservés ; une tâche sans prédécesseur dans le devis propre en mode manuel aux dates
+  qu'elle y avait ; le réestimé recalculé des grandeurs et des dates —, que le compte rendu
+  préalable d'US-0680/L1 disait déjà. Sur le témoin, la « Relance du fournisseur », sans
+  prédécesseur dans le devis propre de 752, est en mode manuel du 4 au 8 mai 2026, ses dates
+  d'avant, sans la liaison au « Câblage des armoires » qu'elle portait ; et la provision de 752 était
+  portée, dans la référence, par le « Poste de commande », sous lequel ses tâches sont fusionnées.
+  `structure_planning_start_advanced` redate une tâche de moins, 958. Le témoin place encore le
+  sous-arbre fusionné entre le « Câblage des armoires » et la « Réception usine », non en dernière
+  position : la déplacer change les numéros de ligne que lisent les parcours et les tests de
+  grille, ce qui passe le périmètre de ce lot ; c'est une question à l'auteur (#1604).
+- **Les mineurs des fichiers touchés.** H-06 : l'axe des gravités est « en pourcentage de
+  l'assiette du projet » (`RiskMatrixLevel`, `RiskMatrix.severity_levels`, `getProjectRiskMatrix`,
+  `RiskMatrixSettings`). H-07 : `description`, `mitigation_notes`, `provision_node_id`,
+  `matrix_cell` et `last_review_on` sont exigés, toujours rendus. H-09 : `states` a sa description,
+  et les 409 d'`updateRisk`, `reviewRisk` et `deleteRisk` nomment les conditions d'état de la saisie
+  des risques, jugées avant celles du risque, comme `createRisk`. H-08 l'était déjà (US-0700/L1) ;
+  H-05 et H-10 sont à US-0702 et à US-0701/L6.
 
 ## Collage et annulation
 

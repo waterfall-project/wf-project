@@ -758,28 +758,6 @@ describe("« Modifier » a risk", () => {
     expect(announced()).not.toContain("Risque « Indisponibilité de la grue de levage » modifié.");
   });
 
-  it("says the bound of the probability at its field in percentages, the server naming it in the ratio", async () => {
-    serve({
-      [UPDATE]: {
-        problem: example("risk_update_probability_out_of_range") as Problem & { status: 422 },
-      },
-    });
-    render(modify());
-    await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
-    const form = screen.getByRole("dialog");
-    const probability = within(form).getByRole("textbox", { name: "Probabilité (%)" });
-    await userEvent.clear(probability);
-    await userEvent.type(probability, "120");
-    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-    // The focus comes after the commit that says the refusal at the field (#1484).
-    await vi.waitFor(() => {
-      expect(probability).toHaveFocus();
-    });
-    expect(probability).toHaveAccessibleDescription(/100/);
-    expect(probability).not.toHaveAccessibleDescription(/\b1\b/);
-    expect(screen.getByRole("dialog")).toBeVisible();
-  });
-
   it.each([
     [
       "tells the risk modified once answered, and keeps the answer in the detail",

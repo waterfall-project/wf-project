@@ -1501,7 +1501,7 @@ export interface paths {
         post?: never;
         /**
          * Abandonner la révision en cours
-         * @description Le projet revient à son état à la dernière révision marquée, et les lignes de la révision abandonnée sont supprimées (WF-REV-0010, WF-DAT-0010). Refusé sur une révision marquée (WF-DAT-0020). L'abandon est irréversible, hors de l'annulation : il ne s'inscrit pas à l'historique que `undoLastChange` défait, la révision et ses lignes n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa confirmation.
+         * @description Le projet revient à son état à la dernière révision marquée, et les lignes de la révision abandonnée sont supprimées (WF-REV-0010, WF-DAT-0010). Les risques reviennent à l'évaluation de la dernière révision marquée — probabilité, état, structure propre, ligne de provision et coût à la survenance — : un risque créé dans la révision abandonnée disparaît, un réexamen qu'elle portait est défait, et un risque qui y a été déclaré survenu redevient identifié avec sa ligne de provision, sans coût à la survenance — seul l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060). Le libellé, la description et les actions de mitigation d'un risque qui reste sont des données du projet, que l'abandon ne change pas (WF-RIS-0020). Refusé sur une révision marquée (WF-DAT-0020). L'abandon est irréversible, hors de l'annulation : il ne s'inscrit pas à l'historique que `undoLastChange` défait, la révision et ses lignes n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa confirmation.
          */
         delete: operations["abandonRevision"];
         options?: never;
@@ -2238,7 +2238,7 @@ export interface paths {
         head?: never;
         /**
          * Modifier un risque
-         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision de l'auteur, #732) ; refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le disait déjà indisponible. La catégorie, le sous-projet et la tâche de la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la commande `update_provision` dit d'avance ; omis, ils restent ceux du risque. Une autre tâche déplace la ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786).
+         * @description La gravité et la provision ne sont pas saisissables : elles suivent la structure propre et la probabilité (WF-RIS-0010). La probabilité ne se modifie pas ici : la changer est un réexamen daté, que seul `reviewRisk` écrit et que l'historique montre (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040 ; H-04). Le devis propre reste modifiable tout au long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision de l'auteur, #732) ; refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le disait déjà indisponible. La catégorie, le sous-projet et la tâche de la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la commande `update_provision` dit d'avance ; omis, ils restent ceux du risque. Une autre tâche déplace la ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786).
          */
         patch: operations["updateRisk"];
         trace?: never;
@@ -2258,7 +2258,7 @@ export interface paths {
         put?: never;
         /**
          * Réexaminer un risque
-         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques de la révision de référence et le budget de référence restent inchangés (WF-RIS-0050). Un risque écarté qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle est encore active et de type provision pour risques (`Risk.provision_cost_category_is_active`, #747), et sinon avec celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors sous-projet si le sous-projet qu'il désignait a été supprimé (#732). Sa ligne de provision est portée par la tâche qu'il désignait si elle est encore une tâche de la structure principale, et sinon par la première tâche de premier niveau (WF-RIS-0010 ; #1227) ; `provision_task` reste nul tant que le risque est écarté. Une saisie de la révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son état précédents, et la catégorie qu'il désignait avant un retour à l'état identifié (WF-RIS-0020, WF-IHM-0110).
+         * @description La confirmation sans modification produit un réexamen daté ; un risque identifié peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010, WF-RIS-0020). C'est la seule écriture de la probabilité d'un risque : la modification (`updateRisk`) ne la reçoit pas (H-04). Écarter un risque retire sa ligne de provision du reste à engager ; la réserve pour risques et le budget de référence restent inchangés (WF-RIS-0050) ; la provision du risque écarté qu'il présente est celle qu'il portait dans la révision de référence (`Risk.provision_amount`). Un risque écarté qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle est encore active et de type provision pour risques (`Risk.provision_cost_category_is_active`, #747), et sinon avec celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors sous-projet si le sous-projet qu'il désignait a été supprimé (#732). Sa ligne de provision est portée par la tâche qu'il désignait si elle est encore une tâche de la structure principale, et sinon par la première tâche de premier niveau (WF-RIS-0010 ; #1227) ; `provision_task` reste nul tant que le risque est écarté. Une saisie de la révision en cours, créée au besoin : son annulation rend au risque sa probabilité et son état précédents, et la catégorie qu'il désignait avant un retour à l'état identifié (WF-RIS-0020, WF-IHM-0110).
          */
         post: operations["reviewRisk"];
         delete?: never;
@@ -2282,7 +2282,7 @@ export interface paths {
         put?: never;
         /**
          * Déclarer un risque survenu
-         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) : l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110, WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre, que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la confirmation. Elle renvoie aussi `creates_current_revision`, tel que le compte rendu l'a lu : une révision en cours née depuis la lecture, ou disparue, la fait refuser par 412.
+         * @description Fusionne les tâches et les lignes du devis propre dans la structure principale de la révision en cours, et retire la ligne de provision ; ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050). Les tâches de premier niveau du devis propre sont placées, dans leur ordre, en dernière position sous la tâche qui portait la ligne de provision ; quand c'est un jalon, immédiatement après lui, sous sa tâche parente ou au premier niveau, et il reste un jalon sans sous-tâche. Leurs subordonnées, leurs liaisons internes, leurs durées et leurs modes sont conservés ; une tâche sans prédécesseur dans le devis propre passe en mode manuel aux dates qu'elle y avait. Chaque ligne fusionnée garde ses grandeurs, porte un montant budgété nul et pour réestimé le montant que ses grandeurs et ses dates donnent (WF-DEV-0020) — celui du devis propre tant que ses dates n'ont pas changé (WF-RIS-0060) ; le compte rendu préalable décrit cette place (`RiskOccurrenceReport.differences`). Le risque garde son coût à la survenance, le total de son devis propre à cet instant (`Risk.occurrence_cost`, WF-RIS-0010), que la couverture compare à la réserve (WF-RIS-0050). Les tâches qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la survenance en crée une au préalable (WF-RIS-0060). Définitif : aucune commande ne l'annule, et seul l'abandon de la révision en cours la défait, avec tout ce que cette révision contient (`abandonRevision`, WF-RIS-0060) ; hors de l'historique d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110, WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a lus : refusée par 412 si l'un a avancé depuis, elle n'applique jamais un compte rendu que personne n'a vu, comme la fusion d'un différentiel (`mergeCostStructure`, US-0680). Le compteur du risque (`Risk.lock_version`) avance aussi à toute saisie dans son devis propre, que le compte rendu liste : une saisie du devis propre après la lecture fait donc refuser la confirmation. Elle renvoie aussi `creates_current_revision`, tel que le compte rendu l'a lu : une révision en cours née depuis la lecture, ou disparue, la fait refuser par 412.
          */
         post: operations["declareRiskOccurrence"];
         delete?: never;
@@ -2300,7 +2300,7 @@ export interface paths {
         };
         /**
          * Matrice de risques du projet
-         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070), et chaque risque compté est un point à ses valeurs exactes (`points`, #1053).
+         * @description Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage de l'assiette du projet — son budget de référence ou, avant lui, le total hors provisions du devis de sa révision courante (WF-REF-0160). Chaque case porte sa zone, doublée d'un indice non coloré à l'affichage (WF-IHM-0070), et chaque risque compté est un point à ses valeurs exactes (`points`, #1053).
          */
         get: operations["getProjectRiskMatrix"];
         put?: never;
@@ -2320,7 +2320,7 @@ export interface paths {
         };
         /**
          * Couverture des risques
-         * @description La réserve pour risques de la révision de référence, face aux provisions des risques identifiés dans la révision courante et au coût réestimé des risques survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020). Dans la révision nommée, ou la révision courante.
+         * @description La réserve pour risques (`RiskCoverageTotals.reserve`), face aux provisions des risques identifiés dans la révision courante et aux coûts à la survenance des risques survenus (`Risk.occurrence_cost`), et leur écart signé (WF-RIS-0050, WF-RAE-0020) : la terminaison ou la réestimation des tâches issues d'un risque survenu ne change ni le coût des survenus ni l'écart. Dans la révision nommée, ou la révision courante.
          */
         get: operations["getProjectRiskCoverage"];
         put?: never;
@@ -2668,7 +2668,7 @@ export interface paths {
         };
         /**
          * Risques du portefeuille
-         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, couverture des risques agrégée — somme des réserves de référence face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence (WF-PTF-0090).
+         * @description Total des provisions identifiées, risques les plus lourds tous projets confondus, matrice remplie, couverture des risques agrégée — somme des réserves pour risques face aux provisions restantes et aux coûts à la survenance des risques survenus (WF-RIS-0050) —, et provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence (WF-PTF-0090).
          */
         get: operations["getPortfolioRisks"];
         put?: never;
@@ -3395,7 +3395,7 @@ export interface components {
         Decimal: string;
         /** @description Pourcentage, décimal exact, non arrondi avant les calculs (WF-DAT-0100). */
         Percent: components["schemas"]["Decimal"];
-        /** @description Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160, WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage du budget de référence. */
+        /** @description Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160, WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage de l'assiette du projet — son budget de référence ou, tant qu'il n'en a pas, le total hors provisions du devis de sa révision courante. */
         RiskMatrixSettings: {
             /** @description Du plus bas au plus haut, strictement croissantes (WF-REF-0160) : une borne qui n'est pas supérieure à la précédente est refusée par 422 `VALIDATION_FAILED`, `fields` désignant son rang (`/risk_matrix/probability_bounds/<rang>`) par `BOUNDS_NOT_ORDERED`. */
             probability_bounds: components["schemas"]["Percent"][];
@@ -4248,7 +4248,7 @@ export interface components {
             subproject_label?: string | null;
             /** @description Montant aux taux de l'année de référence, avant inflation, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030) ; une valeur de lecture, que la grille de devis présente à côté du réestimé (WF-DEV-0050). */
             base_amount?: components["schemas"]["Money"];
-            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques (`RiskCoverageTotals.reserve`, qui garde aussi celle des risques sortis de l'état identifié avant la référence), jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
             budgeted_amount?: components["schemas"]["Money"];
             /** @description Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) — celles de sa dernière réestimation depuis la grille ou par l'import (WF-RAE-0040) ; pour une ligne que personne n'a réestimée, celles de la référence, ou de l'avenant dont la fusion les a changées (WF-REV-0050), chiffrées aux taux conservés par la révision courante (WF-REV-0060) et sur son année de consommation courante (WF-RAE-0010) — : à taux horaires inchangés, le montant budgété reporté sur l'année de consommation courante. C'est ce montant que le reste à engager compte pour une ligne d'une tâche non terminée, démarrée ou non, réestimée ou non. Il est le montant aux taux de l'année de référence projeté sur son année de consommation courante au taux d'inflation du projet, composé une fois par année écoulée depuis l'année de référence, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0030, WF-DEV-0040). Une ligne dont la tâche se place deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant aux taux de l'année de référence (WF-DEV-0050). Une ligne de provision n'est pas projetée. */
             reestimated_amount?: components["schemas"]["Money"];
@@ -4496,7 +4496,7 @@ export interface components {
             subproject_label: string | null;
             /** @description Montant aux taux de l'année de référence, avant inflation, calculé : le produit de la quantité, de la charge et du taux horaire de la catégorie pour l'année de référence du chiffrage pour une ligne de main-d'œuvre, de la quantité et du débours sinon (WF-DEV-0030) ; une valeur de lecture, que la grille de devis présente à côté du réestimé (WF-DEV-0050). */
             base_amount: components["schemas"]["Money"];
-            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques, jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
+            /** @description Montant fixé par la révision de référence (§3.2.5, WF-DEV-0020), tiré de ses grandeurs de référence, inflation comprise, à l'année de consommation que la référence lui donnait (WF-DEV-0030, WF-RAE-0010) ; nul pour une ligne ajoutée après elle ou issue d'un risque survenu — sauf une ligne que le différentiel d'un avenant désigne : la fusion lui donne les grandeurs de référence qu'il porte, d'où son montant budgété est tiré (WF-REV-0050). Une ligne de provision porte la provision qu'elle avait dans la révision de référence : ce montant compte à la réserve pour risques (`RiskCoverageTotals.reserve`, qui garde aussi celle des risques sortis de l'état identifié avant la référence), jamais au budget de référence, qui est la somme des montants budgétés hors lignes de provision (WF-RIS-0050, glossaire) et se lit dans les indicateurs, jamais en sommant ces montants. */
             budgeted_amount: components["schemas"]["Money"];
             /** @description Montant réestimé, calculé depuis les grandeurs courantes de la ligne (WF-DEV-0020) — celles de sa dernière réestimation depuis la grille ou par l'import (WF-RAE-0040) ; pour une ligne que personne n'a réestimée, celles de la référence, ou de l'avenant dont la fusion les a changées (WF-REV-0050), chiffrées aux taux conservés par la révision courante (WF-REV-0060) et sur son année de consommation courante (WF-RAE-0010) — : à taux horaires inchangés, le montant budgété reporté sur l'année de consommation courante. C'est ce montant que le reste à engager compte pour une ligne d'une tâche non terminée, démarrée ou non, réestimée ou non. Il est le montant aux taux de l'année de référence projeté sur son année de consommation courante au taux d'inflation du projet, composé une fois par année écoulée depuis l'année de référence, chaque part d'une tâche à cheval sur plusieurs années projetée sur la sienne (WF-DEV-0030, WF-DEV-0040). Une ligne dont la tâche se place deux ans après l'année de référence, à 2 % d'inflation, le porte supérieur de 4,04 % à son montant aux taux de l'année de référence (WF-DEV-0050). Une ligne de provision n'est pas projetée. */
             reestimated_amount: components["schemas"]["Money"];
@@ -4920,10 +4920,13 @@ export interface components {
                 }[];
             }[];
         };
-        /** @description Les quatre montants de la couverture des risques : la réserve pour risques de la révision de référence, la somme des provisions des risques identifiés dans la révision courante, le montant réestimé des lignes issues des risques survenus, et l'écart de couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). */
+        /** @description Les quatre montants de la couverture des risques : la réserve pour risques, la somme des provisions des risques identifiés dans la révision courante, la somme des coûts à la survenance des risques survenus, et l'écart de couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). La terminaison ou la réestimation des tâches issues d'un risque survenu ne change ni le coût des survenus ni l'écart de couverture (WF-RIS-0050). */
         RiskCoverageTotals: {
+            /** @description La réserve pour risques de la révision de référence (WF-RIS-0050) : la somme des provisions des risques identifiés qu'elle porte, ses lignes de provision, augmentée de la provision que portaient, dans la référence précédente, les risques survenus ou écartés avant elle — à chaque nouvelle référence, la réserve garde ce qu'elle devait aux risques sortis de l'état identifié. Un avenant ne la diminue jamais, même quand il intègre au budget de référence les lignes d'un risque survenu : la provision de ce risque a été consommée à sa survenance, et son coût reste compté à la couverture. */
             reserve: components["schemas"]["Money"];
+            /** @description La somme des provisions des risques identifiés dans la révision lue, celles que portent leurs lignes de provision (`Risk.provision_amount`). */
             remaining_provisions: components["schemas"]["Money"];
+            /** @description La somme des coûts à la survenance des risques survenus (`Risk.occurrence_cost`, WF-RIS-0010) : le total de leur devis propre au moment de la survenance, que ni les réestimations ni la terminaison des tâches fusionnées ne changent (WF-RIS-0050). */
             occurred_cost: components["schemas"]["Money"];
             /** @description L'écart de couverture (WF-RIS-0050) : la réserve moins la somme des provisions restantes et du coût des risques survenus, positif quand la réserve couvre encore, négatif quand elle est dépassée — le sens de la marge du reste à engager (`RemainingIndicators.delta_to_reference`). */
             coverage_variance: components["schemas"]["Money"];
@@ -5101,7 +5104,7 @@ export interface components {
             scopes: components["schemas"]["IndexHistoryScope"][];
         };
         /**
-         * @description Identifié, survenu, écarté. Un risque écarté peut redevenir identifié ; la survenance est définitive (WF-RIS-0020).
+         * @description Identifié, survenu, écarté. Un risque écarté peut redevenir identifié ; la survenance est définitive : aucune transition ne part de l'état survenu et aucune commande ne l'annule ; seul l'abandon de la révision en cours la défait, le risque y redevenant identifié avec sa provision (`abandonRevision`, WF-RIS-0020, WF-RIS-0060).
          * @enum {string}
          */
         RiskState: "identified" | "occurred" | "dismissed";
@@ -5134,22 +5137,24 @@ export interface components {
             /** @description Vide lorsque la commande est disponible. */
             missing_conditions: components["schemas"]["CommandCondition"][];
         };
-        /** @description La gravité est le total de la structure propre du risque et la provision cette gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090). */
+        /** @description La gravité est le total de la structure propre du risque et la provision cette gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090). Sa probabilité ne s'écrit que par le réexamen (`reviewRisk`, WF-RIS-0010). */
         Risk: {
             risk_id: components["schemas"]["Uuid"];
             label: string;
-            description?: string | null;
-            mitigation_notes?: string | null;
+            description: string | null;
+            mitigation_notes: string | null;
             probability: components["schemas"]["Percent"];
             /** @description Calculée, jamais saisie (WF-RIS-0010). */
             severity: components["schemas"]["Money"];
-            /** @description Calculée, gravité pondérée par la probabilité ; celle que portait la révision de référence compte à la réserve pour risques, jamais au budget de référence (WF-RIS-0050). */
+            /** @description Pour un risque identifié, sa provision courante, la gravité pondérée par la probabilité, que porte sa ligne de provision. Pour un risque survenu ou écarté, qui ne porte plus de ligne, la provision qu'il portait dans la révision de référence, `0.00` s'il n'y était pas identifié (WF-RIS-0040, WF-RIS-0050) : la ligne du registre se somme ainsi aux totaux (`ProvisionTotals`). Jamais au budget de référence (WF-RIS-0050). */
             provision_amount: components["schemas"]["Money"];
+            /** @description Le coût à la survenance d'un risque survenu : le total de son devis propre au moment où il a été déclaré survenu, que ni les réestimations ni la terminaison des tâches fusionnées ne changent, et que la couverture compare à la réserve (WF-RIS-0010, WF-RIS-0050, WF-RIS-0060 ; `RiskCoverageTotals.occurred_cost`). Une donnée de la révision, que l'abandon de la révision où le risque est survenu efface (WF-RIS-0020). Nul pour un risque identifié ou écarté. */
+            occurrence_cost: components["schemas"]["Money"] | null;
             state: components["schemas"]["RiskState"];
             /** @description Structure de coûts propre du risque, dans la révision lue (`revision_id`), qui en fige une version (WF-RIS-0030). */
             structure_id: components["schemas"]["Uuid"];
             /** @description Ligne de provision portée par la structure principale (WF-RIS-0010). */
-            provision_node_id?: components["schemas"]["Uuid"] | null;
+            provision_node_id: components["schemas"]["Uuid"] | null;
             /** @description La catégorie de type provision pour risques que le risque a désignée pour sa provision — à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu identifié, sa ligne la reprend si elle est encore active et de type provision pour risques, et sinon la catégorie est demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que `provision_cost_category_is_active` dit d'avance. */
             provision_cost_category_id: components["schemas"]["Uuid"];
             /** @description Le libellé de cette catégorie, résolu à la lecture, active ou désactivée, que le registre et le formulaire présentent sans lire le référentiel (WF-ARC-0020, WF-REF-0150). */
@@ -5162,8 +5167,9 @@ export interface components {
             provision_subproject_label: string | null;
             /** @description La tâche de la structure principale de la révision lue qui porte la ligne de provision (`provision_node_id`), par son nœud et son libellé, résolu à la lecture : celle que le risque a désignée à sa déclaration ou depuis, tant qu'il était identifié, et à défaut la première tâche de premier niveau (WF-RIS-0010, #786). Un risque écarté qui redevient identifié retrouve la tâche qu'il désignait si elle est encore une tâche de la structure principale, et sinon la première tâche de premier niveau (`reviewRisk`, #1227). Le formulaire la présente et la propose de nouveau sans relire la structure (WF-ARC-0020). Nulle quand le risque n'est pas identifié : il ne porte alors aucune ligne de provision. */
             provision_task: components["schemas"]["ProvisionTask"] | null;
-            matrix_cell?: components["schemas"]["RiskMatrixCell"];
-            last_review_on?: components["schemas"]["PlanningDate"] | null;
+            matrix_cell: components["schemas"]["RiskMatrixCell"];
+            /** @description Le jour de son dernier réexamen, que la grille présente (WF-RIS-0040) : sa déclaration, un réexamen (`reviewRisk`) ou sa survenance. */
+            last_review_on: components["schemas"]["PlanningDate"] | null;
             /** @description Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre, pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —, ils se lisent avec le risque, sans appel au refus. */
             computed_fields: components["schemas"]["RiskComputedField"][];
             /** @description Commandes du risque que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de `RiskCommand`. Une commande absente de la liste n'est pas présentée. Le risque ne nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et, pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`, `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code d'erreur. */
@@ -5172,12 +5178,13 @@ export interface components {
             /** @description Compteur du risque. Il avance à chaque écriture du risque, et aussi à toute saisie dans son devis propre (`structure_id`) — une cellule, un collage, un déplacement, une création, une suppression —, dont il tient sa gravité (WF-RIS-0010) : le compte rendu de sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`). Il avance de même à la suppression du sous-projet qu'il désignait (`provision_subproject_id`, #732). */
             lock_version: components["schemas"]["LockVersion"];
         };
-        /** @description Les trois totaux de provisions, distincts — les identifiés pour leur provision courante, les survenus et les écartés pour celle qu'ils portaient dans la révision de référence —, leur total général, et la réserve pour risques de la révision de référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les risques retenus — tous ceux que les filtres retiennent, quelle que soit la page lue (`listRisks`, #1367). */
+        /** @description Les trois totaux de provisions, distincts — les identifiés pour leur provision courante, les survenus et les écartés pour celle qu'ils portaient dans la révision de référence, chacun la somme des `Risk.provision_amount` de son état —, leur total général, et la réserve pour risques en regard (`RiskCoverageTotals.reserve`, WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les risques retenus — tous ceux que les filtres retiennent, quelle que soit la page lue (`listRisks`, #1367). */
         ProvisionTotals: {
             total: components["schemas"]["Money"];
             identified: components["schemas"]["Money"];
             occurred: components["schemas"]["Money"];
             dismissed: components["schemas"]["Money"];
+            /** @description La réserve pour risques, celle de la couverture (`RiskCoverageTotals.reserve`). */
             reserve: components["schemas"]["Money"];
         };
         /** @description Déclaration d'un risque (WF-RIS-0010). Sur une structure principale sans tâche, elle est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `at_least_one_task` (EP-14/L42s). La catégorie de sa provision se désigne parmi les catégories actives de type provision pour risques ; quand il n'en existe qu'une, elle est retenue sans être demandée, et le champ peut être omis. Sans aucune, la déclaration est refusée par 409, de même, `params.missing_condition` à `active_provision_category`. La commande `declare_risk` dit d'avance l'une et l'autre condition (EP-14/L42s). Le sous-projet de la provision est facultatif, comme la tâche qui la porte : sans désignation, la première tâche de premier niveau de la structure principale (WF-RIS-0010, #786). */
@@ -5194,8 +5201,17 @@ export interface components {
             /** @description La tâche de la structure principale de la révision en cours qui porte la ligne de provision, facultative : « à défaut de désignation, elle est portée par la première tâche de premier niveau de la structure » (WF-RIS-0010, #786). Une récapitulative la porte comme une feuille ; la ligne n'entre pas dans l'état de sa tâche (WF-PLA-0040). Un nœud qui n'est pas une tâche de cette structure — une ligne, une tâche d'une autre structure, un identifiant inconnu — est refusé par 422, `UNKNOWN_TASK`. À la modification, omise, elle reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`). */
             provision_task_id?: components["schemas"]["Uuid"] | null;
         };
-        /** @description Modification d'un risque : porte le compteur lu, qu'une création n'a pas. La catégorie, le sous-projet et la tâche de la provision, omis, restent ceux du risque ; changés, ils ne le sont que tant que le risque est identifié (WF-RIS-0010, `update_provision`). */
-        RiskUpdate: components["schemas"]["RiskWrite"] & {
+        /** @description Modification d'un risque : son libellé, sa description, ses actions de mitigation, et la catégorie, le sous-projet et la tâche de sa provision, avec le compteur lu, qu'une création n'a pas. Elle ne reçoit pas la probabilité : modifier la probabilité est un réexamen daté, que seul `reviewRisk` écrit et que l'historique montre (WF-RIS-0010, WF-RIS-0040 ; décision de l'auteur du 2026-10-28, H-04). La catégorie, le sous-projet et la tâche de la provision, omis, restent ceux du risque ; changés, ils ne le sont que tant que le risque est identifié (WF-RIS-0010, `update_provision`). */
+        RiskUpdate: {
+            label: string;
+            description?: string | null;
+            mitigation_notes?: string | null;
+            /** @description La catégorie que porte la ligne de provision, refusée par les motifs de la déclaration (`RiskWrite.provision_cost_category_id`). Omise, elle reste celle du risque ; `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque ; une autre, envoyée pour un risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit d'avance. */
+            provision_cost_category_id?: components["schemas"]["Uuid"];
+            /** @description Le sous-projet de la ligne de provision (`RiskWrite.provision_subproject_id`). Omis, il reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé pour un risque qui n'est pas identifié, est refusé comme la catégorie, par `risk_identified`. */
+            provision_subproject_id?: components["schemas"]["Uuid"] | null;
+            /** @description La tâche qui porte la ligne de provision (`RiskWrite.provision_task_id`). Omise, elle reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`). */
+            provision_task_id?: components["schemas"]["Uuid"] | null;
             lock_version: components["schemas"]["LockVersion"];
         };
         /** @description Réexamen : l'acte par lequel un utilisateur confirme ou modifie la probabilité et l'état d'un risque, daté du jour où il est fait (WF-RIS-0010, WF-RIS-0020). */
@@ -5231,7 +5247,7 @@ export interface components {
             /** @description Les motifs qui refusent la survenance entière, chacun avec les paramètres qu'il porte quand la tâche de fond échoue (`ReportRefusal`) — ainsi `TASK_WITHOUT_WORKING_HOURS`, une tâche fusionnée dont une ligne de main-d'œuvre a un rôle sans aucune heure travaillée dans la semaine (WF-PLA-0010). Vide quand la survenance s'applique. */
             refusals: components["schemas"]["ReportRefusal"][];
         };
-        /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, les lignes fusionnées portant un montant budgété nul et leur montant du devis propre en réestimé ; la ligne de provision est retirée. Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif. La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus, et s'il créait la révision en cours : la structure principale ou le risque changés depuis — et le risque change aussi à toute saisie dans son devis propre (`Risk.lock_version`) —, ou une révision en cours née depuis la lecture, ou disparue, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel (`StructureMerge`, WF-IHM-0110 ; US-0680). */
+        /** @description Déclare le risque survenu : fusionne son devis propre dans la structure principale de la révision en cours, à la place que dit `declareRiskOccurrence`, chaque ligne fusionnée gardant ses grandeurs, avec un montant budgété nul et pour réestimé le montant que ses grandeurs et ses dates donnent ; la ligne de provision est retirée, et le risque garde son coût à la survenance (`Risk.occurrence_cost`). Ne marque aucune révision et ne déplace pas la référence (WF-RIS-0060). Définitif : aucune commande ne l'annule, seul l'abandon de la révision en cours la défait (WF-RIS-0060). La confirmation suit le compte rendu préalable (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus, et s'il créait la révision en cours : la structure principale ou le risque changés depuis — et le risque change aussi à toute saisie dans son devis propre (`Risk.lock_version`) —, ou une révision en cours née depuis la lecture, ou disparue, elle est refusée par 412 et rien n'est fusionné — c'est ce compte rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel (`StructureMerge`, WF-IHM-0110 ; US-0680). */
         RiskOccurrence: {
             /** @constant */
             confirmed: true;
@@ -5242,7 +5258,7 @@ export interface components {
             /** @description Ce que le compte rendu a lu (`RiskOccurrenceReport.creates_current_revision`), renvoyé tel que lu : vrai alors qu'une révision en cours est née depuis la lecture, ou faux alors qu'il n'y en a plus, la confirmation est refusée par 412. */
             creates_current_revision: boolean;
         };
-        /** @description Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) : la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la matrice du portefeuille. */
+        /** @description Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) : la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a pas. Un pourcentage : de probabilité sur l'axe des probabilités, de l'assiette du projet sur l'axe des gravités — son budget de référence ou, avant lui, le total hors provisions du devis de sa révision courante (WF-REF-0160) —, celle de chaque projet, ce qui vaut aussi pour la matrice du portefeuille. */
         RiskMatrixLevel: {
             level: number;
             lower: components["schemas"]["Percent"];
@@ -5273,7 +5289,7 @@ export interface components {
         RiskMatrix: {
             /** @description Les quatre niveaux de probabilité, du plus bas au plus haut, en pourcentage. */
             probability_levels: components["schemas"]["RiskMatrixLevel"][];
-            /** @description Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget de référence. */
+            /** @description Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage de l'assiette du projet — son budget de référence ou, avant lui, le total hors provisions du devis de sa révision courante (WF-REF-0160). */
             severity_levels: components["schemas"]["RiskMatrixLevel"][];
             cells: {
                 probability_level: number;
@@ -5635,7 +5651,7 @@ export interface components {
                 provision_amount: components["schemas"]["Money"];
             }[];
             matrix: components["schemas"]["RiskMatrix"];
-            /** @description Couverture des risques agrégée : la somme des réserves de référence des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et du coût de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050). */
+            /** @description Couverture des risques agrégée : la somme des réserves pour risques des projets en cours et terminés du périmètre, face aux sommes de leurs provisions restantes et des coûts à la survenance de leurs risques survenus, et l'écart de couverture agrégé, différence des sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090, WF-RIS-0050). */
             coverage: components["schemas"]["RiskCoverageTotals"];
             period_outcome: {
                 occurred_provisions: components["schemas"]["Money"];
@@ -11477,6 +11493,7 @@ export interface operations {
                 revision_id?: components["parameters"]["RiskRevision"];
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
+                /** @description Restreint aux risques dans l'un de ces états (WF-RIS-0040). */
                 states?: components["schemas"]["RiskState"][];
                 /** @description Restreint aux risques dont la case de matrice est dans l'une de ces zones. */
                 zones?: components["schemas"]["AlertZone"][];
@@ -11615,7 +11632,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred` est nommée. */
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis `no_background_task_running`, jugées avant celles du risque, comme à la déclaration (`createRisk`) ; puis à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred` est nommée. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11656,7 +11673,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified` pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Ce 409 précède le 422, comme à la déclaration (`createRisk`) : une autre catégorie envoyée pour un risque qui n'est pas identifié est refusée par `risk_identified`, qu'elle soit désactivée, inconnue ou d'une nature d'un autre type, aucune n'étant valable tant que la provision ne se change pas (#747). Rien n'est écrit. */
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis `no_background_task_running`, jugées avant celles du risque, comme à la déclaration (`createRisk`) ; puis à `risk_not_occurred` pour un risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified` pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Ce 409 précède le 422, comme à la déclaration (`createRisk`) : une autre catégorie envoyée pour un risque qui n'est pas identifié est refusée par `risk_identified`, qu'elle soit désactivée, inconnue ou d'une nature d'un autre type, aucune n'étant valable tant que la provision ne se change pas (#747). Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11666,7 +11683,7 @@ export interface operations {
                 };
             };
             412: components["responses"]["PreconditionFailed"];
-            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée ; `/probability` hors de 0 à 1, `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration (`RiskUpdate.probability`, WF-RIS-0010). Rien n'est écrit. */
+            /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa catégorie inchangée, désactivée depuis, est acceptée. La probabilité n'est pas un champ de la modification (`RiskUpdate`). Rien n'est écrit. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -11737,7 +11754,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Le risque est survenu : aucune transition n'en part (WF-RIS-0020). `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. Ou un risque écarté qui redeviendrait identifié sur une structure principale qui ne comporte aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche, comme le retour d'un risque écarté à l'état identifié sur une telle structure, est refusée, en nommant la condition manquante » (WF-RIS-0010 ; décision de l'auteur, #787) — sa ligne de provision n'aurait pas de tâche où se ranger ; `params.missing_condition` à `at_least_one_task`. Ou alors qu'aucune catégorie de coût active n'est de type provision pour risques (WF-RIS-0010) : `params.missing_condition` à `active_provision_category`. Les conditions se jugent dans cet ordre, comme à la déclaration, le refus nommant la première qui manque, et ce 409 précède le 422. Rien n'est écrit. */
+            /** @description `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis `no_background_task_running`, jugées avant celles du risque, comme à la déclaration (`createRisk`). Puis le risque est survenu : aucune transition n'en part (WF-RIS-0020), `params.missing_condition` à `risk_not_occurred`. Ou un risque écarté qui redeviendrait identifié sur une structure principale qui ne comporte aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche, comme le retour d'un risque écarté à l'état identifié sur une telle structure, est refusée, en nommant la condition manquante » (WF-RIS-0010 ; décision de l'auteur, #787) — sa ligne de provision n'aurait pas de tâche où se ranger ; `params.missing_condition` à `at_least_one_task`. Ou alors qu'aucune catégorie de coût active n'est de type provision pour risques (WF-RIS-0010) : `params.missing_condition` à `active_provision_category`. Les conditions se jugent dans cet ordre, comme à la déclaration, le refus nommant la première qui manque, et ce 409 précède le 422. Rien n'est écrit. */
             409: {
                 headers: {
                     [name: string]: unknown;

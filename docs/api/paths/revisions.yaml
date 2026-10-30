@@ -136,7 +136,14 @@
     summary: Abandonner la révision en cours
     description: >-
       Le projet revient à son état à la dernière révision marquée, et les lignes de la
-      révision abandonnée sont supprimées (WF-REV-0010, WF-DAT-0010). Refusé sur une
+      révision abandonnée sont supprimées (WF-REV-0010, WF-DAT-0010). Les risques reviennent
+      à l'évaluation de la dernière révision marquée — probabilité, état, structure propre,
+      ligne de provision et coût à la survenance — : un risque créé dans la révision abandonnée
+      disparaît, un réexamen qu'elle portait est défait, et un risque qui y a été déclaré
+      survenu redevient identifié avec sa ligne de provision, sans coût à la survenance — seul
+      l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060). Le libellé, la description et
+      les actions de mitigation d'un risque qui reste sont des données du projet, que l'abandon
+      ne change pas (WF-RIS-0020). Refusé sur une
       révision marquée (WF-DAT-0020). L'abandon est irréversible, hors de l'annulation : il ne
       s'inscrit pas à l'historique que `undoLastChange` défait, la révision et ses lignes
       n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa confirmation.

@@ -17,6 +17,7 @@
       - $ref: ../components/parameters.yaml#/Offset
       - name: states
         in: query
+        description: Restreint aux risques dans l'un de ces états (WF-RIS-0040).
         schema:
           type: array
           items: { $ref: ../components/schemas/risks.yaml#/RiskState }
@@ -180,7 +181,9 @@
     summary: Modifier un risque
     description: >-
       La gravité et la provision ne sont pas saisissables : elles suivent la structure
-      propre et la probabilité (WF-RIS-0010). Le devis propre reste modifiable tout au
+      propre et la probabilité (WF-RIS-0010). La probabilité ne se modifie pas ici : la changer
+      est un réexamen daté, que seul `reviewRisk` écrit et que l'historique montre
+      (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040 ; H-04). Le devis propre reste modifiable tout au
       long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et
       annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet
       de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis
@@ -213,8 +216,11 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
-          risque survenu, que la commande `update` dit indisponible ; sinon à `risk_identified`
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
+          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
+          (`createRisk`) ;
+          puis à `risk_not_occurred` pour un risque survenu, que la commande `update` dit
+          indisponible ; sinon à `risk_identified`
           pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un
           risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Ce 409
           précède le 422, comme à la déclaration (`createRisk`) : une autre catégorie envoyée pour
@@ -232,15 +238,11 @@
           `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration
           (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur
           `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa
-          catégorie inchangée, désactivée depuis, est acceptée ; `/probability` hors de 0 à 1,
-          `VALUE_OUT_OF_RANGE`, la borne franchie dans `params`, comme à la déclaration
-          (`RiskUpdate.probability`, WF-RIS-0010). Rien n'est écrit.
+          catégorie inchangée, désactivée depuis, est acceptée. La probabilité n'est pas un champ
+          de la modification (`RiskUpdate`). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-            examples:
-              probability_out_of_range:
-                $ref: ../../../fixtures/api/risk_update_probability_out_of_range.json
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteRisk
@@ -272,10 +274,13 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` pour un
-          risque survenu, dont aucune transition ne part, et sinon à `risk_not_cited` : le risque
-          est cité par une révision marquée, il ne se supprime plus, il s'écarte (WF-RIS-0020).
-          Quand les deux manquent, `risk_not_occurred` est nommée.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
+          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
+          (`createRisk`) ;
+          puis à `risk_not_occurred` pour un risque survenu, dont aucune transition ne part, et
+          sinon à `risk_not_cited` : le risque est cité par une révision marquée, il ne se
+          supprime plus, il s'écarte (WF-RIS-0020). Quand les deux manquent, `risk_not_occurred`
+          est nommée.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -319,9 +324,11 @@
     description: >-
       La confirmation sans modification produit un réexamen daté ; un risque identifié
       peut être écarté, et un risque écarté redevenir identifié (WF-RIS-0010,
-      WF-RIS-0020). Écarter un risque retire sa ligne de provision du reste à engager ;
-      la réserve pour risques de la révision de référence et le budget de référence
-      restent inchangés (WF-RIS-0050). Un risque écarté qui redevient identifié recrée sa ligne
+      WF-RIS-0020). C'est la seule écriture de la probabilité d'un risque : la modification
+      (`updateRisk`) ne la reçoit pas (H-04). Écarter un risque retire sa ligne de provision du reste à engager ;
+      la réserve pour risques et le budget de référence restent inchangés (WF-RIS-0050) ; la
+      provision du risque écarté qu'il présente est celle qu'il portait dans la révision de
+      référence (`Risk.provision_amount`). Un risque écarté qui redevient identifié recrée sa ligne
       de provision avec la catégorie qu'il désignait si elle est encore active et de type
       provision pour risques (`Risk.provision_cost_category_is_active`, #747), et sinon avec
       celle que le réexamen désigne, comme à la déclaration (WF-RIS-0010 ; EP-14/L42p) ; hors
@@ -356,8 +363,11 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Le risque est survenu : aucune transition n'en part (WF-RIS-0020).
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred`. Ou un
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de la saisie des risques, `project_not_terminal` puis
+          `no_background_task_running`, jugées avant celles du risque, comme à la déclaration
+          (`createRisk`).
+          Puis le risque est survenu : aucune transition n'en part (WF-RIS-0020),
+          `params.missing_condition` à `risk_not_occurred`. Ou un
           risque écarté qui redeviendrait identifié sur une structure principale qui ne comporte
           aucune tâche : « La déclaration d'un risque sur une structure principale sans tâche,
           comme le retour d'un risque écarté à l'état identifié sur une telle structure, est
@@ -444,13 +454,25 @@
     summary: Déclarer un risque survenu
     description: >-
       Fusionne les tâches et les lignes du devis propre dans la structure principale de la
-      révision en cours, avec un montant budgété nul, et retire la ligne de provision ; ne
-      marque aucune révision et ne déplace pas la référence (WF-RIS-0060, WF-RIS-0050) :
-      l'exemple `nodes_risk_occurred` de `listNodes` montre la structure obtenue. Les tâches
+      révision en cours, et retire la ligne de provision ; ne marque aucune révision et ne
+      déplace pas la référence (WF-RIS-0060, WF-RIS-0050). Les tâches de premier niveau du
+      devis propre sont placées, dans leur ordre, en dernière position sous la tâche qui
+      portait la ligne de provision ; quand c'est un jalon, immédiatement après lui, sous sa
+      tâche parente ou au premier niveau, et il reste un jalon sans sous-tâche. Leurs
+      subordonnées, leurs liaisons internes, leurs durées et leurs modes sont conservés ; une
+      tâche sans prédécesseur dans le devis propre passe en mode manuel aux dates qu'elle y
+      avait. Chaque ligne fusionnée garde ses grandeurs, porte un montant budgété nul et pour
+      réestimé le montant que ses grandeurs et ses dates donnent (WF-DEV-0020) — celui du
+      devis propre tant que ses dates n'ont pas changé (WF-RIS-0060) ; le compte rendu
+      préalable décrit cette place (`RiskOccurrenceReport.differences`). Le risque garde son
+      coût à la survenance, le total de son devis propre à cet instant (`Risk.occurrence_cost`,
+      WF-RIS-0010), que la couverture compare à la réserve (WF-RIS-0050). Les tâches
       qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque
       n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la
-      survenance en crée une au préalable (WF-RIS-0060). Définitif, hors de l'historique
-      d'annulation, confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
+      survenance en crée une au préalable (WF-RIS-0060). Définitif : aucune commande ne
+      l'annule, et seul l'abandon de la révision en cours la défait, avec tout ce que cette
+      révision contient (`abandonRevision`, WF-RIS-0060) ; hors de l'historique d'annulation,
+      confié au worker, inscrit au journal d'audit (WF-RIS-0020, WF-IHM-0110,
       WF-ARC-0090, WF-SEC-0030) ; pendant son traitement, les commandes d'écriture de la
       révision en cours sont indisponibles (`no_background_task_running`). La confirmation suit
       le compte rendu préalable (`getRiskOccurrenceReport`), et porte les deux compteurs qu'il a
@@ -517,10 +539,11 @@
     tags: [risks]
     summary: Couverture des risques
     description: >-
-      La réserve pour risques de la révision de référence, face aux provisions des
-      risques identifiés dans la révision courante et au coût réestimé des risques
-      survenus, et leur écart signé (WF-RIS-0050, WF-RAE-0020). Dans la révision nommée,
-      ou la révision courante.
+      La réserve pour risques (`RiskCoverageTotals.reserve`), face aux provisions des risques
+      identifiés dans la révision courante et aux coûts à la survenance des risques survenus
+      (`Risk.occurrence_cost`), et leur écart signé (WF-RIS-0050, WF-RAE-0020) : la terminaison
+      ou la réestimation des tâches issues d'un risque survenu ne change ni le coût des
+      survenus ni l'écart. Dans la révision nommée, ou la révision courante.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -545,8 +568,9 @@
     description: >-
       Quatre niveaux de probabilité et quatre de gravité, d'après le référentiel
       (WF-REF-0160, WF-RIS-0040), remplie par les risques de la révision lue
-      (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en pourcentage du
-      budget de référence. Chaque case porte sa zone, doublée d'un indice non coloré à
+      (`revision_id`, WF-RIS-0030) ; chaque niveau dit ses bornes, celles de gravité en
+      pourcentage de l'assiette du projet — son budget de référence ou, avant lui, le total
+      hors provisions du devis de sa révision courante (WF-REF-0160). Chaque case porte sa zone, doublée d'un indice non coloré à
       l'affichage (WF-IHM-0070), et chaque risque compté est un point à ses valeurs exactes
       (`points`, #1053).
     parameters:
