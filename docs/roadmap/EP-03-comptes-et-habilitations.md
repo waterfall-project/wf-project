@@ -1316,6 +1316,10 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
 - `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. »
+- écart : `WF-SEC-0020-A` — « Une adresse de retour qui ne désigne pas un écran de Waterfall —
+  l'adresse d'un autre site, un chemin qui commence par « // », ou qui contient une barre oblique
+  inverse ou un caractère de contrôle — ramène à l'accueil après la connexion. » : ajouté par la
+  spécification 1.0.1 (#1589) ; la garde de l'adresse de retour est d'US-0690 (#1449).
 - écart : `WF-SEC-0020-A` — la déconnexion « sur tous ses postes » : un poste dont la session
   est révoquée n'a plus de droits ; « Se déconnecter » y mène à la connexion, qui redemande
   les identifiants, mais ne ferme pas les postes du même compte reconnectés depuis la
