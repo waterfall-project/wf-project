@@ -5886,15 +5886,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2). */
-        PayloadTooLarge: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /** @description Entité recevable mais refusée par une règle métier ; `fields` localise chaque refus. */
         UnprocessableEntity: {
             headers: {
@@ -5915,6 +5906,15 @@ export interface components {
         };
         /** @description `lock_version` périmé : l'objet a été modifié depuis sa lecture, et rien n'est écrit. `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante de l'objet que le chemin nomme (WF-IHM-0110). */
         PreconditionFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2). */
+        PayloadTooLarge: {
             headers: {
                 [name: string]: unknown;
             };
@@ -6370,7 +6370,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserSelf"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
+            /** @description Jeton absent, invalide ou expiré, comme la réponse commune `Unauthorized` le dit ; ou un compte désactivé (`ACCOUNT_DEACTIVATED`, WF-ADM-0060), ou que Waterfall n'admet pas (`ACCOUNT_NOT_ADMITTED`), que le front distingue pour ne pas renvoyer à une connexion qui bouclerait. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
         };
@@ -6454,9 +6462,25 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: components["responses"]["BadRequest"];
+            /** @description Un type annoncé autre que `image/png` ou `image/jpeg`, ou un corps vide : `MALFORMED_REQUEST` ; l'avatar du compte n'est pas touché. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
-            413: components["responses"]["PayloadTooLarge"];
+            /** @description Image au-delà de `Installation.avatar_max_bytes` : `FILE_TOO_LARGE`, refusée avant d'être lue (WF-ADM-0080, WF-CMP-0020). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];

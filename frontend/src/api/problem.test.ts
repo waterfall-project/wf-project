@@ -96,7 +96,8 @@ describe("the decoder of an answer of the API", () => {
     const conflict = example("cost_category_reactivation_refused") as Problem & { status: 409 };
     expect(await writeTask({ problem: conflict })).toMatchObject({
       kind: "conflict",
-      conflictingObjectId: "01926f3a-7c00-7000-8000-000000000462",
+      conflictingObjectId: (conflict.params as { conflicting_object_id: string })
+        .conflicting_object_id,
     });
   });
 
