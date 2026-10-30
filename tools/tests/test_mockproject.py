@@ -38,7 +38,7 @@ WITHOUT_COSTS = "subproject_without_actual_costs"
 NOT_CITED = "subproject_not_cited"
 WITHOUT_LINES = "subproject_without_estimate_lines"
 FORBIDDEN = (409, "STATE_FORBIDS_OPERATION")
-QUALITIES = (
+QUALITY_REFUSALS = (
     ("NOT_CONTRIBUTOR", {"missing_condition": "is_contributor"}),
     ("NOT_PROJECT_MANAGER", {"missing_condition": "is_project_manager"}),
 )
@@ -824,7 +824,7 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
         if refused["status"] == 403:
             # A 403 names a quality on the project, never a state: a terminal project and a marked
             # revision are refused by the 409 of their condition (`Forbidden`; US-0702/L1).
-            assert (refused["code"], refused["params"]) in QUALITIES, name
+            assert (refused["code"], refused["params"]) in QUALITY_REFUSALS, name
         else:
             assert (refused["status"], refused["code"]) == FORBIDDEN, name
         assert "fields" not in refused, name

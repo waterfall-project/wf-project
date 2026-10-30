@@ -550,7 +550,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
     # whatever it retains — a filter, a search, a timeline, `kinds`, the level asked.
     contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
     block = contract[contract.index("operationId: listNodes") :]
-    block = block[: block.index("'400'")]
+    block = block[: block.index("'401'")]
     cited = set(re.findall(r"fixtures/api/(\S+)\.json", block))
     current, alone = mockcore.current(), mockcore.alone()
     nested = mockcore.alone(mockdata.nested())

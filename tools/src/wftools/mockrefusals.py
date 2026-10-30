@@ -95,7 +95,7 @@ REMAINING_CORRELATION = universe(1628)
 """The correlations of the refusals of the common tree (#1648)."""
 
 UNKNOWN_FIELD = "task.duration_days"
-"""A property a grid would ask for that ``Node`` does not have: the duration is ``task.duration``."""
+"""A property a grid would ask for that ``Node`` lacks: its duration is ``task.duration``."""
 
 REFERENCE = universe(101)
 """The reference of the witness, its marked revision 101."""
@@ -144,7 +144,7 @@ def summary_refused(number: int, correlation: str) -> JsonObject:
 
 
 def summary_date_refused(number: int, correlation: str) -> JsonObject:
-    """Return the refusal of the finish of a summary entered, its subordinates named on its field."""
+    """Return the refusal of the finish of a summary entered: its subordinates, on its field."""
     field: JsonObject = {
         "pointer": "/finish",
         "code": "SUMMARY_TASK_DERIVED",

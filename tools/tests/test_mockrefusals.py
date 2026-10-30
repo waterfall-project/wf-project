@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from wftools import REPOSITORY, mockrefusals
+from wftools.mockids import universe
 from wftools.mockwitness import fixture
 
 type Entry = dict[str, Any]
@@ -73,7 +74,7 @@ def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_d
         assert (refused["status"], refused["code"]) == STATE, name
         assert refused["params"] == {"missing_condition": "revision_draft"}, name
         assert name in _cited(operation, "409"), name
-    assert mockrefusals.REFERENCE == fixture("revision_marked")["revision_id"]
+    assert fixture("revision_marked")["revision_id"] == mockrefusals.REFERENCE
 
 
 def test_no_state_has_a_code_of_its_own_and_no_403_says_a_state() -> None:
@@ -177,7 +178,7 @@ def test_an_undo_of_a_change_another_contributor_took_up_since_names_the_object_
 ):
     # Vérif : « L'annulation d'une modification qu'un autre contributeur a depuis reprise est
     # refusée en nommant l'objet en conflit. »
-    [line] = [each for each in _core() if each["node_id"] == mockrefusals.universe(553)]
+    [line] = [each for each in _core() if each["node_id"] == universe(553)]
     for operation, name in (
         ("undoLastChange", "undo_later_change"),
         ("redoLastUndo", "redo_later_change"),
@@ -254,7 +255,7 @@ def test_an_entry_and_a_marking_without_a_rate_are_refused_by_naming_the_categor
 
 
 def _node(number: int) -> Entry:
-    [node] = [each for each in _core() if each["node_id"] == mockrefusals.universe(number)]
+    [node] = [each for each in _core() if each["node_id"] == universe(number)]
     return node
 
 
@@ -287,7 +288,7 @@ def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == (422, "TASK_WITHOUT_WORKING_HOURS"), name
         assert refused["params"] == {
-            "resource_role_ids": [mockrefusals.universe(each) for each in roles],
+            "resource_role_ids": [universe(each) for each in roles],
             "tasks": [
                 {
                     "project_id": fixture("project")["project_id"],

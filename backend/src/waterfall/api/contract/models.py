@@ -922,8 +922,6 @@ class CommandCondition(StrEnum):
     no_background_task_running = "no_background_task_running"
     may_create_revision = "may_create_revision"
     restored_subproject_exists = "restored_subproject_exists"
-    undo_history_not_empty = "undo_history_not_empty"
-    redo_history_not_empty = "redo_history_not_empty"
     risk_not_cited = "risk_not_cited"
     risk_not_occurred = "risk_not_occurred"
     risk_identified = "risk_identified"
@@ -954,6 +952,8 @@ class CommandCondition(StrEnum):
     is_deactivated_account = "is_deactivated_account"
     is_not_anonymized = "is_not_anonymized"
     actual_cost_mapping_complete = "actual_cost_mapping_complete"
+    undo_history_not_empty = "undo_history_not_empty"
+    redo_history_not_empty = "redo_history_not_empty"
 
 
 class UserCommandAvailability(ContractModel):
