@@ -98,7 +98,10 @@ def test_after_the_exit_the_project_has_no_revision_in_progress_and_reads_its_la
     assert refused["fields"] == [{"pointer": "/current_revision", "code": "VALUE_REQUIRED"}]
 
 
+@pytest.mark.requirement("WF-CYC-0090-A")
 def test_the_exit_answers_the_project_or_the_task_and_the_body_bears_the_fate() -> None:
+    # Vérif : « La sortie d'un projet qui porte une révision en cours demande de la marquer ou de
+    # l'abandonner [...] » : le corps porte ce choix, une variante par sort.
     exit_ = _operation("/projects/{project_id}/exit", "post")
     responses = exit_["responses"]
     assert responses["200"]["content"]["application/json"]["schema"]["$ref"].endswith("/Project")
@@ -112,14 +115,48 @@ def test_the_exit_answers_the_project_or_the_task_and_the_body_bears_the_fate() 
     }
     schemas = _schemas()
     fate = schemas["CurrentRevisionFate"]
-    assert schemas["CurrentRevisionFateAction"]["enum"] == ["mark", "abandon"]
-    assert fate["then"]["required"] == ["action", "version_name"]
-    # The name of the version is bounded as `markRevision` bounds it.
-    revisions = yaml.safe_load((SCHEMAS / "revisions.yaml").read_text("utf-8"))
-    assert (
-        fate["properties"]["version_name"]
-        == revisions["RevisionMark"]["properties"]["version_name"]
+    mapping = {"mark": "#/CurrentRevisionMark", "abandon": "#/CurrentRevisionAbandon"}
+    assert fate["discriminator"] == {"propertyName": "action", "mapping": mapping}
+    assert [each["$ref"] for each in fate["oneOf"]] == list(mapping.values())
+    mark, abandon = schemas["CurrentRevisionMark"], schemas["CurrentRevisionAbandon"]
+    assert mark["properties"]["action"]["const"] == "mark"
+    assert abandon["properties"]["action"]["const"] == "abandon"
+    # The name of the version is required with a marking, and bounded as `markRevision` bounds it;
+    # an abandon bears neither it nor a description.
+    assert mark["required"] == ["action", "version_name"]
+    assert abandon["required"] == ["action"]
+    assert set(abandon["properties"]) == {"action"}
+    revisions = yaml.safe_load((SCHEMAS / "revisions.yaml").read_text("utf-8"))["RevisionMark"]
+    for name in ("version_name", "description"):
+        assert mark["properties"][name] == revisions["properties"][name]
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
+def test_a_marking_without_a_version_name_or_under_a_name_taken_is_refused() -> None:
+    # Vérif : « [...] la sortie n'est appliquée qu'avec ce choix » ; le marquage suit celui de
+    # `markRevision` (WF-REV-0020) : un nom exigé, et unique parmi les révisions marquées.
+    required = fixture("project_exit_version_name_required")
+    assert (required["status"], required["code"]) == (422, "VALIDATION_FAILED")
+    assert required["fields"] == [
+        {"pointer": "/current_revision/version_name", "code": "VALUE_REQUIRED"}
+    ]
+    taken = fixture("project_exit_version_name_taken")
+    assert (taken["status"], taken["code"]) == (409, "ALREADY_EXISTS")
+    [field] = taken["fields"]
+    assert (field["pointer"], field["code"]) == (
+        "/current_revision/version_name",
+        "ALREADY_EXISTS",
     )
+    revisions = fixture("revisions")["items"]
+    [holder] = [each for each in revisions if each["version_name"] == mockproject.TAKEN_NAME]
+    assert holder["status"] == "marked"
+    assert field["params"] == {"conflicting_object_id": holder["revision_id"]}
+    assert required["correlation_id"] != taken["correlation_id"]
+    exit_ = _operation("/projects/{project_id}/exit", "post")["responses"]
+    refusals = {"409": "version_name_taken", "422": "version_name_required"}
+    for status, key in refusals.items():
+        examples = exit_[status]["content"]["application/problem+json"]["examples"]
+        assert Path(examples[key]["$ref"]).stem == f"project_exit_{key}"
 
 
 def _projects() -> list[tuple[str, Entry]]:
@@ -173,6 +210,7 @@ def test_an_exit_that_will_never_become_possible_is_not_listed() -> None:
     assert in_progress["complete"] == in_progress["abandon"] == []
 
 
+@pytest.mark.requirement("WF-CYC-0060-A")
 def test_the_presence_of_the_exits_is_written_where_the_contract_describes_the_commands() -> None:
     command = " ".join(_schemas()["ProjectCommand"]["description"].split())
     assert "Déclarer perdu depuis En cours — n'y figure pas" in command
@@ -236,6 +274,8 @@ def test_a_command_the_quality_does_not_allow_names_that_quality() -> None:
         assert missing == [*quality, *witness[command]], command
 
 
+@pytest.mark.requirement("WF-PRJ-0010-A")
+@pytest.mark.requirement("WF-CRE-0020-A")
 def test_the_project_code_is_never_blank_and_bears_no_slash() -> None:
     code = _schemas()["ProjectCode"]
     assert (code["minLength"], code["maxLength"]) == (1, 50)
@@ -249,4 +289,15 @@ def test_the_project_code_is_never_blank_and_bears_no_slash() -> None:
     for schema in ("Project", "ProjectSummary", "ProjectCreate", "ProjectUpdate"):
         assert _schemas()[schema]["properties"]["code"]["anyOf"][0] == {"$ref": "#/ProjectCode"}
     refused = fixture("project_code_invalid")
-    assert refused["fields"] == [{"pointer": "/code", "code": "PROJECT_CODE_INVALID"}]
+    assert refused["fields"] == [
+        {
+            "pointer": "/code",
+            "code": "PROJECT_CODE_INVALID",
+            "params": {"forbidden_characters": ["/"]},
+        }
+    ]
+    # A code both blank and bearing a slash gets the slash first.
+    assert not pattern.search("/  ")
+    description = " ".join(_schemas()["ProjectCode"]["description"].split())
+    assert "blanc et porteur d'une barre oblique" in description
+    assert "`PROJECT_CODE_INVALID`, la barre oblique d'abord" in description

@@ -506,8 +506,10 @@ ProjectCode:
     `ProjectCreate`, `ProjectUpdate`). Une écriture qui ne le respecte pas est refusée par 422
     `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement
     de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par
-    `PROJECT_CODE_INVALID` ; trop long, par `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`
-    (D-07, US-0701/L9).
+    `PROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` à `["/"]` ; trop long, par
+    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`. Un code à la fois
+    blanc et porteur d'une barre oblique (« / », « /  ») ne reçoit qu'un refus,
+    `PROJECT_CODE_INVALID`, la barre oblique d'abord (D-07, US-0701/L9).
 
 ProjectClient:
   type: string
@@ -644,39 +646,46 @@ ProjectExit:
         pas (D-01, US-0701/L9).
 
 CurrentRevisionFate:
-  type: object
-  required: [action]
   description: >-
-    Ce que la sortie fait de la révision en cours (WF-CYC-0090). `mark` la marque comme
-    `markRevision` (WF-REV-0020), sous `version_name`, exigé — absent, refusé par 422
-    `VALIDATION_FAILED`, `fields` désignant `/current_revision/version_name` par `VALUE_REQUIRED`
-    —, unique parmi les révisions marquées du projet — pris, refusé par 409 `ALREADY_EXISTS`,
-    `fields` désignant `/current_revision/version_name` par `ALREADY_EXISTS`,
+    Ce que la sortie fait de la révision en cours (WF-CYC-0090) : l'une des deux variantes, que
+    `action` distingue. `mark` la marque comme `markRevision` (WF-REV-0020), et `abandon`
+    l'abandonne comme `abandonRevision` (WF-REV-0010).
+  oneOf:
+    - { $ref: '#/CurrentRevisionMark' }
+    - { $ref: '#/CurrentRevisionAbandon' }
+  discriminator:
+    propertyName: action
+    mapping:
+      mark: '#/CurrentRevisionMark'
+      abandon: '#/CurrentRevisionAbandon'
+
+CurrentRevisionMark:
+  type: object
+  required: [action, version_name]
+  description: >-
+    Marquer la révision en cours à la sortie (WF-CYC-0090, WF-REV-0020), sous `version_name`,
+    exigé et borné comme celui de `markRevision` — absent, refusé par 422 `VALIDATION_FAILED`,
+    `fields` désignant `/current_revision/version_name` par `VALUE_REQUIRED` —, unique parmi les
+    révisions marquées du projet — pris, refusé par 409 `ALREADY_EXISTS`, `fields` désignant
+    `/current_revision/version_name` par `ALREADY_EXISTS`,
     `fields[].params.conflicting_object_id` la révision qui le porte —, avec sa description
     facultative : le marquage calcule les indicateurs et se confie au worker (WF-ARC-0090), et la
-    sortie rend 202 et la tâche, la transition s'appliquant quand elle réussit. `abandon`
-    l'abandonne comme `abandonRevision` (WF-REV-0010), dans la requête, et la sortie rend 200 et
-    le projet ; `version_name` et `description`, qui ne nomment que ce qu'un marquage fige, n'y
-    ont pas d'effet.
+    sortie rend 202 et la tâche, la transition s'appliquant quand elle réussit.
   properties:
-    action: { $ref: '#/CurrentRevisionFateAction' }
+    action: { type: string, const: mark }
     version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
-  if:
-    properties: { action: { const: mark } }
-  then:
-    required: [action, version_name]
-    properties:
-      action: { const: mark }
-      version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
-      description: { anyOf: [{ type: string }, { type: 'null' }] }
 
-CurrentRevisionFateAction:
-  type: string
-  enum: [mark, abandon]
+CurrentRevisionAbandon:
+  type: object
+  required: [action]
   description: >-
-    Marquer la révision en cours, ou l'abandonner (WF-CYC-0090, WF-REV-0020, WF-REV-0010).
+    Abandonner la révision en cours à la sortie (WF-CYC-0090, WF-REV-0010), comme
+    `abandonRevision`, dans la requête : la sortie rend 200 et le projet. Aucun nom de version ni
+    description, que seul un marquage fige.
+  properties:
+    action: { type: string, const: abandon }
 
 WorkBreakdown:
   type: object

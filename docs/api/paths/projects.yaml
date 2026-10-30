@@ -368,6 +368,8 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              version_name_taken: { $ref: ../../../fixtures/api/project_exit_version_name_taken.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : un projet qui porte une révision
@@ -379,6 +381,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_required: { $ref: ../../../fixtures/api/project_exit_revision_required.json }
+              version_name_required: { $ref: ../../../fixtures/api/project_exit_version_name_required.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/work-breakdown:

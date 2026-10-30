@@ -346,6 +346,7 @@ _KEYS = {
         "natures de coût",
         "catégories de coût",
         "projets",
+        "révisions",
         "sous-projets",
         "calendriers",
         *_STRUCTURE,

@@ -1,0 +1,12 @@
+{
+  "summary": "La sortie du projet témoin vers Terminé, confirmée, qui marque sa révision en cours sans nom de version : refusée, le champ désigné, le marquage ne se faisant pas sans nom, comme `markRevision` ; rien n'est écrit (WF-CYC-0090, WF-REV-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/current_revision/version_name","code":"VALUE_REQUIRED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001608"
+  }
+}

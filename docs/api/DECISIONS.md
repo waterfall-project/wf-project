@@ -9486,12 +9486,17 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
 « Le projet et la révision portent leurs commandes disponibles » (EP-02).
 
 - **La sortie reçoit le sort de la révision en cours** (D-01, L-02 ; WF-CYC-0090).
-  `ProjectExit.current_revision` (`CurrentRevisionFate`) : `action`, `mark` ou `abandon`, et pour
-  `mark` le nom de version, exigé, borné comme celui de `markRevision`, et sa description. Exigé
+  `ProjectExit.current_revision` (`CurrentRevisionFate`) : deux variantes en `oneOf`, que
+  `action` distingue (`discriminator`) — `CurrentRevisionMark` (`mark`), qui exige le nom de
+  version, borné comme celui de `markRevision`, et porte sa description, et `CurrentRevisionAbandon`
+  (`abandon`), qui n'en porte aucun —, pour que les générateurs tirent du contrat une union typée
+  et non un `if/then` qu'ils ignorent ; l'énumération `CurrentRevisionFateAction` disparaît, le
+  discriminant en tenant lieu. Exigé
   quand le projet porte une révision en cours : absent ou nul, 422 `VALIDATION_FAILED`,
   `/current_revision` par `VALUE_REQUIRED`, la forme du contrat pour un champ exigé ; un marquage
-  sans nom, `/current_revision/version_name` par `VALUE_REQUIRED` ; un nom pris, 409
-  `ALREADY_EXISTS` sur ce pointeur, comme `markRevision`. Marquer rend 202 `BackgroundTaskRef` de
+  sans nom, `/current_revision/version_name` par `VALUE_REQUIRED`
+  (`project_exit_version_name_required`) ; un nom pris, 409 `ALREADY_EXISTS` sur ce pointeur,
+  comme `markRevision` (`project_exit_version_name_taken`). Marquer rend 202 `BackgroundTaskRef` de
   nature `revision_mark`, la sortie s'appliquant quand la tâche réussit, rien quand elle échoue ;
   abandonner, ou sortir un projet sans révision en cours, rend 200 `Project`. Écartés (décision de
   l'auteur) : toujours 200, le marquage fait dans la requête, contraire à WF-ARC-0090 ; toujours
@@ -9551,7 +9556,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   blanc, sans barre oblique. Vide, `VALUE_REQUIRED` ; blanc, `VALIDATION_FAILED`, comme tout libellé
   (#837) ; une barre oblique, `PROJECT_CODE_INVALID`, nouveau au catalogue comme
   `SUBPROJECT_CODE_INVALID` l'est pour le sous-projet (US-0610), et son exemple,
-  `project_code_invalid`. Écarté : le motif commun `VALIDATION_FAILED` pour la barre oblique, qui
+  `project_code_invalid`, qui porte `forbidden_characters: ["/"]` comme celui du sous-projet. Un
+  code à la fois blanc et porteur d'une barre oblique reçoit `PROJECT_CODE_INVALID`, la barre
+  oblique d'abord. Écarté : le motif commun `VALIDATION_FAILED` pour la barre oblique, qui
   ne laisserait pas le formulaire dire pourquoi. Le doute de la revue sur `code: null` d'un projet
   en cours n'est pas tranché ici.
 - **Les mineurs des fichiers touchés.** D-04 : `updateProject` dit le 409 de la probabilité

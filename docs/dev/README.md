@@ -2494,7 +2494,7 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   `tools/tests/test_mockfindings.py`) ; et la sortie du témoin, qui marque ou abandonne sa révision
   en cours, son code refusé, et ses lectures selon la qualité du lecteur — participant, ou
   non-contributeur qui inscrit un chef de projet quand aucun n'a de compte actif —
-  (`wftools.mockproject`, tenu par `tools/tests/test_mockproject.py`).
+  (`wftools.mockproject`, tenu par `tools/tests/test_mockexit.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

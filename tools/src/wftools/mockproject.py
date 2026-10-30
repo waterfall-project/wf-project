@@ -11,7 +11,9 @@ L-25, on examples drawn from those written by hand:
   other marks it under a version name no marked revision bears, and the exit answers the task of
   the marking (``task_exit_mark_queued.json``), the exit applied when it succeeds (WF-CYC-0090,
   WF-ARC-0090); ``project_exit_revision_required.json``, the exit sent without the fate of the
-  revision in progress, refused;
+  revision in progress, refused; ``project_exit_version_name_required.json`` and
+  ``project_exit_version_name_taken.json``, the exit that marks it without a version name, or
+  under one a marked revision bears already, refused as ``markRevision`` refuses them;
 - ``project_code_invalid.json``, a project created under a code that bears a slash, the one
   separator of the WBS element that bears it (WF-CRE-0020);
 - ``project_participant.json``, the witness read by a participant who holds the permissions of its
@@ -33,7 +35,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockids import universe
-from wftools.mocklists import CONTRIBUTOR_KINDS
+from wftools.mocklists import CONTRIBUTOR_KINDS, display_name
 from wftools.mockwitness import fixture
 
 if TYPE_CHECKING:
@@ -43,7 +45,11 @@ EXIT_TASK = universe(955)
 """The task of the marking an exit of the witness starts (`exitProject`, 202)."""
 
 REQUIRED_CORRELATION, CODE_CORRELATION = universe(1606), universe(1607)
-"""The correlations of the two refusals of the module."""
+NAME_REQUIRED_CORRELATION, NAME_TAKEN_CORRELATION = universe(1608), universe(1609)
+"""The correlations of the refusals of the module."""
+
+TAKEN_NAME = "Référence"
+"""A version name a marked revision of the witness bears already, the 101 (WF-REV-0020)."""
 
 VERSION_NAME = "Clôture"
 """The version name the exit that marks gives the revision in progress, which no marked revision
@@ -120,13 +126,39 @@ def exit_mark_queued() -> JsonObject:
     }
 
 
-def _refusal(pointer: str, code: str, correlation: str) -> JsonObject:
-    """Return a 422 that names one field by its motive."""
+def _refusal(
+    pointer: str, code: str, correlation: str, params: JsonObject | None = None
+) -> JsonObject:
+    """Return a 422 that names one field by its motive, and the parameters of that motive."""
+    field: JsonObject = {"pointer": pointer, "code": code}
+    if params is not None:
+        field["params"] = params
     return {
         "code": "VALIDATION_FAILED",
         "status": 422,
-        "fields": [{"pointer": pointer, "code": code}],
+        "fields": [field],
         "correlation_id": correlation,
+    }
+
+
+def _name_taken() -> JsonObject:
+    """Return the 409 of a version name a marked revision bears already, as `markRevision`."""
+    [holder] = [
+        each
+        for each in cast("list[JsonObject]", fixture("revisions")["items"])
+        if each["version_name"] == TAKEN_NAME
+    ]
+    return {
+        "code": "ALREADY_EXISTS",
+        "status": 409,
+        "fields": [
+            {
+                "pointer": "/current_revision/version_name",
+                "code": "ALREADY_EXISTS",
+                "params": {"conflicting_object_id": holder["revision_id"]},
+            }
+        ],
+        "correlation_id": NAME_TAKEN_CORRELATION,
     }
 
 
@@ -223,12 +255,20 @@ def _name(user_id: str) -> str:
     return str(row["display_name"])
 
 
+def _account_name(user_id: str) -> str:
+    """Return the name of an account that is no contributor of the witness, from the accounts."""
+    users = cast("list[JsonObject]", fixture("users")["items"])
+    [row] = [each for each in users if each["user_id"] == user_id]
+    return display_name(row)
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the exit of the witness, its code refused and its readings by quality, by file."""
     manager, participant = _name(DEACTIVATED_MANAGER), _name(PARTICIPANT)
+    rescuer = _account_name(RESCUER)
     variant = (
         f"Variante contrefactuelle : le compte de {manager}, seule cheffe de projet du projet "
-        f"témoin, désactivé, et Dominique Bernard, manager, qui n'en est pas contributeur, "
+        f"témoin, désactivé, et {rescuer}, manager, qui n'en est pas contributeur, "
         f"portant aussi le rôle « Direction de projet » — la permission du paramétrage du projet "
         f"et « consulter tous les projets »"
     )
@@ -266,11 +306,29 @@ def examples() -> dict[str, JsonObject]:
             "la marquer ou de l'abandonner ; rien n'est écrit (WF-CYC-0090).",
             _refusal("/current_revision", "VALUE_REQUIRED", REQUIRED_CORRELATION),
         ),
+        "project_exit_version_name_required.json": mocktext.example(
+            "La sortie du projet témoin vers Terminé, confirmée, qui marque sa révision en cours "
+            "sans nom de version : refusée, le champ désigné, le marquage ne se faisant pas "
+            "sans nom, comme `markRevision` ; rien n'est écrit (WF-CYC-0090, WF-REV-0020).",
+            _refusal("/current_revision/version_name", "VALUE_REQUIRED", NAME_REQUIRED_CORRELATION),
+        ),
+        "project_exit_version_name_taken.json": mocktext.example(
+            f"La sortie du projet témoin vers Terminé, confirmée, qui marque sa révision en cours "
+            f"sous « {TAKEN_NAME} », le nom que la révision marquée 101 porte déjà : refusée, "
+            f"le champ désigné et la révision qui le porte nommée, comme `markRevision` ; rien "
+            f"n'est écrit (WF-CYC-0090, WF-REV-0020).",
+            _name_taken(),
+        ),
         "project_code_invalid.json": mocktext.example(
             f"Un projet créé sous le code « {INVALID_CODE} » : refusé, le code désigné, la barre "
             f"oblique étant le seul séparateur de l'élément d'OTP, qui porte le code projet "
             f"suivi du code sous-projet ; rien n'est écrit (WF-PRJ-0010, WF-CRE-0020).",
-            _refusal("/code", "PROJECT_CODE_INVALID", CODE_CORRELATION),
+            _refusal(
+                "/code",
+                "PROJECT_CODE_INVALID",
+                CODE_CORRELATION,
+                {"forbidden_characters": ["/"]},
+            ),
         ),
         "project_participant.json": mocktext.example(
             f"Le projet témoin lu par {participant}, participante pour le pilotage, qui porte "
