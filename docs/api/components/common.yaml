@@ -410,18 +410,23 @@ ErrorCode:
     - SESSION_REVOKED
     - ACCOUNT_DEACTIVATED
     - ACCOUNT_NOT_ADMITTED
-    # 403 — permission présente, condition manquante : `params.missing_permission`
-    # ou `params.missing_condition` la nomme (WF-ADM-0110, WF-IHM-0090). Une action
-    # structurante ou le paramétrage du projet exigent la qualité de chef de projet
-    # (WF-PRJ-0060).
+    # 403 — l'écriture n'est pas permise à l'appelant : une permission qui lui manque,
+    # `params.missing_permission` la nommant, ou sa qualité sur le projet, `params.missing_condition`
+    # la nommant — `is_contributor` pour qui n'en est pas contributeur, `is_project_manager` pour
+    # qui n'en est que contributeur, une action structurante ou le paramétrage du projet exigeant
+    # la qualité de chef de projet (WF-ADM-0110, WF-PRJ-0060, WF-IHM-0090). Un état n'est jamais
+    # un 403 : un projet terminal, une révision marquée se refusent par 409
+    # `STATE_FORBIDS_OPERATION` (README, « Conventions » ; US-0702/L1).
     - PERMISSION_MISSING
     - NOT_CONTRIBUTOR
     - NOT_PROJECT_MANAGER
-    - PROJECT_TERMINAL
-    - REVISION_MARKED
     # 404 — objet inexistant ou invisible, sans distinction (WF-ADM-0110).
     - NOT_FOUND
-    # 409 — l'état courant interdit l'opération ; `params` nomme l'objet ou l'état.
+    # 409 — l'état courant interdit l'opération : le refus de toute commande qu'un état rend
+    # indisponible, `params.missing_condition` nommant la condition qui manque, comme la commande
+    # de l'objet la dit d'avance — sur un projet terminal `project_not_terminal`, sur une révision
+    # marquée `revision_draft` (WF-CYC-0100, WF-DAT-0020, WF-IHM-0090) ; ou `params` nomme l'objet
+    # ou l'état.
     - STATE_FORBIDS_OPERATION
     # Une valeur unique déjà portée par un autre objet ; aussi motif par champ du 409 qui dit
     # quel champ la porte, `fields[].params.conflicting_object_id` nommant l'objet qui la porte

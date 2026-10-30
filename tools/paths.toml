@@ -270,7 +270,8 @@ by = "make fixtures"
 # projects, the subprojects, the contributors, the accounts, the access roles, the work
 # breakdown and the backups (wftools.mocklists), and the exit of the witness, its code refused and
 # its readings by the quality of its reader (wftools.mockproject, held by
-# tools/tests/test_mockexit.py).
+# tools/tests/test_mockexit.py), and the refusals of one form each (wftools.mockrefusals, held by
+# tools/tests/test_mockrefusals.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -493,6 +494,9 @@ paths = [
     "fixtures/api/project_rescue.json",
     "fixtures/api/contributors_without_active_manager.json",
     "fixtures/api/contributors_set_by_rescuer.json",
+    "fixtures/api/timeline_create_terminal.json",
+    "fixtures/api/node_create_marked_refused.json",
+    "fixtures/api/skeleton_marked_refused.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

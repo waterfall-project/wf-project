@@ -59,7 +59,8 @@ refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and th
 the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
 witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2);
 and its exit, its code refused and its readings by the quality of its reader, by
-``wftools.mockproject`` (US-0701/L9).
+``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
+``wftools.mockrefusals`` (US-0702/L1).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -104,6 +105,7 @@ from wftools import (
     mockportfoliotime,
     mockproject,
     mockreference,
+    mockrefusals,
     mockriskwrites,
     mocksnapshot,
     mocksort,
@@ -303,7 +305,7 @@ def named() -> dict[str, JsonObject]:
     reference written by hand (``mockreference``), and those of the projects, the subprojects
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
-    (``mockproject``).
+    (``mockproject``); the refusals of one form each (``mockrefusals``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -328,6 +330,7 @@ def named() -> dict[str, JsonObject]:
         **mocklists.examples(),
         **mockanonymized.examples(),
         **mockproject.examples(),
+        **mockrefusals.examples(),
     }
 
 

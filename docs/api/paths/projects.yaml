@@ -972,7 +972,8 @@
       ensuite depuis le planning (WF-PLA-0140, WF-PLA-0060). « Un projet peut porter plusieurs
       chronologies. Chacune porte un nom » : le nom n'est pas unique, et deux chronologies d'un
       projet peuvent le partager. Le projet dit d'avance si l'appelant peut en créer
-      (`ProjectCommand.manage_timelines`).
+      (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée par 409, comme
+      toute écriture du projet (WF-CYC-0100).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -993,6 +994,16 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien
+          n'est créé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              terminal: { $ref: ../../../fixtures/api/timeline_create_terminal.json }
       '422':
         description: >-
           Un nom vide, trop long ou fait seulement de blancs : `VALIDATION_FAILED`, `fields`
@@ -1012,10 +1023,10 @@
     description: >-
       Retire la chronologie ; les tâches conservent leurs dates courantes (WF-PLA-0140). « Un
       livrable ou une chronologie se supprime physiquement » (WF-DAT-0080) : aucune révision
-      marquée ne la retient, ni ne la fait marquer supprimée, et la suppression n'a pas de 409,
-      ses inscriptions partant avec elle. Le projet dit d'avance si l'appelant peut en
-      supprimer (`ProjectCommand.manage_timelines`) ; sur un projet terminal, elle est refusée
-      par 403, comme toute écriture (WF-CYC-0100).
+      marquée ne la retient, ni ne la fait marquer supprimée, ses inscriptions partant avec elle.
+      Le projet dit d'avance si l'appelant peut en supprimer (`ProjectCommand.manage_timelines`) ;
+      sur un projet terminal, elle est refusée par 409, comme toute écriture du projet
+      (WF-CYC-0100).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
@@ -1024,17 +1035,16 @@
       '204':
         description: Chronologie supprimée ; les inscriptions le sont avec elle.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '403':
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
         description: >-
-          Permission présente mais condition manquante, comme pour toute écriture du projet :
-          `params.missing_permission` ou `params.missing_condition` la nomme (WF-ADM-0110) —
-          `NOT_CONTRIBUTOR` à qui n'est pas contributeur, et sur un projet terminal
-          `PROJECT_TERMINAL`, `params.missing_condition` à `project_not_terminal` (WF-CYC-0100).
-          Rien n'est écrit.
+          Un projet terminal : `STATE_FORBIDS_OPERATION`, `params.missing_condition` à
+          `project_not_terminal`, comme `manage_timelines` le dit d'avance (WF-CYC-0100) ; rien
+          n'est supprimé. Aucune révision marquée ne retient une chronologie (WF-DAT-0080).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               terminal: { $ref: ../../../fixtures/api/timeline_delete_terminal.json }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

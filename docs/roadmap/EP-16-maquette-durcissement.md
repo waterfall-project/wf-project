@@ -1919,7 +1919,7 @@ d'un champ existant ne vienne après le gel.
 
 ## US-0702 — Une seule forme pour chaque refus
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : toutes celles qui déclarent un refus d'état, un code d'`ErrorCode` ou un compteur
   — dont `createTimeline`, `deleteTimeline`, `generatePlanningSkeleton`, `exitProject`,

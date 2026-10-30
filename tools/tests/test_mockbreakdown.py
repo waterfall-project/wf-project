@@ -801,7 +801,8 @@ def test_the_refusals_of_the_timelines_and_of_a_stale_breakdown_have_their_examp
     assert label["fields"] == [{"pointer": "/label", "code": "VALUE_REQUIRED"}]
     assert _cited_under("createTimeline", "422")[-1] == "timeline_label_required"
     terminal = fixture("timeline_delete_terminal")
-    assert (terminal["status"], terminal["code"]) == (403, "PROJECT_TERMINAL")
+    # A terminal project is refused by its condition, as any write of the project (US-0702/L1).
+    assert (terminal["status"], terminal["code"]) == (409, "STATE_FORBIDS_OPERATION")
     assert terminal["params"] == {"missing_condition": "project_not_terminal"}
     assert fixture("project_completed")["state"] in TERMINAL
     said = _summary("timeline_delete_terminal")
@@ -809,7 +810,7 @@ def test_the_refusals_of_the_timelines_and_of_a_stale_breakdown_have_their_examp
         "Revue client"
     ]
     assert "project_completed" in _summary("timeline_delete_terminal")
-    assert _cited_under("deleteTimeline", "403") == ["timeline_delete_terminal"]
+    assert _cited_under("deleteTimeline", "409") == ["timeline_delete_terminal"]
     stale = fixture("work_breakdown_stale")
     assert (stale["status"], stale["code"]) == (412, "STALE_LOCK_VERSION")
     assert (

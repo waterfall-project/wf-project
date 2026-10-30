@@ -5452,6 +5452,9 @@ vise pas ; la permission du paramétrage du projet (`update`, `project_settings.
 chefs de projet (WF-PRJ-0060), au motif que le squelette naît du lotissement — il écrit des tâches
 dans le planning de la révision, comme une saisie de la grille, et la conception d'EP-14 l'offre
 dans la grille de planning vide, à qui peut y saisir (relecture 1).
+*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une révision marquée — toute révision d'un projet terminal l'est — refuse le squelette par 409
+`STATE_FORBIDS_OPERATION`, `revision_draft`, la seule condition que `generate_skeleton` nomme alors,
+comme toute saisie (`skeleton_marked_refused`) ; plus aucun état n'est un 403. Le texte ci-dessus est gardé pour l'histoire.*
 
 **L'état où le squelette est proposé a ses exemples** (relecture 1) : `revision_without_tasks`
 (`getRevision`), la révision ouverte aujourd'hui sur le projet créé à 14 h 05, « Rénovation du poste
@@ -5648,6 +5651,10 @@ ne l'exigeant pas. Écarté : un nom unique dans le projet, refusé par 409 `ALR
 WF-PLA-0140 ne demande pas et qui empêcherait deux chronologies du même nom pour deux publics, un
 comité et un client par exemple. Exemple de succès `timeline_created`, engendré par `make mock-data`
 (`mockdata`) : « Réunion de chantier », chronologie 1002, sans inscription.
+*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : un projet terminal refuse la création et la suppression d'une chronologie par 409
+`STATE_FORBIDS_OPERATION`, `project_not_terminal`, comme `manage_timelines` le dit d'avance et
+comme toute autre écriture du projet (`timeline_create_terminal`, `timeline_delete_terminal`) ; la
+suppression n'a pas d'autre 409. Le texte ci-dessus est gardé pour l'histoire.*
 
 **Chaque élément d'une lecture du lotissement dit s'il est retenu** (#574 ; WF-IHM-0130 : « Toute
 table se filtre sur chacune de ses colonnes, et le filtre s'applique aux totaux qu'elle présente » ;
@@ -5769,6 +5776,9 @@ commande, le formulaire lisant les totaux de la structure principale (`listNodes
 `totals.task_count`), que la première rédaction retenait — le front aurait déduit la règle de
 l'état, ce que L42p a écarté pour `update_provision` ; la condition sur `edit_risks`, qui aurait
 fermé la modification, le réexamen et la suppression d'un risque, qui n'en dépendent pas.
+*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : une saisie de la révision sur une révision marquée — toute révision d'un projet terminal l'est —
+se refuse, elle aussi, par le 409 de sa condition, `revision_draft`, et non par un 403 : le 409 de
+`createRisk` et celui des saisies de la révision ne font plus qu'une règle. Le texte ci-dessus est gardé pour l'histoire.*
 
 **La ligne de provision ne porte pas de délai de paiement** (#733 ; WF-DEV-0020 : « un délai de
 paiement, en jours, qui […] reste saisissable sur toute ligne autre qu'une ligne de provision, qui
@@ -7046,7 +7056,9 @@ révision n'est pas marquée (C-362).
   `RevisionCommand` ne la dit d'avance : son 409 seul nomme `revision_draft`, ou
   `no_background_task_running` pendant un traitement de fond sur la révision.
   *Remplacé par US-0640/L6 (#1351) : `RevisionCommand.apply_rate_update` la dit d'avance, et le
-  409 nomme la première condition qui manque à la commande.*
+  409 nomme la première condition qui manque à la commande.* *Et depuis US-0702/L1 (#1610, décision de
+  l'auteur du 2026-10-28), une saisie de grille sur une révision marquée l'est de même par 409,
+  `revision_draft`, et non par 403.*
 - **`mergeCostStructure`** a l'exemple de son 412 : `merge_report_stale`, dont
   `expected_lock_version` est le compteur courant du différentiel.
 
@@ -8197,6 +8209,9 @@ Sans objet ou hors du lot :
   (412, engendré par `wftools.mocklists` : le compteur de `work_breakdown_saved`). Le 403 d'un projet
   terminal porte `params.missing_condition` à `project_not_terminal`, comme le catalogue le dit des
   403 (`ErrorCode`, `Forbidden`) : c'est le premier exemple de ce refus.
+*Remplacé par US-0702/L1 (#1610), sur la décision de l'auteur du 2026-10-28 (D-05, J-01, J-02) : `timeline_delete_terminal` est
+  un 409 `STATE_FORBIDS_OPERATION`, `project_not_terminal` ; `PROJECT_TERMINAL` sort du catalogue, et
+  le 403 ne dit plus que la permission ou la qualité de l'appelant. Le texte ci-dessus est gardé pour l'histoire.*
 - **Un refus du rattachement à deux motifs** (#817 point 2b). Exemple écrit à la main,
   `task_attach_exclusive_attached`, dernier des 422 d'`updateTaskFacet` : « Câblage des armoires »
   envoyée avec le lot et le poste à la fois, le lot porté par « Poste de commande » —
@@ -8427,7 +8442,8 @@ Aucune opération nouvelle.
     une saisie de grille, qu'une révision marquée refuse par 403. Le contrôle et le dépôt de la
     tâche se font sous le verrou du projet, qui tient sa révision en cours. Les compteurs d'une
     révision marquée ne bougent pas : c'est ce 409, et non le 412, qui dit qu'un compte rendu lu sans
-    révision en cours ne vaut plus.
+    révision en cours ne vaut plus. *Depuis US-0702/L1 (#1610, décision de l'auteur du 2026-10-28), une
+    saisie de grille sur une révision marquée est refusée par ce même 409, et non par 403.*
   - *L'échec après la création.* La tâche est une seule opération, comme la fusion que WF-REV-0050
     dit appliquée « en une seule opération », et comme le marquage (§ « Le marquage d'une
     révision ») : en échec, sur un cycle, l'horizon ou tout autre motif, elle ne laisse ni révision en
@@ -9570,6 +9586,36 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   US-0702/L2 (#1611), D-13 à US-0702.
 
 **Corrélations** 1606 et 1607 ; la tâche de fond 955.
+
+### Une seule forme pour chaque refus (US-0702/L1, #1610)
+
+La revue du contrat avant le gel (`2026-10-28-contrat-avant-gel.md`, D-05, J-01 à J-11, E-07, F-05)
+relevait deux formes pour un même refus et un catalogue qui porte des codes que rien ne rend. Le
+lot donne à chaque refus un statut, un code, ses paramètres et un exemple, ou retire le code ; les
+exemples nouveaux sont engendrés par `make mock-data` (`wftools.mockrefusals`). Les décisions
+qu'il contredit sont réécrites à leur place, en citant la décision de l'auteur du 2026-10-28.
+
+- **La règle unique des refus d'état** (D-05, J-01, J-02 ; décision de l'auteur du 2026-10-28 ;
+  WF-IHM-0090, WF-CYC-0100, WF-DAT-0020). La règle d'EP-02/L42a — « le refus d'une commande qu'un
+  état rend indisponible est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat, et le
+  README la dit (« Conventions ») : 409, `params.missing_condition` la condition que l'objet dit
+  d'avance de sa commande ; un projet terminal, `project_not_terminal`, une révision marquée,
+  `revision_draft`. `createTimeline` et `deleteTimeline` déclarent ce 409
+  (`timeline_create_terminal`, engendré ; `timeline_delete_terminal`, écrit à la main par #803,
+  passé de 403 à 409) ; `createNode` et `generatePlanningSkeleton` le nomment sur une révision
+  marquée (`node_create_marked_refused`, `skeleton_marked_refused`, sur la référence 101). Toute
+  révision d'un projet terminal est marquée — la sortie marque ou abandonne la révision en cours
+  (US-0701/L9) — : une saisie de grille sur un projet terminal n'a donc que `revision_draft` à
+  nommer. `PROJECT_TERMINAL` et `REVISION_MARKED` sortent d'`ErrorCode` ; `Forbidden` ne dit plus
+  que la permission (`PERMISSION_MISSING`) ou la qualité de l'appelant (`NOT_CONTRIBUTOR`,
+  `NOT_PROJECT_MANAGER`), et `Conflict` dit la règle. Réécrits : EP-14/L42k (le squelette et la
+  chronologie restés des 403), EP-14/L42s (« les 403 des saisies de la révision ») et
+  US-0640/L1 #803 (« le premier exemple de ce refus »). Écartés, par l'auteur : 409 hors grille et
+  403 sur la grille, deux règles pour un même fait ; 403 partout, contraire à L42a, L42i, L42l et à
+  la lecture commune des conditions par le front. Les commandes d'un projet clos restent listées,
+  `project_not_terminal` manquante (#1657, à trancher par l'auteur).
+
+**Corrélations** 1610 à 1612.
 
 ## Collage et annulation
 

@@ -1,0 +1,10 @@
+{
+  "summary": "Une chronologie « Réunion de chantier » créée sur le projet témoin, « Modernisation du poste de commande », terminé aujourd'hui (project_completed) : refusée par la condition que sa commande manage_timelines dit manquer, project_not_terminal, comme toute écriture d'un projet terminal ; rien n'est créé (WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"project_not_terminal"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001610"
+  }
+}
