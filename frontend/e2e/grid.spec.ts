@@ -17,8 +17,8 @@ import { openHydrated, openMenu, WORKING } from "./hydration";
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
 // which the grid renders those in view. The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
-// of row 1, « Études », the task of row 2, the task of row 14 over its line and before its sibling
-// of row 16, the first line drawn after the core, row 28, the milestone of row 6000, the totals of
+// of row 1, « Études », the task of row 2, the task of row 15 over its line and before its sibling
+// of row 17, the first line drawn after the core, row 28, the milestone of row 6000, the totals of
 // the answer —, and never count the rows rendered: the row count of the grid says how many there
 // are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid hydrated
 // (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort answers
@@ -424,9 +424,9 @@ test("folds a task over its lines and the tree down to a level, the keyboard goi
 }) => {
   await openHydrated(page, GRID);
   await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
-  // A task of the core at the third level, over its line, before its next sibling, row 16.
-  const task = grid(page).getByRole("row", { name: /^14 .*Relance du fournisseur/ });
-  const line = grid(page).getByRole("row", { name: /^15 .*Frais de relance/ });
+  // A task of the core at the third level, over its line, before its next sibling, row 17.
+  const task = grid(page).getByRole("row", { name: /^15 .*Relance du fournisseur/ });
+  const line = grid(page).getByRole("row", { name: /^16 .*Frais de relance/ });
   await expect(task).toHaveAttribute("aria-expanded", "true");
   await expect(line).toBeVisible();
 
@@ -438,9 +438,9 @@ test("folds a task over its lines and the tree down to a level, the keyboard goi
   await expect(line).toHaveCount(0);
   await expect(label).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(rowAt(grid(page), 15).getByRole("gridcell").nth(1)).toBeFocused();
-  await expect(rowAt(grid(page), 15)).toHaveAccessibleName(/^16 .*Transport exceptionnel/);
-  await expect(rowAt(grid(page), 15)).toHaveAttribute("aria-level", "3");
+  await expect(rowAt(grid(page), 16).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(rowAt(grid(page), 16)).toHaveAccessibleName(/^17 .*Transport exceptionnel/);
+  await expect(rowAt(grid(page), 16)).toHaveAttribute("aria-level", "3");
 
   // The bar folds the tree whole, down to a level, and unfolds it whole.
   const tree = page.getByRole("button", { name: "Arbre" });

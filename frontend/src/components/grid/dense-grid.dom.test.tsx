@@ -933,12 +933,12 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "Labour line",
       "Disbursement line",
       "Provision line",
+      "Milestone",
       "Summary task",
       "Task",
       "Disbursement line",
       "Task",
       "Disbursement line",
-      "Milestone",
     ]);
   });
 

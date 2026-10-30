@@ -30,6 +30,7 @@ const SUMMARY = row("Poste de commande");
 const LEAF = row("Câblage des armoires");
 const LINE = row("Raccordement des borniers");
 const RISK = row("Risque survenu — Retard de livraison des armoires");
+const RELANCE = row("Relance du fournisseur");
 const TRANSPORT = row("Transport exceptionnel");
 const MILESTONE = row("Réception usine");
 
@@ -99,9 +100,17 @@ describe("the gestures a row takes", () => {
   });
 
   it("gives an indentation to a task that has a sibling above it, bearing tasks, and an outdentation to a task under another", () => {
-    expect(gesturesOn(RISK, offered())).toEqual([
+    expect(gesturesOn(TRANSPORT, offered())).toEqual([
       "below",
       "child",
+      "line",
+      "indent",
+      "outdent",
+      "up",
+      "delete",
+    ]);
+    expect(gesturesOn(MILESTONE, offered())).toEqual([
+      "below",
       "indent",
       "outdent",
       "up",
@@ -119,11 +128,11 @@ describe("the gestures a row takes", () => {
 
   it("gives an indentation only where the grid shows the sibling just above, whatever a search or a filter leaves out [WF-PLA-0080-A]", () => {
     // The rank of a node counts its siblings, lines included: the one above must be that less one.
-    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
-    expect(gesturesOn(MILESTONE, offered())).toContain("indent");
-    expect(gesturesOn(MILESTONE, offered({ rows: withoutRisk }))).not.toContain("indent");
+    const withoutRelance = estimate.items.filter((each) => each.node_id !== RELANCE.node_id);
+    expect(gesturesOn(TRANSPORT, offered())).toContain("indent");
+    expect(gesturesOn(TRANSPORT, offered({ rows: withoutRelance }))).not.toContain("indent");
     // The parent being shown, the outdentation does not rest on a row left out.
-    expect(gesturesOn(MILESTONE, offered({ rows: withoutRisk }))).toContain("outdent");
+    expect(gesturesOn(TRANSPORT, offered({ rows: withoutRelance }))).toContain("outdent");
     // The parent left out, there is no place after it.
     const withoutSummary = estimate.items.filter((each) => each.node_id !== SUMMARY.node_id);
     expect(gesturesOn(RISK, offered({ rows: withoutSummary }))).not.toContain("outdent");
@@ -131,12 +140,14 @@ describe("the gestures a row takes", () => {
 
   it("gives no indentation under a milestone, which bears nothing, and none where the grid lists no task", () => {
     const rows = estimate.items.map((each) =>
-      each.node_id === RISK.node_id
+      each.node_id === RELANCE.node_id
         ? { ...each, task: { ...each.task, is_milestone: true } }
         : each,
     ) as typeof estimate.items;
-    expect(gesturesOn(MILESTONE, offered({ rows }))).not.toContain("indent");
-    expect(gesturesOn(MILESTONE, offered())).toContain("indent");
+    expect(gesturesOn(TRANSPORT, offered({ rows }))).not.toContain("indent");
+    expect(gesturesOn(TRANSPORT, offered())).toContain("indent");
+    // The risk occurred stands after the factory acceptance, a milestone: it goes under none.
+    expect(gesturesOn(RISK, offered())).not.toContain("indent");
     expect(gesturesOn(RISK, offered({ tasks: false }))).toEqual([]);
   });
 });
@@ -223,11 +234,23 @@ describe("the body of the move a gesture asks", () => {
   it("puts the active task, a summary with its group, under the task above it, last [WF-PLA-0080-A]", () => {
     // Part of the criterion — the active row, not a selection of several tasks (US-0460/L5): the
     // summary is moved by its identifier alone, its subordinates going with it on the server.
-    expect(moveOf("indent", [RISK], offered())).toEqual({
+    const rows = estimate.items.map((each) =>
+      each.node_id === MILESTONE.node_id
+        ? { ...each, task: { ...each.task, is_milestone: false } }
+        : each,
+    ) as typeof estimate.items;
+    expect(moveOf("indent", [RISK], offered({ rows }))).toEqual({
       node_ids: [RISK.node_id],
-      parent_id: LEAF.node_id,
+      parent_id: MILESTONE.node_id,
       lock_version: 4,
     });
+    expect(moveOf("indent", [TRANSPORT], offered())).toEqual({
+      node_ids: [TRANSPORT.node_id],
+      parent_id: RELANCE.node_id,
+      lock_version: 4,
+    });
+    // Under the milestone just above it, the summary goes nowhere.
+    expect(moveOf("indent", [RISK], offered())).toBeUndefined();
   });
 
   it("puts a task after its parent, under the parent of that one", () => {
@@ -241,18 +264,15 @@ describe("the body of the move a gesture asks", () => {
 
   it("moves the group of a selection, the nodes that bear its rows, under the task above the first one [WF-PLA-0080-A]", () => {
     // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
-    // selection from RISK to MILESTONE holds the subordinates of RISK, which go with it.
-    const selection = estimate.items.slice(
-      estimate.items.indexOf(RISK),
-      estimate.items.indexOf(MILESTONE) + 1,
-    );
+    // selection from MILESTONE to RISK holds the subordinates of RISK, which go with it.
+    const selection = estimate.items.slice(estimate.items.indexOf(MILESTONE));
     expect(moveOf("indent", selection, offered())).toEqual({
-      node_ids: [RISK.node_id, MILESTONE.node_id],
+      node_ids: [MILESTONE.node_id, RISK.node_id],
       parent_id: LEAF.node_id,
       lock_version: 4,
     });
     expect(moveOf("outdent", selection, offered())).toEqual({
-      node_ids: [RISK.node_id, MILESTONE.node_id],
+      node_ids: [MILESTONE.node_id, RISK.node_id],
       parent_id: SUMMARY.parent_id,
       after_node_id: SUMMARY.node_id,
       lock_version: 4,
@@ -261,29 +281,32 @@ describe("the body of the move a gesture asks", () => {
 
   it("moves nothing that is not a run of siblings rank by rank, of one kind", () => {
     // Out of the order of the grid, under two parents, or a task and a line.
-    expect(moveOf("indent", [MILESTONE, RISK], offered())).toBeUndefined();
+    expect(moveOf("indent", [RISK, MILESTONE], offered())).toBeUndefined();
     expect(moveOf("outdent", [TRANSPORT, MILESTONE], offered())).toBeUndefined();
     expect(moveOf("up", [row("Affrètement"), MILESTONE], offered())).toBeUndefined();
   });
 
   it("moves a run by a rank: down after the sibling below the last, up by the sibling above the first going after the last", () => {
-    expect(moveOf("down", [LEAF, RISK], offered())).toEqual({
-      node_ids: [LEAF.node_id, RISK.node_id],
-      parent_id: SUMMARY.node_id,
-      after_node_id: MILESTONE.node_id,
-      lock_version: 4,
-    });
-    const run = estimate.items.slice(estimate.items.indexOf(LEAF), estimate.items.indexOf(RISK));
-    expect(moveOf("down", run, offered())).toEqual({
-      node_ids: [LEAF.node_id],
+    expect(moveOf("down", [LEAF, MILESTONE], offered())).toEqual({
+      node_ids: [LEAF.node_id, MILESTONE.node_id],
       parent_id: SUMMARY.node_id,
       after_node_id: RISK.node_id,
       lock_version: 4,
     });
-    expect(moveOf("up", [RISK, MILESTONE], offered())).toEqual({
+    const run = estimate.items.slice(
+      estimate.items.indexOf(LEAF),
+      estimate.items.indexOf(MILESTONE),
+    );
+    expect(moveOf("down", run, offered())).toEqual({
       node_ids: [LEAF.node_id],
       parent_id: SUMMARY.node_id,
       after_node_id: MILESTONE.node_id,
+      lock_version: 4,
+    });
+    expect(moveOf("up", [MILESTONE, RISK], offered())).toEqual({
+      node_ids: [LEAF.node_id],
+      parent_id: SUMMARY.node_id,
+      after_node_id: RISK.node_id,
       lock_version: 4,
     });
     // A line moves among the lines of its task: the last one has none below it.
@@ -297,18 +320,19 @@ describe("the body of the move a gesture asks", () => {
   });
 
   it("moves by a rank only where the grid shows the neighbour, of the kind of the run, and the kind moves", () => {
-    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
-    expect(moveOf("down", [LEAF], offered({ rows: withoutRisk }))).toBeUndefined();
-    expect(moveOf("up", [MILESTONE], offered({ rows: withoutRisk }))).toBeUndefined();
+    const withoutMilestone = estimate.items.filter((each) => each.node_id !== MILESTONE.node_id);
+    expect(moveOf("down", [LEAF], offered({ rows: withoutMilestone }))).toBeUndefined();
+    expect(moveOf("up", [RISK], offered({ rows: withoutMilestone }))).toBeUndefined();
     expect(moveOf("down", [LINE], offered({ lines: false }))).toBeUndefined();
     expect(moveOf("down", [LEAF], offered({ tasks: false }))).toBeUndefined();
   });
 
   it("asks nothing where the grid does not show the sibling above the first node, the one shown being farther [WF-PLA-0080-A]", () => {
-    const withoutRisk = estimate.items.filter((each) => each.node_id !== RISK.node_id);
-    // LEAF, rank 1, is shown above the milestone, rank 3: it is not the neighbour.
-    expect(moveOf("indent", [MILESTONE], offered({ rows: withoutRisk }))).toBeUndefined();
-    expect(moveOf("indent", [MILESTONE], offered())).toBeDefined();
+    const withoutRelance = estimate.items.filter((each) => each.node_id !== RELANCE.node_id);
+    // The sub-task of rank 1 is not shown above the one of rank 2, which would go under it: the
+    // risk occurred, of rank 3, shows the factory acceptance of rank 2 above it and bears nothing.
+    expect(moveOf("indent", [TRANSPORT], offered({ rows: withoutRelance }))).toBeUndefined();
+    expect(moveOf("indent", [TRANSPORT], offered())).toBeDefined();
   });
 
   it("asks nothing where the first node has no such place", () => {
@@ -321,7 +345,7 @@ describe("the body of the move a gesture asks", () => {
 describe("the nodes that bear a selection", () => {
   it("keeps those none of whose ancestors is selected, in the order of the grid", () => {
     const selection = estimate.items.slice(estimate.items.indexOf(LEAF));
-    expect(topsOf(selection, estimate.items)).toEqual([LEAF, RISK, MILESTONE]);
+    expect(topsOf(selection, estimate.items)).toEqual([LEAF, MILESTONE, RISK]);
     expect(topsOf([TRANSPORT, row("Affrètement")], estimate.items)).toEqual([TRANSPORT]);
   });
 });
@@ -346,7 +370,7 @@ describe("the body of the move of rows dropped", () => {
     expect(dropOf([TRANSPORT], RISK, "before", offered())).toEqual({
       node_ids: [TRANSPORT.node_id],
       parent_id: SUMMARY.node_id,
-      after_node_id: LEAF.node_id,
+      after_node_id: MILESTONE.node_id,
       lock_version: 4,
     });
     expect(dropOf([TRANSPORT], LEAF, "before", offered())).toMatchObject({
@@ -360,10 +384,12 @@ describe("the body of the move of rows dropped", () => {
   });
 
   it("drops nowhere the place would rest on a row left out, on the rows dropped or under them, or by another kind", () => {
-    const withoutLeaf = estimate.items.filter((each) => each.node_id !== LEAF.node_id);
-    expect(dropOf([TRANSPORT], RISK, "before", offered({ rows: withoutLeaf }))).toBeUndefined();
+    const withoutMilestone = estimate.items.filter((each) => each.node_id !== MILESTONE.node_id);
+    expect(
+      dropOf([TRANSPORT], RISK, "before", offered({ rows: withoutMilestone })),
+    ).toBeUndefined();
     // Where they stand already, under themselves, or a task before a line.
-    expect(dropOf([RISK], MILESTONE, "before", offered())).toBeUndefined();
+    expect(dropOf([MILESTONE], RISK, "before", offered())).toBeUndefined();
     expect(dropOf([RISK], TRANSPORT, "into", offered())).toBeUndefined();
     expect(dropOf([RISK], RISK, "before", offered())).toBeUndefined();
     expect(dropOf([TRANSPORT], LINE, "before", offered())).toBeUndefined();

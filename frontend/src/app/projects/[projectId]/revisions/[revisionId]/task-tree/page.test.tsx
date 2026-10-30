@@ -166,7 +166,7 @@ describe("the screen of the task tree", () => {
     server.answers = { ...server.answers, [NODES]: "nodes_core" };
     const page = await treeAt();
     expect(text(page)).toContain(
-      "Modernisation du poste de commande 1 Études 8 Poste de commande 13 Risque survenu",
+      "Modernisation du poste de commande 1 Études 8 Poste de commande 14 Risque survenu",
     );
     for (const absent of ["Réception des études", "Câblage des armoires", "Réception usine"]) {
       expect(text(page)).not.toContain(absent);

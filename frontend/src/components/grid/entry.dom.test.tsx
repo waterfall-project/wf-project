@@ -70,7 +70,8 @@ const TASK_ROW = rowOf("Câblage des armoires");
 const LABOUR = rowOf("Raccordement des borniers");
 const DISBURSEMENT = rowOf("Borniers");
 const PROVISION = rowOf("Provision — risque de reprise du câblage");
-const OCCURRED = rowOf("Risque survenu — Retard de livraison des armoires");
+// The row after the provision: the factory acceptance, a milestone.
+const ACCEPTANCE = rowOf("Réception usine");
 const nodeIdOf = (row: number) => estimate.items[row]?.node_id ?? "";
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -491,7 +492,7 @@ describe("the keyboard of a grid", () => {
     expect(cell(PROVISION, "payment_delay_days")).toHaveAttribute("aria-readonly", "true");
     await userEvent.keyboard("{Enter}{Tab}");
     // Nothing more to enter along the row: the next row, at the cell it was started from.
-    expect(cell(OCCURRED, "label")).toHaveFocus();
+    expect(cell(ACCEPTANCE, "label")).toHaveFocus();
     // Nothing was changed, nothing written.
     expect(written(client)).toEqual([]);
   });

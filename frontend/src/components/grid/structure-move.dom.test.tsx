@@ -54,6 +54,7 @@ const STRUCTURE = {
 const VERSION = 1;
 const estimate = example("nodes_estimate") as NodeList;
 const planning = example("nodes_planning") as NodeList;
+const core = example("nodes_core") as NodeList;
 
 /** The index of a row of a list, by its label. */
 function rowOf(list: NodeList, label: string): number {
@@ -61,6 +62,7 @@ function rowOf(list: NodeList, label: string): number {
 }
 const LEAF = rowOf(estimate, "Câblage des armoires");
 const RISK = rowOf(estimate, "Risque survenu — Retard de livraison des armoires");
+const RELANCE = rowOf(estimate, "Relance du fournisseur");
 const TRANSPORT = rowOf(estimate, "Transport exceptionnel");
 const REVIEW = rowOf(planning, "Revue de conception");
 const DESIGN = rowOf(planning, "Études de détail");
@@ -227,29 +229,33 @@ describe("the indentation of a task", () => {
 
   it("moves a summary alone, the server carrying its subordinates with it, on Alt+Shift+Right [WF-PLA-0080-A]", async () => {
     // Le groupe entier : a summary is named by its own identifier, its subordinates going with it.
+    // The whole structure shows « Poste de commande » after « Études », its sibling above.
     const client = serve({ [MOVE]: "nodes_indented" });
-    render(estimateGrid());
-    await activate(RISK);
+    render(estimateGrid(true, core));
+    const control = rowOf(core, "Poste de commande");
+    await activate(control);
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
     expect(moved(client)).toEqual([
       {
-        node_ids: [estimate.items[RISK]?.node_id],
-        parent_id: estimate.items[LEAF]?.node_id,
+        node_ids: [core.items[control]?.node_id],
+        parent_id: core.items[rowOf(core, "Études")]?.node_id,
         lock_version: VERSION,
       },
     ]);
-    expect(
-      await screen.findByText("« Risque survenu — Retard de livraison des armoires » indentée."),
-    ).toBeVisible();
+    expect(await screen.findByText("« Poste de commande » indentée.")).toBeVisible();
     expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("offers it to a task with a task above it under its parent, and to no other", async () => {
     serve({});
     render(estimateGrid());
-    const menu = await openMenu(RISK);
+    const menu = await openMenu(TRANSPORT);
     const item = within(menu).getByRole("menuitem", { name: "Indenter" });
     expect(item).toHaveAttribute("aria-keyshortcuts", "Alt+Shift+ArrowRight");
+    await userEvent.keyboard("{Escape}");
+    // The risk occurred follows the factory acceptance, a milestone, which bears nothing.
+    const risk = await openMenu(RISK);
+    expect(within(risk).queryByRole("menuitem", { name: "Indenter" })).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     // The first of its siblings has no task to go under.
     const first = await openMenu(LEAF);
@@ -258,13 +264,12 @@ describe("the indentation of a task", () => {
   });
 
   it("offers it only where the grid shows the sibling just above, as a reading narrowed leaves rows out [WF-PLA-0080-A]", async () => {
-    // « Réception usine » is the third sibling of its parent: the reading without « Risque survenu »
-    // shows « Câblage des armoires », the first, above it, which is not its neighbour; the whole
+    // « Transport exceptionnel » is the second sub-task of its parent: the reading without
+    // « Relance du fournisseur » shows no task above it, which is not its neighbour; the whole
     // reading shows the neighbour.
-    const milestone = rowOf(estimate, "Réception usine");
     const narrowed: NodeList = {
       ...estimate,
-      items: estimate.items.filter((each) => each.node_id !== estimate.items[RISK]?.node_id),
+      items: estimate.items.filter((each) => each.node_id !== estimate.items[RELANCE]?.node_id),
     };
     const client = serve({});
     const { unmount } = render(
@@ -282,7 +287,7 @@ describe("the indentation of a task", () => {
         />
       </NextIntlClientProvider>,
     );
-    const at = narrowed.items.findIndex((each) => each.task?.label === "Réception usine");
+    const at = narrowed.items.findIndex((each) => each.task?.label === "Transport exceptionnel");
     const menu = await openMenu(at);
     expect(within(menu).queryByRole("menuitem", { name: "Indenter" })).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
@@ -291,7 +296,7 @@ describe("the indentation of a task", () => {
     expect(client.calls).toEqual([]);
     unmount();
     render(estimateGrid());
-    const whole = await openMenu(milestone);
+    const whole = await openMenu(TRANSPORT);
     expect(within(whole).getByRole("menuitem", { name: "Indenter" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
   });
@@ -308,11 +313,11 @@ describe("the indentation of a task", () => {
   it("offers neither the menu item nor the key to a grid the structure lists read only", async () => {
     const client = serve({});
     render(estimateGrid(false));
-    const menu = await openMenu(RISK);
+    const menu = await openMenu(TRANSPORT);
     expect(within(menu).queryByRole("menuitem", { name: "Indenter" })).not.toBeInTheDocument();
     expect(within(menu).queryByRole("menuitem", { name: "Désindenter" })).not.toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
-    await activate(RISK);
+    await activate(TRANSPORT);
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
     expect(client.calls).toEqual([]);
   });
@@ -322,9 +327,9 @@ describe("the indentation of a task", () => {
     // answer of the first named.
     const client = serve({ [MOVE]: "nodes_indented" });
     render(estimateGrid());
-    await choose(RISK, "Indenter");
+    await choose(TRANSPORT, "Indenter");
     await screen.findByText(/indentée\.$/);
-    await choose(TRANSPORT, "Désindenter");
+    await choose(RELANCE, "Désindenter");
     const [first, second] = moved(client) as { lock_version: number }[];
     expect(first?.lock_version).toBe(VERSION);
     expect(second?.lock_version).toBeGreaterThan(VERSION);
@@ -366,7 +371,7 @@ describe("the indentation of a task", () => {
     await vi.waitFor(() => {
       expect(client.calls.filter((call) => call.route === REMAINING)).toHaveLength(1);
     });
-    await choose(RISK, "Indenter");
+    await choose(TRANSPORT, "Indenter");
     await screen.findByText(/indentée\.$/);
     expect(moved(client)).toMatchObject([{ lock_version: 3 }]);
   });
@@ -377,7 +382,7 @@ describe("the indentation of a task", () => {
     holdReading(router.refresh);
     serve({ [MOVE]: "nodes_indented" });
     const view = render(estimateGrid(), { wrapper: Reading });
-    await choose(RISK, "Indenter");
+    await choose(TRANSPORT, "Indenter");
     await screen.findByText(/indentée\.$/);
     await activate(LEAF);
     await act(async () => {
@@ -397,8 +402,8 @@ describe("the indentation of a task", () => {
     const hold = held();
     const client = serve({ [MOVE]: "nodes_indented" }, hold.until);
     render(estimateGrid());
-    await choose(RISK, "Indenter");
-    await activate(TRANSPORT);
+    await choose(TRANSPORT, "Indenter");
+    await activate(RELANCE);
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowLeft}{/Shift}{/Alt}");
     expect(moved(client)).toHaveLength(1);
     hold.release();
@@ -458,14 +463,14 @@ describe("the refusal of a move, said to the row in cause", () => {
     async (name, sentence, reads) => {
       const client = serve({ [MOVE]: refusal(name) });
       render(estimateGrid());
-      await choose(RISK, "Indenter");
+      await choose(TRANSPORT, "Indenter");
       expect(moved(client)).toHaveLength(1);
       const alert = await screen.findByRole("alert");
       expect(alert).toHaveTextContent(
-        `Refusé à la ligne ${String(estimate.items[RISK]?.row_number)}, « Risque survenu — Retard de livraison des armoires » :`,
+        `Refusé à la ligne ${String(estimate.items[TRANSPORT]?.row_number)}, « Transport exceptionnel » :`,
       );
       expect(alert).toHaveTextContent(sentence);
-      expect(labelAt(RISK)).toBeInvalid();
+      expect(labelAt(TRANSPORT)).toBeInvalid();
       // Nothing was written; a node to follow that is no sibling says the reading is stale, so
       // the grid is read anew, and the refusal stays told.
       expect(router.refresh).toHaveBeenCalledTimes(reads);
@@ -479,14 +484,14 @@ describe("the refusal of a move, said to the row in cause", () => {
       [MOVE]: { problem: example("nodes_move_completed_refused") as Problem & { status: 409 } },
     });
     render(estimateGrid());
-    await choose(RISK, "Indenter");
+    await choose(TRANSPORT, "Indenter");
     expect(moved(client)).toHaveLength(1);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      `Refusé à la ligne ${String(estimate.items[RISK]?.row_number)}, « Risque survenu — Retard de livraison des armoires » :`,
+      `Refusé à la ligne ${String(estimate.items[TRANSPORT]?.row_number)}, « Transport exceptionnel » :`,
     );
     expect(alert).toHaveTextContent("tâche non terminée");
-    expect(labelAt(RISK)).toBeInvalid();
+    expect(labelAt(TRANSPORT)).toBeInvalid();
     expect(readMessages().messages).toMatchObject([{ tone: "refusal" }]);
   });
 });

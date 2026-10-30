@@ -53,7 +53,7 @@ const MOUNTING = nested.items.findIndex(
   (node) => node.task?.label === "Montage des armoires sur site",
 );
 const COMMISSIONING = nested.items.findIndex((node) => node.task?.label === "Mise en service");
-// The nested tasks read anew without « Réception usine », the row just above the mounting: the
+// The nested tasks read anew without « Réception usine », a row above the mounting: the
 // mounting is one row up.
 const RECEPTION = nested.items.findIndex((node) => node.task?.label === "Réception usine");
 const withoutReception: NodeList = {
@@ -211,7 +211,7 @@ describe("a grid busy with any of its writes", () => {
     await userEvent.keyboard("{F2}");
     const field = within(screen.getByRole("treegrid")).getByRole("textbox");
     await userEvent.clear(field);
-    await userEvent.type(field, "19FD+2 j{Enter}");
+    await userEvent.type(field, "14FD+2 j{Enter}");
     const table = screen.getByRole("treegrid");
     await vi.waitFor(() => {
       expect(table).toHaveAttribute("aria-busy", "true");

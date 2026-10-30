@@ -549,8 +549,9 @@ describe("a block pasted from a spreadsheet", () => {
     const values = wiring.map(Number);
     expect(values).toEqual([...values].sort((a, b) => b - a));
     expect(amounts([2, 3, 4])).toEqual(wiring.map((amount) => formatMoney(amount ?? "", "fr")));
-    // The factory acceptance, a milestone of no amount, stays the last, as in the tree.
-    expect(cell(estimateSorted.items.length - 1, "label")).toHaveTextContent("Réception usine");
+    // The factory acceptance, a milestone of no amount, stays in its place after the wiring, as in
+    // the tree.
+    expect(cell(5, "label")).toHaveTextContent("Réception usine");
   });
 
   it("refuses a block from the line the sort of the estimate moved under its task, saying so, and takes one whose rows follow in the plan (#526)", async () => {

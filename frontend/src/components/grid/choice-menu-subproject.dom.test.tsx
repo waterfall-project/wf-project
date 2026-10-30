@@ -211,7 +211,7 @@ describe("the submenu « Sous-projet » of a line", () => {
       within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Refusé à la ligne 15,");
+    expect(alert).toHaveTextContent("Refusé à la ligne 16,");
     expect(alert).toHaveTextContent("Cette ligne ne peut pas quitter ce sous-projet");
     expect(alert).toHaveTextContent("Poste de commande");
     expect(sent(client, LINE)).toHaveLength(1);
