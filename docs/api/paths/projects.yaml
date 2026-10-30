@@ -343,7 +343,9 @@
       (`ProjectCommand`). Une sortie qui abandonne inscrit l'abandon de la révision et la sortie,
       sous une corrélation (`audit_events_exited`) ; une sortie qui marque, le marquage et la
       sortie. Après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se
-      lisent dans sa dernière révision marquée (WF-CYC-0090, WF-IND-0010).
+      lisent dans sa dernière révision marquée (WF-CYC-0090, WF-IND-0010). Une écriture du projet
+      comme les autres, elle porte son compteur lu (`ProjectExit.lock_version`, WF-IHM-0110) :
+      deux chefs de projet qui sortent le même projet ne sortent pas l'un sur l'autre.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -373,24 +375,42 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               marking: { $ref: ../../../fixtures/api/task_exit_mark_queued.json }
-      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '400':
+        description: >-
+          Un corps illisible, `MALFORMED_REQUEST` ; ou une sortie sans sa confirmation,
+          `confirmed` absent ou faux : `CONFIRMATION_REQUIRED`, sans paramètre, comme toute
+          opération irréversible que sa confirmation garde (WF-CYC-0090, WF-CYC-0080 ;
+          `startRestore`). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              unconfirmed: { $ref: ../../../fixtures/api/project_exit_unconfirmed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Sortie non permise depuis l'état courant (WF-CYC-0060, WF-CYC-0080), ou pendant un
-          traitement de fond qui écrit dans la révision en cours ou la fige, comme la commande le
-          dit (`no_background_task_running`). Ou un nom de version déjà employé par une révision
-          marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields` désignant
-          `/current_revision/version_name` par `ALREADY_EXISTS`,
+          La sortie demandée est indisponible : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui lui manque, dans l'ordre où la
+          commande de la sortie (`complete`, `lose`, `abandon`) les nomme — `project_not_terminal`
+          pour toute sortie d'un projet terminal, d'où aucune transition ne part (WF-CYC-0080),
+          que la commande y soit listée ou non ; puis `project_in_progress` pour `completed`
+          avant En cours, `project_in_pricing` pour `lost` hors de Chiffrage, Créé comme En cours
+          (WF-CYC-0060) ; puis `no_background_task_running` pendant un traitement de fond qui
+          écrit dans la révision en cours ou la fige. Ou un nom de version déjà employé par une
+          révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields`
+          désignant `/current_revision/version_name` par `ALREADY_EXISTS`,
           `fields[].params.conflicting_object_id` la révision qui le porte (WF-REV-0020). Rien
           n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
+              terminal: { $ref: ../../../fixtures/api/project_exit_terminal.json }
+              lost_in_progress: { $ref: ../../../fixtures/api/project_exit_lost_in_progress.json }
               version_name_taken: { $ref: ../../../fixtures/api/project_exit_version_name_taken.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : un projet qui porte une révision
@@ -643,6 +663,7 @@
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
           Code déjà employé dans ce projet (WF-PRJ-0050) : `ALREADY_EXISTS`, `fields` désignant
@@ -757,6 +778,14 @@
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/SubprojectId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          Le compteur du sous-projet supprimé, tel que l'écran l'a lu (`Subproject.lock_version`) :
+          périmé, la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110 ;
+          décision de l'auteur du 2026-10-28, US-0702/L2).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
         description: Sous-projet supprimé, retiré de la base (WF-DAT-0080).
@@ -794,6 +823,8 @@
               cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
               estimated: { $ref: ../../../fixtures/api/subproject_delete_estimated.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

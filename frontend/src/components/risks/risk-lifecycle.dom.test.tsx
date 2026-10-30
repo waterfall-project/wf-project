@@ -122,7 +122,7 @@ describe("« Supprimer le risque »", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("asks a confirmation, deletes the risk, and leaves its detail for the address without it", async () => {
+  it("asks a confirmation, deletes the risk, and leaves its detail for the address without it [WF-IHM-0110-A]", async () => {
     const client = serve({ [DELETE]: { status: 204 } });
     render(detail(UNCITED));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
@@ -141,6 +141,8 @@ describe("« Supprimer le risque »", () => {
     });
     expect(client.calls).toHaveLength(1);
     expect(client.calls[0]?.route).toBe(DELETE);
+    // The counter the risk was read at, which a concurrent write would have moved (WF-IHM-0110).
+    expect(client.calls[0]?.query.get("lock_version")).toBe(String(IDENTIFIED.lock_version));
     expect(client.calls[0]?.path).toBe(`/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}`);
     expect(router.push).toHaveBeenCalledWith(
       "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/r/risks",

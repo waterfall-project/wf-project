@@ -500,7 +500,9 @@
       WF-INTF-0130), que son import retiendra pour terminer une tâche (WF-INTF-0120). La
       révision nommée (`revision_id`, exigé) est celle dont la commande `export_*` juge
       l'export ; une révision inconnue ou d'un autre projet est refusée par 404, un corps sans
-      révision par 422.
+      révision par 422. Un export ne manque d'aucune condition — sur une révision marquée,
+      pendant un marquage, sur un projet terminal, il reste disponible (`RevisionCommand`,
+      WF-CYC-0110) — : il n'a pas de 409 (I-17, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -528,7 +530,6 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_of_another_project: { $ref: ../../../fixtures/api/export_revision_not_found.json }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant le champ en défaut : un corps sans révision,

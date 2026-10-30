@@ -237,7 +237,9 @@ CommandCondition:
     sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category`
     (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
     qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche
-    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795).
+    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795) ; et à la suppression d'une tâche qui
+    laisserait sans tâche une structure principale qui porte une ligne de provision, refusée en
+    nommant les risques (`deleteNode`, `params.risks`, WF-RIS-0010 ; H-05, US-0702/L2).
     `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
     fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
     offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).
@@ -303,6 +305,15 @@ CommandCondition:
     réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
     que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`,
     WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409.
+    `task_not_started` manque à la suppression d'une tâche démarrée ou terminée, ou d'une
+    récapitulative dont une subordonnée l'est : « Une tâche démarrée ou terminée ne peut pas être
+    supprimée » (WF-PLA-0070) ; on met à zéro son reste à engager. `deleteNode` la nomme dans son
+    409 ; aucune commande ne la dit d'avance, l'état de la tâche le montrant (`TaskFacet.progress` ;
+    F-04, US-0702/L2).
+    `task_succeeded` manque au téléchargement du résultat d'une tâche de fond qui n'a pas abouti —
+    en file, en cours ou en échec (`BackgroundTaskRef.status`) — : `getBackgroundTaskResult` la
+    nomme dans son 409 ; aucune commande ne la dit d'avance, l'état de la tâche le montrant
+    (WF-ARC-0090 ; A-05, US-0702/L2).
     Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme
     (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à
     la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
@@ -354,6 +365,7 @@ CommandCondition:
     - unmerged_amendment_exists
     - rate_update_available
     - task_not_completed
+    - task_not_started
     - line_not_provision
     - task_is_milestone
     - task_not_milestone
@@ -394,6 +406,7 @@ CommandCondition:
     - actual_cost_mapping_complete
     - undo_history_not_empty
     - redo_history_not_empty
+    - task_succeeded
 
 ProjectCommand:
   type: string
@@ -639,7 +652,7 @@ NextState:
 
 ProjectExit:
   type: object
-  required: [to_state, confirmed]
+  required: [to_state, confirmed, lock_version]
   description: >-
     Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné
     depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et
@@ -655,7 +668,9 @@ ProjectExit:
     confirmed:
       type: boolean
       const: true
-      description: 'Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090.'
+      description: >-
+        Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est
+        écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`).
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
@@ -667,6 +682,11 @@ ProjectExit:
         `VALIDATION_FAILED`, `fields` désignant `/current_revision` par `VALUE_REQUIRED`, et rien
         n'est écrit (`project_exit_revision_required`). Absent ou nul quand le projet n'en porte
         pas (D-01, US-0701/L9).
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du projet lu (`Project.lock_version`) : périmé, la sortie est refusée par 412
+        et rien n'est écrit (WF-IHM-0110 ; décision de l'auteur du 2026-10-28, US-0702/L2).
 
 CurrentRevisionFate:
   description: >-

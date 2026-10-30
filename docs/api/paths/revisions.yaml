@@ -90,12 +90,19 @@
           Une révision en cours existe déjà : `CURRENT_REVISION_EXISTS`, sans paramètre
           (WF-REV-0010). Une ouverture demandée depuis un écran lu avant qu'une autre ne
           l'ouvre — la première des deux écritures du squelette de planning sur un projet qui
-          n'en avait pas — reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4).
+          n'en avait pas — reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4). Ou
+          l'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal` sur un
+          projet terminal (WF-CYC-0100), puis à `no_background_task_running` pendant
+          l'application d'un import, le traitement d'une survenance ou la fusion d'un différentiel
+          de la dernière révision marquée, qui créent eux-mêmes la révision en cours (WF-REV-0010,
+          WF-INTF-0090 ; E-13, US-0702/L2). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               current_revision_exists: { $ref: ../../../fixtures/api/current_revision_exists.json }
+              background_task_running: { $ref: ../../../fixtures/api/revision_create_background_running.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -146,20 +153,44 @@
       survenu redevient identifié avec sa ligne de provision, sans coût à la survenance — seul
       l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060). Le libellé, la description et
       les actions de mitigation d'un risque qui reste sont des données du projet, que l'abandon
-      ne change pas (WF-RIS-0020). Refusé sur une
-      révision marquée (WF-DAT-0020). L'abandon est irréversible, hors de l'annulation : il ne
-      s'inscrit pas à l'historique que `undoLastChange` défait, la révision et ses lignes
-      n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa confirmation.
+      ne change pas (WF-RIS-0020). Refusé sur une révision marquée (WF-DAT-0020), et pendant un
+      traitement de fond qui court sur elle, comme sa commande `abandon` le dit. L'abandon est
+      irréversible, hors de l'annulation : il ne s'inscrit pas à l'historique que `undoLastChange`
+      défait, la révision et ses lignes n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa
+      confirmation. Il porte le compteur lu de la révision : une révision écrite depuis sa lecture
+      n'est pas abandonnée.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          Le compteur de la révision abandonnée, tel que l'écran l'a lu (`Revision.lock_version`) :
+          périmé, l'abandon est refusé par 412 et rien n'est supprimé (WF-IHM-0110 ; décision de
+          l'auteur du 2026-10-28, E-13, US-0702/L2).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
         description: Révision abandonnée.
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La commande `abandon` de la révision est indisponible : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle
+          les nomme — `revision_draft` sur une révision marquée, qui ne se modifie plus
+          (WF-DAT-0020), puis `no_background_task_running` pendant un marquage, une fusion, le
+          traitement d'une survenance ou l'application d'un import, qui écrivent dans la révision
+          ou la figent (E-13, US-0702/L2). Rien n'est supprimé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/revision_abandon_marked.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -203,11 +234,18 @@
         description: >-
           Nom de version déjà employé par une révision marquée du projet : `ALREADY_EXISTS`,
           `fields` désignant `/version_name` par `ALREADY_EXISTS`,
-          `fields[].params.conflicting_object_id` la révision qui le porte. Ou révision déjà
-          marquée (WF-REV-0020). Rien n'est écrit.
+          `fields[].params.conflicting_object_id` la révision qui le porte. Ou la commande `mark`
+          de la révision est indisponible : `STATE_FORBIDS_OPERATION`, `params.missing_condition`
+          la première condition qui lui manque, dans l'ordre où elle les nomme — `revision_draft`
+          sur une révision déjà marquée (WF-REV-0020, WF-DAT-0020), puis
+          `no_background_task_running` pendant un marquage qui court, une fusion, le traitement
+          d'une survenance ou l'application d'un import (E-12, US-0702/L2). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              version_name_taken: { $ref: ../../../fixtures/api/mark_version_name_taken.json }
+              revision_marked: { $ref: ../../../fixtures/api/mark_revision_marked.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -224,7 +262,9 @@
       référence ne se déplace plus qu'à la contractualisation d'un avenant (WF-REV-0040).
       Inscrite au journal d'audit (WF-SEC-0030). La
       désignation fait passer le projet à En cours si les conditions de WF-CYC-0030
-      sont réunies.
+      sont réunies. Une écriture du projet, elle porte son compteur lu
+      (`ReferenceDesignation.lock_version`, WF-IHM-0110) : deux désignations concurrentes ne
+      passent pas l'une sur l'autre, même quand aucune révision n'a été marquée entre elles.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -267,6 +307,7 @@
             examples:
               without_tasks: { $ref: ../../../fixtures/api/reference_without_tasks.json }
               not_correctable: { $ref: ../../../fixtures/api/reference_not_correctable.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -540,8 +581,11 @@
     summary: Ouvrir un différentiel
     description: >-
       Plusieurs différentiels peuvent coexister, et chacun est fusionné ou abandonné
-      indépendamment (WF-REV-0100). Le différentiel est une copie de la structure principale, sa
-      date de début de planning comprise (`CostStructure.planning_start_on`). Le devis propre d'un
+      indépendamment (WF-REV-0100). Le différentiel naît copie de la structure principale de sa
+      révision, sa date de début de planning comprise (`CostStructure.planning_start_on`) : à
+      sa création, chacun de ses nœuds est celui de la principale, `unchanged`
+      (`NodeDifference`, C-361), et la fusion n'y lit que ce qui a changé depuis (WF-REV-0050).
+      Le devis propre d'un
       risque naît avec lui (`createRisk`, WF-RIS-0030) et disparaît avec lui ; la structure
       principale existe dès la révision : ni l'un ni l'autre ne se crée ici.
     parameters:
@@ -564,7 +608,20 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La commande `create_structure` de la révision est indisponible :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui lui
+          manque — `revision_draft` sur une révision marquée, qui ne se modifie plus
+          (WF-DAT-0020), puis `no_background_task_running` pendant un marquage, une fusion, le
+          traitement d'une survenance ou l'application d'un import (WF-REV-0100 ; E-14,
+          US-0702/L2). Le libellé n'est pas unique : plusieurs différentiels coexistent, chacun
+          désigné par son identifiant. Rien n'est créé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/structure_create_revision_marked.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -770,14 +827,20 @@
           `may_create_revision`, après `unmerged_amendment_exists`, et la fusion est refusée de
           même, `params.missing_condition` à `may_create_revision` — un 409 et non un 403, comme
           pour les imports et `declare_risk`, la permission n'étant refusée que là où elle
-          créerait la révision (WF-REV-0050, WF-REV-0010). Le contrôle de l'état et le dépôt de
-          la tâche se font sous le verrou du projet, qui tient sa révision en cours.
+          créerait la révision (WF-REV-0050, WF-REV-0010). Ou un nom de version déjà employé par
+          une révision marquée du projet, comme pour `markRevision` : `ALREADY_EXISTS`, `fields`
+          désignant `/version_name` par `ALREADY_EXISTS`, `fields[].params.conflicting_object_id`
+          la révision qui le porte (WF-REV-0020) ; jugé au dépôt, rien n'est mis en file, et
+          aucune révision en cours n'est créée pour échouer au marquage (E-05, US-0702/L2). Le
+          contrôle de l'état et le dépôt de la tâche se font sous le verrou du projet, qui tient
+          sa révision en cours.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/merge_revision_marked_refused.json }
               may_create_revision: { $ref: ../../../fixtures/api/merge_may_create_revision_refused.json }
+              version_name_taken: { $ref: ../../../fixtures/api/merge_version_name_taken.json }
       '412':
         description: >-
           La structure principale ou le différentiel ont changé depuis le compte rendu confirmé —
@@ -1187,13 +1250,22 @@
     description: >-
       La suppression d'une tâche emporte ses lignes et ses liaisons (WF-PLA-0070, WF-DAT-0090) ;
       celle d'une récapitulative emporte aussi ses subordonnées, leurs lignes et leurs liaisons,
-      et le devis diminue d'autant (Vérif de WF-PLA-0070). Refusée sur une tâche portant un coût
-      réel ou déjà démarrée, selon WF-PLA-0070. Une récapitulative qui perd sa dernière
-      subordonnée devient une tâche feuille en mode automatique : elle prend pour durée celle
-      qu'elle calculait, conserve son état, ses lignes propres et son rattachement au lotissement
-      (WF-PLA-0170), et ses dates sont recalculées ; si cette durée est nulle, elle devient un
-      jalon, à l'état non démarré ou terminé qu'elle avait ; démarrée, elle prend une durée d'un
-      jour (WF-PLA-0040, WF-PLA-0160). Elle est rendue telle qu'elle devient dans `ancestors`,
+      et le devis diminue d'autant (Vérif de WF-PLA-0070). « Une tâche démarrée ou terminée ne
+      peut pas être supprimée » (WF-PLA-0070), ni une récapitulative dont une subordonnée l'est :
+      le refus nomme la condition, `task_not_started`, et l'écran renvoie à la mise à zéro de
+      son reste à engager (Vérif de WF-PLA-0070). Les lignes de provision que portent la tâche
+      supprimée et ses subordonnées ne sont pas emportées : elles passent sur la tâche parente
+      de la tâche supprimée ou, pour une tâche de premier niveau, sur la première tâche de premier
+      niveau restante, le total du devis inchangé (WF-PLA-0070, WF-RIS-0010) ; `nodes` les rend
+      écrites sous leur tâche nouvelle, `ancestors` cette tâche et ses ancêtres, et chaque risque
+      concerné voit sa tâche de provision (`Risk.provision_node_id`) et son compteur changer. La
+      suppression qui laisserait sans tâche une structure principale qui porte une ligne de
+      provision est refusée en nommant les risques (WF-RIS-0010). Une récapitulative qui perd sa
+      dernière subordonnée devient une tâche feuille en mode automatique : elle prend pour
+      durée celle qu'elle calculait, conserve son état, ses lignes propres et son rattachement
+      au lotissement (WF-PLA-0170), et ses dates sont recalculées ; si cette durée est nulle,
+      elle devient un jalon, à l'état non démarré ou terminé qu'elle avait ; démarrée, elle
+      prend une durée d'un jour (WF-PLA-0040, WF-PLA-0160). Elle est rendue telle qu'elle devient dans `ancestors`,
       ses `computed_fields` et `editable_fields` changés avec elle. Une écriture de grille
       comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la
       structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage
@@ -1218,18 +1290,37 @@
     responses:
       '200':
         description: >-
-          Nœud supprimé ; `nodes` est vide, les ancêtres et les totaux sont recalculés sans lui.
+          Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, écrites sous
+          leur tâche nouvelle (`provision_moved`), vide quand il n'en portait pas (`deleted`) ;
+          les ancêtres et les totaux sont recalculés sans lui.
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/NodesWritten }
             examples:
               deleted: { $ref: ../../../fixtures/api/node_deleted.json }
+              provision_moved: { $ref: ../../../fixtures/api/node_deleted_provision_moved.json }
               summary_deleted: { $ref: ../../../fixtures/api/node_summary_deleted.json }
               summary_emptied: { $ref: ../../../fixtures/api/node_summary_emptied.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La suppression est refusée, rien n'étant supprimé : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui manque — celles de la commande de
+          saisie du planning de la structure d'abord (`StructureCommand.edit_planning` :
+          `revision_draft`, `no_background_task_running`) ; puis `task_not_started` pour une
+          tâche démarrée ou terminée, ou une récapitulative dont une subordonnée l'est
+          (WF-PLA-0070) ; puis `at_least_one_task` pour la suppression qui laisserait sans tâche
+          une structure principale qui porte une ligne de provision, la ligne n'ayant plus de
+          tâche où se ranger, `params.risks` nommant chacun des risques dont elle porterait la
+          provision (WF-RIS-0010 ; F-04, H-05, US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              started: { $ref: ../../../fixtures/api/node_delete_started_refused.json }
+              last_provision_task: { $ref: ../../../fixtures/api/node_delete_last_provision_task_refused.json }
       '412':
         description: >-
           `STALE_LOCK_VERSION` : le nœud a été écrit depuis sa lecture, et rien n'est supprimé ;
@@ -1239,13 +1330,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               stale: { $ref: ../../../fixtures/api/node_delete_stale.json }
-      '422':
-        description: >-
-          `VALIDATION_FAILED`, `fields` sur `/query/lock_version` : le compteur manque ou n'est
-          pas un entier positif ou nul.
-        content:
-          application/problem+json:
-            schema: { $ref: ../components/common.yaml#/Problem }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1546,9 +1631,12 @@
           liaison entre une récapitulative et l'une de ses subordonnées, `LINK_FORBIDDEN`, sans
           paramètre (WF-PLA-0040) ; ou des liaisons qui porteraient la durée du projet au-delà de
           quinze ans, `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche saisie
-          (WF-PLA-0150) ; ou une valeur hors règle, `fields` la localisant, comme la réponse
-          commune `UnprocessableEntity` le dit. Le code nomme la raison, que la colonne des
-          prédécesseurs dit à sa cellule.
+          (WF-PLA-0150) ; ou un prédécesseur envoyé deux fois, une seconde liaison entre les
+          mêmes tâches, `VALIDATION_FAILED`, `fields` désignant chaque occurrence après la
+          première, `/predecessors/<n>/predecessor_node_id`, par `DUPLICATE_PREDECESSOR`
+          (WF-PLA-0030 ; F-03, US-0702/L2) ; ou une valeur hors règle, `fields` la localisant,
+          comme la réponse commune `UnprocessableEntity` le dit. Le code nomme la raison, que la
+          colonne des prédécesseurs dit à sa cellule.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1556,6 +1644,7 @@
               cycle_refused: { $ref: ../../../fixtures/api/predecessors_cycle_refused.json }
               forbidden: { $ref: ../../../fixtures/api/predecessors_forbidden.json }
               horizon_exceeded: { $ref: ../../../fixtures/api/predecessors_horizon_exceeded.json }
+              duplicate: { $ref: ../../../fixtures/api/predecessors_duplicate.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1749,18 +1838,35 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La commande de saisie du planning de la structure est indisponible
+          (`StructureCommand.edit_planning`, dont relève `task.tracking`) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` la première condition qui lui
+          manque — `revision_draft` sur une révision marquée (WF-DAT-0020), puis
+          `no_background_task_running` pendant un traitement de fond qui écrit dans la révision
+          ou la fige (F-11, US-0702/L2). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              revision_marked: { $ref: ../../../fixtures/api/node_tracking_marked_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
           Refusé, rien n'étant écrit : le suivi temps/temps d'une tâche qui n'est pas un jalon,
           `VALIDATION_FAILED`, `fields` sur `/entries/<n>/kind`, motif `MILESTONE_REQUIRED`
-          (WF-PLA-0060, #1159) ; ou une valeur hors règle, `fields` la localisant, comme la réponse
-          commune `UnprocessableEntity` le dit.
+          (WF-PLA-0060, #1159) ; une entrée `timeline` sans chronologie, `/entries/<n>/timeline_id`
+          par `VALUE_REQUIRED`, ou dont la chronologie n'est pas du projet, par `UNKNOWN_TIMELINE`
+          (WF-PLA-0140 ; F-11, US-0702/L2) ; ou une valeur hors règle, `fields` la localisant,
+          comme la réponse commune `UnprocessableEntity` le dit (`TrackingEntry`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               milestone_refused: { $ref: ../../../fixtures/api/node_tracking_milestone_refused.json }
+              timeline_required: { $ref: ../../../fixtures/api/node_tracking_timeline_required.json }
+              timeline_unknown: { $ref: ../../../fixtures/api/node_tracking_timeline_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

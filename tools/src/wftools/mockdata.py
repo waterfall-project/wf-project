@@ -60,7 +60,8 @@ the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the re
 witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2);
 and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
-``wftools.mockrefusals`` (US-0702/L1).
+``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
+a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -94,6 +95,7 @@ from wftools import (
     mockcore,
     mockcosts,
     mockcycle,
+    mockdeclared,
     mockexchanges,
     mockgestures,
     mockhistory,
@@ -305,7 +307,8 @@ def named() -> dict[str, JsonObject]:
     reference written by hand (``mockreference``), and those of the projects, the subprojects
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
-    (``mockproject``); the refusals of one form each (``mockrefusals``).
+    (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
+    declared without a code, a condition nor an example (``mockdeclared``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -331,6 +334,7 @@ def named() -> dict[str, JsonObject]:
         **mockanonymized.examples(),
         **mockproject.examples(),
         **mockrefusals.examples(),
+        **mockdeclared.examples(),
     }
 
 

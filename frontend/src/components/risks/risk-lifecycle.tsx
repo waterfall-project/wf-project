@@ -63,7 +63,7 @@ export function DeleteRisk({
       submit={t("submit")}
       names={{}}
       subject={risk.label}
-      run={() => deleteRisk(projectId, risk.risk_id)}
+      run={() => deleteRisk(projectId, risk.risk_id, risk.lock_version)}
       done={() => t("done", { name: risk.label })}
       onDone={() => {
         router.push(href);

@@ -71,6 +71,15 @@ PreconditionFailed:
     application/problem+json:
       schema: { $ref: common.yaml#/Problem }
 
+LockVersionInvalid:
+  description: >-
+    Une suppression sans corps dont le compteur, passé en paramètre, manque ou n'est pas un entier
+    positif ou nul : `VALIDATION_FAILED`, `fields` sur `/query/lock_version`, et rien n'est
+    supprimé (WF-IHM-0110 ; US-0702/L2).
+  content:
+    application/problem+json:
+      schema: { $ref: common.yaml#/Problem }
+
 PayloadTooLarge:
   description: Fichier déposé au-delà de la taille admise (WF-CMP-0020, §4.6.2).
   content:

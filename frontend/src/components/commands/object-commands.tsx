@@ -71,6 +71,7 @@ export function LifecycleCommands({ project }: { readonly project: Project }) {
               key={project.project_id}
               exits={exits}
               projectId={project.project_id}
+              lockVersion={project.lock_version}
               hasCurrentRevision={project.current_revision_id != null}
               names={{ [project.project_id]: project.label }}
             />,
@@ -138,7 +139,12 @@ function RevisionCommandItem({
     return (
       <AbandonCommand
         offer={offer}
-        revision={{ projectId: revision.project_id, revisionId: revision.revision_id, name }}
+        revision={{
+          projectId: revision.project_id,
+          revisionId: revision.revision_id,
+          name,
+          lockVersion: revision.lock_version,
+        }}
         names={names}
       />
     );

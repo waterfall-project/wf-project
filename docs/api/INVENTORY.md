@@ -22,7 +22,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/system/status` | Écran d'état du système | WF-ADM-0100, WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
 | GET | `/tasks` | Tâches de fond de l'appelant | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
-| GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-ARC-0040, WF-DAT-0120 |
+| GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-ARC-0040, WF-ARC-0090, WF-DAT-0120 |
 
 ## Compte courant, préférences et avatar
 
@@ -98,7 +98,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/reference/readiness` | Référentiel minimal exigé pour créer un projet | WF-CYC-0120, WF-EXP-0020, WF-RIS-0010 |
 | GET | `/reference/settings` | Devise, nom de l'entreprise, langue, matrice de risques, seuils et délai de revue | WF-EXP-0020, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
 | PATCH | `/reference/settings` | Régler les paramètres communs | WF-ADM-0100, WF-EXP-0020, WF-INTF-0160, WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180 |
-| GET | `/reference/org-nodes` | Arbre d'organisation | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080 |
+| GET | `/reference/org-nodes` | Arbre d'organisation | WF-ADM-0100, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0070, WF-REF-0080, WF-REF-0150 |
 | POST | `/reference/org-nodes` | Créer un nœud d'organisation | WF-REF-0070, WF-REF-0080 |
 | PATCH | `/reference/org-nodes/{org_node_id}` | Modifier un nœud d'organisation | WF-REF-0070, WF-REF-0080, WF-REF-0130 |
 | PUT | `/reference/org-nodes/{org_node_id}/activation` | Désactiver ou réactiver un nœud | WF-ADM-0100, WF-REF-0010, WF-REF-0080 |
@@ -108,12 +108,12 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PUT | `/reference/resource-roles/{resource_role_id}/activation` | Désactiver ou réactiver un rôle de ressource | WF-ADM-0100, WF-REF-0010, WF-REF-0020, WF-REF-0080 |
 | GET | `/reference/duration-units` | Constantes de conversion des unités de durée | WF-PLA-0160 |
 | PUT | `/reference/duration-units` | Régler les constantes de conversion des unités de durée | WF-ADM-0100, WF-PLA-0160, WF-REF-0130 |
-| GET | `/reference/calendars` | Calendriers | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0110, WF-REF-0120 |
+| GET | `/reference/calendars` | Calendriers | WF-ADM-0100, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0110, WF-REF-0120, WF-REF-0150 |
 | POST | `/reference/calendars` | Créer un calendrier | WF-REF-0110 |
 | PATCH | `/reference/calendars/{calendar_id}` | Modifier un calendrier | WF-REF-0110, WF-REF-0130 |
 | PUT | `/reference/calendars/{calendar_id}/default` | Désigner le calendrier par défaut | WF-ADM-0100, WF-PLA-0010, WF-REF-0120 |
 | PUT | `/reference/calendars/{calendar_id}/activation` | Désactiver ou réactiver un calendrier | WF-ADM-0100, WF-REF-0010, WF-REF-0120 |
-| GET | `/reference/cost-types` | Natures de coût | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
+| GET | `/reference/cost-types` | Natures de coût | WF-ADM-0100, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-REF-0030, WF-REF-0150 |
 | POST | `/reference/cost-types` | Créer une nature de coût | WF-REF-0030 |
 | PATCH | `/reference/cost-types/{cost_type_id}` | Modifier une nature de coût | WF-REF-0030, WF-REF-0130 |
 | PUT | `/reference/cost-types/{cost_type_id}/activation` | Désactiver ou réactiver une nature de coût | WF-ADM-0100, WF-CYC-0120, WF-REF-0010, WF-REF-0020, WF-REF-0030, WF-RIS-0010 |
@@ -139,7 +139,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0080, WF-PRJ-0090 |
 | GET | `/projects/{project_id}/state-transitions` | Historique daté des états | WF-CYC-0090, WF-CYC-0130, WF-PTF-0050 |
 | GET | `/projects/{project_id}/next-state` | Prochain état, déclencheur et conditions restantes | WF-CYC-0020, WF-CYC-0030, WF-CYC-0050, WF-CYC-0060, WF-PRJ-0010 |
-| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-ARC-0090, WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-IND-0010, WF-PRJ-0060, WF-REV-0020, WF-SEC-0030 |
+| POST | `/projects/{project_id}/exit` | Sortie manuelle du cycle de vie | WF-ARC-0090, WF-CYC-0060, WF-CYC-0080, WF-CYC-0090, WF-CYC-0130, WF-IHM-0110, WF-IND-0010, WF-PRJ-0060, WF-REV-0020, WF-SEC-0030 |
 | GET | `/projects/{project_id}/work-breakdown` | Lotissement | WF-IHM-0060, WF-IHM-0130, WF-PLA-0170, WF-PRJ-0020 |
 | PUT | `/projects/{project_id}/work-breakdown` | Saisir le lotissement | WF-DAT-0080, WF-IHM-0080, WF-IHM-0090, WF-IHM-0110, WF-PLA-0170, WF-PRJ-0020 |
 | GET | `/projects/{project_id}/subprojects` | Sous-projets | WF-IHM-0060, WF-IHM-0090, WF-IHM-0130, WF-PRJ-0050 |
@@ -164,19 +164,19 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Marquer la révision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-SEC-0030 |
-| PUT | `/projects/{project_id}/reference-revision` | Désigner la révision de référence | WF-CYC-0030, WF-REV-0040, WF-SEC-0030 |
+| PUT | `/projects/{project_id}/reference-revision` | Désigner la révision de référence | WF-CYC-0030, WF-IHM-0110, WF-REV-0040, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Écart de taux proposé, catégorie par catégorie | WF-REV-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/rate-update` | Appliquer la mise à jour des taux | WF-DAT-0020, WF-REF-0130, WF-REV-0060 |
 | GET | `/projects/{project_id}/revisions/comparison` | Comparer deux révisions marquées | WF-DAT-0030, WF-IHM-0130, WF-REV-0080 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures` | Structures de coûts de la révision | WF-DEV-0050, WF-IHM-0090, WF-RAE-0040, WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Ouvrir un différentiel | WF-REV-0100, WF-RIS-0030 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures` | Ouvrir un différentiel | WF-REV-0050, WF-REV-0100, WF-RIS-0030 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modifier la date de début de planning et le libellé d'une structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-IHM-0040, WF-PLA-0010, WF-PRJ-0050, WF-RIS-0010 |
@@ -251,7 +251,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-CRE-0020, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
-| POST | `/projects/{project_id}/exports` | Demander un export | WF-ARC-0040, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
+| POST | `/projects/{project_id}/exports` | Demander un export | WF-ARC-0040, WF-CYC-0110, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
 
 ## Portefeuille
 

@@ -112,7 +112,12 @@
       Une ligne exclue reste consultable et n'entre dans aucun indicateur ; l'exclusion
       est conservée lors des imports ultérieurs, même quand les périodes se recouvrent
       (WF-CRE-0030). L'exclusion est une action irréversible au sens du journal d'audit
-      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100).
+      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100). Une écriture sans compteur,
+      par exception à la règle de `lock_version` (README, « Conventions ») : le `PUT` idempotent
+      pose l'état visé, exclue ou suivie, sans dépendre d'aucune autre valeur de la ligne, si
+      bien que deux requêtes concurrentes ne peuvent que donner le même état ou le dernier
+      demandé, et le rejouer ne change rien ; il n'a ni `lock_version` ni 412 (« Un état est une ressource », DECISIONS.md ; décision de l'auteur
+      du 2026-10-28, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/CostLineId
@@ -134,6 +139,18 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La commande `exclude_cost_lines` du projet est indisponible : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle les
+          nomme — `project_not_terminal` sur un projet terminal, dont les coûts réels sont en
+          lecture seule (WF-CYC-0100), `project_in_progress` avant En cours (WF-CRE-0030) ; I-06,
+          US-0702/L2. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              project_terminal: { $ref: ../../../fixtures/api/actual_cost_scope_terminal.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

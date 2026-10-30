@@ -252,7 +252,9 @@
       téléchargement : il est supprimé à l'issue de son premier téléchargement complet, ou au
       terme de vingt-quatre heures s'il n'a pas été téléchargé ; un téléchargement interrompu le
       laisse en place, et se reprend (WF-DAT-0120, WF-ARC-0040). Un résultat supprimé — déjà
-      téléchargé jusqu'au bout, ou expiré — est un 404, et la tâche rend alors `result_url` nul.
+      téléchargé jusqu'au bout, ou expiré — est un 404, et la tâche rend alors `result_url` nul ;
+      de même une tâche qui ne produit pas de fichier, comme un marquage. Une tâche qui n'a pas
+      abouti n'a pas encore de résultat : 409 (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/TaskId
     responses:
@@ -283,6 +285,15 @@
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La tâche n'a pas abouti — en file, en cours ou en échec (`BackgroundTaskRef.status`) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_succeeded` (WF-ARC-0090 ;
+          A-05, US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_succeeded: { $ref: ../../../fixtures/api/task_result_not_succeeded.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

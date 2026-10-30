@@ -424,7 +424,7 @@ describe("the creation and the modification of a sub-project", () => {
 });
 
 describe("the deletion of a sub-project", () => {
-  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing", async () => {
+  it("deletes a sub-project once confirmed, saying which ones never delete, and takes its row away; cancelled, asks nothing [WF-IHM-0110-A]", async () => {
     const client = serve();
     render(list(AVAILABLE, DELETABLE));
     const command = within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" });
@@ -452,6 +452,8 @@ describe("the deletion of a sub-project", () => {
         body: undefined,
       },
     ]);
+    const deleted = client.calls.find((call) => call.route === DELETE);
+    expect(deleted?.query.get("lock_version")).toBe(String(CREATED.lock_version));
     expect(within(grid()).queryByText("SP-REC")).toBeNull();
     expect(announced()).toContain("« SP-REC » supprimé.");
     // Noted once in the history of the messages, about the sub-project it names.

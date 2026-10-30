@@ -270,8 +270,9 @@ by = "make fixtures"
 # projects, the subprojects, the contributors, the accounts, the access roles, the work
 # breakdown and the backups (wftools.mocklists), and the exit of the witness, its code refused and
 # its readings by the quality of its reader (wftools.mockproject, held by
-# tools/tests/test_mockexit.py), and the refusals of one form each (wftools.mockrefusals, held by
-# tools/tests/test_mockrefusals.py).
+# tools/tests/test_mockexit.py), the refusals of one form each (wftools.mockrefusals, held by
+# tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
+# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -315,6 +316,7 @@ paths = [
     "fixtures/api/estimate_line_subproject_changed.json",
     "fixtures/api/estimate_line_subproject_has_actual_costs.json",
     "fixtures/api/node_deleted.json",
+    "fixtures/api/node_deleted_provision_moved.json",
     "fixtures/api/node_delete_stale.json",
     "fixtures/api/predecessor_set.json",
     "fixtures/api/task_started.json",
@@ -525,6 +527,26 @@ paths = [
     "fixtures/api/resource_role_calendar_unknown.json",
     "fixtures/api/import_actual_costs_wbs_invalid.json",
     "fixtures/api/import_remaining_ambiguous_label.json",
+    "fixtures/api/project_exit_terminal.json",
+    "fixtures/api/project_exit_lost_in_progress.json",
+    "fixtures/api/project_exit_unconfirmed.json",
+    "fixtures/api/mark_revision_marked.json",
+    "fixtures/api/mark_version_name_taken.json",
+    "fixtures/api/merge_version_name_taken.json",
+    "fixtures/api/revision_abandon_marked.json",
+    "fixtures/api/structure_create_revision_marked.json",
+    "fixtures/api/revision_create_background_running.json",
+    "fixtures/api/predecessors_duplicate.json",
+    "fixtures/api/node_delete_started_refused.json",
+    "fixtures/api/node_delete_last_provision_task_refused.json",
+    "fixtures/api/node_tracking_marked_refused.json",
+    "fixtures/api/node_tracking_timeline_required.json",
+    "fixtures/api/node_tracking_timeline_unknown.json",
+    "fixtures/api/actual_cost_scope_terminal.json",
+    "fixtures/api/task_result_not_succeeded.json",
+    "fixtures/api/org_nodes_inactive_forbidden.json",
+    "fixtures/api/calendars_inactive_forbidden.json",
+    "fixtures/api/cost_types_inactive_forbidden.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",
