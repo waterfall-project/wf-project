@@ -331,6 +331,7 @@ def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancest
                 expected.add(at)
                 at = by_id[at]["parent_id"]
     assert items == [node for node in whole["items"] if node["node_id"] in expected]
+    assert read["meta"] == whole["meta"]
     for node in items:
         assert node["parent_id"] is None or node["parent_id"] in expected
         if node["difference"] not in asked:
@@ -369,9 +370,10 @@ def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancest
     for entry in read["amount_deltas"]:
         if entry["dimension"] == "subproject":
             key = entry["key"]
-            assert Decimal(entry["reestimated_delta"]) == retained(
-                reference, "reestimated", key
-            ) - retained(offer, "reestimated", key)
+            for field in ("budgeted", "reestimated"):
+                assert Decimal(entry[f"{field}_delta"]) == retained(
+                    reference, field, key
+                ) - retained(offer, field, key)
 
 
 def test_the_example_of_the_differences_reads_the_additions_and_withdrawals_alone() -> None:
