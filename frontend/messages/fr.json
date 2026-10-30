@@ -221,6 +221,7 @@
       "retention": "Conservation",
       "download": "Téléchargement",
       "restore": "Restauration",
+      "resendInvitation": "Renvoi du courriel",
       "passwordLink": "Lien de fixation"
     },
     "computed": "Calculé",
@@ -1154,6 +1155,9 @@
     "deleteSubproject": {
       "help": "Supprime le sous-projet, après confirmation."
     },
+    "resend_invitation": {
+      "help": "Fait renvoyer par le fournisseur d’identité le courriel qui porte le lien de fixation du mot de passe d’un compte local."
+    },
     "password_link": {
       "help": "Donne le lien par lequel le titulaire du compte fixe son mot de passe."
     },
@@ -1443,6 +1447,9 @@
       },
       "state": {
         "help": "État du compte : un compte désactivé reste listé, mais ne peut plus se connecter."
+      },
+      "resend_invitation": {
+        "help": "Courriel du lien par lequel le titulaire d’un compte local fixe son mot de passe, renvoyé par le fournisseur d’identité."
       },
       "password_link": {
         "help": "Lien par lequel le titulaire d’un compte local fixe son mot de passe."
@@ -2238,6 +2245,12 @@
       "rolesOf": "Rôles de « {name} »",
       "rolesAttributed": "Rôles de « {name} » attribués.",
       "link": "Lien",
+      "resend": "Courriel",
+      "resent": "Courriel de fixation du mot de passe renvoyé à « {name} ».",
+      "resendUnsent": "Aucun courriel n’a pu partir pour « {name} » : remettez-lui le lien de fixation par un autre canal, avec la commande « Lien ».",
+      "resend_invitation": {
+        "command": "Renvoyer le courriel de fixation du mot de passe de « {name} »"
+      },
       "password_link": {
         "command": "Lien de fixation du mot de passe de « {name} »",
         "title": "Lien de fixation du mot de passe de « {name} »",
@@ -2259,6 +2272,13 @@
     },
     "identitySync": {
       "title": "Lecture des comptes du fournisseur d’identité",
+      "schedule": {
+        "title": "Périodicité de la lecture",
+        "modify": "Modifier la périodicité",
+        "hint": "La périodicité s’enregistre entière. L’heure et le jour s’entendent en temps universel (UTC). Une lecture en cours n’est pas interrompue : le réglage vaut dès la suivante.",
+        "weekdayNote": "Pour une lecture hebdomadaire seulement.",
+        "saved": "Périodicité enregistrée."
+      },
       "start": "Lire les comptes",
       "none": "Aucune lecture des comptes n’a encore abouti.",
       "finished": "Dernière lecture achevée le <time></time>.",
@@ -2326,6 +2346,18 @@
       "unavailable": "Indisponible",
       "checkedAt": "Dernière vérification",
       "componentVersion": "Version",
+      "parameters": {
+        "title": "Paramètres d’exploitation",
+        "cacheValidity": "Durée de validité du cache",
+        "taskRetention": "Rétention du résultat d’une tâche de fond",
+        "avatarMax": "Taille maximale d’un avatar",
+        "queueAge": "Attente de tâche en file déclenchant l’alerte",
+        "storageUsage": "Taux d’occupation du stockage déclenchant l’alerte",
+        "errorRate": "Taux d’erreur déclenchant l’alerte",
+        "errorWindow": "Fenêtre de mesure du taux d’erreur",
+        "seconds": "{count, plural, one {# seconde} other {# secondes}}",
+        "days": "{count, plural, one {# jour} other {# jours}}"
+      },
       "storage": "Espace de stockage",
       "used": "Utilisé",
       "free": "Disponible",
@@ -2472,6 +2504,11 @@
         "renamed": "Auparavant « {label} »",
         "rolesGranted": "{count, plural, one {Rôle donné} other {Rôles donnés}} : {roles}",
         "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
+        "toState": "Sortie vers : {state}",
+        "reason": "Motif : {reason}",
+        "backupTakenAt": "Sauvegarde restaurée du <time></time>",
+        "backupTakenAfter": "{first} ; Sauvegarde restaurée du <time></time>",
+        "importKind": "Import : {kind}",
         "then": "{first} ; {second}"
       },
       "filters": {

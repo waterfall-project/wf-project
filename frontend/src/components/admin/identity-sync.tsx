@@ -6,7 +6,8 @@
  * administrator or by the platform at its interval — the accounts created, updated, deactivated,
  * those whose identity it gave back to the provider, the local accounts it removes from it, and what
  * it left as it was, each with its motive, a sentence of the catalogue of the codes of error —; and,
- * for a session that may modify the accounts (`users.write`), the command that asks a new one.
+ * for a session that may modify the accounts (`users.write`), the command that asks a new one; and
+ * the periodicity of the reading (`getIdentitySyncSchedule`), which the same session sets.
  *
  * The reading is the worker's (WF-ARC-0090): the command gives the hand back as soon as the task is
  * queued, and hands it over to the tracker of the shell, which follows it to its end and announces
@@ -28,6 +29,7 @@ import { type ReactNode, useId, useState } from "react";
 import { startIdentitySync } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { IdentitySyncScheduleSection } from "@/components/admin/identity-sync-schedule";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName } from "@/components/account/anonymized-name";
 import { useHeldCommand } from "@/components/commands/held";
@@ -38,6 +40,9 @@ import { Button } from "@/components/ui/button";
 
 /** The report of a reading of the accounts, as the contract gives it. */
 export type IdentitySyncReport = components["schemas"]["IdentitySyncReport"];
+
+/** The periodicity of the reading, as the contract gives it. */
+type IdentitySyncSchedule = components["schemas"]["IdentitySyncSchedule"];
 
 /** What a reading left as it was: an account of Waterfall, or a person of the provider. */
 type Skipped = components["schemas"]["IdentitySyncSkipped"];
@@ -224,11 +229,14 @@ function StartIdentitySync() {
  */
 export function IdentitySync({
   report,
+  schedule,
   startable,
 }: {
   /** The report of the last reading that ended; none yet. */
   readonly report: IdentitySyncReport | undefined;
-  /** Whether the session may modify the accounts (`platformOffer`): the command is offered. */
+  /** The periodicity of the reading; none where the service does not serve it yet (404, EP-04). */
+  readonly schedule: IdentitySyncSchedule | undefined;
+  /** Whether the session may modify the accounts (`platformOffer`): the commands are offered. */
   readonly startable: boolean;
 }) {
   const t = useTranslations("admin.identitySync");
@@ -242,6 +250,9 @@ export function IdentitySync({
         <p className="text-muted-foreground">{t("none")}</p>
       ) : (
         <Report report={report} />
+      )}
+      {schedule === undefined ? null : (
+        <IdentitySyncScheduleSection schedule={schedule} editable={startable} />
       )}
     </section>
   );

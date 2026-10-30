@@ -62,14 +62,26 @@ const PASSWORD_FIELD =
   /type[\s=:{]*["'`]password["'`]|autoComplete[\s=:{]*["'`](?:current|new)-password/i;
 // The texts of a password, in either language.
 const PASSWORD_TEXT = /mot de passe|password/i;
-// The one element of authentication a screen may show: the link that sets a password.
-const SETUP_LINK = /password_link|password-link/;
+// The one element of authentication a screen may show: the link that sets a password, and the email
+// that carries it again to its holder, whom the administrator may have it sent to (`resendInvitation`,
+// WF-ADM-0140). The texts of that email are named by their exact keys, never by a pattern that a
+// text about a password could slip through.
+const SETUP_LINK = new RegExp(
+  [
+    "password_link",
+    "password-link",
+    String.raw`^admin\.users\.resend_invitation\.command$`,
+    String.raw`^admin\.users\.resent$`,
+    String.raw`^commands\.resend_invitation\.help$`,
+    String.raw`^columns\.users\.resend_invitation\.help$`,
+  ].join("|"),
+);
 // What would set up a directory, or the federation of one: LDAP, its binding, the provider itself.
 const DIRECTORY_SETUP =
   /ldap|federat|f[ée]d[ée]ration|bind dn|identity[-_]provider|realm|keycloak/i;
 
 describe("the password, which the identity provider asks for", () => {
-  it("is asked for, shown and typed on no screen of Waterfall: no field of a password, no text but the link that sets it [WF-ADM-0140-A]", () => {
+  it("is asked for, shown and typed on no screen of Waterfall: no field of a password, no text but the link that sets it and the email that carries it again [WF-ADM-0140-A]", () => {
     const fields = modules().filter((path) => PASSWORD_FIELD.test(readFileSync(path, "utf8")));
     expect(fields.map((path) => relative(SOURCES, path))).toEqual([]);
     for (const [language, catalogue] of Object.entries(CATALOGUES)) {

@@ -34,6 +34,7 @@ import { useId, useRef, useState, useTransition } from "react";
 import { setBackupSchedule, testExternalBackupLocation } from "@/api/actions/backups";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
+import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
@@ -66,17 +67,6 @@ const EVERY_FREQUENCY: Readonly<Record<Frequency, number>> = { daily: 0, weekly:
 
 /** The frequencies a schedule may have, in the order of the contract. */
 const FREQUENCIES = Object.keys(EVERY_FREQUENCY) as readonly Frequency[];
-
-/** The days of a weekly schedule, from 1, Monday, as the contract numbers them (ISO 8601). */
-const WEEKDAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const;
 
 /** The fields of the form, by the pointer of the contract each writes, without its first slash. */
 const ENABLED = "is_enabled";
@@ -351,15 +341,6 @@ interface Opened {
   readonly schedule: BackupSchedule;
   readonly at: Date;
   readonly opening: number;
-}
-
-/**
- * The first day from the one given, by the universal calendar, that falls on a day of the week
- * numbered as the contract does (1, Monday, to 7, Sunday): where a weekly time is taken this week.
- */
-function nextWeekday(from: Date, weekday: number): Date {
-  const today = from.getUTCDay() === 0 ? 7 : from.getUTCDay();
-  return new Date(from.getTime() + ((weekday - today + 7) % 7) * 86_400_000);
 }
 
 /**

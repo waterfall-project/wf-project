@@ -221,6 +221,7 @@
       "retention": "Retention",
       "download": "Download",
       "restore": "Restoration",
+      "resendInvitation": "Resend email",
       "passwordLink": "Setup link"
     },
     "computed": "Computed",
@@ -1154,6 +1155,9 @@
     "deleteSubproject": {
       "help": "Deletes the sub-project, after confirmation."
     },
+    "resend_invitation": {
+      "help": "Has the identity provider send again the email that carries the password setup link of a local account."
+    },
     "password_link": {
       "help": "Gives the link by which the account holder sets a password."
     },
@@ -1443,6 +1447,9 @@
       },
       "state": {
         "help": "State of the account: a deactivated account stays listed, but can no longer sign in."
+      },
+      "resend_invitation": {
+        "help": "Email of the link by which the holder of a local account sets its password, sent again by the identity provider."
       },
       "password_link": {
         "help": "Link by which the holder of a local account sets their password."
@@ -2238,6 +2245,12 @@
       "rolesOf": "Roles of “{name}”",
       "rolesAttributed": "Roles of “{name}” attributed.",
       "link": "Link",
+      "resend": "Email",
+      "resent": "Password setup email sent again to “{name}”.",
+      "resendUnsent": "No email could be sent to “{name}”: hand over the setup link by another channel, with the “Link” command.",
+      "resend_invitation": {
+        "command": "Resend the password setup email of “{name}”"
+      },
       "password_link": {
         "command": "Link to set the password of “{name}”",
         "title": "Link to set the password of “{name}”",
@@ -2259,6 +2272,13 @@
     },
     "identitySync": {
       "title": "Reading of the identity provider accounts",
+      "schedule": {
+        "title": "Reading schedule",
+        "modify": "Modify the schedule",
+        "hint": "The schedule is saved whole. The time and the day are in universal time (UTC). A reading under way is not interrupted: the setting holds from the next one.",
+        "weekdayNote": "For a weekly reading only.",
+        "saved": "Schedule saved."
+      },
       "start": "Read the accounts",
       "none": "No reading of the accounts has ended yet.",
       "finished": "Last reading ended on <time></time>.",
@@ -2326,6 +2346,18 @@
       "unavailable": "Unavailable",
       "checkedAt": "Last checked",
       "componentVersion": "Version",
+      "parameters": {
+        "title": "Operating parameters",
+        "cacheValidity": "Cache validity",
+        "taskRetention": "Retention of a background task result",
+        "avatarMax": "Largest avatar",
+        "queueAge": "Queued task age that raises the alert",
+        "storageUsage": "Storage usage that raises the alert",
+        "errorRate": "Error rate that raises the alert",
+        "errorWindow": "Window the error rate is measured on",
+        "seconds": "{count, plural, one {# second} other {# seconds}}",
+        "days": "{count, plural, one {# day} other {# days}}"
+      },
       "storage": "Storage",
       "used": "Used",
       "free": "Available",
@@ -2472,6 +2504,11 @@
         "renamed": "Formerly “{label}”",
         "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
         "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "toState": "Exit to: {state}",
+        "reason": "Reason: {reason}",
+        "backupTakenAt": "Restored backup of <time></time>",
+        "backupTakenAfter": "{first}; Restored backup of <time></time>",
+        "importKind": "Import: {kind}",
         "then": "{first}; {second}"
       },
       "filters": {

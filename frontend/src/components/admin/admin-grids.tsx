@@ -59,6 +59,7 @@ import {
   AnonymizeCommand,
   HeldRoles,
   RolesCell,
+  ResendInvitationCommand,
   SetupLinkCommand,
   StateSwitch,
 } from "./user-cells";
@@ -177,6 +178,19 @@ function setupLinkColumn(): GridColumn<User, UserSort, UserPage> {
     width: COMMAND_WIDTH,
     value: () => null,
     render: (user) => <SetupLinkCommand user={user} />,
+  };
+}
+
+/** The column of the email of the link of a local account, for a session that may modify the accounts. */
+function resendColumn(): GridColumn<User, UserSort, UserPage> {
+  return {
+    key: "resend_invitation",
+    label: "resendInvitation",
+    help: "users.resend_invitation",
+    format: "text",
+    width: COMMAND_WIDTH,
+    value: () => null,
+    render: (user) => <ResendInvitationCommand user={user} />,
   };
 }
 
@@ -308,7 +322,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
           ),
       },
       ...auditColumns<User, UserPage>(),
-      ...(entry === undefined ? [] : [setupLinkColumn(), anonymizeColumn()]),
+      ...(entry === undefined ? [] : [setupLinkColumn(), resendColumn(), anonymizeColumn()]),
     ],
   };
 }

@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
@@ -15,6 +16,8 @@ import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/f
 import { tasksRegion } from "@/test/task-panel";
 
 import { IdentitySync, type IdentitySyncReport } from "./identity-sync";
+
+type IdentitySyncSchedule = components["schemas"]["IdentitySyncSchedule"];
 
 // The server of Next, as far as the reading needs it: the fake back behind serverClient.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -47,14 +50,18 @@ function report(name: string): IdentitySyncReport {
 }
 
 /** The section of the reading, with the report given, within the shell that follows the tasks. */
-function open(shown: IdentitySyncReport | undefined, startable = true) {
+function open(
+  shown: IdentitySyncReport | undefined,
+  startable = true,
+  schedule: IdentitySyncSchedule = example("identity_sync_schedule") as IdentitySyncSchedule,
+) {
   const tree = (given: IdentitySyncReport | undefined) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <TaskTracker>
         <TasksButton />
         <TaskPanel />
         <main>
-          <IdentitySync report={given} startable={startable} />
+          <IdentitySync report={given} schedule={schedule} startable={startable} />
         </main>
       </TaskTracker>
     </NextIntlClientProvider>

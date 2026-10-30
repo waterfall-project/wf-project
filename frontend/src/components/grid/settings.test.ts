@@ -203,7 +203,7 @@ describe("the columns a grid records as known", () => {
     users: userGrid(),
     accessRoles: accessRoleGrid(true),
     backups: backupGrid({ marks: true, downloads: true, restores: true }),
-    audit: auditGrid({ openable: [], functions: [], revision: true }),
+    audit: auditGrid({ functions: [], revision: true }),
   };
 
   // The grids declared by a wrapper of another, which show the same columns once the reading

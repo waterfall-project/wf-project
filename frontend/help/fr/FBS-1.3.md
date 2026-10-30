@@ -7,6 +7,7 @@ L’état de la plateforme, hors de tout projet, tel que le serveur le donne au 
 - **Alertes en cours** : chaque alerte avec son niveau, ce qu’elle signale et depuis quand — un composant indisponible, la file des traitements bloquée, l’échec d’une sauvegarde planifiée ou de sa copie externe, l’échec de la lecture des comptes du fournisseur d’identité, un stockage presque plein, un taux d’erreur anormal. L’alerte nomme ce qu’elle concerne : le composant, l’espace employé et libre, l’emplacement externe et la raison de l’échec. Sans alerte, l’écran dit « Aucune alerte en cours. »
 - **Composants** : chaque composant de la plateforme, disponible ou indisponible, la date de sa dernière vérification et sa version.
 - **Espace de stockage** : l’espace utilisé et l’espace disponible.
+- **Paramètres d’exploitation** : les valeurs en vigueur de ce que l’exploitant fixe au déploiement — la durée de validité du cache des indicateurs, la rétention du résultat d’une tâche de fond, la taille maximale d’un avatar, l’attente d’une tâche en file et les taux d’occupation du stockage et d’erreur qui déclenchent une alerte, avec la fenêtre où le taux d’erreur se mesure. Aucun écran ne les modifie.
 - **Dernières opérations** : la dernière lecture des comptes du fournisseur d’identité, la dernière sauvegarde, la dernière copie externe d’une sauvegarde et le dernier test de restauration, chacune datée avec son résultat et le motif d’un échec — ou « Jamais effectuée ».
 
 ## Ses commandes
