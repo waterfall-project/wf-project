@@ -126,6 +126,10 @@ def test_the_differences_alone_are_every_node_marked_their_totals_the_whole_diff
     assert all(node["parent_id"] is None or node["parent_id"] in kept for node in example["items"])
     assert example["totals"] == mockcore.whole(mockamendment.rows())["totals"]
     assert example["totals"] != fixture("nodes_amendment")["totals"]
+    # The example as generated, not the filter re-run: the 8 nodes the decision announces (of the
+    # 6,003 of the marked tree), at the depth of summary the whole reading bears.
+    assert len(example["items"]) == 8
+    assert example["meta"]["summary_depth"] == 2
 
 
 def test_the_report_before_the_merge_says_what_the_differential_marks(whole: list[Node]) -> None:

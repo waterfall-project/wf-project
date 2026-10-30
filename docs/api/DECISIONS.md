@@ -9831,9 +9831,8 @@ colonne d'US-0701/L3 portent sur la grandeur que la comparaison affiche, « jama
   inchangées, à la différence d'un filtre sur la tâche, qui retient ses lignes : l'écran ne montre
   que ce qui change, et une ligne qui change est retenue par sa marque. Les ancêtres d'un nœud
   retenu sont rendus, comme pour tout filtre, et sont `modified` par leur contenu (`NodeDifference`,
-  US-0500/L1) : avec `modified` parmi les valeurs, ils le sont par leur propre marque, et le filtre
-  ne rend aucun nœud pour la seule lisibilité ; avec `added` ou `removed` seuls, ils viennent pour
-  que l'arbre reste un arbre. Un nœud déplacé est retenu à sa place nouvelle, `parent` parmi ses
+  US-0500/L1) : avec `modified` parmi les valeurs, ils sont retenus par leur propre marque ; avec `added` ou
+  `removed` seuls, ils ne le sont que pour que l'arbre reste un arbre. Un nœud déplacé est retenu à sa place nouvelle, `parent` parmi ses
   `changes`. `modified` ne se scinde pas entre « par ses valeurs » et « par son contenu » : la
   grille le dit déjà par `changes`, comme l'auteur le pressentait.
 - **Les totaux ne changent pas avec lui** (#1398, recommandation de l'issue). `totals` est celui de

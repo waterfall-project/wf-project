@@ -44,6 +44,10 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _subproject(row: mockcore.Row) -> str:
+    return cast("str | None", mockhistory.estimate_line(row)["subproject_id"]) or "unassigned"
+
+
 def _lines_by_id(rows: list[mockcore.Row]) -> dict[str, Node]:
     """Return the facets of the lines of a reading, by node identifier."""
     return {
@@ -331,21 +335,43 @@ def test_the_filter_of_the_differences_retains_the_marks_asked_with_their_ancest
         assert node["parent_id"] is None or node["parent_id"] in expected
         if node["difference"] not in asked:
             assert (node["kind"], node["difference"]) == (mockcore.TASK, mockdiff.MODIFIED)
-    assert (read["totals"], read["meta"]) == (whole["totals"], whole["meta"])
+    # The totals are those of the reference structure, recomputed on every row, not those of the
+    # lines retained (#1398): the sum of these alone is not the quantity of anything.
+    assert read["totals"] == mockcore.whole(reference)["totals"]
     lines = {node["node_id"] for node in items if node["kind"] == mockcore.ESTIMATE_LINE}
+    retained_budget = sum(
+        (row.amounts.budgeted for row in reference if row.node["node_id"] in lines), Decimal(0)
+    )
+    assert Decimal(read["totals"]["budgeted_amount"]) != retained_budget
 
-    def budgeted(rows: list[mockcore.Row]) -> Decimal:
-        kept = (row.amounts.budgeted for row in rows if row.node["node_id"] in lines)
+    def delta(dimension: str, field: str, key: str | None = None) -> Decimal:
+        kept = [
+            Decimal(entry[f"{field}_delta"])
+            for entry in read["amount_deltas"]
+            if entry["dimension"] == dimension and key in (None, entry["key"])
+        ]
         return sum(kept, Decimal(0))
 
-    assert sum(
-        (
-            Decimal(entry["budgeted_delta"])
-            for entry in read["amount_deltas"]
-            if entry["dimension"] == "cost_type"
-        ),
-        Decimal(0),
-    ) == budgeted(reference) - budgeted(offer)
+    def retained(rows: list[mockcore.Row], field: str, subproject: str | None = None) -> Decimal:
+        return sum(
+            (
+                getattr(row.amounts, field)
+                for row in rows
+                if row.node["node_id"] in lines and subproject in (None, _subproject(row))
+            ),
+            Decimal(0),
+        )
+
+    for field in ("budgeted", "reestimated"):
+        summed = retained(reference, field) - retained(offer, field)
+        assert delta("cost_type", field) == summed
+        assert delta("subproject", field) == summed
+    for entry in read["amount_deltas"]:
+        if entry["dimension"] == "subproject":
+            key = entry["key"]
+            assert Decimal(entry["reestimated_delta"]) == retained(
+                reference, "reestimated", key
+            ) - retained(offer, "reestimated", key)
 
 
 def test_the_example_of_the_differences_reads_the_additions_and_withdrawals_alone() -> None:

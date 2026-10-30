@@ -62,8 +62,8 @@ def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_
 ) -> None:
     # The severity is read on the reference budget of the whole structure, 65,430,697.64:
     # 1,250,000 is 1.91 % of it, level 2; 200, level 1; 12,000,000, 18.34 %, level 4 — 751 and
-    # 753 at the scale of the structure (EP-14/L45b). The matrix counts the risks of the register
-    # in their cells.
+    # 753 at the scale of the structure (EP-14/L45b). The matrix counts the identified risks alone
+    # (#1395, WF-RIS-0040): 751, the other two sit in their cells without being counted.
     cells = {
         item["risk_id"]: (
             item["matrix_cell"]["probability_level"],
@@ -84,10 +84,8 @@ def test_each_risk_sits_in_the_cell_its_probability_and_its_share_of_the_budget_
     }
     assert {key: cell["count"] for key, cell in counted.items()} == {
         (3, 2): 1,
-        (3, 1): 1,
-        (1, 4): 1,
     }
-    assert {(p, s, cell["zone"]) for (p, s), cell in counted.items()} == set(cells.values())
+    assert {(p, s, cell["zone"]) for (p, s), cell in counted.items()} == {(3, 2, "watch")}
     assert mockhistory.level(Decimal("0.3"), ["0.1", "0.3", "0.6"]) == 3
     assert mockhistory.level(Decimal("0.6"), ["0.1", "0.3", "0.6"]) == 4
 
