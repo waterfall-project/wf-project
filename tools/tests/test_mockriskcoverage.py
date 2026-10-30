@@ -145,3 +145,16 @@ def test_a_merged_task_without_a_predecessor_is_in_manual_mode_at_its_dates() ->
     # Under the task that bore the provision of 752 in the reference: the control station.
     head = tasks[universe(N.MERGED)]
     assert head["parent_id"] == universe(N.CONTROL_STATION)
+
+
+@pytest.mark.requirement("WF-RIS-0060-A")
+def test_the_merged_subtree_is_last_under_the_task_that_bore_the_provision() -> None:
+    rows = mockcore.current()
+    under = [row for row in rows if row.parent == N.CONTROL_STATION]
+    # The control station bore the provision of 752 in the reference: the subtree it merged is its
+    # last child, after the factory acceptance, a milestone that keeps its wiring predecessor.
+    assert [row.number for row in under][-2:] == [N.FACTORY_ACCEPTANCE, N.MERGED]
+    assert max(row.row for row in under) == next(row.row for row in under if row.number == N.MERGED)
+    # The tasks it merged come after it in the order of the plan, down to the next root.
+    merged = [row.number for row in rows if row.row >= next(r.row for r in rows if r.number == N.MERGED)]
+    assert merged[:3] == [N.MERGED, N.REMINDER, N.REMINDER_LINE]

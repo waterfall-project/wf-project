@@ -77,7 +77,7 @@ def test_a_sort_moves_the_lines_under_each_task_and_never_a_task(
     assert amounts == sorted(amounts, reverse=True)
     assert len(set(amounts)) == len(amounts)
     siblings = [node for node in read["items"] if node["parent_id"] == universe(CONTROL_STATION)]
-    assert [_number(node) for node in siblings] == [WIRING, OCCURRED, MILESTONE]
+    assert [_number(node) for node in siblings] == [WIRING, MILESTONE, OCCURRED]
 
 
 def test_a_line_without_a_value_comes_first_in_the_descending_order_in_plan_order(

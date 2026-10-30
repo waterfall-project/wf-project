@@ -9337,10 +9337,13 @@ survenance d'un risque ne budgète rien ».
   prédécesseur dans le devis propre de 752, est en mode manuel du 4 au 8 mai 2026, ses dates
   d'avant, sans la liaison au « Câblage des armoires » qu'elle portait ; et la provision de 752 était
   portée, dans la référence, par le « Poste de commande », sous lequel ses tâches sont fusionnées.
-  `structure_planning_start_advanced` redate une tâche de moins, 958. Le témoin place encore le
-  sous-arbre fusionné entre le « Câblage des armoires » et la « Réception usine », non en dernière
-  position : la déplacer change les numéros de ligne que lisent les parcours et les tests de
-  grille, ce qui passe le périmètre de ce lot ; c'est une question à l'auteur (#1604).
+  `structure_planning_start_advanced` redate une tâche de moins, 958. Le témoin tient la règle de
+  placement : le sous-arbre fusionné (541, « Risque survenu — Retard de livraison des armoires ») est
+  le dernier enfant du « Poste de commande » (551), après la « Réception usine », qui garde son
+  seul prédécesseur, le « Câblage des armoires » ; ses lignes viennent donc après celle-là dans
+  l'ordre du plan, jusqu'à la racine suivante (`tools/tests/test_mockriskcoverage.py`, WF-RIS-0060-A).
+  Les numéros de ligne des nœuds qui suivent, dont la « Réception usine » et l'« Installation sur
+  site », en sont décalés dans les exemples (`make mock-data`).
 - **Les mineurs des fichiers touchés.** H-06 : l'axe des gravités est « en pourcentage de
   l'assiette du projet » (`RiskMatrixLevel`, `RiskMatrix.severity_levels`, `getProjectRiskMatrix`,
   `RiskMatrixSettings`). H-07 : `description`, `mitigation_notes`, `provision_node_id`,

@@ -241,7 +241,7 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
     assert mounting["predecessors"] == [
         {
             "predecessor_node_id": universe(MILESTONE),
-            "predecessor_row_number": 18,
+            "predecessor_row_number": 13,
             "link_type": "finish_to_start",
             "lag": {"value": "2", "unit": "d"},
         }
