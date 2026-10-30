@@ -38,6 +38,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
+const LABEL = "Modernisation du poste de commande";
 const EXIT = "POST /projects/{project_id}/exit";
 const CONFLICT = {
   problem: {
@@ -55,11 +56,16 @@ function serve(answers: FakeAnswers, timing?: FakeTiming): FakeClient {
 }
 
 /** The exits of a project of the contract, in French. */
-function exitsOf(name: string) {
+function exitsOf(name: string, projectId?: string) {
+  const project = example(name) as Project;
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
       <main>
-        <LifecycleCommands project={example(name) as Project} />
+        <LifecycleCommands
+          project={
+            projectId === undefined ? project : { ...project, project_id: projectId, label: LABEL }
+          }
+        />
       </main>
     </NextIntlClientProvider>
   );
@@ -107,7 +113,7 @@ describe("the exits of the lifecycle of a project", () => {
       within(region)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Terminer le projet", "Déclarer le projet perdu", "Abandonner le projet"]);
+    ).toEqual(["Terminer le projet", "Abandonner le projet"]);
   });
 
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
@@ -156,7 +162,12 @@ describe("the exits of the lifecycle of a project", () => {
       `/projects/${PROJECT}/exit`,
     );
     expect(exits(client)).toEqual([
-      { to_state: "completed", confirmed: true, reason: "Recette prononcée" },
+      {
+        to_state: "completed",
+        confirmed: true,
+        reason: "Recette prononcée",
+        current_revision: { action: "abandon" },
+      },
     ]);
     // The page is rendered again, the confirmation closes, and the new state is said.
     await waitFor(() => {
@@ -175,19 +186,20 @@ describe("the exits of the lifecycle of a project", () => {
     ]);
   });
 
-  it("keeps saying the new state once the page is read again, the project completed and its exits unavailable", async () => {
+  it("lists no exit once the page is read again, the project completed, the new state kept in the history of the messages [WF-CYC-0060]", async () => {
+    // A closed project lists no exit: none will become possible (Vérif de WF-CYC-0060).
+    forgetMessages();
     serve({ [EXIT]: "project_completed" });
     const view = open();
     await confirm("Terminer le projet");
     view.rerender(exitsOf("project_completed"));
-    expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
-    expect(exit("Terminer le projet")).toHaveFocus();
-    for (const name of ["Terminer le projet", "Déclarer le projet perdu", "Abandonner le projet"]) {
-      expect(exit(name)).toHaveAttribute("aria-disabled", "true");
-    }
-    expect(exit("Abandonner le projet")).toHaveAccessibleDescription(
-      "Condition non remplie\u00A0: projet non clos.",
-    );
+    expect(screen.queryByRole("button", { name: "Terminer le projet" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Abandonner le projet" })).toBeNull();
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        sentence: "Le projet est passé à l’état «\u00A0Terminé\u00A0».",
+      }),
+    ]);
   });
 
   it("sends no motive when the user gives none", async () => {
@@ -196,7 +208,9 @@ describe("the exits of the lifecycle of a project", () => {
     await userEvent.click(exit("Abandonner le projet"));
     await userEvent.type(screen.getByRole("textbox", { name: "Motif (facultatif)" }), "   ");
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
-    expect(exits(client)).toEqual([{ to_state: "abandoned", confirmed: true }]);
+    expect(exits(client)).toEqual([
+      { to_state: "abandoned", confirmed: true, current_revision: { action: "abandon" } },
+    ]);
   });
 
   it("opens one confirmation at a time", async () => {
@@ -226,10 +240,10 @@ describe("the exits of the lifecycle of a project", () => {
       expect(status).toBeEmptyDOMElement();
     }
 
-    // The page read again: the project was completed meanwhile. The exit withdrawn hides its form at
+    // The page read again: the project went back to pricing meanwhile. The exit withdrawn hides its form at
     // once, but the confirmation is closed by an effect (`withdrawn` → `onClose`), a commit later:
     // waited for, not assumed (one failure under a load of 7, #315).
-    view.rerender(exitsOf("project_completed"));
+    view.rerender(exitsOf("project_pricing", PROJECT));
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });

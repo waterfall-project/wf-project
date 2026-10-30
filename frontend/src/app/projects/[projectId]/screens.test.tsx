@@ -730,12 +730,8 @@ describe("the lifecycle of a project", () => {
   it("offers the exits of the lifecycle alone, in the order of the server: nothing to create or modify", async () => {
     const page = html(await LifecyclePage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
-    expect(buttons(page)).toEqual([
-      "Help",
-      "Complete the project",
-      "Declare the project lost",
-      "Abandon the project",
-    ]);
+    // In progress, losing is no longer an exit the project lists (WF-CYC-0060).
+    expect(buttons(page)).toEqual(["Help", "Complete the project", "Abandon the project"]);
   });
 
   it("shows the current state of the project, and the history of its states, each transition dated as the API gives it and by whom [WF-ARC-0020-A]", async () => {
@@ -787,10 +783,10 @@ describe("the lifecycle of a project", () => {
 
   it("offers no command that leads to pricing or in progress, whichever state the project is in [WF-CYC-0020-A]", async () => {
     // Aucun écran ne propose de commande menant à Chiffrage ou En cours.
-    for (const [project, next] of [
-      ["project_created", "next_state_created"],
-      ["project_pricing", "next_state_pricing"],
-      ["project", "next_state"],
+    for (const [project, next, lose] of [
+      ["project_created", "next_state_created", true],
+      ["project_pricing", "next_state_pricing", true],
+      ["project", "next_state", false],
     ] as const) {
       server.answers = {
         ...server.answers,
@@ -801,15 +797,15 @@ describe("the lifecycle of a project", () => {
       expect(buttons(page)).toEqual([
         "Help",
         "Complete the project",
-        "Declare the project lost",
+        ...(lose ? ["Declare the project lost"] : []),
         "Abandon the project",
       ]);
     }
   });
 
-  it("says a terminal project closed, no state following it, and refuses every exit [WF-CYC-0080-A]", async () => {
-    // Aucune transition ne part d'un état terminal : toute tentative de transition depuis Terminé
-    // est refusée, chacune des trois sorties présentée indisponible.
+  it("says a terminal project closed, no state following it, and lists no exit [WF-CYC-0080-A]", async () => {
+    // Aucune transition ne part d'un état terminal : aucune sortie ne le deviendra, donc aucune
+    // n'est listée (Vérif de WF-CYC-0060).
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
@@ -822,10 +818,7 @@ describe("the lifecycle of a project", () => {
       "Declare the project lost",
       "Abandon the project",
     ]) {
-      const button = new RegExp(
-        `<button[^>]*aria-disabled="true"[^>]*>(?:(?!</button>).)*${exit}</button>`,
-      ).exec(page);
-      expect(button, exit).not.toBeNull();
+      expect(buttons(page), exit).not.toContain(exit);
     }
   });
 

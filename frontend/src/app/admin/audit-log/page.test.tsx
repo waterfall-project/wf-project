@@ -350,7 +350,7 @@ describe("the journal of audit", () => {
     expect(rows(page)[1]).toContain(
       "Camille Martin Sortie du cycle de vie Projet Modernisation du poste de commande",
     );
-    expect(rows(page).at(-1)).toBe("14 inscriptions");
+    expect(rows(page).at(-1)).toBe("15 inscriptions");
     expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
 

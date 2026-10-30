@@ -71,6 +71,7 @@ export function LifecycleCommands({ project }: { readonly project: Project }) {
               key={project.project_id}
               exits={exits}
               projectId={project.project_id}
+              hasCurrentRevision={project.current_revision_id != null}
               names={{ [project.project_id]: project.label }}
             />,
           ]}

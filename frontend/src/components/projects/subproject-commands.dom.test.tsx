@@ -650,8 +650,7 @@ describe("the commands a project lists", () => {
     expect(remove).toHaveAttribute("aria-disabled", "true");
     expect(remove).toHaveAccessibleDescription(
       "Conditions non remplies : sous-projet cité par aucune révision marquée, aucun coût " +
-        "réel imputé au sous-projet, aucune ligne de devis de la révision en cours portant le " +
-        "sous-projet et projet non clos.",
+        "réel imputé au sous-projet et projet non clos.",
     );
     await userEvent.click(modify);
     expect(screen.queryByRole("dialog")).toBeNull();

@@ -2613,6 +2613,7 @@
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
     "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
+    "PROJECT_CODE_INVALID": "The project code cannot contain a slash.",
     "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
     "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
@@ -3356,6 +3357,10 @@
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
       "work_package_without_task": "No task bears this work package.",
       "no_total": "The total is zero."
+    },
+    "CurrentRevisionFateAction": {
+      "mark": "Mark the revision",
+      "abandon": "Abandon the revision"
     },
     "CurveSeries": {
       "series": {
