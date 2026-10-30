@@ -83,6 +83,7 @@ function journal({
   filters = filtersOf(page.search),
   named = NAMED,
   users = AUTHORS,
+  projects = PROJECTS,
   refused,
 }: {
   shown?: Journal;
@@ -93,6 +94,7 @@ function journal({
   filters?: AuditFilters;
   named?: AuditFilterBarProps["named"];
   users?: AuditFilterBarProps["users"];
+  projects?: AuditFilterBarProps["projects"];
   refused?: AuditFilterBarProps["refused"];
 } = {}): ReactNode {
   return (
@@ -101,7 +103,7 @@ function journal({
         <AuditFilterBar
           filters={filters}
           users={users}
-          projects={PROJECTS}
+          projects={projects}
           named={named}
           refused={refused}
         />
@@ -309,6 +311,27 @@ describe("the grid of the journal", () => {
     expect(
       within(grid()).getAllByText("PRJ-001 · Modernisation du poste de commande"),
     ).toHaveLength(13);
+  });
+
+  it("names a project that has no code by its label alone, in the journal and in the filter of the projects [WF-SEC-0030-A]", () => {
+    const label = "Modernisation du poste de commande";
+    const uncoded = {
+      ...witness,
+      items: witness.items.map((event) =>
+        event.project === null ? event : { ...event, project: { ...event.project, code: null } },
+      ),
+    };
+    render(
+      journal({
+        shown: uncoded,
+        projects: PROJECTS.map((project) => ({ ...project, code: null })),
+      }),
+    );
+    expect(within(grid()).getAllByText(label).length).toBeGreaterThan(0);
+    expect(within(grid()).queryByText(/null/)).toBeNull();
+    const options = within(screen.getByRole("combobox", { name: "Projet" })).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toContain(label);
+    expect(options.some((option) => option.textContent.includes("null"))).toBe(false);
   });
 
   it("leads to the whole history of an object, every other filter lifted, its sort kept, back to the first page", async () => {

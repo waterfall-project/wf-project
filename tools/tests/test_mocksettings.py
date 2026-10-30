@@ -96,8 +96,9 @@ def test_the_thresholds_written_keep_the_matrix() -> None:
 def test_the_name_written_changes_the_name_and_nothing_else() -> None:
     read, written = fixture("reference_settings"), fixture("reference_settings_company_updated")
     assert (read["company_name"], written["company_name"]) == (COMPANY, RENAMED)
-    unchanged = set(read) - {"company_name", "lock_version"}
+    unchanged = set(read) - {"company_name", "audit", "lock_version"}
     assert {key: written[key] for key in unchanged} == {key: read[key] for key in unchanged}
+    assert written["audit"]["created_at"] == read["audit"]["created_at"]
     assert set(written) == set(read)
     assert written["lock_version"] == read["lock_version"] + 1
     # The answer is an example of the operation, after those the fake back served before it.

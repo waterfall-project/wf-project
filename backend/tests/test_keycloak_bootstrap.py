@@ -27,7 +27,7 @@ import pytest
 from openapi_core import OpenAPI
 from pydantic import SecretStr
 from sqlalchemy import Engine, func, insert, select, text, update
-from support import CONTRACT, ContractClient, Logs, captured_logs
+from support import CONTRACT, TO_SEED_BY_EP04, ContractClient, Logs, captured_logs
 from test_keycloak_authentication import (
     ME,
     bearer,
@@ -197,9 +197,16 @@ def test_after_installation_the_administrator_sets_its_password_signs_in_and_fin
     )
     roles = api.get(ACCESS_ROLES, headers=headers).json()
     witness = json.loads(WITNESS.read_text(encoding="utf-8"))["value"]
-    assert {role["label"]: set(role["permissions"]) for role in roles} == {
-        role["label"]: set(role["permissions"]) for role in witness if role["is_predefined"]
+    delivered = {
+        role["label"]: set(role["permissions"]) - set(TO_SEED_BY_EP04.get(role["label"], ()))
+        for role in witness
+        if role["is_predefined"]
     }
+    assert {role["label"]: set(role["permissions"]) for role in roles} == delivered
+    # A gap that the back has closed fails here, to be struck off the list of the support.
+    for label, codes in TO_SEED_BY_EP04.items():
+        [seeded] = [role for role in roles if role["label"] == label]
+        assert not set(codes) & set(seeded["permissions"])
     assert all(role["is_predefined"] for role in roles)
     administrator = next(role for role in roles if role["label"] == "Administrateur")
     assert set(me["permissions"]) == set(administrator["permissions"])

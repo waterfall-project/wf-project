@@ -26,9 +26,9 @@
       contributeur et sans qu'aucun projet soit ouvert — le chemin n'en nomme aucun —, qui ouvre
       le journal entier : un projet s'y nomme par son code et son libellé, que l'appelant en
       soit contributeur ou non ; l'inscription ne mène qu'à un projet qu'il peut ouvrir
-      (WF-ADM-0110), et qu'à un objet qu'il peut consulter ; un projet qui n'existe plus — créé
-      après la sauvegarde qu'une restauration a remise en place — se nomme de même, sans mener à
-      lui (WF-ADM-0190).
+      (WF-ADM-0110), ce que le serveur dit pour lui (`AuditProject.can_open`), et qu'à un objet
+      qu'il peut consulter ; un projet qui n'existe plus — créé après la sauvegarde qu'une
+      restauration a remise en place — se nomme de même, sans mener à lui (WF-ADM-0190).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -98,8 +98,8 @@
           pas leur libellé, que le front choisit dans la langue du lecteur (WF-ARC-0110), et ne
           trie pas par lui — ; le libellé de l'objet que l'inscription garde, un objet sans
           libellé — une sauvegarde, un compte anonymisé — après les autres dans l'ordre
-          croissant ; le projet, par son code, une inscription sans projet après les
-          autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par
+          croissant ; le projet, par son code, une inscription sans projet ou dont le projet
+          n'avait pas de code après les autres dans l'ordre croissant ; la corrélation. Les textes se comparent caractère par
           caractère dans l'ordre des points de code Unicode.
         schema:
           type: string
@@ -138,6 +138,7 @@
               anonymized_object: { $ref: ../../../fixtures/api/audit_events_anonymized_object.json }
               anonymized_actor: { $ref: ../../../fixtures/api/audit_events_anonymized_actor.json }
               administration: { $ref: ../../../fixtures/api/audit_events_administration.json }
+              auditor: { $ref: ../../../fixtures/api/audit_events_auditor.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':

@@ -287,6 +287,75 @@ class StorageUsage(ContractModel):
     available_bytes: Annotated[int, Field(ge=0)]
 
 
+class Decimal(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Décimal exact, jamais un flottant (WF-DAT-0100). Le séparateur est le point, indépendamment de la langue de l'interface (WF-INTF-0180).",
+            pattern="^-?\\d+(\\.\\d+)?$",
+        ),
+    ]
+
+
+class Percent(RootModel[Decimal]):
+    root: Annotated[
+        Decimal,
+        Field(
+            description="Pourcentage, décimal exact, non arrondi avant les calculs (WF-DAT-0100)."
+        ),
+    ]
+
+
+class OperatingParameters(ContractModel):
+    cache_validity_seconds: Annotated[
+        int,
+        Field(
+            description="La durée de validité d'une entrée du cache des indicateurs, qui borne chaque entrée en plus de son invalidation par écriture (WF-DAT-0130) ; livrée à dix minutes, `600`. La Vérif de WF-ADM-0130 la nomme.",
+            ge=1,
+        ),
+    ]
+    background_task_retention_days: Annotated[
+        int,
+        Field(
+            description="La rétention du résultat d'une tâche de fond, au terme de laquelle la tâche se supprime (§4.4.1) ; livrée à trente jours, `30`. Le fichier d'un export disparaît pour sa part au terme de vingt-quatre heures (WF-DAT-0120), qui n'est pas un paramètre.",
+            ge=1,
+        ),
+    ]
+    avatar_max_bytes: Annotated[
+        int,
+        Field(
+            description="La taille la plus grande d'un avatar, en octets (§4.4.1) ; livrée à 512 Ko, `524288`. La même valeur que `Installation.avatar_max_bytes`, que le front lit sans session.",
+            ge=1,
+        ),
+    ]
+    task_queue_age_threshold_seconds: Annotated[
+        int,
+        Field(
+            description="L'attente de la plus ancienne tâche en file au-delà de laquelle l'alerte `task_queue_stalled` se déclenche (WF-OBS-0030) ; livrée à quinze minutes, `900`.",
+            ge=1,
+        ),
+    ]
+    storage_usage_threshold: Annotated[
+        Percent,
+        Field(
+            description="Le taux d'occupation de l'espace de stockage au-delà duquel l'alerte `storage_nearly_full` se déclenche (WF-OBS-0030) ; livré à 85 %, `0.85`."
+        ),
+    ]
+    error_rate_threshold: Annotated[
+        Percent,
+        Field(
+            description="Le taux d'erreur des requêtes au-delà duquel l'alerte `error_rate_abnormal` se déclenche, mesuré sur la fenêtre `error_rate_window_seconds` (WF-OBS-0030) ; livré à 5 %, `0.05`."
+        ),
+    ]
+    error_rate_window_seconds: Annotated[
+        int,
+        Field(
+            description="La fenêtre sur laquelle le taux d'erreur se mesure, part du troisième seuil de WF-OBS-0030 (« 5 % sur cinq minutes ») ; livrée à cinq minutes, `300`.",
+            ge=1,
+        ),
+    ]
+
+
 class OperationOutcome(ContractModel):
     at: Timestamp
     succeeded: bool
@@ -353,13 +422,19 @@ class SystemStatus(ContractModel):
     version: str
     components: list[ComponentHealth]
     storage: StorageUsage
+    operating_parameters: OperatingParameters
     last_identity_sync: Annotated[
         OperationOutcome | None,
         Field(
             description="Date et résultat de la dernière lecture des comptes du fournisseur d'identité (WF-ADM-0070, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu."
         ),
-    ] = None
-    last_backup: OperationOutcome | None = None
+    ]
+    last_backup: Annotated[
+        OperationOutcome | None,
+        Field(
+            description="Date et résultat de la dernière sauvegarde (WF-ADM-0150, WF-ADM-0130). Nulle tant qu'aucune n'a eu lieu."
+        ),
+    ]
     last_backup_copy: Annotated[
         OperationOutcome | None,
         Field(
@@ -369,9 +444,9 @@ class SystemStatus(ContractModel):
     last_restore_test: Annotated[
         OperationOutcome | None,
         Field(
-            description="Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130)."
+            description="Date et résultat du dernier test de restauration (WF-EXP-0060, WF-ADM-0130). Nulle tant qu'aucun n'a eu lieu."
         ),
-    ] = None
+    ]
     alerts: list[Alert]
 
 
@@ -428,19 +503,27 @@ class BackgroundTaskRef(ContractModel):
         ),
     ]
     status: BackgroundTaskStatus
-    progress: Annotated[int | None, Field(ge=0, le=100)] = None
-    submitted_at: Timestamp | None = None
-    finished_at: Timestamp | None = None
+    progress: Annotated[int, Field(ge=0, le=100)]
+    submitted_at: Annotated[
+        Timestamp,
+        Field(
+            description="Quand la tâche a été mise en file ; la liste des tâches se trie sur lui."
+        ),
+    ]
+    finished_at: Annotated[
+        Timestamp | None,
+        Field(description="Quand la tâche a abouti ou échoué ; nul tant qu'elle court."),
+    ]
     problem: Annotated[
         Problem | None,
-        Field(description="Motif de l'échec, absent tant que la tâche n'a pas échoué."),
-    ] = None
+        Field(description="Motif de l'échec, nul tant que la tâche n'a pas échoué (WF-IHM-0080)."),
+    ]
     result_url: Annotated[
         str | None,
         Field(
-            description="Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la tâche : une lecture achevée depuis l'a remplacé. Celui d'un export (`export`) est nul une fois le fichier supprimé, après son premier téléchargement complet ou au terme de vingt-quatre heures (`getBackgroundTaskResult`, WF-DAT-0120)."
+            description="Où lire le résultat, lorsque la tâche en produit un : un chemin sous `/api/v1`, comme les exemples ; nul sinon. Celui d'une lecture des comptes (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la tâche : une lecture achevée depuis l'a remplacé. Celui d'un export (`export`) est nul une fois le fichier supprimé, après son premier téléchargement complet ou au terme de vingt-quatre heures (`getBackgroundTaskResult`, WF-DAT-0120)."
         ),
-    ] = None
+    ]
 
 
 class PaginationMeta(ContractModel):
@@ -546,7 +629,7 @@ class UserAccount(ContractModel):
         Field(
             description="Rattachement facultatif, qui n'accorde aucune permission (WF-ADM-0030)."
         ),
-    ] = None
+    ]
     org_node_label: Annotated[
         str | None,
         Field(
@@ -565,7 +648,12 @@ class UserAccount(ContractModel):
             description="Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020)."
         ),
     ]
-    has_avatar: bool | None = None
+    has_avatar: Annotated[
+        bool,
+        Field(
+            description="Vrai quand le compte porte un avatar (WF-ADM-0080) ; faux, l'image par défaut."
+        ),
+    ]
     audit: Audit
     lock_version: LockVersion
 
@@ -687,7 +775,12 @@ class DisplayPreferences(ContractModel):
             description="Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation (WF-ADM-0040)."
         ),
     ] = None
-    highlight_tasks_added_after_reference: bool | None = None
+    highlight_tasks_added_after_reference: Annotated[
+        bool | None,
+        Field(
+            description="La préférence qui distingue visuellement les tâches ajoutées après la révision de référence et, dans le reste à engager, les lignes dont le montant budgété est nul : une seule préférence pour les deux (WF-ADM-0040, WF-RAE-0040). Absente, faux."
+        ),
+    ] = None
     grids: Annotated[
         dict[Annotated[str, StringConstraints(max_length=64)], GridPreferences | None] | None,
         Field(max_length=100),
@@ -873,7 +966,7 @@ class UserCreated(User):
     invitation_sent: Annotated[
         bool,
         Field(
-            description="Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal (`createPasswordSetupLink`)."
+            description="Vrai quand le fournisseur d'identité a envoyé au porteur le courriel qui porte son lien de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal (`createPasswordSetupLink`). Le courriel se renvoie ensuite (`resendInvitation`)."
         ),
     ]
 
@@ -1000,6 +1093,46 @@ class IdentitySyncReport(ContractModel):
             description="Les adresses des comptes locaux que la lecture retire du fournisseur d'identité : inconnus de Waterfall et sans mot de passe, laissés par une création que Waterfall n'a pas menée à son terme (#811). Le retrait suit la validation de la lecture : une adresse nommée ici est celle d'un compte retiré du fournisseur, ou à retirer. Un retrait qui échoue est journalisé, et la lecture suivante nomme de nouveau l'adresse."
         ),
     ]
+
+
+class Frequency(StrEnum):
+    daily = "daily"
+    weekly = "weekly"
+
+
+class Weekday(RootModel[int]):
+    root: Annotated[
+        int,
+        Field(
+            description="Jour d'une lecture hebdomadaire, numéroté comme ISO 8601, 1 le lundi, 7 le dimanche, en temps universel ; nul pour une lecture quotidienne. Refusé comme celui des sauvegardes : hors de 1 à 7, par le motif `VALUE_OUT_OF_RANGE` sur `/weekday` ; nul pour une hebdomadaire, par `VALUE_REQUIRED` ; donné à une quotidienne, par `VALIDATION_FAILED`.",
+            ge=1,
+            le=7,
+        ),
+    ]
+
+
+class IdentitySyncSchedule(ContractModel):
+    is_enabled: Annotated[
+        bool,
+        Field(
+            description="Faux, aucune lecture n'est faite d'elle-même ; la lecture à la demande reste."
+        ),
+    ]
+    frequency: Frequency
+    at_time: Annotated[
+        str,
+        Field(
+            description="Heure de la lecture, en temps universel (UTC), comme celle des sauvegardes (`BackupSchedule.at_time`).",
+            pattern="^([01]\\d|2[0-3]):[0-5]\\d$",
+        ),
+    ]
+    weekday: Annotated[
+        Weekday | None,
+        Field(
+            description="Jour d'une lecture hebdomadaire, numéroté comme ISO 8601, 1 le lundi, 7 le dimanche, en temps universel ; nul pour une lecture quotidienne. Refusé comme celui des sauvegardes : hors de 1 à 7, par le motif `VALUE_OUT_OF_RANGE` sur `/weekday` ; nul pour une hebdomadaire, par `VALUE_REQUIRED` ; donné à une quotidienne, par `VALIDATION_FAILED`."
+        ),
+    ]
+    lock_version: LockVersion
 
 
 class Kind3(StrEnum):
@@ -1156,16 +1289,11 @@ class BackupExternalCopy(ContractModel):
     ]
 
 
-class Frequency(StrEnum):
-    daily = "daily"
-    weekly = "weekly"
-
-
-class Weekday(RootModel[int]):
+class Weekday1(RootModel[int]):
     root: Annotated[
         int,
         Field(
-            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie.",
+            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie. Nul pour une planification hebdomadaire, refusé par le motif `VALUE_REQUIRED` sur `/weekday` ; donné à une quotidienne, par le motif `VALIDATION_FAILED` sur `/weekday`.",
             ge=1,
             le=7,
         ),
@@ -1174,24 +1302,24 @@ class Weekday(RootModel[int]):
 
 class BackupSchedule(ContractModel):
     is_enabled: bool
-    frequency: Frequency | None = None
+    frequency: Frequency
     at_time: Annotated[
-        str | None,
+        str,
         Field(
             description="Heure de la sauvegarde, en temps universel (UTC), comme les horodatages de la plateforme (`Timestamp`, WF-DAT-0100) : `01:00` est prise à `01:00Z`, quel que soit le fuseau du poste qui la lit.",
             pattern="^([01]\\d|2[0-3]):[0-5]\\d$",
         ),
-    ] = None
+    ]
     weekday: Annotated[
-        Weekday | None,
+        Weekday1 | None,
         Field(
-            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie."
+            description="Jour d'une sauvegarde hebdomadaire, numéroté comme ISO 8601 : 1 est le lundi, 7 le dimanche, le jour s'entendant en temps universel comme l'heure ; nul pour une sauvegarde quotidienne. Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/weekday`, `params.minimum` à `1` ou `maximum` à `7`, la seule borne franchie. Nul pour une planification hebdomadaire, refusé par le motif `VALUE_REQUIRED` sur `/weekday` ; donné à une quotidienne, par le motif `VALIDATION_FAILED` sur `/weekday`."
         ),
-    ] = None
+    ]
     retained_count: Annotated[
         int,
         Field(
-            description="Le nombre de sauvegardes planifiées gardées sur la plateforme, de 1 à 365 : hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.",
+            description="Le nombre de sauvegardes conservées sur la plateforme, manuelles ou planifiées, celles qui sont marquées à conserver exceptées, de 1 à 365 : au-delà, la plus ancienne sauvegarde non marquée est supprimée (WF-ADM-0170). Hors de ces bornes, refusé par 422 `VALIDATION_FAILED`, motif `VALUE_OUT_OF_RANGE` sur `/retained_count`, `params.minimum` à `1` ou `maximum` à `365`, la seule borne franchie.",
             ge=1,
             le=365,
         ),
@@ -1267,7 +1395,12 @@ class RestoreRequest1(ContractModel):
             description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée, la date que dit son manifeste, lue à l'achèvement du dépôt —, le même instant quelle que soit l'écriture de son fuseau. Une autre date est une confirmation qui ne nomme pas la sauvegarde qu'elle désigne, refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est mis en file."
         ),
     ]
-    confirmed: Literal[True]
+    confirmed: Annotated[
+        Literal[True],
+        Field(
+            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160)."
+        ),
+    ]
 
 
 class RestoreRequest2(ContractModel):
@@ -1284,14 +1417,19 @@ class RestoreRequest2(ContractModel):
             description="Date de la sauvegarde restaurée, telle que la confirmation l'énonce : elle doit correspondre à celle de la sauvegarde désignée (WF-ADM-0160) — `Backup.taken_at` pour une sauvegarde de la liste, `FileUpload.backup_taken_at` pour une sauvegarde déposée, la date que dit son manifeste, lue à l'achèvement du dépôt —, le même instant quelle que soit l'écriture de son fuseau. Une autre date est une confirmation qui ne nomme pas la sauvegarde qu'elle désigne, refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est mis en file."
         ),
     ]
-    confirmed: Literal[True]
+    confirmed: Annotated[
+        Literal[True],
+        Field(
+            description="La confirmation elle-même : absente ou fausse, la restauration n'est pas confirmée, refusée par 400 `CONFIRMATION_REQUIRED` comme une date qui n'est pas celle de la sauvegarde, et rien n'est mis en file (WF-ADM-0160)."
+        ),
+    ]
 
 
 class RestoreRequest(RootModel[RestoreRequest1 | RestoreRequest2]):
     root: Annotated[
         RestoreRequest1 | RestoreRequest2,
         Field(
-            description="Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune sauvegarde ni restauration en cours."
+            description="Restauration : elle remplace l'intégralité des deux bases de la plateforme, Waterfall et fournisseur d'identité, laisse le journal d'audit en place, ferme les sessions, vide les caches, et n'est appliquée qu'après une confirmation qui énonce la date de la sauvegarde et son caractère irréversible (WF-ADM-0160, WF-DAT-0130). Une sauvegarde de la liste se restaure comme sa commande `restore` le dit d'avance (`BackupCommand`) : vérifiée, aucune sauvegarde ni restauration en cours. Elle désigne une sauvegarde et une seule : les deux à la fois, ou aucune, est refusé par 422 `VALIDATION_FAILED` : deux, `fields` désignant `/external_backup_upload_id` par le motif `VALIDATION_FAILED` ; aucune, `/backup_id` par `VALUE_REQUIRED`."
         ),
     ]
 
@@ -1350,7 +1488,7 @@ class AuditObject(ContractModel):
     label: Annotated[
         str | None,
         Field(
-            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : sa date est celle de l'inscription ; nul pour une révision en cours abandonnée, qui n'a pas encore de nom de version (WF-REV-0010) ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue."
+            description="Le libellé de l'objet au moment de l'action — le nom de version d'une révision, le numéro de pièce d'une ligne de coût, le nom du fichier d'un import, le nom affiché d'un compte, le nom du fichier d'un dépôt — ; nul pour une sauvegarde, qui n'en a pas : pour l'action `backup`, sa date est celle de l'inscription ; pour `restore`, elle est dans `params.backup_taken_at`, l'inscription datant la fin de la restauration ; nul pour une révision en cours abandonnée, qui n'a pas encore de nom de version (WF-REV-0010) ; nul pour un compte anonymisé, dont l'anonymisation efface le nom de toutes les inscriptions qui le désignent, seule modification qu'une inscription admet (WF-SEC-0030, WF-ADM-0060) : le front le présente sous le libellé neutre de son catalogue."
         ),
     ]
     revision: Annotated[
@@ -1363,8 +1501,26 @@ class AuditObject(ContractModel):
 
 class AuditProject(ContractModel):
     project_id: Uuid
-    code: str
+    code: Annotated[
+        str | None,
+        Field(
+            description="Le code du projet, au moment de l'action ou aujourd'hui comme le libellé ; nul pour un projet qui n'en avait pas encore, un code n'étant exigé qu'au passage à En cours (WF-PRJ-0010, WF-CYC-0030)."
+        ),
+    ]
     label: str
+    can_open: Annotated[
+        bool,
+        Field(
+            description="Vrai si l'appelant peut consulter le projet aujourd'hui (WF-ADM-0110) : la permission de le consulter et la qualité de contributeur, ou celle de consulter tous les projets ; faux sinon, et pour un projet qui n'existe plus (WF-ADM-0190). L'inscription mène alors au projet, ou le nomme par son libellé et son code sans mener à lui ; le front n'en déduit rien des permissions de la session, qui ne connaît pas les contributeurs. Évalué de même dans les facettes. Un objet qui vit dans un projet — révision, structure, risque, ligne de coût, import — ne mène à lui que si le projet est ouvrable."
+        ),
+    ]
+
+
+class ExchangeKind(StrEnum):
+    ms_project_schedule = "ms_project_schedule"
+    estimate = "estimate"
+    remaining = "remaining"
+    actual_costs = "actual_costs"
 
 
 class AuditUserField(StrEnum):
@@ -1378,10 +1534,40 @@ class AuditAccessRole(ContractModel):
     label: str
 
 
+class ToState(StrEnum):
+    completed = "completed"
+    lost = "lost"
+    abandoned = "abandoned"
+
+
 class AuditParams(ContractModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    to_state: Annotated[
+        ToState | None,
+        Field(
+            description="`project_exit` : l'état terminal atteint, Terminé, Perdu ou Abandonné (`ProjectExit`, WF-CYC-0060) ; un auditeur distingue ainsi un projet terminé d'un projet perdu sans l'ouvrir (WF-ADM-0190)."
+        ),
+    ] = None
+    reason: Annotated[
+        str | None,
+        Field(
+            description="`project_exit` : le motif donné à la confirmation, que la transition conserve (`ProjectExit.reason`, WF-CYC-0130) ; nul s'il n'en a pas été donné."
+        ),
+    ] = None
+    backup_taken_at: Annotated[
+        Timestamp | None,
+        Field(
+            description="`restore` : la date de la sauvegarde remise en place, celle que la confirmation a énoncée (`RestoreRequest.acknowledged_backup_taken_at`, WF-ADM-0160) ; l'inscription, elle, est datée de la fin de la restauration."
+        ),
+    ] = None
+    import_kind: Annotated[
+        ExchangeKind | None,
+        Field(
+            description="`import_apply` : la nature de l'import appliqué (WF-INTF-0090) — un planning, un devis ou un reste à engager, qui s'écrivent dans une révision, ou des coûts réels, imputés au projet."
+        ),
+    ] = None
     origin: Annotated[
         UserOrigin | None,
         Field(
@@ -1457,7 +1643,7 @@ class AuditEvent(ContractModel):
     project: Annotated[
         AuditProject | None,
         Field(
-            description="Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde."
+            description="Le projet de l'objet ; nul pour un objet de la plateforme — compte, rôle, sauvegarde, dépôt d'une sauvegarde."
         ),
     ]
     params: AuditParams
@@ -1508,25 +1694,6 @@ class ReferenceReadiness(ContractModel):
         list[MissingEnum],
         Field(
             description="Les prérequis manquants, dans l'ordre de l'énumération, celui de WF-CYC-0120 : un calendrier par défaut actif dont au moins un jour de la semaine compte des heures travaillées (`default_calendar_with_hours`) ; une catégorie de main-d'œuvre active — une catégorie de coût active dont la nature relève de la main-d'œuvre (`active_cost_category`) ; une catégorie de coût active dont la nature est de type provision pour risques (`active_provision_category`), sans laquelle aucun risque ne peut être déclaré (EP-14/L42p, #579) ; un rôle de ressource actif (`active_resource_role`). Vide quand `is_complete` est vrai. Une installation neuve, dont la seule catégorie est celle des provisions pour risques, manque de la catégorie de main-d'œuvre et du rôle (Vérif de WF-CYC-0120)."
-        ),
-    ]
-
-
-class Decimal(RootModel[str]):
-    root: Annotated[
-        str,
-        Field(
-            description="Décimal exact, jamais un flottant (WF-DAT-0100). Le séparateur est le point, indépendamment de la langue de l'interface (WF-INTF-0180).",
-            pattern="^-?\\d+(\\.\\d+)?$",
-        ),
-    ]
-
-
-class Percent(RootModel[Decimal]):
-    root: Annotated[
-        Decimal,
-        Field(
-            description="Pourcentage, décimal exact, non arrondi avant les calculs (WF-DAT-0100)."
         ),
     ]
 
@@ -1596,6 +1763,12 @@ class ReferenceSettings(ContractModel):
     risk_matrix: RiskMatrixSettings
     index_thresholds: IndexThresholds
     max_weeks_between_reviews: Annotated[int, Field(ge=1, le=104)]
+    audit: Annotated[
+        Audit,
+        Field(
+            description="Qui a réglé les paramètres, et quand : la plateforme à l'amorçage (WF-EXP-0020), puis l'auteur de chaque écriture, quel que soit le champ qu'elle porte (WF-DAT-0070)."
+        ),
+    ]
     lock_version: LockVersion
 
 
@@ -1664,6 +1837,7 @@ class OrgNode(ContractModel):
             description="Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est refusé par 409, `ALREADY_EXISTS` (WF-REF-0070).",
             max_length=20,
             min_length=1,
+            pattern="\\S",
         ),
     ]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
@@ -1797,6 +1971,12 @@ class ResourceRoleWrite(ContractModel):
 class ResourceRoleUpdate(ContractModel):
     code: Annotated[str, Field(max_length=20, min_length=1, pattern="\\S")]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
+    org_node_id: Annotated[
+        Uuid | None,
+        Field(
+            description="Facultatif : le nœud du rôle, qu'un formulaire qui renvoie le rôle lu entier peut porter. Renvoyé inchangé, il ne change rien ; autre que celui du rôle, la modification est refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/org_node_id` par `FIELD_READ_ONLY` : le nœud d'un rôle ne se modifie pas (WF-REF-0090)."
+        ),
+    ] = None
     cost_category_id: Uuid
     calendar_id: Uuid
     capacity: RoleCapacity
@@ -1807,6 +1987,12 @@ class DurationUnits(ContractModel):
     hours_per_day: Annotated[Decimal, Field(description="8 par défaut.")]
     hours_per_week: Annotated[Decimal, Field(description="40 par défaut.")]
     days_per_month: Annotated[Decimal, Field(description="20 par défaut.")]
+    audit: Annotated[
+        Audit,
+        Field(
+            description="Qui a réglé les constantes, et quand : la plateforme à l'amorçage, puis l'auteur de chaque écriture (WF-DAT-0070)."
+        ),
+    ]
     lock_version: LockVersion
 
 
@@ -1920,6 +2106,7 @@ class CostType(ContractModel):
             description="Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code` (WF-REF-0030).",
             max_length=20,
             min_length=1,
+            pattern="\\S",
         ),
     ]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
@@ -1948,6 +2135,7 @@ class CostCategoryImage(ContractModel):
             description="Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui d'une nature : un code déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/code`.",
             max_length=20,
             min_length=1,
+            pattern="\\S",
         ),
     ]
     label: Annotated[str, Field(max_length=200, min_length=1, pattern="\\S")]
@@ -1975,9 +2163,10 @@ class CostCategoryImage(ContractModel):
     accounting_code: Annotated[
         str,
         Field(
-            description="Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040).",
+            description="Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est documentaire : il n'intervient dans aucun calcul ni dans l'import des coûts réels, qui ne ventile pas par nature (WF-INTF-0140) ; les fichiers de devis et de reste à engager désignent par lui la catégorie d'une ligne hors main-d'œuvre (WF-REF-0040, annexe B).",
             max_length=20,
             min_length=1,
+            pattern="\\S",
         ),
     ]
     is_active: bool
@@ -2022,7 +2211,15 @@ class CostCategoryWrite(ContractModel):
             description="La nature de la catégorie, qu'elle exige (WF-REF-0040) : absente ou nulle, elle est refusée par 422, `VALUE_REQUIRED` sur `/cost_type_id`. Une nature que le référentiel n'a pas est refusée par 422, `UNKNOWN_COST_TYPE` sur `/cost_type_id` ; une nature désactivée n'est plus proposée à la saisie (WF-REF-0010) : refusée de même, `INACTIVE_REFERENCE_OBJECT`, à la création comme à une modification qui change de nature — une catégorie qui garde la sienne, désactivée, se modifie. Une modification vers une nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ; vers une nature du même type, elle est toujours permise."
         ),
     ]
-    accounting_code: Annotated[str, Field(max_length=20, min_length=1)]
+    accounting_code: Annotated[
+        str,
+        Field(
+            description="Le code comptable, d'un à vingt caractères dont au moins un n'est pas un blanc : vide, refusé par 422 `VALUE_REQUIRED` sur `/accounting_code`, trop long par `VALUE_TOO_LONG`, fait seulement de blancs par le motif `VALIDATION_FAILED` (WF-REF-0040, WF-ARC-0110).",
+            max_length=20,
+            min_length=1,
+            pattern="\\S",
+        ),
+    ]
 
 
 class CostCategoryUpdate(CostCategoryWrite):
@@ -2350,12 +2547,6 @@ class NextState(ContractModel):
             description="Codes des conditions restantes, une par une (WF-CYC-0030, WF-CYC-0050)."
         ),
     ]
-
-
-class ToState(StrEnum):
-    completed = "completed"
-    lost = "lost"
-    abandoned = "abandoned"
 
 
 class ProjectExit(ContractModel):
@@ -5425,13 +5616,6 @@ class ChunkedUpload(ContractModel):
             description="Vingt-quatre heures après l'ouverture : au-delà, le dépôt et ses morceaux sont supprimés, comme un fichier d'import expiré (WF-DAT-0120)."
         ),
     ]
-
-
-class ExchangeKind(StrEnum):
-    ms_project_schedule = "ms_project_schedule"
-    estimate = "estimate"
-    remaining = "remaining"
-    actual_costs = "actual_costs"
 
 
 class ImportRejection(ContractModel):

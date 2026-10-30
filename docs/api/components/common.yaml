@@ -115,6 +115,17 @@ Audit:
 ActorRef:
   type: object
   required: [kind]
+  description: >-
+    L'auteur d'une écriture : un compte, par son identifiant et son nom affiché, tous deux
+    exigés pour `user` (WF-DAT-0070, WF-ADM-0060), ou la plateforme, qui n'a ni l'un ni l'autre.
+  if:
+    properties: { kind: { const: user } }
+  then:
+    required: [kind, user_id, display_name]
+    properties:
+      kind: { const: user }
+      user_id: { $ref: '#/Uuid' }
+      display_name: { anyOf: [{ type: string }, { type: 'null' }] }
   properties:
     kind:
       type: string
@@ -501,8 +512,9 @@ ErrorCode:
     # pas — ce dernier aussi donné pour parent d'un nœud (`/parent_id`) ou pour rattachement d'un
     # rôle de ressource (`/org_node_id`, WF-REF-0070, WF-REF-0090) —, et une valeur différente de
     # celle du compte pour un champ d'identité d'un compte qui ne vient pas de Waterfall
-    # (`origin` autre que `local`), que le fournisseur tient ; envoyer le champ inchangé n'est
-    # pas refusé (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
+    # (`origin` autre que `local`), que le fournisseur tient, ou un nœud autre que celui d'un rôle
+    # de ressource à sa modification (`/org_node_id`, `updateResourceRole`, WF-REF-0090) ; envoyer
+    # le champ inchangé n'est pas refusé (WF-ADM-0050, WF-ADM-0090, WF-ADM-0030).
     - UNKNOWN_ACCESS_ROLE
     - UNKNOWN_ORG_NODE
     - FIELD_READ_ONLY
@@ -530,7 +542,8 @@ ErrorCode:
     - BACKUP_FROM_NEWER_VERSION
     # Une tâche que la restauration a trouvée en file ou en cours dans la base restaurée : elle
     # échoue sans reprendre, pour qu'une sauvegarde en cours au moment du vidage ne se relance pas
-    # et n'écrase pas son archive (`startRestore`, #892) ; le motif de l'échec de la tâche.
+    # et n'écrase pas son archive (`startRestore`, #892) ; le motif de l'échec de la tâche, dont
+    # le `problem` porte le statut 409 d'un état qui interdit l'opération, et non 422.
     - TASK_INTERRUPTED_BY_RESTORE
     # Une catégorie de type provision pour risques donnée à une ligne saisie : seule la
     # déclaration d'un risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
@@ -843,7 +856,7 @@ BackgroundTaskStatus:
 
 BackgroundTaskRef:
   type: object
-  required: [task_id, kind, status]
+  required: [task_id, kind, status, progress, submitted_at, finished_at, problem, result_url]
   description: >-
     Référence d'une tâche de fond. Une requête qui déclenche un traitement long
     rend la main immédiatement en renvoyant cette référence (WF-ARC-0090, WF-IHM-0080).
@@ -874,22 +887,27 @@ BackgroundTaskRef:
       type: integer
       minimum: 0
       maximum: 100
-    submitted_at: { $ref: '#/Timestamp' }
+    submitted_at:
+      allOf: [{ $ref: '#/Timestamp' }]
+      description: Quand la tâche a été mise en file ; la liste des tâches se trie sur lui.
     finished_at:
       anyOf:
         - $ref: '#/Timestamp'
         - type: 'null'
+      description: Quand la tâche a abouti ou échoué ; nul tant qu'elle court.
     problem:
       anyOf:
         - $ref: '#/Problem'
         - type: 'null'
-      description: Motif de l'échec, absent tant que la tâche n'a pas échoué.
+      description: Motif de l'échec, nul tant que la tâche n'a pas échoué (WF-IHM-0080).
     result_url:
       anyOf:
         - type: string
+          format: uri-reference
         - type: 'null'
       description: >-
-        Où lire le résultat, lorsque la tâche en produit un. Celui d'une lecture des comptes
+        Où lire le résultat, lorsque la tâche en produit un : un chemin sous `/api/v1`, comme
+        les exemples ; nul sinon. Celui d'une lecture des comptes
         (`identity_sync`) désigne le dernier compte rendu, qui n'est pas forcément celui de la
         tâche : une lecture achevée depuis l'a remplacé. Celui d'un export (`export`) est nul une
         fois le fichier supprimé, après son premier téléchargement complet ou au terme de

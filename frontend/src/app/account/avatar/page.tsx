@@ -45,7 +45,7 @@ function AvatarScreen({
         </CardHeader>
         <CardContent className="grid gap-5">
           <AvatarPicture account={account} source={source} />
-          <AvatarForm hasAvatar={account.has_avatar === true} maxBytes={maxBytes} />
+          <AvatarForm hasAvatar={account.has_avatar} maxBytes={maxBytes} />
         </CardContent>
       </Card>
     </Screen>
@@ -58,7 +58,7 @@ export default async function AvatarPage() {
     readMe(),
     readOrFail("getInstallation", () => serverClient().GET("/installation")),
   ]);
-  const source = account.has_avatar === true ? await avatarSource(account.user_id) : undefined;
+  const source = account.has_avatar ? await avatarSource(account.user_id) : undefined;
   return (
     <AvatarScreen account={account} source={source} maxBytes={installation.avatar_max_bytes} />
   );

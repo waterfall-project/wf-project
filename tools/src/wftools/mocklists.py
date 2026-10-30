@@ -26,6 +26,7 @@ screens ask them:
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
   ``access_roles_by_updated_by.json``, sorted by the author of their last change (#936);
+  ``access_role.json``, ``getAccessRole``: the predefined « Manager », as the list has it;
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: a lot, without what it holds;
   ``work_breakdown_order_items.json``, its posts alone, under their lot, which it gives for the
   context alone (#574); ``work_breakdown_entered.json`` and ``work_breakdown_saved.json``,
@@ -93,6 +94,9 @@ SEARCHED_NAME = "Petit"
 
 HELD_ROLES = (universe(703), universe(702))
 """The roles of ``users_by_access_role``: the project manager and the manager, predefined."""
+
+MANAGER = universe(702)
+"""The role ``access_role`` reads: the predefined « Manager », whose settings cover FBS-3 whole."""
 
 SEARCHED_ACCOUNT = "ines roux"
 """The text of ``users_search``: the displayed name of Inès Roux, without its accent nor its case,
@@ -745,6 +749,13 @@ def administration() -> dict[str, JsonObject]:
             f"incluse) : {_labels(unheld)} ; ceux qu'un compte au moins porte sont écartés "
             f"(WF-IHM-0130).",
             cast("JsonValue", unheld),
+        ),
+        "access_role.json": _example(
+            f"Le rôle prédéfini « {named[MANAGER]} », tel que la liste des rôles le rend "
+            f"(getAccessRole) : le portefeuille, la consultation de tous les projets et le "
+            f"paramétrage du référentiel commun entier, risques et indicateurs compris "
+            f"(WF-INTF-0020, WF-ADM-0010, WF-ADM-0090).",
+            cast("JsonValue", next(role for role in roles if role["access_role_id"] == MANAGER)),
         ),
         "access_roles_by_updated_by.json": _example(
             f"Les rôles d'habilitation triés par l'auteur de leur dernière modification, "

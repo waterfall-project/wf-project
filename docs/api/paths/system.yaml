@@ -78,6 +78,8 @@
                 components:
                   type: array
                   items: { $ref: ../components/schemas/platform.yaml#/ComponentHealth }
+            examples:
+              witness: { $ref: ../../../fixtures/api/readiness.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /metrics:
@@ -88,14 +90,25 @@
     summary: Métriques au format Prometheus
     description: >-
       Métriques de requêtes, de tâches de fond et de composants de données, collectées
-      par Prometheus et reprises par l'écran d'état (WF-OBS-0010, WF-ADM-0130).
+      par Prometheus et reprises par l'écran d'état (WF-OBS-0010, WF-ADM-0130) ; la
+      disponibilité de chaque composant de données et du fournisseur d'identité y est sondée à
+      chaque collecte. Servi en HTTP, sur le réseau interne au cluster seulement (TFX-09,
+      WF-SEC-0010) : l'entrée publique ne le route pas et répond 404. `security` est vide parce
+      que Prometheus ne porte pas de jeton ; le point n'expose ni donnée de projet, ni identité,
+      ni secret.
     responses:
       '200':
         description: Exposition Prometheus.
         content:
           text/plain:
             schema: { type: string }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Demandé par l'entrée publique, que le point de métriques n'emprunte pas (WF-SEC-0010) :
+          `NOT_FOUND`, sans paramètre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
 
 /system/status:
   get:
@@ -103,10 +116,12 @@
     tags: [system]
     summary: Écran d'état du système
     description: >-
-      Disponibilité de chaque composant, espace de stockage, version installée,
-      dernières synchronisation, sauvegarde et test de restauration, et alertes en
-      cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030,
-      WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+      Disponibilité de chaque composant et sa version, espace de stockage, version installée,
+      valeurs en vigueur des paramètres d'exploitation — dont la durée de validité du cache
+      (§4.5.1) —, dernières lecture des comptes, sauvegarde et test de restauration, et alertes
+      en cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030,
+      WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130). Lisible sous
+      la permission de consulter l'état du système (`system_status.read`, WF-ADM-0100).
     responses:
       '200':
         description: État courant.
@@ -168,7 +183,16 @@
               none: { $ref: ../../../fixtures/api/tasks_none.json }
               running: { $ref: ../../../fixtures/api/tasks_running.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Un filtre refusé, `VALIDATION_FAILED`, `fields` désignant chaque paramètre en défaut :
+          un statut hors de `BackgroundTaskStatus`, `/query/status` par le motif
+          `VALIDATION_FAILED` ; une date mal formée, `/query/finished_since` par `DATE_INVALID`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              status_invalid: { $ref: ../../../fixtures/api/tasks_status_invalid.json }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}:

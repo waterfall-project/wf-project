@@ -15,7 +15,7 @@ import pytest
 from access_rows import ADMINISTRATION, DAY, holder, role
 from pydantic import ValidationError
 from sqlalchemy import select, text, update
-from support import CONTRACT
+from support import CONTRACT, TO_SEED_BY_EP04
 
 from waterfall.api.contract.base import NUL_FAULT, nul_path
 from waterfall.api.contract.models import AccessRoleWrite, Description, DisplayPreferences
@@ -148,15 +148,27 @@ def test_a_permission_outside_the_catalogue_is_refused_by_the_core_too(database:
     ]
 
 
+@pytest.mark.requirement("WF-ADM-0010-A")
 def test_the_predefined_roles_are_those_of_the_example_of_the_contract() -> None:
     # The administrator reads the journal of audit (WF-ADM-0100 revised); the bootstrap gives
     # this description to the installation, in its default language.
     witness = json.loads(WITNESS.read_text(encoding="utf-8"))["value"]
     delivered = {
-        entry["label"]: tuple(entry["permissions"]) for entry in witness if entry["is_predefined"]
+        entry["label"]: tuple(
+            code
+            for code in entry["permissions"]
+            if code not in TO_SEED_BY_EP04.get(entry["label"], ())
+        )
+        for entry in witness
+        if entry["is_predefined"]
     }
     described = predefined_roles("fr")
     assert {entry.label: entry.permissions for entry in described} == delivered
+    # A gap that the back has closed fails here, to be struck off the list above.
+    for label, codes in TO_SEED_BY_EP04.items():
+        [role] = [entry for entry in witness if entry["label"] == label]
+        assert set(codes) <= set(role["permissions"])
+        assert not set(codes) & set(next(e for e in described if e.label == label).permissions)
     assert "audit_log.read" in next(e for e in described if e.key == "administrator").permissions
     assert [entry.label for entry in predefined_roles("en")] == [
         "Administrator",

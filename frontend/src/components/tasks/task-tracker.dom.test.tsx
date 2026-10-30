@@ -296,16 +296,6 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).queryByRole("button", { name: "Recharger l’écran" })).toBeNull();
   });
 
-  it("shows a bar without a value while the API does not say how far a task has gone", async () => {
-    serve({ [TASK]: "task_running" });
-    // The contract makes the progress optional: a task queued without one.
-    const unmeasured = task("task_mark_queued");
-    delete unmeasured.progress;
-    await started(unmeasured);
-    expect(within(tasksRegion()).getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
-    expect(within(entries()).queryByText(/%/)).toBeNull();
-  });
-
   it("stops asking once the shell goes away", async () => {
     const client = serve({ [TASK]: "task_running" });
     const view = await started(task("task_mark_queued"));

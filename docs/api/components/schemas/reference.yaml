@@ -86,6 +86,7 @@ OrgNode:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est
@@ -267,6 +268,13 @@ ResourceRoleUpdate:
   properties:
     code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
+    org_node_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Facultatif : le nœud du rôle, qu'un formulaire qui renvoie le rôle lu entier peut porter.
+        Renvoyé inchangé, il ne change rien ; autre que celui du rôle, la modification est
+        refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/org_node_id` par
+        `FIELD_READ_ONLY` : le nœud d'un rôle ne se modifie pas (WF-REF-0090).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
@@ -445,6 +453,7 @@ CostType:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté
@@ -563,6 +572,7 @@ CostCategoryImage:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui
@@ -590,11 +600,14 @@ CostCategoryImage:
     accounting_code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code
         comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est
-        documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040).
+        documentaire : il n'intervient dans aucun calcul ni dans l'import des coûts réels, qui ne
+        ventile pas par nature (WF-INTF-0140) ; les fichiers de devis et de reste à engager
+        désignent par lui la catégorie d'une ligne hors main-d'œuvre (WF-REF-0040, annexe B).
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -617,7 +630,15 @@ CostCategoryWrite:
         nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des
         taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ;
         vers une nature du même type, elle est toujours permise.
-    accounting_code: { type: string, minLength: 1, maxLength: 20 }
+    accounting_code:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 20
+      description: >-
+        Le code comptable, d'un à vingt caractères dont au moins un n'est pas un blanc : vide,
+        refusé par 422 `VALUE_REQUIRED` sur `/accounting_code`, trop long par `VALUE_TOO_LONG`,
+        fait seulement de blancs par le motif `VALIDATION_FAILED` (WF-REF-0040, WF-ARC-0110).
 
 CostCategoryUpdate:
   description: >-
@@ -760,6 +781,7 @@ ReferenceSettings:
     - risk_matrix
     - index_thresholds
     - max_weeks_between_reviews
+    - audit
     - lock_version
   description: >-
     Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), nom de
@@ -783,6 +805,11 @@ ReferenceSettings:
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    audit:
+      allOf: [{ $ref: ../common.yaml#/Audit }]
+      description: >-
+        Qui a réglé les paramètres, et quand : la plateforme à l'amorçage (WF-EXP-0020), puis
+        l'auteur de chaque écriture, quel que soit le champ qu'elle porte (WF-DAT-0070).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ReferenceSettingsWrite:
@@ -866,7 +893,10 @@ IndexThresholds:
   type: object
   required: [cost_watch, cost_alert, schedule_watch, schedule_alert]
   description: >-
-    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Le seuil
+    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Un indice
+    supérieur ou égal au seuil de vigilance est nominal ; inférieur à lui et supérieur ou égal au
+    seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte : à 0,9 et 0,8, un
+    indice de 0,9 est nominal, un indice de 0,8 en vigilance (WF-REF-0170). Le seuil
     d'alerte de chaque indice est strictement inférieur à son seuil de vigilance : un seuil
     d'alerte qui ne l'est pas est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant
     (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`) par
@@ -894,7 +924,7 @@ IndexThreshold:
 
 DurationUnits:
   type: object
-  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  required: [hours_per_day, hours_per_week, days_per_month, audit, lock_version]
   description: >-
     Les trois constantes de l'installation par lesquelles les jours, les semaines et les
     mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par
@@ -910,6 +940,11 @@ DurationUnits:
     days_per_month:
       allOf: [{ $ref: ../common.yaml#/Decimal }]
       description: 20 par défaut.
+    audit:
+      allOf: [{ $ref: ../common.yaml#/Audit }]
+      description: >-
+        Qui a réglé les constantes, et quand : la plateforme à l'amorçage, puis l'auteur de
+        chaque écriture (WF-DAT-0070).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 DurationUnitsWrite:

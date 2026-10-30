@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**165 opérations sur 128 chemins, dans 13 familles.**
+**168 opérations sur 130 chemins, dans 13 familles.**
 Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -18,8 +18,8 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/health` | Sonde de vivacité, et la maintenance d'une restauration | WF-ADM-0160 |
 | GET | `/installation` | Ce que le front doit savoir de l'installation avant toute session | WF-EXP-0020, WF-INTF-0160 |
 | GET | `/health/ready` | Sonde de préparation | WF-EXP-0040 |
-| GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010 |
-| GET | `/system/status` | Écran d'état du système | WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
+| GET | `/metrics` | Métriques au format Prometheus | WF-ADM-0130, WF-OBS-0010, WF-SEC-0010 |
+| GET | `/system/status` | Écran d'état du système | WF-ADM-0100, WF-ADM-0130, WF-ADM-0170, WF-OBS-0030 |
 | GET | `/tasks` | Tâches de fond de l'appelant | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}` | Avancement d'une tâche de fond | WF-ARC-0090, WF-IHM-0080 |
 | GET | `/tasks/{task_id}/result` | Résultat d'une tâche de fond | WF-ARC-0040, WF-DAT-0120 |
@@ -38,7 +38,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Comptes, rôles et permissions
 
-`paths/access.yaml` — 17 opérations
+`paths/access.yaml` — 20 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
@@ -50,9 +50,12 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | POST | `/users/{user_id}/anonymization` | Anonymiser un compte désactivé | WF-ADM-0060, WF-ADM-0070, WF-ADM-0100, WF-SEC-0030 |
 | PUT | `/users/{user_id}/access-roles` | Attribuer les rôles d'habilitation d'un compte | WF-ADM-0090, WF-ADM-0120, WF-SEC-0020 |
 | POST | `/users/{user_id}/password-link` | Obtenir le lien de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0020, WF-SEC-0030 |
+| POST | `/users/{user_id}/invitation` | Renvoyer le courriel de fixation du mot de passe d'un compte | WF-ADM-0100, WF-ADM-0140, WF-CMP-0030, WF-EXP-0040, WF-SEC-0030 |
 | GET | `/users/{user_id}/avatar` | Avatar d'un compte | WF-ADM-0080 |
 | POST | `/identity-syncs` | Lire les comptes du fournisseur d'identité | WF-ADM-0050, WF-ADM-0070, WF-ADM-0180, WF-ARC-0090 |
 | GET | `/identity-syncs/latest` | Compte rendu de la dernière lecture des comptes | WF-ADM-0070 |
+| GET | `/identity-sync-schedule` | Périodicité de la lecture des comptes | WF-ADM-0070, WF-ADM-0100, WF-ADM-0170 |
+| PUT | `/identity-sync-schedule` | Régler la périodicité de la lecture des comptes | WF-ADM-0070, WF-ADM-0100 |
 | GET | `/permissions` | Catalogue des permissions | WF-ADM-0100 |
 | GET | `/access-roles` | Rôles d'habilitation | WF-ADM-0010, WF-ADM-0060, WF-ADM-0090, WF-DAT-0070, WF-IHM-0060, WF-IHM-0130 |
 | POST | `/access-roles` | Composer un rôle d'habilitation | WF-ADM-0020 |
@@ -68,10 +71,10 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 |---|---|---|---|
 | GET | `/backups` | Sauvegardes | WF-ADM-0100, WF-ADM-0150, WF-ADM-0170, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
 | POST | `/backups` | Déclencher une sauvegarde | WF-ADM-0100, WF-ADM-0150, WF-ARC-0090, WF-SEC-0030 |
-| GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0150, WF-IHM-0090 |
+| GET | `/backups/{backup_id}` | Une sauvegarde | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
 | PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0100, WF-ADM-0170, WF-IHM-0090 |
 | GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
-| GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0170 |
+| GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050 |
 | PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
 | POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
@@ -119,7 +122,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-CYC-0120, WF-REF-0010, WF-REF-0020, WF-REF-0030, WF-RIS-0010 |
 | GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
-| GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-REF-0050, WF-REF-0060 |
+| GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-DEV-0010, WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0030, WF-REF-0050, WF-REF-0130 |
 | GET | `/reference/actual-cost-mapping` | Correspondance de l'extraction des coûts réels | WF-ADM-0100, WF-CRE-0010, WF-REF-0190 |
 | PUT | `/reference/actual-cost-mapping` | Régler la correspondance de l'extraction des coûts réels | WF-ADM-0100, WF-INTF-0080, WF-REF-0190 |

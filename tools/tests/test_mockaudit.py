@@ -189,12 +189,16 @@ def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
     journal: dict[str, Node],
 ) -> None:
     # The origin of an account created, the permissions of a role created, the roles given to an
-    # account by their identifiers and labels; nothing for any other action of the universe (#706).
+    # account by their identifiers and labels, the nature of an import applied (B-02); nothing for
+    # any other action of the universe (#706).
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    imports = {each["import_id"]: each for each in fixture("imports")["items"]}
     for event in _events(journal["audit_events"]):
         named = event["object"]["object_id"]
-        if event["action"] == "user_create":
+        if event["action"] == "import_apply":
+            assert event["params"] == {"import_kind": imports[named]["kind"]}
+        elif event["action"] == "user_create":
             assert event["params"] == {"origin": users[named]["origin"]}
         elif event["action"] == "access_role_create":
             assert event["params"] == {"permissions": roles[named]["permissions"]}
@@ -590,7 +594,12 @@ def test_the_facets_name_each_author_and_project_of_the_journal_once(
     assert codes == sorted(codes)
     witness = fixture("project")
     assert facets["projects"] == [
-        {"project_id": witness["project_id"], "code": witness["code"], "label": witness["label"]}
+        {
+            "project_id": witness["project_id"],
+            "code": witness["code"],
+            "label": witness["label"],
+            "can_open": True,
+        }
     ]
 
 

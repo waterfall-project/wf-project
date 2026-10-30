@@ -75,7 +75,7 @@ UserCreated:
             de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
             (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
             pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
-            (`createPasswordSetupLink`).
+            (`createPasswordSetupLink`). Le courriel se renvoie ensuite (`resendInvitation`).
 
 UserCommand:
   type: string
@@ -126,9 +126,11 @@ UserAccount:
     - anonymized_at
     - is_active
     - origin
+    - org_node_id
     - org_node_label
     - access_role_ids
     - access_role_labels
+    - has_avatar
     - audit
     - lock_version
   properties:
@@ -181,7 +183,9 @@ UserAccount:
         Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même
         ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020).
       items: { type: string }
-    has_avatar: { type: boolean }
+    has_avatar:
+      type: boolean
+      description: Vrai quand le compte porte un avatar (WF-ADM-0080) ; faux, l'image par défaut.
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -293,7 +297,12 @@ DisplayPreferences:
         Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le
         réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation
         (WF-ADM-0040).
-    highlight_tasks_added_after_reference: { type: boolean }
+    highlight_tasks_added_after_reference:
+      type: boolean
+      description: >-
+        La préférence qui distingue visuellement les tâches ajoutées après la révision de
+        référence et, dans le reste à engager, les lignes dont le montant budgété est nul : une
+        seule préférence pour les deux (WF-ADM-0040, WF-RAE-0040). Absente, faux.
     grids:
       type: object
       maxProperties: 100
@@ -542,7 +551,7 @@ AccessRoleWrite:
 
 AccessRoleUpdate:
   description: >-
-    Modification d'un rôle d'accès : porte le compteur lu,
+    Modification d'un rôle d'habilitation : porte le compteur lu,
     qu'une création n'a pas.
   allOf:
     - $ref: '#/AccessRoleWrite'

@@ -204,7 +204,10 @@ export function ProjectCell({
   if (project === null) {
     return <span className="text-muted-foreground">{t("noProject")}</span>;
   }
-  const name = t("project", { code: project.code, label: project.label });
+  const name =
+    project.code === null
+      ? project.label
+      : t("project", { code: project.code, label: project.label });
   return href === undefined ? (
     name
   ) : (
