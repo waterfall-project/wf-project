@@ -17,7 +17,7 @@ nombre_exigences: 212
   </picture>
 </p>
 
-Révision 1.0.0
+Révision 1.0.1
 
 © 2026 Projet Waterfall. Ce document est publié sous licence Creative Commons Attribution – Partage dans les mêmes conditions 4.0 International (CC BY-SA 4.0) : <https://creativecommons.org/licenses/by-sa/4.0/deed.fr>
 
