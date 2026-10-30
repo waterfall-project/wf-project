@@ -24,7 +24,7 @@ import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
-import { useLocalTimestamp } from "@/components/local-time";
+import { LocalTime } from "@/components/local-time";
 import { formatLocale } from "@/i18n/format";
 
 import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
@@ -57,9 +57,6 @@ export function ActorCell({ actor }: { readonly actor: AuditEvent["actor"] }) {
   );
 }
 
-/** An instant to format when an inscription keeps none: its result is unused. */
-const NO_INSTANT = "1970-01-01T00:00:00Z";
-
 /** The parameters of an inscription, as the contract gives them: codes, identifiers, labels kept. */
 type AuditParams = AuditEvent["params"];
 type PermissionCode = components["schemas"]["PermissionCode"];
@@ -77,8 +74,6 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
 function useAuditDetails(params: AuditParams): string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
-  // The instant of the backup taken, in the time zone of the workstation once the browser has written it.
-  const taken = useLocalTimestamp(params.backup_taken_at ?? NO_INSTANT);
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
   const listed = (items: readonly string[]) => list.format(items);
   const permissions = (codes: readonly PermissionCode[]) =>
@@ -96,12 +91,12 @@ function useAuditDetails(params: AuditParams): string | undefined {
     attached === true && said("attached", { origin: t("enums.UserOrigin.directory") }),
   ];
   // The parameters the contract keeps of an action (`AuditParams`): the state a project exited to,
-  // the reason given, the instant of the backup taken, the kind of exchange applied.
-  const action = ({ to_state, reason, backup_taken_at, import_kind }: AuditParams) => [
+  // the reason given, the kind of exchange applied; the instant of the backup taken is the cell's own,
+  // written in the time zone of the workstation once the browser has.
+  const action = ({ to_state, reason, import_kind }: AuditParams) => [
     to_state !== undefined &&
       said("toState", { state: t(`enums.ProjectExit.to_state.${to_state}`) }),
     reason != null && reason !== "" && said("reason", { reason }),
-    backup_taken_at !== undefined && said("backupTakenAt", { at: taken }),
     import_kind !== undefined &&
       said("importKind", { kind: t(`enums.ExchangeKind.${import_kind}`) }),
   ];
@@ -154,17 +149,26 @@ function useAuditDetails(params: AuditParams): string | undefined {
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
+  const said = useTranslations("admin.auditLog.details");
   const details = useAuditDetails(event.params);
-  return details === undefined ? (
-    t(event.action)
-  ) : (
+  const taken = event.params.backup_taken_at;
+  if (details === undefined && taken === undefined) {
+    return t(event.action);
+  }
+  // The instant of a backup restored is written by the browser, in its time zone (`LocalTime`).
+  const time = () => <LocalTime value={taken ?? ""} />;
+  return (
     <span className="flex flex-col text-xs leading-3">
       <span className="overflow-x-clip text-ellipsis whitespace-nowrap">{t(event.action)}</span>
       <span
         title={details}
         className="overflow-x-clip text-ellipsis whitespace-nowrap text-muted-foreground"
       >
-        {details}
+        {taken === undefined
+          ? details
+          : details === undefined
+            ? said.rich("backupTakenAt", { time })
+            : said.rich("backupTakenAfter", { first: details, time })}
       </span>
     </span>
   );

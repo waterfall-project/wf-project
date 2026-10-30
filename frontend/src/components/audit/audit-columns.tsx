@@ -227,7 +227,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
         format: "text",
         width: 300,
         contract: "project",
-        // A project without a code is named by its label, as the cell does: sorted and exported alike.
+        // Without a code, the label the cell shows alone: copied and exported alike, never null.
         value: (event) =>
           event.project === null ? null : (event.project.code ?? event.project.label),
         render: (event) => (

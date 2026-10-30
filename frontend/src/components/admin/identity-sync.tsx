@@ -234,8 +234,8 @@ export function IdentitySync({
 }: {
   /** The report of the last reading that ended; none yet. */
   readonly report: IdentitySyncReport | undefined;
-  /** The periodicity of the reading, none where the API does not serve it (404). */
-  readonly schedule: IdentitySyncSchedule | undefined;
+  /** The periodicity of the reading, which an installation always has. */
+  readonly schedule: IdentitySyncSchedule;
   /** Whether the session may modify the accounts (`platformOffer`): the commands are offered. */
   readonly startable: boolean;
 }) {
@@ -251,9 +251,7 @@ export function IdentitySync({
       ) : (
         <Report report={report} />
       )}
-      {schedule === undefined ? null : (
-        <IdentitySyncScheduleSection schedule={schedule} editable={startable} />
-      )}
+      <IdentitySyncScheduleSection schedule={schedule} editable={startable} />
     </section>
   );
 }

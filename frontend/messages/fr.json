@@ -2247,6 +2247,7 @@
       "link": "Lien",
       "resend": "Courriel",
       "resent": "Courriel de fixation du mot de passe renvoyé à « {name} ».",
+      "resendUnsent": "Aucun courriel n’a pu partir pour « {name} » : remettez-lui le lien de fixation par un autre canal, avec la commande « Lien ».",
       "resend_invitation": {
         "command": "Renvoyer le courriel de fixation du mot de passe de « {name} »"
       },
@@ -2505,7 +2506,8 @@
         "rolesWithdrawn": "{count, plural, one {Rôle retiré} other {Rôles retirés}} : {roles}",
         "toState": "Sortie vers : {state}",
         "reason": "Motif : {reason}",
-        "backupTakenAt": "Sauvegarde restaurée du {at}",
+        "backupTakenAt": "Sauvegarde restaurée du <time></time>",
+        "backupTakenAfter": "{first} ; Sauvegarde restaurée du <time></time>",
         "importKind": "Import : {kind}",
         "then": "{first} ; {second}"
       },

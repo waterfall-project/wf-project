@@ -53,7 +53,7 @@ function report(name: string): IdentitySyncReport {
 function open(
   shown: IdentitySyncReport | undefined,
   startable = true,
-  schedule?: IdentitySyncSchedule,
+  schedule: IdentitySyncSchedule = example("identity_sync_schedule") as IdentitySyncSchedule,
 ) {
   const tree = (given: IdentitySyncReport | undefined) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">

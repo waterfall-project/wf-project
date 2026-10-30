@@ -4,33 +4,34 @@
  * The accounts of the installation (FBS-1.1, US-0250), outside any project: a page of the list the
  * server pages, deactivated accounts included — they stay listed, and may be reactivated
  * (WF-ADM-0060) —, each with its access roles and the node it is attached to, named by the server;
- * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by node,
- * by access role, by state and on its audit columns, and paged by the server, as the address asks
- * under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`, `org_node_id`,
- * `access_role_ids`, `is_active`, `include_inactive`, the periods and the authors of the creation and
- * of the last modification — `created_at_from`, `updated_by_user_id`… —, `offset`), a period the API
- * refuses (422) leaving the grid unread and said at its field, the authors offered those of the page,
- * others found by a search of the accounts; the nodes offered in the order of the tree, the roles as
- * `listAccessRoles` gives them — none to a session that may not read them; the
- * deactivated accounts listed unless the address says `include_inactive=false`. Every figure as the
- * API gives it: the front sorts, filters and pages nothing. An address that says nothing of the
- * table — neither sort, nor search, nor filter — leads, before anything is read, to the address of
- * the search and the filters the account keeps for it, if it keeps any (`restoredAddress`,
- * WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a session that may modify
- * the accounts, the table is its own entry, « Créer un compte local » at its head (US-0360, #379);
- * to another, none. Above the table, the report of the last reading of the accounts of the identity
- * provider that ended (`getLatestIdentitySync`, US-0370, WF-ADM-0070) — the screen says none has yet
- * when the API finds none (404) — and, to a session that may modify the accounts, the command that
- * asks a new one, then its periodicity (`getIdentitySyncSchedule`, WF-ADM-0070), which that session sets
- * (`IdentitySync`). A read the API refuses, or cannot answer, is thrown for the pages
- * of the shell to say; a tree of the organisation it does not find leaves the screen standing,
- * without a node to choose.
+ * a dense grid (#514), sorted, searched — on the names and the address —, filtered by origin, by
+ * node, by access role, by state and on its audit columns, and paged by the server, as the address
+ * asks under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`,
+ * `org_node_id`, `access_role_ids`, `is_active`, `include_inactive`, the periods and the authors of
+ * the creation and of the last modification — `created_at_from`, `updated_by_user_id`… —,
+ * `offset`), a period the API refuses (422) leaving the grid unread and said at its field, the
+ * authors offered those of the page, others found by a search of the accounts; the nodes offered in
+ * the order of the tree, the roles as `listAccessRoles` gives them — none to a session that may not
+ * read them; the deactivated accounts listed unless the address says `include_inactive=false`.
+ * Every figure as the API gives it: the front sorts, filters and pages nothing. An address that
+ * says nothing of the table — neither sort, nor search, nor filter — leads, before anything is
+ * read, to the address of the search and the filters the account keeps for it, if it keeps any
+ * (`restoredAddress`, WF-IHM-0060). No screen offers to delete an account (WF-ADM-0060); to a
+ * session that may modify the accounts, the table is its own entry, « Créer un compte local » at
+ * its head (US-0360, #379); to another, none. Above the table, the report of the last reading of
+ * the accounts of the identity provider that ended (`getLatestIdentitySync`, US-0370, WF-ADM-0070)
+ * — the screen says none has yet when the API finds none (404) — and, to a session that may modify
+ * the accounts, the command that asks a new one; then its periodicity (`getIdentitySyncSchedule`,
+ * WF-ADM-0070), which that session sets (`IdentitySync`) and which an installation always has: a
+ * read refused finds the page not found. A read the API refuses, or cannot answer, is thrown for
+ * the pages of the shell to say; a tree of the organisation it does not find leaves the screen
+ * standing, without a node to choose.
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrRefused, readUnlessRefused } from "@/api/problem";
+import { readOrFail, readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { IdentitySync } from "@/components/admin/identity-sync";
@@ -150,10 +151,9 @@ export default async function UsersPage({
     readUnlessRefused("getLatestIdentitySync", [{ status: 404 }], () =>
       serverClient().GET("/identity-syncs/latest"),
     ),
-    // The periodicity of the reading: left out where the API refuses or does not find it.
-    readUnlessRefused("getIdentitySyncSchedule", [{ status: 404 }], () =>
-      serverClient().GET("/identity-sync-schedule"),
-    ),
+    // An installation always reads the periodicity delivered: the 404 of the contract is the read
+    // refused, which the page is not found for, as for any read it cannot do without.
+    readOrFail("getIdentitySyncSchedule", () => serverClient().GET("/identity-sync-schedule")),
   ]);
   // A period refused leaves the list unread, the side said at its field.
   const users =

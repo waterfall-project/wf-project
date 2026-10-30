@@ -318,7 +318,7 @@ describe("the journal of audit", () => {
     expect(links.filter((link) => link.startsWith("couts-reels"))).toEqual([]);
   });
 
-  it("names the project and its objects without a link where the server says the session may not open the project [WF-ADM-0110-A]", async () => {
+  it("names the project and its objects without a link where the server says the session may not open the project [WF-ADM-0190-A]", async () => {
     server.answers = { ...server.answers, [EVENTS]: "audit_events_auditor" };
     const page = await journal();
     // Only the links of the journal itself remain: the correlations.

@@ -485,6 +485,13 @@ describe("the accounts", () => {
       digest: "NEXT_HTTP_ERROR_FALLBACK;404",
     });
   });
+
+  it("are not found when the periodicity of the reading is refused: an installation always has one, and the screen hides none [WF-ADM-0070-A]", async () => {
+    server.answers = { ...server.answers, "GET /identity-sync-schedule": NOT_FOUND };
+    await expect(UsersPage(searched())).rejects.toMatchObject({
+      digest: "NEXT_HTTP_ERROR_FALLBACK;404",
+    });
+  });
 });
 
 describe("the access roles", () => {

@@ -22,7 +22,7 @@ import { useId, useRef, useState } from "react";
 
 import { setIdentitySyncSchedule } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
-import { nextWeekday, WEEKDAYS } from "@/components/admin/backup-schedule";
+import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";

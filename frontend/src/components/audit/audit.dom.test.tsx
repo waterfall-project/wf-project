@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
+import { formatCell } from "@/components/grid/columns";
 import { ROW_REM } from "@/components/grid/grid-floor";
 import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
@@ -329,7 +330,7 @@ describe("the grid of the journal", () => {
     ).toHaveLength(13);
   });
 
-  it("names a project that has no code by its label alone, in the journal and in the filter of the projects [WF-SEC-0030-A]", () => {
+  it("names a project that has no code by its label alone, in the journal and in the filter of the projects [WF-ADM-0190-A]", () => {
     const label = "Modernisation du poste de commande";
     const uncoded = {
       ...witness,
@@ -350,18 +351,68 @@ describe("the grid of the journal", () => {
     expect(options.some((option) => option.textContent.includes("null"))).toBe(false);
   });
 
-  it("gives a project without a code its label as the value of the column, to sort, copy and export, never null [WF-SEC-0030-A]", () => {
+  it("gives the text of the column of the projects, the one a cell is copied or exported as, the label of a project without a code, the code and the label of another, nothing of an inscription that has none, never null or undefined [WF-ADM-0190-A]", () => {
     const column = auditGrid({ functions: [], revision: false }).columns.find(
       ({ key }) => key === "project",
     );
     const coded = witness.items.find(({ project }) => project?.code === "PRJ-001");
     const project = coded?.project;
-    if (coded === undefined || project == null) {
+    if (column === undefined || coded === undefined || project == null) {
       throw new Error("the witness journal names a project");
     }
-    expect(column?.value(coded)).toBe("PRJ-001");
-    expect(column?.value({ ...coded, project: { ...project, code: null } })).toBe(project.label);
-    expect(column?.value({ ...coded, project: null })).toBeNull();
+    const text = (event: AuditEvent) => formatCell(column.format, column.value(event), "fr");
+    expect(text({ ...coded, project: { ...project, code: null } })).toBe(project.label);
+    expect(text(coded)).toBe("PRJ-001");
+    expect(text({ ...coded, project: null })).toBe("");
+    for (const event of [{ ...coded, project: { ...project, code: null } }, coded]) {
+      expect(text(event)).not.toMatch(/null|undefined/);
+    }
+    // The value itself, which the table reads: the label, or none.
+    expect(column.value({ ...coded, project: { ...project, code: null } })).toBe(project.label);
+    expect(column.value({ ...coded, project: null })).toBeNull();
+  });
+
+  it("shows a journal whose inscriptions name a project without a code, and one that names none, without a null in any cell [WF-ADM-0190-A]", () => {
+    const [first, second] = witness.items;
+    if (first?.project == null || second === undefined) {
+      throw new Error("the witness journal names a project");
+    }
+    const events: AuditEvent[] = [
+      { ...first, project: { ...first.project, code: null } },
+      { ...second, project: null },
+    ];
+    render(journal({ shown: { ...witness, items: events } }));
+    const rows = within(grid()).getAllByRole("row");
+    expect(rows[1]?.textContent).toContain(first.project.label);
+    expect(rows[1]?.textContent).not.toMatch(/null|undefined/);
+    expect(rows[2]?.textContent).not.toMatch(/null|undefined/);
+  });
+
+  const GONE = "01926f3a-7c00-7000-8000-000000000999";
+
+  it("names a project that no longer exists, and one the session may not open, by its code and label without a link to it [WF-ADM-0190-A]", () => {
+    const [first] = witness.items;
+    if (first?.project == null) {
+      throw new Error("the witness journal names a project");
+    }
+    const gone: AuditEvent = {
+      ...first,
+      object: { ...first.object, kind: "project", object_id: GONE },
+      project: {
+        project_id: GONE,
+        code: "PRJ-099",
+        label: "Projet disparu",
+        can_open: false,
+      },
+    };
+    render(journal({ shown: { ...witness, items: [gone] } }));
+    const row = within(grid()).getAllByRole("row")[1];
+    if (row === undefined) {
+      throw new Error("the journal shows the inscription");
+    }
+    expect(row.textContent).toContain("PRJ-099 · Projet disparu");
+    expect(within(row).queryByRole("link", { name: /PRJ-099/ })).toBeNull();
+    expect(within(row).queryByRole("link", { name: /Projet disparu/ })).toBeNull();
   });
 
   it("says under the action the parameters the contract keeps of it: the state a project exited to, the reason, the kind of import [WF-SEC-0030-A]", () => {
@@ -378,6 +429,35 @@ describe("the grid of the journal", () => {
     render(journal({ shown: { ...witness, items: [exit, other] } }));
     expect(within(grid()).getByText("Sortie vers : Perdu ; Motif : Marché perdu")).toBeVisible();
     expect(within(grid()).getByText("Import : Coûts réels")).toBeVisible();
+  });
+
+  it("says under a restoration the instant of the backup restored in the time zone of the workstation, after the other parameters [WF-SEC-0030-A]", () => {
+    const event = witness.items.find(({ action }) => action === "import_apply");
+    if (event === undefined) {
+      throw new Error("the witness journal holds an import");
+    }
+    const restored: AuditEvent = {
+      ...event,
+      action: "restore",
+      params: { backup_taken_at: "2026-06-01T10:00:00Z" },
+    };
+    const explained: AuditEvent = {
+      ...event,
+      audit_event_id: "01926f3a-7c00-7000-8000-000700000098",
+      action: "restore",
+      params: { backup_taken_at: "2026-06-01T10:00:00Z", reason: "Incident" },
+    };
+    render(journal({ shown: { ...witness, items: [restored, explained] } }));
+    const times = [...grid().querySelectorAll("time")].filter(
+      (time) => time.getAttribute("datetime") === "2026-06-01T10:00:00Z",
+    );
+    expect(times).toHaveLength(2);
+    for (const time of times) {
+      expect(time.textContent).toMatch(/2026/);
+    }
+    expect(within(grid()).getByText(/^Sauvegarde restaurée du/)).toBeVisible();
+    expect(within(grid()).getByText(/^Motif : Incident ; Sauvegarde restaurée du/)).toBeVisible();
+    expect(within(grid()).queryByText(/1970/)).toBeNull();
   });
 
   it("leads to the whole history of an object, every other filter lifted, its sort kept, back to the first page", async () => {

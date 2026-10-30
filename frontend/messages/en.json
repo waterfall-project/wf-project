@@ -2247,6 +2247,7 @@
       "link": "Link",
       "resend": "Email",
       "resent": "Password setup email sent again to “{name}”.",
+      "resendUnsent": "No email could be sent to “{name}”: hand over the setup link by another channel, with the “Link” command.",
       "resend_invitation": {
         "command": "Resend the password setup email of “{name}”"
       },
@@ -2505,7 +2506,8 @@
         "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
         "toState": "Exit to: {state}",
         "reason": "Reason: {reason}",
-        "backupTakenAt": "Restored backup of {at}",
+        "backupTakenAt": "Restored backup of <time></time>",
+        "backupTakenAfter": "{first}; Restored backup of <time></time>",
         "importKind": "Import: {kind}",
         "then": "{first}; {second}"
       },

@@ -14,13 +14,13 @@
  *
  * The screen is the consultation of the journal (`audit_log.read`): a session without it finds it
  * not found, as an address that leads nowhere (WF-ADM-0110). The authors and the projects are
- * offered from those the whole journal names (`listAuditFacets`), which that permission alone reads:
- * an auditor who may not read the accounts filters by author all the same. The links lead to the
- * projects the server says the session may open (`AuditProject.can_open`), and to the screens of their objects whose function
- * it may read (`auditReach`). A period that ends before it starts, which
- * the API refuses (422), is said in place of the inscriptions, the filters kept to be changed, and
- * at the field of its end, which names the start the API was given (`params.minimum`); any
- * other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
+ * offered from those the whole journal names (`listAuditFacets`), which that permission alone
+ * reads: an auditor who may not read the accounts filters by author all the same. The links lead to
+ * the projects the server says the session may open (`AuditProject.can_open`), and to the screens
+ * of their objects whose function it may read (`auditReach`). A period that ends before it starts,
+ * which the API refuses (422), is said in place of the inscriptions, the filters kept to be
+ * changed, and at the field of its end, which names the start the API was given (`params.minimum`);
+ * any other read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";

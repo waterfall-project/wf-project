@@ -190,9 +190,10 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const [given, setGiven] = useState<Given>();
   const [linking, setLinking] = useState(false);
   const [resending, setResending] = useState<ReadonlySet<string>>(() => new Set());
-  // The same, as the last press left it: two presses may come before a render.
+  // The accounts whose email is asked, as the last press left them: a second press of the same
+  // command may come before the render that marks it busy.
   const resendHeld = useRef(new Set<string>());
-  // The same, as the last press left it: two presses may come before a render.
+  // Whether a link is asked or shown, as the last press left it: two presses may come before a render.
   const linkHeld = useRef(false);
   // The account whose anonymisation is asked — kept while the confirmation closes —, and whether
   // the confirmation is open.
@@ -328,6 +329,10 @@ function Writes({ children }: { readonly children: ReactNode }) {
               target: `invitation ${id}`,
               back: trigger,
             });
+            // No email left: the way out is the link, handed over by another channel.
+            if ("problem" in outcome && outcome.problem.status === 503) {
+              say(t("resendUnsent", { name }), { noted: false });
+            }
           }
         });
     },
