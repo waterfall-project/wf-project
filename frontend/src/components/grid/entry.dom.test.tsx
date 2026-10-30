@@ -632,7 +632,7 @@ describe("a write the server refuses", () => {
   it("explains a conflict, and says the API is out of reach", async () => {
     serve({
       [LINE]: {
-        problem: example("node_create_marked_refused") as Problem,
+        problem: example("node_create_marked_refused") as Problem & { status: 409 },
       },
     });
     const { rerender } = render(grid());
@@ -653,7 +653,7 @@ describe("a write the server refuses", () => {
     serve({
       [LINE]: [
         {
-          problem: example("node_create_marked_refused") as Problem,
+          problem: example("node_create_marked_refused") as Problem & { status: 409 },
         },
         "estimate_line_updated",
       ],
