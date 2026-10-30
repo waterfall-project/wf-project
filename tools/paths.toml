@@ -381,6 +381,7 @@ paths = [
     "fixtures/api/paste_stale.json",
     "fixtures/api/paste_plan_subproject_held.json",
     "fixtures/api/import_remaining_subproject_held.json",
+    "fixtures/api/import_remaining_completed_tasks.json",
     "fixtures/api/import_planning_non_working_day.json",
     "fixtures/api/import_estimate_main_in_progress.json",
     "fixtures/api/import_actual_costs_first.json",
