@@ -4725,7 +4725,7 @@ export interface components {
         };
         /** @description Ce qu'une écriture de grille rend, quelle qu'elle soit — une cellule, un collage, un déplacement, une création, une suppression, une liaison, un avancement, une réestimation, une inscription aux suivis — : les nœuds écrits, les dates des autres tâches que l'écriture a redatées, les montants, inflation comprise, des autres lignes et tâches qu'elle a déplacées dans le temps, les récapitulatives recalculées au-dessus des uns et des autres, et les totaux de la structure, pour que la grille montre juste sans relire la structure ni rien sommer (WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020), et le compteur de la structure, qui a avancé. */
         NodesWritten: {
-            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; vide après une suppression, qui ne laisse rien à rendre, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud. */
+            /** @description Les nœuds écrits, tels qu'ils sont désormais, dans l'ordre du plan ; après une suppression, les seules lignes de provision qu'elle déplace sous leur tâche nouvelle, vide quand elle n'en déplace aucune, et après l'écriture de la structure elle-même (`updateCostStructure`), qui n'écrit aucun nœud. */
             nodes: components["schemas"]["Node"][];
             /** @description Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement, marge et criticité d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient — une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est nulle et qu'elle n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040) —, ses `computed_fields` et `editable_fields` changés avec elle (`deleteNode`, `moveNodes`). */
             ancestors: components["schemas"]["Node"][];
@@ -5960,7 +5960,7 @@ export interface components {
         Limit: number;
         Offset: number;
         TaskId: components["schemas"]["Uuid"];
-        /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+        /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
         IncludeInactive: boolean;
         /** @description Début, inclus, de la période de création : restreint aux lignes créées à cet instant ou après lui (`audit.created_at`, WF-IHM-0130). */
         CreatedAtFrom: components["schemas"]["Timestamp"];
@@ -6546,7 +6546,7 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 /** @description Recherche sur le nom, le prénom, l'adresse électronique, et sur le prénom suivi du nom, tels que la table les montre : un compte est retenu dès que l'un d'eux contient le texte, comparé comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le prénom suivi du nom, qu'aucune colonne ne porte entier. */
                 search?: string;
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Restreint à l'un des deux états, la colonne de l'état filtrée (WF-IHM-0130, WF-ADM-0060) : vrai, les seuls comptes actifs ; faux, les seuls désactivés, qui restent lisibles. Il prime sur `include_inactive`, qui ne fait qu'ajouter les désactivés aux actifs ; absent, `include_inactive` décide. */
                 is_active?: boolean;
@@ -7887,7 +7887,7 @@ export interface operations {
     listOrgNodes: {
         parameters: {
             query?: {
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -8109,7 +8109,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -8405,7 +8405,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -8677,7 +8677,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -8872,7 +8872,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -9068,7 +9068,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
-                /** @description Inclut les objets désactivés, qui restent lisibles (WF-REF-0150). */
+                /** @description Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme pour `is_active` faux. */
                 include_inactive?: components["parameters"]["IncludeInactive"];
                 /** @description Recherche sur le libellé ; une opération qui cherche aussi sur un autre champ, le code par exemple, le dit dans sa description. Le texte se compare comme toute recherche du contrat, sans égard à la casse ni aux accents (README, « Une recherche… »). */
                 search?: components["parameters"]["Search"];
@@ -11015,7 +11015,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, vide quand il n'en portait pas, les ancêtres et les totaux sont recalculés sans lui. */
+            /** @description Nœud supprimé ; `nodes` ne rend que les lignes de provision qu'il déplace, écrites sous leur tâche nouvelle (`provision_moved`), vide quand il n'en portait pas (`deleted`) ; les ancêtres et les totaux sont recalculés sans lui. */
             200: {
                 headers: {
                     [name: string]: unknown;
