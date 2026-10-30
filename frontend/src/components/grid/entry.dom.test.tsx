@@ -631,11 +631,7 @@ describe("a write the server refuses", () => {
   it("explains a conflict, and says the API is out of reach", async () => {
     serve({
       [LINE]: {
-        problem: {
-          code: "STATE_FORBIDS_OPERATION",
-          status: 409,
-          params: { missing_condition: "revision_draft" },
-        },
+        problem: example("node_create_marked_refused") as Problem,
       },
     });
     const { rerender } = render(grid());
@@ -656,11 +652,7 @@ describe("a write the server refuses", () => {
     serve({
       [LINE]: [
         {
-          problem: {
-            code: "STATE_FORBIDS_OPERATION",
-            status: 409,
-            params: { missing_condition: "revision_draft" },
-          },
+          problem: example("node_create_marked_refused") as Problem,
         },
         "estimate_line_updated",
       ],

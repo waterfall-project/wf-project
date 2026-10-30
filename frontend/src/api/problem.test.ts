@@ -93,14 +93,10 @@ describe("the decoder of an answer of the API", () => {
   });
 
   it("explains a conflict with the state of an object, which it names (409)", async () => {
-    const conflict = {
-      code: "STATE_FORBIDS_OPERATION",
-      status: 409,
-      params: { conflicting_object_id: TASK.node_id },
-    } as const;
+    const conflict = example("cost_category_reactivation_refused") as Problem & { status: 409 };
     expect(await writeTask({ problem: conflict })).toMatchObject({
       kind: "conflict",
-      conflictingObjectId: TASK.node_id,
+      conflictingObjectId: "01926f3a-7c00-7000-8000-000000000462",
     });
   });
 
