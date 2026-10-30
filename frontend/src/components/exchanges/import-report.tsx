@@ -3,8 +3,10 @@
 /**
  * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
  * the import stands, when it was opened and until when its report applies; then, once analysed,
- * the lines read, the reasons that ask for an explicit confirmation, each line rejected by its
- * place in the file and its motive, and each difference with the existing data — a line of
+ * the lines read, of which those left as they are, the reasons that ask for an explicit
+ * confirmation, each line rejected by its place in the file and its motive, each value of the file
+ * kept and signalled, each task the import completes at the date of the review the file bears, and
+ * each difference with the existing data — a line of
  * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
  * columns of their grid, and what the import ignores — the columns of an
  * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
@@ -25,7 +27,7 @@ import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { Catalogue } from "@/i18n/catalogues";
-import { formatDecimal } from "@/i18n/format";
+import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 import { IMPORT_STEPS } from "./offers";
@@ -132,8 +134,8 @@ export function Differences({
     if (field === "subproject") {
       return t("enums.NodeColumn.subproject");
     }
-    if (field === "parent") {
-      return t("enums.ImportDifferenceField.parent");
+    if (field === "parent" || field === "planning_start_on") {
+      return t(`enums.ImportDifferenceField.${field}`);
     }
     return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
   };
@@ -223,13 +225,75 @@ function Ignored({ ignored }: { readonly ignored: Report["ignored"] }) {
   );
 }
 
+/**
+ * What the import keeps as the file bears it and signals, or corrects: each task by its label, the
+ * column that bears the value, the kind of signal and its sentence, from the code and the parameters
+ * the API gives, as a refusal of an entry is (WF-INTF-0040, WF-PLA-0020), in the order received.
+ */
+function Signals({ signals }: { readonly signals: Report["signals"] }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const messages = useMessages();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("exchanges.report.signals", { count: signals.length })}</h3>
+      <ListTable
+        label={t("exchanges.report.signalsTable")}
+        columns={[
+          t("exchanges.report.task"),
+          t("exchanges.report.column"),
+          t("exchanges.report.signal"),
+          t("exchanges.report.motive"),
+        ]}
+      >
+        {signals.map((signal, index) => (
+          <TableRow key={`${signal.lineage_id ?? "new"}-${signal.code}-${String(index)}`}>
+            <TableCell className={CELL}>{signal.label}</TableCell>
+            <TableCell className={CELL}>{t(`enums.NodeColumn.${signal.column}`)}</TableCell>
+            <TableCell className={CELL}>{t(`enums.ImportSignal.code.${signal.code}`)}</TableCell>
+            <TableCell className={CELL}>{problemMessage(signal, { locale, messages })}</TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
+/**
+ * The tasks the import completes, each with the date it takes: the date of the review the file
+ * bears, which the analysis read (WF-INTF-0120, WF-INTF-0130), in the order received. An import
+ * never leaves the date null (the contract); only a merge does, and it shows no date.
+ */
+function CompletedTasks({ completed }: { readonly completed: Report["completed_tasks"] }) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("completed", { count: completed.length })}</h3>
+      <ListTable label={t("completedTable")} columns={[t("task"), t("completedOn")]}>
+        {completed.map((task) => (
+          <TableRow key={task.lineage_id}>
+            <TableCell className={CELL}>{task.label}</TableCell>
+            <TableCell className={CELL}>
+              {task.completed_on === null ? null : formatPlanningDate(task.completed_on, locale)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
 /** What the analysis found: lines read, reasons to confirm, lines rejected, differences. */
 function Findings({ report }: { readonly report: Report }) {
   const t = useTranslations();
   const reasons = report.requires_confirmation_reasons;
   return (
     <div className="space-y-3">
-      <p className="text-sm">{t("exchanges.report.read", { count: report.read_count })}</p>
+      <p className="text-sm">
+        {t("exchanges.report.read", { count: report.read_count })}{" "}
+        {t("exchanges.report.unchanged", { count: report.unchanged_count })}
+      </p>
       {reasons.length === 0 ? null : (
         <div className="space-y-1">
           <h3 className={HEADING}>{t("exchanges.report.reasons")}</h3>
@@ -244,6 +308,10 @@ function Findings({ report }: { readonly report: Report }) {
       )}
       <Rejections rejected={report.rejected} />
       <Differences differences={report.differences} />
+      {report.signals.length === 0 ? null : <Signals signals={report.signals} />}
+      {report.completed_tasks.length === 0 ? null : (
+        <CompletedTasks completed={report.completed_tasks} />
+      )}
       {report.ignored.length === 0 ? null : <Ignored ignored={report.ignored} />}
     </div>
   );

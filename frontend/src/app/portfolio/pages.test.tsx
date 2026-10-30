@@ -224,9 +224,9 @@ describe("the screens of the portfolio", () => {
     );
   });
 
-  it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost", async () => {
+  it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost, over the period of the projects completed [WF-PTF-0010-A]", async () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
-    expect(queryOf("GET /portfolio/cost-structure")).toEqual({});
+    expect(queryOf("GET /portfolio/cost-structure")).toEqual({ from: "2025-01-01" });
     expect(page).toContain("The actual cost is not broken down by nature");
     expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,465,987,087\.43 55%/);
     expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
@@ -339,6 +339,28 @@ describe("the screens of the portfolio", () => {
     expect(markup).toContain('<option value="36" selected="">36 months</option>');
   });
 
+  it("asks the period of the projects completed for the S-curve, whatever its horizon, and keeps the horizon when the period is refused [WF-PTF-0010-A] [WF-PTF-0100-A]", async () => {
+    await render(CostCurvePage, { states: "completed", from: "2025-01-01", horizon_months: "12" });
+    expect(queryOf("GET /portfolio/cost-curve")).toEqual({
+      states: "completed",
+      from: "2025-01-01",
+      horizon_months: "12",
+    });
+    server.answers = {
+      ...server.answers,
+      "GET /portfolio/cost-curve": {
+        problem: example("portfolio_period_inverted") as Problem & { status: 422 },
+      },
+    };
+    const markup = await render(CostCurvePage, {
+      from: "2026-03-31",
+      to: "2026-01-01",
+      horizon_months: "12",
+    });
+    expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+    expect(markup).toContain('<option value="12" selected="">12 months</option>');
+  });
+
   it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
     server.answers = {
       ...server.answers,
@@ -432,7 +454,12 @@ describe("the screens of the portfolio", () => {
   const NODE = { org_node_id: DESIGN_OFFICE };
   it.each([
     ["performance", PerformancePage, "GET /portfolio/performance", { ...DATE, ...PERIOD, ...NODE }],
-    ["cost structure", CostStructurePage, "GET /portfolio/cost-structure", { ...DATE, ...NODE }],
+    [
+      "cost structure",
+      CostStructurePage,
+      "GET /portfolio/cost-structure",
+      { ...DATE, ...PERIOD, ...NODE },
+    ],
     ["risks", RisksPage, "GET /portfolio/risks", { ...DATE, ...PERIOD }],
     [
       "workload",
@@ -440,7 +467,12 @@ describe("the screens of the portfolio", () => {
       "GET /portfolio/workload",
       { ...DATE, ...NODE, horizon_months: "12", under_load_threshold: "0.4" },
     ],
-    ["S-curve", CostCurvePage, "GET /portfolio/cost-curve", { ...DATE, horizon_months: "12" }],
+    [
+      "S-curve",
+      CostCurvePage,
+      "GET /portfolio/cost-curve",
+      { ...DATE, ...PERIOD, horizon_months: "12" },
+    ],
     ["health of the steering", PilotHealthPage, "GET /portfolio/pilot-health", DATE],
   ] as const)(
     "sends of the perimeter what the %s takes, and that alone",
@@ -478,6 +510,8 @@ describe("a period of the portfolio the server refuses", () => {
     ["the value", ProjectsPage, "GET /portfolio/value" as const],
     ["the performance", PerformancePage, "GET /portfolio/performance" as const],
     ["the risks", RisksPage, "GET /portfolio/risks" as const],
+    ["the structure of the costs", CostStructurePage, "GET /portfolio/cost-structure" as const],
+    ["the S-curve", CostCurvePage, "GET /portfolio/cost-curve" as const],
   ])(
     "says at the field of its end the period %s are refused for, the start named, the view unread and the perimeter kept",
     async (_view, page, route) => {

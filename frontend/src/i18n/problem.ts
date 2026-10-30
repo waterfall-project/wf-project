@@ -16,7 +16,8 @@
  * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
  * counted, the notice listing them, the characters a code of a sub-project cannot bear and the
  * reserved name it bears (`forbidden_characters`, `reserved_name`, WF-PRJ-0050), the sub-project a line of a started task does not leave
- * (`subproject`, WF-PRJ-0050) by its label; a state without its enumeration,
+ * (`subproject`, WF-PRJ-0050) by its label, what a line imported is rejected for as the file bears it (`value`, `label`
+ * and `tasks`, `wbs_element`, `project_code`, `rows`); a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
  * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
@@ -294,10 +295,46 @@ const DETAILS: readonly Reader[] = [
           },
         ]
       : undefined,
+  // The dates a summary task takes from its subordinates, given by the server and written in the
+  // language of the reader (`SUMMARY_TASK_DERIVED`, WF-PLA-0040): what an import corrects of the
+  // summary task a file holds in manual mode.
+  ({ start, finish }, _label, locale) =>
+    typeof start === "string" &&
+    typeof finish === "string" &&
+    isPlanningDate(start) &&
+    isPlanningDate(finish)
+      ? [
+          "summary_dates",
+          { start: formatPlanningDay(start, locale), finish: formatPlanningDay(finish, locale) },
+        ]
+      : undefined,
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>
     subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
+  // What a line of a file imported is rejected for, named as the file bears it: the value it holds
+  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`), the
+  // label that several tasks share, with those tasks (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`,
+  // WF-INTF-0120), the element of work breakdown, and the project code it bears
+  // (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), and the ranks of the other
+  // lines of the same document and item (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
+  ({ value }) => (typeof value === "string" ? ["unknown_value", { value }] : undefined),
+  ({ label, tasks }, _label, locale, say) => {
+    const named = itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
+    return typeof label === "string" && named.length > 0
+      ? ["ambiguous_label", { label, tasks: conjunction(named, locale) }]
+      : undefined;
+  },
+  ({ wbs_element }) =>
+    typeof wbs_element === "string" ? ["wbs_element", { element: wbs_element }] : undefined,
+  ({ project_code }) =>
+    typeof project_code === "string" ? ["project_code", { code: project_code }] : undefined,
+  ({ rows }, _label, locale) => {
+    const ranks = itemsOf(rows, (row): row is number => typeof row === "number");
+    return ranks.length === 0
+      ? undefined
+      : ["duplicate_rows", { count: ranks.length, rows: conjunction(ranks.map(String), locale) }];
+  },
   ({ state, state_enum }, label) => {
     const told =
       typeof state_enum === "string" && Object.hasOwn(STATES, state_enum)

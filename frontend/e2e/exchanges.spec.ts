@@ -62,6 +62,7 @@ test("imports a file in two steps: the report lists the lines rejected with thei
     /5\s*Rôle de ressource inconnu\./,
   ]);
   await expect(report.getByText("5 lignes lues.")).toBeVisible();
+  await expect(report.getByText("Parmi elles, 1 est inchangée.")).toBeVisible();
 
   // Nothing is applied before the confirmation; confirmed, the application is a task followed.
   const read = page.waitForRequest((request) => request.postData()?.includes(APPLICATION) === true);

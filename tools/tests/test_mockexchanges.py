@@ -69,6 +69,9 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert "import_remaining_subproject_held" in _cited(
         _operation("exchanges.yaml", "getImport"), "200"
     )
+    assert "import_remaining_completed_tasks" in _cited(
+        _operation("exchanges.yaml", "getImport"), "200"
+    )
     assert "import_estimate_main_in_progress" in _cited(
         _operation("exchanges.yaml", "openImport"), "409"
     )
@@ -79,6 +82,7 @@ def test_every_refusal_is_an_example_the_contract_cites_under_its_answer() -> No
     assert set(examples) == {
         "paste_plan_subproject_held.json",
         "import_remaining_subproject_held.json",
+        "import_remaining_completed_tasks.json",
         "import_estimate_main_in_progress.json",
         "import_actual_costs_first.json",
         "export_revision_not_found.json",
@@ -182,6 +186,56 @@ def test_a_line_in_the_tab_of_another_subproject_moves_unless_held(
         "str", summary
     )
     assert f"l'onglet « {label} »" not in cast("str", summary)
+
+
+def test_a_remaining_to_commit_completes_its_tasks_on_the_date_of_the_review(
+    read: dict[int, Node],
+) -> None:
+    # US-0703/L7: an example whose report names the tasks the import completes, so that the front
+    # reads them from the contract, never from an object of its own.
+    imported = _json(mockexchanges.import_remaining_completed_tasks())
+    report = imported["report"]
+    assert (imported["kind"], imported["status"]) == ("remaining", "analysed")
+    main = mockexchanges.main_structure()
+    assert (imported["structure_id"], imported["revision_id"]) == (
+        main["structure_id"],
+        main["revision_id"],
+    )
+    commissioning, drawn = mockexchanges.completed_by_import(read)
+    assert commissioning == N.COMMISSIONING
+    # One task not started and no milestone, which goes through the started state; one started
+    # before the review, none of whose lines is a provision, which would keep it open.
+    assert node(read, commissioning)["task"]["progress"] == "not_started"
+    assert not node(read, commissioning)["task"]["is_milestone"]
+    started = node(read, drawn)["task"]
+    assert started["progress"] == "started"
+    assert started["started_on"] <= mockexchanges.REVIEW_ON.isoformat()
+    lines = [line for task in (commissioning, drawn) for line in mockexchanges.lines_of(read, task)]
+    assert all(not node(read, line)["estimate_line"]["is_computed"] for line in lines)
+    # Every line of the two tasks is in the file, re-estimated: one difference each, no other.
+    assert report["read_count"] == len(lines) == len(report["differences"])
+    assert report["unchanged_count"] == 0
+    assert [each["lineage_id"] for each in report["differences"]] == [
+        mockcore.lineage(line) for line in lines
+    ]
+    assert {each["change"] for each in report["differences"]} == {"updated"}
+    assert report["rejected"] == report["refusals"] == report["ignored"] == []
+    # Completed on the date of the review the file bears, a day before today, never null.
+    review = "2026-06-01"
+    assert mockexchanges.REVIEW_ON.isoformat() == review
+    assert imported["created_at"][:10] == "2026-06-03"
+    assert report["completed_tasks"] == [
+        {
+            "lineage_id": mockcore.lineage(task),
+            "label": node(read, task)["task"]["label"],
+            "completed_on": review,
+        }
+        for task in (commissioning, drawn)
+    ]
+    summary = mockexchanges.examples()["import_remaining_completed_tasks.json"]["summary"]
+    assert "la revue du 1er juin 2026" in cast("str", summary)
+    for task in (commissioning, drawn):
+        assert f"« {node(read, task)['task']['label']} »" in cast("str", summary)
 
 
 def test_the_estimate_imported_on_the_main_structure_in_progress_names_its_condition() -> None:

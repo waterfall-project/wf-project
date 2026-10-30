@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ComputableValue } from "@/components/computable-value";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
@@ -24,7 +25,7 @@ import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
-import { ComputableValue, Figure, ViewSection } from "./portfolio-value";
+import { Figure, ViewSection } from "./portfolio-value";
 import { PortfolioWorkloadChart } from "./workload-chart";
 
 type Schemas = components["schemas"];

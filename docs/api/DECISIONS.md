@@ -9881,6 +9881,25 @@ colonne d'US-0701/L3 portent sur la grandeur que la comparaison affiche, « jama
   Écarté : restreindre aux identifiés les points d'un projet, qui changerait ce que l'écran lit
   avant qu'EP-17 n'en change la présentation.
 
+### Les tâches qu'un reste à engager termine (US-0703/L7, #1618)
+
+L'adoption par le front du compte rendu des imports l'a révélé : aucun exemple ne portait un
+`completed_tasks` non vide, et l'écran des tâches terminées par un import ne s'éprouvait que sur un
+objet écrit à la main (WF-INTF-0120, WF-INTF-0130). Le manque se corrige au contrat, dans l'US.
+
+- **`import_remaining_completed_tasks`**, nouvel exemple de `getImport`, engendré par
+  `wftools.mockexchanges`. Un reste à engager analysé aujourd'hui, une variante qu'`imports` ne
+  reprend pas, dont le fichier porte en « Synthèse » la revue du 1er juin 2026 : ses six lignes,
+  chacune dans l'onglet de son sous-projet, ramenées à zéro, un écart chacune ; ses deux tâches
+  terminées à cette date, non au jour de l'import — « Mise en service », du cœur, non démarrée et
+  qui n'est pas un jalon, et la première tâche tirée démarrée dont aucune ligne n'est une provision,
+  « Revue 1.2.11 », démarrée le 29 mai.
+- **Aucune `completed_on` nulle** : d'un import, elle est la date de la revue que porte le fichier,
+  lue dès l'analyse et jamais nulle (`ImportCompletedTask`). La date nulle n'est que d'une fusion
+  non appliquée, que `structure_merge_report_started_task` montre déjà.
+
+**Import** `…0a1b` ; **tâche de fond** 958.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

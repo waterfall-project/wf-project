@@ -395,8 +395,10 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
 def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     examples: dict[str, Any],
 ) -> None:
-    # The core, and the differential of the amendment 2, whose estimate the witness imports.
-    labels = {
+    # The core, and the differential of the amendment 2, whose estimate the witness imports; and
+    # the structure of a thousand tasks read today, whose drawn tasks a remaining to commit
+    # completes (``import_remaining_completed_tasks``, US-0703/L7).
+    labels = {cast("Node", row.node)["lineage_id"]: row.label for row in mockcore.current()} | {
         cast("Node", row.node)["lineage_id"]: row.label
         for roots in (mockwitness.CORE, mockamendment.amendment(mockwitness.CORE))
         for row in mockcore.core(roots)

@@ -421,7 +421,11 @@ describe("the report of an import", () => {
       within(rejected)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["LigneMotif", `4${sentence}`, `5${sentence}`]);
+    ).toEqual([
+      "LigneMotif",
+      `4${sentence} Autre ligne du fichier de même pièce et de même poste\u00a0: 5.`,
+      `5${sentence} Autre ligne du fichier de même pièce et de même poste\u00a0: 4.`,
+    ]);
     const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
     expect(differences).toHaveTextContent("Ligne de coût réelFA-2026-0412, poste 10");
   });
@@ -447,7 +451,11 @@ describe("the report of an import", () => {
       within(rejected)
         .getAllByRole("row")
         .map((row) => row.textContent),
-    ).toEqual(["LigneMotif", "3Tâche inconnue.", "5Rôle de ressource inconnu."]);
+    ).toEqual([
+      "LigneMotif",
+      "3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
+      "5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
+    ]);
 
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
@@ -708,6 +716,111 @@ describe("the report of an import", () => {
     const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
     expect(differences).toHaveTextContent("ModifiéTâcheMise en serviceDurée et Rattachement");
   });
+
+  it("says how many of the lines read the import leaves as they are, and the lines of provision it leaves untouched [WF-INTF-0140-A] [WF-INTF-0100-A]", () => {
+    serve({});
+    open(report(example("import_remaining_analysed") as Import));
+    expect(screen.getByText(/lignes lues\./)).toHaveTextContent(
+      "3 lignes lues. Parmi elles, aucune n’est inchangée.",
+    );
+    expect(
+      screen.getByText(/Lignes de provision d’un risque, laissées telles quelles/),
+    ).toHaveTextContent(
+      "Lignes de provision d’un risque, laissées telles quelles (1) : Provision — risque de reprise du câblage",
+    );
+  });
+
+  it("counts the lines of a file of a planning left as they are, in English [WF-INTF-0140-A]", () => {
+    serve({});
+    open(report(example("import_planning_non_working_day") as Import), "en");
+    expect(screen.getByText(/lines read\./)).toHaveTextContent(
+      "1,000 lines read. Of these, 999 are unchanged.",
+    );
+  });
+
+  it("names the sub-project a line cannot leave, and the label two tasks share, in the motive of the line rejected [WF-INTF-0100-A] [WF-INTF-0120-A]", () => {
+    serve({});
+    const held = open(report(example("import_remaining_subproject_held") as Import));
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "3Cette ligne ne peut pas quitter ce sous-projet",
+    );
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "« Poste de commande »",
+    );
+    held.unmount();
+    open(report(example("import_remaining_ambiguous_label") as Import));
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "3Ce libellé est porté par plusieurs tâches",
+    );
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
+    );
+  });
+
+  it("names the value no object has, in the motive of the line rejected [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_analysed") as Import));
+    const rejected = screen.getByRole("table", { name: "Lignes rejetées" });
+    expect(rejected).toHaveTextContent(
+      "Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ».",
+    );
+    expect(rejected).toHaveTextContent("Valeur lue dans le fichier : « Soudeur (SOUD) ».");
+  });
+
+  it("names the rank of the other line of the same document and item, in the motive of each line rejected [WF-INTF-0080-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_duplicate_line") as Import));
+    const rows = within(screen.getByRole("table", { name: "Lignes rejetées" })).getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("Autre ligne du fichier de même pièce et de même poste : 5.");
+    expect(rows[2]).toHaveTextContent("Autre ligne du fichier de même pièce et de même poste : 4.");
+  });
+
+  it("names the element of work breakdown a line of actual cost is rejected for [WF-CRE-0020-A]", () => {
+    serve({});
+    open(report(example("import_actual_costs_wbs_invalid") as Import));
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "5L’élément d’OTP de la ligne n’a pas la forme attendue",
+    );
+    expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
+      "Élément d’OTP lu : « /SP-CAB ».",
+    );
+  });
+
+  it("says the change of the date of start of planning of the structure, which no column holds [WF-INTF-0040-A]", () => {
+    serve({});
+    open(report(example("import_planning_mismatch") as Import));
+    const differences = screen.getByRole("table", { name: "Écarts avec les données existantes" });
+    expect(differences).toHaveTextContent("ModifiéStructure de coûts");
+    expect(differences).toHaveTextContent("Date de début de planning");
+  });
+
+  it("tells each value of the file the import keeps or corrects, with its column and its sentence [WF-INTF-0040-A] [WF-PLA-0020-A]", () => {
+    serve({});
+    const day = open(report(example("import_planning_non_working_day") as Import));
+    const kept = screen.getByRole("table", { name: "Valeurs du fichier gardées et signalées" });
+    expect(kept).toHaveTextContent(
+      "Mise en serviceDébutJour non travailléDate sur un jour sans heure travaillée. Le samedi 19 décembre n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 21 décembre.",
+    );
+    day.unmount();
+    open(report(example("import_planning_mismatch") as Import));
+    expect(
+      screen.getByRole("table", { name: "Valeurs du fichier gardées et signalées" }),
+    ).toHaveTextContent(
+      "ÉtudesMode de planificationTâche récapitulative dérivée de ses tâchesUne tâche récapitulative tient ses valeurs de ses subordonnées. Ses dates courent du lundi 2 mars au jeudi 30 avril, celles de ses subordonnées.",
+    );
+  });
+
+  it("names the tasks the import completes with the date of the review the file bears, not the day of the import [WF-INTF-0120-A] [WF-INTF-0130-A]", () => {
+    const entry = example("import_remaining_completed_tasks") as Import;
+    serve({});
+    open(report(entry));
+    const table = screen.getByRole("table", { name: "Tâches terminées par l’import" });
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual(["TâcheTerminée le", "Mise en service1 juin 2026", "Revue 1.2.111 juin 2026"]);
+  });
 });
 
 describe("the request of an export", () => {
@@ -837,5 +950,25 @@ describe("the request of an export", () => {
     open(<ExportForm projectId={PROJECT} revisionId={REVISION} offers={exportOffers(undefined)} />);
     expect(screen.queryByRole("form")).toBeNull();
     expect(screen.getByText("Aucun export ne vous est offert sur cette révision.")).toBeVisible();
+  });
+
+  it("asks the date of the review the file of a remaining to commit bears, the day of the request when it gives none [WF-INTF-0130-A]", async () => {
+    const client = serve({ [EXPORT]: { example: "task_export_queued", status: 202 } });
+    open(exportForm());
+    const form = screen.getByRole("form", { name: "Demander un export" });
+    expect(within(form).queryByLabelText("Date de la revue")).toBeNull();
+    await userEvent.selectOptions(
+      within(form).getByLabelText("Fichier à exporter"),
+      "Reste à engager",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
+    await settled(form);
+    await userEvent.type(within(form).getByLabelText("Date de la revue"), "2026-05-29");
+    await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
+    await settled(form);
+    expect(client.calls.map((call) => call.body)).toEqual([
+      { kind: "remaining", revision_id: REVISION, review_date: null },
+      { kind: "remaining", revision_id: REVISION, review_date: "2026-05-29" },
+    ]);
   });
 });

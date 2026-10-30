@@ -16,7 +16,9 @@ And the first extraction of April as its analysis presented it, before it was ap
 it added, and the line of another project it rejected for its element of the work breakdown
 structure (WF-CRE-0020, US-0701/L7); and the export of a revision of another project, refused as an
 unknown one (WF-ADM-0110). An import says the structure, the revision and the period its opening
-received (``opened_on``, I-08).
+received (``opened_on``, I-08). And a remaining to commit that brings every line of two tasks to
+zero, which its report names completed on the date of the review the file bears (WF-INTF-0120,
+WF-INTF-0130; US-0703/L7).
 """
 
 from __future__ import annotations
@@ -250,6 +252,170 @@ def import_remaining_subproject_held() -> JsonObject:
             "result_url": None,
         },
     }
+
+
+# --- A remaining to commit imported, that completes tasks --------------------------------------
+
+REVIEW_ON = date(2026, 6, 1)
+"""The date of the review the file bears in « Synthèse », that of its export, on Monday 1 June:
+the import completes a task on it (WF-INTF-0120, WF-INTF-0130), not on the day it is read."""
+
+COMPLETED_IMPORT, COMPLETED_IMPORT_TASK = hex_identifier(0xA1B), universe(958)
+
+COMPLETED_SUBMITTED, COMPLETED_ANALYSED, COMPLETED_EXPIRES = (
+    "2026-06-03T11:40:05Z",
+    "2026-06-03T11:41:00Z",
+    "2026-06-04T11:41:00Z",
+)
+"""When the import was opened today, analysed, and until when it applies (WF-ARC-0100)."""
+
+
+def lines_of(nodes: dict[int, Node], task: int) -> list[int]:
+    """Return the numbers of the lines a task bears, in the order of the structure."""
+    node_id = nodes[task]["node_id"]
+    return [
+        number
+        for number, each in nodes.items()
+        if each["kind"] == "estimate_line" and each["parent_id"] == node_id
+    ]
+
+
+def started_drawn_task(nodes: dict[int, Node]) -> int:
+    """Return the first task drawn about the core that is started, and bears lines a file names.
+
+    Its lines all bear a subproject, each the tab of its own, and none is computed: a provision,
+    which an import never writes, would keep a remaining and leave the task open (WF-INTF-0120).
+    The core has none such, its one started task bearing the provision of the risk 751.
+    """
+    core = {value for value in vars(N).values() if isinstance(value, int)}
+    return next(
+        number
+        for number, each in nodes.items()
+        if number not in core
+        and each["kind"] == "task"
+        and each["task"]["progress"] == "started"
+        and lines_of(nodes, number)
+        and all(
+            not nodes[line]["estimate_line"]["is_computed"]
+            and nodes[line]["estimate_line"]["subproject_id"] is not None
+            for line in lines_of(nodes, number)
+        )
+    )
+
+
+def completed_by_import(nodes: dict[int, Node]) -> tuple[int, int]:
+    """Return the tasks the file completes: the commissioning, not started, then a started one.
+
+    The commissioning on site, not started and no milestone, goes through the started state: it
+    is started and completed on the date of the review. The task drawn is started already.
+    """
+    return N.COMMISSIONING, started_drawn_task(nodes)
+
+
+def remaining_field(line: Node) -> str:
+    """Return the field a remaining to commit re-estimates on a line, as the report names it.
+
+    The hours of a line of labour, the quantity of another, as ``import_remaining_analysed``
+    presents them (WF-INTF-0120).
+    """
+    return "hours" if line["estimate_line"]["resource_role_id"] is not None else "quantity"
+
+
+def completing_report(nodes: dict[int, Node]) -> JsonObject:
+    """Return the report of a remaining to commit that brings every line of two tasks to zero.
+
+    Each line is placed in the tab of its own subproject, and only its remaining changes: one
+    difference each. A task all of whose lines the file brings to zero is completed on the date of
+    the review the file bears, read at the analysis, never null (`ImportCompletedTask`,
+    WF-INTF-0120, WF-INTF-0130, WF-RAE-0040).
+    """
+    tasks = completed_by_import(nodes)
+    lines = [line for task in tasks for line in lines_of(nodes, task)]
+    differences: list[JsonValue] = [
+        {
+            "change": "updated",
+            "target": "estimate_line",
+            "lineage_id": mockcore.lineage(line),
+            "label": nodes[line]["estimate_line"]["label"],
+            "fields": [remaining_field(nodes[line])],
+        }
+        for line in lines
+    ]
+    completed: list[JsonValue] = [
+        {
+            "lineage_id": mockcore.lineage(task),
+            "label": nodes[task]["task"]["label"],
+            "completed_on": REVIEW_ON.isoformat(),
+        }
+        for task in tasks
+    ]
+    return {
+        "format_version": "1",
+        "read_count": len(lines),
+        "unchanged_count": 0,
+        "rejected": [],
+        "refusals": [],
+        "differences": differences,
+        "ignored": [],
+        "completed_tasks": completed,
+        "date_mismatches": [],
+        "signals": [],
+        "requires_confirmation_reasons": [],
+    }
+
+
+def import_remaining_completed_tasks() -> JsonObject:
+    """Return what getImport answers of the remaining to commit that completes two tasks."""
+    return {
+        "import_id": COMPLETED_IMPORT,
+        "kind": "remaining",
+        "filename": "reste-a-engager-revue-2026-06-01.xlsx",
+        **opened_on(main_structure()),
+        "status": "analysed",
+        "created_at": COMPLETED_SUBMITTED,
+        "expires_at": COMPLETED_EXPIRES,
+        "report": completing_report(read()),
+        "task": {
+            "task_id": COMPLETED_IMPORT_TASK,
+            "kind": "import_analysis",
+            "status": "succeeded",
+            "progress": 100,
+            "submitted_at": COMPLETED_SUBMITTED,
+            "finished_at": COMPLETED_ANALYSED,
+            "problem": None,
+            "result_url": None,
+        },
+    }
+
+
+def _completed_said(nodes: dict[int, Node]) -> str:
+    """Say what the remaining to commit that completes two tasks presents, from its report."""
+    commissioning, drawn = completed_by_import(nodes)
+    read_count = len(lines_of(nodes, commissioning)) + len(lines_of(nodes, drawn))
+    labels = {label: key for key, label in subprojects().items()}
+
+    def describe(task: int) -> str:
+        lines = lines_of(nodes, task)
+        named = ", ".join(f"« {nodes[line]['estimate_line']['label']} »" for line in lines)
+        [subproject] = {nodes[line]["estimate_line"]["subproject_id"] for line in lines}
+        tab = tab_name(subproject)
+        return f"{named}, dans l'onglet « {tab} », du sous-projet « {labels[subproject]} »"
+
+    started = mocktext.day(date.fromisoformat(nodes[drawn]["task"]["started_on"]))
+    review = mocktext.day(REVIEW_ON)
+    return (
+        f"L'import d'un reste à engager lu aujourd'hui à {mocktext.hour(COMPLETED_SUBMITTED)} et "
+        f"analysé à {mocktext.hour(COMPLETED_ANALYSED)}, une variante qu'imports ne reprend pas : "
+        f"le fichier exporté à la revue du {review}, date qu'il porte en « Synthèse », et "
+        f"{read_count} lignes lues, chacune réestimée à zéro dans l'onglet de son "
+        f"sous-projet — {describe(commissioning)} ; {describe(drawn)}. Toutes les lignes de "
+        f"deux tâches portant un reste nul, le compte rendu les nomme terminées "
+        f"à la date de la revue, le {review}, et non au jour de l'import : "
+        f"« {nodes[commissioning]['task']['label']} », "
+        f"non démarrée et qui n'est pas un jalon, démarrée et terminée à cette date ; "
+        f"« {nodes[drawn]['task']['label']} », démarrée le {started}, terminée à cette date "
+        f"(WF-INTF-0120, WF-INTF-0130, WF-RAE-0040, WF-RAE-0030)."
+    )
 
 
 # --- The estimate imported on the main structure of a project in progress ----------------------
@@ -502,6 +668,9 @@ def examples() -> dict[str, JsonObject]:
             f"projet {other_project()} : refusé comme une révision inconnue, sans dire qu'elle "
             "existe ailleurs ; rien n'est mis en file (WF-ADM-0110, WF-INTF-0110).",
             export_revision_not_found(),
+        ),
+        "import_remaining_completed_tasks.json": mocktext.example(
+            _completed_said(nodes), import_remaining_completed_tasks()
         ),
         "import_estimate_main_in_progress.json": mocktext.example(
             "L'import d'un devis demandé aujourd'hui sur la structure principale du projet "

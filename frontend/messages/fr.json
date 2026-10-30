@@ -578,6 +578,7 @@
       "period": "Période extraite",
       "created": "Créées",
       "updated": "Mises à jour",
+      "unchanged": "Inchangées",
       "rejected": "Rejetées",
       "periodRange": "du {from} au {to}",
       "periodFrom": "à partir du {from}",
@@ -753,7 +754,7 @@
     "byCostType": "Par nature de coût",
     "bySubproject": "Par sous-projet",
     "byWorkPackage": "Par lot",
-    "shareOf": " ({share})",
+    "shareOf": " (<share></share>)",
     "notComputable": "Non calculable — {reason}",
     "unavailable": "Les indicateurs du devis sont indisponibles.",
     "unnamed": "Sans libellé",
@@ -2697,10 +2698,16 @@
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
     "non_working_day": "Le {date} n’est pas travaillé sur le calendrier de la tâche ; saisis le {next}.",
+    "summary_dates": "Ses dates courent du {start} au {finish}, celles de ses subordonnées.",
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",
     "horizon_task": "Tâche en cause : {task}.",
-    "taskName": "« {label} »"
+    "taskName": "« {label} »",
+    "unknown_value": "Valeur lue dans le fichier : « {value} ».",
+    "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",
+    "wbs_element": "Élément d’OTP lu : « {element} ».",
+    "project_code": "Code projet lu : « {code} ».",
+    "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}."
   },
   "permissions": {
     "users": {
@@ -3635,6 +3642,15 @@
       "rejectedTable": "Lignes rejetées",
       "row": "Ligne",
       "motive": "Motif",
+      "unchanged": "Parmi elles, {count, plural, =0 {aucune n’est inchangée} one {# est inchangée} other {# sont inchangées}}.",
+      "signals": "{count, plural, one {# valeur du fichier gardée et signalée} other {# valeurs du fichier gardées et signalées}}",
+      "signalsTable": "Valeurs du fichier gardées et signalées",
+      "task": "Tâche",
+      "column": "Colonne",
+      "signal": "Signalement",
+      "completed": "{count, plural, one {# tâche terminée par l’import} other {# tâches terminées par l’import}}",
+      "completedTable": "Tâches terminées par l’import",
+      "completedOn": "Terminée le",
       "differences": "{count, plural, =0 {Aucun écart avec les données existantes} one {# écart avec les données existantes} other {# écarts avec les données existantes}}",
       "differencesTable": "Écarts avec les données existantes",
       "change": "Changement",
@@ -3665,6 +3681,7 @@
       "title": "Demander un export",
       "kind": "Fichier à exporter",
       "request": "Demander l’export",
+      "reviewDate": "Date de la revue",
       "depth": "Niveau de l’arborescence",
       "none": "Aucun export ne vous est offert sur cette révision."
     }

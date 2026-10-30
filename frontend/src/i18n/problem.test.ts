@@ -296,6 +296,55 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("names the cause of a line of a file rejected as the file bears it: the value no object has, the label two tasks share, the element of work breakdown, the rank of the duplicate [WF-INTF-0080-A] [WF-INTF-0120-A] [WF-CRE-0020-A]", () => {
+    /** The sentence of the nth rejection of an example of an import. */
+    const rejection = (name: string, index = 0): ProblemText => {
+      const { report } = example(name) as { report: { rejected: ProblemText[] } };
+      const rejected = report.rejected.at(index);
+      if (rejected === undefined) {
+        throw new Error(`${name} has no rejection ${String(index)}`);
+      }
+      return rejected;
+    };
+    expect(say(rejection("import_analysed", 0), "fr")).toContain(
+      "Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ».",
+    );
+    expect(say(rejection("import_analysed", 1), "en")).toContain(
+      "Value read in the file: “Soudeur (SOUD)”.",
+    );
+    expect(say(rejection("import_actual_costs_wbs_invalid"), "fr")).toContain(
+      "Élément d’OTP lu : « /SP-CAB ».",
+    );
+    expect(say(rejection("import_actual_costs_wbs_invalid"), "en")).toContain(
+      "Work breakdown element read: “/SP-CAB”.",
+    );
+    expect(say(rejection("import_remaining_ambiguous_label"), "fr")).toContain(
+      "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
+    );
+    expect(say(rejection("import_remaining_ambiguous_label"), "en")).toContain(
+      "Label read: “Mise en service”, shared by the tasks “Mise en service” and “Mise en service”.",
+    );
+    expect(say(rejection("import_actual_costs_duplicate_line", 0), "fr")).toContain(
+      "Autre ligne du fichier de même pièce et de même poste : 5.",
+    );
+    expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
+      "Other line of the file with the same document and item: 4.",
+    );
+    // The code of the project a code of work breakdown is outside of, and several other lines.
+    expect(
+      say(
+        {
+          code: "WBS_ELEMENT_OUTSIDE_PROJECT",
+          params: { wbs_element: "P9-SP", project_code: "P9" },
+        },
+        "fr",
+      ),
+    ).toContain("Élément d’OTP lu : « P9-SP ». Code projet lu : « P9 ».");
+    expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
+      "Autres lignes du fichier de même pièce et de même poste : 4, 6 et 7.",
+    );
+  });
+
   it("says the day without a working hour in the language of the reader, from the refusal of a start or of a finish [WF-PLA-0020-A]", () => {
     const refused = example("task_date_non_working_day") as ProblemText;
     expect(say(refused, "fr")).toBe(
@@ -309,6 +358,19 @@ describe("the sentence of a refusal", () => {
     } as const;
     expect(say({ code: "VALIDATION_FAILED", fields: [finish] }, "fr")).toContain(
       "Le samedi 16 janvier n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 18 janvier.",
+    );
+  });
+
+  it("tells the dates a summary task takes from its subordinates, in the language of the reader, when a file corrects its manual mode [WF-PLA-0040-A]", () => {
+    const signal = {
+      code: "SUMMARY_TASK_DERIVED",
+      params: { start: "2026-03-02", finish: "2026-04-30" },
+    } as const;
+    expect(say(signal, "en")).toBe(
+      "A summary task takes its values from its subtasks. Its dates run from Monday 2 March to Thursday 30 April, those of its subtasks.",
+    );
+    expect(say({ code: "SUMMARY_TASK_DERIVED", params: { start: "2026-03-02" } }, "en")).toBe(
+      "A summary task takes its values from its subtasks.",
     );
   });
 

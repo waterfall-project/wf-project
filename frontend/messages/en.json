@@ -578,6 +578,7 @@
       "period": "Period extracted",
       "created": "Created",
       "updated": "Updated",
+      "unchanged": "Unchanged",
       "rejected": "Rejected",
       "periodRange": "from {from} to {to}",
       "periodFrom": "from {from}",
@@ -753,7 +754,7 @@
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
     "byWorkPackage": "By work package",
-    "shareOf": " ({share})",
+    "shareOf": " (<share></share>)",
     "notComputable": "Not computable — {reason}",
     "unavailable": "The estimate indicators are unavailable.",
     "unnamed": "No label",
@@ -2697,10 +2698,16 @@
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
     "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
+    "summary_dates": "Its dates run from {start} to {finish}, those of its subtasks.",
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
     "horizon_task": "Task concerned: {task}.",
-    "taskName": "“{label}”"
+    "taskName": "“{label}”",
+    "unknown_value": "Value read in the file: “{value}”.",
+    "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
+    "wbs_element": "Work breakdown element read: “{element}”.",
+    "project_code": "Project code read: “{code}”.",
+    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}."
   },
   "permissions": {
     "users": {
@@ -3635,6 +3642,15 @@
       "rejectedTable": "Rejected lines",
       "row": "Line",
       "motive": "Reason",
+      "unchanged": "Of these, {count, plural, =0 {none is unchanged} one {# is unchanged} other {# are unchanged}}.",
+      "signals": "{count, plural, one {# value of the file kept and signalled} other {# values of the file kept and signalled}}",
+      "signalsTable": "Values of the file kept and signalled",
+      "task": "Task",
+      "column": "Column",
+      "signal": "Signal",
+      "completed": "{count, plural, one {# task completed by the import} other {# tasks completed by the import}}",
+      "completedTable": "Tasks completed by the import",
+      "completedOn": "Completed on",
       "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
       "differencesTable": "Differences with the existing data",
       "change": "Change",
@@ -3665,6 +3681,7 @@
       "title": "Request an export",
       "kind": "File to export",
       "request": "Request the export",
+      "reviewDate": "Review date",
       "depth": "Level of the tree",
       "none": "No export is offered to you on this revision."
     }
