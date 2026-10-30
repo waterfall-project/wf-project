@@ -139,7 +139,6 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   );
   await expect(main.getByRole("region", { name: "Commandes" }).getByRole("button")).toHaveText([
     "Terminer le projet",
-    "Déclarer le projet perdu",
     "Abandonner le projet",
   ]);
 });
