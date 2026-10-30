@@ -109,6 +109,11 @@ export interface TrackedTask {
    * result is no longer available, which the entry says in place of the offer to download it.
    */
   readonly resultUnavailable?: boolean | undefined;
+  /**
+   * Whether the progress of `task` is a placeholder: a task found again after a reload, which
+   * keeps no progress, shows a bar without a value until the first read replaces it.
+   */
+  readonly progressUnknown?: boolean | undefined;
 }
 
 /** A line of the log of ends. */
@@ -235,6 +240,7 @@ function unchanged(before: TrackedTask, after: BackgroundTask): boolean {
   return (
     before.outcome === undefined &&
     before.interrupted === undefined &&
+    before.progressUnknown !== true &&
     JSON.stringify(before.task) === JSON.stringify(after)
   );
 }
@@ -261,6 +267,7 @@ function answer(state: Tracking, event: Extract<TrackingEvent, { type: "answer" 
           task: outcome.data,
           outcome: undefined,
           interrupted: undefined,
+          progressUnknown: false,
           resultUnavailable: source === "download" && outcome.data.result_url == null,
         }
       : refused(entry, source, outcome);

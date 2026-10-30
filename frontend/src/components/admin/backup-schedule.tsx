@@ -152,9 +152,9 @@ function draftOf(schedule: BackupSchedule): Draft {
   };
 }
 
-/** The frequency a value of the form names, as the contract writes it; daily for any other. */
-function frequencyOf(value: string | undefined): Frequency {
-  return FREQUENCIES.find((frequency) => frequency === value) ?? "daily";
+/** The frequency a value of the form names, as the contract writes it; none for any other. */
+function frequencyOf(value: string | undefined): Frequency | undefined {
+  return FREQUENCIES.find((frequency) => frequency === value);
 }
 
 /**
@@ -165,6 +165,10 @@ function frequencyOf(value: string | undefined): Frequency {
  */
 function scheduleOf(values: Draft, lockVersion: number): BackupSchedule {
   const frequency = frequencyOf(values[FREQUENCY]);
+  if (frequency === undefined) {
+    // The rules refuse an empty or unknown frequency before the form asks: none is made up here.
+    throw new Error("The frequency of the schedule is required.");
+  }
   const at = values[AT] ?? "";
   const location = values[LOCATION] ?? "";
   return {

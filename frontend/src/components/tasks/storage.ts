@@ -94,6 +94,8 @@ export function restoreTasks(): TrackedTask[] {
       command: undefined,
       outcome: undefined,
       interrupted: undefined,
+      // The progress is not kept: none is shown before the first read says it.
+      progressUnknown: true,
     }));
 }
 

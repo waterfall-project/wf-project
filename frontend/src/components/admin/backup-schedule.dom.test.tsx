@@ -244,7 +244,7 @@ describe("the schedule of the backups", () => {
     },
   );
 
-  it("requires the frequency and the time of a schedule, suspended or not, and says so", async () => {
+  it("requires the frequency and the time of a schedule, suspended or not, and says so [WF-ADM-0170-A]", async () => {
     const client = serve();
     const form = await openForm();
     const frequency = within(form).getByLabelText("Fréquence");
