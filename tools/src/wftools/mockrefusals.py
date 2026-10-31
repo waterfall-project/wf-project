@@ -40,11 +40,11 @@ front shows (WF-OBS-0020); ``nodes_fields_unknown.json``, a reading of the nodes
 property ``Node`` does not have, refused as any parameter of a query, by 422 on ``/query/fields``.
 
 And the refusals of the common tree its operations declared without an example (F-17, #1648):
-a line of labour that would leave its task without any hour of work, created or changed of role,
-the calendars supposed otherwise, those of the witness all meeting from Monday to Thursday
-(``*_without_hours``); a field a node does not accept (``*_field_not_accepted``,
-``task_milestone_duration_refused``); a category of provision given to a line entered; a line of a
-completed task re-estimated (``remaining_completed_refused``).
+a line of labour that would leave its task without any hour of work, created, changed of role or
+moved under it (#779), the calendars supposed otherwise, those of the witness all meeting from
+Monday to Thursday (``*_without_hours``); a field a node does not accept
+(``*_field_not_accepted``, ``task_milestone_duration_refused``); a category of provision given to
+a line entered; a line of a completed task re-estimated (``remaining_completed_refused``).
 
 And the refusals the catalogue named without an example, each carried by an operation that says it
 (US-0702/L1, J-17): the 401 of a request without a token, of a deactivated account and of an
@@ -70,6 +70,7 @@ from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
 from wftools.mockwitness import (
     CABLE_FITTER,
+    COMMISSIONING_TECHNICIAN,
     CREATED_TIMELINE,
     ELECTRICAL_ENGINEERING,
     ENGINEER,
@@ -105,6 +106,9 @@ CREATE_FIELD_CORRELATION, MILESTONE_CORRELATION = universe(1624), universe(1625)
 LINE_FIELD_CORRELATION, PROVISION_CORRELATION = universe(1626), universe(1627)
 REMAINING_CORRELATION = universe(1628)
 """The correlations of the refusals of the common tree (#1648)."""
+
+MOVE_HOURS_CORRELATION = universe(1658)
+"""The correlation of a line of labour moved under a task it would leave without hours (#779)."""
 
 SESSION_CORRELATION, DEACTIVATED_CORRELATION, NOT_ADMITTED_CORRELATION = (
     universe(1629),
@@ -240,6 +244,8 @@ def field_refused(pointer: str, code: str, correlation: str) -> JsonObject:
 
 def without_hours(roles: list[str], correlation: str) -> JsonObject:
     """Return the refusal of a line of labour that would leave the wiring without hours of work.
+
+    Created, its role changed or moved under it (`createNode`, `updateEstimateLine`, `moveNodes`).
 
     The roles whose calendars never meet, by their identifiers, and the task by its project, its
     node and its label (WF-PLA-0010).
@@ -506,6 +512,14 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"monteur câbleur, dont le calendrier n'aurait aucune heure dans la semaine : refusé, "
             f"le rôle et la tâche nommés ; rien n'est écrit (WF-PLA-0010). {supposed}.",
             without_hours([CABLE_FITTER], ROLE_HOURS_CORRELATION),
+        ),
+        "nodes_move_without_hours.json": mocktext.example(
+            f"La « {rows[N.COMMISSIONING_LINE].label} », ligne du technicien de mise en service "
+            f"sous la « {rows[N.COMMISSIONING].label} », déplacée sous le « {wiring} », qui porte "
+            f"une ligne de l'ingénieur : leurs calendriers n'auraient aucun jour en commun, et la "
+            f"tâche qui la reçoit aucune heure travaillée. Refusé, les deux rôles et la tâche "
+            f"nommés ; rien ne bouge (WF-PLA-0010). {supposed}.",
+            without_hours([ENGINEER, COMMISSIONING_TECHNICIAN], MOVE_HOURS_CORRELATION),
         ),
         "node_create_field_not_accepted.json": mocktext.example(
             f"Une ligne de l'ingénieur créée sous le « {wiring} » avec un débours unitaire : une "

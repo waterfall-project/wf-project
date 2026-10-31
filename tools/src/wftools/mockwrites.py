@@ -463,7 +463,12 @@ REJUDGED = (BLOCK[0], ("Heures d'essais", BLOCK[0][1], BLOCK[0][2], "1"), BLOCK[
 the category deactivated between the preview and the confirmation refuses the second row alone,
 the first naming the category its line bears already (#764, #747)."""
 
+WITHOUT_HOURS = (BLOCK[0], (ENTERED, BLOCK[0][1], "Monteur câbleur", "1"), BLOCK[2])
+"""The same block, its second row giving its line to the cable fitter: the task would bear him
+with the electrical engineer, whose calendars, supposed otherwise, never meet (#779)."""
+
 PASTES = (universe(991), universe(992))
+WITHOUT_HOURS_PASTE = universe(997)
 TOO_WIDE_CORRELATION = universe(973)
 STALE_PASTE_CORRELATION = universe(1555)
 
@@ -494,6 +499,44 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     return {"paste_id": paste_id, "accepted": len(block) - len(rejected), "rejected": rejected}
 
 
+def paste_plan_without_hours() -> JsonObject:
+    """Return what previewPaste answers for WITHOUT_HOURS, the calendars supposed otherwise.
+
+    The second row would leave the task of LINE without any hour of work in the week: the
+    calendar of the cable fitter it gives to its line never meets that of the electrical engineer,
+    whom the first row and another line of the task keep. The row is refused on its cell of role,
+    the two roles and the task named, as a line of labour entered is (`TASK_WITHOUT_WORKING_HOURS`,
+    `ProblemParams.tasks`, WF-PLA-0010); the others are accepted. The calendars of the witness all
+    meet from Monday to Thursday: no situation of the witness gives it.
+    """
+    task = pasted_task()
+    plan = paste_plan(WITHOUT_HOURS, WITHOUT_HOURS_PASTE)
+    if plan["rejected"]:
+        message = "WITHOUT_HOURS names a category or a role the reference does not know"
+        raise ValueError(message)
+    _, roles = known()
+    refusal: JsonObject = {
+        "row": 1,
+        "column": "resource_role",
+        "code": "TASK_WITHOUT_WORKING_HOURS",
+        "params": {
+            "resource_role_ids": [roles[WITHOUT_HOURS[0][2]], roles[WITHOUT_HOURS[1][2]]],
+            "tasks": [
+                {
+                    "project_id": fixture("project")["project_id"],
+                    "node_id": mockwitness.node_id(task.number),
+                    "label": task.label,
+                }
+            ],
+        },
+    }
+    return {
+        "paste_id": WITHOUT_HOURS_PASTE,
+        "accepted": len(WITHOUT_HOURS) - 1,
+        "rejected": [refusal],
+    }
+
+
 def paste_applied(
     block: Sequence[Sequence[str]] = BLOCK, refused: Sequence[JsonObject] | None = None
 ) -> JsonObject:
@@ -519,10 +562,15 @@ def paste_applied(
     return {**written, "rejected": cast("list[JsonValue]", rejected)}
 
 
+def pasted_task() -> Task:
+    """Return the task of LINE, whose lines a block pasted on LINE writes."""
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    return task
+
+
 def pasted_lines(block: Sequence[Sequence[str]]) -> list[Line]:
     """Return the lines a block pasted on LINE writes, one per row, in the order of the plan."""
-    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
-    return list(task.lines[: len(block)])
+    return list(pasted_task().lines[: len(block)])
 
 
 def rejudged(block: Sequence[Sequence[str]], deactivated: str) -> list[JsonObject]:
@@ -904,6 +952,7 @@ def _volume_writes() -> dict[str, JsonObject]:
     [first, last] = cast("list[Node]", partial["nodes"])
     rejudged_answer = paste_applied_rejudged()
     [rejudged_first, rejudged_last] = cast("list[Node]", rejudged_answer["nodes"])
+    without_hours_task = pasted_task().label
     return {
         "estimate_line_entered.json": mocktext.example(
             f"La ligne {ROW} de la structure du témoin, « Heures d'ingénierie », première ligne "
@@ -928,6 +977,18 @@ def _volume_writes() -> dict[str, JsonObject]:
             f"les deux autres et non celle-ci (paste_applied_partial), abandonné, il n'écrira "
             f"rien (WF-IHM-0050).",
             paste_plan(UNKNOWN_CATEGORY, PASTES[1]),
+        ),
+        "paste_plan_without_hours.json": mocktext.example(
+            f"Variante contrefactuelle déclarée : le même bloc, dont la deuxième ligne donne la "
+            f"ligne {ROW + 1} au monteur câbleur, « {WITHOUT_HOURS[1][0]} » ; sa tâche, « "
+            f"{without_hours_task} », le porterait avec l'ingénieur électricien, que la première "
+            f"ligne et la ligne de supervision gardent, et leurs calendriers, supposés ici autres, "
+            f"n'auraient aucun jour en commun : cette ligne est refusée sur sa cellule de rôle, "
+            f"les deux rôles et la tâche nommés, et les deux autres seraient écrites ; confirmé, "
+            f"le collage écrira les deux autres et non celle-ci, abandonné, il n'écrira rien. "
+            f"Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi "
+            f"au jeudi (WF-IHM-0050, WF-PLA-0010).",
+            paste_plan_without_hours(),
         ),
         "paste_too_wide.json": mocktext.example(
             f"Un bloc de {mocktext.count(line_width(columns) + 1)} colonnes collé sur le libellé "

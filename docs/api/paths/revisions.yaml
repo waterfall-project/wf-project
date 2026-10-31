@@ -2001,6 +2001,7 @@
               indent_forbidden: { $ref: ../../../fixtures/api/nodes_indent_forbidden.json }
               cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
               provision_refused: { $ref: ../../../fixtures/api/nodes_move_provision_refused.json }
+              without_hours: { $ref: ../../../fixtures/api/nodes_move_without_hours.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -2045,6 +2046,7 @@
             examples:
               planned: { $ref: ../../../fixtures/api/paste_plan.json }
               unknown_category: { $ref: ../../../fixtures/api/paste_plan_unknown_category.json }
+              without_hours: { $ref: ../../../fixtures/api/paste_plan_without_hours.json }
               subproject_held: { $ref: ../../../fixtures/api/paste_plan_subproject_held.json }
               amendment: { $ref: ../../../fixtures/api/paste_plan_amendment.json }
               amendment_skipping: { $ref: ../../../fixtures/api/paste_plan_amendment_skipping.json }

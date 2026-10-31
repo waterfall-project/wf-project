@@ -1,0 +1,10 @@
+{
+  "summary": "La « Mise en service sur site », ligne du technicien de mise en service sous la « Mise en service », déplacée sous le « Câblage des armoires », qui porte une ligne de l'ingénieur : leurs calendriers n'auraient aucun jour en commun, et la tâche qui la reçoit aucune heure travaillée. Refusé, les deux rôles et la tâche nommés ; rien ne bouge (WF-PLA-0010). Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi au jeudi : les calendriers sont supposés ici autres.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "TASK_WITHOUT_WORKING_HOURS",
+    "status": 422,
+    "params": {"resource_role_ids":["01926f3a-7c00-7000-8000-000000000451","01926f3a-7c00-7000-8000-000000000452"],"tasks":[{"project_id":"01926f3a-7c00-7000-8000-000000000001","node_id":"01926f3a-7c00-7000-8000-000000000552","label":"Câblage des armoires"}]},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001658"
+  }
+}

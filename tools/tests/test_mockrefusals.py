@@ -316,6 +316,9 @@ def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_
     for operation, name, roles in (
         ("createNode", "node_create_without_hours", [451, 454]),
         ("updateEstimateLine", "estimate_line_without_hours", [454]),
+        # A line of the commissioning technician moved under the wiring, beside the engineer's,
+        # names both roles, as the Vérif of WF-PLA-0010 says (#779).
+        ("moveNodes", "nodes_move_without_hours", [451, 452]),
     ):
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == (422, "TASK_WITHOUT_WORKING_HOURS"), name

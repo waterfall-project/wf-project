@@ -128,6 +128,38 @@ def test_the_categories_are_read_whole_by_code_and_their_second_page_follows(
         assert category["available_commands"][0]["command"] == "deactivate"
 
 
+def test_the_categories_of_a_deactivated_nature_are_read_deactivated_with_it(
+    volumes: dict[str, Any],
+) -> None:
+    # WF-REF-0010: « Désactiver une nature de coût désactive ses catégories ; une catégorie ne peut
+    # être réactivée que si sa nature est active » — the categories of the disbursements read
+    # again once `cost_type_deactivated` (C-291; US-0660/L1, #1142, point 1).
+    nature = fixture("cost_type_deactivated")
+    whole = volumes["cost_categories.json"]["items"]
+    read = volumes["cost_categories_type_deactivated.json"]
+    before = [each for each in whole if each["cost_type_id"] == nature["cost_type_id"]]
+    assert before
+    assert read["meta"] == {"limit": 50, "offset": 0, "total": len(before)}
+    assert [each["code"] for each in read["items"]] == [each["code"] for each in before]
+    for was, category in zip(before, read["items"], strict=True):
+        assert (category["is_active"], category["cost_type_is_active"]) == (False, False)
+        assert category["lock_version"] == was["lock_version"] + 1
+        assert category["audit"] == {
+            **was["audit"],
+            "updated_at": nature["audit"]["updated_at"],
+            "updated_by": nature["audit"]["updated_by"],
+        }
+        [state, move] = category["available_commands"]
+        assert state == {
+            "command": "reactivate",
+            "is_available": False,
+            "missing_conditions": ["cost_type_active"],
+        }
+        # The move does not depend on the state of the nature (`updateCostCategory`).
+        assert move == was["available_commands"][1]
+    assert any(not each["available_commands"][1]["is_available"] for each in read["items"])
+
+
 def test_the_rows_of_the_grid_come_by_code_every_one_active(volumes: dict[str, Any]) -> None:
     for name in ("hourly_rate_grid.json", "hourly_rate_grid_bounded.json"):
         rows = volumes[name]["rows"]
