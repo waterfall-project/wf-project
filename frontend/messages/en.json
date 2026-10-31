@@ -638,7 +638,11 @@
       "byDefault": "Default",
       "horizon": "Horizon",
       "months": "{months} months",
-      "threshold": "Under-load threshold"
+      "threshold": "Under-load threshold",
+      "completedWithoutEffect": {
+        "workload": "Completed projects have no effect on the workload plan.",
+        "pilotHealth": "Completed projects have no effect on the health of the steering."
+      }
     },
     "scope": {
       "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",

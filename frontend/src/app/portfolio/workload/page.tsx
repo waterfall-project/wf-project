@@ -93,6 +93,7 @@ export default async function PortfolioWorkloadPage({
           takes={TAKES}
           nodes={nodes}
           view={{ horizon, threshold: threshold ?? answer.under_load_threshold }}
+          completedWithoutEffect="workload"
         />
         <WorkloadView workload={answer} />
       </Screen>

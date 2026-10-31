@@ -638,7 +638,11 @@
       "byDefault": "Par défaut",
       "horizon": "Horizon",
       "months": "{months} mois",
-      "threshold": "Seuil de sous-charge"
+      "threshold": "Seuil de sous-charge",
+      "completedWithoutEffect": {
+        "workload": "Les projets terminés sont sans effet sur le plan de charge.",
+        "pilotHealth": "Les projets terminés sont sans effet sur la santé du pilotage."
+      }
     },
     "scope": {
       "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",

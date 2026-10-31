@@ -23,7 +23,7 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type Perimeter, PROJECTS_LIST, readPerimeter, type Takes } from "./address";
+import { type Perimeter, PROJECTS_LIST, type ProjectState, readPerimeter, type Takes } from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
@@ -428,6 +428,71 @@ describe("the perimeter of a view of the portfolio", () => {
       "La fin de la période ne peut précéder son début, 31 mars 2026.",
     );
     expect(within(period).getByDisplayValue("2026-03-31")).not.toHaveAttribute("aria-invalid");
+  });
+
+  describe("the notice that a project completed has no effect", () => {
+    const NOTE = {
+      workload: "Les projets terminés sont sans effet sur le plan de charge.",
+      pilotHealth: "Les projets terminés sont sans effet sur la santé du pilotage.",
+    } as const;
+
+    function bar(
+      retained: readonly ProjectState[] | undefined,
+      view: "workload" | "pilotHealth" | undefined,
+    ) {
+      page.search = "";
+      return render(
+        inLanguage(
+          <PerimeterBar
+            perimeter={readPerimeter(new URLSearchParams(page.search))}
+            retained={retained}
+            {...(view === undefined ? {} : { completedWithoutEffect: view })}
+          />,
+        ),
+      );
+    }
+
+    it.each(["workload", "pilotHealth"] as const)(
+      "is said on the %s, accessibly, when the server retains completed alone or among other states [WF-PTF-0010-A] [WF-PTF-0060-A] [WF-PTF-0110-A]",
+      async (view) => {
+        for (const retained of [["completed"], ["in_progress", "completed"]] as const) {
+          const { container, unmount } = bar(retained, view);
+          expect(screen.getByRole("note")).toHaveTextContent(NOTE[view]);
+          await expectAccessible(container);
+          unmount();
+        }
+      },
+    );
+
+    it.each(["workload", "pilotHealth"] as const)(
+      "is not said on the %s when the server retains no completed project, or none is known [WF-PTF-0010-A]",
+      (view) => {
+        for (const retained of [["in_progress", "pricing"], undefined] as const) {
+          const { unmount } = bar(retained, view);
+          expect(screen.queryByRole("note")).toBeNull();
+          unmount();
+        }
+      },
+    );
+
+    it("is not said by a view that does not ask it, whatever it retains [WF-PTF-0010-A]", () => {
+      bar(["completed"], undefined);
+      expect(screen.queryByRole("note")).toBeNull();
+    });
+
+    it("is read from the states the server retained, not from the address [WF-PTF-0010-A]", () => {
+      page.search = "states=completed";
+      render(
+        inLanguage(
+          <PerimeterBar
+            perimeter={readPerimeter(new URLSearchParams(page.search))}
+            retained={["in_progress"]}
+            completedWithoutEffect="workload"
+          />,
+        ),
+      );
+      expect(screen.queryByRole("note")).toBeNull();
+    });
   });
 
   it("shows the states the server retained when the address asks none, and adds one to them", async () => {

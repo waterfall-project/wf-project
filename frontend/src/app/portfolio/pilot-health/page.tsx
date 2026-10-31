@@ -45,7 +45,12 @@ export default async function PortfolioPilotHealthPage({
     <PendingAddress>
       <Screen density={FUNCTION_DENSITY.portfolio_pilot_health}>
         <PortfolioHeader fn="portfolio_pilot_health" scope={answer.scope} />
-        <PerimeterBar perimeter={perimeter} retained={answer.scope.states} takes={TAKES} />
+        <PerimeterBar
+          perimeter={perimeter}
+          retained={answer.scope.states}
+          takes={TAKES}
+          completedWithoutEffect="pilotHealth"
+        />
         <PilotHealthView health={answer} />
       </Screen>
     </PendingAddress>
