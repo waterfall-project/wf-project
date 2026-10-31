@@ -365,6 +365,40 @@ describe("the exits of the lifecycle of a project", () => {
     expect(exits(client)[1]).toEqual(exits(client)[0]);
   });
 
+  it("applies the exit once the relaunched task of the marking succeeds: the page is read again once, the new state told [WF-IHM-0080] [WF-CYC-0090]", async () => {
+    // The task fails, then the relaunch (…959) is read succeeded.
+    serve({
+      [EXIT]: [
+        { example: "task_exit_mark_queued", status: 202 },
+        { example: "task_exit_mark_relaunched", status: 202 },
+      ],
+      [TASK]: ["task_exit_mark_failed", "task_exit_mark_relaunched_succeeded"],
+    });
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await chooseMarking();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    await tick();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(said()).toEqual([]);
+
+    await userEvent.click(within(tasksRegion()).getByRole("button", { name: /^Relancer/ }));
+    await tick();
+    await tick();
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledOnce();
+    });
+    closeTasks();
+    await waitFor(() => {
+      expect(said()).toEqual(["Le projet est passé à l’état « Terminé »."]);
+    });
+    await tick();
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
   it("sends the abandon of the current revision, and the exit answers the project at once [WF-CYC-0090-A] [WF-REV-0010]", async () => {
     const client = serve({ [EXIT]: "project_completed" });
     open();
