@@ -222,7 +222,7 @@ describe("the number of a line in the grid", () => {
   };
   const query = { sort: undefined, search: undefined, size: undefined };
 
-  it("names two lines of one document by their item, in the link of the grid and in the title of the detail [WF-CRE-0040-A]", () => {
+  it("names two lines of one document by their item, in the link of the grid and in the title of the detail (aucune exigence : propre à l'US (US-0660, #1524))", () => {
     // FA-2026-0301 is split into two items (US-0630): the document alone names neither of them.
     const [first, second] = COSTS.items
       .filter((item) => item.document_number === "FA-2026-0301")

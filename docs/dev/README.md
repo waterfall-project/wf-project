@@ -1084,8 +1084,9 @@ celui d'une fusion (`occurrence-report.tsx`), dit le retrait de la provision et 
 avec les compteurs lus ; une version périmée (412) propose de le relire. Une tâche échouée ne se
 rejoue pas depuis le suivi, qui confirmerait des compteurs anciens : son entrée dit de repartir de
 l'écran du risque, où la commande relit le compte rendu. Un risque survenu liste toutes ses
-commandes indisponibles. Le registre se pagine comme toute table plate (`limit`, `offset`, `meta`) : « Lignes par page » et
-les pages sous la grille (`ListPages`, `RISKS_LIST`), les totaux restant ceux de tous les risques retenus. Le libellé d'un risque est un lien hors de la
+commandes indisponibles. Le registre se pagine comme toute table plate (`limit`, `offset`,
+`meta`) : « Lignes par page » et les pages sous la grille (`ListPages`, `RISKS_LIST`), les totaux
+restant ceux de tous les risques retenus. Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).
 

@@ -7,9 +7,10 @@
  * user wrote them; its provision line in the main structure, present while the risk weighs on the
  * estimate, withdrawn once it occurred, the lines merged from its own estimate bearing the
  * provision (WF-RIS-0060), and the category and the sub-project the risk designates for it, by the
- * labels the server resolves — the category said no longer admitted when it is not active and of type provision
- * (`provision_cost_category_is_active`: deactivated, its nature too, or passed to another type, #1532), the provision out of any sub-project when it designates
- * none (WF-RIS-0010, EP-14/L42p); and the history of its reviews, from the latest, which shows how
+ * labels the server resolves — the category said no longer admitted when it is not active and of
+ * type provision (`provision_cost_category_is_active`: deactivated, its nature too, or passed to
+ * another type, #1532), the provision out of any sub-project when it designates none
+ * (WF-RIS-0010, EP-14/L42p); and the history of its reviews, from the latest, which shows how
  * its probability and its severity moved (WF-RIS-0010). Everything as the API gives it.
  */
 import { FileMinus, FileText, History, ShieldAlert } from "lucide-react";

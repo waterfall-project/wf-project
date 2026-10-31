@@ -23,7 +23,10 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(page.search),
 }));
 
-/** The second page of ten of a registry of thirty-five risks, as `meta` says it. */
+/**
+ * The second page of ten of a registry of thirty-five risks, as `meta` says it: the prop is no
+ * answer of the fake back, and `risks_page` holds a first page of two.
+ */
 const SECOND: ListPage = { limit: 10, offset: 10, total: 35 };
 
 /** The pages of the registry of the risks, in French. */

@@ -570,8 +570,10 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(alert).toHaveTextContent("Câblage des armoires");
   });
 
-  it("says a task created with a manual date on a day without a working hour by the reason of its field, naming the next working day [WF-PLA-0020-A]", async () => {
+  it("tells the refusal of a manual date on a day without a working hour as `byField` reads it from the contract example, naming the next working day [WF-PLA-0020-A]", async () => {
     // The envelope says only that the entry is invalid; its field says why (`NON_WORKING_DAY`).
+    // The refusal is told in the alert, at the anchor row of the creation: the new row, created by
+    // nothing, holds no cell to show it at. What is proved is the reading of the example, no more.
     serve({
       [CREATE]: { problem: example("node_create_non_working_day") as Problem & { status: 422 } },
     });

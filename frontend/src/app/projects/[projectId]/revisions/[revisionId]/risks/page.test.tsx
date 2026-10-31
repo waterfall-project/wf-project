@@ -26,6 +26,26 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
+// The session of the contract, some of the sizes of pages its account keeps set for a test.
+const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            display_preferences: {
+              ...session.display_preferences,
+              grids: { ...session.display_preferences?.grids, ...kept.grids },
+            },
+          };
+    },
+  };
+});
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { risks: RisksGridProps[] } => ({ risks: [] }));
 vi.mock("@/components/risks/risks-grid", async (original) => {
@@ -127,6 +147,7 @@ function queryOf(route: string): Record<string, string> {
 }
 
 beforeEach(() => {
+  kept.grids = {};
   grids.risks = [];
   details.props = [];
   matrices.props = [];
@@ -243,8 +264,8 @@ describe("the screen of the risks", () => {
     });
   });
 
-  it("asks the server the page and the size of the pages the address names, and counts the risks of the answer [WF-IHM-0060-A]", async () => {
-    const page = await risksAt({ limit: "25", offset: "50", states: "identified" });
+  it("asks the server the page and the size of the pages the address names [WF-IHM-0060-A]", async () => {
+    await risksAt({ limit: "25", offset: "50", states: "identified" });
     expect(queryOf(LIST)).toEqual({
       revision_id: REVISION,
       limit: "25",
@@ -252,17 +273,33 @@ describe("the screen of the risks", () => {
       states: "identified",
     });
     expect(grids.risks[0]?.query.size).toBe(25);
-    // The subtitle counts the risks the answer retains (`meta.total`), not those of the page.
-    expect(text(page)).toContain("Risk management Help 3 risks retained");
     // A size the contract does not take is not asked: the default stands.
     server.clients = [];
     await risksAt({ limit: "7", offset: "abc" });
     expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
   });
 
-  it("hands the grid the totals of the answer, those of every risk retained, whatever the page asked [WF-IHM-0060-A]", async () => {
-    await risksAt({ limit: "10", offset: "20" });
-    expect(grids.risks[0]?.risks.totals).toEqual((example("risks") as { totals: unknown }).totals);
+  it("asks the size of the pages the account kept when the address names none, found again at the reopening [WF-IHM-0060-A]", async () => {
+    kept.grids = { risks: { page_size: 25 } };
+    await risksAt();
+    expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "25" });
+    expect(grids.risks[0]?.query.size).toBe(25);
+  });
+
+  it("counts the risks the answer retains, not those of its page [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, [LIST]: { example: "risks_page", status: 200 } };
+    const page = await risksAt({ limit: "2" });
+    // `risks_page` holds 2 lines of the 3 risks retained (`meta.total`).
+    expect(grids.risks[0]?.risks.items).toHaveLength(2);
+    expect(text(page)).toContain("Risk management Help 3 risks retained");
+  });
+
+  it("hands the grid the totals of the answer, those of every risk retained, not the sum of the page [WF-IHM-0060-A]", async () => {
+    server.answers = { ...server.answers, [LIST]: { example: "risks_page", status: 200 } };
+    await risksAt({ limit: "2" });
+    const answer = example("risks_page") as { totals: unknown };
+    expect(grids.risks[0]?.risks.totals).toEqual(answer.totals);
+    expect(grids.risks[0]?.risks.items).toHaveLength(2);
   });
 
   it("asks no sort by a column the server does not sort the risks by", async () => {
@@ -392,7 +429,7 @@ describe("the screen of the risks", () => {
     );
   });
 
-  it("says deactivated the category of a provision that is no longer active, as the server says", () => {
+  it("says the category of a provision that is no longer admitted, as the server says (aucune exigence : propre à l'US (US-0660, #1532))", () => {
     const risk = example("risk_dismissed_category_deactivated") as Risk;
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>

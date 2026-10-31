@@ -4,7 +4,8 @@
  * The filter of the risks by state (WF-RIS-0040), the filter of a list on the values of a column
  * (`ValuesFilter`): a button for each state of the contract, and one for every state. A state chosen
  * only changes the address (`states`, as the contract names it); the page reads the risks anew,
- * which the server filters and pages from the first page, with the totals of those it retained (WF-IHM-0130).
+ * which the server filters and pages from the first page, with the totals of those it retained
+ * (WF-IHM-0130).
  */
 "use client";
 
