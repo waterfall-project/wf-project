@@ -201,8 +201,31 @@ test.describe("on a low window", () => {
   });
 });
 
+const BANNER = "Contexte de lecture";
+
+/** Whether an element shows all its text: nothing of it is cut at the right. */
+function isUncut(element: Locator): Promise<boolean> {
+  return element.evaluate((node) => node.scrollWidth <= node.clientWidth);
+}
+
+/** Whether two boxes share no area. */
+function disjoint(
+  a: { x: number; y: number; width: number; height: number } | null,
+  b: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (a === null || b === null) {
+    return false;
+  }
+  return (
+    a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y
+  );
+}
+
 test.describe("on a narrow window", () => {
-  test.use({ viewport: { width: 700, height: 700 } });
+  // 760 pixels high: the floor of the grid (US-0560) fits under a banner on two rows, the source
+  // of the revision being shown whole; 700 left the page overflowing by 16 pixels, the totals half
+  // out of view.
+  test.use({ viewport: { width: 700, height: 760 } });
 
   test("keeps the label of each row, the header and the totals in view as the grid scrolls sideways [WF-IHM-0060-A]", async ({
     page,
@@ -233,6 +256,27 @@ test.describe("on a narrow window", () => {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
+  });
+
+  test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap [WF-IHM-0020-A]", async ({
+    page,
+  }) => {
+    // Tout écran nomme la révision source avec la révision en cours.
+    await openHydrated(page, GRID);
+    const banner = page.getByRole("region", { name: BANNER });
+    const source = banner.getByText("Copie de « Référence »");
+    await expect(source).toBeVisible();
+    expect(await isUncut(source)).toBe(true);
+
+    await page
+      .getByRole("combobox", { name: "Lot ou poste" })
+      .selectOption({ label: "Lot\u00a0: Lot 1" });
+    const chip = banner.getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
+    await expect(chip).toHaveText(["Lot : Lot 1, sur la grille seulement"], { timeout: WORKING });
+    await expect(chip).toBeInViewport();
+    await expect(source).toBeInViewport();
+    expect(await isUncut(source)).toBe(true);
+    expect(disjoint(await chip.boundingBox(), await source.boundingBox())).toBe(true);
   });
 
   test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({
