@@ -1,7 +1,7 @@
 # Règles de codage — Python
 
 Pour le back (`backend/`) et les outils du dépôt (`tools/`, `docs/*/tools/`). Ce fichier
-complète le [guide](README.md) : il dit comment s'écrit le Python ici. Il ne recopie ni la
+complète le [guide](README-fr.md) : il dit comment s'écrit le Python ici. Il ne recopie ni la
 spécification, ni le contrat, ni les jeux de règles des outils ; il y renvoie.
 
 Une règle qu'un outil contrôle nomme son contrôle. Une règle que rien ne contrôle le dit :

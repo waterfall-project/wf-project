@@ -41,7 +41,7 @@ body:
     attributes:
       label: Tracking
       description: >-
-        The epic's state, read from this one issue (`docs/roadmap/README.md`, « Suivi sur
+        The epic's state, read from this one issue (`docs/roadmap/README.md`, « Tracking on
         GitHub »). Kept up to date in this body by the agent that changes a state — never in a
         comment. The order of realisation: each story in the order it is delivered, with its
         status from the file, and under it each lot in order, with what it depends on, its

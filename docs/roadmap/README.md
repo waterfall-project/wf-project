@@ -1,243 +1,246 @@
-# Roadmap de Waterfall
+# Waterfall's roadmap
 
-## Principe
+> This is the English version of [README-fr.md](README-fr.md); when the two differ, the French text
+> is the reference.
 
-Les EPIC et les US vivent ici, en Markdown **écrit à la main**. Contrairement à la
-spécification, aucun de ces fichiers n'est engendré : ils font foi tels quels.
+## Principle
 
-Les issues GitHub ne sont ouvertes qu'au démarrage d'un EPIC, et le partage est le même
-que partout ailleurs dans ce dépôt — un document fait foi, GitHub est une surface de
-travail :
+The epics and the stories live here, in **hand-written** Markdown. Unlike the
+specification, none of these files is generated: they are authoritative as they stand.
 
-| Fait foi pour | Où |
+GitHub issues are opened only when an epic starts, and the split is the same as everywhere
+else in this repository — a document is authoritative, GitHub is a working
+surface:
+
+| Authoritative for | Where |
 |---|---|
-| l'intention : périmètre, critères d'acceptation, exigences réalisées, opérations consommées | le fichier de l'EPIC |
-| l'état : qui la prend, où elle en est, ce qui s'y discute | l'issue GitHub |
+| the intention: scope, acceptance criteria, requirements realised, operations consumed | the epic's file |
+| the state: who takes it, where it stands, what gets discussed | the GitHub issue |
 
-Une issue ne recopie donc pas les critères d'acceptation : elle renvoie au fichier et à
-l'identifiant. Deux descriptions d'un même travail finissent toujours par diverger, et
-c'est le fichier qu'on relira dans cinq ans.
+So an issue does not copy the acceptance criteria: it points at the file and at the
+identifier. Two descriptions of the same work always end up diverging, and it is the file
+that will be read again in five years.
 
-**Les EPIC couvrent tout l'horizon ; les US ne sont détaillées qu'un EPIC à l'avance.**
-Détailler aujourd'hui les US de la dernière tranche coûterait le prix de les réécrire :
-ce que le premier incrément apprend change le découpage du suivant. Ce qui est fixé pour
-tout l'horizon, ce sont les 212 exigences — pas leur découpage en travaux.
+**The epics cover the whole horizon; the stories are detailed only one epic ahead.**
+Detailing today the stories of the last slice would cost the price of rewriting them:
+what the first increment teaches changes the cutting of the next. What is fixed for the
+whole horizon is the 212 requirements — not their cutting into work.
 
-## Organisation
+## Layout
 
-| Chemin | Contenu |
+| Path | Content |
 |---|---|
-| `README.md` | ce fichier : les règles, et la liste ordonnée des EPIC |
-| `MODELE.md` | la forme d'un EPIC et celle d'une US |
-| `EP-nn-<intitulé>.md` | un EPIC, **ses US et sa conception comprises** |
+| `README.md` | this file: the rules, and the ordered list of the epics |
+| `MODELE.md` | the form of an epic and that of a story |
+| `EP-nn-<intitulé>.md` | an epic, **its stories and its design included** |
 
-Les US ne sont pas un fichier chacune : un EPIC est l'unité de travail — c'est lui qu'on
-démarre, lui dont on ouvre les issues — et cinquante fichiers de vingt lignes se
-reliraient moins bien que la douzaine de fichiers cohérents que voici. C'est la raison qui
-groupe déjà les schémas du contrat par famille.
+The stories are not one file each: an epic is the unit of work — it is the one that gets
+started, the one whose issues get opened — and fifty files of twenty lines would read
+less well than the dozen coherent files here. It is the same reason that already
+groups the contract's schemas by family.
 
-## Identifiants
+## Identifiers
 
-Un EPIC porte `EP-nn`, une US porte `US-nnnn` au pas de dix. Comme les identifiants
-d'exigence et les codes FBS et PBS, ils ne sont **jamais réutilisés et jamais
-renumérotés** : une US insérée prend le prochain numéro libre, pas la place qu'elle occupe
-dans la liste. Le titre d'une issue porte l'identifiant en tête — `[US-0130] …` — pour que
-le lien se suive dans les deux sens.
+An epic carries `EP-nn`, a story carries `US-nnnn` in steps of ten. Like the requirement
+identifiers and the FBS and PBS codes, they are **never reused and never
+renumbered**: an inserted story takes the next free number, not the place it occupies
+in the list. The title of an issue carries the identifier first — `[US-0130] …` — so that
+the link can be followed both ways.
 
-## Traçabilité
+## Traceability
 
-Chaque US cite les exigences qu'elle réalise et les opérations du contrat qu'elle
-consomme. Ses critères d'acceptation **reprennent le champ Vérif des exigences citées, mot
-pour mot**, exemples chiffrés compris : ce sont eux qui deviendront les cas de test
-(WF-QUA-0020), et un critère réécrit est un critère qui s'écarte de ce qui sera vérifié. Un
-écart délibéré se note comme tel, avec sa raison.
+Each story cites the requirements it realises and the operations of the contract it
+consumes. Its acceptance criteria **take up the Vérif field of the requirements cited, word
+for word**, numeric examples included: they are what will become the test cases
+(WF-QUA-0020), and a rewritten criterion is a criterion that drifts from what will be checked. A
+deliberate departure is noted as such, with its reason.
 
-Une exigence peut être réalisée par plusieurs EPIC : l'un la commence, un autre la finit,
-parce que son Vérif cite ce qu'un EPIC ultérieur construit. Le tableau d'un EPIC le dit dans sa
-colonne « Portée » — `entière`, `début — close en EP-nn` ou `fin — amorcée en EP-nn` —, et
-chaque US dit laquelle de ses phrases de Vérif attend un autre EPIC. **Une exigence n'est close
-que par un seul EPIC** : c'est lui qui la vérifie en entier.
+A requirement can be realised by several epics: one begins it, another finishes it,
+because its Vérif cites what a later epic builds. The table of an epic says so in its
+« Portée » column — `entière`, `début — close en EP-nn` or `fin — amorcée en EP-nn` —, and
+each story says which of its Vérif sentences waits for another epic. **A requirement is closed
+by one epic only**: the one that checks it in full.
 
-Une exigence F0 que nulle US ne cite est soit un travail oublié, soit une exigence sans
-surface — et dans ce cas la raison s'écrit. C'est la même mécanique que la couverture de
-`make inventory` pour le contrat, et le pendant du rapport de couverture des exigences que
-WF-QUA-0010 demande à la chaîne.
+An F0 requirement that no story cites is either forgotten work or a requirement without a
+surface — and in that case the reason is written down. It is the same mechanism as the coverage of
+`make inventory` for the contract, and the counterpart of the requirement coverage report that
+WF-QUA-0010 asks of the chain.
 
-## Statuts
+## Statuses
 
-D'un EPIC, cinq valeurs et aucune autre :
+For an epic, five values and no other:
 
-| Statut | Signification |
+| Status | Meaning |
 |---|---|
-| `à planifier` | l'EPIC est écrit, mais ses US ou sa conception ne sont pas arrêtées ; tant que ses US ne sont pas écrites, la colonne US de son tableau porte « — » |
-| `prêt` | ses US sont détaillées et sa conception est validée ; rien n'empêche d'en découper les lots |
-| `en cours` | son plan de lots est validé, et ses issues sont ouvertes sur GitHub ; sa branche d'intégration n'existe qu'à partir de son premier lot |
-| `livré` | toutes ses US sont finies, sa définition de fini est vérifiée sur sa branche d'intégration, et celle-ci est fusionnée dans `main` |
-| `abandonné : <pourquoi>` | reconnu, puis écarté ; le fichier reste |
+| `à planifier` | the epic is written, but its stories or its design are not settled; as long as its stories are not written, the US column of its table carries « — » |
+| `prêt` | its stories are detailed and its design is validated; nothing prevents cutting it into lots |
+| `en cours` | its lot plan is validated, and its issues are open on GitHub; its integration branch exists only from its first lot |
+| `livré` | all its stories are done, its definition of done is checked on its integration branch, and that branch is merged into `main` |
+| `abandonné : <pourquoi>` | acknowledged, then set aside; the file remains |
 
-D'une US, cinq également :
+For a story, five as well:
 
-| Statut | Signification |
+| Status | Meaning |
 |---|---|
-| `à faire` | état initial |
-| `en cours` | prise par quelqu'un |
-| `fini` | les critères d'acceptation sont vérifiés, et les tests qui les portent citent les exigences (WF-QUA-0010) |
-| `reportée : <vers quel EPIC>` | sortie de cet EPIC, explicitement |
-| `abandonnée : <pourquoi>` | le besoin ne tient plus |
+| `à faire` | initial state |
+| `en cours` | taken by someone |
+| `fini` | the acceptance criteria are checked, and the tests that carry them cite the requirements (WF-QUA-0010) |
+| `reportée : <vers quel EPIC>` | moved out of this epic, explicitly |
+| `abandonnée : <pourquoi>` | the need no longer holds |
 
-Lire ce répertoire doit suffire à savoir où en est le projet, sans ouvrir GitHub.
+Reading this directory must be enough to know where the project stands, without opening GitHub.
 
-## Familles
+## Families
 
-Le champ `famille` du front matter d'un EPIC dit ce qu'il ajoute au produit et qui prouve
-ses exigences, d'après le découpage PBS du document — pas tout ce qu'il touche :
+The `famille` field of an epic's front matter says what it adds to the product and who proves
+its requirements, according to the document's PBS breakdown — not everything it touches:
 
-| Famille | Ce qu'elle couvre |
+| Family | What it covers |
 |---|---|
-| `front` | l'application web, son client engendré et ses composants (PBS-1) |
-| `back` | le service d'API, le worker, le noyau métier, le contrat et l'intégration du fournisseur d'identité (PBS-2) |
-| `plateforme` | un composant que l'EPIC ajoute à ce qui porte et fait tourner les deux : composants de données, observabilité, empaquetage, chaîne, tâches planifiées, fournisseur d'identité (PBS-3 à PBS-5) ; et l'outillage du dépôt, quand il est l'objet de l'EPIC (EP-01) |
+| `front` | the web application, its generated client and its components (PBS-1) |
+| `back` | the API service, the worker, the business core, the contract and the integration of the identity provider (PBS-2) |
+| `plateforme` | a component the epic adds to what carries and runs the two: data components, observability, packaging, chain, scheduled tasks, identity provider (PBS-3 to PBS-5); and the repository tooling, when it is the object of the epic (EP-01) |
 
-Un composant que l'EPIC emploie sans l'ajouter ne change pas sa famille : un EPIC fonctionnel
-écrit dans PostgreSQL ou dépose un fichier sur le stockage objet sans être `plateforme`,
-puisque c'est un autre EPIC qui ajoute le composant : EP-03 pour PostgreSQL et Redis, EP-13
-pour l'empaquetage de la plateforme. De même, un outil écrit en
-passant par un lot ne change pas la famille de son EPIC : EP-02 reste `front`.
+A component the epic uses without adding it does not change its family: a functional epic
+writes to PostgreSQL or drops a file on the object storage without being `plateforme`,
+since it is another epic that adds the component: EP-03 for PostgreSQL and Redis, EP-13
+for the packaging of the platform. Likewise, a tool written in
+passing by a lot does not change the family of its epic: EP-02 stays `front`.
 
-Un EPIC qui en construit plusieurs les déclare toutes, séparées par des virgules —
-`famille: front, back` pour une tranche verticale. `make roadmap` échoue sur un EPIC qui
-n'en déclare aucune, qui en déclare une autre, ou la même deux fois.
+An epic that builds several declares them all, separated by commas —
+`famille: front, back` for a vertical slice. `make roadmap` fails on an epic that
+declares none, that declares another one, or the same one twice.
 
-La famille dit quels tests prouvent ce que l'EPIC clôt : une exigence close par un EPIC dont
-la seule famille est `front` est prouvée par les tests du front ; close par un autre, elle
-ne l'est pas tant que seuls le front et le bout en bout la citent (`make requirements`).
+The family says which tests prove what the epic closes: a requirement closed by an epic whose
+only family is `front` is proved by the tests of the front; closed by another one, it
+is not as long as only the front and the end-to-end tests cite it (`make requirements`).
 
-## Ordre des EPIC
+## Order of the epics
 
-<!-- Un EPIC par ligne, dans l'ordre où ils se démarrent. -->
+<!-- One epic per line, in the order they start. -->
 
-| EPIC | Titre | Statut | Dépend de |
+| EPIC | Title | Status | Depends on |
 |---|---|---|---|
-| [EP-01](EP-01-socle-de-developpement.md) | Socle de développement | livré | rien |
-| [EP-02](EP-02-maquette-du-front.md) | Maquette du front sur contrat simulé | livré | EP-01 |
-| [EP-03](EP-03-comptes-et-habilitations.md) | Comptes, authentification et habilitations | livré | EP-01, EP-02 |
-| [EP-14](EP-14-maquette-du-front-finitions.md) | Maquette du front : finitions | livré | EP-02 |
-| [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | livré | EP-14 |
-| [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | en cours | EP-15 |
-| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | à planifier | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | à planifier | EP-16 |
-| [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | à planifier | EP-05 |
-| [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
-| [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
-| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Coûts réels, reste à engager et import des coûts | à planifier | EP-07 |
-| [EP-10](EP-10-indicateurs.md) | Indicateurs de projet | à planifier | EP-09 |
-| [EP-08](EP-08-avenants-et-risques.md) | Avenants, risques et provisions | à planifier | EP-10 |
-| [EP-11](EP-11-portefeuille.md) | Portefeuille | à planifier | EP-08 |
-| [EP-12](EP-12-echanges-de-fichiers.md) | Échanges de fichiers (FLX-01 à FLX-06) | abandonné : chaque aller-retour se valide dans son bloc fonctionnel | — |
-| [EP-13](EP-13-exploitation.md) | Exploitation et mise en production | à planifier | EP-04 |
+| [EP-01](EP-01-socle-de-developpement.md) | Development foundation | livré | nothing |
+| [EP-02](EP-02-maquette-du-front.md) | Mockup of the front on a simulated contract | livré | EP-01 |
+| [EP-03](EP-03-comptes-et-habilitations.md) | Accounts, authentication and access rights | livré | EP-01, EP-02 |
+| [EP-14](EP-14-maquette-du-front-finitions.md) | Mockup of the front: finishing touches | livré | EP-02 |
+| [EP-15](EP-15-maquette-ajustements.md) | Mockup: adjustments from the validation | livré | EP-14 |
+| [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | en cours | EP-15 |
+| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | à planifier | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | à planifier | EP-16 |
+| [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | à planifier | EP-05 |
+| [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
+| [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
+| [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |
+| [EP-10](EP-10-indicateurs.md) | Project indicators | à planifier | EP-09 |
+| [EP-08](EP-08-avenants-et-risques.md) | Amendments, risks and provisions | à planifier | EP-10 |
+| [EP-11](EP-11-portefeuille.md) | Portfolio | à planifier | EP-08 |
+| [EP-12](EP-12-echanges-de-fichiers.md) | File exchanges (FLX-01 to FLX-06) | abandonné : each round trip is validated in its functional block | — |
+| [EP-13](EP-13-exploitation.md) | Operations and going to production | à planifier | EP-04 |
 
-L'ordre de la liste n'est pas celui des numéros, et c'est voulu : un identifiant ne se
-renumérote pas. La répartition des exigences a fait passer le référentiel avant les projets —
-un projet ne se crée pas sans lui (WF-CYC-0120) —, l'import des coûts réels dans EP-09 — une
-ligne de coût n'existe que par import (WF-CRE-0010) —, les indicateurs dès qu'il y a des coûts
-réels et un reste à engager, et les risques après eux — la survenance se chiffre par le reste
-à engager, fusionne comme un avenant, et les indicateurs se lisent alors devant elle (revue de
-la ventilation, 2026-10-09). Les échanges de
-fichiers n'ont plus d'EPIC propre (revue de la ventilation, 2026-10-09) : chaque aller-retour
-se valide dans son bloc fonctionnel — MS Project en EP-06, qui construit la mécanique d'import,
-le devis en EP-07, le reste à engager en EP-09 —, et EP-03 rend la plateforme déployable et
-sauvegardable dès le premier service, pour des démonstrations.
+The order of the list is not that of the numbers, and that is deliberate: an identifier is not
+renumbered. The distribution of the requirements put the reference data before the projects —
+a project cannot be created without it (WF-CYC-0120) —, the import of actual costs in EP-09 — a
+cost line exists only by import (WF-CRE-0010) —, the indicators as soon as there are actual
+costs and a remaining to commit, and the risks after them — an occurrence is costed through the remaining
+to commit, merges like an amendment, and the indicators are then read in front of it (review of
+the distribution, 2026-10-09). File
+exchanges no longer have an epic of their own (review of the distribution, 2026-10-09): each round trip
+is validated in its functional block — MS Project in EP-06, which builds the import mechanism,
+the estimate in EP-07, the remaining to commit in EP-09 —, and EP-03 makes the platform deployable and
+backupable from the first service on, for demonstrations.
 
-EP-14 achève les écrans d'EP-02, fusionné dans `main` le 2026-10-09 pour qu'EP-03 démarre sans
-attendre : il avance en parallèle d'EP-03, sans toucher à son domaine. EP-15 suit la
-validation, par l'auteur, de la spécification 1.0, de la maquette et du contrat, faite après la
-fusion d'EP-03 puis d'EP-14 (décision de l'auteur du 2026-10-11) : il réalise les ajustements
-qu'elle a décidés, de sorte que chaque opération d'écriture du contrat ait un geste dans la
-maquette. EP-16 le suit (décision de l'auteur du 2026-10-18). Depuis son cadrage, il **fige le
-contrat** (décision de l'auteur du 2026-10-22) : il garde tout ce qui touche le contrat ou peut le
-toucher, avec ce que la reprise de la spécification du 2026-10-22 ajoute au modèle (#1304). Il
-garde aussi, par exception, des parcours de bout en bout joués contre le front construit, faute
-desquels la file de fusion n'est pas stable. Le reste passe à EP-17, qui finit la maquette hors
-contrat : l'accessibilité des dialogues, les mineurs des écrans, le cosmétique. Les navigateurs
-passent à EP-13. Les EPIC de domaine, à partir d'EP-05, servent un contrat qu'EP-16 a figé, et EP-17
-peut avancer en parallèle d'eux. Le 2026-10-25, EP-16 est recadré d'un bloc (#1445) : il reprend
-d'EP-15 les aides en ligne des écrans que les cinq écrans clés ne couvrent pas, pour que leur
-relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui prime est que n'y reste que ce qui
-concerne le durcissement ou le contrat — tout le reste, dont les ajustements de la validation du
-2026-10-23 qui ne touchent pas le contrat, part à EP-17 ; la stabilité restante des parcours de bout
-en bout, elle, est du durcissement et revient à EP-16 (US-0590b).
+EP-14 completes the screens of EP-02, merged into `main` on 2026-10-09 so that EP-03 starts without
+waiting: it moves in parallel with EP-03, without touching its domain. EP-15 follows the
+validation, by the author, of the specification 1.0, of the mockup and of the contract, done after the
+merge of EP-03 then of EP-14 (author's decision of 2026-10-11): it carries out the adjustments
+it decided, so that every write operation of the contract has a gesture in the
+mockup. EP-16 follows it (author's decision of 2026-10-18). Since its framing, it **freezes the
+contract** (author's decision of 2026-10-22): it keeps everything that touches the contract or may
+touch it, with what the 2026-10-22 rework of the specification adds to the model (#1304). It
+also keeps, by exception, end-to-end paths played against the built front, without which
+the merge queue is not stable. The rest moves to EP-17, which finishes the mockup outside the
+contract: the accessibility of the dialogs, the minor items of the screens, the cosmetics. The browsers
+move to EP-13. The domain epics, from EP-05 on, serve a contract that EP-16 has frozen, and EP-17
+can move in parallel with them. On 2026-10-25, EP-16 is reframed by one block (#1445): it takes over
+from EP-15 the online helps of the screens that the five key screens do not cover, so that their
+review does not keep `epic/EP-15` open, and the rule that prevails is that only what
+concerns the hardening or the contract stays there — everything else, including the adjustments of the
+2026-10-23 validation that do not touch the contract, goes to EP-17; the remaining stability of the end-to-end
+paths, for its part, is hardening and comes back to EP-16 (US-0590b).
 
-EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
-dont la dernière action arrive tard, et il finit en dernier.
+EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
+whose last action comes late, and it finishes last.
 
-Après EP-02, **un EPIC est une tranche verticale** : contrat, noyau, API, écran, tests.
-Livrer « tout le back » puis « tout le front » ne donnerait rien à regarder avant la fin, et
-c'est précisément ce que la maquette sur contrat simulé sert à éviter.
+After EP-02, **an epic is a vertical slice**: contract, core, API, screen, tests.
+Delivering « all the back » then « all the front » would give nothing to look at before the end, and
+that is precisely what the mockup on a simulated contract serves to avoid.
 
-## Démarrer un EPIC
+## Starting an epic
 
-Cinq étapes, et un arrêt pour validation à la fin de chacune des trois premières : c'est ce
-qui permet de confier le reste à un agent.
+Five steps, and a stop for validation at the end of each of the first three: that is what
+allows the rest to be entrusted to an agent.
 
-1. **Détailler les US**, jusqu'à ce que chacune porte des critères d'acceptation repris des
-   champs Vérif. *Validation.*
-2. **Écrire la conception** dans la section « Conception » du fichier de l'EPIC : les tables
-   et les migrations, les modules du noyau touchés, les modifications du contrat, l'ordre de
-   construction, et les décisions prises avec les options écartées. Une US dit ce qui doit
-   être vrai ; la conception dit comment les pièces s'emboîtent, et sans elle chaque lot
-   prendrait ses propres décisions de schéma. *Validation* ; l'EPIC passe `prêt`.
-3. **Établir le plan de lots** : pour chaque lot, son périmètre, les critères d'acceptation
-   qu'il ferme, les lots dont il dépend et sa taille estimée. *Validation.*
-4. **Ouvrir les issues**, dans la hiérarchie de « Suivi sur GitHub » : l'issue de l'EPIC et
-   son tableau, une par US, une par lot sous son US ; reporter dans le fichier les numéros des
-   issues de l'EPIC et des US. L'EPIC passe `en cours`.
-5. **Livrer** : au premier lot, tirer `epic/EP-nn` de `main`, ce qui attend que les EPIC dont
-   celui-ci dépend soient livrés ; livrer les lots ; quand toutes les US sont finies,
-   constater la définition de fini sur la branche de l'EPIC, puis la fusionner dans `main` —
-   une personne le fait, jamais un agent. L'EPIC passe `livré`.
+1. **Detail the stories**, until each carries acceptance criteria taken from the
+   Vérif fields. *Validation.*
+2. **Write the design** in the « Conception » section of the epic's file: the tables
+   and the migrations, the modules of the core touched, the changes to the contract, the order of
+   construction, and the decisions taken with the options set aside. A story says what must
+   be true; the design says how the pieces fit together, and without it each lot
+   would take its own schema decisions. *Validation*; the epic goes `prêt`.
+3. **Establish the lot plan**: for each lot, its scope, the acceptance criteria
+   it closes, the lots it depends on and its estimated size. *Validation.*
+4. **Open the issues**, in the hierarchy of « Tracking on GitHub »: the epic's issue and
+   its table, one per story, one per lot under its story; write back into the file the numbers of the
+   issues of the epic and of the stories. The epic goes `en cours`.
+5. **Deliver**: at the first lot, create `epic/EP-nn` from `main`, which waits for the epics this
+   one depends on to be delivered; deliver the lots; when all the stories are done,
+   confirm the definition of done on the epic's branch, then merge it into `main` —
+   a person does it, never an agent. The epic goes `livré`.
 
-Les quatre premières étapes ne demandent pas que les EPIC précédents soient livrés : un EPIC
-se cadre pendant que celui dont il dépend se développe. Seule la cinquième les attend.
+The first four steps do not require the previous epics to be delivered: an epic
+is framed while the one it depends on is being developed. Only the fifth waits for them.
 
-Une proposition de fonctionnalité n'est pas une US : elle passe par le gabarit d'issue
-« Question or proposal », et ne devient une US que lorsqu'elle entre dans un EPIC.
+A feature proposal is not a story: it goes through the issue template
+« Question or proposal », and becomes a story only when it enters an epic.
 
 ## Lots
 
-Un lot est l'unité de revue : **un lot, une issue, une branche, une pull request**. Une US
-tient en un lot ou en plusieurs ; un lot qui ne ferme aucun critère d'acceptation se déclare
-lot technique, se range sous la première US qu'il prépare, et nomme les autres.
+A lot is the unit of review: **one lot, one issue, one branch, one pull request**. A story
+fits in one lot or in several; a lot that closes no acceptance criterion declares itself
+a technical lot, is placed under the first story it prepares, and names the others.
 
-| Règle | Pourquoi |
+| Rule | Why |
 |---|---|
-| le plan de lots vise 1 000 à 1 500 lignes de diff par lot, tests compris, dont 800 de code de production au plus | au-delà, une revue attentive décroche |
-| le code engendré n'est pas compté : client du contrat, verrous de dépendances, fixtures extraites, migrations produites par l'outil | un lot qui régénère le client paraîtrait gros sans rien contenir à relire |
-| la pull request met chaque critère fermé en regard du test qui le porte | c'est ce que la revue vérifie en premier |
-| un lot se fusionne seul, la chaîne au vert | la branche de l'EPIC n'est jamais à moitié construite |
-| un constat de revue hors du périmètre du lot devient une issue, rattachée et tranchée selon « Suivi sur GitHub », et ne se corrige pas dans le lot | c'est ce qui fait grossir un lot pendant sa revue, et tourner la revue en boucle |
-| la pull request donne la taille réelle du lot, mesurée par `make lot-size`, à côté de l'estimation de son issue ; un dépassement ne fait rien échouer | l'estimation se trompe, et une règle d'arrêt bloquerait un EPIC livré la nuit ; l'écart se lit au relevé de livraison, et le plan de lots suivant s'en corrige |
-| la revue locale corrige tous les constats de son premier tour ; aux tours suivants, seuls les majeurs et ceux qu'une correction a introduits, les mineurs devenant des issues | c'est ce qui fait tourner la revue en boucle, six tours pour un lot pendant la livraison d'EP-03, quand chaque correction fait naître un nouveau mineur |
-| l'issue d'un lot dit le modèle de son développement, `sonnet` ou `opus`, et pourquoi — authentification, sécurité, migration de données, contrat, interface partagée, ou conception qui laisse une part à interpréter ; sans ce champ, l'agent de livraison applique la même liste, et il escalade une fois par lot | le cadreur sait quelle part de la conception reste à interpréter, le livreur ne la découvre qu'en lisant le lot ; un lot marqué `sonnet` qui escalade dit que la règle a sous-estimé, et c'est ce qui la calibre |
+| the lot plan aims at 1,000 to 1,500 lines of diff per lot, tests included, of which 800 of production code at most | beyond that, an attentive review drops off |
+| generated code is not counted: contract client, dependency locks, extracted fixtures, migrations produced by the tool | a lot that regenerates the client would look big without holding anything to review |
+| the pull request sets each criterion closed against the test that carries it | that is what the review checks first |
+| a lot is merged on its own, with the chain green | the epic's branch is never half-built |
+| a review finding outside the scope of the lot becomes an issue, attached and settled according to « Tracking on GitHub », and is not fixed in the lot | that is what makes a lot grow during its review, and makes the review go round in circles |
+| the pull request gives the real size of the lot, measured by `make lot-size`, next to the estimate of its issue; an overrun makes nothing fail | the estimate gets it wrong, and a stop rule would block an epic delivered overnight; the gap is read in the delivery report, and the next lot plan corrects itself from it |
+| the local review fixes every finding of its first round; in the following rounds, only the major ones and those a fix introduced, the minor ones becoming issues | that is what makes the review go round in circles, six rounds for one lot during the delivery of EP-03, when each fix gives birth to a new minor one |
+| the issue of a lot says the model of its development, `sonnet` or `opus`, and why — authentication, security, data migration, contract, shared interface, or a design that leaves a part open to interpretation; without this field, the delivery agent applies the same list, and it escalates once per lot | the framer knows which part of the design remains to be interpreted, the deliverer discovers it only when reading the lot; a lot marked `sonnet` that escalates says that the rule underestimated, and that is what calibrates it |
 
-Ce tableau est la seule définition de la taille visée : le gabarit de pull request, celui
-des lots et les agents y renvoient, et aucun ne la recopie.
+This table is the only definition of the target size: the pull request template, the one
+of the lots and the agents point to it, and none copies it.
 
-Un lot porte le titre `[US-nnnn/Ln] …` ; `Ln` numérote les lots d'une même US, dans l'ordre
-où ils se livrent, sans réemploi. La part détachée d'un lot coupé en deux prend le numéro du
-lot suivi de `b` : `[US-nnnn/Lnb]`, branche `lot/US-nnnn/Lnb`, ou `[US-nnnnb]` pour une US
-d'un seul lot. Une US réalisée par un seul lot n'a qu'une issue, `[US-nnnn]`,
-qui est aussi celle du lot, et sa branche `lot/US-nnnn`. Les lots vivent sur GitHub et nulle
-part ailleurs : ils sont une façon de faire le travail, pas son intention, et le fichier de
-l'EPIC ne les recopie pas.
+A lot carries the title `[US-nnnn/Ln] …`; `Ln` numbers the lots of the same story, in the order
+they are delivered, without reuse. The detached part of a lot cut in two takes the number of the
+lot followed by `b`: `[US-nnnn/Lnb]`, branch `lot/US-nnnn/Lnb`, or `[US-nnnnb]` for a story
+of a single lot. A story realised by a single lot has only one issue, `[US-nnnn]`,
+which is also that of the lot, and its branch `lot/US-nnnn`. The lots live on GitHub and nowhere
+else: they are a way of doing the work, not its intention, and the epic's file
+does not copy them.
 
-## Suivi sur GitHub
+## Tracking on GitHub
 
-Ce suivi vaut à partir d'EP-03 ; les issues d'EP-01 et d'EP-02 gardent leur forme, et leurs
-lots `[EP-nn/Ln]` leur titre. Les lots qu'EP-14 reprend d'EP-02 sont renommés `[EP-14/Ln]`, en
-gardant leur numéro, et rattachés à son issue (#599).
+This tracking applies from EP-03 on; the issues of EP-01 and EP-02 keep their form, and their
+lots `[EP-nn/Ln]` their title. The lots EP-14 takes over from EP-02 are renamed `[EP-14/Ln]`, keeping
+their number, and attached to its issue (#599).
 
-L'état d'un EPIC se lit en ouvrant une seule issue, la sienne, et la hiérarchie des
-sous-issues suit le découpage :
+The state of an epic is read by opening a single issue, its own, and the hierarchy of the
+sub-issues follows the cutting:
 
 ```
 [EP-nn] l'EPIC — son tableau de suivi
@@ -249,54 +252,54 @@ sous-issues suit le découpage :
 └── [EP-nn] <nature> : un constat relevé hors de tout lot
 ```
 
-**Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
-et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
-US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties :
+**The tracking table** is in the body of the epic's issue, never in a comment,
+and it is kept up to date at each change of state — lot started, in review, merged, blocked;
+story gone `en cours` or `fini`; finding opened or settled. It has two parts:
 
-- **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
-  issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
-  dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
-  sa pull request, et le modèle qui l'a développé, avec la raison de l'escalade s'il y en a
-  eu une ;
-- **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
-  sa décision.
+- **Order of realisation**: one line per story, in the order they are delivered, with its
+  issue and its status, the one of the file; under it, one line per lot, in order, with its
+  dependencies, its state — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
+  its pull request, and the model that developed it, with the reason for the escalation if there
+  was one;
+- **Open findings**: each finding that is not closed, the issue it is attached to, and
+  its decision.
 
-**Les labels.** Une issue d'un EPIC — son issue propre, ses US, ses lots, ses constats — porte le
-préfixe `[EP-nn]`, `[US-nnnn]` ou `[US-nnnn/Ln]` dans son titre **et** le label `EP-nn` de son EPIC,
-toujours les deux : le titre se lit dans une liste, le label se filtre ; un constat reporté vers un
-autre EPIC change de label en changeant de titre.
+**The labels.** An issue of an epic — its own issue, its stories, its lots, its findings — carries the
+prefix `[EP-nn]`, `[US-nnnn]` or `[US-nnnn/Ln]` in its title **and** the label `EP-nn` of its epic,
+always both: the title is read in a list, the label is filtered on; a finding moved to
+another epic changes label as it changes title.
 
-**Un constat** — de revue, de contrat, de spécification, d'outil — relevé pendant un EPIC
-s'ouvre en sous-issue du lot qui le relève, ou de l'EPIC s'il ne vient d'aucun lot, sous le
-titre `[EP-nn] <nature> : …`, où la nature est `contrat`, `spec`, `front`, `back` ou `outil`.
-Il porte dès son ouverture une décision, écrite dans son corps et dans le tableau :
+**A finding** — of review, of contract, of specification, of tool — raised during an epic
+is opened as a sub-issue of the lot that raises it, or of the epic if it comes from no lot, under the
+title `[EP-nn] <nature> : …`, where the nature is `contrat`, `spec`, `front`, `back` or `outil`.
+It carries a decision from the moment it is opened, written in its body and in the table:
 
-| Décision | Ce qu'elle fait de l'issue |
+| Decision | What it does with the issue |
 |---|---|
-| `corrigé par <lot>` | elle passe sous ce lot, et se ferme à sa fusion |
-| `bloque <lot>` | elle reste sous le lot relevé ; le lot bloqué le dit dans le tableau |
-| `reporté → EP-nn` | elle passe sous l'issue de cet EPIC ; si elle n'existe pas encore, le constat se note dans son fichier, section « Constats reçus », et se rattachera à son ouverture |
-| `à trancher` | une personne doit décider ; c'est la seule décision provisoire, et le tableau la montre |
+| `corrigé par <lot>` | it moves under that lot, and closes at its merge |
+| `bloque <lot>` | it stays under the lot that raised it; the blocked lot says so in the table |
+| `reporté → EP-nn` | it moves under the issue of that epic; if it does not exist yet, the finding is noted in its file, section « Constats reçus », and will be attached when it is opened |
+| `à trancher` | a person must decide; it is the only provisional decision, and the table shows it |
 
-Aucune issue de l'EPIC n'est sans parent. **Une issue se ferme quand ce qu'elle suit est
-fait** : un lot à sa fusion, une US quand le lot qui la passe `fini` est fusionné, l'EPIC à sa
-livraison.
+No issue of the epic is without a parent. **An issue closes when what it tracks is
+done**: a lot at its merge, a story when the lot that makes it `fini` is merged, the epic at its
+delivery.
 
 ## Branches
 
-| Branche | Reçoit | Tirée de |
+| Branch | Receives | Created from |
 |---|---|---|
-| `main` | la fusion d'une branche d'EPIC à sa livraison, et les modifications de la spécification, du contrat ou de la roadmap qui ne servent aucun EPIC en cours | — |
-| `epic/EP-nn` | les pull requests des lots de cet EPIC, et les modifications du contrat que sa conception prévoit | `main`, au premier lot, une fois livrés les EPIC dont il dépend |
-| `lot/<identifiant du lot>` | le travail d'un lot, et lui seul | la branche de son EPIC |
+| `main` | the merge of an epic's branch at its delivery, and the changes to the specification, the contract or the roadmap that serve no epic in progress | — |
+| `epic/EP-nn` | the pull requests of the lots of that epic, and the changes to the contract that its design provides for | `main`, at the first lot, once the epics it depends on are delivered |
+| `lot/<identifiant du lot>` | the work of one lot, and it alone | the branch of its epic |
 
-Un EPIC en cours a sa branche d'intégration dès son premier lot — entre l'ouverture de ses
-issues et ce premier lot, il n'en a pas encore, et c'est normal : il peut attendre qu'un
-EPIC dont il dépend soit livré. Plusieurs EPIC peuvent ainsi avancer en même temps sans que
-la livraison de l'un emporte les lots à moitié faits d'un autre. `main` ne reçoit donc que
-des EPIC livrés et des documents relus : elle n'est jamais dans un état intermédiaire. Après
-chaque fusion dans `main`, les branches des EPIC encore en cours la reprennent, et c'est à
-ce moment que se règlent leurs conflits, non à la livraison.
+An epic in progress has its integration branch from its first lot — between the opening of its
+issues and that first lot, it does not have one yet, and that is normal: it may be waiting for an
+epic it depends on to be delivered. Several epics can thus move at the same time without
+the delivery of one carrying the half-done lots of another. So `main` receives only
+delivered epics and reviewed documents: it is never in an intermediate state. After
+each merge into `main`, the branches of the epics still in progress take it back in, and that is
+when their conflicts are settled, not at delivery.
 
-La chaîne s'exécute sur toute pull request, vers une branche d'EPIC comme vers `main`, et
-aucune n'est fusionnée si elle échoue.
+The chain runs on every pull request, towards an epic's branch as towards `main`, and
+none is merged if it fails.

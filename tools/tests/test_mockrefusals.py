@@ -87,7 +87,7 @@ def test_no_state_has_a_code_of_its_own_and_no_403_says_a_state() -> None:
     said = forbidden["Forbidden"]["description"]
     assert "jamais par 403" in said
     assert "NOT_PROJECT_MANAGER" in said
-    readme = (API / "README.md").read_text("utf-8")
+    readme = (API / "README-fr.md").read_text("utf-8")
     assert "Le refus d'une commande qu'un état rend indisponible est un 409" in readme
     for path in sorted((API / "paths").glob("*.yaml")):
         text = path.read_text("utf-8")

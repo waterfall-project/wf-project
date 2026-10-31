@@ -1,91 +1,94 @@
-# Contrat d'interface de Waterfall
+# Waterfall's interface contract
 
-Ce répertoire porte le contrat OpenAPI de l'API de Waterfall. Il est **écrit à la main et
-fait foi** : tout endpoint, tout schéma et toute erreur qu'un client peut rencontrer y
-figurent, le client du front en est engendré, et la chaîne rejette une version des
-services dont une réponse s'en écarte (WF-ARC-0060, annexe C de la spécification).
+> This is the English version of [README-fr.md](README-fr.md); when the two differ, the French text
+> is the reference.
 
-La spécification est dans `../spec`. Chaque opération cite dans ses propres mots — résumé
-ou description — les exigences qu'elle réalise : c'est ce qui rend la traçabilité vérifiable
-dans les deux sens, et `make inventory` échoue sur une opération qui n'en cite aucune. Il échoue
-aussi, avant d'écrire, sur un fichier de `paths/` dont il ne déclare pas la famille, ou une famille
-déclarée sans fichier : une famille nouvelle se déclare dans `tools/inventory.py`, sous son titre,
-pour que ses opérations n'échappent pas à ce contrôle (#538).
+This directory carries the OpenAPI contract of Waterfall's API. It is **hand-written and
+authoritative**: every endpoint, every schema and every error a client can meet is in it,
+the client of the front is generated from it, and the chain rejects a version of the
+services one of whose responses departs from it (WF-ARC-0060, annex C of the specification).
 
-## Organisation
+The specification is in `../spec`. Each operation cites in its own words — summary or
+description — the requirements it realises: that is what makes the traceability verifiable
+in both directions, and `make inventory` fails on an operation that cites none. It also fails,
+before writing, on a file of `paths/` whose family it does not declare, or a family declared
+without a file: a new family is declared in `tools/inventory.py`, under its title, so that its
+operations do not escape this check (#538).
 
-| Chemin | Contenu |
+## Layout
+
+| Path | Contents |
 |---|---|
-| `openapi.yaml` | racine : information, serveurs, étiquettes, sécurité, et un renvoi par chemin |
-| `paths/<famille>.yaml` | les opérations, une famille par fichier |
-| `components/common.yaml` | types élémentaires, enveloppe d'erreur, référence de tâche de fond |
-| `components/parameters.yaml` | paramètres partagés |
-| `components/responses.yaml` | réponses d'erreur partagées |
-| `components/schemas/<famille>.yaml` | schémas, plusieurs par fichier |
-| `INVENTORY.md` | inventaire des endpoints et couverture des exigences, régénérable |
+| `openapi.yaml` | root: information, servers, tags, security, and one reference per path |
+| `paths/<family>.yaml` | the operations, one family per file |
+| `components/common.yaml` | elementary types, error envelope, background task reference |
+| `components/parameters.yaml` | shared parameters |
+| `components/responses.yaml` | shared error responses |
+| `components/schemas/<family>.yaml` | schemas, several per file |
+| `INVENTORY.md` | inventory of the endpoints and coverage of the requirements, regenerable |
 
-Les schémas sont groupés par famille plutôt qu'un fichier par schéma : autant de
-fichiers d'une douzaine de lignes que de schémas se reliraient moins bien que la douzaine
-de fichiers cohérents que voici.
+The schemas are grouped by family rather than one file per schema: as many
+dozen-line files as there are schemas would read less well than the dozen
+coherent files here.
 
 ## Conventions
 
-Chacune est dictée par une exigence, et aucune ne se discute au cas par cas.
+Each one is dictated by a requirement, and none is up for discussion case by case.
 
-| Convention | Exigence |
+| Convention | Requirement |
 |---|---|
-| Identifiants UUID engendrés par le serveur, jamais séquentiels dans une URL | WF-DAT-0060 |
-| `snake_case` pour les chemins, les champs et les paramètres | — |
-| `camelCase` pour l'`operationId`, qui devient un nom de méthode dans les clients générés | `listProjects` |
-| Les noms du tableau de correspondance du §4.4.1 : `estimate_line` est une ligne de devis, `cost_line` une ligne de coût réel | §4.4.1 |
-| Décimaux exacts transportés en chaîne, dates de planning sans heure, début et fin d'une tâche en date et heures de travail écoulées (`WorkInstant`), horodatages en temps universel | WF-DAT-0100 |
-| Une part, un avancement ou un taux calculé — le rapport de deux grandeurs : la part d'une répartition (`share`), les avancements, la consommation du budget, le taux de charge (`load_ratio`), le taux de transformation (`conversion_rate`) — est un décimal exact donné à quatre décimales, le centième de pour cent, arrondi au plus proche, une demie s'éloignant de zéro ; une valeur non nulle n'est jamais donnée nulle : celle que quatre décimales rendraient nulle est donnée à son premier chiffre significatif, arrondi de même — 0,0000309 est donnée `0.00003`, 0,99996 est donnée `1`. Les parts d'une répartition du total somment exactement à 1 : le reste de leurs arrondis, plancher compris, est porté sur la plus grande, qui peut alors porter plus de quatre décimales — `0.99999997` à côté de `0.00000003` ; une valeur isolée, ou la part d'un lot, qui ne porte qu'une partie des lignes, n'en reçoit aucun. L'arrondi ne vaut que pour la valeur rendue : le serveur calcule sur les grandeurs exactes, jamais sur une valeur arrondie | WF-DAT-0100, WF-DEV-0060, WF-PTF-0080 |
-| Une seule enveloppe d'erreur, portant un code machine et ses paramètres, jamais une phrase | WF-ARC-0110 |
-| 404 lorsque la permission de consultation manque, 403 lorsque c'est l'écriture ou la qualité de contributeur | WF-ADM-0110 |
-| Le refus d'une commande qu'un état rend indisponible est un 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque, celle que l'objet dit d'avance de sa commande (`available_commands`) — une révision marquée, `revision_draft` — ou, sur un projet terminal, `project_not_terminal`, quelle que soit l'opération — saisie de grille, chronologie, squelette compris. Un projet terminal, lui, ne liste aucune commande — ni sur lui-même, ni sur ses sous-projets, ses révisions, leurs structures et leurs nœuds, ses risques —, hors les exports d'une révision, qui ne le modifient pas : WF-IHM-0090 ne présente indisponible que ce qu'un état rend « momentanément » impossible, et un état terminal est irréversible ; un appel direct reçoit le même 409, `project_not_terminal` (US-0702/L3). Un état n'est jamais un 403, ni un code à lui : le 403 ne dit que la permission ou la qualité de l'appelant (`PERMISSION_MISSING`, `NOT_CONTRIBUTOR`, `NOT_PROJECT_MANAGER`) | WF-IHM-0090, WF-CYC-0080, WF-CYC-0100, WF-DAT-0020 |
-| `lock_version` sur les écritures concurrentes, refus par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` la version courante, et rien d'autre ; une suppression sans corps le passe en paramètre (`lock_version`). Le `PUT` idempotent du périmètre suivi d'une ligne de coût réel (`setActualCostTrackedScope`) n'en porte pas, par exception décidée : il pose l'état visé sans dépendre d'aucune autre valeur | WF-IHM-0110 |
-| Une valeur unique déjà portée est refusée par 409 `ALREADY_EXISTS`, `fields[]` désignant chaque champ dont la valeur est prise, `fields[].params.conflicting_object_id` l'objet qui la porte — et `fields[].params.conflicting_object_label` son libellé quand le formulaire ne connaît pas la liste qui le porte : le code d'un projet, celui d'un sous-projet, celui d'un nœud d'organisation, celui d'un rôle de ressource — ; une clé portée par le chemin — la catégorie et l'année d'un taux (`setHourlyRate`) — n'a pas de `fields`. Seule exception, le lot ou le poste qu'une seule tâche porte à la fois : son unicité est un motif par champ du 422 du rattachement, `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, avec les mêmes `conflicting_object_id` et `conflicting_object_label` nommant la tâche qui le porte, la cellule ne recevant qu'une enveloppe pour tous ses refus | WF-REF-0030, WF-REF-0040, WF-REF-0070, WF-REF-0090, WF-REF-0110, WF-PRJ-0010, WF-PRJ-0050, WF-PLA-0170 |
-| Un seul préfixe de version, `/api/v1` | — |
-| Une liste de la requête en un seul paramètre, ses valeurs séparées par des virgules (`explode: false`) : `kinds=task,estimate_line` ; `make lint-openapi` le vérifie (`rule/array-parameter-*` de `redocly.yaml`) | — |
-| Une colonne de nombres se filtre par deux bornes, `<colonne>_min` et `<colonne>_max`, incluses, dans le type de la colonne ; une borne mal formée est refusée par 422 `NUMBER_INVALID`, une borne supérieure inférieure à l'inférieure par 422 `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max` | WF-IHM-0130 |
-| Une période se filtre par `from` et `to`, le début inclus ; un instant (`Timestamp`) a sa fin exclue, une date de planning sa fin incluse. Une fin qui précède le début est refusée par 422 `VALIDATION_FAILED`, `fields[]` désignant `/query/to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début donné ; un début ou une fin mal formés, `/query/from` ou `/query/to` par `DATE_INVALID`. Une table qui a plusieurs colonnes de dates — les colonnes d'audit — filtre chacune par `<colonne>_from` et `<colonne>_to`, sous la même règle, le refus désignant `/query/<colonne>_to` | WF-IHM-0130 |
-| Un tri à égalité se départage par l'ordre de la liste sans tri, puis par l'identifiant | WF-IHM-0060 |
-| Une recherche (`search`, et tout filtre qui retient un texte qui contient le texte donné, comme `code` des nœuds d'organisation) ignore la casse et les accents : un texte est retenu dès qu'il contient le texte cherché, l'un et l'autre translittérés comme par la fonction `unaccent` de PostgreSQL avec sa table livrée (lettres accentuées, ligatures et lettres barrées), puis mis en minuscules — « etudes », « ETUDES » et « Études » trouvent « Études », « ines » trouve « Inès », « main-d'oeuvre » trouve « Main-d'œuvre », « strasse » trouve « Straße ». Un tri, lui, compare les textes dans l'ordre des points de code Unicode, accents et casse compris : ranger n'est pas trouver | WF-IHM-0130, WF-IHM-0060 |
-| Toute écriture de grille — cellule, collage, déplacement, création, liaison, avancement, réestimation, inscription, suppression — rend `NodesWritten` : nœuds écrits, ancêtres recalculés, tâches redatées (`NodeSchedule`), totaux de la structure, compteur de la structure | WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020 |
-| Toute opération gardée par le jeton `bearer` déclare le `401`, et le `503` : elle peut attendre le fournisseur d'identité ; une opération publique le dit par `security: []` ; `make lint-openapi` le vérifie (`rule/session-operation-declares-401`, `rule/protected-operation-declares-503` de `redocly.yaml`) | WF-SEC-0020, WF-EXP-0040, WF-ARC-0060 |
-| Une adresse est reçue telle qu'elle est écrite, casse comprise, et comparée sans égard à la casse : une seule `@`, une partie locale et un domaine non vides, aucun espace, 254 caractères au plus ; les domaines à usage spécial (`.local`, `.test`) et sans point (`intranet`) sont admis. Une adresse mal formée est refusée par 422 `VALIDATION_FAILED` sur son champ | WF-ADM-0050 |
-| Toute opération déclare le `500` d'une erreur inattendue, la réponse partagée `InternalError` : `INTERNAL_ERROR`, sans paramètre, son `correlation_id` la référence que le front affiche ; `make lint-openapi` le vérifie (`rule/operation-declares-500`) | WF-ARC-0060, WF-OBS-0020 |
-| Toute opération qui reçoit un corps déclare le `400` d'un corps illisible (`MALFORMED_REQUEST`) et le `422` d'un champ manquant ou refusé (`VALIDATION_FAILED` et les codes par champ) ; `make lint-openapi` le vérifie (`rule/operation-with-body-declares-400-and-422`) | WF-ARC-0060, WF-ARC-0110 |
-| Un libellé, un nom ou un code reçu porte au moins un caractère qui n'est pas un blanc (`pattern: '\S'`) : fait seulement de blancs, il est refusé par 422 `VALIDATION_FAILED` sur son champ | WF-ARC-0110 |
-| Une ancre YAML (`&nom`, `*nom`, `<<: *nom`) ne sert qu'à dériver un schéma d'un autre du même fichier — `ComparedNodeRead` reprend les propriétés de `Node` —, jamais d'un fichier à l'autre, où l'on passe par `$ref` ; `make lint-openapi` éprouve le contrat assemblé, et `server-models-up-to-date` que les modèles du service engendrés de lui sont ceux versionnés | — |
-| Une opération longue renvoie une tâche de fond, jamais un résultat | WF-ARC-0090 |
-| L'API ne localise rien ; seuls les documents qu'elle engendre suivent la langue du destinataire | WF-ARC-0110, WF-INTF-0180 |
+| UUID identifiers generated by the server, never sequential in a URL | WF-DAT-0060 |
+| `snake_case` for paths, fields and parameters | — |
+| `camelCase` for the `operationId`, which becomes a method name in the generated clients | `listProjects` |
+| The names of the correspondence table of §4.4.1: `estimate_line` is an estimate line, `cost_line` an actual cost line | §4.4.1 |
+| Exact decimals carried as strings, planning dates without a time, start and end of a task as a date and elapsed working hours (`WorkInstant`), timestamps in universal time | WF-DAT-0100 |
+| A share, a progress or a computed rate — the ratio of two quantities: the share of a distribution (`share`), the progresses, the consumption of the budget, the load ratio (`load_ratio`), the conversion rate (`conversion_rate`) — is an exact decimal given to four decimal places, the hundredth of a percent, rounded to nearest, a half going away from zero; a non-zero value is never given as zero: one that four decimal places would make zero is given to its first significant digit, rounded the same way — 0.0000309 is given `0.00003`, 0.99996 is given `1`. The shares of a distribution of the total sum exactly to 1: the remainder of their roundings, floor included, is carried on the largest, which may then carry more than four decimal places — `0.99999997` next to `0.00000003`; an isolated value, or the share of a lot, which carries only part of the lines, receives none. The rounding holds only for the value returned: the server computes on the exact quantities, never on a rounded value | WF-DAT-0100, WF-DEV-0060, WF-PTF-0080 |
+| A single error envelope, carrying a machine code and its parameters, never a sentence | WF-ARC-0110 |
+| 404 when the read permission is missing, 403 when it is the write permission or the status of contributor | WF-ADM-0110 |
+| The refusal of a command that a state makes unavailable is a 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` naming the condition that is missing, the one the object says in advance of its command (`available_commands`) — a marked revision, `revision_draft` — or, on a terminal project, `project_not_terminal`, whatever the operation — grid entry, timeline, skeleton included. A terminal project, for its part, lists no command — neither on itself, nor on its sub-projects, its revisions, their structures and their nodes, its risks —, apart from the exports of a revision, which do not modify it: WF-IHM-0090 presents as unavailable only what a state makes « momentarily » impossible, and a terminal state is irreversible; a direct call receives the same 409, `project_not_terminal` (US-0702/L3). A state is never a 403, nor a code of its own: the 403 says only the permission or the status of the caller (`PERMISSION_MISSING`, `NOT_CONTRIBUTOR`, `NOT_PROJECT_MANAGER`) | WF-IHM-0090, WF-CYC-0080, WF-CYC-0100, WF-DAT-0020 |
+| `lock_version` on concurrent writes, refusal by 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` the current version, and nothing else; a deletion without a body passes it as a parameter (`lock_version`). The idempotent `PUT` of the tracked scope of an actual cost line (`setActualCostTrackedScope`) does not carry one, by decided exception: it sets the intended state without depending on any other value | WF-IHM-0110 |
+| A unique value already taken is refused by 409 `ALREADY_EXISTS`, `fields[]` designating each field whose value is taken, `fields[].params.conflicting_object_id` the object that carries it — and `fields[].params.conflicting_object_label` its label when the form does not know the list that carries it: the code of a project, that of a sub-project, that of an organisation node, that of a resource role —; a key carried by the path — the category and the year of a rate (`setHourlyRate`) — has no `fields`. The only exception, the lot or the workstation that a single task carries at a time: its uniqueness is a per-field reason of the 422 of the attachment, `WORK_BREAKDOWN_ITEM_ALREADY_ATTACHED`, with the same `conflicting_object_id` and `conflicting_object_label` naming the task that carries it, the cell receiving only one envelope for all its refusals | WF-REF-0030, WF-REF-0040, WF-REF-0070, WF-REF-0090, WF-REF-0110, WF-PRJ-0010, WF-PRJ-0050, WF-PLA-0170 |
+| A single version prefix, `/api/v1` | — |
+| A list in the query in a single parameter, its values separated by commas (`explode: false`): `kinds=task,estimate_line`; `make lint-openapi` checks it (`rule/array-parameter-*` of `redocly.yaml`) | — |
+| A column of numbers is filtered by two bounds, `<column>_min` and `<column>_max`, inclusive, in the type of the column; a malformed bound is refused by 422 `NUMBER_INVALID`, an upper bound lower than the lower one by 422 `VALUE_OUT_OF_RANGE` on `/query/<column>_max` | WF-IHM-0130 |
+| A period is filtered by `from` and `to`, the start included; an instant (`Timestamp`) has its end excluded, a planning date its end included. An end that precedes the start is refused by 422 `VALIDATION_FAILED`, `fields[]` designating `/query/to` by `VALUE_OUT_OF_RANGE`, `params.minimum` the given start; a malformed start or end, `/query/from` or `/query/to` by `DATE_INVALID`. A table that has several date columns — the audit columns — filters each by `<column>_from` and `<column>_to`, under the same rule, the refusal designating `/query/<column>_to` | WF-IHM-0130 |
+| A tie in a sort is broken by the order of the unsorted list, then by the identifier | WF-IHM-0060 |
+| A search (`search`, and any filter that retains a text that contains the given text, such as `code` of the organisation nodes) ignores case and accents: a text is retained as soon as it contains the searched text, both transliterated as by PostgreSQL's `unaccent` function with its shipped table (accented letters, ligatures and barred letters), then lower-cased — « etudes », « ETUDES » and « Études » find « Études », « ines » finds « Inès », « main-d'oeuvre » finds « Main-d'œuvre », « strasse » finds « Straße ». A sort, for its part, compares the texts in the order of the Unicode code points, accents and case included: ordering is not finding | WF-IHM-0130, WF-IHM-0060 |
+| Every grid write — cell, paste, move, creation, link, progress, re-estimate, registration, deletion — returns `NodesWritten`: nodes written, ancestors recomputed, tasks re-dated (`NodeSchedule`), totals of the structure, counter of the structure | WF-IHM-0040, WF-DEV-0050, WF-PLA-0020, WF-ARC-0020 |
+| Every operation guarded by the `bearer` token declares the `401`, and the `503`: it may wait for the identity provider; a public operation says so by `security: []`; `make lint-openapi` checks it (`rule/session-operation-declares-401`, `rule/protected-operation-declares-503` of `redocly.yaml`) | WF-SEC-0020, WF-EXP-0040, WF-ARC-0060 |
+| An address is received as it is written, case included, and compared without regard to case: a single `@`, a non-empty local part and domain, no space, 254 characters at most; special-use domains (`.local`, `.test`) and dotless ones (`intranet`) are accepted. A malformed address is refused by 422 `VALIDATION_FAILED` on its field | WF-ADM-0050 |
+| Every operation declares the `500` of an unexpected error, the shared response `InternalError`: `INTERNAL_ERROR`, without parameters, its `correlation_id` the reference the front displays; `make lint-openapi` checks it (`rule/operation-declares-500`) | WF-ARC-0060, WF-OBS-0020 |
+| Every operation that receives a body declares the `400` of an unreadable body (`MALFORMED_REQUEST`) and the `422` of a missing or refused field (`VALIDATION_FAILED` and the per-field codes); `make lint-openapi` checks it (`rule/operation-with-body-declares-400-and-422`) | WF-ARC-0060, WF-ARC-0110 |
+| A label, a name or a code received carries at least one character that is not whitespace (`pattern: '\S'`): made only of whitespace, it is refused by 422 `VALIDATION_FAILED` on its field | WF-ARC-0110 |
+| A YAML anchor (`&name`, `*name`, `<<: *name`) serves only to derive a schema from another of the same file — `ComparedNodeRead` takes up the properties of `Node` —, never from one file to another, where one goes through `$ref`; `make lint-openapi` tests the bundled contract, and `server-models-up-to-date` that the models of the service generated from it are the ones versioned | — |
+| A long operation returns a background task, never a result | WF-ARC-0090 |
+| The API localises nothing; only the documents it generates follow the language of the recipient | WF-ARC-0110, WF-INTF-0180 |
 
-## Vérifier, assembler, simuler
+## Check, bundle, simulate
 
-Depuis la racine du dépôt :
+From the root of the repository:
 
 ```bash
-make lint-openapi     # contrôles, bloquants en CI
-make build-openapi    # contrôle puis assemble en un fichier
-make mock             # sert un faux back depuis le contrat
-make inventory        # régénère INVENTORY.md
+make lint-openapi     # checks, blocking in CI
+make build-openapi    # checks then bundles into one file
+make mock             # serves a fake back from the contract
+make inventory        # regenerates INVENTORY.md
 ```
 
-Le fichier assemblé n'est pas versionné : il se régénère. Les mocks de la maquette sont
-engendrés du contrat, jamais écrits à la main — un mock écrit à la main dérive et ne
-valide plus rien. Leurs jeux de données sont les exemples chiffrés des champs Vérif de la
-spécification (WF-QUA-0020), aux volumes du §4.6.2.
+The bundled file is not versioned: it is regenerated. The mocks of the mockup are
+generated from the contract, never written by hand — a hand-written mock drifts and no
+longer validates anything. Their data sets are the numeric examples of the Vérif fields of the
+specification (WF-QUA-0020), at the volumes of §4.6.2.
 
-## Ce que le contrat ne porte pas
+## What the contract does not carry
 
-Une partie des exigences n'a pas de surface d'API, et il vaut mieux qu'elles n'en aient pas :
-architecture interne, exploitation, migrations, invariants d'interface, chaîne de
-vérification. `INVENTORY.md` les compte et les liste avec leur raison, à chaque
+Part of the requirements have no API surface, and it is better that they have none:
+internal architecture, operations, migrations, interface invariants, verification
+chain. `INVENTORY.md` counts and lists them with their reason, at each
 `make inventory`.
 
 ## Licence
 
-Les fichiers OpenAPI de ce répertoire sont publiés sous licence Apache 2.0
-(`LICENSES/Apache-2.0.txt`, `REUSE.toml`) : un client engendré du contrat ne doit rien à l'AGPL
-du code. Les outils de `tools/` et le client que le front engendre restent sous AGPL-3.0-only.
+The OpenAPI files of this directory are published under the Apache 2.0 licence
+(`LICENSES/Apache-2.0.txt`, `REUSE.toml`): a client generated from the contract owes nothing to the AGPL
+of the code. The tools of `tools/` and the client the front generates remain under AGPL-3.0-only.
