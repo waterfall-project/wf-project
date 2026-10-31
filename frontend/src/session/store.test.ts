@@ -49,16 +49,12 @@ function testAddress(change: (address: URL) => void): string {
 
 /**
  * A door to the Redis of the tests, on a port of its own, that the test can shut: while it is shut,
- * a client that reconnects is cut off at once, whatever the time it takes — the order between the
+ * a connection to come is cut off at once, whatever the time it takes — the order between the
  * loss of a connection and its reconnection is the test's, never the load of the machine's. The
  * listener stays bound all along, so the port cannot be taken by another process meanwhile.
  */
 async function doorToRedis() {
-  const url = process.env.WATERFALL_TEST_REDIS_URL;
-  if (url === undefined || url === "") {
-    throw new Error("WATERFALL_TEST_REDIS_URL must be set for the tests of the store");
-  }
-  const target = new URL(url);
+  const target = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
   const sockets = new Set<Socket>();
   let shut = false;
   const server: Server = createServer((inbound) => {
@@ -100,10 +96,9 @@ async function doorToRedis() {
   };
   return {
     port,
-    /** Cut the connections made and cut off those to come, at once. */
+    /** Cut off the connections to come, at once; those made are left to whoever ends them. */
     shut: () => {
       shut = true;
-      destroyAll();
     },
     /** Let connections through again, at the same port. */
     reopen: () => {
@@ -215,26 +210,23 @@ describe("the store of the sessions of the front", () => {
     // The store connects as a user of its own, whose connection only is killed, never another test's.
     const [user, password] = [`store-${randomUUID()}`, randomUUID()];
     const admin = await createClient({ url: process.env.WATERFALL_TEST_REDIS_URL ?? "" }).connect();
-    await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
-    const door = await doorToRedis();
-    await closeStore();
-    vi.stubEnv(
-      "WATERFALL_REDIS_URL",
-      testAddress((address) =>
-        Object.assign(address, {
-          username: user,
-          password,
-          hostname: "127.0.0.1",
-          port: door.port,
-        }),
-      ),
-    );
+    let door: Awaited<ReturnType<typeof doorToRedis>> | undefined;
     try {
+      await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
+      door = await doorToRedis();
+      const { port } = door;
+      await closeStore();
+      vi.stubEnv(
+        "WATERFALL_REDIS_URL",
+        testAddress((address) =>
+          Object.assign(address, { username: user, password, hostname: "127.0.0.1", port }),
+        ),
+      );
       expect(await readSession(randomUUID())).toBeUndefined();
       // The door is shut before Redis kills the connection: the client that finds it lost is cut off
       // when it reconnects, however late it comes, so the read below can only fail.
       door.shut();
-      await admin.clientKill({ filter: "USER", username: user });
+      expect(await admin.clientKill({ filter: "USER", username: user })).toBe(1);
       await expect(readSession(randomUUID())).rejects.toBeInstanceOf(StoreUnreachable);
       door.reopen();
       await vi.waitFor(async () => {
@@ -242,7 +234,7 @@ describe("the store of the sessions of the front", () => {
       });
     } finally {
       await closeStore();
-      door.dispose();
+      door?.dispose();
       vi.unstubAllEnvs();
       await admin.aclDelUser(user);
       await admin.close();
