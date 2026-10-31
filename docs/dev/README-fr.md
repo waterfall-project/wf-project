@@ -1883,6 +1883,9 @@ champ du début, la fin nommée (`params.maximum`) — ; la vue n'est
 pas lue, son titre reste sans périmètre retenu et une phrase tient sa place (`RefusedView` de
 `frontend/src/app/portfolio/refused.tsx`) ; ses états sont pressés comme l'adresse les nomme, et,
 sans état nommé, le filtre des états n'est pas offert, rien ne disant ce que le serveur retiendrait.
+Le plan de charge agrégé et la santé du pilotage, où un projet terminé est sans effet (G-05), le
+disent par une note du périmètre (`completedWithoutEffect` de `PerimeterBar`) dès que le serveur
+retient `completed`, lu sur `scope.states` et jamais sur l'adresse (US-0703/L9).
 La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
 cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
 (`meta.total`), sous la valeur du portefeuille. Les six autres vues (FBS-2.2 à FBS-2.7) montrent ce

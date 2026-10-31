@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PerimeterBarProps } from "@/components/portfolio/perimeter";
 import type { ProjectsGridProps } from "@/components/portfolio/projects-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
@@ -48,6 +49,19 @@ vi.mock("@/components/portfolio/projects-grid", async (original) => {
     ProjectsGrid: (props: ProjectsGridProps) => {
       grids.projects.push(props);
       return createElement(actual.ProjectsGrid, props);
+    },
+  };
+});
+// The perimeter bar renders as it would, and keeps what its page handed it.
+const bars = vi.hoisted((): { props: PerimeterBarProps[] } => ({ props: [] }));
+vi.mock("@/components/portfolio/perimeter", async (original) => {
+  const actual = await original<typeof import("@/components/portfolio/perimeter")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    PerimeterBar: (props: PerimeterBarProps) => {
+      bars.props.push(props);
+      return createElement(actual.PerimeterBar, props);
     },
   };
 });
@@ -122,6 +136,7 @@ function queryOf(route: string): Record<string, string> {
 beforeEach(() => {
   kept.grids = {};
   grids.projects = [];
+  bars.props = [];
   server.clients = [];
   server.answers = {
     "GET /me": "me",
@@ -487,6 +502,34 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain(
       "Delivered and conversion rate over the period from 4 Jun 2025 to 3 Jun 2026",
     );
+  });
+});
+
+describe("the notice that a project completed has no effect", () => {
+  it.each([
+    ["the aggregated workload", WorkloadPage, "workload", ["in_progress", "pricing"]],
+    ["the project control health", PilotHealthPage, "pilotHealth", ["in_progress"]],
+  ] as const)(
+    "is asked of the perimeter of %s on the states the server retained, none said while it retains no completed project [WF-PTF-0060-A] [WF-PTF-0110-A]",
+    async (_view, page, view, states) => {
+      const markup = await render(page);
+      const [bar, ...more] = bars.props;
+      expect(more).toEqual([]);
+      expect(bar?.completedWithoutEffect).toBe(view);
+      expect(bar?.retained).toEqual(states);
+      expect(markup).not.toContain(CATALOGUES.en.portfolio.perimeter.completedWithoutEffect[view]);
+    },
+  );
+
+  it.each([
+    ["the projects", ProjectsPage],
+    ["the performance", PerformancePage],
+    ["the structure of the costs", CostStructurePage],
+    ["the risks", RisksPage],
+    ["the S-curve", CostCurvePage],
+  ])("is not asked of the perimeter of %s [WF-PTF-0010-A]", async (_view, page) => {
+    await render(page);
+    expect(bars.props.map((bar) => bar.completedWithoutEffect)).toEqual([undefined]);
   });
 });
 
