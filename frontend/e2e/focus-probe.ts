@@ -3,8 +3,21 @@
 /**
  * The side of the walk by the keyboard that lives in the page (`tab-walk.ts`): what it notes as a
  * walk starts — what Tab may reach, the look of each before the focus comes, the widgets that move
- * the focus among their items —, what it measures of the element the focus is on, and what it finds
- * once the walk is over. Given to the page once, it stays there from one walk to the next.
+ * the focus among their items —, what it measures of the element the focus is on after each press
+ * of Tab, and what it finds once the walk is over. Given to the page once, it stays there from one
+ * walk to the next.
+ *
+ * The page measures the focus itself, press by press, and keeps the readings until the walk reads
+ * them, a batch of presses at a time: a reading of its own after each press had the walk wait for
+ * the browser twice per element, which the load of a workstation made last past the delay of a
+ * test (#1540). A press of Tab heard at its `keyup` — the focus moved by then, or kept, the trap the
+ * walk must see — owes a reading, taken when the walk is next heard from: the next press of Tab, as
+ * it goes down and before anything of the page sees it, or the walk reading the batch. That is the
+ * moment a reading of its own was taken, after the press and before the next one, whatever the page
+ * did meanwhile on a timer or a frame. `focusin` would not do: it fires neither when the focus stays
+ * where it is nor when it leaves the document. Once a reading finds the focus back on the first
+ * element, the page stops: the presses left of the batch reach neither the page nor the focus, and
+ * the walk ends where it came back, as when it read each press.
  */
 import type { Page } from "@playwright/test";
 
@@ -52,8 +65,8 @@ export interface End {
 /** The side of a walk the page keeps. */
 interface Probe {
   start: () => Start;
-  focus: () => Focus;
-  finish: () => End;
+  read: () => Focus[];
+  finish: (taken: number) => End;
 }
 
 /** Give the page its side of the walk, if it has not got it yet. */
@@ -483,7 +496,8 @@ async function install(page: Page): Promise<void> {
     let baseline = new WeakMap<Element, Look>();
     let reachable: Element[] = [];
     let composites: Element[] = [];
-    let reached: Element[] = [];
+    // The element of each reading of the walk, none when the focus was on no element.
+    let walked: (Element | undefined)[] = [];
     let pending: { element: Element; said: string; looks: Map<Element, Look> } | undefined;
     const ids = new WeakMap<Element, number>();
     let next = 0;
@@ -513,9 +527,106 @@ async function install(page: Page): Promise<void> {
       element.isConnected && element.checkVisibility({ visibilityProperty: true });
     // Whether the walk reached an element: the focus on it, or in it for a widget that moves the
     // focus among its items.
-    const entered = (element: Element) =>
+    const entered = (reached: readonly Element[], element: Element) =>
       reached.includes(element) ||
       (element.matches(COMPOSITE) && reached.some((focused) => element.contains(focused)));
+
+    // Where the focus is, and whether the element it is on shows, and shows that it has it.
+    const focus = (): Focus => {
+      const element = document.activeElement;
+      const settled = settle(element);
+      if (element === null || element === document.body || element === document.documentElement) {
+        walked.push(undefined);
+        return { kind: "document", settled };
+      }
+      if (element.localName === "nextjs-portal") {
+        walked.push(undefined);
+        return { kind: "tools", settled };
+      }
+      const id = idOf(element);
+      walked.push(element);
+      const said = say(element);
+      const caught = covered(element);
+      const parts = [element, ...element.children];
+      const { hidden, looks } = measured(parts, () => ({
+        hidden: unseen(element),
+        looks: new Map(parts.map((drawn) => [drawn, shownLook(drawn)] as const)),
+      }));
+      const now = baseline.has(element) ? marked(looks, (drawn) => baseline.get(drawn)) : undefined;
+      pending = now === undefined ? (pending ?? { element, said, looks }) : pending;
+      return { kind: "element", settled, id, said, unseen: hidden, covered: caught, marked: now };
+    };
+
+    // The readings of a walk: those the walk has not read yet, whether a press owes one, whether
+    // the focus came back to the first element, and what a reading that failed said.
+    let walking = false;
+    let unread: Focus[] = [];
+    let owed = false;
+    let back = false;
+    let first: number | undefined;
+    let previous: number | undefined;
+    let failure: string | undefined;
+    // Take the reading a press owes, and note whether it brings the focus back to the first
+    // element: an element other than the one read just before, which a field made of fields keeps.
+    const owe = () => {
+      if (!owed) {
+        return;
+      }
+      owed = false;
+      try {
+        const reading = focus();
+        unread.push(reading);
+        if (reading.kind !== "element") {
+          previous = undefined;
+        } else if (reading.id !== previous) {
+          previous = reading.id;
+          back = reading.id === first;
+          first ??= reading.id;
+        }
+      } catch (error) {
+        failure ??= error instanceof Error ? (error.stack ?? error.message) : String(error);
+      }
+    };
+    // A press of Tab of the walk, as the keyboard gives it — no other key, no modifier.
+    const pressed = (event: KeyboardEvent) =>
+      walking &&
+      event.isTrusted &&
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey;
+    // A press past the return to the first element reaches neither the page nor the focus.
+    const swallow = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (pressed(event)) {
+          owe();
+          if (back) {
+            swallow(event);
+          }
+        }
+      },
+      true,
+    );
+    window.addEventListener(
+      "keyup",
+      (event) => {
+        if (!pressed(event)) {
+          return;
+        }
+        if (back) {
+          swallow(event);
+        } else {
+          owed = true;
+        }
+      },
+      true,
+    );
 
     holder.focusProbe = {
       start: () => {
@@ -536,8 +647,15 @@ async function install(page: Page): Promise<void> {
         for (const drawn of reachable.flatMap((element) => [element, ...element.children])) {
           baseline.set(drawn, look(drawn));
         }
-        reached = [];
+        walked = [];
         pending = undefined;
+        unread = [];
+        owed = false;
+        back = false;
+        first = undefined;
+        previous = undefined;
+        failure = undefined;
+        walking = true;
         return {
           clipped: reachable.filter(clippedAway).map(say),
           untabbable: [...document.querySelectorAll<HTMLElement>("a[href], button")]
@@ -552,40 +670,32 @@ async function install(page: Page): Promise<void> {
             .map(say),
         };
       },
-      focus: (): Focus => {
-        const element = document.activeElement;
-        const settled = settle(element);
-        if (element === null || element === document.body || element === document.documentElement) {
-          return { kind: "document", settled };
+      read: () => {
+        owe();
+        if (failure !== undefined) {
+          throw new Error(`the measure of the focus failed: ${failure}`);
         }
-        if (element.localName === "nextjs-portal") {
-          return { kind: "tools", settled };
-        }
-        const id = idOf(element);
-        reached.push(element);
-        const said = say(element);
-        const caught = covered(element);
-        const parts = [element, ...element.children];
-        const { hidden, looks } = measured(parts, () => ({
-          hidden: unseen(element),
-          looks: new Map(parts.map((drawn) => [drawn, shownLook(drawn)] as const)),
-        }));
-        const now = baseline.has(element)
-          ? marked(looks, (drawn) => baseline.get(drawn))
-          : undefined;
-        pending = now === undefined ? (pending ?? { element, said, looks }) : pending;
-        return { kind: "element", settled, id, said, unseen: hidden, covered: caught, marked: now };
+        return unread.splice(0);
       },
-      finish: () => ({
-        missed: reachable.filter((element) => shown(element) && !entered(element)).map(say),
-        stopless: composites
-          .filter(
-            (widget) =>
-              shown(widget) &&
-              !reached.some((focused) => widget === focused || widget.contains(focused)),
-          )
-          .map(say),
-      }),
+      finish: (taken) => {
+        walking = false;
+        // Only the readings the walk took: those past a trap it stopped at say nothing of it.
+        const reached = walked
+          .slice(0, taken)
+          .filter((element): element is Element => element !== undefined);
+        return {
+          missed: reachable
+            .filter((element) => shown(element) && !entered(reached, element))
+            .map(say),
+          stopless: composites
+            .filter(
+              (widget) =>
+                shown(widget) &&
+                !reached.some((focused) => widget === focused || widget.contains(focused)),
+            )
+            .map(say),
+        };
+      },
     };
   });
 }
@@ -596,12 +706,22 @@ export async function startWalk(page: Page): Promise<Start> {
   return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.start());
 }
 
-/** Where the focus is, and whether the element it is on shows, and shows that it has it. */
-export function focusNow(page: Page): Promise<Focus> {
-  return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.focus());
+/**
+ * The readings the page took since the last read, one for each press of Tab, in order: where the
+ * focus was after it, and whether the element it was on showed, and showed that it had it. None
+ * past the return to the first element.
+ */
+export function readWalk(page: Page): Promise<Focus[]> {
+  return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.read());
 }
 
-/** End a walk: what Tab may reach and never reached, the widgets it never entered. */
-export function finishWalk(page: Page): Promise<End> {
-  return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.finish());
+/**
+ * End a walk: what Tab may reach and never reached, the widgets it never entered, judged by the
+ * readings the walk took — the first `taken` of them.
+ */
+export function finishWalk(page: Page, taken: number): Promise<End> {
+  return page.evaluate(
+    (count) => (window as unknown as { focusProbe: Probe }).focusProbe.finish(count),
+    taken,
+  );
 }

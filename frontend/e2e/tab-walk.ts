@@ -29,10 +29,16 @@
  * must reach all of it again (`lost`). Leaving the last element, the focus leaves the document a
  * moment for the browser, then comes back to the first. The tools of the development server of
  * Next (`nextjs-portal`), which the built front does not have, are passed by without a look.
+ *
+ * The walk presses Tab a batch at a time, then reads what the page measured of each press at once
+ * (`focus-probe.ts`): the press is the one trip to the browser left for each element, which the
+ * keyboard needs (#1540). The page stops at the return to the first element, and what it read
+ * past a trap is left unread: the presses left of the last batch change nothing of what the walk
+ * says.
  */
 import type { Page } from "@playwright/test";
 
-import { finishWalk, type Focus, focusNow, startWalk } from "./focus-probe";
+import { finishWalk, type Focus, readWalk, startWalk } from "./focus-probe";
 
 /** What a walk saw, each element said by its role and its name. */
 export interface Walk {
@@ -63,6 +69,15 @@ export interface Walk {
  * never will.
  */
 const PRESSES = 600;
+
+/**
+ * The presses of Tab between two reads of what the page measured. A walk of n elements costs n
+ * presses, n / BATCH reads, and half a batch, on average, of presses past the return to the first,
+ * which the page lets go by unseen: about √(2n) is the fewest trips, from ten for fifty elements to
+ * twenty-six for the 350 of the roles (FBS-1.2), and sixteen spends at most a few trips more than
+ * the fewest on any of them.
+ */
+export const BATCH = 16;
 
 /** More presses than a field of the browser holds fields — a date and its time, six at most. */
 const FIELDS = 8;
@@ -153,14 +168,27 @@ export async function walkByTab(page: Page): Promise<Walk> {
     trapped: undefined,
     back: false,
   };
-  for (let press = 0; press < PRESSES && !tally.back && tally.trapped === undefined; press += 1) {
-    await page.keyboard.press("Tab");
-    take(tally, await focusNow(page));
+  let pressed = 0;
+  let taken = 0;
+  const going = () => !tally.back && tally.trapped === undefined;
+  while (pressed < PRESSES && going()) {
+    const batch = Math.min(BATCH, PRESSES - pressed);
+    for (let press = 0; press < batch; press += 1) {
+      await page.keyboard.press("Tab");
+    }
+    pressed += batch;
+    for (const focus of await readWalk(page)) {
+      if (!going()) {
+        break;
+      }
+      take(tally, focus);
+      taken += 1;
+    }
   }
   if (!tally.back) {
     tally.trapped ??= `no way back to the first element after ${String(PRESSES)} presses`;
   }
-  const { missed, stopless } = await finishWalk(page);
+  const { missed, stopless } = await finishWalk(page, taken);
   const { reached, unseen, covered, unmarked, unjudged, trapped } = tally;
   return {
     reached,

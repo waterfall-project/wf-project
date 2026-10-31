@@ -3587,6 +3587,19 @@ deux largeurs :
   seuls éléments sans pointeur changés, tous, à chaque Tab, 54 une fois changés ceux qui touchent
   l'élément (#1263). Le reste est celui de la page et des allers-retours : seul, chaque largeur du
   parcours occupe le navigateur 12 de ses 16 secondes, 10 sans aucune mesure du pointeur.
+  Le parcours presse Tab par lots (`BATCH`, seize touches) et lit d'un seul `evaluate`, après
+  chaque lot, ce que la page a mesuré de chaque touche : il ne reste qu'un aller-retour par
+  élément, celui de la touche, qu'impose le clavier ; une lecture après chaque touche en faisait
+  un second, et le poste chargé en faisait passer le parcours des rôles au-delà de ses 90 secondes
+  (#1540). La sonde entend chaque Tab à son `keyup` — le focus a bougé, ou il est resté, le piège
+  que le parcours doit voir — et prend la mesure, par le même code, au moment où le parcours la
+  prenait : quand la page entend de nouveau le parcours, la touche suivante avant que rien de la
+  page ne la voie, ou la lecture du lot. `focusin` ne suffit pas : il ne se déclenche ni quand le
+  focus reste, ni quand il quitte le document. Revenu au premier élément, la page cesse de
+  mesurer, et les touches qui restent du lot n'atteignent ni la page ni le focus : le second
+  parcours part toujours de là où le premier s'est arrêté ; ce que la page a mesuré au-delà d'un
+  piège n'est pas lu, ni compté dans ce que Tab n'a pas atteint. Le décompte des éléments atteints
+  et des pièges reste du côté du test.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
