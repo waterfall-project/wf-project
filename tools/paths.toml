@@ -399,6 +399,7 @@ paths = [
     "fixtures/api/nodes_amendment_differences.json",
     "fixtures/api/structure_merge_report.json",
     "fixtures/api/risks.json",
+    "fixtures/api/risks_page.json",
     "fixtures/api/risk.json",
     "fixtures/api/risk_occurred_detail.json",
     "fixtures/api/risk_dismissed_category_deactivated.json",

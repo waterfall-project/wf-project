@@ -8569,7 +8569,10 @@ adoptent sont d'US-0660/L3 et L4.
   `Offset`, et sa réponse `meta` (`PaginationMeta`), exigé, comme `listActualCosts` ; `totals` reste
   calculé sur tous les risques que les filtres et la recherche retiennent, non sur la page lue —
   `ProvisionTotals` le dit. `risks`, engendré, et `risks_empty`, écrit à la main, portent `meta`
-  (cinquante lignes par page, trois risques, aucun).
+  (cinquante lignes par page, trois risques, aucun). `risks_page`, engendré par
+  `wftools.mockhistory` (US-0660/L3), lit le même registre deux risques par page : 751 et 752,
+  `meta.total` à 3 et les `totals` des trois — 1 100 060,00, non les 500 060,00 de la page —,
+  pour qu'un test du front distingue le compte de la page et les totaux de sa somme (#1384).
 - **`createNode` refuse une date manuelle un jour chômé** (#1345, WF-PLA-0020 : « une date
   saisie »). Comme `updateTaskFacet` : 422 `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou
   `/task/finish/date` par `NON_WORKING_DAY`, `params.date` et `next_working_day`, rien n'étant créé.

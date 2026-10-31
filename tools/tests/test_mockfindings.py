@@ -141,9 +141,17 @@ def test_the_register_of_the_risks_is_paged_its_totals_on_every_risk_retained() 
     )
     schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
     assert "meta" in schema["required"]
+    whole = fixture("risks")
     for name in _cited("listRisks", "200"):
         register = fixture(name)
+        if name == "risks_page":
+            # A page shorter than the register: its count and its totals of the whole (US-0660/L3).
+            assert register["meta"] == {"limit": 2, "offset": 0, "total": len(whole["items"])}
+            assert register["items"] == whole["items"][:2]
+            assert register["totals"] == whole["totals"]
+            continue
         assert register["meta"] == {"limit": 50, "offset": 0, "total": len(register["items"])}
+    assert "risks_page" in _cited("listRisks", "200")
 
 
 # --- #1345: a date on a day without hours, refused at the creation ------------------------------
