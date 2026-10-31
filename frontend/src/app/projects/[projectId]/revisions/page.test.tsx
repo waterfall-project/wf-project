@@ -151,9 +151,9 @@ describe("the screen of the revisions of a project", () => {
   });
 
   // Carries the first sentence of the Vérif of WF-REV-0070-A, the list of the revisions marked,
-  // accessible from the project, its table and its links to open one; the year of reference, the rate
-  // of inflation and the probability of winning kept at the marking (WF-REV-0090) are not read in this
-  // table, and no test of the screen carries them.
+  // accessible from the project, its table and its links to open one; the year of reference, the
+  // rate of inflation and the probability of winning kept at the marking (WF-REV-0090) are not read
+  // in this table, and no test of the screen carries them.
   it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A]", async () => {
     const page = html(await RevisionsPage(at()));
     // The history is read whole, by the largest page the contract takes (#303).
@@ -243,7 +243,8 @@ describe("the comparison of two revisions", () => {
     );
     const call = callTo("GET /projects/{project_id}/revisions/comparison");
     expect(call?.path).toBe(`${REVISIONS}/comparison`);
-    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then `fields`.
+    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then
+    // `fields`.
     expect([...(call?.query.keys() ?? [])]).toEqual([
       "from_revision_id",
       "to_revision_id",
@@ -461,8 +462,9 @@ describe("the parts of the revision the screen reads in", () => {
   });
 
   it("offers no application of the rates when the revision does not list the command, though the update is proposed", async () => {
-    // The revision lists `apply_rate_update` for the callers who may exercise it (#1351): a reader's
-    // lists none, and the proposal is left to be read, even to an estimator (`edit_estimate` alone).
+    // The revision lists `apply_rate_update` for the callers who may exercise it (#1351): a
+    // reader's lists none, and the proposal is left to be read, even to an estimator
+    // (`edit_estimate` alone).
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",

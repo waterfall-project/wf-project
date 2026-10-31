@@ -88,6 +88,27 @@ export interface ValuesAddress<Value extends string> {
    * none of: every zone chosen still filters.
    */
   readonly exhaustive?: boolean | undefined;
+  /**
+   * The value written when none is chosen, or every one (`exhaustive`), by a screen for which an
+   * address without the parameter does not mean every value — the home, whose states have a
+   * default: the filter lifted is then said, not left unsaid.
+   */
+  readonly lifted?: string | undefined;
+  /** The values an address without the parameter filters on; none, it filters on none. */
+  readonly unnamed?: readonly Value[] | undefined;
+}
+
+/**
+ * The values the address names, in the order of the contract; those `unnamed` if it does not name
+ * the parameter at all, for a filter that has some.
+ */
+export function readFilter<Value extends string>(
+  search: SearchParameters,
+  filter: ValuesAddress<Value>,
+): readonly Value[] {
+  return search.get(filter.name) === null && filter.unnamed !== undefined
+    ? filter.unnamed
+    : readValues(search, filter.name, filter.values);
 }
 
 /**
@@ -103,7 +124,9 @@ export function valuesHref<Value extends string>(
 ): string {
   const kept = filter.values.filter((value) => chosen.includes(value));
   const every = filter.exhaustive !== false && kept.length === filter.values.length;
-  return filterHref(pathname, query, filter.name, every ? undefined : kept.join(","), filter.page);
+  const none = kept.length === 0 || every;
+  const value = none ? filter.lifted : kept.join(",");
+  return filterHref(pathname, query, filter.name, value, filter.page);
 }
 
 /**

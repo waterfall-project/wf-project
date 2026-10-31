@@ -47,8 +47,8 @@ const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence
 
 const IDENTIFIED = example("risk") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
-// The risk no marked revision cites: its deletion is listed available, as an example of the contract
-// shows it.
+// The risk no marked revision cites: its deletion is listed available, as an example of the
+// contract shows it.
 const UNCITED = example("risk_uncited") as Risk;
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -105,8 +105,8 @@ describe("« Supprimer le risque »", () => {
     render(detail(UNCITED));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
     const form = screen.getByRole("form", { name: "Supprimer le risque" });
-    // Whether the confirmation was still busy in the commit that told the refusal: the request over,
-    // never while it holds its cancellation (#1484).
+    // Whether the confirmation was still busy in the commit that told the refusal: the request
+    // over, never while it holds its cancellation (#1484).
     const busyWhenTold = atCommit(
       form,
       () => within(form).queryByRole("alert") !== null,

@@ -209,8 +209,8 @@ describe("the abandon of the current revision", () => {
 
 describe("the designation of the reference", () => {
   it("is proposed as long as the reference can be corrected: on the marked revision the server lists it for, and that one alone [WF-REV-0040-A]", () => {
-    // The offer v1.0 is marked and lists it available, lacking nothing; the revision 101, current and
-    // not marked, is left out.
+    // The offer v1.0 is marked and lists it available, lacking nothing; the revision 101, current
+    // and not marked, is left out.
     const listed = history("revisions_designation_open");
     expect(
       listed.find((revision) => revision.revision_id === OFFER)?.available_commands,
@@ -511,8 +511,8 @@ describe("the application of the rate update", () => {
   });
 
   it("presents the command unavailable, naming the condition the revision lists as lacking, when it says so [WF-IHM-0090-A]", async () => {
-    // `revision` lists `apply_rate_update` lacking `rate_update_available`: the screen does not offer
-    // the command the server would refuse (defect no. 6).
+    // `revision` lists `apply_rate_update` lacking `rate_update_available`: the screen does not
+    // offer the command the server would refuse (defect no. 6).
     const client = serve({});
     show(
       <RateUpdate
