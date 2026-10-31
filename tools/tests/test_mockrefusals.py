@@ -389,3 +389,25 @@ def test_a_line_of_a_completed_task_re_estimated_is_refused_by_the_condition_it_
     assert refused["params"] == {"missing_condition": "task_not_completed"}
     assert "remaining_completed_refused" in _cited("setLineRemaining", "409")
     assert "description" in _operations()["applyPaste"]["responses"]["409"]
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_the_five_writes_that_carry_their_counter_say_a_stale_one_by_the_counter_current() -> None:
+    # US-0702/L2 (E-13, E-24) gave them their counter; US-0703/L8 their 412 example: each names the
+    # counter its object bears in the witness, sent with the one before.
+    subproject = cast("list[Entry]", fixture("subprojects"))[0]
+    for operation, name, current in (
+        ("abandonRevision", "revision_abandon_stale", fixture("revision")["lock_version"]),
+        ("exitProject", "project_exit_stale", fixture("project")["lock_version"]),
+        (
+            "designateReferenceRevision",
+            "reference_designate_stale",
+            fixture("project")["lock_version"],
+        ),
+        ("deleteRisk", "risk_delete_stale", fixture("risk")["lock_version"]),
+        ("deleteSubproject", "subproject_delete_stale", subproject["lock_version"]),
+    ):
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == (412, "STALE_LOCK_VERSION"), name
+        assert refused["params"] == {"expected_lock_version": current}, name
+        assert _cited(operation, "412") == [name], operation

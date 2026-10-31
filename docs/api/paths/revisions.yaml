@@ -190,7 +190,15 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_marked: { $ref: ../../../fixtures/api/revision_abandon_marked.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : la révision a été écrite depuis sa lecture, et rien n'est abandonné ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110,
+          US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/revision_abandon_stale.json }
       '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -316,7 +324,15 @@
             examples:
               without_tasks: { $ref: ../../../fixtures/api/reference_without_tasks.json }
               not_correctable: { $ref: ../../../fixtures/api/reference_not_correctable.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et la référence ne change pas ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110,
+          US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/reference_designate_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

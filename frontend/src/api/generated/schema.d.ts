@@ -9569,7 +9569,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
+            /** @description `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et il ne sort pas ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description `VALIDATION_FAILED`, `fields` désignant chaque champ : un projet qui porte une révision en cours, sans son sort, `/current_revision` par `VALUE_REQUIRED` — la sortie n'est appliquée qu'avec ce choix (WF-CYC-0090) — ; un marquage sans nom de version, `/current_revision/version_name` par `VALUE_REQUIRED` (WF-REV-0020). Rien n'est écrit. */
             422: {
                 headers: {
@@ -9794,7 +9802,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
+            /** @description `STALE_LOCK_VERSION` : le sous-projet a été écrit depuis sa lecture, et rien n'est supprimé ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["LockVersionInvalid"];
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
@@ -10218,7 +10234,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
+            /** @description `STALE_LOCK_VERSION` : la révision a été écrite depuis sa lecture, et rien n'est abandonné ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["LockVersionInvalid"];
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
@@ -10313,7 +10337,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
+            /** @description `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et la référence ne change pas ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];
@@ -12222,7 +12254,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            412: components["responses"]["PreconditionFailed"];
+            /** @description `STALE_LOCK_VERSION` : le risque a été écrit depuis sa lecture, et rien n'est supprimé ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["LockVersionInvalid"];
             500: components["responses"]["InternalError"];
             503: components["responses"]["ServiceUnavailable"];

@@ -86,6 +86,11 @@ function refused(name: string) {
   return { problem: { ...(example(name) as Problem), status: 409 as const } };
 }
 
+/** The refusal of a write sent with a counter gone stale, as an example of the contract gives it. */
+function stale(name: string) {
+  return { problem: { ...(example(name) as Problem), status: 412 as const } };
+}
+
 /** The calls the fake back received for an operation, their bodies. */
 function bodies(client: FakeClient, route: string): unknown[] {
   return client.calls.filter((call) => call.route === route).map((call) => call.body);
@@ -188,22 +193,26 @@ describe("the abandon of the current revision", () => {
     expect(router.replace).toHaveBeenCalledWith(REVISIONS);
   });
 
-  it("tells the refusal and stays on the revision", async () => {
-    serve({
-      [ABANDON]: {
-        problem: {
-          code: "STATE_FORBIDS_OPERATION",
-          status: 409 as const,
-          params: { missing_condition: "revision_draft" },
-        },
-      },
-    });
+  it("tells the refusal of a revision marked meanwhile, as the fact it is, and stays on the revision", async () => {
+    serve({ [ABANDON]: refused("revision_abandon_marked") });
     show(commands());
     await userEvent.click(screen.getByRole("button", { name: "Abandonner la révision en cours" }));
     await userEvent.click(screen.getByRole("button", { name: "Confirmer l’abandon" }));
-    expect(await screen.findByRole("alert")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La révision est marquée : elle ne se modifie plus.",
+    );
     expect(router.replace).not.toHaveBeenCalled();
     expect(screen.getByRole("form", { name: "Abandonner la révision en cours" })).toBeVisible();
+  });
+
+  it("says the revision written since it was read, offers to read the page anew, and abandons nothing [WF-IHM-0110-A]", async () => {
+    serve({ [ABANDON]: stale("revision_abandon_stale") });
+    show(commands());
+    await userEvent.click(screen.getByRole("button", { name: "Abandonner la révision en cours" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer l’abandon" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(router.replace).not.toHaveBeenCalled();
   });
 });
 
@@ -355,6 +364,23 @@ describe("the designation of the reference", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "La révision de référence ne peut plus être corrigée.",
     );
+  });
+
+  it("says the project written since it was read, offers to read the page anew, and designates nothing [WF-IHM-0110-A]", async () => {
+    serve({ [DESIGNATE]: stale("reference_designate_stale") });
+    show(
+      <ReferenceDesignation
+        revisions={history("revisions_designation_open")}
+        projectId={PROJECT}
+        projectLockVersion={LOCK}
+      />,
+    );
+    await userEvent.click(
+      within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button"),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la désignation" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
   });
 
   it("offers nothing when no marked revision lists the command", () => {

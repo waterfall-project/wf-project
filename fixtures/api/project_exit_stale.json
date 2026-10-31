@@ -1,0 +1,10 @@
+{
+  "summary": "La sortie de « Modernisation du poste de commande » envoyée avec le compteur 6, quand le projet porte 7 — une autre session l'a écrit depuis la lecture de l'écran — : refusée, le compteur courant rendu, et rien n'est écrit ; l'écran propose de relire (WF-IHM-0110, US-0702/L2).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {"expected_lock_version":7},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001660"
+  }
+}
