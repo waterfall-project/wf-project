@@ -103,7 +103,11 @@ que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP
   - #1476 — front : trois mineurs des écritures retenues après « Précédent » (relevé par US-0590c ;
     reporté vers EP-17 sur décision de l'auteur du 2026-10-25) ;
   - #1481 — front : Échap dans le champ de recherche de l'aide ferme le panneau au lieu de vider le
-    champ (relevé par US-0670/L1 ; reporté vers EP-17 sur décision de l'auteur du 2026-10-25).
+    champ (relevé par US-0670/L1 ; reporté vers EP-17 sur décision de l'auteur du 2026-10-25) ;
+  - #1699 — front : un collage depuis la marge buterait sur `is_critical`, sans colonne dans la
+    grille de planning ; piste A retenue, la garde locale ne refusant « absente » que si une cellule
+    non vide du bloc tombe sur la colonne (relevé par US-0703/L2 ; reporté vers EP-17 sur décision
+    de l'auteur du 2026-10-31).
 
 **Le harnais d'accessibilité.**
 
