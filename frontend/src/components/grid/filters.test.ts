@@ -47,6 +47,16 @@ describe("the filters of a list in the address", () => {
     );
   });
 
+  it("lift the parameter of a non-exhaustive filter whose selection is empty, as writing an empty value did: the address reads the same", () => {
+    const zones = { name: "zones", values: ["nominal", "watch", "alert"], exhaustive: false };
+    const query = new URLSearchParams("zones=watch&sort_by=code");
+    // `filterHref` lifts the parameter for an empty value as for none: no `lifted`, no `zones=`.
+    expect(valuesHref("/p", query, zones, [])).toBe("/p?sort_by=code");
+    expect(valuesHref("/p", query, zones, [])).toBe(
+      filterHref("/p", query, "zones", "", undefined),
+    );
+  });
+
   it("lift every parameter a filter is read from, the rest of the query kept", () => {
     const query = new URLSearchParams("work_package_id=a&order_item_id=b&sort_by=label&q=x");
     expect(withoutParameters("/x", query, ["work_package_id", "order_item_id"])).toBe(

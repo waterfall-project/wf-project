@@ -11,12 +11,14 @@
  * sorting and searching; the page after the first asked by its `offset`, and a page beyond the end
  * of the list leading back into it. An address that names no state asks the states by default,
  * Chiffrage and En cours, said as the filter of the contributor is, or those the account kept; it
- * asks every state by `states=all`, and the filter by state shows pressed the states retained. A
- * period the server refuses (422) — an end before the start — is said at its field, the list
- * unread, the filters kept to be changed. The projects show in the dense grid, its columns, widths and sort kept in the
- * settings of the account (WF-ADM-0040). Above the list, in every case, the prerequisites the
- * minimum reference data lacks, which forbid creating a project (WF-CYC-0120); and, when the list
- * holds no project, that it is. A session that holds the permission to create a project is offered
+ * asks every state by `states=all`, and the filter by state shows pressed the states retained.
+ * A period the server refuses (422) — an end before the start — is said at its field, the list
+ * unread, the filters kept to be changed. The projects show in the dense grid, its columns,
+ * widths and sort kept in the settings of the account (WF-ADM-0040). Above the list, in every
+ * case, the prerequisites the minimum reference data lacks, which forbid creating a project
+ * (WF-CYC-0120); and, when the list holds no project and nothing narrows it, that it is — the
+ * states by default count as a filter, so a home whose default states retain no project shows an
+ * empty grid, not that notice. A session that holds the permission to create a project is offered
  * its creation in the header (`CreateProject`, WF-ADM-0100), the screen saying that the fake back
  * keeps nothing (`MockupNotice`); no other session is.
  */
@@ -125,7 +127,8 @@ function ProjectsShown({
   readonly preferences: GridPreferences | undefined;
 }) {
   const { states, period, query } = asked;
-  // Narrowed by what the address asks besides its filter: an empty list keeps its grid.
+  // Narrowed by what the address asks besides its filter, the states by default included: an
+  // empty list so narrowed keeps its grid.
   const narrowed =
     states.length > 0 ||
     period.from !== undefined ||

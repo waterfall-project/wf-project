@@ -111,9 +111,9 @@ export interface ProjectListProps {
 /**
  * The projects of a page of the list, or that there is none: only when the list holds none at
  * all, and nothing narrows it but its filter — a page asked beyond its end is no empty list, and
- * leads back into it; a list emptied by states, a period or a search keeps its grid, whose bar and
- * filters change them. The filter that would empty it is lifted by the link the header
- * shows.
+ * leads back into it; a list emptied by states (the states by default count as a filter), a period
+ * or a search keeps its grid, whose bar and filters change them. The filter that would empty it
+ * is lifted by the link the header shows.
  */
 export function ProjectList({
   projects,

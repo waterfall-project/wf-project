@@ -412,6 +412,17 @@ describe("the empty states of the home", () => {
     },
   );
 
+  it("keeps an empty grid, the badge of the states by default and « Every state », when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
+    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
+    const html = await home({ is_contributor: "false" });
+    expect(listQuery()).toEqual({ states: DEFAULT_STATES });
+    expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
+    expect(text(html)).toContain("By default:");
+    expect(text(html)).toContain("Every state");
+    expect(text(html)).not.toContain("No project.");
+    expect(grids.props[0]?.projects).toEqual([]);
+  });
+
   it("says there is no project when the list is empty unfiltered", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false", states: "all" });
