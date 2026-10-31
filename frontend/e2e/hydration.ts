@@ -7,7 +7,7 @@
  * block of the navigation stays folded, the sort is never asked, and the journey waits for what
  * will never come until its end (#471). A journey opens a page here before any such gesture.
  */
-import { type Locator, type Page, expect } from "@playwright/test";
+import { type Locator, type Page, type Route, expect } from "@playwright/test";
 
 /**
  * The bound of a screen of grid, in milliseconds: a dense grid — of the estimate, the planning,
@@ -147,4 +147,92 @@ export async function sortUntilAddress(
     await expect(page).toHaveURL(address, { timeout: 1_000 });
     // The time to hydrate, then to read the grid anew: two bounds.
   }).toPass({ timeout: 2 * WORKING });
+}
+
+/** The scripts of the front, which a screen hydrates once loaded. */
+const SCRIPTS = "**/_next/static/chunks/**";
+
+/**
+ * A script fetched for the page on a connection of its own: one kept open across a held script
+ * was closed by the front as idle while the journey reused it (ECONNRESET, under load).
+ */
+const ONE_USE = { connection: "close" };
+
+/** A script the route of `holdScripts` caught: its address, and its body as the front serves it. */
+export interface CaughtScript {
+  readonly url: string;
+  readonly body: Buffer;
+}
+
+/** The route of `holdScripts`, posed: `remove` takes it away once the scripts it caught are served. */
+export interface HeldScripts {
+  remove(): Promise<void>;
+}
+
+/**
+ * Whether Playwright has handled a route already: it hands a request the route caught on to the
+ * network when the interception of the page is taken away under it, and the handler's own answer
+ * then fails with this message, which no type of error tells (#1635).
+ */
+function handledAlready(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("Route is already handled");
+}
+
+/**
+ * Hold the scripts of the front a journey picks, so that a screen hydrates when the journey lets
+ * it, whatever the load: each script the page asks for is fetched, given to `hold` with its body,
+ * and served once what `hold` returns has settled — at once for a script it does not pick.
+ *
+ * The route closes its race with the page (#1635). Playwright gives up the interception of the
+ * page as soon as a handler ends with no route left, and hands every request still caught to the
+ * network: the handlers still in flight then answer a request already answered, and fail with
+ * « Route is already handled ». `page.unrouteAll({ behavior: "wait" })` did so whenever two
+ * scripts were in flight as it was called — the scripts a screen loads once hydrated, asked for as
+ * the journey ends —, and waiting for the network to be idle first only narrowed the window. So
+ * `remove` waits for every handler in flight before it takes the route away, a script asked for
+ * meanwhile let go to the network unheld; and a handler whose route was answered already all the
+ * same — the interception taken away by another hand — lets it go, the network having served it.
+ */
+export async function holdScripts(
+  page: Page,
+  hold: (script: CaughtScript) => Promise<void> | void,
+): Promise<HeldScripts> {
+  const inFlight = new Set<Promise<void>>();
+  let removing = false;
+  const serve = async (route: Route): Promise<void> => {
+    if (removing) {
+      await route.fallback();
+      return;
+    }
+    const url = route.request().url();
+    const response = await page.request.get(url, { headers: ONE_USE });
+    await hold({ url, body: await response.body() });
+    try {
+      await route.fulfill({ response });
+    } catch (error) {
+      if (!handledAlready(error)) {
+        throw error;
+      }
+      await route.fallback();
+    }
+  };
+  const handler = (route: Route): Promise<void> => {
+    const served = serve(route);
+    inFlight.add(served);
+    const settled = (): void => {
+      inFlight.delete(served);
+    };
+    served.then(settled, settled);
+    return served;
+  };
+  await page.route(SCRIPTS, handler);
+  return {
+    async remove(): Promise<void> {
+      removing = true;
+      while (inFlight.size > 0) {
+        await Promise.all(inFlight);
+      }
+      await page.unroute(SCRIPTS, handler);
+    },
+  };
 }

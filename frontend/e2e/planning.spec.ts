@@ -4,7 +4,7 @@ import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
-import { openHydrated, WORKING } from "./hydration";
+import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
@@ -119,17 +119,11 @@ test("holds the totals of the planning in the window as the grid lays out anew o
     release = resolve;
   });
   let held = 0;
-  await page.route("**/_next/static/chunks/**", async (route) => {
-    // On a connection of its own: one kept open across the held script was closed by the front as
-    // idle while the journey reused it (ECONNRESET, under load).
-    const response = await page.request.get(route.request().url(), {
-      headers: { connection: "close" },
-    });
-    if ((await response.text()).includes("data-day-off")) {
+  const scripts = await holdScripts(page, async ({ body }) => {
+    if (body.includes("data-day-off")) {
       held += 1;
       await released;
     }
-    await route.fulfill({ response });
   });
   // The page does not finish loading while a script is held: it is read from its first response on.
   await page.goto(`${IN_REVISION}/planning`, { waitUntil: "commit" });
@@ -153,8 +147,9 @@ test("holds the totals of the planning in the window as the grid lays out anew o
     expect(await withinBox(grid, totals)).toBe(true);
   } finally {
     release();
-    // The scripts the page loads once hydrated are still being fetched: the page waits for them.
-    await page.unrouteAll({ behavior: "wait" });
+    // The scripts the page loads once hydrated are still being fetched: the route is taken away
+    // once they are served (#1635).
+    await scripts.remove();
   }
 });
 

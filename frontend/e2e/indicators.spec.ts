@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page, test } from "@playwright/test";
 
-import { openHydrated, WORKING } from "./hydration";
+import { holdScripts, openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -117,12 +117,6 @@ test("draws the cumulative costs, and shifts them by the payment delays at the s
   await expect(page).toHaveURL(/payment_delays=true/);
 });
 
-/**
- * A script fetched for the page on a connection of its own: one kept open across a held script
- * was closed by the front as idle while the journey reused it (ECONNRESET, under load).
- */
-const ONE_USE = { connection: "close" };
-
 /** The methods of a page that open it and read its cookies: `openHydrated` reads the shell so. */
 const OPENS = new Set<PropertyKey>(["context", "url"]);
 
@@ -185,21 +179,18 @@ test("opens the screen hydrated, though the shell has written its cookie before 
     release = resolve;
   });
   let held = 0;
-  await page.route("**/_next/static/chunks/**", async (route) => {
-    const response = await page.request.get(route.request().url(), { headers: ONE_USE });
-    const body = await response.body();
+  const scripts = await holdScripts(page, async ({ url, body }) => {
     if (body.includes("data-probe")) {
       await page.context().addCookies([
         {
           name: "wf_last_project",
           value: encodeURIComponent(SCREEN),
-          url: new URL(route.request().url()).origin,
+          url: new URL(url).origin,
         },
       ]);
       held += 1;
       await released;
     }
-    await route.fulfill({ status: response.status(), headers: response.headers(), body });
   });
   // The page as the load left it: scripts held, cookie written, no button hydrated.
   const heldScreen = async (): Promise<void> => {
@@ -219,10 +210,7 @@ test("opens the screen hydrated, though the shell has written its cookie before 
   } finally {
     release();
     // The scripts the screen loads once hydrated — those of the charts — are still being fetched,
-    // some of them asked as the test ends: a route removed under a request it has just caught
-    // continues that request, and the handler's `fulfill` then fails ("Route is already handled").
-    // The page is left to load them all, held by the route, before the route is removed.
-    await page.waitForLoadState("networkidle");
-    await page.unrouteAll({ behavior: "wait" });
+    // some of them asked as the test ends: the route is taken away once they are served (#1635).
+    await scripts.remove();
   }
 });
