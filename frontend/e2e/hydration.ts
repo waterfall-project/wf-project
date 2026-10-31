@@ -193,8 +193,10 @@ function handledAlready(error: unknown): boolean {
  * meanwhile let go to the network unheld; and a handler whose route was answered already all the
  * same — the interception taken away by another hand — lets it go, the network having served it.
  * A handler that fails does not keep the route posed: `remove` takes it away whatever they end in.
- * (`route.fallback()` is a call of the client alone, which fails only on a route this handler
- * answered itself, so a request let go while removing needs no such guard.)
+ * (`route.fallback()` needs no such guard: in playwright-core 1.64 it is a call of the client
+ * alone, which throws « Route is already handled » only when this very route was answered through
+ * the client already, never because the interception was taken away; the continue that follows it
+ * ignores its own failure.)
  */
 export async function holdScripts(
   page: Page,
@@ -232,15 +234,12 @@ export async function holdScripts(
   return {
     async remove(): Promise<void> {
       removing = true;
-      try {
-        // Settled, not all: a handler that fails (a `hold` that throws) is not the removal's to
-        // report, and the route is taken away all the same.
-        while (inFlight.size > 0) {
-          await Promise.allSettled([...inFlight]);
-        }
-      } finally {
-        await page.unroute(SCRIPTS, handler);
+      // Settled, not all: a handler that fails (a `hold` that throws) is not the removal's to
+      // report, and the route is taken away all the same.
+      while (inFlight.size > 0) {
+        await Promise.allSettled([...inFlight]);
       }
+      await page.unroute(SCRIPTS, handler);
     },
   };
 }

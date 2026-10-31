@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The route that holds the scripts of the front (`holdScripts`, `hydration.ts`), held to its race
- * with the page (#1635): a script asked for after the last silence of the network and before the
- * route is taken away. The race is given, not waited for: each script is asked for by the test, on
+ * with the page (#1635): a script asked for before the route is taken away, and served after
+ * the removal has begun. The race is given, not waited for: each script is asked for by the test, on
  * an address of its own that no cache answers, and held by the test until it lets it go — whatever
  * the load, the handlers are in flight in the order the test says.
  *
@@ -73,7 +73,7 @@ function ask(page: Page, url: string): Promise<"loaded" | "failed"> {
   );
 }
 
-test("takes its route away once the scripts in flight are served, two asked for after the last silence and before the removal, one served before the other (#1635)", async ({
+test("takes its route away once the scripts in flight are served, two asked for before the removal, one served before the other (#1635)", async ({
   page,
 }) => {
   // Each under an address of its own, which no cache has answered.
@@ -138,8 +138,10 @@ test("lets go a script whose route was answered already, the interception of the
 });
 
 test("takes its route away although a hold failed, and does not report the failure (#1635)", async () => {
-  // Playwright makes the error of a route handler the test's own, so the page is a double here:
-  // the handler is called as Playwright calls it, and the removal is seen at `unroute`.
+  // On a real page the error of a route handler is nobody's to catch: Playwright (1.64) calls the
+  // handler from an event listener, its rejection is unhandled in the worker, and that fails the
+  // running test. So the page is a double here: the handler is called as Playwright calls it, and
+  // the removal is seen at `unroute`.
   let posed: ((route: Route) => Promise<void>) | undefined;
   let unrouted = false;
   const double = {
