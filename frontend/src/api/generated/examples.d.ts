@@ -198,7 +198,7 @@ export interface Examples {
     200: "calendars" | "calendars_reader" | "calendars_with_inactive";
   };
   "GET /reference/cost-categories": {
-    200: "volume/cost_categories" | "volume/cost_categories_page" | "volume/cost_categories_reader";
+    200: "volume/cost_categories" | "volume/cost_categories_page" | "volume/cost_categories_reader" | "volume/cost_categories_type_deactivated";
   };
   "GET /reference/cost-categories/{cost_category_id}/hourly-rates": {
     200: "volume/hourly_rates";
@@ -352,7 +352,7 @@ export interface Examples {
     200: "paste_applied" | "paste_applied_amendment" | "paste_applied_amendment_skipping" | "paste_applied_partial" | "paste_applied_rejudged";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview": {
-    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_subproject_held" | "paste_plan_unknown_category";
+    200: "paste_plan" | "paste_plan_amendment" | "paste_plan_amendment_skipping" | "paste_plan_amendment_target_removed" | "paste_plan_subproject_held" | "paste_plan_unknown_category" | "paste_plan_without_hours";
   };
   "POST /projects/{project_id}/risks": {
     201: "risk_created";

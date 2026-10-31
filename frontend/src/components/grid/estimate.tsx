@@ -24,8 +24,9 @@
  * its payment delay, each written alone by `updateEstimateLine`, where the node names the field
  * among those it accepts (`editable_fields`, #219) and not among those it computes — a line of
  * labour takes no unit disbursement, another no role nor effort, a provision none of them
- * (WF-DEV-0020), which the grid never deduces from the nature of the category —; the label of a task by `updateTaskFacet` (`estimateGrid`). Its sub-project is chosen in the menu of
- * its cell, not entered in its column: hidden until shown, the column only reads it (US-0480).
+ * (WF-DEV-0020), which the grid never deduces from the nature of the category —; the label of a task
+ * by `updateTaskFacet` (`estimateGrid`). Its sub-project is chosen in the menu of its cell, not
+ * entered in its column: hidden until shown, the column only reads it (US-0480).
  */
 import { ToggleLeft } from "lucide-react";
 

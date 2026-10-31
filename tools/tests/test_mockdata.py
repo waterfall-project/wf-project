@@ -150,6 +150,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "cost_categories.json",
         "cost_categories_page.json",
         "cost_categories_reader.json",
+        "cost_categories_type_deactivated.json",
         "estimate_indicators_volume.json",
         "hourly_rate_grid.json",
         "hourly_rate_grid_bounded.json",

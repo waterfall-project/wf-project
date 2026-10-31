@@ -9975,6 +9975,37 @@ objet écrit à la main (WF-INTF-0120, WF-INTF-0130). Le manque se corrige au co
 
 **Import** `…0a1b` ; **tâche de fond** 958.
 
+### La catégorie sous une nature désactivée, et la tâche sans heure d'un déplacement et d'un collage (US-0660/L1, #1335, #1142, #779)
+
+L'adoption par le front des refus du référentiel et de WF-PLA-0010 l'a révélé : la catégorie
+désactivée en cascade (C-291) et `TASK_WITHOUT_WORKING_HOURS` hors de `createNode` et
+`updateEstimateLine` n'avaient aucun exemple, et les tests du front les dérivaient à la main. Le
+manque se corrige au contrat, dans l'US. Aucun schéma ne change.
+
+- **`cost_categories_type_deactivated`** (`volume/`, `listCostCategories`, `type_deactivated`),
+  engendré par `wftools.mockreference` : variante contrefactuelle déclarée, la suite de
+  `cost_type_deactivated`, comme `cost_types_with_inactive` — l'univers témoin n'a aucune nature
+  désactivée. Les 49 catégories des débours relues avec les désactivées, restreintes à leur nature,
+  en une page de cinquante : chacune désactivée, `cost_type_is_active` faux, son compteur avancé et
+  son audit nommant l'auteur de la désactivation à son instant, comme le dit
+  `setCostTypeActivation` ; `reactivate` indisponible, `cost_type_active` manquante ;
+  `change_cost_type` tel que sans la cascade, la nature n'y étant pour rien.
+- **`nodes_move_without_hours`** (`moveNodes`, 422, `without_hours`), engendré par
+  `wftools.mockrefusals` comme `node_create_without_hours` : la ligne du technicien de mise en
+  service déplacée sous le « Câblage des armoires », qui porte celle de l'ingénieur, les
+  calendriers supposés autres ; les deux rôles nommés, comme le Vérif de WF-PLA-0010
+  (corrélation 1658).
+- **Le collage refuse la ligne, non le bloc.** WF-PLA-0010 refuse « une saisie » qui laisserait
+  une tâche sans heure, et `ProblemParams.tasks` nommait déjà « le motif d'une ligne collée » ;
+  `PasteRejection` le dit désormais : la cellule de rôle refusée par
+  `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` comme pour une saisie
+  — non `resource_roles`, propre au compte rendu d'un import (#768). Exemple
+  `paste_plan_without_hours` (`previewPaste`, `without_hours`), engendré par
+  `wftools.mockrefusals` : le bloc de `paste_plan` dont la deuxième ligne passe la ligne 29 au monteur câbleur, la tâche
+  « Préparation 1.1.1 » gardant l'ingénieur ; variante contrefactuelle déclarée, `paste_id` 997.
+  La confirmation redit ce refus comme tout refus de l'aperçu (`PasteApplied.rejected`) : aucun
+  exemple de `applyPaste` n'est ajouté, `paste_applied_partial` montrant déjà la forme.
+
 ## Collage et annulation
 
 **Le collage depuis un tableur suit exactement la forme d'un import** : `paste-preview`

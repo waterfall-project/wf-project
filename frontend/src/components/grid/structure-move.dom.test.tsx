@@ -478,6 +478,29 @@ describe("the refusal of a move, said to the row in cause", () => {
     },
   );
 
+  it("names the task and both roles a move would leave without a working hour, as the grid of the estimate knows them [WF-PLA-0010-A]", async () => {
+    serve({ [MOVE]: refusal("nodes_move_without_hours") });
+    render(estimateGrid());
+    await choose(TRANSPORT, "Indenter");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(alert).toHaveTextContent("Ingénieur électricien");
+    expect(alert).toHaveTextContent("Technicien de mise en service");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+  });
+
+  it("names the task of a move refused from the planning, whose grid reads no role: the roles are left unnamed, by no identifier [WF-PLA-0010-A]", async () => {
+    // The planning lists tasks and reads no estimate line nor the settings of the resources: the
+    // roles of the refusal stay unnamed, and the notice says so.
+    serve({ [MOVE]: refusal("nodes_move_without_hours") });
+    render(planningGrid());
+    await choose(REVIEW, "Indenter");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+    expect(alert).toHaveTextContent("Les calendriers de ses rôles ne se recoupent aucun jour.");
+    expect(alert).not.toHaveTextContent("000000000451");
+  });
+
   it("names the row and the condition when a line is moved to a task completed: the move is refused, nothing moves [WF-DEV-0050-A]", async () => {
     // Le déplacement d'une ligne vers une tâche terminée est refusé.
     const client = serve({

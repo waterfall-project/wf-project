@@ -1492,6 +1492,7 @@
               volume: { $ref: ../../../fixtures/api/volume/cost_categories.json }
               page: { $ref: ../../../fixtures/api/volume/cost_categories_page.json }
               reader: { $ref: ../../../fixtures/api/volume/cost_categories_reader.json }
+              type_deactivated: { $ref: ../../../fixtures/api/volume/cost_categories_type_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }

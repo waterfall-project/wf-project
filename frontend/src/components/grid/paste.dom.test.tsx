@@ -217,6 +217,19 @@ describe("a block pasted from a spreadsheet", () => {
     });
   });
 
+  it("whose row would leave a task without a working hour names the task and both roles, as the grid knows them [WF-PLA-0010-A]", async () => {
+    serve({ [PREVIEW]: "paste_plan_without_hours" });
+    renderGrid();
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    const refused = await within(dialog).findByRole("listitem");
+    expect(refused).toHaveTextContent("Ligne 2 du bloc");
+    expect(refused).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(refused).toHaveTextContent("Ingénieur électricien");
+    expect(refused).toHaveTextContent("Monteur câbleur");
+    expect(refused).toHaveTextContent("Préparation 1.1.1");
+  });
+
   it("is abandoned by its button too, a plan that refuses nothing left unapplied [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();

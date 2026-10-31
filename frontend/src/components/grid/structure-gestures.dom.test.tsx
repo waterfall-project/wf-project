@@ -556,6 +556,20 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(messages[0]).toMatchObject({ tone: "refusal", object: "Pièces" });
   });
 
+  it("names the task and both roles a line created would leave without a working hour, as the grid knows them [WF-PLA-0010-A]", async () => {
+    serve({
+      [CREATE]: { problem: example("node_create_without_hours") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    await create("Pièces");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(alert).toHaveTextContent("Ingénieur électricien");
+    expect(alert).toHaveTextContent("Monteur câbleur");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+  });
+
   it("says a node to follow that is no sibling by its reason, at the row it was asked from", async () => {
     // The envelope says only that the entry is invalid; its field says why (`NODE_NOT_SIBLING`).
     serve({

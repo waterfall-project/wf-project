@@ -519,10 +519,15 @@ def paste_applied(
     return {**written, "rejected": cast("list[JsonValue]", rejected)}
 
 
+def pasted_task() -> Task:
+    """Return the task of LINE, whose lines a block pasted on LINE writes."""
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    return task
+
+
 def pasted_lines(block: Sequence[Sequence[str]]) -> list[Line]:
     """Return the lines a block pasted on LINE writes, one per row, in the order of the plan."""
-    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
-    return list(task.lines[: len(block)])
+    return list(pasted_task().lines[: len(block)])
 
 
 def rejudged(block: Sequence[Sequence[str]], deactivated: str) -> list[JsonObject]:

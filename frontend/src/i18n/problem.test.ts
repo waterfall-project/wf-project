@@ -505,8 +505,8 @@ describe("the sentence of a refusal", () => {
   });
 
   it("names the roles of a line imported that would leave its task without hours by their labels and codes, from the rejection of the contract [WF-PLA-0010-A]", () => {
-    // The motive of a line imported names its roles itself (`resource_roles`); the example of the
-    // contract carries the task too (`tasks`), which the sentence does not read (#768).
+    // The motive of a line imported names its roles itself (`resource_roles`), and its task by its
+    // label (`tasks`, #768).
     const { report } = example("import_estimate_task_without_hours") as {
       report: { rejected: [ProblemText] };
     };
@@ -515,7 +515,38 @@ describe("the sentence of a refusal", () => {
     expect(say(line, "fr")).toBe(
       "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les " +
         "calendriers ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Technicien " +
-        "de mise en service (TECH-MES).",
+        "de mise en service (TECH-MES). Tâche en cause\u00A0: «\u00A0Câblage des armoires\u00A0».",
+    );
+  });
+
+  it("names the task a write would leave without hours by its label, and the role by the name the screen lends it, from the refusal of the contract [WF-PLA-0010-A]", () => {
+    const refused = example("estimate_line_without_hours") as ProblemText;
+    const role = (refused.params?.resource_role_ids as string[] | undefined)?.[0];
+    expect(role).toBeDefined();
+    const named = problemMessage(refused, {
+      locale: "fr",
+      messages: CATALOGUES.fr,
+      names: { [role ?? ""]: "Monteur câbleur" },
+    });
+    expect(named).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
+        "n’a aucune heure\u00A0: Monteur câbleur. Tâche en cause\u00A0: «\u00A0Câblage des armoires\u00A0».",
+    );
+    // No name lent for the role: the task is named all the same.
+    expect(say(refused, "fr")).toContain(
+      "Tâche en cause\u00A0: «\u00A0Câblage des armoires\u00A0».",
+    );
+  });
+
+  it("names the categories that forbid a change of the type of a nature by their labels and codes, from the refusal of the contract [WF-REF-0030-A]", () => {
+    const refused = example("cost_type_kind_refused") as ProblemText;
+    const told = say(refused, "fr");
+    expect(told).toContain(
+      "Catégories de la nature à rattacher d’abord à une autre nature du même type\u00A0: " +
+        "Sous-traitance (ACH-001) et Matériel électrique (ACH-002).",
+    );
+    expect(say(refused, "en")).toContain(
+      "Sous-traitance (ACH-001) and Matériel électrique (ACH-002)",
     );
   });
 

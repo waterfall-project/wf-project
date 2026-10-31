@@ -19,6 +19,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  type Problem,
 } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 
@@ -846,6 +847,48 @@ describe("the activation of a nature or a category", () => {
       path: "/reference/cost-categories/01926f3a-7c00-7000-8000-000000000401/activation",
       body: { is_active: true, lock_version: 1 },
     });
+  });
+
+  it("presents the reactivation of a category deactivated with its nature unavailable, with its condition, and runs nothing when pressed [WF-REF-0010-A]", async () => {
+    const client = serve();
+    // The row the page reads once the nature is deactivated (`cost_type_active` missing).
+    const [cascaded] = (
+      example("volume/cost_categories_type_deactivated") as { items: CostCategory[] }
+    ).items;
+    if (cascaded === undefined) {
+      throw new Error("the example holds a category");
+    }
+    render(categoryList([cascaded]));
+    const command = screen.getByRole("button", {
+      name: "Réactiver «\u00a0Sous-traitance\u00a0»",
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: nature de coût active.",
+    );
+    await userEvent.click(command);
+    expect(announced()).toContain(
+      "La réactivation de «\u00a0Sous-traitance\u00a0» est indisponible. Condition non remplie\u00a0: nature de coût active.",
+    );
+    expect(client.calls).toEqual([]);
+  });
+
+  it("tells the reactivation of a category refused under a deactivated nature, which it names as the one to reactivate first [WF-REF-0010-A]", async () => {
+    const client = serve({
+      [CATEGORY_ACTIVATION]: {
+        problem: example("cost_category_reactivation_refused") as Problem & { status: 409 },
+      },
+    });
+    // The row as the page read it before the nature was deactivated elsewhere: the command is
+    // offered, and the server refuses it.
+    render(categoryList([example("cost_category_deactivated") as CostCategory]));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Réactiver «\u00a0Matériel électrique\u00a0»" }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("nature de coût active");
+    expect(alert).toHaveTextContent("Débours");
+    expect(writes(client)).toHaveLength(1);
   });
 
   it("says the refusal of a deactivation above the list, the row as the page read it, and no longer busy while a modification of the list still runs", async () => {
