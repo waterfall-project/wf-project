@@ -511,12 +511,14 @@ describe("the exits of the lifecycle of a project", () => {
   );
 
   it("tells under the confirmation an exit refused for a stale counter, which stays open and follows no task [WF-CYC-0090-A]", async () => {
-    serve({ [EXIT]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
+    serve({ [EXIT]: { problem: example("project_exit_stale") as Problem & { status: 412 } } });
     open();
     await userEvent.click(exit("Terminer le projet"));
     await choose("abandon");
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/\S/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Quelqu’un a modifié cette donnée entre-temps ; rechargez-la pour voir sa dernière version.",
+    );
     expect(screen.getByRole("form", { name: "Terminer le projet" })).toBeInTheDocument();
     expect(within(tasksRegion()).queryByRole("list")).toBeNull();
     expect(router.refresh).not.toHaveBeenCalled();
