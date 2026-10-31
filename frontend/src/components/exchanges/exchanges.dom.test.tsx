@@ -109,9 +109,29 @@ function report(entry: Import) {
   );
 }
 
-/** The region of the tasks of the shell. */
-function tasks() {
-  return tasksRegion();
+/** The line of the tracker of the shell that says a task. */
+function taskLine(text: string) {
+  return within(tasksRegion()).getByText(text);
+}
+
+/** Press « Appliquer l’import » and give the confirmation it opens. */
+async function askApplication() {
+  await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+  return screen.getByRole("form", { name: "Confirmation de l’application" });
+}
+
+/** Press the button that confirms the application, in the confirmation. */
+async function confirmApplication(confirmation: HTMLElement) {
+  await userEvent.click(
+    within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+  );
+}
+
+/** Wait until the confirmation, accepted, has gone. */
+async function closed() {
+  await waitFor(() => {
+    expect(screen.queryByRole("form")).toBeNull();
+  });
 }
 
 /** Wait until a form no longer waits for the answer of its action. */
@@ -208,7 +228,7 @@ describe("the first step of an import", () => {
     });
     expect(screen.queryByRole("form")).toBeNull();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
+      taskLine("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -244,7 +264,7 @@ describe("the first step of an import", () => {
     });
     expect(router.push).not.toHaveBeenCalled();
     expect(
-      within(tasks()).getByText("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
+      taskLine("Analyse d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -457,8 +477,7 @@ describe("the report of an import", () => {
       "5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
     ]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
-    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    const confirmation = await askApplication();
     expect(within(confirmation).getByRole("paragraph")).toHaveTextContent(
       "Appliquer au projet l’import « devis-avenant-2-reprise-des-essais.xlsx », en une seule opération ?",
     );
@@ -468,20 +487,14 @@ describe("the report of an import", () => {
     expect(client.calls).toEqual([]);
     await expectAccessible(container);
 
-    await userEvent.click(
-      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
-    );
-    await waitFor(() => {
-      expect(screen.queryByRole("form")).toBeNull();
-    });
+    await confirmApplication(confirmation);
+    await closed();
     expect(client.calls.map(({ path, body }) => [path, body])).toEqual([
       [`/projects/${PROJECT}/imports/${IMPORT}/apply`, { confirmed: true }],
     ]);
     expect(screen.getByRole("button", { name: "Appliquer l’import" })).toHaveFocus();
     expect(
-      within(tasks()).getByText(
-        "Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »",
-      ),
+      taskLine("Application d’un import « devis-avenant-2-reprise-des-essais.xlsx »"),
     ).toBeVisible();
   });
 
@@ -505,12 +518,8 @@ describe("the report of an import", () => {
     await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
     expect(router.push).not.toHaveBeenCalled();
     const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
-    await userEvent.click(
-      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
-    );
-    await waitFor(() => {
-      expect(screen.queryByRole("form")).toBeNull();
-    });
+    await confirmApplication(confirmation);
+    await closed();
     // Accepted, and still applying: the planning is not filled yet.
     expect(router.push).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
@@ -537,20 +546,13 @@ describe("the report of an import", () => {
         then={planning}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
-    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
-    await userEvent.click(
-      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
-    );
-    await waitFor(() => {
-      expect(screen.queryByRole("form")).toBeNull();
-    });
+    const confirmation = await askApplication();
+    await confirmApplication(confirmation);
+    await closed();
     // The user goes elsewhere: the report is gone, the tracker stays and follows the task.
     view.rerender(shell(<p>Ailleurs</p>));
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
-    await waitFor(() => {
-      expect(within(tasks()).getByText(/Application d’un import/)).toBeVisible();
-    });
+    expect(await within(tasksRegion()).findByText(/Application d’un import/)).toBeVisible();
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     // The task did succeed, the report not being there to lead anywhere.
     await waitFor(() => {
@@ -569,8 +571,7 @@ describe("the report of an import", () => {
     expect(screen.queryByRole("form")).toBeNull();
     expect(client.calls).toEqual([]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
-    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    const confirmation = await askApplication();
     // Whether the confirmation was still busy in the commit that told the refusal: the request over, never
     // while it holds a press (#1484).
     const busyWhenTold = atCommit(
@@ -578,15 +579,13 @@ describe("the report of an import", () => {
       () => within(confirmation).queryByRole("alert") !== null,
       () => confirmation.getAttribute("aria-busy"),
     );
-    await userEvent.click(
-      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
-    );
+    await confirmApplication(confirmation);
     await settled(confirmation);
     expect(within(confirmation).getByRole("alert")).toHaveTextContent(
       CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION,
     );
     expect(busyWhenTold.stop()).toEqual(["false"]);
-    expect(within(tasks()).queryByText(/Application d’un import/)).toBeNull();
+    expect(within(tasksRegion()).queryByText(/Application d’un import/)).toBeNull();
   });
 
   it("presents a file the report rejects whole by its reasons, naming the tasks, and offers its abandonment alone [WF-INTF-0040-A]", () => {
@@ -597,6 +596,9 @@ describe("the report of an import", () => {
     expect(alert).toHaveTextContent(
       /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
     );
+    expect(alert).toHaveTextContent(
+      /La durée du projet dépasserait quinze ans\.\s*Tâche en cause\s:\s« Mise en service »\./,
+    );
     expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
     expect(screen.getByRole("button", { name: "Abandonner l’import" })).toBeInTheDocument();
   });
@@ -604,11 +606,8 @@ describe("the report of an import", () => {
   it("tells the condition a file rejected whole misses when the server refuses its application [WF-INTF-0040-A]", async () => {
     serve({ [APPLY]: { problem: example("import_apply_rejected") as Problem & { status: 409 } } });
     open(report(example("import_analysed") as Import));
-    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
-    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
-    await userEvent.click(
-      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
-    );
+    const confirmation = await askApplication();
+    await confirmApplication(confirmation);
     await settled(confirmation);
     expect(within(confirmation).getByRole("alert")).toHaveTextContent(
       "Condition non remplie : fichier accepté par le compte rendu",
@@ -864,7 +863,7 @@ describe("the request of an export", () => {
       [`/projects/${PROJECT}/exports`, { kind: "estimate", revision_id: REVISION }],
     ]);
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
-    const download = await within(tasks()).findByRole("link", {
+    const download = await within(tasksRegion()).findByRole("link", {
       name: "Télécharger le résultat : Export « Devis »",
     });
     expect(download.getAttribute("href")).toMatch(
