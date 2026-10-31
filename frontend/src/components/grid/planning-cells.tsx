@@ -16,12 +16,22 @@
  */
 "use client";
 
-import { Circle, CircleCheck, Contrast, Flame, type LucideIcon, PenLine, Zap } from "lucide-react";
+import {
+  Circle,
+  CircleCheck,
+  Contrast,
+  Flame,
+  type LucideIcon,
+  PenLine,
+  TriangleAlert,
+  Zap,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { formatDecimal, formatShare } from "@/i18n/format";
 
+import { useConflictNames } from "./link-conflicts";
 import type { PlanningNode } from "./planning";
 
 /** The scheduling mode of a task (WF-PLA-0020). */
@@ -183,10 +193,25 @@ function shownLink({ link_type, lag }: Predecessor): string {
 }
 
 /**
+ * Render the link in conflict a task bears, named (`useConflictNames`): an icon named for it,
+ * never a colour alone. Nothing for a task without one.
+ */
+function ConflictMark({ node }: { readonly node: PlanningNode }) {
+  const t = useTranslations("planningGrid");
+  const name = useConflictNames(node).join(t("predecessorSeparator"));
+  return name === "" ? null : (
+    <TriangleAlert role="img" aria-label={name} className="ml-1 inline size-3.5 text-destructive">
+      <title>{name}</title>
+    </TriangleAlert>
+  );
+}
+
+/**
  * Render the predecessors of a task as Microsoft Project writes them, each named by its row
  * number, then by the type of its link and its lag in its unit unless it is plain: `5;4DD+1 sem`,
  * `2FD-2 j`. A predecessor outside what a search retained is named all the same: its number is
- * the one the API gives it.
+ * the one the API gives it. The link in conflict, on the manual task and on its predecessor, is
+ * marked after them and named.
  */
 export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
   const t = useTranslations("planningGrid");
@@ -200,7 +225,12 @@ export function PredecessorsCell({ node }: { readonly node: PlanningNode }) {
       lag: formatDecimal(predecessor.lag.value, locale),
       unit: units(predecessor.lag.unit),
     });
-  return (node.predecessors ?? []).map(name).join(t("predecessorSeparator"));
+  return (
+    <>
+      {(node.predecessors ?? []).map(name).join(t("predecessorSeparator"))}
+      <ConflictMark node={node} />
+    </>
+  );
 }
 
 /**

@@ -11,7 +11,7 @@
 
 import { Plus, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useRef, useState } from "react";
+import { type RefObject, type SubmitEvent, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,6 +33,57 @@ const QUANTITY = "1";
 
 /** What is wrong in what a dialog was given, if anything. */
 type Problem = "label" | "quantity";
+
+/**
+ * The field of the label of a node about to be created: required for a task; optional for a line,
+ * which the server names after its task and its role when it is left out (WF-DEV-0020).
+ */
+function LabelField({
+  id,
+  created,
+  label,
+  missing,
+  inputRef,
+  onChange,
+}: {
+  readonly id: string;
+  readonly created: Created;
+  readonly label: string;
+  readonly missing: boolean;
+  readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly onChange: (label: string) => void;
+}) {
+  const t = useTranslations("grid.structure");
+  const entry = useTranslations("grid.entry");
+  const described = missing ? `${id}-problem` : `${id}-composed`;
+  return (
+    <div className="grid gap-1">
+      <Label htmlFor={`${id}-label`}>{t("labelField")}</Label>
+      <Input
+        ref={inputRef}
+        id={`${id}-label`}
+        value={label}
+        maxLength={LABEL_LENGTH}
+        aria-required={created === "task" ? true : undefined}
+        aria-invalid={missing ? true : undefined}
+        aria-describedby={missing || created === "line" ? described : undefined}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      />
+      {created === "line" ? (
+        <p id={`${id}-composed`} className="text-xs text-muted-foreground">
+          {t("composedLabel")}
+        </p>
+      ) : null}
+      {missing ? (
+        <p id={`${id}-problem`} className="text-sm text-destructive">
+          {entry("required")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * The dialog that names a node about to be created: its label, and for a line its category and its
@@ -76,7 +127,8 @@ export function CreateForm({
       return;
     }
     const typed = label.trim();
-    if (typed === "") {
+    // The label of a line is optional: left out, the server composes it of the task and the role.
+    if (typed === "" && created === "task") {
       setProblem("label");
       labelInput.current?.focus();
       return;
@@ -105,26 +157,14 @@ export function CreateForm({
         </DialogDescription>
       </DialogHeader>
       <form aria-label={title} noValidate onSubmit={submit} className="grid gap-3">
-        <div className="grid gap-1">
-          <Label htmlFor={`${id}-label`}>{t("labelField")}</Label>
-          <Input
-            ref={labelInput}
-            id={`${id}-label`}
-            value={label}
-            maxLength={LABEL_LENGTH}
-            aria-required
-            aria-invalid={problem === "label" ? true : undefined}
-            aria-describedby={problem === "label" ? `${id}-problem` : undefined}
-            onChange={(event) => {
-              setLabel(event.target.value);
-            }}
-          />
-          {problem === "label" ? (
-            <p id={`${id}-problem`} className="text-sm text-destructive">
-              {entry("required")}
-            </p>
-          ) : null}
-        </div>
+        <LabelField
+          id={id}
+          created={created}
+          label={label}
+          missing={problem === "label"}
+          inputRef={labelInput}
+          onChange={setLabel}
+        />
         {created === "line" ? (
           <>
             <div className="grid gap-1">

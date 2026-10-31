@@ -362,6 +362,38 @@ describe("the contractualisation of an amendment", () => {
     expect(bodies(client, MERGE)).toEqual([]);
   });
 
+  it("joins the description typed to the revision produced, and sends none when it is left empty [WF-REV-0050-A]", async () => {
+    // La description de la fusion, facultative, est celle de la révision marquée qu'elle produit.
+    const client = serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_merge_running", "task_merge_succeeded"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.type(
+      within(form).getByRole("textbox", {
+        name: "Description de la révision produite (facultative)",
+      }),
+      "Essais sur site ajoutés par l’avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    expect(bodies(client, MERGE)).toEqual([
+      {
+        confirmed: true,
+        version_name: "Avenant 2",
+        description: "Essais sur site ajoutés par l’avenant 2",
+        main_structure_lock_version: 1,
+        amendment_lock_version: 2,
+      },
+    ]);
+  });
+
   it("proposes to read the report again on a stale version (412), and keeps the version name typed [WF-IHM-0110-A]", async () => {
     const client = serve({
       [REPORT]: "structure_merge_report",

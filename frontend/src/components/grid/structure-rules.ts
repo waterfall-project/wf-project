@@ -63,7 +63,10 @@ export function moves(gesture: Gesture): gesture is Moving {
   return MOVING.includes(gesture);
 }
 
-/** What a dialog of creation gathered: the label, and for a line its category and its quantity. */
+/**
+ * What a dialog of creation gathered: the label — empty for a line, which the server then names —,
+ * and for a line its category and its quantity.
+ */
 export interface Entered {
   readonly label: string;
   readonly line: { readonly category: string; readonly quantity: string } | undefined;
@@ -349,7 +352,8 @@ export function gestureOfKey(row: GridNode | undefined, pressed: Pressed): Gestu
 export function bodyOf(gesture: Gesture, row: GridNode | undefined, entered: Entered): NodeCreate {
   if (entered.line !== undefined) {
     const line = {
-      label: entered.label,
+      // A label left out is composed by the server (WF-DEV-0020).
+      ...(entered.label === "" ? {} : { label: entered.label }),
       cost_category_id: entered.line.category,
       quantity: entered.line.quantity,
     };

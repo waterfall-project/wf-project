@@ -132,6 +132,8 @@
       "duration": "Durée",
       "progress": "Avancement",
       "totalFloat": "Marge",
+      "startedOn": "Démarrée le",
+      "completedOn": "Terminée le",
       "predecessors": "Prédécesseurs",
       "probability": "Probabilité",
       "severity": "Gravité",
@@ -292,6 +294,7 @@
       "deleting": "Suppression…",
       "deleted": "« {label} » supprimée.",
       "created": "« {label} » créée.",
+      "createdUnnamed": "Ligne créée.",
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
       "refusedCreating": "Création de « {label} » refusée :",
       "onRow": "Ligne {number}, « {label} »",
@@ -309,7 +312,8 @@
       "categoryField": "Catégorie",
       "quantityField": "Quantité",
       "taskHint": "Nommez la tâche. Elle est créée feuille, en mode automatique, d'un jour, sans prédécesseur.",
-      "lineHint": "Nommez la ligne, choisissez sa catégorie et sa quantité. Les autres champs se saisissent dans la grille.",
+      "lineHint": "Choisissez la catégorie et la quantité de la ligne. Les autres champs se saisissent dans la grille.",
+      "composedLabel": "Facultatif : à défaut, le libellé de la tâche qui porte la ligne, suivi de celui de son rôle.",
       "busy": "Attend la fin de l’écriture en cours."
     },
     "columnsMenu": {
@@ -389,10 +393,20 @@
     "linkCode": "{link, select, finish_to_start {FD} start_to_start {DD} finish_to_finish {FF} start_to_finish {DF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
-    "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille."
+    "skeletonGenerated": "Squelette de planning engendré : {tasks, plural, one {# tâche} other {# tâches}} dans la grille.",
+    "conflict": "Liaison en conflit : {predecessor}{code}{successor, select, unknown {} other { vers la ligne {successor}}}",
+    "planningStart": {
+      "shown": "<label>Date de début de planning</label> : <time>{date}</time>",
+      "label": "Date de début de planning",
+      "change": "Modifier la date de début de planning",
+      "statement": "Les tâches automatiques sans prédécesseur commencent à cette date, au premier jour travaillé du calendrier par défaut ; le serveur redate celles qui en dépendent.",
+      "submit": "Confirmer la date",
+      "done": "La date de début de planning est le {date}."
+    }
   },
   "gantt": {
     "bar": "{nature, select, milestone {Jalon le {finish}} other {Du {start} au {finish}}}{critical, select, true { — critique} other {}}",
+    "conflict": " — {conflict}",
     "zoom": "Zoom du Gantt",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
@@ -824,6 +838,7 @@
     "project": "Projet",
     "revision": "Révision",
     "currentRevision": "Révision en cours",
+    "sourceRevision": "Copie de « {name} »",
     "reference": "Révision de référence",
     "readOnly": "Lecture seule : aucune saisie n’est proposée sur cette révision.",
     "filters": "Filtres actifs",
@@ -1258,6 +1273,9 @@
     "reviewRisk": {
       "help": "Ouvre le réexamen du risque."
     },
+    "planningStart": {
+      "help": "Change la date de début de planning de la structure, après confirmation : le serveur redate les tâches automatiques qui en dépendent."
+    },
     "updateRates": {
       "help": "Remplace les taux de la révision en cours par les taux proposés, pour les catégories retenues, après confirmation."
     },
@@ -1371,7 +1389,13 @@
         "help": "Part du travail réalisée, en pourcentage de la tâche."
       },
       "totalFloat": {
-        "help": "Marge totale : retard que la tâche peut prendre sans repousser la fin du projet."
+        "help": "Marge totale : retard que la tâche peut prendre sans repousser la fin du projet. Une récapitulative porte la plus petite marge de ses subordonnées."
+      },
+      "startedOn": {
+        "help": "Date à laquelle la tâche a démarré, posée par le serveur au changement d’état ; celle d’une récapitulative est la première de ses subordonnées démarrées."
+      },
+      "completedOn": {
+        "help": "Date à laquelle la tâche a été terminée, posée par le serveur au changement d’état."
       },
       "predecessors": {
         "help": "Tâches dont celle-ci dépend, désignées par leur numéro de ligne."
@@ -1670,6 +1694,7 @@
     "submit": "Confirmer la fusion",
     "title": "Compte rendu de la fusion",
     "reading": "Lecture du compte rendu…",
+    "description": "Description de la révision produite (facultative)",
     "counts": "Écarts par objet",
     "createsRevision": "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée, y fusionne le différentiel et la marque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
     "targets": {
@@ -1911,6 +1936,10 @@
       "version": "Version",
       "status": "État",
       "markedAt": "Marquée le",
+      "source": "Copie de",
+      "noSource": "Aucune",
+      "inflationRate": "Taux d’inflation",
+      "winProbability": "Probabilité de gain",
       "description": "Description",
       "consult": "Consultation",
       "reference": "Référence",
@@ -2737,6 +2766,7 @@
     "order_item_tasks": "{count, plural, one {Tâche du poste en cause} other {Tâches des postes en cause}} : {tasks}.",
     "subproject": "Sous-projet qui a reçu des coûts réels, que la ligne ne quitte pas : « {label} ».",
     "non_working_day": "Le {date} n’est pas travaillé sur le calendrier de la tâche ; saisis le {next}.",
+    "non_working_day_structure": "Le {date} n’est pas travaillé sur le calendrier par défaut ; saisis le {next}.",
     "summary_dates": "Ses dates courent du {start} au {finish}, celles de ses subordonnées.",
     "cycle": "Boucle de liaisons, dans l’ordre : {tasks}.",
     "link": "Liaison en cause, la récapitulative d’abord : {tasks}.",

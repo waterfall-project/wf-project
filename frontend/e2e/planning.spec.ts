@@ -34,6 +34,8 @@ test("opens the grid of the planning: its icons named, the critical path marked,
     "Avancement",
     "Calculé Avancement physique",
     "Calculé Marge",
+    "Démarrée le",
+    "Terminée le",
   ]) {
     await expect(grid.getByRole("columnheader", { name, exact: true })).toBeVisible();
   }
@@ -64,11 +66,11 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
 
-  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its thirteen headers,
-  // the number and the twelve columns, none holds a button but the three of the zoom and the export
+  // Dans la grille de planning, aucun en-tête de colonne ne propose de tri: of its fifteen headers,
+  // the number and the fourteen columns, none holds a button but the three of the zoom and the export
   // in that of the Gantt, none says a sort.
   const headers = grid.getByRole("columnheader");
-  await expect(headers).toHaveCount(13);
+  await expect(headers).toHaveCount(15);
   await expect(headers.getByRole("button")).toHaveCount(4);
   await expect(
     headers.getByRole("group", { name: "Zoom du Gantt" }).getByRole("button"),
@@ -344,6 +346,27 @@ test("offers no skeleton above the grid of the witness, whose structure bears it
   await expect(
     page.getByRole("button", { name: "Engendrer le squelette de planning" }),
   ).toHaveCount(0);
+});
+
+test("shows the planning start date of the structure and the dates its tasks started and completed on, and changes the date, the server answering the week before [WF-PLA-0020-A] [WF-PLA-0080-A]", async ({
+  page,
+}) => {
+  // The fake back answers `updateCostStructure` by its first example, the date advanced by a week to
+  // 23 February: the grid shows the date answered, and says it keeps nothing. The refusal of a day
+  // without a working hour is proven on the examples by `planning-start.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  for (const name of ["Démarrée le", "Terminée le"]) {
+    await expect(grid.getByRole("columnheader", { name, exact: true })).toBeVisible();
+  }
+  const start = page.getByRole("region", { name: "Date de début de planning" });
+  await expect(start).toContainText("02/03/2026");
+  await start.getByRole("button", { name: "Modifier la date de début de planning" }).click();
+  const form = start.getByRole("form", { name: "Modifier la date de début de planning" });
+  await form.getByLabel("Date de début de planning").fill("2026-02-23");
+  await form.getByRole("button", { name: "Confirmer la date" }).click();
+  await expect(start).toContainText("23/02/2026");
+  await expect(start.getByText("La date de début de planning est le 23/02/2026.")).toBeVisible();
 });
 
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({

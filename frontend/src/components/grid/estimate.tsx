@@ -109,6 +109,9 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       help: "estimate.category",
       format: "text",
       width: 160,
+      // The category of a line of labour is the one of its role, computed (WF-DEV-0020, F-09): the
+      // cell says so where the node names it among its computed fields.
+      computed: computedWhereNamed("estimate_line.cost_category_id"),
       contract: "cost_category",
       value: (node) => node.estimate_line?.cost_category_label,
     },

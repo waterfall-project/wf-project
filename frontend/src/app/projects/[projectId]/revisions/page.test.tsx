@@ -161,10 +161,10 @@ describe("the screen of the revisions of a project", () => {
       { limit: "500", offset: "0" },
     );
     expect(table(page, "Historique des révisions")).toBe(
-      "Version État Marquée le Description Consultation " +
-        "Révision en cours En cours d’élaboration Non marquée Ouvrir " +
-        "Référence Référence Marquée Ouvrir " +
-        "Offre v1.0 Marquée Offre remise au client avant la commande. Ouvrir",
+      "Version État Marquée le Copie de Taux d’inflation Probabilité de gain Description Consultation " +
+        "Révision en cours En cours d’élaboration Non marquée Référence 3 % 100 % Ouvrir " +
+        "Référence Référence Marquée Offre v1.0 3 % 100 % Ouvrir " +
+        "Offre v1.0 Marquée Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir",
     );
     // Each instant of marking, in the local time of the workstation, which the browser writes.
     expect([...page.matchAll(/<time dateTime="([^"]+)"/g)].map((match) => match[1])).toEqual([

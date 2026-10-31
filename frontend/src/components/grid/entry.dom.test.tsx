@@ -54,6 +54,8 @@ const STRUCTURE = {
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 // The categories and the roles of the examples, by identifier.
 const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405";
+// The category of the disbursement, as its cell shows it.
+const ELECTRICAL_MATERIAL = /^Matériel électrique$/;
 const COMMISSIONING_TECHNICIAN = "01926f3a-7c00-7000-8000-000000000452";
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
@@ -452,12 +454,12 @@ describe("the keyboard of a grid", () => {
     const client = serve();
     render(grid());
     // The category of a line of labour is computed, that of a disbursement is chosen.
-    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(ELECTRICAL_MATERIAL);
     cell(DISBURSEMENT, "cost_category").focus();
     await userEvent.keyboard("{Enter}Mise");
     expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveValue(COMMISSIONING);
     await userEvent.keyboard("{Escape}");
-    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(ELECTRICAL_MATERIAL);
     expect(written(client)).toEqual([]);
   });
 
