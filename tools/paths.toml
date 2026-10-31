@@ -425,6 +425,7 @@ paths = [
     "fixtures/api/estimate_indicators.json",
     "fixtures/api/estimate_indicators_breakdown.json",
     "fixtures/api/estimate_indicators_missing_rates.json",
+    "fixtures/api/estimate_indicators_work_package_without_task.json",
     "fixtures/api/missing_rates.json",
     "fixtures/api/rate_update.json",
     "fixtures/api/remaining_indicators.json",

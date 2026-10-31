@@ -10,7 +10,8 @@ the project, the evolution of the indices, the tracking of the milestones, the c
 workload); a reading of an earlier instant (the estimate the offer kept at its marking, the
 indicators the reference kept, the rate update its creation proposed); the sequel of a write made
 today (the remaining to commit after ``remaining_reestimated``); or a counterfactual variant
-declared as such (``*_missing_rates``, ``cost_curve_amendment``,
+declared as such (``*_missing_rates``, ``estimate_indicators_work_package_without_task``,
+``cost_curve_amendment``,
 ``cost_curve_subproject_unbudgeted``, ``project_indicators_without_current_revision``, and the
 curves of a subproject no line relates to, read on the core alone, ``alone``). The
 portfolio sums the indicators of the project in memory (``project_today``), never read back from
@@ -61,6 +62,8 @@ from wftools.mockwitness import (
     STUDIES_STARTED,
     SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
+    WORK_BREAKDOWN,
+    WorkPackage,
     fixture,
 )
 from wftools.mockwitnesscosts import COSTS
@@ -74,6 +77,11 @@ OTHER_AMENDMENT_ON = date(2026, 3, 10)
 15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
 than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
 named by no number."""
+
+UNBORNE_LOT = WorkPackage(universe(718), "Lot 2")
+"""The counterfactual lot of ``estimate_indicators_work_package_without_task``: a second lot of the
+work breakdown, entered after « Lot 1 », without post, that no task bears — the witness has one lot
+alone, borne by the summary « Poste de commande » (WF-PRJ-0020, WF-DEV-0060, #1142)."""
 
 WORKSHOP = universe(472)
 """The node of organisation the filtered workload retains: the cabling workshop, under the
@@ -172,6 +180,9 @@ def values() -> dict[str, JsonValue]:
         "estimate_indicators_missing_rates": estimate(
             now, against=base, previous=base, missing=missing
         ),
+        "estimate_indicators_work_package_without_task": estimate(
+            now, against=base, previous=base, breakdown=(*WORK_BREAKDOWN, UNBORNE_LOT)
+        ),
         "missing_rates": missing_rates(now, now.lines, missing),
         "rate_update": rate_update(),
         "remaining_indicators": remaining_indicators(now, base, base, costs),
@@ -263,6 +274,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     )
     offered = _get(found, "estimate_indicators_breakdown")
     [lot] = _objs(now["by_work_package"])
+    borne, unborne = _objs(
+        _get(found, "estimate_indicators_work_package_without_task")["by_work_package"]
+    )
     coverage = _obj(_get(found, "remaining_indicators")["coverage"])
     natures = ", ".join(
         f"{_of(part['amount'])} de {cast('str', part['label']).lower()}"
@@ -315,6 +329,14 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"catégorie et l'année qui manquent ; {', '.join(untouched)} se calculent, mais leur "
             f"part du total non ; le calcul est refusé plutôt que fait avec un taux à zéro "
             f"(WF-DEV-0010, WF-DEV-0060)."
+        ),
+        "estimate_indicators_work_package_without_task": (
+            f"Le devis de la révision courante au {_TODAY} si le lotissement avait, après le lot "
+            f"« {borne['label']} », un second lot, « {unborne['label']} », sans poste et "
+            f"qu'aucune tâche ne porte : ses montants sont ceux du devis du jour, le lot "
+            f"« {borne['label']} » à {_of(borne['amount'])}, que porte la récapitulative « Poste "
+            f"de commande » ; le lot « {unborne['label']} » est présenté sans total, son montant "
+            f"et sa part non calculables plutôt que nuls (WF-DEV-0060)."
         ),
         "missing_rates": (
             f"Les taux horaires qui manqueraient au devis de la révision courante au {_TODAY} "

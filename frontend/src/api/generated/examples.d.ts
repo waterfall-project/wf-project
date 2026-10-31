@@ -96,7 +96,7 @@ export interface Examples {
     200: "cost_imports" | "cost_imports_beyond" | "cost_imports_empty";
   };
   "GET /projects/{project_id}/estimate-indicators": {
-    200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "volume/estimate_indicators_volume";
+    200: "estimate_indicators" | "estimate_indicators_breakdown" | "estimate_indicators_missing_rates" | "estimate_indicators_work_package_without_task" | "volume/estimate_indicators_volume";
   };
   "GET /projects/{project_id}/estimate-indicators/missing-rates": {
     200: "missing_rates" | "missing_rates_none";

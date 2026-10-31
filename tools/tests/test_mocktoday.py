@@ -283,6 +283,23 @@ def test_a_lot_no_task_bears_is_presented_without_a_total() -> None:
         mockindicators.by_work_package(reading, frozenset(), (other,))
 
 
+def test_an_example_presents_a_lot_no_task_bears_without_a_total(today: dict[str, Any]) -> None:
+    # WF-DEV-0060 : « un lot sans tâche rattachée est présenté sans total » ; Vérif : « les totaux
+    # par lot sont absents plutôt que nuls » (#1142, point 4 ; US-0660/L2). The declared variant
+    # adds to the work breakdown of the witness a second lot, after « Lot 1 », that no task bears;
+    # everything else is the estimate of today.
+    variant = today["estimate_indicators_work_package_without_task"]
+    witness = today["estimate_indicators"]
+    borne, without = variant["by_work_package"]
+    assert [borne] == witness["by_work_package"]
+    assert _amount(borne["amount"]) == Decimal("502434.56")
+    reason = {"is_computable": False, "value": None, "reason": "work_package_without_task"}
+    assert without == {"key": universe(718), "label": "Lot 2", "amount": reason, "share": reason}
+    assert {name: value for name, value in variant.items() if name != "by_work_package"} == {
+        name: value for name, value in witness.items() if name != "by_work_package"
+    }
+
+
 def test_the_estimate_the_offer_kept_has_neither_gap_nor_provision(today: dict[str, Any]) -> None:
     offer = today["estimate_indicators_breakdown"]
     assert offer["context"]["revision_id"] == mockhistory.OFFER

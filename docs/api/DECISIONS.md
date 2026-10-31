@@ -5426,7 +5426,8 @@ engendré verrait `?`.
 **Ce que fait l'outil.** `mockstructure.part_share` donne toute part : `Computable` calculable, ou
 non calculable de motif `no_total` quand `partition` ou `share` n'en trouve pas ; le devis, le reste
 à engager et la structure des coûts du portefeuille l'emploient, et un lot sans tâche garde
-`work_package_without_task`. Aucun exemple n'a de total nul ; ceux de `AmountByKey` (le reste à
+`work_package_without_task`, que montre `estimate_indicators_work_package_without_task` depuis
+US-0660/L2. Aucun exemple n'a de total nul ; ceux de `AmountByKey` (le reste à
 engager, la structure des coûts) prennent la forme `Computable`, engendrés par `make mock-data`.
 `tools/tests/test_mocktoday.py` tient la part d'un total nul sur l'outil, sur le devis et le reste à
 engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
@@ -5937,6 +5938,9 @@ nulle, qui ne présente aucun poste.
 *Remplacé en partie par US-0450/L1 : le total est celui des lots,
 `EstimateIndicators.by_work_package`, motif `work_package_without_task`, section « Le lotissement en
 lots, postes et livrables ».*
+
+*Complété par US-0660/L2 : l'exemple du lot sans tâche rattachée vient d'une variante déclarée du
+témoin, non du projet créé aujourd'hui, section « Le contrat figé ».*
 
 **Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
 La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
@@ -10005,6 +10009,26 @@ manque se corrige au contrat, dans l'US. Aucun schéma ne change.
   « Préparation 1.1.1 » gardant l'ingénieur ; variante contrefactuelle déclarée, `paste_id` 997.
   La confirmation redit ce refus comme tout refus de l'aperçu (`PasteApplied.rejected`) : aucun
   exemple de `applyPaste` n'est ajouté, `paste_applied_partial` montrant déjà la forme.
+
+### Le lot sans tâche rattachée, présenté sans total (US-0660/L2, #1336, #1142)
+
+L'adoption par le front de WF-DEV-0060 l'a révélé (#1142, point 4) : aucun exemple ne portait un
+lot de `by_work_package` à total non calculable, et l'écran du devis ne pouvait montrer le lot
+« présenté sans total » que sur un objet écrit à la main. Le manque se corrige au contrat, dans
+l'US. Aucun schéma ne change.
+
+- **`estimate_indicators_work_package_without_task`**, nouvel exemple de `getEstimateIndicators`
+  (`work_package_without_task`), engendré par `wftools.mocktoday` : variante contrefactuelle
+  déclarée, le devis de la révision courante aujourd'hui si le lotissement avait, après « Lot 1 »,
+  un second lot, « Lot 2 », sans poste, qu'aucune tâche ne porte — le témoin n'a qu'un lot, que
+  porte la récapitulative « Poste de commande ». Tout le reste est `estimate_indicators` ; le lot
+  ajouté a son montant et sa part non calculables, motif `work_package_without_task`, plutôt que
+  nuls (`mockindicators.estimate`, qui reçoit le lotissement, celui du témoin par défaut).
+- **Non le projet créé aujourd'hui**, dont le lotissement par défaut n'est porté par aucune tâche :
+  son devis vide a un total nul, et l'exemple n'aurait montré le lot sans total qu'à côté d'aucun
+  lot calculé ; la variante montre l'un à côté de l'autre, comme l'écran les présente.
+
+**Lot** 718.
 
 ## Collage et annulation
 
