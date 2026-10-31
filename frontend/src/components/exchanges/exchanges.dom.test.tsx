@@ -552,7 +552,9 @@ describe("the report of an import", () => {
     // The user goes elsewhere: the report is gone, the tracker stays and follows the task.
     view.rerender(shell(<p>Ailleurs</p>));
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
-    expect(await within(tasksRegion()).findByText(/Application d’un import/)).toBeVisible();
+    await waitFor(() =>
+      expect(within(tasksRegion()).getByText(/Application d’un import/)).toBeVisible(),
+    );
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     // The task did succeed, the report not being there to lead anywhere.
     await waitFor(() => {
