@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the risks of a project — one declared (`createRisk`) or modified
- * (`updateRisk`, from the version read), reviewed (`reviewRisk`), deleted (`deleteRisk`) or declared
- * occurred (`readRiskOccurrenceReport`, `declareRiskOccurrence`): the browser asks the server of
- * Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). A
- * write answered reads the page anew, which lists what the server now retains — but for the deletion,
- * which the screen leaves for the address without the risk, and the occurrence, handed to the worker,
- * which the tracker of the shell follows.
+ * (`updateRisk`, from the version read), reviewed (`reviewRisk`), deleted (`deleteRisk`) or
+ * declared occurred (`readRiskOccurrenceReport`, `declareRiskOccurrence`): the browser asks the
+ * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes of
+ * its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what the
+ * server now retains — but for the deletion, which the screen leaves for the address without the
+ * risk, and the occurrence, handed to the worker, which the tracker of the shell follows.
  */
 "use server";
 

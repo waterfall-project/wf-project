@@ -84,6 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   router.push.mockClear();
   router.refresh.mockClear();
@@ -291,7 +292,6 @@ describe("« Déclarer survenu »", () => {
     await openDeclare();
     expect(client.calls.filter((call) => call.route === OCCURRENCE_REPORT)).toHaveLength(2);
     expect(client.calls.filter((call) => call.route === OCCURRENCE)).toHaveLength(1);
-    vi.useRealTimers();
   });
 
   it("leaves a risk occurred with no command of entry, each saying why [WF-RIS-0020-A]", () => {
