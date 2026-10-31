@@ -9,6 +9,7 @@
  * name the revision produced bears, and confirms with the two counters the report read
  * (`mergeCostStructure`); a merge asked of the last revision marked, the project having none in
  * progress, says it first creates the revision in progress by copy (`creates_current_revision`, #790).
+ * The revision marked may bear a description, optional, as at the marking (`StructureMerge.description`).
  * Abandoning sends nothing: the report is a read. A report gone stale (412)
  * offers to read it anew, and the form keeps the name typed. The merge is handed to the worker: the
  * tracker of the shell follows it (WF-IHM-0080), and once it has succeeded the screen says which
@@ -140,6 +141,8 @@ function ReportPanel({
   onRead,
   name,
   onName,
+  description,
+  onDescription,
   names,
 }: {
   readonly amendment: MergedAmendment;
@@ -148,6 +151,8 @@ function ReportPanel({
   readonly onRead: (report: Outcome<Report> | undefined) => void;
   readonly name: string;
   readonly onName: (name: string) => void;
+  readonly description: string;
+  readonly onDescription: (description: string) => void;
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("mergeReport");
@@ -201,6 +206,20 @@ function ReportPanel({
           {t("versionNameHint")}
         </p>
       </div>
+      <div className="space-y-1">
+        <label htmlFor={`${field}-description`} className="block text-sm font-medium">
+          {t("description")}
+        </label>
+        <textarea
+          id={`${field}-description`}
+          value={description}
+          rows={3}
+          onChange={(event) => {
+            onDescription(event.target.value);
+          }}
+          className={`py-1 ${FIELD}`}
+        />
+      </div>
     </div>
   );
 }
@@ -230,6 +249,7 @@ export function MergeAmendmentCommand({
   const [report, setReport] = useState<Outcome<Report>>();
   const [attempt, setAttempt] = useState(0);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [followed, setFollowed] = useState<Merged>();
   const [reference, setReference] = useState<{ readonly version: string }>();
   const revisions = useRef<HTMLAnchorElement>(null);
@@ -252,6 +272,7 @@ export function MergeAmendmentCommand({
       ? undefined
       : {
           versionName: name.trim(),
+          description: description.trim(),
           mainStructureLockVersion: read.main_structure_lock_version,
           amendmentLockVersion: read.amendment_lock_version,
         };
@@ -299,6 +320,8 @@ export function MergeAmendmentCommand({
           onRead={onRead}
           name={name}
           onName={setName}
+          description={description}
+          onDescription={setDescription}
           names={names}
         />
       </ConfirmedCommand>

@@ -44,11 +44,11 @@ const STRUCTURE = {
 const planning = example("nodes_planning") as NodeList;
 
 /** Render the grid of the planning, its Gantt last, in a language. */
-function renderPlanning(locale: Locale = "fr") {
+function renderPlanning(locale: Locale = "fr", nodes: NodeList = planning) {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <PlanningGrid
-        nodes={planning}
+        nodes={nodes}
         structure={STRUCTURE}
         structureVersion={1}
         filters={{}}
@@ -137,6 +137,54 @@ describe("the Gantt of the planning", () => {
       "20",
       "27",
     ]);
+  });
+
+  it("names the link in conflict in the bar of the manual task and in that of its predecessor [WF-PLA-0020-A]", () => {
+    // Une tâche manuelle datée avant la fin calculée de son prédécesseur est signalée dans le Gantt,
+    // avec ce prédécesseur.
+    const [review, desks] = ["Revue de conception", "Pupitres opérateurs"].map((label) =>
+      planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    renderPlanning("fr", {
+      ...planning,
+      items: planning.items.map((node) => {
+        if (node.task === undefined || node.task === null) {
+          return node;
+        }
+        if (node.node_id === desks.node_id) {
+          const link = {
+            predecessor_node_id: review.node_id,
+            predecessor_row_number: review.row_number,
+            link_type: "finish_to_start" as const,
+            lag: { value: "0", unit: "d" as const },
+          };
+          return {
+            ...node,
+            predecessors: [link],
+            task: { ...node.task, link_conflicts: [conflict] },
+          };
+        }
+        return node.node_id === review.node_id
+          ? { ...node, task: { ...node.task, link_conflicts: [conflict] } }
+          : node;
+      }),
+    });
+    const bar = (label: string) => within(ganttOf(label)).getByRole("img");
+    expect(bar("Pupitres opérateurs")).toHaveAccessibleName(
+      "Du 02/03/2026 au 24/04/2026 — Liaison en conflit\u00a0: 5FD vers la ligne 4",
+    );
+    expect(bar("Revue de conception")).toHaveAccessibleName(
+      "Du 13/04/2026 au 24/04/2026 — critique — Liaison en conflit\u00a0: 5FD vers la ligne 4",
+    );
+    expect(bar("Dossier de conception")).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
   });
 
   it("names each bar by the dates the API gives, a milestone by its day, the critical path in words [WF-PLA-0090-A]", () => {

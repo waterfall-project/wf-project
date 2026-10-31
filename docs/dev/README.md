@@ -917,7 +917,18 @@ d'accessibilité (`DIFFERENTIAL_SCREENS`).
 
 ### La grille de planning et le Gantt
 
-La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
+Au-dessus de la grille, la date de début de planning de la structure lue (`CostStructure.planning_start_on`,
+WF-PLA-0020), telle que le serveur la donne (`PlanningStart`, `planning-start.tsx`) ; là où la structure
+liste `edit_planning`, une commande confirmée la change (`updateCostStructure`, `updateStructure`) avec le
+compteur de la structure, la page relue pour les tâches que le serveur redate, et la date répondue montrée
+tant que la page lue est plus ancienne ; un jour sans heure travaillée est refusé par `NON_WORKING_DAY`,
+dit sous le champ avec le jour travaillé suivant. L'écriture compte parmi celles de la grille
+(`StructureAccount.writing`). La grille présente les dates de démarrage et de terminaison
+(`started_on`, `completed_on`), en lecture seule, après la marge, et nomme la liaison en conflit
+(`link_conflicts`) par une icône dans la colonne des prédécesseurs — sur la tâche manuelle comme sur son
+prédécesseur — et dans le nom de la barre du Gantt : la ligne du prédécesseur, le type de la liaison, la
+ligne de la tâche quand la grille la lit (`link-conflicts.tsx`). La grille de planning présente aussi la
+description d'une tâche et l'avancement physique d'une
 récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
 (FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule, épinglée à
 droite (`GridColumn.pinned: "end"`, `pinning.ts`, US-0530) : elle glisse sur les colonnes qui la

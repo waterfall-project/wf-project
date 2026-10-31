@@ -59,6 +59,7 @@ import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { FoldToggle } from "@/components/grid/fold";
+import { useConflictNames } from "@/components/grid/link-conflicts";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { formatPlanningDate } from "@/i18n/format";
@@ -692,17 +693,21 @@ function Bar({ bar }: { readonly bar: GanttBar }) {
   );
 }
 
-/** The name of a bar: its dates, as the API gives them, and whether it is on the critical path. */
+/**
+ * The name of a bar: its dates, as the API gives them, whether it is on the critical path, and the
+ * links in conflict it bears, named (WF-PLA-0020).
+ */
 function barName(
   task: NonNullable<GanttRow["task"]>,
   locale: Locale,
   name: (start: string, finish: string) => string,
+  conflicts: string,
 ): string {
   const date = (instant: { readonly date: string } | null | undefined) =>
     instant === null || instant === undefined
       ? ""
       : formatPlanningDate(instant.date, locale, "short");
-  return name(date(task.start), date(task.finish));
+  return `${name(date(task.start), date(task.finish))}${conflicts}`;
 }
 
 /** Where the button that folds a summary stands: just before its bracket, within the cell. */
@@ -728,6 +733,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
   const locale = useLocale();
   const view = use(GanttContext);
   const pattern = useId();
+  const conflicts = useConflictNames(row);
   if (view === undefined) {
     return null;
   }
@@ -742,8 +748,12 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
         aria-hidden={named ? undefined : true}
         aria-label={
           named
-            ? barName(task, locale, (start, finish) =>
-                t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
+            ? barName(
+                task,
+                locale,
+                (start, finish) =>
+                  t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
+                conflicts.map((conflict) => t("conflict", { conflict })).join(""),
               )
             : undefined
         }

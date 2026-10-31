@@ -218,7 +218,7 @@ describe("the reading of the help", () => {
       expect(page.title).toBe("Chiffrage et devis");
       expect(page.sections.map((section) => section.heading)).toEqual([...SCREEN_HEADINGS]);
       expect(page.columns.map((column) => column.help)).toContain("estimate.referenceAmount");
-      expect(page.columns.find((column) => column.help === "estimate.category")?.computed).toBe(
+      expect(page.columns.find((column) => column.help === "estimate.paymentDelay")?.computed).toBe(
         false,
       );
       expect(

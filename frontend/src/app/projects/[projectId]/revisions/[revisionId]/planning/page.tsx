@@ -268,6 +268,7 @@ export default async function PlanningPage({
             nodes: screen.nodes,
             structure: screen.structure,
             structureVersion: screen.structureVersion,
+            planningStart: { on: screen.planningStart, label: screen.label },
             filters: screen.filters,
             query: screen.query,
             preferences: screen.preferences,

@@ -346,6 +346,27 @@ test("offers no skeleton above the grid of the witness, whose structure bears it
   ).toHaveCount(0);
 });
 
+test("shows the planning start date of the structure and the dates its tasks started and completed on, and changes the date, the server answering the week before [WF-PLA-0020-A] [WF-PLA-0080-A]", async ({
+  page,
+}) => {
+  // The fake back answers `updateCostStructure` by its first example, the date advanced by a week to
+  // 23 February: the grid shows the date answered, and says it keeps nothing. The refusal of a day
+  // without a working hour is proven on the examples by `planning-start.dom.test.tsx`.
+  await openHydrated(page, `${IN_REVISION}/planning`);
+  const grid = page.getByRole("treegrid", { name: "Grille de planning" });
+  for (const name of ["Démarrée le", "Terminée le"]) {
+    await expect(grid.getByRole("columnheader", { name, exact: true })).toBeVisible();
+  }
+  const start = page.getByRole("region", { name: "Date de début de planning" });
+  await expect(start).toContainText("02/03/2026");
+  await start.getByRole("button", { name: "Modifier la date de début de planning" }).click();
+  const form = start.getByRole("form", { name: "Modifier la date de début de planning" });
+  await form.getByLabel("Date de début de planning").fill("2026-02-23");
+  await form.getByRole("button", { name: "Confirmer la date" }).click();
+  await expect(start).toContainText("23/02/2026");
+  await expect(start.getByText("La date de début de planning est le 23/02/2026.")).toBeVisible();
+});
+
 test("draws the Gantt beside the grid, row for row, the critical path told in words, and modifies no task [WF-PLA-0090-A]", async ({
   page,
 }) => {

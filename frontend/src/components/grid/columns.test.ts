@@ -153,7 +153,9 @@ describe("the columns of the grid of the estimate", () => {
       ESTIMATE_GRID.columns.filter(keep).map((column) => column.key);
     expect(keys((column) => column.pinned === true)).toEqual(["label"]);
     expect(keys((column) => column.computed?.whole === true)).toEqual(["base_amount"]);
+    // The category is computed in a line of labour, the one of its role (WF-DEV-0020).
     expect(keys((column) => column.computed?.whole === false)).toEqual([
+      "cost_category",
       "quantity",
       "hours",
       "unit_disbursement",
