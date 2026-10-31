@@ -456,6 +456,10 @@ def _stale_examples() -> dict[str, JsonObject]:
     subproject = cast("list[JsonObject]", fixture("subprojects"))[0]
 
     def told(what: str, who: str, now: JsonValue, *, feminine: bool = False) -> str:
+        # The counter sent is the one before: the object of the witness was written once at least.
+        if not isinstance(now, int) or now < 1:
+            message = f"{what}: a counter of 1 at least is needed to send the one before, not {now}"
+            raise ValueError(message)
         e = "e" if feminine else ""
         return (
             f"{what} envoyé{e} avec le compteur {cast('int', now) - 1}, quand {who} porte {now} — "

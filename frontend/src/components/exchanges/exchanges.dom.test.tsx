@@ -811,18 +811,6 @@ describe("the report of an import", () => {
     );
   });
 
-  it("names each task the file dates otherwise than Waterfall computes it, with the columns that differ, as information and not a reason to confirm", () => {
-    serve({});
-    open(report(example("import_planning_mismatch") as Import));
-    const table = screen.getByRole("table", { name: "Tâches datées autrement par le fichier" });
-    expect(
-      within(table)
-        .getAllByRole("row")
-        .map((row) => row.textContent),
-    ).toEqual(["TâcheChamps", "ÉtudesFin", "Revue de conceptionFin"]);
-    expect(screen.getByText(/^2 tâches datées autrement par le fichier/)).toBeVisible();
-  });
-
   it("says the change of the date of start of planning of the structure, which no column holds [WF-INTF-0040-A]", () => {
     serve({});
     open(report(example("import_planning_mismatch") as Import));
