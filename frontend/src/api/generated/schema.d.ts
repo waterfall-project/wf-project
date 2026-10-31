@@ -11473,7 +11473,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Plan de collage. */
+            /** @description Plan de collage. L'exemple `unknown_category` montre une cellule de catégorie refusée, `without_hours` une cellule de rôle qui laisserait la tâche de sa ligne sans aucune heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010 ; #779). */
             200: {
                 headers: {
                     [name: string]: unknown;

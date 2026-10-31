@@ -2039,7 +2039,10 @@
           schema: { $ref: ../components/schemas/revisions.yaml#/PastePreview }
     responses:
       '200':
-        description: Plan de collage.
+        description: >-
+          Plan de collage. L'exemple `unknown_category` montre une cellule de catégorie refusée,
+          `without_hours` une cellule de rôle qui laisserait la tâche de sa ligne sans aucune heure
+          travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010 ; #779).
         content:
           application/json:
             schema: { $ref: ../components/schemas/revisions.yaml#/PastePlan }

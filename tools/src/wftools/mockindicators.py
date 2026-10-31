@@ -625,14 +625,15 @@ def estimate(
     against: Reading | None = None,
     previous: Reading | None = None,
     missing: frozenset[str] = frozenset(),
+    breakdown: Sequence[WorkPackage] = WORK_BREAKDOWN,
 ) -> JsonObject:
     """Return the indicators of the estimate of a revision (`EstimateIndicators`, WF-DEV-0060).
 
-    Its total re-estimated, inflation included, by nature, by subproject and by lot; its
-    provisions; its gaps to the estimate of the reference and of the previous marked revision,
-    absent without them. That of a marked revision is the one its marking kept (WF-DAT-0040). A
-    category in ``missing`` has no rate for the reference year: what its
-    lines touch is not computed (WF-DEV-0010).
+    Its total re-estimated, inflation included, by nature, by subproject and by each lot of
+    ``breakdown``, that of the witness by default; its provisions; its gaps to the estimate of the
+    reference and of the previous marked revision, absent without them. That of a marked revision
+    is the one its marking kept (WF-DAT-0040). A category in ``missing`` has no rate for the
+    reference year: what its lines touch is not computed (WF-DEV-0010).
     """
     lines = reading.lines
     absent = missing_rates(reading, lines, missing)
@@ -650,7 +651,7 @@ def estimate(
         "total": _amount(reading, lines, missing),
         "by_cost_type": _parts(reading, natures(lines), missing),
         "by_subproject": _parts(reading, subprojects(reading, lines), missing),
-        "by_work_package": by_work_package(reading, missing),
+        "by_work_package": by_work_package(reading, missing, breakdown),
         "provisions_identified": money(
             _estimate(line for line in lines if mockhistory.is_provision(line))
         ),

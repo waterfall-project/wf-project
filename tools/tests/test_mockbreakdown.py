@@ -75,6 +75,9 @@ say; the rescuer of `project_rescue` holds the role of Camille Martin in its var
 QUALITIES = ("is_contributor", "is_project_manager")
 """The qualities a command lacks before its conditions of state (WF-IHM-0090, US-0701/L9)."""
 
+BACKGROUND_READ = "project_background_task_running"
+"""The witness read while the marking of its current revision runs (US-0660/L2, #1142)."""
+
 SAID = {
     "task_attach_refused": ["« Études »", "« Poste de commande » porte déjà", "un lot n'est"],
     "task_attach_outside_work_package": ["« Études »", "poste « Poste 1.1 » du lot « Lot 1 »"],
@@ -738,8 +741,9 @@ def test_a_file_that_would_move_a_package_out_or_pass_the_horizon_is_rejected_wh
 
 def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_its_order() -> None:
     # #775: the entry of the work breakdown withdraws the attachment of tasks of the current
-    # revision. Its command follows update and holds its conditions — no example shows it during
-    # a background task, which no project example reads —, and its 409 names each condition the
+    # revision. Its command follows update and holds its conditions, then
+    # no_background_task_running in the one project read during a background task
+    # (`project_background_task_running`, #1142, point 5); its 409 names each condition the
     # command says missing in an example, then no_background_task_running, in that order (M2).
     enumerated = _enumeration(_schemas("projects.yaml"), "ProjectCommand")
     assert (
@@ -756,16 +760,20 @@ def test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_i
             if "update" not in listed:
                 continue
             breakdown = listed["update_work_breakdown"]
-            assert breakdown["missing_conditions"] == listed["update"]["missing_conditions"], path
+            running = ["no_background_task_running"] * (path.stem == BACKGROUND_READ)
+            assert breakdown["missing_conditions"] == [
+                *listed["update"]["missing_conditions"],
+                *running,
+            ], path
             missing += [
                 each
                 for each in breakdown["missing_conditions"]
                 if each not in missing and each not in QUALITIES
             ]
-    # No example lists it unavailable but for the qualities: a terminal project lists no command
-    # (US-0702/L3), and its 409 alone names `project_not_terminal`, before the task in the
-    # background.
-    assert missing == []
+    # No example lists it unavailable but for the qualities and the task in the background: a
+    # terminal project lists no command (US-0702/L3), and its 409 alone names
+    # `project_not_terminal`, before the task in the background.
+    assert missing == ["no_background_task_running"]
     refused = fixture("work_breakdown_background_task")
     assert refused["params"] == {"missing_condition": "no_background_task_running"}
     said = " ".join((PATHS / "projects.yaml").read_text(encoding="utf-8").split())

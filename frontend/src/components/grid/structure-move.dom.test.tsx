@@ -478,6 +478,16 @@ describe("the refusal of a move, said to the row in cause", () => {
     },
   );
 
+  it("names the task of the lot and that of the post a move would take out of its subtree, as the contract gives them [WF-PLA-0170-A]", async () => {
+    serve({ [MOVE]: refusal("nodes_move_outside_work_package") });
+    render(estimateGrid());
+    await choose(TRANSPORT, "Indenter");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
+    );
+  });
+
   it("names the task and both roles a move would leave without a working hour, as the grid of the estimate knows them [WF-PLA-0010-A]", async () => {
     serve({ [MOVE]: refusal("nodes_move_without_hours") });
     render(estimateGrid());
@@ -492,6 +502,9 @@ describe("the refusal of a move, said to the row in cause", () => {
   it("names the task of a move refused from the planning, whose grid reads no role: the roles are left unnamed, by no identifier [WF-PLA-0010-A]", async () => {
     // The planning lists tasks and reads no estimate line nor the settings of the resources: the
     // roles of the refusal stay unnamed, and the notice says so.
+    // This fallback sentence does not yet hold the Vérif of WF-PLA-0010 (« en nommant les deux
+    // rôles »): the decision of #1684 is awaited, and this test freezes the sentence as it is. It will have to
+    // change with that decision.
     serve({ [MOVE]: refusal("nodes_move_without_hours") });
     render(planningGrid());
     await choose(REVIEW, "Indenter");

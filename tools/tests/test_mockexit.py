@@ -25,6 +25,8 @@ SCHEMAS = API / "components" / "schemas"
 EXITS = ("complete", "lose", "abandon")
 TERMINAL = ("completed", "lost", "abandoned")
 QUALITIES = ("is_contributor", "is_project_manager")
+BACKGROUND = "no_background_task_running"
+"""The condition a background task takes away, which no state of the cycle of life commands."""
 CYC_0090 = (
     "après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans "
     "sa dernière révision marquée"
@@ -196,7 +198,7 @@ def test_an_exit_that_will_never_become_possible_is_not_listed() -> None:
     for name, project in _projects():
         commands = _commands(project)
         exits = {
-            command: [each for each in missing if each not in QUALITIES]
+            command: [each for each in missing if each not in (*QUALITIES, BACKGROUND)]
             for command, missing in commands.items()
             if command in EXITS
         }
@@ -301,3 +303,48 @@ def test_the_project_code_is_never_blank_and_bears_no_slash() -> None:
     description = " ".join(_schemas()["ProjectCode"]["description"].split())
     assert "blanc et porteur d'une barre oblique" in description
     assert "`PROJECT_CODE_INVALID`, la barre oblique d'abord" in description
+
+
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_during_a_marking_the_commands_it_would_make_stale_name_the_task_in_the_background() -> (
+    None
+):
+    # Corps : « Une commande qu'un état du projet, d'une révision ou d'une tâche rend
+    # momentanément impossible est présentée indisponible, avec la condition qui manque » ; aucun
+    # Vérif ne porte le traitement de fond. #1142, point 5 (US-0660/L2): the entry of the work
+    # breakdown unavailable while the marking of `revision_marking` runs, as `setWorkBreakdown`
+    # refuses it (`work_breakdown_background_task`) — and the exits, the occurrence and the
+    # imports with it; the other commands as the witness lists them.
+    witness = _commands(fixture("project"))
+    read = fixture("project_background_task_running")
+    marking = _commands(read)
+    assert marking.keys() == witness.keys()
+    suspended = {
+        "update_work_breakdown",
+        *EXITS,
+        "declare_risk_occurrence",
+        "import_planning",
+        "import_estimate",
+        "import_remaining",
+    }
+    assert suspended == mockproject.SUSPENDED
+    for command, missing in marking.items():
+        tail = [BACKGROUND] if command in suspended else []
+        assert missing == [*witness[command], *tail], command
+    assert marking["update_work_breakdown"] == [BACKGROUND]
+    listed = cast("list[Entry]", read["available_commands"])
+    assert all(each["is_available"] is (not each["missing_conditions"]) for each in listed)
+    # The instant of the revision being marked, and of the 409 of the entry it explains; the
+    # project itself unchanged, its counter with it.
+    assert fixture("revision_marking")["revision_id"] == fixture("project")["current_revision_id"]
+    refused = fixture("work_breakdown_background_task")
+    assert refused["params"] == {"missing_condition": BACKGROUND}
+    attributes = {key: value for key, value in read.items() if key != "available_commands"}
+    witnessed = fixture("project")
+    assert attributes == {
+        key: value for key, value in witnessed.items() if key != "available_commands"
+    }
+    cited = _operation("/projects/{project_id}", "get")["responses"]["200"]["content"]
+    examples = cited["application/json"]["examples"]
+    stem = Path(examples["background_task_running"]["$ref"]).stem
+    assert stem == "project_background_task_running"

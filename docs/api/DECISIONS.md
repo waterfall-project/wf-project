@@ -5426,7 +5426,8 @@ engendré verrait `?`.
 **Ce que fait l'outil.** `mockstructure.part_share` donne toute part : `Computable` calculable, ou
 non calculable de motif `no_total` quand `partition` ou `share` n'en trouve pas ; le devis, le reste
 à engager et la structure des coûts du portefeuille l'emploient, et un lot sans tâche garde
-`work_package_without_task`. Aucun exemple n'a de total nul ; ceux de `AmountByKey` (le reste à
+`work_package_without_task`, que montre `estimate_indicators_work_package_without_task` depuis
+US-0660/L2. Aucun exemple n'a de total nul ; ceux de `AmountByKey` (le reste à
 engager, la structure des coûts) prennent la forme `Computable`, engendrés par `make mock-data`.
 `tools/tests/test_mocktoday.py` tient la part d'un total nul sur l'outil, sur le devis et le reste à
 engager d'une structure sans ligne, et sur la structure des coûts d'un portefeuille sans projet en
@@ -5938,6 +5939,9 @@ nulle, qui ne présente aucun poste.
 `EstimateIndicators.by_work_package`, motif `work_package_without_task`, section « Le lotissement en
 lots, postes et livrables ».*
 
+*Complété par US-0660/L2 : l'exemple du lot sans tâche rattachée vient d'une variante déclarée du
+témoin, non du projet créé aujourd'hui, section « Le lot sans tâche rattachée, présenté sans total ».*
+
 **Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
 La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
 marquage, une fusion, une survenance ou l'application d'un import, elle est indisponible. Une
@@ -5953,6 +5957,10 @@ structure principale, comme une écriture de grille. Les huit projets écrits à
 commande ; les listes dérivées sont engendrées. Écartés : la condition sur `update`, qui aurait
 fermé l'identité du projet pendant un marquage ; le 409 seul, une commande que l'état rend
 impossible devant être présentée indisponible (WF-IHM-0090).
+
+*Complété par US-0660/L2 : la commande présentée indisponible a son exemple,
+`project_background_task_running` de `getProject`, section « La saisie du lotissement indisponible
+pendant un traitement de fond ».*
 
 **Les tâches du refus d'un lot hors de son poste sont nommées par leur libellé** (#775, point 2, et
 le commentaire de la relecture 2 de L42k ; WF-PLA-0170, WF-IHM-0080).
@@ -10005,6 +10013,56 @@ manque se corrige au contrat, dans l'US. Aucun schéma ne change.
   « Préparation 1.1.1 » gardant l'ingénieur ; variante contrefactuelle déclarée, `paste_id` 997.
   La confirmation redit ce refus comme tout refus de l'aperçu (`PasteApplied.rejected`) : aucun
   exemple de `applyPaste` n'est ajouté, `paste_applied_partial` montrant déjà la forme.
+
+### Le lot sans tâche rattachée, présenté sans total (US-0660/L2, #1336, #1142)
+
+L'adoption par le front de WF-DEV-0060 l'a révélé (#1142, point 4) : aucun exemple ne portait un
+lot de `by_work_package` à total non calculable, et l'écran du devis ne pouvait montrer le lot
+« présenté sans total » que sur un objet écrit à la main. Le manque se corrige au contrat, dans
+l'US. Aucun schéma ne change.
+
+- **`estimate_indicators_work_package_without_task`**, nouvel exemple de `getEstimateIndicators`
+  (`work_package_without_task`), engendré par `wftools.mocktoday` : variante contrefactuelle
+  déclarée, le devis de la révision courante aujourd'hui si le lotissement avait, après « Lot 1 »,
+  un second lot, « Lot 2 », sans poste, qu'aucune tâche ne porte — le témoin n'a qu'un lot, que
+  porte la récapitulative « Poste de commande ». Tout le reste est `estimate_indicators` ; le lot
+  ajouté a son montant et sa part non calculables, motif `work_package_without_task`, plutôt que
+  nuls (`mockindicators.estimate`, qui reçoit le lotissement, celui du témoin par défaut).
+- **Non le projet créé aujourd'hui**, dont le lotissement par défaut n'est porté par aucune tâche :
+  son devis vide a un total nul, et l'exemple n'aurait montré le lot sans total qu'à côté d'aucun
+  lot calculé ; la variante montre l'un à côté de l'autre, comme l'écran les présente.
+
+Clé `universe(718)`.
+
+### La saisie du lotissement indisponible pendant un traitement de fond (US-0660/L2, #1336, #1142)
+
+L'adoption par le front de la saisie du lotissement l'a révélé (#1142, point 5) : aucun exemple
+de projet ne lisait `update_work_breakdown` indisponible, `no_background_task_running`
+manquante — seul le 409 de `setWorkBreakdown` la nommait (`work_breakdown_background_task`) —,
+et le test de l'écran construisait la liste à la main. Le manque se corrige au contrat, dans
+l'US. Aucun schéma ne change.
+
+- **`project_background_task_running`**, nouvel exemple de `getProject` (`background_task_running`),
+  engendré par `wftools.mockproject` : variante contrefactuelle déclarée, le projet témoin lu
+  pendant que court le marquage de sa révision en cours, celui que montre `revision_marking`. Les
+  commandes que ce traitement rendrait caduques, comme `CommandCondition` les nomme — la saisie du
+  lotissement, les sorties listées au témoin (`complete`, `abandon` ; `lose`, absente dès En cours,
+  n'y figure pas), la déclaration d'un risque survenu et les trois imports qui écriraient dans la
+  révision —, sont indisponibles, `no_background_task_running` ajoutée après leurs conditions d'état
+  (`mockproject.SUSPENDED`) ; les autres, ses attributs et son compteur sont ceux de `project`, le
+  marquage n'écrivant rien dans le projet.
+- **Le marquage, non un import ni une survenance** : `revision_marking` et
+  `work_breakdown_background_task` en montrent déjà la révision et le refus, et l'exemple les
+  rejoint au même instant ; l'application d'un import suspend les mêmes commandes du projet.
+- **L'exigence citée.** Aucun Vérif ne porte ce cas : celui de WF-PLA-0170 ne dit rien du
+  traitement de fond, celui de WF-IHM-0090 parle de la terminaison d'un projet en chiffrage. Le
+  test, `test_during_a_marking_the_commands_it_would_make_stale_name_the_task_in_the_background`
+  (`tools/tests/test_mockexit.py`), cite WF-IHM-0090 par son corps, comme celui de la qualité ;
+  `test_the_work_breakdown_follows_update_and_its_409_names_the_conditions_in_its_order`
+  (`tools/tests/test_mockbreakdown.py`) tient la commande sous les conditions d'`update`, puis
+  celle du traitement de fond dans ce seul exemple.
+
+Aucun identifiant nouveau.
 
 ## Collage et annulation
 

@@ -31,6 +31,7 @@
               witness: { $ref: ../../../fixtures/api/estimate_indicators.json }
               breakdown: { $ref: ../../../fixtures/api/estimate_indicators_breakdown.json }
               missing_rates: { $ref: ../../../fixtures/api/estimate_indicators_missing_rates.json }
+              work_package_without_task: { $ref: ../../../fixtures/api/estimate_indicators_work_package_without_task.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
