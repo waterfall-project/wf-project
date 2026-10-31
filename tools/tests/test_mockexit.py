@@ -134,6 +134,65 @@ def test_the_exit_answers_the_project_or_the_task_and_the_body_bears_the_fate() 
 
 
 @pytest.mark.requirement("WF-CYC-0090-A")
+@pytest.mark.requirement("WF-IHM-0080-A")
+def test_the_task_of_the_exit_is_read_as_the_marking_s_and_runs_again_as_a_task_of_its_own() -> (
+    None
+):
+    # Vérif : « [...] après la sortie, le projet n'a plus de révision en cours, et ses indicateurs
+    # se lisent dans sa dernière révision marquée » ; WF-IHM-0080 : « L'échec d'un traitement de
+    # fond est signalé avec son motif, et le même traitement peut être relancé. » The follow-up of
+    # the front pairs the reads with the task by its identifier: each read of the exit's task bears
+    # it, the relaunch a new one (US-0703/L4).
+    queued = fixture("task_exit_mark_queued")
+    reads = {
+        "task_exit_mark_running": "task_running",
+        "task_exit_mark_succeeded": "task_succeeded",
+        "task_exit_mark_failed": "task_failed",
+        "task_exit_mark_relaunched": "task_mark_relaunched",
+    }
+    instants = ("task_id", "submitted_at", "finished_at")
+    for name, marking in reads.items():
+        read, model = fixture(name), fixture(marking)
+        # The same marking of the 102, the same progress and motive: only the task is its own.
+        assert {key: value for key, value in read.items() if key not in instants} == {
+            key: value for key, value in model.items() if key not in instants
+        }, name
+        assert read["task_id"] != model["task_id"], name
+    for name in ("task_exit_mark_running", "task_exit_mark_succeeded", "task_exit_mark_failed"):
+        read = fixture(name)
+        assert (read["task_id"], read["submitted_at"]) == (
+            queued["task_id"],
+            queued["submitted_at"],
+        )
+    succeeded, failed = fixture("task_exit_mark_succeeded"), fixture("task_exit_mark_failed")
+    assert (succeeded["status"], succeeded["problem"]) == ("succeeded", None)
+    assert failed["status"] == "failed"
+    assert failed["problem"]["code"] == "HOURLY_RATE_MISSING"
+    # Run again after the failure: a task of its own, put in the queue after it.
+    relaunched = fixture("task_exit_mark_relaunched")
+    others = {queued["task_id"], fixture("task_mark_relaunched")["task_id"]}
+    assert relaunched["task_id"] not in others
+    assert relaunched["status"] == "queued"
+    assert failed["finished_at"] < relaunched["submitted_at"]
+    # The exit applied when the task succeeds, under the name its body gives; not when it fails.
+    named = f"« {fixture('project_exit_marking')['current_revision']['version_name']} »"
+    assert named in _summary("task_exit_mark_succeeded")
+    assert CYC_0090 in _summary("task_exit_mark_succeeded")
+    assert "la sortie ne s'applique pas" in _summary("task_exit_mark_failed")
+    # Declared where the front reads them: the reads of the task, and the exit run again.
+    paths = yaml.safe_load((API / "paths" / "system.yaml").read_text("utf-8"))
+    task = paths["/tasks/{task_id}"]["get"]["responses"]["200"]["content"]["application/json"]
+    declared = {Path(each["$ref"]).stem for each in task["examples"].values()}
+    assert set(reads) <= declared
+    exit_ = _operation("/projects/{project_id}/exit", "post")["responses"]["202"]
+    answered = exit_["content"]["application/json"]["examples"]
+    assert {key: Path(each["$ref"]).stem for key, each in answered.items()} == {
+        "marking": "task_exit_mark_queued",
+        "relaunched": "task_exit_mark_relaunched",
+    }
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
 def test_a_marking_without_a_version_name_or_under_a_name_taken_is_refused() -> None:
     # Vérif : « [...] la sortie n'est appliquée qu'avec ce choix » ; le marquage suit celui de
     # `markRevision` (WF-REV-0020) : un nom exigé, et unique parmi les révisions marquées.

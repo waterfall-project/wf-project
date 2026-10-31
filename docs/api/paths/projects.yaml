@@ -376,6 +376,7 @@
             schema: { $ref: ../components/common.yaml#/BackgroundTaskRef }
             examples:
               marking: { $ref: ../../../fixtures/api/task_exit_mark_queued.json }
+              relaunched: { $ref: ../../../fixtures/api/task_exit_mark_relaunched.json }
       '400':
         description: >-
           Un corps illisible, `MALFORMED_REQUEST` ; ou une sortie sans sa confirmation,

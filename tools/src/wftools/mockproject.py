@@ -10,7 +10,10 @@ L-25, on examples drawn from those written by hand:
   and the exit answers the project (``project_completed``, written by hand, which says so); the
   other marks it under a version name no marked revision bears, and the exit answers the task of
   the marking (``task_exit_mark_queued.json``), the exit applied when it succeeds (WF-CYC-0090,
-  WF-ARC-0090); ``project_exit_revision_required.json``, the exit sent without the fate of the
+  WF-ARC-0090); that task read as the marking's are — ``task_exit_mark_running.json``,
+  ``task_exit_mark_succeeded.json``, the exit applied, and ``task_exit_mark_failed.json``, nothing
+  applied — and run again, ``task_exit_mark_relaunched.json``, a task of its own (US-0703/L4);
+  ``project_exit_revision_required.json``, the exit sent without the fate of the
   revision in progress, refused; ``project_exit_version_name_required.json`` and
   ``project_exit_version_name_taken.json``, the exit that marks it without a version name, or
   under one a marked revision bears already, refused as ``markRevision`` refuses them;
@@ -38,6 +41,7 @@ Nothing here reads the clock or draws at random, nor a file the same command wri
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
@@ -48,8 +52,9 @@ from wftools.mockwitness import fixture
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
 
-EXIT_TASK = universe(955)
-"""The task of the marking an exit of the witness starts (`exitProject`, 202)."""
+EXIT_TASK, EXIT_RELAUNCHED_TASK = universe(955), universe(959)
+"""The task of the marking an exit of the witness starts (`exitProject`, 202), and the one the
+exit run again after its failure starts in its place."""
 
 REQUIRED_CORRELATION, CODE_CORRELATION = universe(1606), universe(1607)
 NAME_REQUIRED_CORRELATION, NAME_TAKEN_CORRELATION = universe(1608), universe(1609)
@@ -147,18 +152,40 @@ def exit_marking() -> JsonObject:
     }
 
 
-EXIT_SUBMITTED = "2026-06-03T14:05:30Z"
-"""When the exit puts its marking in the queue: within the minute of the write of today, at an
-instant no other task of the universe is submitted at (`test_mockuniverse`)."""
+EXIT_DELAY = timedelta(seconds=30)
+"""How long after the marking of today (`task_mark_queued`) the exit puts its own in the queue:
+within the same minute, at an instant no other task of the universe is submitted at, and each
+instant of its follow-up as long after that of the marking (`test_mockuniverse`)."""
+
+_INSTANTS = ("submitted_at", "finished_at")
+_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def _later(instant: JsonValue) -> JsonValue:
+    """Return an instant of a task of the marking, as long after as the exit's is, or none."""
+    if instant is None:
+        return None
+    moment = datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
+    return (moment + EXIT_DELAY).strftime(_FORMAT)
+
+
+def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
+    """Return a read of the task of the marking the exit starts, after one of `markRevision`'s.
+
+    The same revision, the 102, marked the same way and failing for the same motive: only its
+    identifier, and its instants, a little later, are its own.
+    """
+    task = cast("JsonObject", fixture(marking))
+    return {
+        **task,
+        "task_id": task_id,
+        **{key: _later(task[key]) for key in _INSTANTS},
+    }
 
 
 def exit_mark_queued() -> JsonObject:
     """Return the task of the marking the exit starts: a marking of today, a task of its own."""
-    return {
-        **cast("JsonObject", fixture("task_mark_queued")),
-        "task_id": EXIT_TASK,
-        "submitted_at": EXIT_SUBMITTED,
-    }
+    return exit_task("task_mark_queued")
 
 
 def _refusal(
@@ -360,6 +387,39 @@ def examples() -> dict[str, JsonObject]:
             f"s'appliquera quand le marquage réussira, et rien si la tâche échoue (WF-CYC-0090, "
             f"WF-ARC-0090).",
             exit_mark_queued(),
+        ),
+        "task_exit_mark_running.json": mocktext.example(
+            f"Le marquage de la révision 102 sous « {VERSION_NAME} », que la sortie du projet "
+            f"témoin demandée à 14 h 05 a mis en file (task_exit_mark_queued), en cours : il a "
+            f"traité 40 % des objets de la révision, et le projet reste en cours, sa révision en "
+            f"cours avec lui, la sortie attendant sa réussite (WF-CYC-0090, WF-ARC-0090).",
+            exit_task("task_running"),
+        ),
+        "task_exit_mark_succeeded.json": mocktext.example(
+            f"La suite du marquage de la révision 102 sous « {VERSION_NAME} », que la sortie du "
+            f"projet témoin demandée à 14 h 05 a mis en file (task_exit_mark_queued) : abouti, la "
+            f"révision est marquée « {VERSION_NAME} », figée et ses indicateurs calculés, et la "
+            f"sortie s'applique, le projet passe Terminé ; après la sortie, le projet n'a plus de "
+            f"révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, "
+            f"« {VERSION_NAME} » (WF-CYC-0090, WF-REV-0020, WF-ARC-0090).",
+            exit_task("task_succeeded"),
+        ),
+        "task_exit_mark_failed.json": mocktext.example(
+            f"L'autre issue du marquage de la révision 102 sous « {VERSION_NAME} », que la sortie "
+            f"du projet témoin demandée à 14 h 05 a mis en file (task_exit_mark_queued) : échoué "
+            f"sans rien figer, pour le motif du marquage de la révision courante (task_failed), "
+            f"l'ingénierie électrique n'ayant pas de taux horaire pour 2026 ; la sortie ne "
+            f"s'applique pas : le projet reste en cours, sa révision en cours avec lui, et la "
+            f"sortie se relance (WF-CYC-0090, WF-ARC-0090, WF-DEV-0010, WF-IHM-0080).",
+            exit_task("task_failed"),
+        ),
+        "task_exit_mark_relaunched.json": mocktext.example(
+            f"La sortie du projet témoin relancée, après l'échec de son marquage "
+            f"(task_exit_mark_failed), avec le même corps (project_exit_marking) : une nouvelle "
+            f"tâche, le marquage de la révision 102 sous « {VERSION_NAME} » mis en file, qui n'a "
+            f"pas encore commencé ; la sortie s'appliquera quand il réussira (WF-CYC-0090, "
+            f"WF-ARC-0090, WF-IHM-0080).",
+            exit_task("task_mark_relaunched", EXIT_RELAUNCHED_TASK),
         ),
         "project_exit_revision_required.json": mocktext.example(
             "La sortie du projet témoin vers Terminé, confirmée sans le sort de sa révision en "

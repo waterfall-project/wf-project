@@ -9590,6 +9590,15 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   à US-0702 : le compteur de la sortie (E-13, E-24) — le sort ne porte pas celui de la révision — et
   les codes des autres refus d'`exitProject` (D-03), dont un sort envoyé à un projet sans révision
   en cours, que ni la spécification ni la revue ne disent.
+  **Complété par US-0703/L4** (#1615) : la tâche de la sortie se lit comme celle du marquage, dont
+  elle reprend les lectures, sous son identifiant (955) et trente secondes plus tard —
+  `task_exit_mark_running`, `task_exit_mark_succeeded` (« Clôture » marquée, la sortie appliquée)
+  et `task_exit_mark_failed` (le motif de `task_failed`, la sortie non appliquée), déclarés à
+  `getBackgroundTask` — et se relance par la sortie elle-même, du même corps :
+  `task_exit_mark_relaunched` (959, le dernier libre de la famille des tâches de fond), seconde
+  réponse 202 d'`exitProject`. Le suivi du front apparie les lectures à la tâche par son
+  identifiant : sans eux, son test réécrivait celui des exemples du marquage (…931), contre
+  « aucun mock ».
 - **Une sortie qui ne le deviendra jamais n'est pas listée** (D-02, L-03 ; Vérif de
   WF-CYC-0060). `ProjectCommand` dit la règle : `complete` listée à tout état non terminal,
   `project_in_progress` manquante avant En cours ; `lose` aux états Créé, `project_in_pricing`
