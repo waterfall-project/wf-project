@@ -245,6 +245,9 @@
       "labelIn": "Rechercher dans « {grid} »",
       "placeholder": "Rechercher un libellé"
     },
+    "differenceFilter": {
+      "label": "Écarts seulement"
+    },
     "breakdownFilter": {
       "label": "Lot ou poste",
       "every": "Tous les lots et postes",
@@ -816,6 +819,8 @@
     "subprojectName": "{code} — {label}",
     "asOf": "Date de calcul : {date}",
     "breakdown": "{kind, select, work_package {Lot} other {Poste}} : {label}",
+    "differencesOnly": "Écarts seulement",
+    "differences": "Écarts : {values}",
     "computedOn": "Révision du calcul",
     "structure": "Structure",
     "chooseStructure": "Changer de structure, « {structure} » lue",

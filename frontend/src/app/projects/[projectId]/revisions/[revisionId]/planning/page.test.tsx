@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import PlanningPage from "./page";
 
@@ -418,4 +418,53 @@ describe("the structure the planning reads", () => {
       expect(await planning({ structure })).not.toMatch(SKELETON);
     },
   );
+});
+
+describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [WF-REV-0080-A]", () => {
+  const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+  const RISK = "01926f3a-7c00-7000-8000-000000000204";
+  const ALL = "added,removed,modified";
+  /** The button the page offers, from its tag to its name; none when it does not. */
+  const BUTTON =
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+  const chips = (page: string) =>
+    /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+
+  it("is offered on a differential, unpressed by default, and asks the server nothing of the differences", async () => {
+    const page = await planning({ structure: AMENDMENT });
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+    expect(page).not.toContain("Active filters");
+  });
+
+  it("passes the differences the address names to the server, presses the button and says it in the banner, the grid reading what the server answers", async () => {
+    server.answers = { ...server.answers, [NODES]: "nodes_amendment_differences" };
+    const page = await planning({ structure: AMENDMENT, difference: ALL });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(chips(page)).toContain("Differences only");
+    expect(chips(page)).toContain(`aria-label="Remove the filter “Differences only”"`);
+    // The rows are those of the answer: the front retains none of its own.
+    const answered = example("nodes_amendment_differences") as { items: unknown[] };
+    expect(grid.given.at(-1)?.nodes.items).toHaveLength(answered.items.length);
+    expect(grid.given.at(-1)?.filters.difference).toEqual(["added", "removed", "modified"]);
+  });
+
+  it("names the differences of an address that names some of them, and offers the button unpressed", async () => {
+    const page = await planning({ structure: AMENDMENT, difference: "modified,added" });
+    expect(callsOf(NODES)[0]?.query.get("difference")).toBe("added,modified");
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(chips(page)).toContain("Differences: Added and Modified");
+  });
+
+  it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
+    for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
+      server.clients = [];
+      const page = await planning(search);
+      expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+      expect(page).not.toContain("Differences only");
+      expect(page).not.toContain("Active filters");
+    }
+  });
 });
