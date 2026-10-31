@@ -6,8 +6,8 @@
  * the structures of the revision in the order the server lists them, those of a kind that follow
  * one another under the name of their kind, the one read checked. On a narrow window the banner
  * wraps onto a second row, and the page scrolls when the window is too low for the floor of the
- * grid under it (US-0560). A choice only changes the address (`structureHref`), the rest of its query kept, from the address
- * last asked (`usePendingAddress`) — which the screen shares between its banner and its grid
+ * grid under it (US-0560). A choice only changes the address (`structureHref`), the rest of its
+ * query kept, from the address last asked (`usePendingAddress`) — which the screen shares between its banner and its grid
  * (`PendingAddress`), so that a sort asked before the structure arrives keeps it, and the reverse
  * (défaut n° 20 de `typescript.md`); the page reads the grid anew on the structure chosen, which the
  * menu shows checked meanwhile (défaut n° 21).
