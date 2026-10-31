@@ -4097,6 +4097,16 @@ Les règles sont dans le [README de la roadmap](../roadmap/README-fr.md), sectio
 « Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
 `lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
 
+Chaque répertoire de `docs/` a son README en anglais, `README.md`, à côté de son original
+français, `README-fr.md`, qui fait foi. Un lot qui modifie un `README-fr.md` porte la même
+modification, traduite, dans le `README.md` voisin, dans la même pull request : un titre
+ajouté, retiré ou déplacé dans l'un l'est dans l'autre, au même rang et au même niveau. Le
+contrôle ne juge pas la traduction ; il prouve que sa structure suit l'original.
+
+_Contrôle_ : `make readmes` (`wftools.readmes`, famille `repo`), qui échoue sur un
+`README-fr.md` de `docs/` sans son `README.md`, ou l'inverse, et sur une paire dont les titres
+diffèrent, un pour un — en nombre, ou en niveau à un rang donné.
+
 ## Signature des commits
 
 Les commits qui arrivent sur `main` sont signés : la règle « Require signed commits » de
