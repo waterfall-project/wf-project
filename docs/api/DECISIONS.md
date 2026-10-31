@@ -10000,8 +10000,8 @@ manque se corrige au contrat, dans l'US. Aucun schéma ne change.
   `PasteRejection` le dit désormais : la cellule de rôle refusée par
   `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et `params.tasks` comme pour une saisie
   — non `resource_roles`, propre au compte rendu d'un import (#768). Exemple
-  `paste_plan_without_hours` (`previewPaste`, `without_hours`), engendré par `wftools.mockwrites` :
-  le bloc de `paste_plan` dont la deuxième ligne passe la ligne 29 au monteur câbleur, la tâche
+  `paste_plan_without_hours` (`previewPaste`, `without_hours`), engendré par
+  `wftools.mockrefusals` : le bloc de `paste_plan` dont la deuxième ligne passe la ligne 29 au monteur câbleur, la tâche
   « Préparation 1.1.1 » gardant l'ingénieur ; variante contrefactuelle déclarée, `paste_id` 997.
   La confirmation redit ce refus comme tout refus de l'aperçu (`PasteApplied.rejected`) : aucun
   exemple de `applyPaste` n'est ajouté, `paste_applied_partial` montrant déjà la forme.

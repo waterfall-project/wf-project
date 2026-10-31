@@ -14,9 +14,9 @@ from typing import Any, cast
 import pytest
 import yaml
 
-from wftools import REPOSITORY, mockrefusals
+from wftools import REPOSITORY, mockrefusals, mockwitness, mockwrites
 from wftools.mockids import universe
-from wftools.mockwitness import fixture
+from wftools.mockwitness import CABLE_FITTER, ENGINEER, fixture
 
 type Entry = dict[str, Any]
 
@@ -333,6 +333,53 @@ def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_
             ],
         }, name
         assert name in _cited(operation, "422"), name
+
+
+def test_a_pasted_row_leaving_its_task_without_hours_is_refused_naming_roles_and_task() -> None:
+    # WF-PLA-0010: « une saisie qui laisserait une tâche […] sans aucune heure travaillée dans la
+    # semaine est refusée en nommant les rôles et la tâche en cause » — a paste is an entry, and
+    # its refusal a row of the plan (`PasteRejection`, `ProblemParams.tasks`; #779).
+    plan = fixture("paste_plan_without_hours")
+    task = mockwrites.pasted_task()
+    _, roles = mockwrites.known()
+    # The roles the task would bear once the block written: the engineer stays beside the cable
+    # fitter, on the first row and on a line the block does not cover. An empty cell of role
+    # writes nothing: its line keeps its own.
+    block = mockrefusals.WITHOUT_HOURS_BLOCK
+    pasted = {line.number: row[2] for line, row in zip(task.lines, block, strict=False) if row[2]}
+    borne = {
+        roles[pasted[line.number]] if line.number in pasted else line.role for line in task.lines
+    } - {None}
+    assert borne == {ENGINEER, CABLE_FITTER}
+    assert plan == {
+        "paste_id": universe(997),
+        "accepted": 2,
+        "rejected": [
+            {
+                "row": 1,
+                "column": "resource_role",
+                "code": "TASK_WITHOUT_WORKING_HOURS",
+                "params": {
+                    "resource_role_ids": [ENGINEER, CABLE_FITTER],
+                    "tasks": [
+                        {
+                            "project_id": fixture("project")["project_id"],
+                            "node_id": mockwitness.node_id(task.number),
+                            "label": task.label,
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+    answer = _operations()["previewPaste"]["responses"]["200"]
+    cited = answer["content"]["application/json"]["examples"]["without_hours"]["$ref"]
+    assert cited.endswith("/paste_plan_without_hours.json")
+    said = (API / "components" / "schemas" / "revisions.yaml").read_text(encoding="utf-8")
+    rejection = " ".join(
+        said.split("\nPasteRejection:\n", 1)[1].split("  properties:", 1)[0].split()
+    )
+    assert "`TASK_WITHOUT_WORKING_HOURS`" in rejection
 
 
 def test_a_line_of_a_completed_task_re_estimated_is_refused_by_the_condition_it_names() -> None:

@@ -494,50 +494,6 @@ def test_a_paste_confirmed_after_its_structure_moved_on_is_refused_with_the_curr
     assert "le plan retient aussi le compteur de la structure lu à l'aperçu" in said
 
 
-def test_a_pasted_row_leaving_its_task_without_hours_is_refused_naming_roles_and_task() -> None:
-    # WF-PLA-0010: « une saisie qui laisserait une tâche […] sans aucune heure travaillée dans la
-    # semaine est refusée en nommant les rôles et la tâche en cause » — the paste is an entry, and
-    # its refusal is a line of the plan (`PasteRejection`, `ProblemParams.tasks`; #779).
-    plan = write("paste_plan_without_hours")
-    task = mockwrites.pasted_task()
-    _, roles = mockwrites.known()
-    # The roles the task would bear once the block written: the engineer stays beside the cable
-    # fitter, on the first row and on a line the block does not cover.
-    block = mockwrites.WITHOUT_HOURS
-    # An empty cell of role writes nothing: the line keeps its own.
-    pasted = {line.number: row[2] for line, row in zip(task.lines, block, strict=False) if row[2]}
-    borne = {
-        roles[pasted[line.number]] if line.number in pasted else line.role for line in task.lines
-    } - {None}
-    assert borne == {universe(451), CABLE_FITTER}
-    assert plan == {
-        "paste_id": universe(997),
-        "accepted": 2,
-        "rejected": [
-            {
-                "row": 1,
-                "column": "resource_role",
-                "code": "TASK_WITHOUT_WORKING_HOURS",
-                "params": {
-                    "resource_role_ids": [universe(451), CABLE_FITTER],
-                    "tasks": [
-                        {
-                            "project_id": mockwitness.fixture("project")["project_id"],
-                            "node_id": mockwitness.node_id(task.number),
-                            "label": task.label,
-                        }
-                    ],
-                },
-            }
-        ],
-    }
-    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
-    operation = paths.split("operationId: previewPaste\n", 1)[1].split("operationId:", 1)[0]
-    assert "fixtures/api/paste_plan_without_hours.json" in operation.split("'400'", 1)[0]
-    summary = cast("str", mockwrites.writes()["paste_plan_without_hours.json"]["summary"])
-    assert summary.startswith("Variante contrefactuelle déclarée")
-
-
 def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_so() -> None:
     examples = mockwrites.writes()
     said = cast("str", examples["paste_applied_partial.json"]["summary"])

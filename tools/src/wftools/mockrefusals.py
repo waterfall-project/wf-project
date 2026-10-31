@@ -40,9 +40,9 @@ front shows (WF-OBS-0020); ``nodes_fields_unknown.json``, a reading of the nodes
 property ``Node`` does not have, refused as any parameter of a query, by 422 on ``/query/fields``.
 
 And the refusals of the common tree its operations declared without an example (F-17, #1648):
-a line of labour that would leave its task without any hour of work, created, changed of role or
-moved under it (#779), the calendars supposed otherwise, those of the witness all meeting from
-Monday to Thursday (``*_without_hours``); a field a node does not accept
+a line of labour that would leave its task without any hour of work, created, changed of role,
+moved under it or pasted on its cell of role (#779), the calendars supposed otherwise, those of the
+witness all meeting from Monday to Thursday (``*_without_hours``); a field a node does not accept
 (``*_field_not_accepted``, ``task_milestone_duration_refused``); a category of provision given to
 a line entered; a line of a completed task re-estimated (``remaining_completed_refused``).
 
@@ -64,7 +64,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict, cast
 
-from wftools import mockcore, mockexchanges, mocktext, mockwitness
+from wftools import mockcore, mockexchanges, mocktext, mockwitness, mockwrites
 from wftools.mockids import hex_identifier, universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
@@ -109,6 +109,17 @@ REMAINING_CORRELATION = universe(1628)
 
 MOVE_HOURS_CORRELATION = universe(1658)
 """The correlation of a line of labour moved under a task it would leave without hours (#779)."""
+
+WITHOUT_HOURS_BLOCK = (
+    mockwrites.BLOCK[0],
+    (mockwrites.ENTERED, mockwrites.BLOCK[0][1], "Monteur câbleur", "1"),
+    mockwrites.BLOCK[2],
+)
+"""The block of the journeys, its second row giving its line to the cable fitter: the task would
+bear him with the electrical engineer, whose calendars, supposed otherwise, never meet (#779)."""
+
+WITHOUT_HOURS_PASTE = universe(997)
+"""The plan of WITHOUT_HOURS_BLOCK (``paste_plan_without_hours``)."""
 
 SESSION_CORRELATION, DEACTIVATED_CORRELATION, NOT_ADMITTED_CORRELATION = (
     universe(1629),
@@ -260,6 +271,44 @@ def without_hours(roles: list[str], correlation: str) -> JsonObject:
         "status": 422,
         "params": {"resource_role_ids": cast("list[JsonValue]", roles), "tasks": [task]},
         "correlation_id": correlation,
+    }
+
+
+def paste_plan_without_hours() -> JsonObject:
+    """Return what previewPaste answers for WITHOUT_HOURS_BLOCK, the calendars supposed otherwise.
+
+    Pasted on the line of the journeys (`mockwrites.LINE`), its second row would leave the task of
+    that line without any hour of work in the week: the calendar of the cable fitter it gives to
+    its line never meets that of the electrical engineer, whom the first row and another line of
+    the task keep. The row is refused on its cell of role, the two roles and the task named as for
+    a line of labour entered (`TASK_WITHOUT_WORKING_HOURS`, `PasteRejection`, WF-PLA-0010); the
+    others are accepted.
+    """
+    plan = mockwrites.paste_plan(WITHOUT_HOURS_BLOCK, WITHOUT_HOURS_PASTE)
+    if plan["rejected"]:
+        message = "WITHOUT_HOURS_BLOCK names a category or a role the reference does not know"
+        raise ValueError(message)
+    task = mockwrites.pasted_task()
+    _, roles = mockwrites.known()
+    refusal: JsonObject = {
+        "row": 1,
+        "column": "resource_role",
+        "code": "TASK_WITHOUT_WORKING_HOURS",
+        "params": {
+            "resource_role_ids": [roles[row[2]] for row in WITHOUT_HOURS_BLOCK[:2]],
+            "tasks": [
+                {
+                    "project_id": fixture("project")["project_id"],
+                    "node_id": mockwitness.node_id(task.number),
+                    "label": task.label,
+                }
+            ],
+        },
+    }
+    return {
+        "paste_id": WITHOUT_HOURS_PASTE,
+        "accepted": len(WITHOUT_HOURS_BLOCK) - 1,
+        "rejected": [refusal],
     }
 
 
@@ -520,6 +569,17 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"tâche qui la reçoit aucune heure travaillée. Refusé, les deux rôles et la tâche "
             f"nommés ; rien ne bouge (WF-PLA-0010). {supposed}.",
             without_hours([ENGINEER, COMMISSIONING_TECHNICIAN], MOVE_HOURS_CORRELATION),
+        ),
+        "paste_plan_without_hours.json": mocktext.example(
+            f"Variante contrefactuelle déclarée : le bloc de paste_plan, dont la deuxième ligne "
+            f"donne la ligne {mockwrites.ROW + 1} au monteur câbleur, « "
+            f"{WITHOUT_HOURS_BLOCK[1][0]} » ; sa tâche, « {mockwrites.pasted_task().label} », le "
+            f"porterait avec l'ingénieur électricien, que la première ligne et la ligne de "
+            f"supervision gardent, et leurs calendriers n'auraient aucun jour en commun : cette "
+            f"ligne est refusée sur sa cellule de rôle, les deux rôles et la tâche nommés, et les "
+            f"deux autres seraient écrites ; confirmé, le collage écrira les deux autres et non "
+            f"celle-ci, abandonné, il n'écrira rien (WF-IHM-0050, WF-PLA-0010). {supposed}.",
+            paste_plan_without_hours(),
         ),
         "node_create_field_not_accepted.json": mocktext.example(
             f"Une ligne de l'ingénieur créée sous le « {wiring} » avec un débours unitaire : une "
