@@ -190,8 +190,8 @@ export function cellKey(row: string, column: string): string {
 /**
  * A refusal by field said by the reason of its field (#817.1): the envelope of a 422 says only that
  * the entry is invalid, its field says why — a value the server computes, a field the node does not
- * accept, a post or a lot already borne (WF-PLA-0170) —; the parameters of every field are kept, which
- * name the task that bears the item or those the write would move out. Every write of a cell goes
+ * accept, a post or a lot already borne (WF-PLA-0170) —; the reasons the same field gives are each
+ * said (`problemMessage`, #1533), and the parameters of every field are kept, which name the task that bears the item or those the write would move out. Every write of a cell goes
  * through it, and the gestures of structure too.
  */
 export function byField<T>(outcome: Outcome<T>): Outcome<T> {

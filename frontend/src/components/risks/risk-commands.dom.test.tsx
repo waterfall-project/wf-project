@@ -622,7 +622,7 @@ describe("« Modifier » a risk", () => {
     const form = screen.getByRole("dialog");
     const category = within(form).getByRole("combobox", { name: "Catégorie" });
     expect(category).toHaveValue(CREATED.provision_cost_category_id);
-    expect(within(category).getByRole("option", { name: /\(désactivée\)$/ })).toBeInTheDocument();
+    expect(within(category).getByRole("option", { name: /\(plus admise\)$/ })).toBeInTheDocument();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);

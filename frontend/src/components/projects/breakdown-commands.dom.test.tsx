@@ -447,7 +447,7 @@ describe("the work breakdown edited in its grid", () => {
     expect(screen.getByRole("dialog")).toBe(dialog);
   });
 
-  it("says the version stale under the dialog, with the offer to read the page anew [WF-IHM-0110-A]", async () => {
+  it("says the version stale under the dialog, with the offer to read the page anew", async () => {
     serve({
       [SET]: { problem: example("work_breakdown_stale") as Problem & { status: 412 } },
     });

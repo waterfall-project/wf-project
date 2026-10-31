@@ -166,7 +166,7 @@ describe("the screen of the risks", () => {
   it("reads the risks and their matrix in the revision of its route, which fixes their own estimate [WF-RIS-0040-A]", async () => {
     const page = await risksAt();
     expect(page.startsWith(BANNER)).toBe(true);
-    expect(queryOf(LIST)).toEqual({ revision_id: REVISION });
+    expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
     expect(queryOf(MATRIX)).toEqual({ revision_id: REVISION });
     // No risk named, no detail read.
     expect(callsTo(RISK)).toEqual([]);
@@ -230,6 +230,7 @@ describe("the screen of the risks", () => {
     });
     expect(queryOf(LIST)).toEqual({
       revision_id: REVISION,
+      limit: "50",
       states: "occurred,dismissed",
       search: "armoires",
       sort_by: "provision_amount",
@@ -242,9 +243,31 @@ describe("the screen of the risks", () => {
     });
   });
 
+  it("asks the server the page and the size of the pages the address names, and counts the risks of the answer [WF-IHM-0060-A]", async () => {
+    const page = await risksAt({ limit: "25", offset: "50", states: "identified" });
+    expect(queryOf(LIST)).toEqual({
+      revision_id: REVISION,
+      limit: "25",
+      offset: "50",
+      states: "identified",
+    });
+    expect(grids.risks[0]?.query.size).toBe(25);
+    // The subtitle counts the risks the answer retains (`meta.total`), not those of the page.
+    expect(text(page)).toContain("Risk management Help 3 risks retained");
+    // A size the contract does not take is not asked: the default stands.
+    server.clients = [];
+    await risksAt({ limit: "7", offset: "abc" });
+    expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
+  });
+
+  it("hands the grid the totals of the answer, those of every risk retained, whatever the page asked [WF-IHM-0060-A]", async () => {
+    await risksAt({ limit: "10", offset: "20" });
+    expect(grids.risks[0]?.risks.totals).toEqual((example("risks") as { totals: unknown }).totals);
+  });
+
   it("asks no sort by a column the server does not sort the risks by", async () => {
     await risksAt({ sort_by: "zone" });
-    expect(queryOf(LIST)).toEqual({ revision_id: REVISION });
+    expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
   });
 
   it("presses the states the address filters on", async () => {
@@ -370,15 +393,13 @@ describe("the screen of the risks", () => {
   });
 
   it("says deactivated the category of a provision that is no longer active, as the server says", () => {
-    // A counterfactual variant of `risk`: its category deactivated since its designation, the rest
-    // of the example kept.
-    const risk: Risk = { ...(example("risk") as Risk), provision_cost_category_is_active: false };
+    const risk = example("risk_dismissed_category_deactivated") as Risk;
     const detail = renderToStaticMarkup(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en}>
         <RiskDetail risk={risk} reviews={[]} projectId="01926f3a-7c00-7000-8000-000000000001" />
       </NextIntlClientProvider>,
     );
-    expect(text(detail)).toContain("Category Provisions pour risques (deactivated)");
+    expect(text(detail)).toContain("Category Provisions pour risques (no longer admitted)");
   });
 
   it("says the provision line of a risk occurred withdrawn at its occurrence [WF-RIS-0060-A]", async () => {

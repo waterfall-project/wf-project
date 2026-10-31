@@ -15,7 +15,7 @@
  * the task of the provision change while the risk is identified, as `update_provision` says
  * (`provisionOpen`): listed unavailable, the three are shown fixed, the conditions it lacks said
  * under the first, and none is sent. A category deactivated since the risk was declared stays among
- * the choices, said deactivated: kept, the server accepts it unchanged; another is a choice of the
+ * the choices, said no longer admitted: kept, the server accepts it unchanged; another is a choice of the
  * active ones.
  *
  * A refusal by field (422) is said at its field — `PROVISION_CATEGORY_REQUIRED`,
@@ -126,7 +126,7 @@ function asked(
 /**
  * What the form asks of the provision, when it may be written: the category among more than one —
  * one alone is retained without being asked —, the category the risk holds among them when it is no
- * longer active, said deactivated; the sub-project and the task, when the project has any, the task the
+ * longer admitted (deactivated, or passed to another type), said so; the sub-project and the task, when the project has any, the task the
  * risk holds among them, listed or not: a choice of none would move the line. A list the session
  * may not read comes empty, and is neither asked nor sent: the task held does not make it a list.
  */
@@ -264,7 +264,6 @@ export function RiskForm({
   const t = useTranslations("riskForm");
   const columns = useTranslations("grid.columns");
   const detail = useTranslations("risks.detail");
-  const form = useTranslations("reference.form");
   const locale = useLocale();
   const texts: ProvisionTexts = {
     category: detail("provisionLine.category"),
@@ -278,10 +277,7 @@ export function RiskForm({
       ? undefined
       : risk.provision_cost_category_is_active
         ? risk.provision_cost_category_label
-        : form("deactivatedChoice", {
-            choice: risk.provision_cost_category_label,
-            kind: "cost_category",
-          });
+        : detail("provisionLine.notAdmitted", { choice: risk.provision_cost_category_label });
   const none: Asked = { categories: undefined, subprojects: undefined, tasks: undefined };
   const choices = provisionOpen ? askedOf(risk, options, heldLabel) : none;
   const provision =

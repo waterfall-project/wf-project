@@ -85,14 +85,14 @@ async function readComparisonPreferences() {
 
 /**
  * What applying the rates proposed to the current revision takes, or nothing when the revision does
- * not list `edit_estimate` available: the rates are an estimate's, and the contract lists no
- * command of its own for the update (#1351).
+ * not list `apply_rate_update` — the caller may not exercise it: the command is offered as the
+ * revision lists it, available or lacking the conditions it names (WF-IHM-0090, #1351).
  */
 function applicable(current: Revision, projectId: string) {
-  const offer = findOffer(current.available_commands, "edit_estimate");
-  return offer?.is_available === true
-    ? { projectId, revisionId: current.revision_id, lockVersion: current.lock_version }
-    : undefined;
+  const offer = findOffer(current.available_commands, "apply_rate_update");
+  return offer === undefined
+    ? undefined
+    : { projectId, revisionId: current.revision_id, lockVersion: current.lock_version, offer };
 }
 
 /** Render the revisions of a project, their comparison, and the parts of the one it reads in. */

@@ -82,7 +82,9 @@ export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
     <section aria-labelledby={heading} className="space-y-2 rounded-md border p-3 text-sm">
       <div className="flex items-center justify-between gap-2">
         <h2 id={heading} className="font-medium">
-          {t("title", { document: line.document_number })}
+          {line.document_item === null
+            ? t("title", { document: line.document_number })
+            : t("titleItem", { document: line.document_number, item: line.document_item })}
         </h2>
         <CloseLine />
       </div>

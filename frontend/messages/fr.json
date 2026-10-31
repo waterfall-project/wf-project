@@ -452,6 +452,12 @@
   "risks": {
     "summary": "{risks, plural, =0 {aucun risque retenu} one {# risque retenu} other {# risques retenus}}",
     "generalTotal": "Total général",
+    "pages": {
+      "label": "Pages des risques",
+      "beyond": "La page demandée est au-delà de la fin de la liste.",
+      "previous": "Risques précédents",
+      "next": "Risques suivants"
+    },
     "filter": "Filtrer par état",
     "everyState": "Tous les états",
     "provisions": {
@@ -503,7 +509,8 @@
         "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis.",
         "category": "Catégorie",
         "subproject": "Sous-projet",
-        "outOfSubproject": "Hors sous-projet"
+        "outOfSubproject": "Hors sous-projet",
+        "notAdmitted": "{choice} (plus admise)"
       },
       "reviews": {
         "title": "Historique des réexamens",
@@ -590,6 +597,8 @@
     },
     "line": {
       "title": "Ligne {document}",
+      "titleItem": "Ligne {document}, poste {item}",
+      "open": "{document}, poste {item}",
       "close": "Fermer la ligne",
       "reason": "Motif de l’exclusion",
       "excludedWithoutReason": "Exclue du périmètre suivi, sans motif.",
