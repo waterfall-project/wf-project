@@ -503,7 +503,8 @@ describe("the refusal of a move, said to the row in cause", () => {
     // The planning lists tasks and reads no estimate line nor the settings of the resources: the
     // roles of the refusal stay unnamed, and the notice says so.
     // This fallback sentence does not yet hold the Vérif of WF-PLA-0010 (« en nommant les deux
-    // rôles »): the decision of #1684 is awaited, and this test freezes the sentence as it is.
+    // rôles »): the decision of #1684 is awaited, and this test freezes the sentence as it is. It will have to
+    // change with that decision.
     serve({ [MOVE]: refusal("nodes_move_without_hours") });
     render(planningGrid());
     await choose(REVIEW, "Indenter");

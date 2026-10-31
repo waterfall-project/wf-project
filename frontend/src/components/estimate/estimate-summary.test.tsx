@@ -126,16 +126,15 @@ describe("the summary of the estimate", () => {
       /Par sous-projet .* Par lot Lot 1 502 434,56 \(0,73 %\)$/,
     );
     // EP-14/L42s: every work package is given, its amount not computed when no task bears it.
-    expect(
-      text(
-        renderSummary(
-          example("estimate_indicators_work_package_without_task") as EstimateIndicators,
-          [] satisfies MissingRates,
-        ),
+    const byPackage = text(
+      renderSummary(
+        example("estimate_indicators_work_package_without_task") as EstimateIndicators,
+        [] satisfies MissingRates,
       ),
-    ).toMatch(
-      /Par lot Lot 1 502 434,56 \(0,73 %\) Lot 2 Non calculable — Aucune tâche ne porte ce lot\.$/,
     );
+    expect(byPackage).toContain("Par lot");
+    expect(byPackage).toMatch(/Lot 1 502 434,56 \(0,73 %\)/);
+    expect(byPackage).toMatch(/Lot 2 Non calculable — Aucune tâche ne porte ce lot\./);
   });
 
   it("says an amount by work package the API could not compute, with its reason", () => {

@@ -594,7 +594,9 @@ describe("the report of an import", () => {
     open(report(example("import_planning_rejected") as Import));
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("2 motifs rejettent le fichier entier");
-    expect(alert).toHaveTextContent(/Poste de commande.*Câblage des armoires.*Mise en service/);
+    expect(alert).toHaveTextContent(
+      /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
+    );
     expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
     expect(screen.getByRole("button", { name: "Abandonner l’import" })).toBeInTheDocument();
   });
