@@ -1877,7 +1877,10 @@ the field of the start, the end named (`params.maximum`) —; the view is not lo
 without a kept perimeter and a sentence takes its place (`RefusedView` of
 `frontend/src/app/portfolio/refused.tsx`); its states are pressed as the address names them, and,
 without a named state, the filter of the states is not offered, nothing saying what the server
-would keep. The list of projects (FBS-2.1) is one more configuration of the dense grid, sorted,
+would keep. The aggregated workload plan and the project control health, on which a completed
+project has no effect (G-05), say so by a note of the perimeter (`completedWithoutEffect` of
+`PerimeterBar`) as soon as the server keeps `completed`, read from `scope.states` and never from
+the address (US-0703/L9). The list of projects (FBS-2.1) is one more configuration of the dense grid, sorted,
 searched and paginated by the server, its totals row the number of projects kept (`meta.total`),
 under the value of the portfolio. The six other views (FBS-2.2 to FBS-2.7) show what the server
 computes: the aggregated workload plan and the disbursements take in addition the horizon
