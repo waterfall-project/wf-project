@@ -110,7 +110,7 @@ function report(entry: Import) {
 }
 
 /** The line of the tracker of the shell that says a task. */
-function taskLine(text: string) {
+function taskLine(text: string | RegExp) {
   return within(tasksRegion()).getByText(text);
 }
 
@@ -552,9 +552,7 @@ describe("the report of an import", () => {
     // The user goes elsewhere: the report is gone, the tracker stays and follows the task.
     view.rerender(shell(<p>Ailleurs</p>));
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
-    await waitFor(() =>
-      expect(within(tasksRegion()).getByText(/Application d’un import/)).toBeVisible(),
-    );
+    await waitFor(() => expect(taskLine(/Application d’un import/)).toBeVisible());
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     // The task did succeed, the report not being there to lead anywhere.
     await waitFor(() => {
