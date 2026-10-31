@@ -457,7 +457,7 @@ describe("the report of an import", () => {
     expect(rejected).toHaveTextContent(/blank item included/);
   });
 
-  it("lists the rejected lines with their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {
+  it("lists the rejected lines with their tab, their row and their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {
     const client = serve({
       [APPLY]: { example: "task_import_queued", status: 202 },
       [TASK]: "task_running",
@@ -472,9 +472,9 @@ describe("the report of an import", () => {
         .getAllByRole("row")
         .map((row) => row.textContent),
     ).toEqual([
-      "LigneMotif",
-      "3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
-      "5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
+      "OngletLigneMotif",
+      "Hors lot3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
+      "Hors lot5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
     ]);
 
     const confirmation = await askApplication();

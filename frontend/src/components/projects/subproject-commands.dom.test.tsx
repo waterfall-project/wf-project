@@ -582,6 +582,20 @@ describe("the deletion of a sub-project", () => {
     expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
   });
 
+  it("says above the list a sub-project written since it was read, with the offer to read the page anew, and keeps its row [WF-IHM-0110-A]", async () => {
+    serve({
+      [DELETE]: { problem: example("subproject_delete_stale") as Problem & { status: 412 } },
+    });
+    render(list(AVAILABLE, DELETABLE));
+    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer « SP-REC »" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(within(grid()).getByText("SP-REC")).toBeInTheDocument();
+  });
+
   it("tells above the list a deletion refused for the estimate lines that bear the sub-project, naming them [WF-DAT-0080-A]", async () => {
     // Celle d'un sous-projet que portent des lignes de devis de la révision en cours est refusée
     // et nomme ces lignes — passées à « SP-REC » depuis la lecture (EP-14/L42q).

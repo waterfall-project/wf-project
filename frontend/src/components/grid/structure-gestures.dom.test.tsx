@@ -675,6 +675,20 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(router.refresh).not.toHaveBeenCalled();
   });
 
+  it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
+    // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
+    serve({
+      [DELETE]: {
+        problem: example("node_delete_last_provision_task_refused") as Problem & { status: 409 },
+      },
+    });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Risque concerné\s: «\sRisque de reprise du câblage\s»\./,
+    );
+  });
+
   it("marks the row it was asked from, though the active row changed while the write was under way", async () => {
     const hold = held();
     serve({ [DELETE]: STALE_REFUSED }, hold.until);

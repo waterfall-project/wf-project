@@ -182,6 +182,16 @@ const KEPT_IN_LABOUR: Readonly<Record<string, "cost_type" | "cost_category">> = 
   cost_category_without_role: "cost_category",
 };
 
+/**
+ * The conditions a refusal names for an object that no longer changes — a project terminal, a
+ * revision marked (`STATE_FORBIDS_OPERATION`, US-0702/L1) —, said as that fact rather than as a
+ * condition unmet.
+ */
+const SETTLED: Readonly<Record<string, "project_terminal" | "revision_marked">> = {
+  project_not_terminal: "project_terminal",
+  revision_draft: "revision_marked",
+};
+
 /** The field of the planning start date of a structure, judged on the default calendar. */
 const STRUCTURE_START = "/planning_start_on";
 
@@ -191,7 +201,16 @@ const DETAILS: readonly Reader[] = [
     const permission = label("permissions", missing_permission);
     return permission === undefined ? undefined : ["missing_permission", { permission }];
   },
+  // A project terminal and a revision marked, which no longer change, are said as the facts they
+  // are (WF-CYC-0100, WF-DAT-0020, US-0702/L1); any other condition by its label.
   ({ missing_condition }, label) => {
+    const settled =
+      typeof missing_condition === "string" && Object.hasOwn(SETTLED, missing_condition)
+        ? SETTLED[missing_condition]
+        : undefined;
+    if (settled !== undefined) {
+      return [settled, {}];
+    }
     const condition = label("enums.CommandCondition", missing_condition);
     return condition === undefined ? undefined : ["missing_condition", { condition }];
   },
@@ -304,6 +323,46 @@ const DETAILS: readonly Reader[] = [
   ({ cycle }, _label, locale, say) => {
     const named = itemsOf(cycle, isLabelled).map(({ label }) => say("taskName", { label }));
     return named.length === 0 ? undefined : ["cycle", { tasks: conjunction(named, locale) }];
+  },
+  // The subordinates a summary task takes the value sent from — its state, its dates —, named as the
+  // screen read them, counted otherwise (`subordinate_node_ids`, `SUMMARY_TASK_DERIVED`,
+  // WF-PLA-0040, WF-IHM-0030).
+  ({ subordinate_node_ids }, _label, locale, say, names) => {
+    const ids = subordinate_node_ids ?? [];
+    const named = ids.map((id) => names[id]).filter((name) => name !== undefined);
+    if (ids.length === 0) {
+      return undefined;
+    }
+    return named.length === ids.length
+      ? [
+          "subordinates",
+          {
+            tasks: conjunction(
+              named.map((name) => say("taskName", { label: name })),
+              locale,
+            ),
+            count: ids.length,
+          },
+        ]
+      : ["subordinates_unnamed", { count: ids.length }];
+  },
+  // The categories of labour without an hourly rate for the year of reference of the revision, each
+  // by its label and the year (`missing_rates`, `HOURLY_RATE_MISSING`, WF-DEV-0010).
+  ({ missing_rates = [] }, _label, locale, say) => {
+    const named = missing_rates.map(({ label, year }) =>
+      label === undefined ? say("missingRateYear", { year }) : say("missingRate", { label, year }),
+    );
+    return named.length === 0
+      ? undefined
+      : ["missing_rates", { categories: conjunction(named, locale), count: named.length }];
+  },
+  // The risks whose line of provision would have no task left to stand on, each by its label
+  // (`risks`, `at_least_one_task`, WF-RIS-0010).
+  ({ risks = [] }, _label, locale, say) => {
+    const named = risks.map(({ label }) => say("riskName", { label }));
+    return named.length === 0
+      ? undefined
+      : ["risks", { risks: conjunction(named, locale), count: named.length }];
   },
   // The two tasks of a link a summary cannot bear to one of its subordinates, the summary first,
   // each by its label (`LINK_FORBIDDEN`, WF-PLA-0030, #1582).
@@ -449,6 +508,19 @@ const DETAILS: readonly Reader[] = [
   },
 ];
 
+/**
+ * What a refusal of a code says of its own parameters, beyond those every refusal shares: the object
+ * an undo or a redo would take back from a later change, by the label the refusal gives it
+ * (`UNDO_CONFLICT`, `conflicting_object_label`, WF-IHM-0110) — the same parameter names, under
+ * `ALREADY_EXISTS`, the holder of a value, which the form says at its field.
+ */
+const OWN: Readonly<
+  Partial<Record<ProblemText["code"], (params: Readonly<Params>) => Detail | undefined>>
+> = {
+  UNDO_CONFLICT: ({ conflicting_object_label: label }) =>
+    typeof label === "string" && label !== "" ? ["conflicting_object", { label }] : undefined,
+};
+
 /** A decimal of the contract — `Decimal`, `Money` —, which a bound may be written in. */
 const DECIMAL = /^-?\d+(\.\d+)?$/;
 
@@ -519,10 +591,13 @@ export function problemMessage(
       pointer: field.pointer,
     })),
   ];
-  const details = every
-    .flatMap(({ params, pointer }) =>
+  const own = OWN[problem.code]?.(problem.params ?? {});
+  const details = [
+    ...every.flatMap(({ params, pointer }) =>
       DETAILS.map((detail) => detail(params, label, locale, say, names, pointer)),
-    )
+    ),
+    own,
+  ]
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => say(key, values));
   return [

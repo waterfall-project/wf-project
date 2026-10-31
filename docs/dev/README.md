@@ -1797,9 +1797,10 @@ est refusé dans la page, et la borne des actions serveur de Next est réglée u
 (`next.config.ts`). La tâche de l'analyse va au
 suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
 le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
-et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts
-avec les champs qu'ils changent, nommés par le catalogue de leurs colonnes (`NodeColumn`,
-`ActualCostColumn`) —,
+— leur onglet quand le fichier en a, et leur rang — et leur motif, rendu comme un refus depuis son
+code et ses paramètres (`problemMessage`), écarts avec les champs qu'ils changent, nommés par le
+catalogue de leurs colonnes (`NodeColumn`, `ActualCostColumn`), tâches que le fichier date
+autrement que Waterfall ne les recalcule (`date_mismatches`, WF-INTF-0040) —,
 dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
 remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
 la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet

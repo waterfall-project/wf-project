@@ -213,7 +213,7 @@ describe("the commands of the timelines of a project", () => {
     render(choice(AVAILABLE));
     await deleteShown();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Condition non remplie : projet non clos.",
+      "Le projet est clos : il ne se modifie plus.",
     );
     expect(offered()).toEqual(["Comité de pilotage", "Revue client"]);
     expect(router.replace).not.toHaveBeenCalled();
