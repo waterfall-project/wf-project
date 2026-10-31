@@ -147,7 +147,11 @@ def test_the_register_of_the_risks_is_paged_its_totals_on_every_risk_retained() 
         register = fixture(name)
         if name == "risks_page":
             # A page shorter than the register: its count and its totals of the whole (US-0660/L3).
-            assert register["meta"] == {"limit": RISKS_PAGE, "offset": 0, "total": len(whole["items"])}
+            assert register["meta"] == {
+                "limit": RISKS_PAGE,
+                "offset": 0,
+                "total": len(whole["items"]),
+            }
             assert register["items"] == whole["items"][:RISKS_PAGE]
             assert register["totals"] == whole["totals"]
             continue
