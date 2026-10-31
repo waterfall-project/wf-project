@@ -64,7 +64,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict, cast
 
-from wftools import mockcore, mockexchanges, mocktext, mockwitness, mockwrites
+from wftools import mockcore, mockexchanges, mockhistory, mocktext, mockwitness, mockwrites
 from wftools.mockids import hex_identifier, universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
@@ -78,6 +78,7 @@ from wftools.mockwitness import (
     N,
     fixture,
 )
+from wftools.mockwitnessrisks import REGISTER
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -452,7 +453,10 @@ def _stale_examples() -> dict[str, JsonObject]:
     Each is sent with the counter before the one its object bears in the witness — another session
     wrote it since the screen read it —, and is refused with the counter the object bears now.
     """
-    revision, project, risk = fixture("revision"), fixture("project"), fixture("risk")
+    revision, project = fixture("revision"), fixture("project")
+    # The risk read (`risk`), as its generator writes it: its example comes after these.
+    rows = mockhistory.reference_rows()
+    risk = mockhistory.risk_item(REGISTER[0], mockhistory.reference_budget(rows))
     subproject = cast("list[JsonObject]", fixture("subprojects"))[0]
 
     def told(what: str, who: str, now: JsonValue, *, feminine: bool = False) -> str:
