@@ -2498,8 +2498,8 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   contributeurs du témoin une fois un compte anonymisé (`wftools.mockanonymized`, tenu par
   `tools/tests/test_mockfindings.py`) ; et la sortie du témoin, qui marque ou abandonne sa révision
   en cours, son code refusé, et ses lectures selon la qualité du lecteur — participant, ou
-  non-contributeur qui inscrit un chef de projet quand aucun n'a de compte actif —
-  (`wftools.mockproject`, tenu par `tools/tests/test_mockexit.py`) ; et les refus d'une seule
+  non-contributeur qui inscrit un chef de projet quand aucun n'a de compte actif — ou pendant le
+  marquage de sa révision en cours (`wftools.mockproject`, tenu par `tools/tests/test_mockexit.py`) ; et les refus d'une seule
   forme (`wftools.mockrefusals`, tenu par `tools/tests/test_mockrefusals.py`), avec ceux que le
   contrat déclarait sans code, condition ni exemple (`wftools.mockdeclared`, tenu par
   `tools/tests/test_mockdeclared.py`).

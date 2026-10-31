@@ -24,7 +24,13 @@ L-25, on examples drawn from those written by hand:
   entry of a project manager open to him alone, every other command naming his quality
   (WF-PRJ-0060); ``contributors_without_active_manager.json``, the list he reads with its counter,
   and ``contributors_set_by_rescuer.json``, the list he writes, a participant passed project
-  manager.
+  manager;
+- ``project_background_task_running.json``, the witness read while the marking of its current
+  revision runs (``revision_marking``): the commands a background task would make stale — the
+  entry of the work breakdown, the three exits, the occurrence of a risk and the imports that
+  would write in the revision — unavailable, ``no_background_task_running`` missing after their
+  conditions of state; the others, its exports and its attributes among them, as the witness
+  lists them (WF-IHM-0090, WF-PLA-0170, WF-CYC-0090; #1142, point 5, US-0660/L2).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -75,6 +81,27 @@ RESERVED = frozenset(
 (FBS-4.2 — its attributes, its work breakdown, its contributors) and the structuring actions of
 the catalogue a project carries — the exits, the occurrence of a risk, the exclusion of a line
 of cost (WF-PRJ-0060, WF-ADM-0100)."""
+
+SUSPENDED = frozenset(
+    {
+        "update_work_breakdown",
+        "complete",
+        "lose",
+        "abandon",
+        "declare_risk_occurrence",
+        "import_planning",
+        "import_estimate",
+        "import_remaining",
+    }
+)
+"""The commands of a project a background task that writes in its current revision or freezes it
+suspends (`CommandCondition`, `no_background_task_running`): the entry of the work breakdown,
+which withdraws the attachment of its tasks (WF-PLA-0170), the three exits, whose fate would mark
+or abandon it (WF-CYC-0090), the occurrence of a risk, which merges in it (WF-RIS-0060), and the
+imports that would write in it (WF-INTF-0090). Its attributes, its contributors, its timelines,
+the opening of a revision, the actual costs and the exclusion of a line write nothing in it."""
+
+BACKGROUND = "no_background_task_running"
 
 PARTICIPANT = universe(306)
 """Inès Roux, participant of the witness for its piloting, who holds the role « Pilotage de
@@ -224,6 +251,29 @@ def read_by_rescuer() -> JsonObject:
     return _with_commands(project, [lacking(each) for each in _commands(project)])
 
 
+def read_during_marking() -> JsonObject:
+    """Return the witness as read while the marking of its current revision runs.
+
+    Each suspended command lacks ``no_background_task_running`` after its conditions of state,
+    as the revision being marked lists its own (``revision_marking``); the counter of the project
+    is unchanged, the marking writing nothing in it.
+    """
+    project = cast("JsonObject", fixture("project"))
+
+    def suspended(each: JsonObject) -> JsonObject:
+        missing = cast("list[str]", each["missing_conditions"])
+        return {
+            **each,
+            "is_available": False,
+            "missing_conditions": cast("list[JsonValue]", [*missing, BACKGROUND]),
+        }
+
+    return _with_commands(
+        project,
+        [suspended(each) if each["command"] in SUSPENDED else each for each in _commands(project)],
+    )
+
+
 def _contributors() -> list[JsonObject]:
     return cast("list[JsonObject]", fixture("contributors")["items"])
 
@@ -273,7 +323,7 @@ def _account_name(user_id: str) -> str:
 
 
 def examples() -> dict[str, JsonObject]:
-    """Return the exit of the witness, its code refused and its readings by quality, by file."""
+    """Return the exit of the witness, its code refused and its readings, by file."""
     manager, participant = _name(DEACTIVATED_MANAGER), _name(PARTICIPANT)
     rescuer = _account_name(RESCUER)
     variant = (
@@ -369,5 +419,17 @@ def examples() -> dict[str, JsonObject]:
             f"rendue entière, les chefs de projet d'abord, avec sa version suivante. La liste "
             f"redevient celle de ses chefs de projet (WF-PRJ-0060, WF-IHM-0110).",
             set_by_rescuer(),
+        ),
+        "project_background_task_running.json": mocktext.example(
+            "Le projet témoin lu pendant que court le marquage de sa révision en cours, la 102 "
+            "(revision_marking) : les commandes que ce traitement de fond rendrait caduques — la "
+            "saisie du lotissement, qui retirerait le rattachement de tâches que le marquage "
+            "fige, les sorties, dont le sort marquerait ou abandonnerait la révision, la "
+            "déclaration d'un risque survenu et les imports, qui y écriraient — sont présentées "
+            "indisponibles en nommant la condition manquante, aucun traitement de fond en cours, "
+            "après leurs conditions d'état ; ses attributs, ses contributeurs, ses chronologies "
+            "et ses coûts réels restent disponibles, et la saisie du lotissement aboutit une "
+            "fois le marquage fini (WF-IHM-0090, WF-PLA-0170, WF-CYC-0090, WF-IHM-0080).",
+            read_during_marking(),
         ),
     }
