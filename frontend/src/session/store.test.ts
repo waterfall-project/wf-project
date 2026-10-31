@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from "node:crypto";
+import { connect, createServer, type Server } from "node:net";
 import { inspect } from "node:util";
 
 import { createClient, ErrorReply, ReconnectStrategyError } from "@redis/client";
@@ -44,6 +45,54 @@ function testAddress(change: (address: URL) => void): string {
   const address = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
   change(address);
   return address.href;
+}
+
+/**
+ * A door to the Redis of the tests, on a port of its own, that the test can shut: while it is shut,
+ * a client that reconnects is refused, whatever the time it takes — the order between the loss of a
+ * connection and its reconnection is the test's, never the load of the machine's.
+ */
+async function doorToRedis() {
+  const target = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
+  const server: Server = createServer((inbound) => {
+    const outbound = connect({ host: target.hostname, port: Number(target.port) || 6379 });
+    inbound.pipe(outbound);
+    outbound.pipe(inbound);
+    // Redis closing the connection closes the other end too, as it would without the door.
+    outbound.on("close", () => inbound.destroy());
+    inbound.on("close", () => outbound.destroy());
+    outbound.on("error", () => undefined);
+    inbound.on("error", () => undefined);
+  });
+  const open = (port: number) =>
+    new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+  await open(0);
+  const address = server.address();
+  const port = typeof address === "object" && address !== null ? address.port : 0;
+  return {
+    port,
+    /** Refuse new connections from now on; those made go on. */
+    shut: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve();
+        });
+      }),
+    /** Accept connections again, at the same port. */
+    reopen: () => open(port),
+    /** Stop listening, if it still does. */
+    dispose: () => {
+      if (server.listening) {
+        server.close();
+      }
+    },
+  };
 }
 
 /** A session of an account, its access token good for five minutes. */
@@ -145,20 +194,34 @@ describe("the store of the sessions of the front", () => {
     const [user, password] = [`store-${randomUUID()}`, randomUUID()];
     const admin = await createClient({ url: process.env.WATERFALL_TEST_REDIS_URL ?? "" }).connect();
     await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
+    const door = await doorToRedis();
     await closeStore();
     vi.stubEnv(
       "WATERFALL_REDIS_URL",
-      testAddress((address) => Object.assign(address, { username: user, password })),
+      testAddress((address) =>
+        Object.assign(address, {
+          username: user,
+          password,
+          hostname: "127.0.0.1",
+          port: door.port,
+        }),
+      ),
     );
     try {
       expect(await readSession(randomUUID())).toBeUndefined();
+      // The door is shut before Redis kills the connection: the client that finds it lost is refused
+      // when it reconnects, however late it comes, so the read below can only fail.
+      const shut = door.shut();
       expect(await admin.clientKill({ filter: "USER", username: user })).toBe(1);
+      await shut;
       await expect(readSession(randomUUID())).rejects.toBeInstanceOf(StoreUnreachable);
+      await door.reopen();
       await vi.waitFor(async () => {
         expect(await readSession(randomUUID())).toBeUndefined();
       });
     } finally {
       await closeStore();
+      door.dispose();
       vi.unstubAllEnvs();
       await admin.aclDelUser(user);
       await admin.close();
