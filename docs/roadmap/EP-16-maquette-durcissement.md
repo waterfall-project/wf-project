@@ -1052,6 +1052,35 @@ adopte. US-0670/L3 à L5 suivent US-0703 ; le gel vient toujours en dernier.
    tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de domaine passe par
    une issue « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
 
+### Trois lots détachés du 2026-10-31
+
+Décisions de l'auteur du 2026-10-30 et du 2026-10-31 (#1672, #1635, #1576), cadrées sans rouvrir le
+reste du plan. Aucune table, aucune migration, aucun module du noyau, aucune modification du
+contrat : le contrat et le faux back sont inchangés.
+
+- **L'avis de G-05** (US-0703/L9 #1688). Une note (`role="note"`) de `PerimeterBar`, une phrase de
+  catalogue par vue — « Les projets terminés sont sans effet sur le plan de charge. », « Les projets
+  terminés sont sans effet sur la santé du pilotage. » —, affichée dès que `completed` est retenu,
+  même avec d'autres états. Il se lit sur `answer.scope.states`, ce que le serveur a retenu ;
+  écarté : `perimeter.states`, car une adresse sans `states` laisse le serveur choisir et
+  `PerimeterBar` ne suppose aucun défaut. `completed` seul ; écarté : nommer aussi `pricing` sur la
+  santé du pilotage, où le contrat le dit sans effet — constat distinct #1691, à trancher. Écarté :
+  laisser l'avis au contrat seul, qui le dit déjà sans qu'aucun écran le dise.
+- **La sonde d'hydratation** (US-0590h #1689). Un helper partagé du harnais, dans
+  `frontend/e2e/hydration.ts` ou un module voisin : son gestionnaire ignore une route déjà traitée
+  et le retrait de la route attend les gestionnaires en vol. Écartés : (A) garder `networkidle`,
+  qui réduit la course sans la fermer ; (B) `unrouteAll({ behavior: "ignoreErrors" })`, qui avale
+  les erreurs du gestionnaire.
+- **Le rejet après la coupure de Redis** (US-0590i #1690). Un test qui attend l'événement de coupure
+  du client, ou coupe la reconnexion le temps de l'assertion, plutôt que de compter sur l'ordre ;
+  écartée : toute attente allongée.
+- **Deux parts détachées d'US-0590**, plutôt que des lots d'US-0590g : US-0590g/L2 est un rejeu à
+  cause inconnue, qui la passe `fini`, et lui ajouter un lot déplacerait cette fin.
+- **L'ordre.** US-0703/L9 après US-0703/L8 #1619, avant US-0670/L3 #1451, qui l'attend avec L4 et
+  L5. US-0590h puis US-0590i après US-0590g/L1 #1544 ; US-0590g/L2 #1545 les attend (ordre, non
+  code), pour que son rejeu sous charge ne se fasse plus sur un harnais qui a ces défauts. Le gel
+  #1333 attend déjà tous les lots.
+
 ---
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
@@ -1287,6 +1316,74 @@ la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1
 
 **Hors périmètre.** #1539 (le Gantt : EP-17, US-0750/L1 #1560, faute de lot d'EP-16 qui le
 touche) ; #1230 : EP-17 ; ajouter ou retirer un écran du parcours d'accessibilité.
+
+---
+
+## US-0590h — La sonde d'hydratation ferme sa course avec sa route
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1689
+
+**En tant que** développeur, **je veux** que la sonde d'hydratation des parcours ferme sa course avec
+la route des scripts par un helper commun du harnais, **afin que** le palier complet local du front
+et la file de fusion ne rejettent plus un lot sur « Route is already handled » (#1635).
+
+**Critères d'acceptation.**
+
+- propre à l'US : un helper partagé du harnais pose la route des scripts tenus et la retire : son
+  gestionnaire ignore une route déjà traitée, et le retrait attend les gestionnaires en vol ;
+- propre à l'US : `indicators.spec.ts:173` et `planning.spec.ts:120` l'emploient, et
+  `indicators.spec.ts` n'attend plus `networkidle` ;
+- propre à l'US : un test du helper échoue sans le correctif et passe avec, sans dépendre de la
+  charge : une requête arrive après le dernier silence et avant le retrait de la route ;
+- propre à l'US : les autres routes du harnais (`exchanges`, `grid`, `shell`, `tasks`) sont
+  auditées ; celles de même forme prennent le helper, les autres constats deviennent des issues
+  rattachées au lot ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à six workers, voient ces deux parcours verts, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b à f) ; US-0590 reste `fini`.
+- Décision de l'auteur du 2026-10-30 (#1635) : l'option C, un helper partagé.
+- Voir la conception, « Trois lots détachés du 2026-10-31 ».
+
+**Hors périmètre.** Le parcours au Tab et le rejeu sous charge (US-0590g).
+
+---
+
+## US-0590i — La stabilité de `store.test.ts:142` sous charge
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1690
+
+**En tant que** développeur, **je veux** que le test du rejet après la coupure de Redis ne dépende
+plus de l'ordre entre la coupure et la reconnexion du client, **afin que** le palier rapide de la
+pull request et la file de fusion ne rejettent plus un lot sur un échec qui disparaît au rejeu
+(#1576).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause est écrite dans la pull request, après une reproduction sous charge,
+  avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec, sans dépendre de la charge ; il
+  attend l'événement de coupure du client, ou coupe la reconnexion le temps de l'assertion ; la pull
+  request dit si la cause est dans le test ou dans le code de production ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme` ;
+- propre à l'US : trois passages successifs de `frontend/src/session` sous charge voient ce test
+  vert, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot) ; US-0590 reste `fini`.
+- Budget : 90 minutes de reproduction ; passé ce délai sans cause, le lot passe `question`.
+- Voir la conception, « Trois lots détachés du 2026-10-31 ».
+
+**Hors périmètre.** `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx` (#1354, US-0590g/L2
+#1545).
 
 ---
 
@@ -1993,6 +2090,8 @@ qui ne changeront plus.
   dont la durée de validité du cache.
 - propre à l'US : chaque refus qu'US-0702 change de forme se dit à l'écran par son code et ses
   paramètres, sur un exemple du contrat, et aucun test ne garde une enveloppe disparue.
+- propre à l'US (L9 #1688, G-05) : les écrans du plan de charge et de la santé du pilotage disent,
+  quand le filtre d'états contient `completed`, qu'un projet terminé y est sans effet.
 - propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
 
 **Notes de réalisation.** Les aides d'US-0670/L4 et L5 décrivent les écrans qu'US-0703 laisse :
