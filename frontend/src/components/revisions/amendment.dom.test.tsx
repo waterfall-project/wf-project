@@ -299,6 +299,29 @@ describe("the contractualisation of an amendment", () => {
     expect(screen.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
   });
 
+  it("tells a merge that fails for a post out of the subtree of its lot, naming the two tasks, as the contract gives them [WF-PLA-0170-A]", async () => {
+    serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_merge_outside_work_package"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    await tick();
+    await tick();
+    expect(tasksRegion()).toHaveTextContent(
+      /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
+    );
+    closeTasks();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
   it("names the started task the merge will complete [WF-REV-0050-A]", async () => {
     // Le compte rendu d'une fusion dont le différentiel retire une tâche démarrée nomme cette
     // tâche comme terminée.

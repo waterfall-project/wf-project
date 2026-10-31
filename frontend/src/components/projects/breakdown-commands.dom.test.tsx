@@ -421,7 +421,7 @@ describe("the work breakdown edited in its grid", () => {
     );
   });
 
-  it("says under the dialog a write the server refuses while a background task runs, naming the condition", async () => {
+  it("says under the dialog a write the server refuses while a background task runs, naming the condition [WF-IHM-0080-A]", async () => {
     serve({
       [SET]: { problem: example("work_breakdown_background_task") as Problem & { status: 409 } },
     });
