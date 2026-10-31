@@ -247,6 +247,16 @@ export interface ExpectedRefusal {
   readonly code?: ErrorCode;
 }
 
+/**
+ * The refusals of a read a screen can do without, which every such read expects: refused to the
+ * session (403) or not found (404). One list for all of them (#1518): a read that does without more
+ * adds its own to it.
+ */
+export const OPTIONAL_READ_REFUSALS = [
+  { status: 404 },
+  { status: 403 },
+] as const satisfies readonly ExpectedRefusal[];
+
 /** Whether an answer is a refusal the screen expects. */
 function isExpected(answer: Answer<unknown>, expected: ExpectedRefusal): boolean {
   if (answer.response.status !== expected.status) {

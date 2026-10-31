@@ -102,6 +102,7 @@ function computedInRisks(
 export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
   key: "risks",
   searched: true,
+  paged: true,
   name: "risks",
   rowKey: (risk) => risk.risk_id,
   columns: [

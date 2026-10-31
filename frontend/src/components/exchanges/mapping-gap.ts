@@ -10,7 +10,7 @@
  * or cannot answer leaves the gap without columns: the condition and the way to the page stay, the
  * page of the correspondence saying the rest. Any other answer is thrown for the pages of the shell.
  */
-import { readUnlessRefused } from "@/api/problem";
+import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { leafOf } from "@/navigation/functions";
 import type { Permission } from "@/session/request";
@@ -21,7 +21,7 @@ import type { ImportOffers, MappingGap } from "./offers";
 const MAPPING_PAGE = leafOf("FBS-3.1.3");
 
 /** The refusals of the correspondence the screens do without: not readable, not found, or failing. */
-const UNREADABLE = [{ status: 403 }, { status: 404 }, { status: 500 }, { status: 503 }] as const;
+const UNREADABLE = [...OPTIONAL_READ_REFUSALS, { status: 500 }, { status: 503 }] as const;
 
 /**
  * The gap of the correspondence, when the import of actual costs is unavailable for want of it and

@@ -25,7 +25,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
-import { readUnlessRefused } from "@/api/problem";
+import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -79,9 +79,6 @@ async function readIndicators({ revision }: GridAddress) {
     }),
   );
 }
-
-/** The refusals of the optional reads (categories, sub-projects) the screen does without. */
-const OPTIONAL_READ_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
 
 /**
  * The categories of cost a line is created from, the active ones — a line created takes an active

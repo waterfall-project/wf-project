@@ -55,13 +55,8 @@ const AUTOMATION: Risk = (() => {
   }
   return found;
 })();
-// A counterfactual: its category deactivated since it was dismissed, which no example of the
-// contract shows — the contract has no risk dismissed under a category deactivated.
-const DEACTIVATED: Risk = {
-  ...AUTOMATION,
-  provision_cost_category_is_active: false,
-  provision_cost_category_label: "Provisions pour risques",
-};
+// The same risk dismissed, its category deactivated since: an example of the contract shows it.
+const DEACTIVATED = example("risk_dismissed_category_deactivated") as Risk;
 
 const ONE = { id: "01926f3a-7c00-7000-8000-000000000404", label: "Provisions pour risques" };
 const CONTRACTUAL = { id: "01926f3a-7c00-7000-8000-000000000405", label: "Aléas contractuels" };

@@ -453,6 +453,12 @@
   "risks": {
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
+    "pages": {
+      "label": "Pages of the risks",
+      "beyond": "The page asked is beyond the end of the list.",
+      "previous": "Previous risks",
+      "next": "Next risks"
+    },
     "filter": "Filter by state",
     "everyState": "Every state",
     "provisions": {
@@ -506,7 +512,8 @@
         "absent": "Not in the main structure: the risk does not weigh on the estimate.",
         "category": "Category",
         "subproject": "Subproject",
-        "outOfSubproject": "Out of any subproject"
+        "outOfSubproject": "Out of any subproject",
+        "notAdmitted": "{choice} (no longer admitted)"
       },
       "reviews": {
         "title": "History of the reviews",
@@ -593,6 +600,8 @@
     },
     "line": {
       "title": "Line {document}",
+      "titleItem": "Line {document}, item {item}",
+      "open": "{document}, item {item}",
       "close": "Close the line",
       "reason": "Reason for the exclusion",
       "excludedWithoutReason": "Excluded from the tracked scope, without a reason.",

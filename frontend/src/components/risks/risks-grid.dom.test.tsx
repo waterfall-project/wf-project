@@ -480,13 +480,14 @@ describe("the changes the screen makes to its address, before the server has ans
     );
   });
 
-  it("keeps no number of rows per page, a flat table the server does not page: a limit in the address is not recorded [WF-IHM-0060-A]", async () => {
+  it("records the number of rows per page the address shows, under the key of the registry, as for every flat table the server pages [WF-IHM-0060-A]", async () => {
     page.search = "limit=25";
     renderRisks();
-    await new Promise((done) => setTimeout(done, 50));
-    const writes = (server.client as FakeClient).calls.filter(
-      ({ route }) => route === "PATCH /me/preferences",
-    );
-    expect(writes).toEqual([]);
+    const writes = () =>
+      (server.client as FakeClient).calls.filter(({ route }) => route === "PATCH /me/preferences");
+    await waitFor(() => {
+      expect(writes()).toHaveLength(1);
+    });
+    expect(writes()[0]?.body).toMatchObject({ grids: { risks: { page_size: 25 } } });
   });
 });

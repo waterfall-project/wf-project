@@ -30,7 +30,13 @@ import { useTranslations } from "next-intl";
 
 import type { ApiClient } from "@/api/client";
 import { readEveryPage, readEveryPageUnlessRefused } from "@/api/every-page";
-import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
+import {
+  type ExpectedRefusal,
+  OPTIONAL_READ_REFUSALS,
+  readOrFail,
+  type ReadOrRefused,
+  readOrRefused,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { platformOffer } from "@/components/commands/offer";
 import {
@@ -105,9 +111,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The pages of the lists the server pages, which the switch of the deactivated objects resets. */
 const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
-
-/** The refusals a list of choices is done without on: not found, or refused. */
-const REFUSED = [{ status: 404 }, { status: 403 }] as const;
 
 /** The refusal of the bounds of a list: an upper bound below the lower one (#545). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -264,7 +267,7 @@ function readCalendars(
  */
 function readChoices(client: ApiClient, { inactive, inactiveCategories }: ResourceQueries) {
   return Promise.all([
-    readEveryPageUnlessRefused("listCostCategories", REFUSED, (page) =>
+    readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/cost-categories", {
         params: { query: { ...inactiveCategories, ...page } },
       }),
@@ -282,7 +285,7 @@ function readChoices(client: ApiClient, { inactive, inactiveCategories }: Resour
  */
 function readEveryRole(client: ApiClient, { editable, everyRole }: ResourceQueries) {
   return editable
-    ? readEveryPageUnlessRefused("listResourceRoles", REFUSED, (page) =>
+    ? readEveryPageUnlessRefused("listResourceRoles", OPTIONAL_READ_REFUSALS, (page) =>
         client.GET("/reference/resource-roles", { params: { query: { ...everyRole, ...page } } }),
       )
     : undefined;

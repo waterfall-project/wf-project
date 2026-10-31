@@ -4,17 +4,16 @@ import { globSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { auditGrid } from "../audit/audit-columns";
 import { accessRoleGrid, userGrid } from "../admin/admin-grids";
 import { backupGrid } from "../admin/backup-columns";
-import { PROJECT_GRID } from "../portfolio/portfolio-grid";
-import { RISK_GRID } from "../risks/risk-grid";
-
+import { auditGrid } from "../audit/audit-columns";
 import { COST_GRID } from "../costs/cost-grid";
-import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
+import { PROJECT_GRID } from "../portfolio/portfolio-grid";
 import { PROJECT_LIST_GRID } from "../projects/project-list-grid";
+import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
+import { RISK_GRID } from "../risks/risk-grid";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
 import { PLANNING_GRID } from "./planning";
@@ -217,6 +216,9 @@ describe("the columns a grid records as known", () => {
     expect(new Set(known).size).toBe(known.length);
   });
 
+  // The perimeter of the guard: the grids a component exports with an annotated type
+  // (`export const X: GridConfig<`, `export function f(…): GridConfig<`). A grid not exported, or
+  // typed by inference, is out of its sight and added to the list by hand.
   it("covers every grid the components export, so that a new one is added to the list", () => {
     const declared = globSync("src/components/**/*.{ts,tsx}")
       .filter((path) => !/\.test\.tsx?$/.test(path))
@@ -227,7 +229,7 @@ describe("the columns a grid records as known", () => {
           ...source.matchAll(/^export function (\w+)\((?:[^()]|\([^()]*\))*\)\s*:\s*GridConfig</gm),
         ].map((found) => found[1]);
       });
-    // The grids of the list are named by what they build, the wrappers apart: 19 grids, 4 wrappers.
+    // The grids of the list are named by what they build, the wrappers apart.
     expect(declared.length).toBe(Object.keys(grids).length + wrappers.length);
     expect(declared).toEqual(expect.arrayContaining(wrappers));
   });

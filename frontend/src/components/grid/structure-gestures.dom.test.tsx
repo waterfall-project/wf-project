@@ -570,6 +570,27 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(alert).toHaveTextContent("Câblage des armoires");
   });
 
+  it("tells the refusal of a manual date on a day without a working hour as `byField` reads it from the contract example, naming the next working day [WF-PLA-0020-A]", async () => {
+    // The envelope says only that the entry is invalid; its field says why (`NON_WORKING_DAY`).
+    // The refusal is told in the alert, at the anchor row of the creation: the new row, created by
+    // nothing, holds no cell to show it at. What is proved is the reading of the example, no more.
+    serve({
+      [CREATE]: { problem: example("node_create_non_working_day") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(TASK, "Insérer au-dessous");
+    await create("Réception provisoire sur site");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(node(TASK)?.row_number)}, « Câblage des armoires » :`,
+    );
+    expect(alert).toHaveTextContent("Date sur un jour sans heure travaillée.");
+    expect(alert).toHaveTextContent(
+      "Le samedi 19 décembre n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 21 décembre.",
+    );
+    expect(alert).not.toHaveTextContent("Les données saisies ne sont pas valides");
+  });
+
   it("says a node to follow that is no sibling by its reason, at the row it was asked from", async () => {
     // The envelope says only that the entry is invalid; its field says why (`NODE_NOT_SIBLING`).
     serve({

@@ -53,6 +53,7 @@
                 meta: { $ref: ../components/common.yaml#/PaginationMeta }
             examples:
               witness: { $ref: ../../../fixtures/api/risks.json }
+              page: { $ref: ../../../fixtures/api/risks_page.json }
               empty: { $ref: ../../../fixtures/api/risks_empty.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

@@ -159,7 +159,7 @@ export interface Examples {
     200: "row_number_estimate_line" | "row_number_task";
   };
   "GET /projects/{project_id}/risks": {
-    200: "risks" | "risks_empty";
+    200: "risks" | "risks_empty" | "risks_page";
   };
   "GET /projects/{project_id}/risks/coverage": {
     200: "risk_coverage";

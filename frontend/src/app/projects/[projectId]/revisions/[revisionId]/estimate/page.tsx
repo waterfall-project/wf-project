@@ -30,7 +30,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
-import { readOrFail, readUnlessRefused } from "@/api/problem";
+import { OPTIONAL_READ_REFUSALS, readOrFail, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -120,9 +120,6 @@ async function readEstimateFigures(at: GridAddress) {
   ]);
 }
 
-/** The refusals a list of the reference data is done without on: not found, or refused. */
-const REFUSED = [{ status: 404 }, { status: 403 }] as const;
-
 /**
  * A list of the reference data the screen can do without: `undefined` when the API does not find
  * it or refuses it — the roles are the reference's (`resource_settings`), which an estimator may
@@ -133,7 +130,7 @@ async function readOptional<T>(
   operation: string,
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T | undefined> {
-  return readUnlessRefused(operation, REFUSED, call);
+  return readUnlessRefused(operation, OPTIONAL_READ_REFUSALS, call);
 }
 
 /**
@@ -161,12 +158,12 @@ async function readReference(projectId: string): Promise<EstimateReference> {
   const categoryQuery = referenceQuery(permissions, "cost_settings.read");
   const roleQuery = referenceQuery(permissions, "resource_settings.read");
   const [categories, roles, subprojects] = await Promise.all([
-    readEveryPageUnlessRefused("listCostCategories", REFUSED, (page) =>
+    readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/cost-categories", {
         params: { query: { ...categoryQuery, ...page } },
       }),
     ),
-    readEveryPageUnlessRefused("listResourceRoles", REFUSED, (page) =>
+    readEveryPageUnlessRefused("listResourceRoles", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/resource-roles", { params: { query: { ...roleQuery, ...page } } }),
     ),
     readOptional("listSubprojects", () =>

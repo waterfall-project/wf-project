@@ -32,13 +32,23 @@ export function useLineNavigation(line: string | undefined) {
   return usePendingLink((query) => lineHref(pathname, query, line));
 }
 
-/** Render the number of document of a line, as a link that shows it; the line shown says so. */
+/**
+ * Render the number of document of a line, as a link that shows it, named by its item too when it
+ * has one; the line shown says so.
+ */
 export function CostLineCell({ line }: { readonly line: CostRow }) {
   const shown = readCostLine(useSearchParams()) === line.cost_line_id;
   const { href, onClick } = useLineNavigation(line.cost_line_id);
+  const t = useTranslations("actualCosts.line");
   return (
     <Link
       href={href}
+      // Two lines of one document differ by their item: the link names both (#1524).
+      aria-label={
+        line.document_item === null
+          ? undefined
+          : t("open", { document: line.document_number, item: line.document_item })
+      }
       onClick={onClick}
       tabIndex={-1}
       aria-current={shown ? "true" : undefined}

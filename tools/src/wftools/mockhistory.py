@@ -17,10 +17,10 @@ examples say of them is read from those descriptions (their comparison is said b
 
 - the reference budget and the reserve for risks of the reference (WF-RIS-0050), which place each
   risk in its cell of the matrix and give the totals of the provisions (WF-RIS-0040);
-- the register of the risks, a risk alone, the matrix, the reviews of a risk and the coverage of
-  the risks (``risks``, ``risk``, ``risk_occurred_detail``, ``risk_matrix``, ``risk_reviews``,
-  ``risk_coverage``), from the risks of ``mockwitnessrisks`` and the whole structure read today, 751
-  and 753 at its scale (EP-14/L45b).
+- the register of the risks, and a page of it, a risk alone, the matrix, the reviews of a risk and
+  the coverage of the risks (``risks``, ``risks_page``, ``risk``, ``risk_occurred_detail``,
+  ``risk_matrix``, ``risk_reviews``, ``risk_coverage``), from the risks of ``mockwitnessrisks``
+  and the whole structure read today, 751 and 753 at its scale (EP-14/L45b).
 
 The formulas are simple and said here, to be replaced by the kernel of EP-07 and EP-08. Each
 marked revision is priced at the rates of its reference year: the reference at those of 2026, the
@@ -94,6 +94,9 @@ REVISIONS: dict[str, tuple[Event, Event | None]] = {
     CURRENT: (RISK_751_REVIEWED, None),
 }
 """When each revision was created and marked: the examples that carry it say these instants."""
+
+RISKS_PAGE = 2
+"""The size of the page of the register `risks_page` reads: fewer than its risks (#1367)."""
 
 
 def stamp(at: datetime) -> str:
@@ -695,6 +698,12 @@ def examples() -> dict[str, JsonObject]:
     read = readings()
     register = read["risks"]
     items = cast("list[JsonObject]", register["items"])
+    sums = cast("dict[str, str]", register["totals"])
+    page: JsonObject = {
+        **register,
+        "items": cast("list[JsonValue]", items[:RISKS_PAGE]),
+        "meta": {"limit": RISKS_PAGE, "offset": 0, "total": len(items)},
+    }
     covered = read["risk_coverage"]
     merged = " et ".join(_amount(row.amounts.reestimated) for row in merged_lines(today))
     reserve_text = (
@@ -750,6 +759,16 @@ def examples() -> dict[str, JsonObject]:
             f"la référence — avec leur somme, et {reserve_text} en regard (WF-RIS-0040, "
             "WF-RIS-0050).",
             register,
+        ),
+        "risks_page.json": mocktext.example(
+            f"Le même registre lu deux risques par page (limit={RISKS_PAGE}, offset=0) : "
+            + _named([f"« {item['label']} »" for item in items[:RISKS_PAGE]])
+            + f", les deux premiers des {len(items)} risques retenus, et les totaux de "
+            f"provisions de tous les risques retenus — {_amount(Decimal(sums['total']))} au "
+            f"total, la réserve à {_amount(Decimal(sums['reserve']))} —, pas de la seule page "
+            "rendue "
+            "(WF-IHM-0060, WF-IHM-0130, WF-RIS-0040, #1367).",
+            page,
         ),
         "risk.json": mocktext.example(
             f"« {rework.label} », identifié : sa description, ses actions de mitigation, sa "

@@ -347,7 +347,7 @@ describe("the Gantt of the planning", () => {
     }
   });
 
-  it("zooms by a wheel given at once after the commit of its mount, with the zoom of that render [WF-QUA-0010]", async () => {
+  it("zooms by a wheel given at once after the commit of its mount, with the zoom of that render", async () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(384);
     vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(8);
     const row = planning.items.find((item) => item.task !== null && item.task !== undefined) ?? {

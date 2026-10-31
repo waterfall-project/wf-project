@@ -605,10 +605,12 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
 
 // aucune exigence : propre à l'US (US-0650, un numéro de ligne absent des lignes lues).
 describe("a predecessor whose number no row read bears, resolved by the server", () => {
-  const reception = rowOf(planning, "Réception des études");
-  const node = planning.items[reception];
-  // The number 9 of the main structure, « Câblage des armoires », a task the grid of the studies
-  // does not read; the number 10, a line of the estimate.
+  // The mounting is the row the example `predecessor_set` answers: the grid reads it, and nothing
+  // else is said of it than what the server answered (no alert, #1528).
+  const reception = rowOf(nested, "Montage des armoires sur site");
+  const node = nested.items[reception];
+  // The number 3, a task of the main structure the grid does not read, which the example answers
+  // for; the same number as a line of the estimate, the other.
   const task = example("row_number_task") as RowNumberResolution;
 
   /** The links the grid sent, and the row numbers it asked the server. */
@@ -622,13 +624,13 @@ describe("a predecessor whose number no row read bears, resolved by the server",
   it("asks the server the task of a number no row read bears, the entry waiting, and writes it in predecessor_node_id", async () => {
     const { until, release } = held();
     const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
-    render(grid(planning));
-    await retype(await entered(reception, "predecessors"), "5; 9DD");
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "10; 3DD");
     // The entry waits for the answer, its text read only.
     const field = screen.getByRole("textbox", { name: "Prédécesseurs" });
     expect(field).toHaveAttribute("aria-busy", "true");
     expect(field).toHaveAttribute("readonly");
-    expect(sentOf(client)).toEqual({ asked: ["9"], links: [] });
+    expect(sentOf(client)).toEqual({ asked: ["3"], links: [] });
     await act(async () => {
       release();
       await vi.waitFor(() => {
@@ -638,7 +640,7 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     expect(sentOf(client).links[0]).toEqual({
       predecessors: [
         {
-          predecessor_node_id: planning.items[rowOf(planning, "Revue de conception")]?.node_id,
+          predecessor_node_id: nested.items[rowOf(nested, "Câblage des armoires")]?.node_id,
           link_type: "finish_to_start",
           lag: { value: "0", unit: "d" },
         },
@@ -651,6 +653,7 @@ describe("a predecessor whose number no row read bears, resolved by the server",
       lock_version: node?.lock_version,
     });
     expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it.each([
@@ -658,8 +661,8 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     { name: "a number no node bears", answer: NO_ROW },
   ])("refuses as unknown $name, and sends nothing", async ({ answer }) => {
     const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
-    render(grid(planning));
-    await retype(await entered(reception, "predecessors"), "10");
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Aucune tâche de la structure ne porte l’un de ces numéros.",
     );
@@ -667,7 +670,7 @@ describe("a predecessor whose number no row read bears, resolved by the server",
       "aria-invalid",
       "true",
     );
-    expect(sentOf(client)).toEqual({ asked: ["10"], links: [] });
+    expect(sentOf(client)).toEqual({ asked: ["3"], links: [] });
   });
 
   it.each([
@@ -675,20 +678,20 @@ describe("a predecessor whose number no row read bears, resolved by the server",
     { name: "abandons, no task bearing its number,", answer: NO_ROW, links: 0 },
   ])("$name an entry left before the server named its rows", async ({ answer, links }) => {
     const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
-    render(grid(planning));
+    render(grid(nested));
     const field = await entered(reception, "predecessors");
     await userEvent.clear(field);
-    await userEvent.type(field, "9");
+    await userEvent.type(field, "3");
     // Left by a click elsewhere: the entry waits for the server, a blur being no key to keep it.
     act(() => {
-      cellAt(rowOf(planning, "Études"), "label").focus();
+      cellAt(rowOf(nested, "Poste de commande"), "label").focus();
     });
     expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute("aria-busy");
     await waitFor(() => {
       expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
       expect(sentOf(client).links).toHaveLength(links);
     });
-    expect(sentOf(client).asked).toEqual(["9"]);
+    expect(sentOf(client).asked).toEqual(["3"]);
   });
 
   // aucune exigence : propre à l'US (US-0650). Garde l'état final seul — aucun champ en attente
@@ -696,37 +699,39 @@ describe("a predecessor whose number no row read bears, resolved by the server",
   // `askFirst` (grid-keyboard.ts), dont la course ne se reproduit pas par la grille entière.
   it("keeps no field busy once the entry is left inside an asynchronous act", async () => {
     const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" });
-    render(grid(planning));
+    render(grid(nested));
     const field = await entered(reception, "predecessors");
     await userEvent.clear(field);
-    await userEvent.type(field, "9");
+    await userEvent.type(field, "3");
     // Left by a blur inside one asynchronous act.
     await act(async () => {
-      cellAt(rowOf(planning, "Études"), "label").focus();
+      cellAt(rowOf(nested, "Poste de commande"), "label").focus();
       await vi.waitFor(() => {
         expect(sentOf(client).links).toHaveLength(1);
       });
     });
     expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
     expect(document.querySelector("[aria-busy='true']")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("asks again a number when the rows were read anew while the server was answering", async () => {
     const { until, release } = held();
     const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
-    const { rerender } = render(grid(planning));
-    await retype(await entered(reception, "predecessors"), "9");
-    expect(sentOf(client).asked).toEqual(["9"]);
+    const { rerender } = render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
+    expect(sentOf(client).asked).toEqual(["3"]);
     // A reading anew between the question and the answer: the numbering may have changed.
-    rerender(grid({ ...planning, items: [...planning.items] }));
+    rerender(grid({ ...nested, items: [...nested.items] }));
     await act(async () => {
       release();
       await vi.waitFor(() => {
         expect(sentOf(client).links).toHaveLength(1);
       });
     });
-    expect(sentOf(client).asked).toEqual(["9", "9"]);
+    expect(sentOf(client).asked).toEqual(["3", "3"]);
     expect(screen.queryByText(/n’a pu être vérifié/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("says a number the server could not be asked, and asks again when validated anew", async () => {
@@ -734,8 +739,8 @@ describe("a predecessor whose number no row read bears, resolved by the server",
       [ROW]: [{ problem: UNAVAILABLE }, "row_number_task"],
       [PREDECESSORS]: "predecessor_set",
     });
-    render(grid(planning));
-    await retype(await entered(reception, "predecessors"), "9");
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "L’un de ces numéros n’a pu être vérifié : validez à nouveau dans un instant.",
     );
@@ -745,7 +750,7 @@ describe("a predecessor whose number no row read bears, resolved by the server",
       expect(sentOf(client).links).toHaveLength(1);
     });
     expect(sentOf(client)).toEqual({
-      asked: ["9", "9"],
+      asked: ["3", "3"],
       links: [
         {
           predecessors: [
