@@ -275,9 +275,10 @@ function useWhenTaskEnded(
 }
 
 /**
- * Run `then` once, when the task named has succeeded — a relaunch of it included, never when it failed or its follow-up was
- * interrupted —, for the screen that started it and still shows: a task that ends while the user
- * is elsewhere leads nowhere. `task_id` is none until a task was started.
+ * Run `then` once, when the task named has succeeded — a relaunch of it included, never when it
+ * failed or its follow-up was interrupted —, for the screen that started it and still shows: a
+ * task that ends while the user is elsewhere leads nowhere. `task_id` is none until a task was
+ * started.
  */
 export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
   useWhenTaskEnded(taskId, "succeeded", then);

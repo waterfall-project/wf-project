@@ -5,10 +5,10 @@
  * one command of §3.6 its screens exercise (US-0210). Pressed, an exit opens a confirmation in
  * the page — one at a time —, which names the state it leads to, that it is final, and that the
  * project and all its data become read only, a sentence that describes the field of the motive
- * and the button that confirms; it asks for the motive, if the user gives one (WF-CYC-0090). A project that
- * carries a current revision asks for its fate too: marked, with a version name and, if the user
- * gives one, a description (WF-REV-0020), or abandoned (WF-REV-0010); the API refuses an exit
- * without it. Confirmed, a server action asks the API, which judges it.
+ * and the button that confirms; it asks for the motive, if the user gives one (WF-CYC-0090). A
+ * project that carries a current revision asks for its fate too: marked, with a version name and,
+ * if the user gives one, a description (WF-REV-0020), or abandoned (WF-REV-0010); the API refuses
+ * an exit without it. Confirmed, a server action asks the API, which judges it.
  *
  * An exit that marks answers a background task (WF-ARC-0090), handed to the tracker of the shell
  * with the exit itself, which runs it again if the task fails (WF-IHM-0080): the exit applies when
@@ -115,6 +115,8 @@ const POINTERS = {
 } as const;
 type Field = keyof typeof POINTERS;
 type Problems = Readonly<Partial<Record<Field, FieldProblem>>>;
+/** The version name the user left out, found by the page itself: said as the marking says it. */
+const NAME_MISSING: FieldProblem = { pointer: POINTERS.name, code: "VALUE_REQUIRED" };
 
 /** The refusals once the user has changed a field: the one said at it goes. */
 function without(problems: Problems, field: Field): Problems {
@@ -193,7 +195,7 @@ function ExitForm({
   }, [focused]);
   const state = EXIT_STATES[command];
 
-  /** Say the refusals at their fields, and give the focus to the first one: the fate, then the name. */
+  /** Say the refusals at their fields, and focus the first one: the fate, then the name. */
   const refuse = (refused: Problems) => {
     setProblems(refused);
     const first =
@@ -208,18 +210,17 @@ function ExitForm({
     if (busy) {
       return;
     }
-    // The fate of the revision is the user's choice (WF-CYC-0090-A), and a marking needs its version
-    // name (WF-REV-0020): the page says what lacks at its field, without asking the API.
+    // The fate of the revision is the user's choice (WF-CYC-0090-A), and a marking needs its
+    // version name (WF-REV-0020): the page says what lacks at its field, without asking the API.
     if (
       hasCurrentRevision &&
       (fate === undefined || (fate === "mark" && versionName.trim() === ""))
     ) {
-      refuse({
-        [fate === undefined ? "fate" : "name"]: {
-          pointer: fate === undefined ? POINTERS.fate : POINTERS.name,
-          code: "VALUE_REQUIRED",
-        },
-      });
+      refuse(
+        fate === undefined
+          ? { fate: { pointer: POINTERS.fate, code: "VALUE_REQUIRED" } }
+          : { name: NAME_MISSING },
+      );
       return;
     }
     setProblems({});
@@ -333,7 +334,9 @@ function ExitForm({
               />
               {problems.name === undefined ? null : (
                 <p id={`${field}-name-problem`} role="alert" className="text-sm text-destructive">
-                  {problemMessage(problems.name, { locale, messages })}
+                  {problems.name === NAME_MISSING
+                    ? t("markRevision.versionNameRequired")
+                    : problemMessage(problems.name, { locale, messages })}
                 </p>
               )}
               <label htmlFor={`${field}-description`} className="block font-medium">

@@ -142,7 +142,10 @@ async function chooseMarking() {
   );
 }
 
-/** Open the confirmation of an exit, abandon the current revision if the project carries one, confirm. */
+/**
+ * Open the confirmation of an exit, abandon the current revision if the project carries one,
+ * confirm.
+ */
 async function confirm(name: string, options: { revision?: boolean } = {}) {
   await userEvent.click(exit(name));
   if (options.revision ?? true) {
@@ -424,9 +427,9 @@ describe("the exits of the lifecycle of a project", () => {
     await choose("mark");
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
     const field = screen.getByRole("textbox", { name: "Nom de version" });
-    expect(screen.getByRole("alert")).toHaveTextContent("Une valeur est requise.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Le nom de version est obligatoire.");
     expect(field).toHaveAttribute("aria-invalid", "true");
-    expect(field).toHaveAccessibleDescription("Une valeur est requise.");
+    expect(field).toHaveAccessibleDescription("Le nom de version est obligatoire.");
     await waitFor(() => {
       expect(field).toHaveFocus();
     });
