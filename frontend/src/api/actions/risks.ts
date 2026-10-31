@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the risks of a project — one declared (`createRisk`) or modified
- * (`updateRisk`, from the version read), reviewed (`reviewRisk`), deleted (`deleteRisk`) or declared
- * occurred (`declareRiskOccurrence`): the browser asks the server of Next, which calls the API
- * (§4.3.1), and gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). A
- * write answered reads the page anew, which lists what the server now retains — but for the deletion,
- * which the screen leaves for the address without the risk, and the occurrence, handed to the worker,
- * which the tracker of the shell follows.
+ * (`updateRisk`, from the version read), reviewed (`reviewRisk`), deleted (`deleteRisk`) or
+ * declared occurred (`readRiskOccurrenceReport`, `declareRiskOccurrence`): the browser asks the
+ * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes of
+ * its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what the
+ * server now retains — but for the deletion, which the screen leaves for the address without the
+ * risk, and the occurrence, handed to the worker, which the tracker of the shell follows.
  */
 "use server";
 
@@ -103,38 +103,50 @@ export async function deleteRisk(
 }
 
 /**
- * Declare a risk occurred (WF-RIS-0060): the API hands the merge of its own estimate into the main
- * structure to the worker and answers at once with the reference of the background task
- * (WF-ARC-0090), which the tracker of the shell follows. Final. The API refuses it (412,
- * `STALE_LOCK_VERSION`) when the main structure or the risk moved since the report it carries the
- * counters of, or when a revision in progress was born — or vanished — since it was read, which
- * `creates_current_revision` gives back as read (WF-IHM-0110, US-0680): that refusal reaches the screen like the others.
- *
- * A stopgap: the action reads the report of the occurrence (`getRiskOccurrenceReport`) just before
- * and sends the two counters and `creates_current_revision` it gives back, so that the confirmation still applies. The next lot
- * (US-0680/L2, #1454) replaces it: the confirmation will carry the counters of the report the user
- * was shown, and this read goes away.
+ * Read what declaring a risk occurred would do (WF-RIS-0060, US-0680): the report shown before
+ * anything is applied, with the two counters and `creates_current_revision` the confirmation
+ * carries. A read, which writes nothing: abandoning at this step is not confirming.
+ */
+export async function readRiskOccurrenceReport(
+  projectId: string,
+  riskId: string,
+): Promise<Outcome<Schemas["RiskOccurrenceReport"]>> {
+  return decode(() =>
+    serverClient().GET("/projects/{project_id}/risks/{risk_id}/occurrence", {
+      params: { path: { project_id: projectId, risk_id: riskId } },
+    }),
+  );
+}
+
+/** What confirming the occurrence of a risk carries: the counters of the report shown. */
+export interface RiskOccurrenceCounters {
+  readonly mainStructureLockVersion: number;
+  readonly riskLockVersion: number;
+  readonly createsCurrentRevision: boolean;
+}
+
+/**
+ * Declare a risk occurred (WF-RIS-0060): the API hands the merge of its own estimate into the
+ * main structure to the worker and answers at once with the reference of the background task
+ * (WF-ARC-0090), which the tracker of the shell follows. Final. It sends what the report shown
+ * carried (`readRiskOccurrenceReport`): the API refuses it (412, `STALE_LOCK_VERSION`) when the
+ * main structure or the risk moved since, or when a revision in progress was born, or vanished,
+ * which `creates_current_revision` gives back as read (WF-IHM-0110): the screen offers to read
+ * the report anew.
  */
 export async function declareRiskOccurrence(
   projectId: string,
   riskId: string,
+  counters: RiskOccurrenceCounters,
 ): Promise<Outcome<BackgroundTask>> {
-  const client = serverClient();
-  const path = { project_id: projectId, risk_id: riskId };
-  const report = await decode(() =>
-    client.GET("/projects/{project_id}/risks/{risk_id}/occurrence", { params: { path } }),
-  );
-  if (report.kind !== "done") {
-    return report;
-  }
   return decodeTask(() =>
-    client.POST("/projects/{project_id}/risks/{risk_id}/occurrence", {
-      params: { path },
+    serverClient().POST("/projects/{project_id}/risks/{risk_id}/occurrence", {
+      params: { path: { project_id: projectId, risk_id: riskId } },
       body: {
         confirmed: true,
-        main_structure_lock_version: report.data.main_structure_lock_version,
-        risk_lock_version: report.data.risk_lock_version,
-        creates_current_revision: report.data.creates_current_revision,
+        main_structure_lock_version: counters.mainStructureLockVersion,
+        risk_lock_version: counters.riskLockVersion,
+        creates_current_revision: counters.createsCurrentRevision,
       },
     }),
   );

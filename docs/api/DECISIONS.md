@@ -8779,15 +8779,17 @@ l'écart est calculé par le serveur, comme pour un différentiel (C-361). Écar
 compose le compte rendu depuis `listNodes` et `getRisk`, qui ne montre ni la tâche porteuse modifiée
 ni le cas du jalon.
 
-- **La lecture.** `getRiskOccurrenceReport` (`GET /projects/{project_id}/risks/{risk_id}/occurrence`),
-  une lecture qui n'écrit rien, sur le modèle de `getStructureMergeReport` : sans 403, comme toute
-  lecture du projet. Elle rend `RiskOccurrenceReport`.
+- **La lecture.** `getRiskOccurrenceReport`
+  (`GET /projects/{project_id}/risks/{risk_id}/occurrence`), une lecture qui n'écrit rien, sur le
+  modèle de `getStructureMergeReport` : sans 403, comme toute lecture du projet. Elle rend
+  `RiskOccurrenceReport`.
 - **Le compte rendu** (`RiskOccurrenceReport`) : `main_structure_lock_version` et
   `risk_lock_version`, les compteurs lus ; `creates_current_revision` (ci-dessous) ;
   `differences`, des `ImportDifference`, dans cet ordre — les tâches et les lignes du devis propre
   ajoutées dans l'ordre de son plan, la tâche porteuse modifiée, la ligne de provision retirée — ;
   `provision_amount`, le montant de la ligne retirée du reste à engager ; `refusals`, des
-  `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux tableaux sont toujours rendus. Choix de forme du lot, là où la conception se taisait :
+  `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux tableaux sont toujours rendus. Choix
+  de forme du lot, là où la conception se taisait :
   - un ajout n'a pas de lignée, et les liaisons internes du devis propre ne sont pas des écarts à
     part : elles viennent avec ses tâches, comme celles des tâches qu'un différentiel ajoute
     (`structure_merge_report`) ;
@@ -8803,9 +8805,9 @@ ni le cas du jalon.
   déjà la commande `declare_occurrence` du risque, au compte rendu comme à la survenance.
 - **La confirmation.** `RiskOccurrence` exige les deux compteurs lus, comme `StructureMerge`
   (WF-IHM-0110) : la structure principale ou le risque changés depuis, `declareRiskOccurrence` est
-  refusée par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du risque,
-  l'objet que le chemin nomme, même quand seule la structure principale a changé (#296). Le 412 ne
-  dit donc pas lequel des deux compteurs a avancé : le client ne rejoue pas avec
+  refusée par 412 `STALE_LOCK_VERSION`, `params.expected_lock_version` le compteur courant du
+  risque, l'objet que le chemin nomme, même quand seule la structure principale a changé (#296).
+  Le 412 ne dit donc pas lequel des deux compteurs a avancé : le client ne rejoue pas avec
   `expected_lock_version`, il relit le compte rendu et le remontre.
 - **Le devis propre gardé par le compteur du risque** (revue locale d'US-0680/L1, question à
   l'auteur, décision du 2026-10-28, option (b), #1453). Le compte rendu liste les tâches et les
@@ -8845,21 +8847,23 @@ ni le cas du jalon.
   à celui de la marquée —, qui touche toute copie au-delà de la survenance ; (c), faire avancer le
   compteur de chaque risque du projet à l'ouverture d'une révision, qui périme toutes les vues de
   risques. Tenu par le service d'EP-08.
-- **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204, est
-  décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) : le
-  « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la « Reprise du
-  câblage des armoires » à sa suite, sous-traitées, 250 000,00 et 1 000 000,00 — 1 250 000,00, la
-  gravité du risque. Sa provision est portée par le « Câblage des armoires », qui n'est pas un jalon.
-- **Les exemples**, engendrés par `wftools.mockriskwrites` : `nodes_risk_estimate`, dernier exemple
-  de `listNodes`, le devis propre lu, que le faux back n'aiguille pas sur la structure 204 (les
-  parcours qui y jouent lisent le premier exemple) ; `risk_occurrence_report`, les deux tâches et
-  leurs lignes ajoutées sous le « Câblage des armoires », celui-ci modifié par sa durée, son début et
-  sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4, `creates_current_revision`
-  faux, le témoin ayant une révision en cours ; `risk_occurrence_sent`, la confirmation, exemple
-  du corps de `declareRiskOccurrence`, qui renvoie ces trois valeurs ;
-  `risk_occurrence_not_identified`, le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
-  opérations ; `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du
-  2 mars. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
+- **Le témoin.** Le devis propre du risque 751, « Risque de reprise du câblage », structure 204,
+  est décrit dans `wftools.mockwitness` (`REWORK_ESTIMATE`, nœuds 531 à 534, lignées 631 à 634) :
+  le « Diagnostic des défauts de câblage », en mode manuel du 1er au 7 juillet 2026, et la
+  « Reprise du câblage des armoires » à sa suite, sous-traitées, 250 000,00 et 1 000 000,00 —
+  1 250 000,00, la gravité du risque. Sa provision est portée par le « Câblage des armoires »,
+  qui n'est pas un jalon.
+- **Les exemples**, engendrés par `wftools.mockriskwrites` : `nodes_risk_estimate`, dernier
+  exemple de `listNodes`, le devis propre lu, que le faux back n'aiguille pas sur la structure 204
+  (les parcours qui y jouent lisent le premier exemple) ; `risk_occurrence_report`, les deux
+  tâches et leurs lignes ajoutées sous le « Câblage des armoires », celui-ci modifié par sa durée,
+  son début et sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4,
+  `creates_current_revision` faux, le témoin ayant une révision en cours ;
+  `risk_occurrence_sent`, la confirmation, exemple du corps de `declareRiskOccurrence`, qui
+  renvoie ces trois valeurs ; `risk_occurrence_not_identified`, le 409, sur « Indisponibilité de
+  l'automaticien », écarté le 2 février, cité par les deux opérations ;
+  `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du 2 mars.
+  `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.
 
 **Corrélation** 1591 et 1592.

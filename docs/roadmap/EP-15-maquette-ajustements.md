@@ -1118,7 +1118,8 @@ d'un risque, et qu'EP-08 le serve tel qu'il est validé.
 - écart : « Déclarer survenu » présente le compte rendu de la fusion du devis propre dans la
   principale, dans les marques `+`, `-`, `M` d'US-0500. : la lecture `getRiskOccurrenceReport` et le
   front de ce compte rendu sont d'EP-16 (#1383, US-0680), par décision de l'auteur du 2026-10-23 ;
-  dans EP-15, la déclaration se fait par simple confirmation ;
+  dans EP-15, la déclaration se fait par simple confirmation. L'écart est levé par EP-16/US-0680 :
+  « Déclarer survenu » montre ce compte rendu avant de confirmer ;
 - propre à l'US : « Déclarer survenu » dit le retrait de la provision du reste à engager, puis
   confirme ou abandonne ; un risque survenu n'est plus modifiable ;
 - propre à l'US : les exemples de succès de `createRisk`, `updateRisk` et `reviewRisk` manquent au

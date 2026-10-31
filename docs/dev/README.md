@@ -1078,8 +1078,12 @@ n'est plus active (`provision_cost_category_is_active`) en demande une autre, pa
 au retour à l'état identifié. « Supprimer le risque » (`risk-lifecycle.tsx`, `delete`) demande une
 confirmation, est indisponible pour un risque cité (`risk_not_cited`) et, supprimé, quitte le détail par
 l'adresse sans le risque. « Déclarer survenu » (`declare_occurrence`) confirme, met la survenance en
-file (202) et la remet au suivi des tâches de fond (`Following`) ; le compte rendu préalable de la
-fusion n'a pas de source au contrat (#1383) et n'est pas présenté. Un risque survenu liste toutes ses
+file (202) et la remet au suivi des tâches de fond (`Following`) ; il lit d'abord le compte rendu de la
+survenance (`getRiskOccurrenceReport`, US-0680), le présente dans les marques `+`, `-`, `M` comme
+celui d'une fusion (`occurrence-report.tsx`), dit le retrait de la provision et les refus, et confirme
+avec les compteurs lus ; une version périmée (412) propose de le relire. Une tâche échouée ne se
+rejoue pas depuis le suivi, qui confirmerait des compteurs anciens : son entrée dit de repartir de
+l'écran du risque, où la commande relit le compte rendu. Un risque survenu liste toutes ses
 commandes indisponibles. Le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
 tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
 (`grid-keyboard.ts`).

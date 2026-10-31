@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages } from "@/components/notices/message-history";
+import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { atCommit } from "@/test/committed";
@@ -18,6 +19,7 @@ import {
   fakeClient,
   type Problem,
 } from "@/test/fixtures";
+import { expectAccessible } from "@/test/axe";
 import { tasksRegion } from "@/test/task-panel";
 
 import { type Risk, RiskDetail } from "./risk-detail";
@@ -82,6 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   router.push.mockClear();
   router.refresh.mockClear();
@@ -173,46 +176,58 @@ describe("« Supprimer le risque »", () => {
 });
 
 describe("« Déclarer survenu »", () => {
-  it("asks a confirmation that says what the declaration does, hands it to the worker, and follows it in the tasks [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
+  /** Open the confirmation of the declaration, and wait for its report. */
+  async function openDeclare() {
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    await within(form).findByRole("table", { name: /écarts/i });
+    return form;
+  }
+
+  it("presents the report in the marks, says the provision withdrawn, and confirms with the counters read [WF-RIS-0060-A] [WF-IHM-0110-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
     });
     render(detail(IDENTIFIED));
-    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
-    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    const form = await openDeclare();
     expect(form).toHaveTextContent(/sa ligne de provision est retirée du reste à engager/);
     expect(form).toHaveTextContent(/définitive/);
-    // Abandoned, nothing is sent.
+    // The report as the server read it: added, modified and removed, in the marks, and the amount.
+    expect(form).toHaveTextContent(/500\s000,00 de provision en moins/);
+    const table = within(form).getByRole("table", { name: /écarts/i });
+    const markOf = (label: string) =>
+      within(within(table).getByRole("row", { name: new RegExp(label) })).getAllByRole("cell")[0];
+    expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
+    expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
+    expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+    expect(within(form).queryByRole("note")).toBeNull();
+    await expectAccessible(form);
+    // Abandoned, nothing is written: the report was a read.
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
-    expect(client.calls).toHaveLength(0);
-    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
+    expect(client.calls.map((call) => call.route)).toEqual([OCCURRENCE_REPORT]);
+    const again = await openDeclare();
     await userEvent.click(
-      within(screen.getByRole("form", { name: "Déclarer survenu" })).getByRole("button", {
-        name: "Déclarer le risque survenu",
-      }),
+      within(again).getByRole("button", { name: "Déclarer le risque survenu" }),
     );
     await vi.waitFor(() => {
-      expect(client.calls).toHaveLength(2);
+      expect(client.calls.filter((call) => call.route === OCCURRENCE)).toHaveLength(1);
     });
-    // The stopgap of US-0680/L1: the report is read just before, and its two counters and
-    // `creates_current_revision` are carried by the confirmation, as read.
+    // The counters of the report shown, and `creates_current_revision`, as read.
     const report = example("risk_occurrence_report") as {
       main_structure_lock_version: number;
       risk_lock_version: number;
       creates_current_revision: boolean;
     };
-    const path = `/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`;
-    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
-    expect(client.calls[0]?.path).toBe(path);
-    expect(client.calls[1]?.route).toBe(OCCURRENCE);
-    expect(client.calls[1]?.path).toBe(path);
-    expect(client.calls[1]?.body).toEqual({
+    const sent = client.calls.find((call) => call.route === OCCURRENCE);
+    expect(sent?.path).toBe(`/projects/${PROJECT}/risks/${IDENTIFIED.risk_id}/occurrence`);
+    expect(sent?.body).toEqual({
       confirmed: true,
       main_structure_lock_version: report.main_structure_lock_version,
       risk_lock_version: report.risk_lock_version,
       creates_current_revision: report.creates_current_revision,
     });
+    // Handed to the worker, the task is followed in the tasks like a merge.
     expect(
       await screen.findAllByText(/La survenance de « Risque de reprise du câblage » est confiée/),
     ).not.toHaveLength(0);
@@ -223,7 +238,7 @@ describe("« Déclarer survenu »", () => {
     expect(within(tasks).getByText("En attente")).toBeVisible();
   });
 
-  it("tells the refusal of the report read before the declaration, and sends nothing", async () => {
+  it("tells the refusal of the report read, and does not offer the confirmation [WF-RIS-0060-A]", async () => {
     const client = serve({
       [OCCURRENCE_REPORT]: {
         problem: example("risk_occurrence_not_identified") as Problem & { status: 409 },
@@ -231,29 +246,52 @@ describe("« Déclarer survenu »", () => {
     });
     render(detail(IDENTIFIED));
     await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
-    await userEvent.click(
-      within(screen.getByRole("form", { name: "Déclarer survenu" })).getByRole("button", {
-        name: "Déclarer le risque survenu",
-      }),
-    );
-    expect(await screen.findByRole("alert")).toBeVisible();
-    expect(client.calls).toHaveLength(1);
-    expect(client.calls[0]?.route).toBe(OCCURRENCE_REPORT);
+    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    expect(await within(form).findByRole("alert")).toBeVisible();
+    const confirm = within(form).getByRole("button", { name: "Déclarer le risque survenu" });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    expect(client.calls.map((call) => call.route)).toEqual([OCCURRENCE_REPORT]);
   });
 
-  it("tells the stale report refused by the declaration, under a confirmation that stays open", async () => {
-    serve({
+  it("proposes to read the report again on a stale version (412), and shows it anew [WF-IHM-0110-A]", async () => {
+    const client = serve({
       [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
       [OCCURRENCE]: {
         problem: example("risk_occurrence_report_stale") as Problem & { status: 412 },
       },
     });
     render(detail(IDENTIFIED));
-    await userEvent.click(screen.getByRole("button", { name: "Déclarer survenu" }));
-    const form = screen.getByRole("form", { name: "Déclarer survenu" });
+    const form = await openDeclare();
     await userEvent.click(within(form).getByRole("button", { name: "Déclarer le risque survenu" }));
-    expect(await within(form).findByRole("alert")).toBeVisible();
+    const reread = await within(form).findByRole("button", { name: "Relire le compte rendu" });
+    await userEvent.click(reread);
+    await within(form).findByRole("table", { name: /écarts/i });
+    expect(client.calls.filter((call) => call.route === OCCURRENCE_REPORT)).toHaveLength(2);
     expect(screen.getByRole("form", { name: "Déclarer survenu" })).toBe(form);
+  });
+
+  it("does not run a failed task again with the counters read before: the command is started anew from the screen [WF-RIS-0060-A]", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const client = serve({
+      [OCCURRENCE_REPORT]: { example: "risk_occurrence_report", status: 200 },
+      [OCCURRENCE]: { example: "task_occurrence_queued", status: 202 },
+      "GET /tasks/{task_id}": ["task_failed"],
+    });
+    render(detail(IDENTIFIED));
+    const form = await openDeclare();
+    await userEvent.click(within(form).getByRole("button", { name: "Déclarer le risque survenu" }));
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
+    const tasks = tasksRegion();
+    expect(within(tasks).getByText("Échouée")).toBeVisible();
+    expect(within(tasks).queryByRole("button", { name: /Relancer/ })).toBeNull();
+    expect(within(tasks).getByText(/repartez de l’écran de son objet/)).toBeVisible();
+    // Started anew from the screen, the command reads the report again and shows it.
+    await userEvent.keyboard("{Escape}");
+    await openDeclare();
+    expect(client.calls.filter((call) => call.route === OCCURRENCE_REPORT)).toHaveLength(2);
+    expect(client.calls.filter((call) => call.route === OCCURRENCE)).toHaveLength(1);
   });
 
   it("leaves a risk occurred with no command of entry, each saying why [WF-RIS-0020-A]", () => {
