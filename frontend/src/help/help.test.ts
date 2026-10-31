@@ -269,13 +269,14 @@ describe("the reading of the help", () => {
     async (code) => {
       const page = await readHelpPage({ kind: "screen", code });
       const helps = page.kind === "written" ? page.columns.map((column) => column.help) : [];
-      expect(helps).toHaveLength(7);
+      expect(helps).toHaveLength(8);
       expect(helps.every((help) => help.startsWith("risks."))).toBe(true);
       expect(helps).toEqual([
         "risks.label",
         "risks.probability",
         "risks.severity",
         "risks.provisionAmount",
+        "risks.occurrenceCost",
         "risks.state",
         "risks.lastReview",
         "risks.matrixCell",

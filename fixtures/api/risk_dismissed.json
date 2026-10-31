@@ -23,7 +23,7 @@
     "last_review_on": "2026-06-03",
     "computed_fields": [
       {"field":"severity","dependencies":["own_estimate"]},
-      {"field":"provision_amount","dependencies":["severity_and_probability"]}
+      {"field":"provision_amount","dependencies":["reference_provision"]}
     ],
     "available_commands": [
       {"command":"update","is_available":true,"missing_conditions":[]},

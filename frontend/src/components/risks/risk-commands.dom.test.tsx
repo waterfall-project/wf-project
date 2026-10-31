@@ -530,7 +530,7 @@ describe("« Identifier un risque »", () => {
 });
 
 describe("« Modifier » a risk", () => {
-  it("opens the form on the risk as the detail shows it, and writes from its version, the provision as the form asks it", async () => {
+  it("opens the form on the risk as the detail shows it, and writes from its version, the provision as the form asks it, never the probability, which a review alone changes", async () => {
     const client = serve();
     render(modify());
     await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
@@ -540,14 +540,11 @@ describe("« Modifier » a risk", () => {
     expect(within(form).getByRole("textbox", { name: "Libellé" })).toHaveValue(
       "Indisponibilité de la grue de levage",
     );
-    expect(within(form).getByRole("textbox", { name: "Probabilité (%)" })).toHaveValue("20");
+    expect(within(form).queryByRole("textbox", { name: "Probabilité (%)" })).toBeNull();
     expect(within(form).getByRole("combobox", { name: "Catégorie" })).toHaveValue(PROVISION[0]?.id);
     expect(within(form).getByRole("combobox", { name: "Tâche de la provision" })).toHaveValue(
       CREATED.provision_task?.node_id,
     );
-    const probability = within(form).getByRole("textbox", { name: "Probabilité (%)" });
-    await userEvent.clear(probability);
-    await userEvent.type(probability, "25");
     await userEvent.selectOptions(within(form).getByRole("combobox", { name: "Catégorie" }), [
       CONTRACTUAL.id,
     ]);
@@ -557,9 +554,10 @@ describe("« Modifier » a risk", () => {
     });
     expect(client.calls[0]?.route).toBe(UPDATE);
     expect(client.calls[0]?.path).toBe(`/projects/${PROJECT}/risks/${CREATED.risk_id}`);
+    // `RiskUpdate` does not take the probability (H-04): the body sends none.
+    expect(written(client)).not.toHaveProperty("probability");
     expect(written(client)).toMatchObject({
       label: "Indisponibilité de la grue de levage",
-      probability: "0.25",
       provision_cost_category_id: CONTRACTUAL.id,
       provision_subproject_id: null,
       provision_task_id: CREATED.provision_task?.node_id,
@@ -611,7 +609,8 @@ describe("« Modifier » a risk", () => {
     });
     const body = written(client) as Record<string, unknown>;
     expect(Object.keys(body).filter((key) => key.startsWith("provision_"))).toEqual([]);
-    expect(body).toMatchObject({ lock_version: FROZEN.lock_version, probability: "0.05" });
+    expect(body).toMatchObject({ lock_version: FROZEN.lock_version });
+    expect(body).not.toHaveProperty("probability");
   });
 
   it("keeps the category deactivated since the risk was declared among the choices, said so, and asks another only when the user chooses it", async () => {
@@ -622,7 +621,7 @@ describe("« Modifier » a risk", () => {
     const form = screen.getByRole("dialog");
     const category = within(form).getByRole("combobox", { name: "Catégorie" });
     expect(category).toHaveValue(CREATED.provision_cost_category_id);
-    expect(within(category).getByRole("option", { name: /\(désactivée\)$/ })).toBeInTheDocument();
+    expect(within(category).getByRole("option", { name: /\(plus admise\)$/ })).toBeInTheDocument();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);

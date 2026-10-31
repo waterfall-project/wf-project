@@ -322,8 +322,13 @@ export function RiskBubbleChart({
                 t("risks.matrix.tooltip.severity"),
                 `${formatMoney(point.severity_amount, locale)} (${formatPercent(ratio, locale)})`,
               ),
+              // The provision of a risk occurred or dismissed is the one of the reference (H-03).
               line(
-                t("risks.matrix.tooltip.provision"),
+                t(
+                  point.state === "identified"
+                    ? "risks.matrix.tooltip.provision"
+                    : "risks.matrix.tooltip.referenceProvision",
+                ),
                 formatMoney(point.provision_amount, locale),
               ),
               line(t("risks.matrix.tooltip.state"), stateName(point.state)),

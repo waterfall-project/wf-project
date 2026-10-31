@@ -1,33 +1,34 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The form that declares a risk — « Identifier un risque » — or modifies one (US-0520, FBS-4.6),
- * in a dialog over the screen of the risks: the label, required; the description and the actions of
- * mitigation, as the user wrote them; the probability, entered as a percentage and sent as the
- * ratio of the contract (WF-DAT-0100); and what the provision line of the risk is written on
- * (WF-RIS-0010, EP-14/L42p, #786) — the category, among the active categories of the type provision
- * for risks, asked only when there is more than one to choose and retained without being asked
- * otherwise; the sub-project, optional, the line counting out of any sub-project without one; and
- * the task of the main structure that bears the line, optional, the first task of the first level
- * without one.
+ * The form that declares a risk — « Identifier un risque » — or modifies one (US-0520, FBS-4.6), in
+ * a dialog over the screen of the risks: the label, required; the description and the actions of
+ * mitigation, as the user wrote them; at the declaration alone, the probability, entered as a
+ * percentage and sent as the ratio of the contract (WF-DAT-0100) — a review alone changes it
+ * afterwards (`reviewRisk`), and `RiskUpdate` does not take it (H-04) —; and what the provision
+ * line of the risk is written on (WF-RIS-0010, EP-14/L42p, #786) — the category, among the active
+ * categories of the type provision for risks, asked only when there is more than one to choose and
+ * retained without being asked otherwise; the sub-project, optional, the line counting out of any
+ * sub-project without one; and the task of the main structure that bears the line, optional, the
+ * first task of the first level without one.
  *
- * A modification writes the fields the risk lists it may change. The category, the sub-project and
- * the task of the provision change while the risk is identified, as `update_provision` says
- * (`provisionOpen`): listed unavailable, the three are shown fixed, the conditions it lacks said
- * under the first, and none is sent. A category deactivated since the risk was declared stays among
- * the choices, said deactivated: kept, the server accepts it unchanged; another is a choice of the
- * active ones.
+ * A modification writes the fields the risk lists it may change, never its probability. The
+ * category, the sub-project and the task of the provision change while the risk is identified, as
+ * `update_provision` says (`provisionOpen`): listed unavailable, the three are shown fixed, the
+ * conditions it lacks said under the first, and none is sent. A category deactivated since the risk
+ * was declared stays among the choices, said no longer admitted: kept, the server accepts it
+ * unchanged; another is a choice of the active ones.
  *
  * A refusal by field (422) is said at its field — `PROVISION_CATEGORY_REQUIRED`,
- * `INACTIVE_REFERENCE_OBJECT`, `UNKNOWN_TASK`, a probability out of its bounds, said in
- * percentages as the field enters it —; any other is told under the form, which stays open to be
- * corrected: the declaration refused for want of an active category of the type provision, or of a
- * task in the main structure (409, the first condition it lacks named), the version stale (412).
- * It is `ReferenceForm` that checks, asks and tells.
+ * `INACTIVE_REFERENCE_OBJECT`, `UNKNOWN_TASK`, a probability out of its bounds, said in percentages
+ * as the field enters it —; any other is told under the form, which stays open to be corrected: the
+ * declaration refused for want of an active category of the type provision, or of a task in the
+ * main structure (409, the first condition it lacks named), the version stale (412). It is
+ * `ReferenceForm` that checks, asks and tells.
  */
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { writeRisk } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
@@ -40,7 +41,7 @@ import {
   ReferenceForm,
   required,
 } from "@/components/reference/reference-form";
-import { editablePercent, percentRatio } from "@/i18n/format";
+import { percentRatio } from "@/i18n/format";
 
 import { categoryChoices, type ProvisionChoice, type ProvisionOptions } from "./provision-choices";
 
@@ -80,14 +81,13 @@ export interface RiskFormProps {
 }
 
 /** What the form of a risk starts from: the risk as the screen shows it, or nothing typed. */
-function draftOf(risk: Risk | undefined, locale: ReturnType<typeof useLocale>): Draft {
+function draftOf(risk: Risk | undefined): Draft {
   return risk === undefined
     ? {}
     : {
         label: risk.label,
         description: risk.description ?? "",
         mitigation_notes: risk.mitigation_notes ?? "",
-        probability: editablePercent(risk.probability, locale),
         provision_cost_category_id: risk.provision_cost_category_id,
         provision_subproject_id: risk.provision_subproject_id ?? "",
         provision_task_id: risk.provision_task?.node_id ?? "",
@@ -126,9 +126,10 @@ function asked(
 /**
  * What the form asks of the provision, when it may be written: the category among more than one —
  * one alone is retained without being asked —, the category the risk holds among them when it is no
- * longer active, said deactivated; the sub-project and the task, when the project has any, the task the
- * risk holds among them, listed or not: a choice of none would move the line. A list the session
- * may not read comes empty, and is neither asked nor sent: the task held does not make it a list.
+ * longer admitted (deactivated, or passed to another type), said so; the sub-project and the task,
+ * when the project has any, the task the risk holds among them, listed or not: a choice of none
+ * would move the line. A list the session may not read comes empty, and is neither asked nor
+ * sent: the task held does not make it a list.
  */
 function askedOf(
   risk: Risk | undefined,
@@ -264,8 +265,6 @@ export function RiskForm({
   const t = useTranslations("riskForm");
   const columns = useTranslations("grid.columns");
   const detail = useTranslations("risks.detail");
-  const form = useTranslations("reference.form");
-  const locale = useLocale();
   const texts: ProvisionTexts = {
     category: detail("provisionLine.category"),
     subproject: detail("provisionLine.subproject"),
@@ -278,10 +277,7 @@ export function RiskForm({
       ? undefined
       : risk.provision_cost_category_is_active
         ? risk.provision_cost_category_label
-        : form("deactivatedChoice", {
-            choice: risk.provision_cost_category_label,
-            kind: "cost_category",
-          });
+        : detail("provisionLine.notAdmitted", { choice: risk.provision_cost_category_label });
   const none: Asked = { categories: undefined, subprojects: undefined, tasks: undefined };
   const choices = provisionOpen ? askedOf(risk, options, heldLabel) : none;
   const provision =
@@ -294,23 +290,33 @@ export function RiskForm({
     // a string or null): no `maxLength`, the label alone has one.
     { name: "description", label: detail("description"), control: "multiline" },
     { name: "mitigation_notes", label: detail("mitigation"), control: "multiline" },
-    { name: "probability", label: t("probability"), control: "number", required: true },
+    // Asked at the declaration alone: a review alone changes it afterwards (`reviewRisk`).
+    ...(risk === undefined
+      ? [
+          {
+            name: "probability",
+            label: t("probability"),
+            control: "number",
+            required: true,
+          } satisfies FormField,
+        ]
+      : []),
     ...provision,
   ];
   const ask = (values: Draft): Promise<Outcome<Risk>> => {
     const { label = "", description, mitigation_notes: mitigation, probability = "0" } = values;
-    const body = {
+    const written = {
       label,
       description: orNull(description),
       mitigation_notes: orNull(mitigation),
-      probability: percentRatio(probability),
       ...provisionBody(choices, values),
     };
+    // The probability in the declaration alone: `RiskUpdate` does not take it (H-04).
     return writeRisk(
       projectId,
       risk === undefined
-        ? { id: undefined, body }
-        : { id: risk.risk_id, body: { ...body, lock_version: risk.lock_version } },
+        ? { id: undefined, body: { ...written, probability: percentRatio(probability) } }
+        : { id: risk.risk_id, body: { ...written, lock_version: risk.lock_version } },
     );
   };
   return (
@@ -320,7 +326,7 @@ export function RiskForm({
       hint={risk === undefined ? t("identifyHint") : t("modifyHint")}
       creating={risk === undefined}
       fields={fields}
-      initial={draftOf(risk, locale)}
+      initial={draftOf(risk)}
       subject={risk?.label}
       ask={ask}
       target={risk === undefined ? undefined : `update risk ${risk.risk_id}`}

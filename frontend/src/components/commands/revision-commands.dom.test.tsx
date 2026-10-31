@@ -370,7 +370,23 @@ describe("the designation of the reference", () => {
 });
 
 describe("the application of the rate update", () => {
-  const apply = { projectId: PROJECT, revisionId: DRAFT, lockVersion: 4 } as const;
+  /** What the revision lists of `apply_rate_update`, in the example that offers it. */
+  function offerOf(name: string) {
+    const revision = example(name) as Revision;
+    const offer = revision.available_commands.find(
+      ({ command }) => command === "apply_rate_update",
+    );
+    if (offer === undefined) {
+      throw new Error(`the example ${name} lists no apply_rate_update`);
+    }
+    return offer;
+  }
+  const apply = {
+    projectId: PROJECT,
+    revisionId: DRAFT,
+    lockVersion: 4,
+    offer: offerOf("revision_rate_update_offered"),
+  } as const;
 
   it("presents what changes, category by category, then applies the categories retained [WF-REV-0060-A]", async () => {
     const client = serve({ [RATES]: { example: "rate_update_applied", status: 200 } });
@@ -492,6 +508,26 @@ describe("the application of the rate update", () => {
     for (const box of screen.getAllByRole("checkbox")) {
       expect(box).toBeChecked();
     }
+  });
+
+  it("presents the command unavailable, naming the condition the revision lists as lacking, when it says so [WF-IHM-0090-A]", async () => {
+    // `revision` lists `apply_rate_update` lacking `rate_update_available`: the screen does not offer
+    // the command the server would refuse (defect no. 6).
+    const client = serve({});
+    show(
+      <RateUpdate
+        proposal={example("rate_update") as never}
+        apply={{ ...apply, offer: offerOf("revision") }}
+      />,
+    );
+    const command = screen.getByRole("button", { name: "Appliquer la mise à jour des taux" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: une mise à jour des taux disponible.",
+    );
+    await userEvent.click(command);
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(client.calls).toEqual([]);
   });
 
   it("offers nothing when no update is proposed or the revision is not the current one", () => {

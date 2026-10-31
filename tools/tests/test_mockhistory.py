@@ -272,6 +272,21 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     assert {557, 567} <= numbers
 
 
+def test_a_page_of_the_register_keeps_the_totals_of_every_risk_retained(
+    history: dict[str, Any],
+) -> None:
+    # WF-IHM-0060, WF-IHM-0130 (#1367, #1268): a page of the register, fewer risks than it
+    # retains, its count and its totals those of all of them, so that a test of the front tells
+    # `meta.total` from the rows rendered and the totals from the sum of the page.
+    register, page = history["risks"], history["risks_page"]
+    assert page["items"] == register["items"][: mockhistory.RISKS_PAGE]
+    assert page["meta"] == {"limit": 2, "offset": 0, "total": len(REGISTER)}
+    assert len(page["items"]) < page["meta"]["total"]
+    assert page["totals"] == register["totals"]
+    rendered = sum(Decimal(item["provision_amount"]) for item in page["items"])
+    assert rendered != Decimal(page["totals"]["total"])
+
+
 def test_the_register_reads_its_severities_on_the_reference_budget_of_the_whole_structure(
     history: dict[str, Any],
 ) -> None:

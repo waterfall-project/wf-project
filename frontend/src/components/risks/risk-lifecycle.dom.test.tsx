@@ -47,14 +47,9 @@ const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence
 
 const IDENTIFIED = example("risk") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
-// A counterfactual, from the risk of the contract: no marked revision cites it, so its deletion is
-// listed available — the contract's risks are all cited or occurred.
-const UNCITED: Risk = {
-  ...IDENTIFIED,
-  available_commands: IDENTIFIED.available_commands.map((offer) =>
-    offer.command === "delete" ? { ...offer, is_available: true, missing_conditions: [] } : offer,
-  ),
-};
+// The risk no marked revision cites: its deletion is listed available, as an example of the contract
+// shows it.
+const UNCITED = example("risk_uncited") as Risk;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers): FakeClient {

@@ -601,6 +601,16 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says each reason a refusal gives for the field it was reduced to, once [WF-PLA-0170-A]", () => {
+    // `task_attach_exclusive_attached`, reduced to its first field's code as `byField` does: two
+    // reasons on `/work_package_id`, a third on another field that is not this one's.
+    const refused = example("task_attach_exclusive_attached") as ProblemText;
+    const reduced = { ...refused, code: "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" } as const;
+    expect(say(reduced, "fr")).toBe(
+      "Une tâche porte un lot ou un poste, jamais les deux. Ce lot ou ce poste est déjà porté par une autre tâche.",
+    );
+  });
+
   it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
     // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
     const forbidden = example("subproject_code_invalid") as {

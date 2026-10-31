@@ -23,7 +23,8 @@
     "last_review_on": "2026-02-20",
     "computed_fields": [
       {"field":"severity","dependencies":["own_estimate"]},
-      {"field":"provision_amount","dependencies":["severity_and_probability"]}
+      {"field":"provision_amount","dependencies":["reference_provision"]},
+      {"field":"occurrence_cost","dependencies":["occurrence_estimate"]}
     ],
     "available_commands": [
       {"command":"update","is_available":false,"missing_conditions":["risk_not_occurred"]},

@@ -741,7 +741,11 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     const [first] = list.items;
-    await userEvent.click(within(grid()).getByRole("link", { name: first?.document_number ?? "" }));
+    await userEvent.click(
+      within(grid()).getByRole("link", {
+        name: `${first?.document_number ?? ""}, poste ${first?.document_item ?? ""}`,
+      }),
+    );
     const shown = `line=${first?.cost_line_id ?? ""}`;
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1&${shown}`, {
       scroll: false,

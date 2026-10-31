@@ -352,7 +352,7 @@ describe("the screen of the actual costs", () => {
     const page = await costsAt({ line: cables });
     expect(grids.costs.at(-1)?.linked).toBe(true);
     expect(page).toMatch(
-      /<section aria-labelledby="[^"]*"[^>]*><div[^>]*><h2[^>]*>Line FA-2026-0412</,
+      /<section aria-labelledby="[^"]*"[^>]*><div[^>]*><h2[^>]*>Line FA-2026-0412, item 10</,
     );
     expect(text(page)).toContain("Exclude from the tracked scope");
   });

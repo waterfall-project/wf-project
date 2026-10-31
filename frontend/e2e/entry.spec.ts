@@ -186,6 +186,7 @@ test("enters a whole line of the estimate without the mouse — label, role, qua
     "0",
     "",
     /3\s600,00$/,
+    /3\s600,00$/,
   ]);
   // No refusal told.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);

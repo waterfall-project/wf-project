@@ -10,11 +10,11 @@ Le libellé d’un risque est un lien vers son détail, qui s’ouvre à côté 
 
 - **Rechercher un libellé** retient les risques dont le libellé contient le texte saisi.
 - **Colonnes** choisit les colonnes montrées.
-- Un en-tête trie le registre par sa colonne ; la case de la matrice ne se trie pas.
+- Un en-tête trie le registre par sa colonne ; le coût à la survenance et la case de la matrice ne se trient pas.
 
 ## Ses colonnes et ses valeurs calculées
 
-La gravité et la provision sont calculées, colonnes entières, et portent Σ en en-tête : une cellule pressée nomme les règles dont sa valeur dépend, telles que le risque les dit. La case de la matrice se lit par son signal et sa zone, jamais par la seule couleur. Un risque survenu ou écarté ne porte plus de provision.
+La gravité, la provision et le coût à la survenance sont calculés, colonnes entières, et portent Σ en en-tête : une cellule pressée nomme les règles dont sa valeur dépend, telles que le risque les dit. La case de la matrice se lit par son signal et sa zone, jamais par la seule couleur. Un risque survenu ou écarté ne porte plus de ligne de provision : sa provision est celle qu’il portait dans la révision de référence, nulle s’il n’y était pas identifié. Seul un risque survenu porte un coût à la survenance : le total de son devis propre quand il a été déclaré survenu.
 
 ## Les gestes au clavier
 

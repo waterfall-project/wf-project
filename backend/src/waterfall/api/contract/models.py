@@ -4389,6 +4389,8 @@ class ComputedDependency(StrEnum):
     inflation = "inflation"
     own_estimate = "own_estimate"
     severity_and_probability = "severity_and_probability"
+    reference_provision = "reference_provision"
+    occurrence_estimate = "occurrence_estimate"
 
 
 class DependencyRow(ContractModel):
@@ -5130,6 +5132,7 @@ class RiskMatrixCell(ContractModel):
 class FieldModel(StrEnum):
     severity = "severity"
     provision_amount = "provision_amount"
+    occurrence_cost = "occurrence_cost"
 
 
 class RiskComputedField(ContractModel):
@@ -5232,8 +5235,8 @@ class Risk(ContractModel):
     computed_fields: Annotated[
         list[RiskComputedField],
         Field(
-            description="Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre, pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —, ils se lisent avec le risque, sans appel au refus.",
-            max_length=2,
+            description="Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre, pour tout risque, puis le coût à la survenance d'un risque survenu. La gravité dépend du devis propre (`own_estimate`) ; la provision d'un risque identifié, de sa gravité et de sa probabilité (`severity_and_probability`), celle d'un risque survenu ou écarté, de la révision de référence (`reference_provision`) ; le coût à la survenance, du devis propre au moment de la survenance (`occurrence_estimate`). Les règles du calcul, pas les lignes du devis propre : elles se lisent avec le risque, sans appel au refus.",
+            max_length=3,
             min_length=2,
         ),
     ]

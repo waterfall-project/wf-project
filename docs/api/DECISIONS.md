@@ -1119,14 +1119,20 @@ en chiffrage sans révision, indisponibles sur le projet terminé (`project_not_
 direct nomme seul `project_not_terminal`.
 
 **Le risque porte ses dépendances** (`Risk.computed_fields`, #250). WF-IHM-0030 veut que le refus
-d'une saisie sur la gravité ou la provision d'un risque nomme ce dont elles dépendent, et
+d'une saisie sur une valeur calculée d'un risque nomme ce dont elle dépend, et
 `getComputedValueDependencies` ne connaît que les champs d'un nœud. Chaque risque rend, pour sa
-gravité et sa provision, dans cet ordre, les règles qui les calculent : `own_estimate`, la
-gravité, total de son devis propre, et `severity_and_probability`, la provision, cette gravité
-pondérée par la probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDependency`. Ce sont des
-constantes, légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une
-structure à part, que la grille des risques ne montre pas. Écarté : étendre
-`getComputedValueDependencies` aux risques, un appel de plus pour dire deux phrases fixes.
+gravité et sa provision, dans cet ordre, puis pour son coût à la survenance s'il est survenu, les
+règles qui les calculent, fixées par son état : `own_estimate`, la gravité, total de son devis
+propre ; `severity_and_probability`, la provision d'un risque identifié, cette gravité pondérée par
+la probabilité (WF-RIS-0010) ; `reference_provision`, celle d'un risque survenu ou écarté, la
+provision de la révision de référence (WF-RIS-0040) ; `occurrence_estimate`, le coût à la
+survenance, le total du devis propre à la survenance (WF-RIS-0010) — quatre codes de
+`ComputedDependency`. Légères : aucun appel au refus, et aucune ligne nommée — le devis propre est
+une structure à part, que la grille des risques ne montre pas. Écarté : étendre
+`getComputedValueDependencies` aux risques, un appel de plus pour dire des phrases fixes.
+**Réécrit par US-0703/L3** (#1614), sur ce qu'US-0701/L4 a écrit (H-02, H-03) : les deux derniers
+codes et le troisième champ. Écarté : reprendre `reference_revision` et `own_estimate`, dont le
+refus dit le montant budgété d'une ligne et la gravité.
 
 **Ce qui restait ouvert** a été tranché par EP-02/L30 : `ExportRequest.revision_id` est exigé
 (#359), et les commandes d'un risque sont au contrat (`Risk.available_commands`, #244), leur
@@ -8569,7 +8575,10 @@ adoptent sont d'US-0660/L3 et L4.
   `Offset`, et sa réponse `meta` (`PaginationMeta`), exigé, comme `listActualCosts` ; `totals` reste
   calculé sur tous les risques que les filtres et la recherche retiennent, non sur la page lue —
   `ProvisionTotals` le dit. `risks`, engendré, et `risks_empty`, écrit à la main, portent `meta`
-  (cinquante lignes par page, trois risques, aucun).
+  (cinquante lignes par page, trois risques, aucun). `risks_page`, engendré par
+  `wftools.mockhistory` (US-0660/L3), lit le même registre deux risques par page : 751 et 752,
+  `meta.total` à 3 et les `totals` des trois — 1 100 060,00, non les 500 060,00 de la page —,
+  pour qu'un test du front distingue le compte de la page et les totaux de sa somme (#1384).
 - **`createNode` refuse une date manuelle un jour chômé** (#1345, WF-PLA-0020 : « une date
   saisie »). Comme `updateTaskFacet` : 422 `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou
   `/task/finish/date` par `NON_WORKING_DAY`, `params.date` et `next_working_day`, rien n'étant créé.

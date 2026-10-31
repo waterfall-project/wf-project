@@ -52,7 +52,7 @@ import type { Locale } from "./locale";
 export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "params"> & {
   readonly fields?:
     | readonly (Pick<components["schemas"]["FieldProblem"], "params"> &
-        Partial<Pick<components["schemas"]["FieldProblem"], "pointer">>)[]
+        Partial<Pick<components["schemas"]["FieldProblem"], "pointer" | "code">>)[]
     | undefined;
 };
 
@@ -489,6 +489,21 @@ function labelIn(messages: Catalogue): Label {
   };
 }
 
+/**
+ * The codes of the other reasons a refusal gives for the field it was reduced to (`byField`, #1533):
+ * the fields that point where the field of its own code points, with another code, once each. None
+ * for an envelope that was not reduced to a field's code.
+ */
+function furtherReasons({ code, fields = [] }: ProblemText): readonly ProblemText["code"][] {
+  const own = fields.find((field) => field.code === code);
+  const others = fields.flatMap((field) =>
+    field.code !== undefined && field.code !== code && field.pointer === own?.pointer
+      ? [field.code]
+      : [],
+  );
+  return own === undefined ? [] : [...new Set(others)];
+}
+
 /** Render a refusal of the API as a sentence in the reader's language. */
 export function problemMessage(
   problem: ProblemText,
@@ -510,5 +525,9 @@ export function problemMessage(
     )
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => say(key, values));
-  return [t(`errors.${problem.code}`), ...details].join(" ");
+  return [
+    t(`errors.${problem.code}`),
+    ...furtherReasons(problem).map((code) => t(`errors.${code}`)),
+    ...details,
+  ].join(" ");
 }

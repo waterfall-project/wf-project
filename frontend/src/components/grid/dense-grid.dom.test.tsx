@@ -243,12 +243,13 @@ describe("the dense grid, on a thousand rows", () => {
       // The signal of a deactivated object: an icon stands for its heading, named by it.
       "",
       "Montant (année de réf.)",
+      "Montant réestimé",
     ]);
     expect(
       within(header ?? grid()).getByRole("columnheader", { name: "Objet désactivé" }),
     ).toBeInTheDocument();
     // The amounts are computed by the server: their headers bear the mark Σ, named.
-    expect(within(header ?? grid()).getAllByRole("img", { name: "Calculé" })).toHaveLength(1);
+    expect(within(header ?? grid()).getAllByRole("img", { name: "Calculé" })).toHaveLength(2);
     for (const cell of within(header ?? grid()).getAllByRole("columnheader")) {
       expect(cell).toHaveClass("sticky", "top-0");
     }
@@ -264,6 +265,7 @@ describe("the dense grid, on a thousand rows", () => {
       "",
       "",
       "",
+      "100\u202f000,00",
       "100\u202f000,00",
     ]);
     for (const cell of totals?.querySelectorAll("td") ?? []) {
@@ -854,7 +856,7 @@ describe("a grid configured without its options", () => {
     // Without row numbers, the label is the first column: the caption of the totals is its.
     expect(texts(rowAt(9))[0]).toBe("—");
     // Every column may then be hidden.
-    expect(screen.getAllByRole("separator")).toHaveLength(10);
+    expect(screen.getAllByRole("separator")).toHaveLength(11);
   });
 
   it("sizes its rows by the root font, so that an enlarged font shifts no row", () => {
@@ -887,7 +889,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
     const french = figures("fr", "Borniers");
     const english = figures("en", "Borniers");
     // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment
-    // delay, deactivated object, amount at the year of reference.
+    // delay, deactivated object, amount at the year of reference, amount re-estimated.
     expect(french.row).toEqual([
       numberOf("Borniers"),
       "Borniers",
@@ -899,6 +901,7 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "Poste de commande",
       "30",
       "",
+      "1 234,56",
       "1 234,56",
     ]);
     expect(english.row).toEqual([
@@ -913,11 +916,12 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "30",
       "",
       "1,234.56",
+      "1,234.56",
     ]);
-    // The totals of the lot are those the server gave, 502434.56 at the year of reference, in
-    // either language.
-    expect(french.totals.slice(-1)).toEqual(["502\u202f434,56"]);
-    expect(english.totals.slice(-1)).toEqual(["502,434.56"]);
+    // The totals of the lot are those the server gave, 502434.56 at the year of reference and as
+    // re-estimated, in either language.
+    expect(french.totals.slice(-2)).toEqual(["502\u202f434,56", "502\u202f434,56"]);
+    expect(english.totals.slice(-2)).toEqual(["502,434.56", "502,434.56"]);
     expect(english.totals[1]).toBe("Total — 6 tasks, 5 lines");
   });
 
