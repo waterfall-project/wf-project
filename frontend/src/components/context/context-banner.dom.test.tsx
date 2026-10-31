@@ -105,7 +105,10 @@ describe("the banner of the reading context", () => {
     // Tout écran nomme la révision source avec la révision en cours.
     const { unmount } = banner(reading(REMAINING, "revision"));
     const region = () => screen.getByRole("region");
-    expect(within(region()).getByText("Copie de « Référence »")).toBeInTheDocument();
+    const source = within(region()).getByText("Copie de « Référence »");
+    expect(source).toBeInTheDocument();
+    expect(source).toHaveAttribute("title", "Copie de « Référence »");
+    expect(source).not.toHaveClass("sr-only");
     unmount();
     banner(reading(REMAINING, "revision_marked"), "en");
     expect(within(region()).getByText("Copy of “Offre v1.0”")).toBeInTheDocument();

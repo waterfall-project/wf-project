@@ -27,6 +27,28 @@ import { openHydrated, openMenu, WORKING } from "./hydration";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const GRID = `/projects/${PROJECT}/revisions/${REVISION}/estimate`;
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The box of an element in view, which fails the path when it has none. */
+async function boxOf(locator: Locator): Promise<Box> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("The element has no box.");
+  }
+  return box;
+}
+
+const middleOf = (box: Box) => box.y + box.height / 2;
+
+/** Whether two boxes share some area. */
+const overlap = (a: Box, b: Box) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 // The remaining to commit, which the session may enter on the project in progress, where the
 // estimate is read only (WF-DEV-0050, WF-RAE-0040).
 const REMAINING = `/projects/${PROJECT}/revisions/${REVISION}/remaining`;
@@ -213,13 +235,6 @@ test.describe("on a narrow window", () => {
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
     await expect(totals).toBeInViewport({ ratio: 1 });
-    // The revision it is a copy of stays shown, not only named to a screen reader, the banner
-    // keeping its one row [WF-IHM-0020-A].
-    const source = page
-      .getByRole("region", { name: "Contexte de lecture" })
-      .getByRole("definition")
-      .filter({ hasText: /^Copie de « / });
-    await expect(source).toBeVisible();
 
     // The grid is wider than the window: it scrolls sideways, to its last column.
     await box.evaluate((element) => {
@@ -240,6 +255,33 @@ test.describe("on a narrow window", () => {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
+  });
+
+  test("shows the revision the current one is a copy of beside the active filter, the banner keeping its one row [WF-IHM-0020-A]", async ({
+    page,
+  }) => {
+    // Tout écran nomme la révision source ; un filtre actif est visible sans ouvrir le panneau.
+    await openHydrated(page, GRID);
+    const banner = page.getByRole("region", { name: "Contexte de lecture" });
+    const source = banner.getByRole("definition").filter({ hasText: /^Copie de « / });
+    await expect(source).toBeVisible();
+    await expect(source).toHaveAttribute("title", "Copie de « Référence »");
+    // Cut, if it must be, well after its start: far wider than an ellipsis alone.
+    expect((await boxOf(source)).width).toBeGreaterThan(60);
+    // The project and the source sit on one line: their middles are level.
+    const project = await boxOf(banner.getByRole("definition").first());
+    expect(Math.abs(middleOf(await boxOf(source)) - middleOf(project))).toBeLessThan(4);
+
+    // With a filter active, its chip and the source are both in view, one clear of the other.
+    await page
+      .getByRole("combobox", { name: "Lot ou poste" })
+      .selectOption({ label: "Lot\u00a0: Lot 1" });
+    const chip = banner.getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
+    await expect(chip).toHaveCount(1);
+    await expect(source).toBeInViewport({ ratio: 1 });
+    await expect(chip).toBeInViewport({ ratio: 1 });
+    expect(overlap(await boxOf(source), await boxOf(chip))).toBe(false);
+    expect((await boxOf(source)).width).toBeGreaterThan(60);
   });
 
   test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({

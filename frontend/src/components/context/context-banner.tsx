@@ -113,7 +113,7 @@ interface Chip {
   readonly lifts: readonly string[];
 }
 
-const FACT = "flex items-center gap-1.5";
+const FACT = "flex shrink-0 items-center gap-1.5";
 const ICON = "size-3.5 shrink-0 text-muted-foreground";
 
 /**
@@ -211,9 +211,10 @@ function useChips(
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
  * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown at every
- * width: on a narrow window it is the one fact that shrinks, cut with an ellipsis and its full text
- * in the `title`, so that the banner keeps its one row, the totals of the grid in view under it
- * (WF-IHM-0060).
+ * width: its width is bounded (4.5rem under the medium window, enough for « Copie de » and its
+ * start, which the structure and the filters need beside it at 700 px) and it is cut with an
+ * ellipsis, its full text in the `title`, so that the banner keeps its one row on a narrow window,
+ * the totals of the grid in view under it (WF-IHM-0060); no other fact shrinks, the banner wrapping when the room lacks.
  */
 function RevisionFacts({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
@@ -222,7 +223,7 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
       ? undefined
       : t("contextBanner.sourceRevision", { name: revision.source_version_name });
   return (
-    <div className={`${FACT} min-w-0`}>
+    <div className={FACT}>
       <dt>
         <GitBranch aria-hidden="true" className={ICON} />
         <span className="sr-only">{t("contextBanner.revision")}</span>
@@ -232,7 +233,7 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
       {source === undefined ? null : (
-        <dd className="min-w-0 truncate" title={source}>
+        <dd className="max-w-[4.5rem] truncate md:max-w-64" title={source}>
           {source}
         </dd>
       )}
@@ -337,7 +338,7 @@ export function ContextBanner({
           state: project.state,
         }}
       />
-      <dl className="flex min-w-0 flex-1 items-center gap-x-4">
+      <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <div className={FACT}>
           <dt>
             <Folder aria-hidden="true" className={ICON} />
