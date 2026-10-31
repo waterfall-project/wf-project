@@ -11,11 +11,10 @@ workload); a reading of an earlier instant (the estimate the offer kept at its m
 indicators the reference kept, the rate update its creation proposed); the sequel of a write made
 today (the remaining to commit after ``remaining_reestimated``); or a counterfactual variant
 declared as such (``*_missing_rates``, ``estimate_indicators_work_package_without_task``,
-``cost_curve_amendment``,
-``cost_curve_subproject_unbudgeted``, ``project_indicators_without_current_revision``, and the
-curves of a subproject no line relates to, read on the core alone, ``alone``). The
-portfolio sums the indicators of the project in memory (``project_today``), never read back from
-the file the same command writes.
+``cost_curve_amendment``, ``cost_curve_subproject_unbudgeted``,
+``project_indicators_without_current_revision``, and the curves of a subproject no line relates
+to, read on the core alone, ``alone``). The portfolio sums the indicators of the project in memory
+(``project_today``), never read back from the file the same command writes.
 """
 
 from __future__ import annotations

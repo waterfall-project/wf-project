@@ -630,11 +630,10 @@ def estimate(
     """Return the indicators of the estimate of a revision (`EstimateIndicators`, WF-DEV-0060).
 
     Its total re-estimated, inflation included, by nature, by subproject and by each lot of
-    ``breakdown``, that of the witness by default; its
-    provisions; its gaps to the estimate of the reference and of the previous marked revision,
-    absent without them. That of a marked revision is the one its marking kept (WF-DAT-0040). A
-    category in ``missing`` has no rate for the reference year: what its
-    lines touch is not computed (WF-DEV-0010).
+    ``breakdown``, that of the witness by default; its provisions; its gaps to the estimate of the
+    reference and of the previous marked revision, absent without them. That of a marked revision
+    is the one its marking kept (WF-DAT-0040). A category in ``missing`` has no rate for the
+    reference year: what its lines touch is not computed (WF-DEV-0010).
     """
     lines = reading.lines
     absent = missing_rates(reading, lines, missing)

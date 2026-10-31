@@ -5940,7 +5940,7 @@ nulle, qui ne présente aucun poste.
 lots, postes et livrables ».*
 
 *Complété par US-0660/L2 : l'exemple du lot sans tâche rattachée vient d'une variante déclarée du
-témoin, non du projet créé aujourd'hui, section « Le contrat figé ».*
+témoin, non du projet créé aujourd'hui, section « Le lot sans tâche rattachée, présenté sans total ».*
 
 **Le lotissement attend la fin d'un traitement de fond** (#775, point 1 ; WF-PLA-0170, WF-IHM-0090).
 La saisie du lotissement retire le rattachement des tâches de la révision en cours : pendant un
@@ -5959,7 +5959,8 @@ fermé l'identité du projet pendant un marquage ; le 409 seul, une commande que
 impossible devant être présentée indisponible (WF-IHM-0090).
 
 *Complété par US-0660/L2 : la commande présentée indisponible a son exemple,
-`project_background_task_running` de `getProject`, section « Le contrat figé ».*
+`project_background_task_running` de `getProject`, section « La saisie du lotissement indisponible
+pendant un traitement de fond ».*
 
 **Les tâches du refus d'un lot hors de son poste sont nommées par leur libellé** (#775, point 2, et
 le commentaire de la relecture 2 de L42k ; WF-PLA-0170, WF-IHM-0080).
@@ -10031,7 +10032,7 @@ l'US. Aucun schéma ne change.
   son devis vide a un total nul, et l'exemple n'aurait montré le lot sans total qu'à côté d'aucun
   lot calculé ; la variante montre l'un à côté de l'autre, comme l'écran les présente.
 
-**Lot** 718.
+Clé `universe(718)`.
 
 ### La saisie du lotissement indisponible pendant un traitement de fond (US-0660/L2, #1336, #1142)
 
