@@ -105,7 +105,16 @@ describe("the banner of the reading context", () => {
     // Tout écran nomme la révision source avec la révision en cours.
     const { unmount } = banner(reading(REMAINING, "revision"));
     const region = () => screen.getByRole("region");
-    expect(within(region()).getByText("Copie de « Référence »")).toBeInTheDocument();
+    const source = within(region()).getByText("Copie de « Référence »");
+    expect(source).toBeInTheDocument();
+    // The source is shown at every width: neither it nor an ancestor in the banner is `sr-only` or
+    // `hidden`, whatever the breakpoint variant.
+    for (let node: Element | null = source; node !== null; node = node.parentElement) {
+      expect(node.className).not.toMatch(/(^|\s|:)(sr-only|hidden)(\s|$)/);
+      if (node === region()) {
+        break;
+      }
+    }
     unmount();
     banner(reading(REMAINING, "revision_marked"), "en");
     expect(within(region()).getByText("Copy of “Offre v1.0”")).toBeInTheDocument();

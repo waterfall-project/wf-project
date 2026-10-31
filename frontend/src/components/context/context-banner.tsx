@@ -210,9 +210,9 @@ function useChips(
 
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
- * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown from the
- * extra-large window up and named to a screen reader alone below, so that the banner keeps its one
- * row on a narrow window, the totals of the grid in view under it (WF-IHM-0060).
+ * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown whole at
+ * every width, never hidden nor cut: on a narrow window the banner wraps onto a second row, and the
+ * page scrolls when the window is too low for the floor of the grid under it (US-0560).
  */
 function RevisionFacts({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
@@ -227,9 +227,7 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
       {revision.source_version_name === null ? null : (
-        <dd className="sr-only xl:not-sr-only">
-          {t("contextBanner.sourceRevision", { name: revision.source_version_name })}
-        </dd>
+        <dd>{t("contextBanner.sourceRevision", { name: revision.source_version_name })}</dd>
       )}
       {revision.is_reference ? (
         <dd>
@@ -244,9 +242,8 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
  * The structure read, and the others of the revision offered when it has some — each named by its
  * label and whether it is merged, under the name of its kind but for the main one. A grid opened on a
  * differential, or on the own estimate of a risk, names it and its kind in a badge (WF-IHM-0020); the
- * main structure, which the head of the grid names too, is named to a screen reader alone, so that
- * the banner keeps its one row on a narrow window, the totals of the grid in view under it — and not
- * at all when the revision has no other, nothing being offered.
+ * main structure, which the head of the grid names already, is named to a screen reader alone — and
+ * not at all when the revision has no other, nothing being offered.
  */
 function StructureFacts({ structure }: { readonly structure: StructureChoices }) {
   const t = useTranslations();
