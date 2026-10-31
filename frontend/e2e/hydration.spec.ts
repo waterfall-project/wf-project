@@ -6,8 +6,10 @@
  * route is taken away. The race is given, not waited for: each script is asked for by the test, on
  * an address of its own that no cache answers, and held by the test until it lets it go — whatever
  * the load, the handlers are in flight in the order the test says.
+ *
+ * This tests a tool of the harness: it proves no requirement of the specification.
  */
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Route, test } from "@playwright/test";
 
 import { holdScripts } from "./hydration";
 
@@ -88,22 +90,26 @@ test("takes its route away once the scripts in flight are served, two asked for 
     held?.take();
     await held?.opened;
   });
-  // The last silence; then two scripts asked for, both caught by the route before it is taken away.
-  await page.waitForLoadState("networkidle");
+  // Two scripts asked for, both caught by the route before it is taken away.
   const servedFirst = ask(page, first);
   const servedSecond = ask(page, second);
   await Promise.all([...gates.values()].map(({ caught: held }) => held));
-  let removed = false;
-  const removal = scripts.remove().then(() => {
-    removed = true;
-  });
+  // `remove` taking the route away is seen at `page.unroute`, not guessed from the order of replies.
+  let unrouted = false;
+  const unroute = page.unroute.bind(page);
+  page.unroute = ((...args: Parameters<Page["unroute"]>) => {
+    unrouted = true;
+    return unroute(...args);
+  }) as Page["unroute"];
+  const removal = scripts.remove();
   // The first served while the second is still held: the route stays for the second.
   gates.get(first)?.open();
   expect(await servedFirst).toBe("loaded");
-  expect(removed).toBe(false);
+  expect(unrouted).toBe(false);
   gates.get(second)?.open();
   expect(await servedSecond).toBe("loaded");
   await removal;
+  expect(unrouted).toBe(true);
   // Taken away: a script asked for now goes to the network, uncaught.
   expect(await ask(page, after)).toBe("loaded");
   expect(caught).not.toContain(after);
@@ -129,4 +135,39 @@ test("lets go a script whose route was answered already, the interception of the
   held.open();
   expect(await served).toBe("loaded");
   await scripts.remove();
+});
+
+test("takes its route away although a hold failed, and does not report the failure (#1635)", async () => {
+  // Playwright makes the error of a route handler the test's own, so the page is a double here:
+  // the handler is called as Playwright calls it, and the removal is seen at `unroute`.
+  let posed: ((route: Route) => Promise<void>) | undefined;
+  let unrouted = false;
+  const double = {
+    route: (_pattern: string, handler: (route: Route) => Promise<void>) => {
+      posed = handler;
+      return Promise.resolve();
+    },
+    unroute: () => {
+      unrouted = true;
+      return Promise.resolve();
+    },
+    request: {
+      get: () => Promise.resolve({ body: () => Promise.resolve(Buffer.from("")) }),
+    },
+  };
+  const route = { request: () => ({ url: () => "http://front/_next/static/chunks/a.js" }) };
+  const failing = gate();
+  const scripts = await holdScripts(double as unknown as Page, async () => {
+    failing.take();
+    await failing.opened;
+    throw new Error("a hold that fails");
+  });
+  const handled = posed?.(route as unknown as Route);
+  await failing.caught;
+  // The removal waits for a handler in flight, which then fails.
+  const removal = scripts.remove();
+  failing.open();
+  await expect(handled).rejects.toThrow("a hold that fails");
+  await removal;
+  expect(unrouted).toBe(true);
 });

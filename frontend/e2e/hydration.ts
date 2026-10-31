@@ -192,6 +192,9 @@ function handledAlready(error: unknown): boolean {
  * `remove` waits for every handler in flight before it takes the route away, a script asked for
  * meanwhile let go to the network unheld; and a handler whose route was answered already all the
  * same — the interception taken away by another hand — lets it go, the network having served it.
+ * A handler that fails does not keep the route posed: `remove` takes it away whatever they end in.
+ * (`route.fallback()` is a call of the client alone, which fails only on a route this handler
+ * answered itself, so a request let go while removing needs no such guard.)
  */
 export async function holdScripts(
   page: Page,
@@ -229,10 +232,15 @@ export async function holdScripts(
   return {
     async remove(): Promise<void> {
       removing = true;
-      while (inFlight.size > 0) {
-        await Promise.all(inFlight);
+      try {
+        // Settled, not all: a handler that fails (a `hold` that throws) is not the removal's to
+        // report, and the route is taken away all the same.
+        while (inFlight.size > 0) {
+          await Promise.allSettled([...inFlight]);
+        }
+      } finally {
+        await page.unroute(SCRIPTS, handler);
       }
-      await page.unroute(SCRIPTS, handler);
     },
   };
 }
