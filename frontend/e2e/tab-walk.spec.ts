@@ -15,7 +15,10 @@ async function write(page: Page, body: string): Promise<void> {
   await page.setContent(`<!doctype html><html lang="fr"><body>${body}</body></html>`);
 }
 
-/** The page, its trips to the browser counted: each `evaluate`, each press of a key. */
+/**
+ * The page, its trips to the browser counted: each `evaluate`, each press of a key. Every other
+ * property reads as the page's own, its methods called on the page itself.
+ */
 function counted(page: Page): { page: Page; trips: { evaluate: number; press: number } } {
   const trips = { evaluate: 0, press: 0 };
   const keyboard = new Proxy(page.keyboard, {
@@ -27,7 +30,9 @@ function counted(page: Page): { page: Page; trips: { evaluate: number; press: nu
           return target.press(...args);
         };
       }
-      return typeof value === "function" ? value.bind(target) : value;
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
     },
   });
   const proxy = new Proxy(page, {
@@ -42,7 +47,9 @@ function counted(page: Page): { page: Page; trips: { evaluate: number; press: nu
           return target.evaluate(...args);
         };
       }
-      return typeof value === "function" ? value.bind(target) : value;
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
     },
   });
   return { page: proxy, trips };
@@ -58,7 +65,9 @@ test("goes to the browser once for each element, by its press of Tab, reading wh
   );
   const { page: watched, trips } = counted(page);
   const walk = await walkByTab(watched);
-  expect(walk.reached).toEqual(Array.from({ length: elements }, (_, index) => `button « B${String(index)} »`));
+  expect(walk.reached).toEqual(
+    Array.from({ length: elements }, (_, index) => `button « B${String(index)} »`),
+  );
   expect(walk.missed).toEqual([]);
   expect(walk.trapped).toBeUndefined();
   // Every element, the leave of the document, the first again: so many presses, read by batches,
