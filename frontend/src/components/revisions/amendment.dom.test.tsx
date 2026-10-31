@@ -296,7 +296,9 @@ describe("the contractualisation of an amendment", () => {
     // the merge is asked anew, with its report read again (#1682).
     expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
     expect(
-      within(tasksRegion()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
+      within(tasksRegion()).getByText(
+        "Pour relancer cette tâche, repartez de l’écran de son objet.",
+      ),
     ).toBeVisible();
     closeTasks();
     expect(screen.queryByText(/nouvelle révision de référence/)).toBeNull();
