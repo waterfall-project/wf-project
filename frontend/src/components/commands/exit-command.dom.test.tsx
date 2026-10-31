@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { refresh } from "next/cache";
 import { NextIntlClientProvider } from "next-intl";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
+import type { Problem } from "@/api/problem";
 import type { Project } from "@/components/context/reading";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
+import { POLL_INTERVAL } from "@/components/tasks/task-entry";
+import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
@@ -19,6 +22,7 @@ import {
   fakeClient,
   type FakeTiming,
 } from "@/test/fixtures";
+import { closeTasks, tasksRegion } from "@/test/task-panel";
 
 import { LifecycleCommands } from "./object-commands";
 
@@ -41,6 +45,9 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 /** The counter the examples of the projects of the contract carry, which an exit sends back (WF-IHM-0110). */
 const LOCK = (example("project") as Project).lock_version;
 const EXIT = "POST /projects/{project_id}/exit";
+const TASK = "GET /tasks/{task_id}";
+/** The exit of the contract that marks the current revision, as the API receives it. */
+const MARKING = (example("project_exit_marking") as { current_revision: unknown }).current_revision;
 const CONFLICT = {
   problem: {
     code: "STATE_FORBIDS_OPERATION",
@@ -73,9 +80,13 @@ function exitsOf(name: string, options: { marking?: boolean } = {}) {
   }
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <main>
-        <LifecycleCommands project={project} />
-      </main>
+      <TaskTracker>
+        <TasksButton />
+        <TaskPanel />
+        <main>
+          <LifecycleCommands project={project} />
+        </main>
+      </TaskTracker>
     </NextIntlClientProvider>
   );
 }
@@ -93,7 +104,7 @@ function exits(client: FakeClient): unknown[] {
 /** What the live regions of the exits say, the silent ones left out. */
 function said(): (string | null)[] {
   return screen
-    .getAllByRole("status")
+    .queryAllByRole("status")
     .map((status) => status.textContent)
     .filter(Boolean);
 }
@@ -103,19 +114,88 @@ function exit(name: string) {
   return screen.getByRole("button", { name });
 }
 
-/** Open the confirmation of an exit and confirm it. */
-async function confirm(name: string) {
+/** The refusal of an example of the contract, as the fake back answers it. */
+function refused<S extends 409 | 422>(name: string, status: S) {
+  return { problem: { ...(example(name) as Problem), status } };
+}
+
+/** Choose the fate of the current revision in the open confirmation: abandoned, or marked. */
+async function choose(fate: "abandon" | "mark") {
+  await userEvent.click(
+    screen.getByRole("radio", {
+      name: fate === "mark" ? /^Marquer la révision en cours/ : /^Abandonner la révision en cours/,
+    }),
+  );
+}
+
+/** Mark the revision under the name and the description of the exit of the contract. */
+async function chooseMarking() {
+  const { version_name: name, description } = MARKING as {
+    version_name: string;
+    description: string;
+  };
+  await choose("mark");
+  await userEvent.type(screen.getByRole("textbox", { name: "Nom de version" }), name);
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Description (facultative)" }),
+    description,
+  );
+}
+
+/** Open the confirmation of an exit, abandon the current revision if the project carries one, confirm. */
+async function confirm(name: string, options: { revision?: boolean } = {}) {
   await userEvent.click(exit(name));
+  if (options.revision ?? true) {
+    await choose("abandon");
+  }
   await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+}
+
+/**
+ * The fake back for an exit that marks: it answers the exit with the task of the contract (202)
+ * and reads of that task the examples of the contract, running then succeeded, under the
+ * identifier the exit's task bears — the contract has no running or succeeded example for it, only
+ * for the marking's own. It gives back the bodies of the exits it received.
+ */
+function serveMarking(): unknown[] {
+  const queued = example("task_exit_mark_queued") as { task_id: string };
+  const reads = ["task_running", "task_succeeded"].map((name) => ({
+    ...(example(name) as object),
+    task_id: queued.task_id,
+  }));
+  const sent: unknown[] = [];
+  const answer = async (request: Request): Promise<Response> => {
+    if (request.method === "POST") {
+      sent.push(await request.json());
+      return Response.json(queued, { status: 202 });
+    }
+    return Response.json(reads.length > 1 ? reads.shift() : reads[0]);
+  };
+  server.client = createApiClient({ address: "http://fake.invalid", fetch: answer });
+  return sent;
+}
+
+/** Let the time of one read of the task go by, and the read be answered. */
+async function tick() {
+  await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
 }
 
 beforeEach(() => {
   vi.mocked(refresh).mockClear();
+  router.refresh.mockClear();
   server.client = undefined;
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  window.sessionStorage.clear();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("the exits of the lifecycle of a project", () => {
-  it("offers the exits alone, in the order of the server: no command to create or modify", () => {
+  it("offers the exits alone, in the order of the server: no command to create or modify, and no loss from a project in progress [WF-CYC-0060]", () => {
+    // Déclarer perdu n'est possible que depuis Chiffrage : un projet en cours n'offre que Terminer
+    // et Abandonner.
     open();
     const region = screen.getByRole("region", { name: "Commandes" });
     expect(
@@ -123,6 +203,7 @@ describe("the exits of the lifecycle of a project", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Terminer le projet", "Abandonner le projet"]);
+    expect(within(region).queryByRole("button", { name: "Déclarer le projet perdu" })).toBeNull();
   });
 
   it("on a project in pricing, presents completion unavailable, naming the condition it lacks [WF-IHM-0090-A]", async () => {
@@ -165,6 +246,7 @@ describe("the exits of the lifecycle of a project", () => {
     await expectAccessible(container);
 
     await userEvent.type(reason, "Recette prononcée");
+    await choose("abandon");
     await userEvent.click(confirmation);
 
     expect(client.calls.find((call) => call.route === EXIT)?.path).toBe(
@@ -212,28 +294,137 @@ describe("the exits of the lifecycle of a project", () => {
     ]);
   });
 
-  it("says that the current revision will be abandoned, only when the project carries one [WF-CYC-0090-A]", async () => {
-    // Avec une révision en cours, la confirmation dit qu'elle sera abandonnée ; sans, elle se tait.
-    const sentence = "La révision en cours du projet sera abandonnée";
+  it("asks what becomes of the current revision, only when the project carries one [WF-CYC-0090-A]", async () => {
+    // Avec une révision en cours, la confirmation demande de la marquer, avec un nom de version,
+    // ou de l'abandonner ; sans, elle se tait.
     const view = open();
     await userEvent.click(exit("Terminer le projet"));
     const form = screen.getByRole("form", { name: "Terminer le projet" });
-    expect(form).toHaveTextContent(sentence);
-    expect(
-      within(form).getByRole("button", { name: "Confirmer la sortie" }),
-    ).toHaveAccessibleDescription(new RegExp(sentence));
+    const fate = within(form).getByRole("group", { name: "Sort de la révision en cours" });
+    expect(within(fate).getAllByRole("radio")).toHaveLength(2);
+    // Nothing chosen for the user, and the version name asked only when marking.
+    expect(within(fate).queryByRole("radio", { checked: true })).toBeNull();
+    expect(within(form).queryByRole("textbox", { name: "Nom de version" })).toBeNull();
+    await choose("mark");
+    expect(within(form).getByRole("textbox", { name: "Nom de version" })).toBeVisible();
+    expect(within(form).getByRole("textbox", { name: "Description (facultative)" })).toBeVisible();
+    await choose("abandon");
+    expect(within(form).queryByRole("textbox", { name: "Nom de version" })).toBeNull();
+    expect(form).toHaveTextContent("elle sera supprimée, sans retour possible");
     view.unmount();
     open("project_without_current_revision");
     await userEvent.click(exit("Terminer le projet"));
-    expect(screen.getByRole("form", { name: "Terminer le projet" })).not.toHaveTextContent(
-      "révision",
-    );
+    const bare = screen.getByRole("form", { name: "Terminer le projet" });
+    expect(within(bare).queryByRole("group")).toBeNull();
+    expect(bare).not.toHaveTextContent("révision");
   });
+
+  it("marks the current revision under the version name given, and follows the task of the marking until the exit applies [WF-CYC-0090-A] [WF-REV-0020] [WF-IHM-0080]", async () => {
+    // La sortie qui marque rend 202 et la tâche ; elle s'applique à la réussite de la tâche.
+    forgetMessages();
+    const sent = serveMarking();
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await chooseMarking();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    expect(sent).toEqual([
+      { to_state: "completed", confirmed: true, lock_version: LOCK, current_revision: MARKING },
+    ]);
+    // The task is followed by the tracker as a marking; nothing is applied yet: the page is not
+    // read again, and no state is told.
+    expect(refresh).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(said()).toEqual([]);
+    await tick();
+    expect(
+      within(tasksRegion()).getByRole("progressbar", {
+        name: "Marquage d’une révision «\u00A0Clôture\u00A0»",
+      }),
+    ).toBeVisible();
+    expect(router.refresh).not.toHaveBeenCalled();
+
+    closeTasks();
+    // The task succeeded: the exit applies, the project is read again, the new state is told.
+    await tick();
+    await waitFor(() => {
+      expect(router.refresh).toHaveBeenCalledOnce();
+    });
+    await waitFor(() => {
+      expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
+    });
+  });
+
+  it("applies nothing when the task of the marking fails, and runs the same exit again from the tracker [WF-IHM-0080] [WF-CYC-0090-A]", async () => {
+    const client = serve({
+      [EXIT]: { example: "task_exit_mark_queued", status: 202 },
+      [TASK]: "task_failed",
+    });
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await chooseMarking();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("form")).toBeNull();
+    });
+    await tick();
+    expect(router.refresh).not.toHaveBeenCalled();
+    expect(said()).toEqual([]);
+    const relaunch = within(tasksRegion()).getByRole("button", { name: /^Relancer/ });
+    await userEvent.click(relaunch);
+    // The same exit, the same body, is sent again.
+    await waitFor(() => {
+      expect(exits(client)).toHaveLength(2);
+    });
+    expect(exits(client)[1]).toEqual(exits(client)[0]);
+  });
+
+  it("sends the abandon of the current revision, and the exit answers the project at once [WF-CYC-0090-A] [WF-REV-0010]", async () => {
+    const client = serve({ [EXIT]: "project_completed" });
+    open();
+    await confirm("Abandonner le projet");
+    expect(exits(client)).toEqual([
+      {
+        to_state: "abandoned",
+        confirmed: true,
+        lock_version: LOCK,
+        current_revision: { action: "abandon" },
+      },
+    ]);
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
+  });
+
+  it.each([
+    ["the version name missing", refused("project_exit_version_name_required", 422)],
+    ["the version name taken", refused("project_exit_version_name_taken", 409)],
+    ["the fate missing", refused("project_exit_revision_required", 422)],
+    ["the counter stale", { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const],
+  ])(
+    "tells under the confirmation an exit refused for %s, which stays open and follows no task [WF-CYC-0090-A]",
+    async (_, refusal) => {
+      serve({ [EXIT]: refusal });
+      open();
+      await userEvent.click(exit("Terminer le projet"));
+      await choose("mark");
+      await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/\S/);
+      expect(screen.getByRole("form", { name: "Terminer le projet" })).toBeInTheDocument();
+      expect(within(tasksRegion()).queryByRole("list")).toBeNull();
+      expect(router.refresh).not.toHaveBeenCalled();
+    },
+  );
 
   it("sends no current revision when the project carries none [WF-CYC-0090-A]", async () => {
     const client = serve({ [EXIT]: "project_completed" });
     open("project_without_current_revision");
-    await confirm("Terminer le projet");
+    await confirm("Terminer le projet", { revision: false });
     expect(exits(client)).toEqual([
       {
         to_state: "completed",
@@ -248,6 +439,7 @@ describe("the exits of the lifecycle of a project", () => {
     open();
     await userEvent.click(exit("Abandonner le projet"));
     await userEvent.type(screen.getByRole("textbox", { name: "Motif (facultatif)" }), "   ");
+    await choose("abandon");
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
     expect(exits(client)).toEqual([
       {
@@ -286,7 +478,7 @@ describe("the exits of the lifecycle of a project", () => {
       expect(status).toBeEmptyDOMElement();
     }
 
-    // The page read again: a marking is running, so the three exits of the project stay listed but
+    // The page read again: a marking is running, so the two exits of the project stay listed but
     // name `no_background_task_running`. The confirmation closes by an effect (`withdrawn` ->
     // `onClose`), a commit later: waited for, not assumed (one failure under a load of 7, #315).
     view.rerender(exitsOf("project", { marking: true }));

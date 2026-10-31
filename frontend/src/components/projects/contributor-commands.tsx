@@ -413,8 +413,9 @@ function ContributorEditor({
       return;
     }
     setProblems(new Map());
-    // A project keeps a project manager (WF-PRJ-0060): refused before anything is asked.
-    if (!draft.some((row) => row.kind === "project_manager")) {
+    // A project keeps a project manager whose account is active (WF-PRJ-0060): refused before
+    // anything is asked, as the API refuses it.
+    if (!draft.some((row) => row.kind === "project_manager" && row.is_active)) {
       setOutcome({
         kind: "refused",
         problem: { code: "LAST_PROJECT_MANAGER", status: 409 },
