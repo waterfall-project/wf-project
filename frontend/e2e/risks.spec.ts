@@ -37,6 +37,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
     "Probabilité",
     "Calculé Gravité",
     "Calculé Provision",
+    "Calculé Coût à la survenance",
     "État",
     "Dernier réexamen",
   ]) {

@@ -1127,6 +1127,11 @@ pondérée par la probabilité (WF-RIS-0010), deux codes ajoutés à `ComputedDe
 constantes, légères : aucun appel au refus, et aucune ligne nommée — le devis propre est une
 structure à part, que la grille des risques ne montre pas. Écarté : étendre
 `getComputedValueDependencies` aux risques, un appel de plus pour dire deux phrases fixes.
+**Complété par US-0703/L3** (#1614), sur ce qu'US-0701/L4 a écrit (H-02, H-03) : la provision
+d'un risque survenu ou écarté, celle de la révision de référence, dépend de `reference_provision`,
+et le coût à la survenance d'un risque survenu, calculé à la survenance (WF-RIS-0010), s'ajoute
+en troisième, par `occurrence_estimate`. Écarté : reprendre `reference_revision` et
+`own_estimate`, dont le refus dit le montant budgété d'une ligne et la gravité.
 
 **Ce qui restait ouvert** a été tranché par EP-02/L30 : `ExportRequest.revision_id` est exigé
 (#359), et les commandes d'un risque sont au contrat (`Risk.available_commands`, #244), leur

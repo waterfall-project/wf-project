@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The coverage of the risks of a project (WF-RIS-0050, WF-RAE-0020), on the screen of the risks as
- * on that of the remaining to commit: the risk reserve of the
- * reference revision, against the provisions of the risks still identified in the revision read
- * and the reestimated cost of the lines merged from the risks occurred, and the coverage variance,
- * signed — each as the server computes it (`getProjectRiskCoverage`), never a difference made here
- * (WF-ARC-0020). Computed: each bears the one mark of a computed value, Σ, named. They lie in a card of figures (`FiguresCard`, US-0550).
+ * on that of the remaining to commit: the risk reserve of the reference revision, against the
+ * provisions of the risks still identified in the revision read and the costs at the occurrence of
+ * the risks occurred (`Risk.occurrence_cost`), which neither a reestimate nor the completion of the
+ * tasks merged changes, and the coverage variance, signed — each as the server computes it
+ * (`getProjectRiskCoverage`), never a difference made here (WF-ARC-0020). Computed: each bears the
+ * one mark of a computed value, Σ, named. They lie in a card of figures (`FiguresCard`, US-0550).
  */
 import { useTranslations } from "next-intl";
 

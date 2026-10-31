@@ -136,6 +136,7 @@
       "probability": "Probabilité",
       "severity": "Gravité",
       "provisionAmount": "Provision",
+      "occurrenceCost": "Coût à la survenance",
       "state": "État",
       "lastReview": "Dernier réexamen",
       "matrixCell": "Case de la matrice",
@@ -496,10 +497,11 @@
       "mitigation": "Actions de mitigation",
       "notSet": "Non renseignée",
       "neverReviewed": "Jamais réexaminé",
+      "referenceProvision": "Provision de la référence",
       "provisionLine": {
         "title": "Ligne de provision",
         "present": "Présente dans la structure principale : la provision pèse sur le devis.",
-        "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent la provision.",
+        "withdrawn": "Retirée de la structure principale à la survenance : les lignes fusionnées de son devis propre portent son coût.",
         "absent": "Absente de la structure principale : le risque ne pèse pas sur le devis.",
         "category": "Catégorie",
         "subproject": "Sous-projet",
@@ -1420,7 +1422,10 @@
         "help": "Gravité : ce que coûterait le risque s’il survenait, le total de son devis propre, calculé par le serveur."
       },
       "provisionAmount": {
-        "help": "Provision : la gravité pondérée par la probabilité, calculée par le serveur ; un risque survenu ou écarté n’en porte plus."
+        "help": "Provision : pour un risque identifié, la gravité pondérée par la probabilité ; pour un risque survenu ou écarté, la provision qu’il portait dans la révision de référence. Calculée par le serveur."
+      },
+      "occurrenceCost": {
+        "help": "Coût à la survenance d’un risque survenu : le total de son devis propre quand il a été déclaré survenu, que ni les réestimations ni la terminaison de ses tâches ne changent. Calculé par le serveur."
       },
       "state": {
         "help": "État du risque : identifié, survenu ou écarté."
@@ -1440,7 +1445,7 @@
         "help": "Prénom du titulaire du compte."
       },
       "email": {
-        "help": "Adresse électronique du compte, par laquelle il se connecte et reçoit son invitation."
+        "help": "Adresse électronique du compte, à laquelle il reçoit son invitation."
       },
       "origin": {
         "help": "D’où vient le compte : créé dans Waterfall, importé de l’annuaire ou créé par le fournisseur d’identité."
@@ -1749,7 +1754,7 @@
     "identified": "Risque « {name} » identifié.",
     "modify": "Modifier",
     "modifyTitle": "Modifier « {name} »",
-    "modifyHint": "La gravité et la provision se calculent à partir du devis propre et de la probabilité : elles ne se saisissent pas.",
+    "modifyHint": "La gravité et la provision se calculent à partir du devis propre et de la probabilité : elles ne se saisissent pas. La probabilité ne change que par un réexamen.",
     "probability": "Probabilité (%)",
     "task": "Tâche de la provision",
     "firstTask": "Première tâche de premier niveau",
@@ -3396,7 +3401,9 @@
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
       "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
       "own_estimate": "La gravité d’un risque est le total de son devis propre.",
-      "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité."
+      "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité.",
+      "reference_provision": "La provision d’un risque survenu ou écarté est celle qu’il portait dans la révision de référence.",
+      "occurrence_estimate": "Le coût à la survenance d’un risque est le total de son devis propre quand il a été déclaré survenu."
     },
     "WorkloadPlan": {
       "basis": {

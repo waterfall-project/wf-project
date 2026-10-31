@@ -974,9 +974,12 @@ ComputedDependency:
     `remaining_reviews`, le montant réestimé, suivi par les revues du reste à engager (WF-RAE-0040)
     ; `inflation`, la projection des montants budgété et réestimé sur l'année de consommation de la
     ligne, au taux d'inflation du projet — une ligne de provision n'est pas projetée (WF-DEV-0030,
-    WF-DEV-0040) ; `own_estimate`, la gravité d'un risque, total de son devis propre, et
-    `severity_and_probability`, sa provision, cette gravité pondérée par sa probabilité
-    (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
+    WF-DEV-0040) ; `own_estimate`, la gravité d'un risque, total de son devis propre ;
+    `severity_and_probability`, la provision d'un risque identifié, cette gravité pondérée par sa
+    probabilité (WF-RIS-0010) ; `reference_provision`, celle d'un risque survenu ou écarté, la
+    provision qu'il portait dans la révision de référence (WF-RIS-0040) ; `occurrence_estimate`, le
+    coût à la survenance d'un risque survenu, le total de son devis propre au moment où il a été
+    déclaré survenu (WF-RIS-0010) — que le risque nomme lui-même (`Risk.computed_fields`).
   enum:
     - subordinates
     - lines_and_subordinates
@@ -992,6 +995,8 @@ ComputedDependency:
     - inflation
     - own_estimate
     - severity_and_probability
+    - reference_provision
+    - occurrence_estimate
 
 DependencyRow:
   type: object
