@@ -469,9 +469,11 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     retient pas non plus l'écran quitté par « Précédent » (vercel/next.js#99612, `held.ts`) :
     l'écran d'arrivée s'affiche aussitôt, l'écriture encore en route, et son refus est dit par la
     barre de la coquille (#863, `shell.spec.ts`, `preferences-form.tsx`) ; la retenue, et `away`,
-    valent pour une écriture attendue dans une transition (`startTransition(async …)` avec
-    `held(…)`) : celle d'un dialogue modal, ou d'un fichier classé « sans objet » par l'audit de
-    #1491. Le refus dit à un champ qui prend le
+    valent pour une écriture attendue dans une transition (`startTransition(async …)`, avec
+    `held(…)` quand la commande l'emploie) : celle d'un dialogue modal, ou d'une commande dont la
+    réponse ne laisse à l'écran rien de ce que `pending` garde — `pending` non lu, le dialogue qui le
+    porte fermé au commit même de la réponse, ou la réponse portée par un magasin externe (n° 18).
+    Le refus dit à un champ qui prend le
     focus se pose avec la réponse, et le focus passe dans un effet, après le commit qui pose le
     refus : donné dans la foulée, il arrive avant la description du champ, et un lecteur d'écran
     annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,
