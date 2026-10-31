@@ -59,6 +59,13 @@ La version `1.0.0` et la règle d'après-gel (US-0640/L5 #1333) ; `project_creat
 constats (US-0703). Ne sont pas signalés non plus les choix que `DECISIONS.md` assume quand ils ne
 contredisent pas la spécification 1.0.1.
 
+Pendant la revue, `epic/EP-16` a avancé de c3d080fb à f4c9d6d7 (US-0703/L2b et US-0703/L4, #1713) :
+cinq fixtures de la tâche de fond de la sortie qui marque (`task_exit_mark_running`, `_succeeded`,
+`_failed`, `_relaunched`, `_relaunched_succeeded`), déclarées à `getBackgroundTask` et à `exitProject`,
+et l'entrée correspondante de `DECISIONS.md`. Aucun fichier du contrat n'a changé autrement ; aucun
+constat ni aucun suivi de cette revue n'en est affecté (D-07, sur le compteur du projet pendant une
+sortie différée, reste tel quel : les nouveaux exemples ne le disent pas davantage).
+
 ## Ce qui ressort
 
 ### 1. Le rattrapage a eu lieu : les bloquants et les majeurs du 28 octobre sont réglés
