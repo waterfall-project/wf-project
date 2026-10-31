@@ -23,7 +23,13 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type Perimeter, PROJECTS_LIST, type ProjectState, readPerimeter, type Takes } from "./address";
+import {
+  type Perimeter,
+  PROJECTS_LIST,
+  type ProjectState,
+  readPerimeter,
+  type Takes,
+} from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";

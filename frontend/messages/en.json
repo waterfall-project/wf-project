@@ -640,8 +640,8 @@
       "months": "{months} months",
       "threshold": "Under-load threshold",
       "completedWithoutEffect": {
-        "workload": "Completed projects have no effect on the workload plan.",
-        "pilotHealth": "Completed projects have no effect on the health of the steering."
+        "workload": "Completed projects have no effect on the aggregated workload.",
+        "pilotHealth": "Completed projects have no effect on the project control health."
       }
     },
     "scope": {

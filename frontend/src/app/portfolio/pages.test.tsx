@@ -508,7 +508,7 @@ describe("the screens of the portfolio", () => {
 describe("the notice that a project completed has no effect", () => {
   it.each([
     ["the aggregated workload", WorkloadPage, "workload", ["in_progress", "pricing"]],
-    ["the health of the steering", PilotHealthPage, "pilotHealth", ["in_progress"]],
+    ["the project control health", PilotHealthPage, "pilotHealth", ["in_progress"]],
   ] as const)(
     "is asked of the perimeter of %s on the states the server retained, none said while it retains no completed project [WF-PTF-0060-A] [WF-PTF-0110-A]",
     async (_view, page, view, states) => {
@@ -517,7 +517,7 @@ describe("the notice that a project completed has no effect", () => {
       expect(more).toEqual([]);
       expect(bar?.completedWithoutEffect).toBe(view);
       expect(bar?.retained).toEqual(states);
-      expect(markup).not.toContain('role="note"');
+      expect(markup).not.toContain(CATALOGUES.en.portfolio.perimeter.completedWithoutEffect[view]);
     },
   );
 
