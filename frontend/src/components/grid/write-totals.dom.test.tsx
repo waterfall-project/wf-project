@@ -143,6 +143,7 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "66\u202f105\u202f223,89",
+      "68\u202f923\u202f691,06",
     ]);
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
@@ -163,6 +164,7 @@ describe("what a write answers besides the row written", () => {
       "",
       "",
       "66\u202f105\u202f343,89",
+      "68\u202f923\u202f811,06",
     ]);
   });
 

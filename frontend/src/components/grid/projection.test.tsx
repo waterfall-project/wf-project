@@ -240,7 +240,9 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // the planning 3.30 million, 0.466; those of the remaining to commit 4.41 million, 0.623. The
 // sub-project of a line, its identifier and its label (US-0480), which the remaining to commit now
 // reads to choose it from the menu of a cell and to show it in a column, took its rows to 4.83
-// million, 0.680.
+// million, 0.680. The amount re-estimated, inflation included, which the grid of the estimate reads
+// beside the amount at the rates of the year of reference (US-0703/L1), took its rows to 4.85
+// million, 0.675.
 /** Nothing is written by these tests: what an entry reads is all they look at. */
 function unwritten(): never {
   throw new Error("nothing is written here");
@@ -265,7 +267,7 @@ const ENTERED_ESTIMATE = estimateGrid(estimateReference(), {
 // The amounts inflation included (L-01) took the corrected amount out of the answer, 7.17 million
 // characters for the volume: the rows of the planning weigh 3.63 million, 0.506, bound 0.51; those
 // of the remaining to commit 4.95 million, 0.691, bound 0.7.
-holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.67);
+holdsWhatTheGridReads("estimate", ENTERED_ESTIMATE, ESTIMATE_FIELDS, 0.69);
 holdsWhatTheGridReads("planning", PLANNING_GRID, PLANNING_FIELDS, 0.51);
 // The grid of the remaining to commit of a revision open to entry, which reads the figures of a
 // line, whether it takes a re-estimation, its three amounts, and the progress and finish of a task:

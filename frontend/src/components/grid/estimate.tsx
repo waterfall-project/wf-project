@@ -3,13 +3,15 @@
 /**
  * The configuration of the grid of the estimate (WF-DEV-0050): the common tree of a structure
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
- * its nature; the label, the quantity, the effort, the unit disbursement, and the amount the
+ * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts the
  * server computes and never lets anyone enter, of a line as of a task, summary included — the
- * amount at the year of reference, before inflation (`base_amount`, WF-DEV-0030) —, never the
- * budgeted nor the re-estimated amount (#235). The figures and the sub-project of a provision are
- * computed too, from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals
- * are those of the answer: the hours and the two amounts of the lines retained, never the amounts
- * of the tasks, which would count them twice.
+ * amount at the rates of the year of reference, before inflation (`base_amount`, WF-DEV-0030), and
+ * the amount re-estimated, inflation included, projected on the year of consumption
+ * (`reestimated_amount`, WF-DEV-0020, WF-DEV-0050) —, never the budgeted amount, which is that of
+ * the reference and not of this grid (L-01, which rewrites #235). The figures and the sub-project
+ * of a provision are computed too, from its risk, which its node says (`computed_fields`,
+ * WF-IHM-0030). The totals are those of the answer: the hours and the two amounts of the lines
+ * retained, never the amounts of the tasks, which would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category, the role and
  * the sub-project of a line are named by the labels the server resolves, the object active or
@@ -68,7 +70,7 @@ import {
  */
 export const ESTIMATE_FIELDS = {
   node: [],
-  task: ["base_amount"],
+  task: ["base_amount", "reestimated_amount"],
   line: [
     "cost_category_id",
     "cost_category_label",
@@ -81,6 +83,7 @@ export const ESTIMATE_FIELDS = {
     "payment_delay_days",
     "uses_inactive_object",
     "base_amount",
+    "reestimated_amount",
   ],
 } as const satisfies AnyNodeFields;
 
@@ -188,7 +191,8 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       render: (node) => <InactiveObjectCell node={node} />,
     },
     // The two amounts of WF-DEV-0050, of a line, of a task — the sum of its subtree — and of
-    // the totals, as the server gives them.
+    // the totals, as the server gives them: the amount at the rates of the year of reference, and
+    // the amount re-estimated, inflation included, whose header names the year and the rate.
     {
       key: "base_amount",
       label: "referenceAmount",
@@ -199,6 +203,17 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       contract: "base_amount",
       value: (node) => node.task?.base_amount ?? node.estimate_line?.base_amount,
       total: (totals) => totals.base_amount,
+    },
+    {
+      key: "reestimated_amount",
+      label: "reestimatedAmount",
+      help: "estimate.reestimatedAmountStatic",
+      format: "money",
+      width: 128,
+      computed: computedAmount("reestimated_amount"),
+      contract: "reestimated_amount",
+      value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
+      total: (totals) => totals.reestimated_amount,
     },
   ],
 };
@@ -423,6 +438,29 @@ function entered(
 }
 
 /**
+ * What the amount re-estimated, inflation included, is corrected by, as its header names it
+ * (WF-IHM-0140): the year of reference of the revision and the rate of inflation it keeps, formatted.
+ */
+export interface EstimateInflation {
+  readonly year: string;
+  readonly rate: string;
+}
+
+/**
+ * The column of the amount re-estimated, defined by the year and the rate that correct it: its
+ * definition is a sentence with its values, which only the screen that reads the revision knows;
+ * without them the column keeps a definition that names neither; the other columns are as they are.
+ */
+function inflated(
+  column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
+  inflation: EstimateInflation | undefined,
+): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
+  return inflation === undefined || column.key !== "reestimated_amount"
+    ? column
+    : { ...column, help: "estimate.reestimatedAmount", helpValues: { ...inflation } };
+}
+
+/**
  * The grid of the estimate: its cells entered and a block pasted through `writes`; none, and the
  * grid is read only, taking neither entry nor paste. A line takes its label, category, role,
  * quantity, effort, unit disbursement and payment delay, where its node accepts the
@@ -433,12 +471,15 @@ function entered(
 export function estimateGrid(
   reference: EstimateReference,
   writes?: EstimateWrites,
+  inflation?: EstimateInflation,
 ): GridConfig<EstimateNode, NodeSortColumn, NodeTotals> {
   const specs = enteredColumns(reference);
   return {
     ...ESTIMATE_GRID,
     paste: writes?.paste,
     retotal: writes?.totals,
-    columns: ESTIMATE_GRID.columns.map((column) => entered(column, specs[column.key], writes)),
+    columns: ESTIMATE_GRID.columns.map((column) =>
+      entered(inflated(column, inflation), specs[column.key], writes),
+    ),
   };
 }

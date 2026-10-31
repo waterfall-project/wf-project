@@ -195,7 +195,10 @@ describe("the summary of the estimate", () => {
     );
     // The section of the natures of cost alone, up to the next one.
     const from = html.indexOf("By nature of cost");
-    const section = html.slice(from, html.indexOf("By subproject", from));
+    const to = html.indexOf("By subproject", from);
+    expect(from).toBeGreaterThanOrEqual(0);
+    expect(to).toBeGreaterThan(from);
+    const section = html.slice(from, to);
     expect(section).toContain("By nature of cost");
     expect(section).not.toContain("%");
     expect(section).toContain("(Not computable — The total is zero.)");
