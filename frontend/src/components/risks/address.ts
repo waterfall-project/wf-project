@@ -21,8 +21,8 @@ export type RiskState = components["schemas"]["RiskState"];
 export const STATES = "states";
 
 /**
- * The list of the risks: its search, its sort, its page and the size of its pages, and the states it
- * filters on (`readingOf` tells two addresses that read it alike).
+ * The list of the risks: its search, its sort, its page and the size of its pages, and the states
+ * it filters on (`readingOf` tells two addresses that read it alike).
  */
 export const RISKS_LIST: PagedList = pagedList(CONTRACT_ADDRESS, STATES);
 

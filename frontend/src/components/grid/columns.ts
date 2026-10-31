@@ -456,6 +456,15 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * no filter.
    */
   readonly filters?: readonly string[] | undefined;
+  /**
+   * For the filters of `filters` that have a default, the text of the address that says it: an
+   * address that names none takes the one kept, else this; a filter shown at it keeps nothing, and
+   * is recorded only once it differs (WF-IHM-0060). None, and an address that names none lifts the
+   * filter.
+   */
+  readonly defaulted?: Readonly<Record<string, string>> | undefined;
+  /** Whether the search is kept with the filters; `false`, it is not (the home keeps states). */
+  readonly searchKept?: boolean | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */

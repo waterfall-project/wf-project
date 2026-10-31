@@ -23,7 +23,9 @@ La durée se tape avec son unité : « 2 j », « 1 sem », « 1 m » pou
 
 Les prédécesseurs se saisissent comme dans MS Project, séparés par des points-virgules : le numéro de ligne, le type de la liaison — FD (fin à début, que l’on peut omettre), DD, FF, DF —, puis le décalage, positif ou négatif, avec son unité ou en pourcentage : « 3FD+2 j ; 5DD ». Un numéro que la grille ne connaît pas laisse la saisie ouverte ; une boucle de liaisons est refusée, avec les tâches qu’elle traverse.
 
-Le mode et l’avancement se lisent par une icône nommée ; une tâche du [chemin critique](notions/chemin-critique.md) porte l’icône « Chemin critique », et sa marge est en gras. L’avancement physique d’une récapitulative est calculé, ou dit non calculable avec son motif.
+Les colonnes « Démarrée le » et « Terminée le » disent quand la tâche a changé d’état : le serveur les pose, elles ne se saisissent pas, et celle d’une récapitulative est la première de ses subordonnées démarrées. Une liaison que la tâche manuelle ne peut pas respecter — elle est datée avant la fin de son prédécesseur automatique — est marquée d’une icône dans la colonne des prédécesseurs, sur la tâche manuelle comme sur son prédécesseur, et nommée : la ligne du prédécesseur, le type de la liaison, la ligne de la tâche. Le Gantt la dit dans le nom de la barre.
+
+Le mode et l’avancement se lisent par une icône nommée ; une tâche du [chemin critique](notions/chemin-critique.md) porte l’icône « Chemin critique », et sa marge est en gras. Une récapitulative porte la plus petite marge de ses subordonnées, et le chemin critique dès que l’une d’elles y est. L’avancement physique d’une récapitulative est calculé, ou dit non calculable avec son motif.
 
 ## Les gestes au clavier
 

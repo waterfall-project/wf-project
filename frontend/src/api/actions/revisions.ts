@@ -180,6 +180,8 @@ export async function readMergeReport(
 /** What confirming the merge of an amendment takes: its version name, and the counters the report read. */
 export interface AmendmentMerge {
   readonly versionName: string;
+  /** The description joined to the revision marked, as at the marking (WF-REV-0020); none when empty. */
+  readonly description?: string | undefined;
   readonly mainStructureLockVersion: number;
   readonly amendmentLockVersion: number;
 }
@@ -206,6 +208,9 @@ export async function mergeAmendment(
         body: {
           confirmed: true,
           version_name: merge.versionName,
+          ...(merge.description === undefined || merge.description === ""
+            ? {}
+            : { description: merge.description }),
           main_structure_lock_version: merge.mainStructureLockVersion,
           amendment_lock_version: merge.amendmentLockVersion,
         },

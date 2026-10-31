@@ -4,7 +4,9 @@
  * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
  * the import stands, when it was opened and until when its report applies; then, once analysed,
  * the lines read, of which those left as they are, the reasons that ask for an explicit
- * confirmation, each line rejected by its place in the file and its motive, each value of the file
+ * confirmation, each line rejected by its place in the file — its tab, when the file has tabs, and
+ * its row — and its motive, each task the file dates or lasts otherwise than Waterfall computes it,
+ * with the columns that differ (WF-INTF-0040), each value of the file
  * kept and signalled, each task the import completes at the date of the review the file bears, and
  * each difference with the existing data — a line of
  * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
@@ -82,18 +84,27 @@ const MARKED: Readonly<Record<Difference["change"], RowDifference | undefined>> 
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
 
-/** The lines of the file rejected, each by its row and its motive, in the order received. */
+/**
+ * The lines of the file rejected, each by its place — the tab that bears it, as the file names it,
+ * when the file has tabs (ANNEXE B, WF-INTF-0180), and its row — and its motive, in the order
+ * received. A file without tabs, a planning MS Project, shows no column of tabs.
+ */
 function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
   const t = useTranslations("exchanges.report");
   const locale = useLocale();
   const messages = useMessages();
+  const tabbed = rejected.some(({ sheet }) => sheet != null);
   return (
     <div className="space-y-1">
       <h3 className={HEADING}>{t("rejected", { count: rejected.length })}</h3>
       {rejected.length === 0 ? null : (
-        <ListTable label={t("rejectedTable")} columns={[t("row"), t("motive")]}>
+        <ListTable
+          label={t("rejectedTable")}
+          columns={tabbed ? [t("sheet"), t("row"), t("motive")] : [t("row"), t("motive")]}
+        >
           {rejected.map((line, index) => (
-            <TableRow key={`${String(line.row)}-${String(index)}`}>
+            <TableRow key={`${line.sheet ?? ""}-${String(line.row)}-${String(index)}`}>
+              {tabbed ? <TableCell className={CELL}>{line.sheet}</TableCell> : null}
               <TableCell className={`${CELL} tabular-nums`}>
                 {formatDecimal(String(line.row), locale)}
               </TableCell>
@@ -283,6 +294,40 @@ function Signals({ signals }: { readonly signals: Report["signals"] }) {
 }
 
 /**
+ * The tasks the file dates or lasts otherwise than Waterfall computes them from their durations,
+ * their links and their calendars, each by its label and the columns that differ, named as the
+ * columns of the planning (WF-INTF-0040), in the order received: what Waterfall computes prevails,
+ * and nothing is to confirm.
+ */
+function DateMismatches({ mismatches }: { readonly mismatches: Report["date_mismatches"] }) {
+  const t = useTranslations();
+  const format = useFormatter();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>
+        {t("exchanges.report.dateMismatches", { count: mismatches.length })}
+      </h3>
+      <ListTable
+        label={t("exchanges.report.dateMismatchesTable")}
+        columns={[t("exchanges.report.task"), t("exchanges.report.fields")]}
+      >
+        {mismatches.map((task, index) => (
+          <TableRow key={`${task.lineage_id ?? "new"}-${String(index)}`}>
+            <TableCell className={CELL}>{task.label}</TableCell>
+            <TableCell className={CELL}>
+              {format.list(
+                task.fields.map((field) => t(`enums.NodeColumn.${field}`)),
+                { type: "conjunction" },
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
+/**
  * The tasks the import completes, each with the date it takes: the date of the review the file
  * bears, which the analysis read (WF-INTF-0120, WF-INTF-0130), in the order received. An import
  * never leaves the date null (the contract); only a merge does, and it shows no date.
@@ -332,6 +377,9 @@ function Findings({ report }: { readonly report: Report }) {
       {report.refusals.length === 0 ? null : <Refusals refusals={report.refusals} />}
       <Rejections rejected={report.rejected} />
       <Differences differences={report.differences} />
+      {report.date_mismatches.length === 0 ? null : (
+        <DateMismatches mismatches={report.date_mismatches} />
+      )}
       {report.signals.length === 0 ? null : <Signals signals={report.signals} />}
       {report.completed_tasks.length === 0 ? null : (
         <CompletedTasks completed={report.completed_tasks} />

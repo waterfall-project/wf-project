@@ -47,8 +47,8 @@ const OCCURRENCE_REPORT = "GET /projects/{project_id}/risks/{risk_id}/occurrence
 
 const IDENTIFIED = example("risk") as Risk;
 const OCCURRED = example("risk_occurred_detail") as Risk;
-// The risk no marked revision cites: its deletion is listed available, as an example of the contract
-// shows it.
+// The risk no marked revision cites: its deletion is listed available, as an example of the
+// contract shows it.
 const UNCITED = example("risk_uncited") as Risk;
 
 /** Serve the fake back, and give it back to read its calls. */
@@ -100,13 +100,24 @@ describe("« Supprimer le risque »", () => {
     expect(client.calls).toHaveLength(0);
   });
 
+  it("says the risk written since it was read under its confirmation, with the offer to read the page anew, and deletes nothing [WF-IHM-0110-A]", async () => {
+    serve({ [DELETE]: { problem: example("risk_delete_stale") as Problem & { status: 412 } } });
+    render(detail(UNCITED));
+    await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
+    const form = screen.getByRole("form", { name: "Supprimer le risque" });
+    await userEvent.click(within(form).getByRole("button", { name: "Supprimer le risque" }));
+    await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it("tells the refusal of a risk a marked revision cites under its confirmation, which stays open [WF-RIS-0020-A]", async () => {
     serve({ [DELETE]: { problem: example("risk_delete_cited") as Problem & { status: 409 } } });
     render(detail(UNCITED));
     await userEvent.click(screen.getByRole("button", { name: "Supprimer le risque" }));
     const form = screen.getByRole("form", { name: "Supprimer le risque" });
-    // Whether the confirmation was still busy in the commit that told the refusal: the request over,
-    // never while it holds its cancellation (#1484).
+    // Whether the confirmation was still busy in the commit that told the refusal: the request
+    // over, never while it holds its cancellation (#1484).
     const busyWhenTold = atCommit(
       form,
       () => within(form).queryByRole("alert") !== null,

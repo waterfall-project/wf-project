@@ -54,6 +54,8 @@ const STRUCTURE = {
 const NODES = `/projects/${STRUCTURE.project_id}/revisions/${STRUCTURE.revision_id}/structures/${STRUCTURE.structure_id}/nodes`;
 // The categories and the roles of the examples, by identifier.
 const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000405";
+// The category of the disbursement, as its cell shows it.
+const ELECTRICAL_MATERIAL = /^Matériel électrique$/;
 const COMMISSIONING_TECHNICIAN = "01926f3a-7c00-7000-8000-000000000452";
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
 // The rows of the estimate, by their index: the summary, the task « Câblage des armoires », its
@@ -452,12 +454,12 @@ describe("the keyboard of a grid", () => {
     const client = serve();
     render(grid());
     // The category of a line of labour is computed, that of a disbursement is chosen.
-    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(ELECTRICAL_MATERIAL);
     cell(DISBURSEMENT, "cost_category").focus();
     await userEvent.keyboard("{Enter}Mise");
     expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveValue(COMMISSIONING);
     await userEvent.keyboard("{Escape}");
-    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(/^Matériel électrique$/);
+    expect(cell(DISBURSEMENT, "cost_category")).toHaveTextContent(ELECTRICAL_MATERIAL);
     expect(written(client)).toEqual([]);
   });
 
@@ -638,7 +640,9 @@ describe("a write the server refuses", () => {
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/élaboration/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /La révision est marquée\s: elle ne se modifie plus\./,
+    );
     server.client = unreachable();
     rerender(grid());
     cell(LABOUR, "quantity").focus();
@@ -647,6 +651,20 @@ describe("a write the server refuses", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("Le service est injoignable");
     });
     expect(cell(LABOUR, "quantity")).toHaveTextContent(/^1$/);
+  });
+
+  it("says the categories of labour without an hourly rate a line entered asks, by their labels and the year [WF-DEV-0010-A]", async () => {
+    serve({
+      [LINE]: {
+        problem: example("estimate_line_rate_missing") as Problem & { status: 422 },
+      },
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Sans taux horaire\s: «\sIngénierie électrique\s» en 2026\./,
+    );
   });
 
   it("lets a refusal told be dismissed from the keyboard, the focus back on the active cell and the entry going on [WF-IHM-0040-A]", async () => {
@@ -662,7 +680,7 @@ describe("a write the server refuses", () => {
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/élaboration/);
+    expect(alert).toHaveTextContent(/La révision est marquée\s: elle ne se modifie plus\./);
     // The cursor went down a row; Shift+Tab leaves the grid backwards, to the notice above it.
     expect(cell(DISBURSEMENT, "hours")).toHaveFocus();
     await userEvent.tab({ shift: true });

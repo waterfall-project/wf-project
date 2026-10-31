@@ -64,7 +64,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict, cast
 
-from wftools import mockcore, mockexchanges, mocktext, mockwitness, mockwrites
+from wftools import mockcore, mockexchanges, mockhistory, mocktext, mockwitness, mockwrites
 from wftools.mockids import hex_identifier, universe
 from wftools.mockproject import PARTICIPANT
 from wftools.mockstructure import REFERENCE_YEAR, labels
@@ -78,6 +78,7 @@ from wftools.mockwitness import (
     N,
     fixture,
 )
+from wftools.mockwitnessrisks import REGISTER
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject, JsonValue
@@ -109,6 +110,11 @@ REMAINING_CORRELATION = universe(1628)
 
 MOVE_HOURS_CORRELATION = universe(1658)
 """The correlation of a line of labour moved under a task it would leave without hours (#779)."""
+
+ABANDON_STALE_CORRELATION, EXIT_STALE_CORRELATION = universe(1659), universe(1660)
+DESIGNATE_STALE_CORRELATION, RISK_STALE_CORRELATION = universe(1661), universe(1662)
+SUBPROJECT_STALE_CORRELATION = universe(1663)
+"""The correlations of the five writes that carry their counter since US-0702/L2 (US-0703/L8)."""
 
 WITHOUT_HOURS_BLOCK = (
     mockwrites.BLOCK[0],
@@ -423,6 +429,94 @@ def examples() -> dict[str, JsonObject]:
         **_shared_examples(),
         **_tree_examples(),
         **_named_examples(),
+        **_stale_examples(),
+    }
+
+
+def stale(current: JsonValue, correlation: str) -> JsonObject:
+    """Return the refusal of a write sent with a counter older than the object's (WF-IHM-0110).
+
+    The object was written since the screen read it: nothing is written, and the refusal names the
+    counter the object bears now (``expected_lock_version``).
+    """
+    return {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": current},
+        "correlation_id": correlation,
+    }
+
+
+def _stale_examples() -> dict[str, JsonObject]:
+    """Return the 412 of the five writes that carry their counter since US-0702/L2 (E-13, E-24).
+
+    Each is sent with the counter before the one its object bears in the witness — another session
+    wrote it since the screen read it —, and is refused with the counter the object bears now.
+    """
+    revision, project = fixture("revision"), fixture("project")
+    # The risk read (`risk`), as its generator writes it: its example comes after these.
+    rows = mockhistory.reference_rows()
+    risk = mockhistory.risk_item(REGISTER[0], mockhistory.reference_budget(rows))
+    subproject = cast("list[JsonObject]", fixture("subprojects"))[0]
+
+    def told(what: str, who: str, now: JsonValue, *, feminine: bool = False) -> str:
+        # The counter sent is the one before: the object of the witness was written once at least.
+        if not isinstance(now, int) or now < 1:
+            message = f"{what}: a counter of 1 at least is needed to send the one before, not {now}"
+            raise ValueError(message)
+        e = "e" if feminine else ""
+        return (
+            f"{what} envoyé{e} avec le compteur {cast('int', now) - 1}, quand {who} porte {now} — "
+            f"une autre session l'a écrit depuis la lecture de l'écran — : refusé{e}, le compteur "
+            f"courant rendu, et rien n'est écrit ; l'écran propose de relire (WF-IHM-0110, "
+            f"US-0702/L2)."
+        )
+
+    return {
+        "revision_abandon_stale.json": mocktext.example(
+            told(
+                f"L'abandon de la révision en cours de « {project['label']} »",
+                "la révision",
+                revision["lock_version"],
+            ),
+            stale(revision["lock_version"], ABANDON_STALE_CORRELATION),
+        ),
+        "project_exit_stale.json": mocktext.example(
+            told(
+                f"La sortie de « {project['label']} »",
+                "le projet",
+                project["lock_version"],
+                feminine=True,
+            ),
+            stale(project["lock_version"], EXIT_STALE_CORRELATION),
+        ),
+        "reference_designate_stale.json": mocktext.example(
+            told(
+                f"La désignation de la référence de « {project['label']} »",
+                "le projet, dont elle écrit la référence,",
+                project["lock_version"],
+                feminine=True,
+            ),
+            stale(project["lock_version"], DESIGNATE_STALE_CORRELATION),
+        ),
+        "risk_delete_stale.json": mocktext.example(
+            told(
+                f"La suppression du risque « {risk['label']} »",
+                "le risque",
+                risk["lock_version"],
+                feminine=True,
+            ),
+            stale(risk["lock_version"], RISK_STALE_CORRELATION),
+        ),
+        "subproject_delete_stale.json": mocktext.example(
+            told(
+                f"La suppression du sous-projet « {subproject['label']} »",
+                "le sous-projet",
+                subproject["lock_version"],
+                feminine=True,
+            ),
+            stale(subproject["lock_version"], SUBPROJECT_STALE_CORRELATION),
+        ),
     }
 
 

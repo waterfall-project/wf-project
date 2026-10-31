@@ -413,7 +413,15 @@
               terminal: { $ref: ../../../fixtures/api/project_exit_terminal.json }
               lost_in_progress: { $ref: ../../../fixtures/api/project_exit_lost_in_progress.json }
               version_name_taken: { $ref: ../../../fixtures/api/project_exit_version_name_taken.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et il ne sort pas ;
+          `params.expected_lock_version` est son compteur courant (WF-IHM-0110, US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/project_exit_stale.json }
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : un projet qui porte une révision
@@ -827,7 +835,16 @@
               cited: { $ref: ../../../fixtures/api/subproject_delete_cited.json }
               refused: { $ref: ../../../fixtures/api/subproject_delete_refused.json }
               estimated: { $ref: ../../../fixtures/api/subproject_delete_estimated.json }
-      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : le sous-projet a été écrit depuis sa lecture, et rien n'est
+          supprimé ; `params.expected_lock_version` est son compteur courant (WF-IHM-0110,
+          US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/subproject_delete_stale.json }
       '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

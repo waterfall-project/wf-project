@@ -132,6 +132,8 @@
       "duration": "Duration",
       "progress": "Progress",
       "totalFloat": "Float",
+      "startedOn": "Started on",
+      "completedOn": "Completed on",
       "predecessors": "Predecessors",
       "probability": "Probability",
       "severity": "Severity",
@@ -292,6 +294,7 @@
       "deleting": "Deleting…",
       "deleted": "“{label}” deleted.",
       "created": "“{label}” created.",
+      "createdUnnamed": "Line created.",
       "refusedAt": "Refused at row {number}, “{label}”:",
       "refusedCreating": "Creation of “{label}” refused:",
       "onRow": "Row {number}, “{label}”",
@@ -309,7 +312,8 @@
       "categoryField": "Category",
       "quantityField": "Quantity",
       "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
-      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid.",
+      "lineHint": "Choose the category and the quantity of the line. The other fields are entered in the grid.",
+      "composedLabel": "Optional: by default, the label of the task that bears the line, followed by that of its role.",
       "busy": "Waits for the write under way to end."
     },
     "columnsMenu": {
@@ -389,10 +393,20 @@
     "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
-    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
+    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
+    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}",
+    "planningStart": {
+      "shown": "<label>Planning start date</label>: <time>{date}</time>",
+      "label": "Planning start date",
+      "change": "Change the planning start date",
+      "statement": "Automatic tasks without a predecessor start on this date, on the first working day of the default calendar; the server redates those that depend on them.",
+      "submit": "Confirm the date",
+      "done": "The planning start date is {date}."
+    }
   },
   "gantt": {
     "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}",
+    "conflict": " — {conflict}",
     "zoom": "Gantt zoom",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
@@ -824,6 +838,7 @@
     "project": "Project",
     "revision": "Revision",
     "currentRevision": "Current revision",
+    "sourceRevision": "Copy of “{name}”",
     "reference": "Reference revision",
     "readOnly": "Read only: no entry is offered on this revision.",
     "filters": "Active filters",
@@ -1258,6 +1273,9 @@
     "reviewRisk": {
       "help": "Opens the review of the risk."
     },
+    "planningStart": {
+      "help": "Changes the planning start date of the structure, after confirmation: the server redates the automatic tasks that depend on it."
+    },
     "updateRates": {
       "help": "Replaces the rates of the revision in progress by the rates proposed, for the categories retained, after confirmation."
     },
@@ -1371,7 +1389,13 @@
         "help": "Share of the work done, as a percentage of the task."
       },
       "totalFloat": {
-        "help": "Total float: the delay the task can take without pushing the end of the project."
+        "help": "Total float: the delay the task can take without pushing the end of the project. A summary bears the smallest float of its subordinates."
+      },
+      "startedOn": {
+        "help": "The date the task started on, set by the server when its state changes; a summary bears the first of its started subordinates."
+      },
+      "completedOn": {
+        "help": "The date the task was completed on, set by the server when its state changes."
       },
       "predecessors": {
         "help": "Tasks this one depends on, named by their row number."
@@ -1670,6 +1694,7 @@
     "submit": "Confirm the merge",
     "title": "Report of the merge",
     "reading": "Reading the report…",
+    "description": "Description of the revision produced (optional)",
     "counts": "Differences by object",
     "createsRevision": "The project has no revision in progress: the merge first creates it by copying the last marked revision, merges the differential into it and marks it, in the same background task. If it fails, no revision is created.",
     "targets": {
@@ -1731,6 +1756,8 @@
       "apply": "Show only my projects",
       "states": "Filter by state",
       "everyState": "Every state",
+      "defaultLabel": "Default filter of the list by state",
+      "defaultStates": "By default:",
       "period": "Modification period"
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
@@ -1909,6 +1936,10 @@
       "version": "Version",
       "status": "Status",
       "markedAt": "Marked on",
+      "source": "Copy of",
+      "noSource": "None",
+      "inflationRate": "Inflation rate",
+      "winProbability": "Win probability",
       "description": "Description",
       "consult": "Consultation",
       "reference": "Reference",
@@ -2739,6 +2770,7 @@
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
     "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
+    "non_working_day_structure": "{date} is not worked on the default calendar; enter {next}.",
     "summary_dates": "Its dates run from {start} to {finish}, those of its subtasks.",
     "cycle": "Loop of links, in order: {tasks}.",
     "link": "Link concerned, the summary first: {tasks}.",
@@ -2748,7 +2780,17 @@
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
     "wbs_element": "Work breakdown element read: “{element}”.",
     "project_code": "Project code read: “{code}”.",
-    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}."
+    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}.",
+    "project_terminal": "The project is closed: it no longer changes.",
+    "revision_marked": "The revision is marked: it no longer changes.",
+    "subordinates": "{count, plural, one {It takes this value from its subordinate} other {It takes this value from its subordinates}}: {tasks}.",
+    "subordinates_unnamed": "{count, plural, one {It takes this value from its subordinate.} other {It takes this value from its # subordinates.}}",
+    "missing_rates": "Without an hourly rate: {categories}.",
+    "missingRate": "“{label}” in {year}",
+    "missingRateYear": "a category in {year}",
+    "risks": "{count, plural, one {Risk at issue} other {Risks at issue}}: {risks}.",
+    "riskName": "“{label}”",
+    "conflicting_object": "Object changed since: “{label}”."
   },
   "permissions": {
     "users": {
@@ -3687,6 +3729,9 @@
       "rejectedTable": "Rejected lines",
       "row": "Line",
       "motive": "Reason",
+      "sheet": "Tab",
+      "dateMismatches": "{count, plural, one {# task the file dates otherwise: what Waterfall computes prevails} other {# tasks the file dates otherwise: what Waterfall computes prevails}}",
+      "dateMismatchesTable": "Tasks the file dates otherwise",
       "unchanged": "Of these, {count, plural, =0 {none is unchanged} one {# is unchanged} other {# are unchanged}}.",
       "signals": "{count, plural, one {# value of the file kept and signalled} other {# values of the file kept and signalled}}",
       "signalsTable": "Values of the file kept and signalled",

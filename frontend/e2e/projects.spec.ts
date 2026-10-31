@@ -52,6 +52,21 @@ test("the home sorts its projects and filters them by state on the server, from 
     "/?sort_by=code&sort_order=asc",
   );
   const states = page.getByRole("group", { name: "Filtre par état" });
+  // The filter by default is said, Chiffrage and En cours pressed (US-0660/L4, #1401).
+  await expect(
+    page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
+  ).toBeVisible();
+  await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(states.getByRole("button", { name: "Perdu" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
+  await states.getByRole("button", { name: "Tous les états" }).click();
+  await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
   await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
     "aria-pressed",
     "true",

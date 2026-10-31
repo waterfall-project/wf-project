@@ -286,6 +286,29 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("« Consommables d’essais » créée.")).toBeVisible();
   });
 
+  it("inserts a line without a label, which the server composes of its task and its role [WF-DEV-0020-A]", async () => {
+    // Le libellé d'une ligne est facultatif : absent, le serveur compose celui de la tâche et du rôle.
+    const client = serve({ [CREATE]: { example: "estimate_line_created_labelled", status: 201 } });
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    expect(within(dialog).getByRole("textbox", { name: "Libellé" })).toHaveAccessibleDescription(
+      "Facultatif : à défaut, le libellé de la tâche qui porte la ligne, suivi de celui de son rôle.",
+    );
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
+      target: { value: CATEGORY },
+    });
+    await create("   ");
+    expect(created(client)).toEqual({
+      kind: "estimate_line",
+      parent_id: node(TASK)?.node_id,
+      estimate_line: { cost_category_id: CATEGORY, quantity: "1" },
+    });
+    // The label the server composes is its own to give — of the task and of the role, not of the row
+    // acted on, which it is not when the line is inserted below a sister line: told without a name.
+    expect(await screen.findByText("Ligne créée.")).toBeVisible();
+  });
+
   it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
     const client = serve({ [CREATE]: { example: "estimate_line_created", status: 201 } });
     render(estimateGrid());
@@ -650,6 +673,20 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     );
     expect(alert).toHaveTextContent("Condition non remplie");
     expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
+    // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
+    serve({
+      [DELETE]: {
+        problem: example("node_delete_last_provision_task_refused") as Problem & { status: 409 },
+      },
+    });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Risque concerné\s: «\sRisque de reprise du câblage\s»\./,
+    );
   });
 
   it("marks the row it was asked from, though the active row changed while the write was under way", async () => {
