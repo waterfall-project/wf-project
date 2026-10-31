@@ -638,7 +638,9 @@ describe("a write the server refuses", () => {
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/La révision est marquée\s: elle ne se modifie plus\./);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /La révision est marquée\s: elle ne se modifie plus\./,
+    );
     server.client = unreachable();
     rerender(grid());
     cell(LABOUR, "quantity").focus();
