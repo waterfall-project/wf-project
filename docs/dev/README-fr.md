@@ -3605,7 +3605,11 @@ deux largeurs :
   mesurer, et les touches qui restent du lot n'atteignent ni la page ni le focus : le second
   parcours part toujours de là où le premier s'est arrêté ; ce que la page a mesuré au-delà d'un
   piège n'est pas lu, ni compté dans ce que Tab n'a pas atteint. Le décompte des éléments atteints
-  et des pièges reste du côté du test.
+  et des pièges reste du côté du test. Le parcours, et lui seul, garde sa trace sans instantanés du
+  DOM (`withoutSnapshots`) : un instantané par touche pesait plus que le parcours lui-même sous
+  charge (#1540), et ses fautes se lisent dans ses relevés. `test.use({ trace })` ne vaut pas pour
+  un seul test — un groupe refuse une option qui impose un nouveau worker : le test relance la trace
+  que le harnais a ouverte, avec les mêmes options, sans les instantanés.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent

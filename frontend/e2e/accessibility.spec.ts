@@ -30,7 +30,7 @@
  * parts of the chain, not as a file. The session of the fake back grants the whole catalogue of
  * permissions: every command a screen can offer is offered. A browser in French.
  */
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type PlaywrightWorkerOptions, test } from "@playwright/test";
 
 import { type AxeBreach, axeAudit } from "./axe";
 import { untilHydrated, WORKING } from "./hydration";
@@ -94,6 +94,29 @@ async function resize(page: Page, size: (typeof WINDOWS)[number]): Promise<void>
         requestAnimationFrame(() => requestAnimationFrame(resolve));
       }),
   );
+}
+
+/** The modes of the trace that record every run of a test; the others are left as they are. */
+const EVERY_RUN: readonly string[] = ["on", "retain-on-failure", "retain-on-failure-and-retries"];
+
+/**
+ * Trace the rest of the test without a snapshot of the page at each action: the walk presses Tab
+ * hundreds of times, and a DOM snapshot per key weighed more than the walk itself under load
+ * (#1540). The trace keeps its actions, its screenshots and its sources, and the walk says its
+ * faults in what it found. `test.use({ trace })` cannot do it for one test, a describe group
+ * being refused an option that forces a new worker: the tracing the harness started for the test
+ * is restarted with the same options, the snapshots left out, and ends as it would have.
+ */
+async function withoutSnapshots(
+  page: Page,
+  trace: PlaywrightWorkerOptions["trace"],
+): Promise<void> {
+  const options = typeof trace === "string" ? { mode: trace } : trace;
+  if (!EVERY_RUN.includes(options.mode)) return;
+  const { screenshots = true, sources = true } = typeof trace === "string" ? {} : trace;
+  const { tracing } = page.context();
+  await tracing.stop();
+  await tracing.start({ screenshots, snapshots: false, sources });
 }
 
 /** The breaches of the rules of the labels and the descriptions, or of every other rule. */
@@ -264,7 +287,9 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
 
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
     page,
+    trace,
   }) => {
+    await withoutSnapshots(page, trace);
     await open(page, screen);
     const walks: Walk[] = [];
     for (const size of WINDOWS) {

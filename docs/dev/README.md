@@ -3586,7 +3586,12 @@ two widths:
   document. Back at the first element, the page stops measuring, and the keys left in the batch
   reach neither the page nor the focus: the second walk always starts from where the first one
   stopped; what the page measured beyond a trap is not read, nor counted in what Tab did not
-  reach. The count of reached elements and of traps stays on the test's side.
+  reach. The count of reached elements and of traps stays on the test's side. The walk, and it
+  alone, keeps its trace without DOM snapshots (`withoutSnapshots`): a snapshot per key weighed
+  more than the walk itself under load (#1540), and its faults are read in its findings.
+  `test.use({ trace })` does not apply to a single test — a group refuses an option that forces a
+  new worker: the test restarts the trace the harness opened, with the same options, without the
+  snapshots.
 
 `frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
 themselves, on pages written for them (`page.setContent`): each defect they must
