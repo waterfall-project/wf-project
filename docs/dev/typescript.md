@@ -1,6 +1,6 @@
 # Règles de codage — TypeScript
 
-Pour le front (`frontend/`). Ce fichier complète le [guide](README.md) : il dit comment
+Pour le front (`frontend/`). Ce fichier complète le [guide](README-fr.md) : il dit comment
 s'écrit le TypeScript ici. Il ne recopie ni la spécification, ni le contrat, ni les jeux de
 règles des outils ; il y renvoie.
 

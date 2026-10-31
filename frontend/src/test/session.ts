@@ -18,7 +18,7 @@ export function withTestRedis(): void {
     if (address === undefined || address === "") {
       throw new Error(
         "WATERFALL_TEST_REDIS_URL must name a Redis for the tests of the sessions of the front " +
-          '(docs/dev/README.md, "Un test contre Redis")',
+          '(docs/dev/README.md, "A test against Redis")',
       );
     }
     process.env.WATERFALL_REDIS_URL = address;
