@@ -1340,6 +1340,12 @@
       },
       "referenceAmount": {
         "help": "Montant de la ligne à l’année de référence de la révision, avant toute correction de l’inflation."
+      },
+      "reestimatedAmount": {
+        "help": "Montant réestimé de la ligne, inflation comprise : le montant de l’année de référence ({year}) projeté sur l’année de consommation de la ligne, au taux d’inflation de la révision ({rate} par an)."
+      },
+      "reestimatedAmountStatic": {
+        "help": "Montant réestimé de la ligne, inflation comprise : le montant de l’année de référence de la révision projeté sur l’année de consommation de la ligne, au taux d’inflation de la révision."
       }
     },
     "planning": {
@@ -1923,7 +1929,8 @@
       "noDeltas": "Aucun écart de montant.",
       "dimension": "Axe",
       "key": "Poste",
-      "delta": "Écart",
+      "budgetedDelta": "Écart budgété",
+      "reestimatedDelta": "Écart réestimé",
       "unnamed": "Sans nom"
     },
     "structures": {
@@ -3409,7 +3416,7 @@
       "risk": "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
       "reference_revision": "Le montant budgété est celui que la révision de référence a fixé.",
       "remaining_reviews": "Le montant réestimé suit les revues du reste à engager.",
-      "inflation": "Le montant corrigé de l’inflation est le montant de la ligne projeté sur son année de consommation au taux d’inflation du projet.",
+      "inflation": "Le montant réestimé, inflation comprise, est le montant de la ligne projeté sur son année de consommation au taux d’inflation de la révision.",
       "own_estimate": "La gravité d’un risque est le total de son devis propre.",
       "severity_and_probability": "La provision d’un risque est sa gravité pondérée par sa probabilité.",
       "reference_provision": "La provision d’un risque survenu ou écarté est celle qu’il portait dans la révision de référence.",

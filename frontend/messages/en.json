@@ -1340,6 +1340,12 @@
       },
       "referenceAmount": {
         "help": "Amount of the line at the reference year of the revision, before any correction for inflation."
+      },
+      "reestimatedAmount": {
+        "help": "Re-estimated amount of the line, inflation included: the amount at the reference year ({year}) projected on the year the line is consumed, at the inflation rate of the revision ({rate} a year)."
+      },
+      "reestimatedAmountStatic": {
+        "help": "Re-estimated amount of the line, inflation included: the amount at the reference year of the revision projected on the year the line is consumed, at the inflation rate of the revision."
       }
     },
     "planning": {
@@ -1923,7 +1929,8 @@
       "noDeltas": "No amount deviation.",
       "dimension": "Axis",
       "key": "Item",
-      "delta": "Deviation",
+      "budgetedDelta": "Budgeted deviation",
+      "reestimatedDelta": "Re-estimated deviation",
       "unnamed": "Unnamed"
     },
     "structures": {
@@ -3409,7 +3416,7 @@
       "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
-      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
+      "inflation": "The re-estimated amount, inflation included, is the line’s amount projected on its year of consumption at the inflation rate of the revision.",
       "own_estimate": "The severity of a risk is the total of its own estimate.",
       "severity_and_probability": "The provision of a risk is its severity weighted by its probability.",
       "reference_provision": "The provision of a risk that occurred or was dismissed is the one it bore in the reference revision.",

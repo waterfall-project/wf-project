@@ -193,12 +193,18 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   const locale = useLocale();
   return (
     <Part title={t("deltas")} empty={deltas.length === 0 ? t("noDeltas") : undefined}>
-      <ListTable label={t("deltas")} columns={[t("dimension"), t("key"), t("delta")]}>
+      <ListTable
+        label={t("deltas")}
+        columns={[t("dimension"), t("key"), t("budgetedDelta"), t("reestimatedDelta")]}
+      >
         {deltas.map((delta) => (
           <TableRow key={`${delta.dimension}:${delta.key}`}>
             <TableCell className={CELL}>{dimension(delta.dimension)}</TableCell>
             <TableCell className={CELL}>
               {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
+            </TableCell>
+            <TableCell className={`${CELL} tabular-nums`}>
+              {formatMoney(delta.budgeted_delta, locale)}
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
               {formatMoney(delta.reestimated_delta, locale)}

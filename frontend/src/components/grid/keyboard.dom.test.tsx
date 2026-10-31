@@ -187,12 +187,12 @@ describe("the keyboard of a grid", () => {
   // Each move from the cell it starts on, a test of its own: every key renders the grid anew, and
   // the whole tour in one test went past its time under load (EP-02/L46).
   it.each([
-    ["End", [1, "hours"], "{End}", [1, "base_amount"]],
-    ["Home", [1, "base_amount"], "{Home}", [1, "row_number"]],
-    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [LAST, "base_amount"]],
+    ["End", [1, "hours"], "{End}", [1, "reestimated_amount"]],
+    ["Home", [1, "reestimated_amount"], "{Home}", [1, "row_number"]],
+    ["Ctrl+End", [1, "row_number"], "{Control>}{End}{/Control}", [LAST, "reestimated_amount"]],
     [
       "Ctrl+Home, then Page Down",
-      [LAST, "base_amount"],
+      [LAST, "reestimated_amount"],
       "{Control>}{Home}{/Control}{PageDown}",
       [LAST, "row_number"],
     ],
@@ -244,7 +244,7 @@ describe("the keyboard of a grid", () => {
     await userEvent.keyboard("{ArrowUp}{PageUp}{Home}");
     expect(header("N°")).toHaveFocus();
     await userEvent.keyboard("{End}");
-    expect(header(/réf\./)).toHaveFocus();
+    expect(header(/réestimé/)).toHaveFocus();
   });
 
   it("sorts a column from the header by Enter or Space [WF-IHM-0100-A]", async () => {
@@ -291,7 +291,7 @@ describe("the keyboard of a grid", () => {
     expect(header("Qté")).toHaveFocus();
     // Ctrl+End goes to the last cell of the rows.
     await userEvent.keyboard("{Control>}{End}{/Control}");
-    expect(cell(LAST, "base_amount")).toHaveFocus();
+    expect(cell(LAST, "reestimated_amount")).toHaveFocus();
   });
 
   it("keeps its one stop of the tabulation in the header when the answer has no row", () => {
@@ -344,7 +344,7 @@ describe("the keyboard of a grid", () => {
     renderGrid();
     cell(PROVISION, "unit_disbursement").focus();
     await userEvent.keyboard("{End}{F2}");
-    expect(refusal()).toHaveTextContent(/Montant \(année de réf\.\) ne se saisit pas/);
+    expect(refusal()).toHaveTextContent(/Montant réestimé ne se saisit pas/);
   });
 
   it("opens nothing on a cell that takes no entry, nor computed: the quantity of a task", async () => {

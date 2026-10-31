@@ -345,7 +345,7 @@ function composed<Row>(parts: readonly RowPart<Row>[]): RowPart<Row>[] {
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
  * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
  * a grid that reads no date —, each line or task moved in time by the part of its amounts the grid reads —
- * none for a grid that reads none (#235) —, the totals of the structure when the grid reads it
+ * none for a grid that reads none —, the totals of the structure when the grid reads it
  * whole — a filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version
  * the structure moved on to, which each write moves on.
  */

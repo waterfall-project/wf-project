@@ -63,4 +63,17 @@ describe("the definitions of the columns", () => {
       }
     },
   );
+
+  it("gives the amount re-estimated a definition of its own whether or not the revision is known [WF-IHM-0140-A]", () => {
+    const find = (columns: ReturnType<typeof estimateGrid>["columns"]) =>
+      columns.find((column) => column.key === "reestimated_amount");
+    const plain = find(estimateGrid(estimateReference()).columns);
+    const corrected = find(
+      estimateGrid(estimateReference(), undefined, { year: "2026", rate: "3 %" }).columns,
+    );
+    expect(plain?.help).toBe("estimate.reestimatedAmountStatic");
+    expect(plain?.helpValues).toBeUndefined();
+    expect(corrected?.help).toBe("estimate.reestimatedAmount");
+    expect(corrected?.helpValues).toEqual({ year: "2026", rate: "3 %" });
+  });
 });

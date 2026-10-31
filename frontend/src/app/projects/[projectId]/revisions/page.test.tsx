@@ -289,11 +289,17 @@ describe("the comparison of two revisions", () => {
       (delta) =>
         `${DIMENSIONS[delta.dimension]} ${
           delta.key === "unassigned" ? "Hors sous-projet" : (delta.label ?? unnamed)
-        } ${formatMoney(delta.reestimated_delta, "fr")}`,
+        } ${formatMoney(delta.budgeted_delta, "fr")} ${formatMoney(delta.reestimated_delta, "fr")}`,
     );
-    expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
+    expect(table(page, "Écarts de montants")).toBe(
+      text(`Axe Poste Écart budgété Écart réestimé ${deltas.join(" ")}`),
+    );
     // Three natures of cost and two sub-projects, as the description of `comparison` lists them.
     expect(deltas).toHaveLength(5);
+    // The two deviations differ in the witness: each is shown under the header that names it.
+    expect(COMPARISON.amount_deltas[0]?.budgeted_delta).not.toBe(
+      COMPARISON.amount_deltas[0]?.reestimated_delta,
+    );
     for (const { key } of COMPARISON.amount_deltas) {
       expect(page).not.toContain(key);
     }

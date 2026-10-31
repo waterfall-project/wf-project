@@ -364,8 +364,8 @@ describe("the witness path", () => {
     const { html } = await estimateWith({
       [NODES_READ]: "nodes_estimate",
     });
-    // The hours, the amount at the year of reference before inflation.
-    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56$/);
+    // The hours, the amount at the rates of the year of reference, the amount re-estimated.
+    expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {

@@ -34,6 +34,7 @@ import { OPTIONAL_READ_REFUSALS, readOrFail, readUnlessRefused } from "@/api/pro
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
+import type { ProjectReading } from "@/components/context/reading";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
@@ -252,6 +253,17 @@ function EstimateHeader({
   );
 }
 
+/**
+ * What corrects the amounts of the grid for inflation: the year of reference and the rate of
+ * inflation the revision keeps (`Revision.reference_year`, `Revision.inflation_rate`), which the
+ * reading context holds already (WF-IHM-0140); none without a revision.
+ */
+function inflationOf({ revision }: ProjectReading) {
+  return revision === undefined
+    ? undefined
+    : { referenceYear: revision.reference_year, rate: revision.inflation_rate };
+}
+
 /** Render the estimate of a revision: what its calculation lacks, its indicators, its grid. */
 export default async function EstimatePage({
   params,
@@ -323,6 +335,7 @@ export default async function EstimatePage({
           query={screen.query}
           preferences={screen.preferences}
           differential={screen.kind === "amendment"}
+          inflation={inflationOf(screen.reading)}
         />
       </Screen>
     </PendingAddress>
