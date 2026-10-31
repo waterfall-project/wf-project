@@ -457,7 +457,7 @@ describe("the report of an import", () => {
     expect(rejected).toHaveTextContent(/blank item included/);
   });
 
-  it("lists the rejected lines with their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {
+  it("lists the rejected lines with their tab, their row and their motive before any confirmation, and applies nothing until confirmed [WF-INTF-0080-A]", async () => {
     const client = serve({
       [APPLY]: { example: "task_import_queued", status: 202 },
       [TASK]: "task_running",
@@ -472,9 +472,9 @@ describe("the report of an import", () => {
         .getAllByRole("row")
         .map((row) => row.textContent),
     ).toEqual([
-      "LigneMotif",
-      "3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
-      "5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
+      "OngletLigneMotif",
+      "Hors lot3Tâche inconnue. Valeur lue dans le fichier\u00a0: «\u00a0Essais de compatibilité électromagnétique\u00a0».",
+      "Hors lot5Rôle de ressource inconnu. Valeur lue dans le fichier\u00a0: «\u00a0Soudeur (SOUD)\u00a0».",
     ]);
 
     const confirmation = await askApplication();
@@ -809,6 +809,18 @@ describe("the report of an import", () => {
     expect(screen.getByRole("table", { name: "Lignes rejetées" })).toHaveTextContent(
       "Élément d’OTP lu : « /SP-CAB ».",
     );
+  });
+
+  it("names each task the file dates otherwise than Waterfall computes it, with the columns that differ, as information and not a reason to confirm", () => {
+    serve({});
+    open(report(example("import_planning_mismatch") as Import));
+    const table = screen.getByRole("table", { name: "Tâches datées autrement par le fichier" });
+    expect(
+      within(table)
+        .getAllByRole("row")
+        .map((row) => row.textContent),
+    ).toEqual(["TâcheChamps", "ÉtudesFin", "Revue de conceptionFin"]);
+    expect(screen.getByText(/^2 tâches datées autrement par le fichier/)).toBeVisible();
   });
 
   it("says the change of the date of start of planning of the structure, which no column holds [WF-INTF-0040-A]", () => {

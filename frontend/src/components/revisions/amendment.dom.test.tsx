@@ -275,7 +275,7 @@ describe("the contractualisation of an amendment", () => {
     expect(screen.getByRole("link", { name: "Voir les révisions" })).toHaveFocus();
   });
 
-  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered [WF-REV-0050-A]", async () => {
+  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered, the merge asked again from it and not from the tracker [WF-REV-0050-A]", async () => {
     serve({
       [REPORT]: "structure_merge_report",
       [MERGE]: { example: "task_merge_queued", status: 202 },
@@ -292,6 +292,12 @@ describe("the contractualisation of an amendment", () => {
     await tick();
     await tick();
     expect(within(tasksRegion()).getByText("Échouée")).toBeVisible();
+    // The counters the report read may be stale: the tracker offers no run again, and says where
+    // the merge is asked anew, with its report read again (#1682).
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(
+      within(tasksRegion()).getByText("Pour relancer cette tâche, repartez de l’écran de son objet."),
+    ).toBeVisible();
     closeTasks();
     expect(screen.queryByText(/nouvelle révision de référence/)).toBeNull();
     expect(screen.queryByRole("link", { name: "Voir les révisions" })).toBeNull();
