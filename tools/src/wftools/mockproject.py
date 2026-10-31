@@ -27,9 +27,10 @@ L-25, on examples drawn from those written by hand:
   manager;
 - ``project_background_task_running.json``, the witness read while the marking of its current
   revision runs (``revision_marking``): the commands a background task would make stale — the
-  entry of the work breakdown, the three exits, the occurrence of a risk and the imports that
-  would write in the revision — unavailable, ``no_background_task_running`` missing after their
-  conditions of state; the others, its exports and its attributes among them, as the witness
+  entry of the work breakdown, the exits the witness lists, the occurrence of a risk and the
+  imports that would write in the revision — unavailable, ``no_background_task_running`` missing
+  after their conditions of state; the others, its contributors, its timelines, its actual costs
+  and its attributes among them, as the witness
   lists them (WF-IHM-0090, WF-PLA-0170, WF-CYC-0090; #1142, point 5, US-0660/L2).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
