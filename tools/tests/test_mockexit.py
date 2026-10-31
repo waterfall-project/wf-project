@@ -9,6 +9,7 @@ Vérif of WF-CYC-0090, WF-CYC-0060, WF-PRJ-0060 and WF-IHM-0090, and against the
 
 import json
 import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -133,30 +134,37 @@ def test_the_exit_answers_the_project_or_the_task_and_the_body_bears_the_fate() 
         assert mark["properties"][name] == revisions["properties"][name]
 
 
+_READS = {
+    "task_exit_mark_running": "task_running",
+    "task_exit_mark_succeeded": "task_succeeded",
+    "task_exit_mark_failed": "task_failed",
+    "task_exit_mark_relaunched": "task_mark_relaunched",
+}
+"""The reads of the task of the exit, each after the read of the marking of today it repeats."""
+_IDENTITY = ("task_id", "submitted_at", "finished_at")
+
+
+def _took(name: str) -> timedelta:
+    """Return how long a task took, from its being put in the queue to its end."""
+    task = fixture(name)
+    return _moment(task["finished_at"]) - _moment(task["submitted_at"])
+
+
+def _moment(instant: str) -> datetime:
+    return datetime.strptime(instant, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+
+
 @pytest.mark.requirement("WF-CYC-0090-A")
-@pytest.mark.requirement("WF-IHM-0080-A")
-def test_the_task_of_the_exit_is_read_as_the_marking_s_and_runs_again_as_a_task_of_its_own() -> (
-    None
-):
+def test_each_read_of_the_task_of_the_exit_is_the_marking_s_under_a_task_of_its_own() -> None:
     # Vérif : « [...] après la sortie, le projet n'a plus de révision en cours, et ses indicateurs
-    # se lisent dans sa dernière révision marquée » ; WF-IHM-0080 : « L'échec d'un traitement de
-    # fond est signalé avec son motif, et le même traitement peut être relancé. » The follow-up of
-    # the front pairs the reads with the task by its identifier: each read of the exit's task bears
-    # it, the relaunch a new one (US-0703/L4).
+    # se lisent dans sa dernière révision marquée ». The follow-up of the front pairs the reads
+    # with the task by its identifier: each read of the exit's task bears it (US-0703/L4).
     queued = fixture("task_exit_mark_queued")
-    reads = {
-        "task_exit_mark_running": "task_running",
-        "task_exit_mark_succeeded": "task_succeeded",
-        "task_exit_mark_failed": "task_failed",
-        "task_exit_mark_relaunched": "task_mark_relaunched",
-    }
-    relaunched_ok = fixture("task_exit_mark_relaunched_succeeded")
-    instants = ("task_id", "submitted_at", "finished_at")
-    for name, marking in reads.items():
+    for name, marking in _READS.items():
         read, model = fixture(name), fixture(marking)
         # The same marking of the 102, the same progress and motive: only the task is its own.
-        assert {key: value for key, value in read.items() if key not in instants} == {
-            key: value for key, value in model.items() if key not in instants
+        assert {k: v for k, v in read.items() if k not in _IDENTITY} == {
+            k: v for k, v in model.items() if k not in _IDENTITY
         }, name
         assert read["task_id"] != model["task_id"], name
     for name in ("task_exit_mark_running", "task_exit_mark_succeeded", "task_exit_mark_failed"):
@@ -165,36 +173,55 @@ def test_the_task_of_the_exit_is_read_as_the_marking_s_and_runs_again_as_a_task_
             queued["task_id"],
             queued["submitted_at"],
         )
-    succeeded, failed = fixture("task_exit_mark_succeeded"), fixture("task_exit_mark_failed")
-    assert (succeeded["status"], succeeded["problem"]) == ("succeeded", None)
-    assert failed["status"] == "failed"
-    assert failed["problem"]["code"] == "HOURLY_RATE_MISSING"
-    # Run again after the failure: a task of its own, put in the queue after it.
+    # The durations are those of the marking's: the exit's instants are only shifted.
+    assert _took("task_exit_mark_succeeded") == _took("task_succeeded")
+    assert fixture("task_exit_mark_failed")["problem"]["code"] == "HOURLY_RATE_MISSING"
+
+
+@pytest.mark.requirement("WF-IHM-0080-A")
+def test_the_task_of_the_exit_that_fails_is_run_again_as_a_task_of_its_own() -> None:
+    # Vérif : « L'échec d'un traitement de fond est signalé avec son motif, et le même traitement
+    # peut être relancé. » The relaunch is a task of its own, put in the queue after the failure,
+    # and it succeeds as long after as the marking of today's did (US-0703/L4).
+    queued, failed = fixture("task_exit_mark_queued"), fixture("task_exit_mark_failed")
     relaunched = fixture("task_exit_mark_relaunched")
+    succeeded = fixture("task_exit_mark_relaunched_succeeded")
     others = {queued["task_id"], fixture("task_mark_relaunched")["task_id"]}
     assert relaunched["task_id"] not in others
     assert relaunched["status"] == "queued"
     assert failed["finished_at"] < relaunched["submitted_at"]
-    # The relaunch succeeds: the same task, read again once it is done, the exit applied as the
-    # first success's is (same summary), after the relaunch was put in the queue.
-    assert relaunched_ok["task_id"] == relaunched["task_id"]
-    assert (relaunched_ok["status"], relaunched_ok["progress"]) == ("succeeded", 100)
-    assert relaunched_ok["problem"] is None
-    assert relaunched_ok["submitted_at"] == relaunched["submitted_at"]
-    assert relaunched["submitted_at"] < relaunched_ok["finished_at"]
-    assert relaunched_ok["kind"] == succeeded["kind"]
-    # The exit applied when the task succeeds, under the name its body gives; not when it fails.
+    # The same task, read again once it is done.
+    assert succeeded["task_id"] == relaunched["task_id"]
+    assert (succeeded["status"], succeeded["progress"]) == ("succeeded", 100)
+    assert succeeded["problem"] is None
+    assert succeeded["submitted_at"] == relaunched["submitted_at"]
+    assert _took("task_exit_mark_relaunched_succeeded") == _took("task_succeeded")
+    assert succeeded["kind"] == fixture("task_exit_mark_succeeded")["kind"]
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
+def test_the_exit_is_applied_when_its_task_succeeds_and_not_when_it_fails() -> None:
+    # Vérif : « [...] la sortie n'est appliquée qu'avec ce choix » : under the name its body gives
+    # when the task succeeds, the first time or run again; not when it fails.
+    assert fixture("task_exit_mark_succeeded")["status"] == "succeeded"
+    assert fixture("task_exit_mark_succeeded")["problem"] is None
+    assert fixture("task_exit_mark_failed")["status"] == "failed"
     named = f"« {fixture('project_exit_marking')['current_revision']['version_name']} »"
-    assert named in _summary("task_exit_mark_succeeded")
-    assert CYC_0090 in _summary("task_exit_mark_succeeded")
-    assert named in _summary("task_exit_mark_relaunched_succeeded")
-    assert CYC_0090 in _summary("task_exit_mark_relaunched_succeeded")
+    for name in ("task_exit_mark_succeeded", "task_exit_mark_relaunched_succeeded"):
+        assert named in _summary(name), name
+        assert CYC_0090 in _summary(name), name
     assert "la sortie ne s'applique pas" in _summary("task_exit_mark_failed")
-    # Declared where the front reads them: the reads of the task, and the exit run again.
+
+
+@pytest.mark.requirement("WF-CYC-0090-A")
+@pytest.mark.requirement("WF-IHM-0080-A")
+def test_the_reads_of_the_task_of_the_exit_and_its_relaunch_are_declared() -> None:
+    # Vérif de WF-CYC-0090 et de WF-IHM-0080 : the reads of the task, and the exit run again, are
+    # declared at `getBackgroundTask` and at the second answer of `exitProject`.
     paths = yaml.safe_load((API / "paths" / "system.yaml").read_text("utf-8"))
     task = paths["/tasks/{task_id}"]["get"]["responses"]["200"]["content"]["application/json"]
     declared = {Path(each["$ref"]).stem for each in task["examples"].values()}
-    assert {*reads, "task_exit_mark_relaunched_succeeded"} <= declared
+    assert {*_READS, "task_exit_mark_relaunched_succeeded"} <= declared
     exit_ = _operation("/projects/{project_id}/exit", "post")["responses"]["202"]
     answered = exit_["content"]["application/json"]["examples"]
     assert {key: Path(each["$ref"]).stem for key, each in answered.items()} == {

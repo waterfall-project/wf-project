@@ -2277,7 +2277,8 @@ Chaque exemple de tâche de fond est une suite possible, indépendante des autre
 moment d'une seule séquence : le marquage a une variante aboutie et une variante échouée, que rien
 n'enchaîne. Ainsi : le
 marquage demandé à 14 h 05, qui court à 40 % (`tasks_running`), abouti à 14 h 09 ou échoué à
-14 h 07 et relancé à 14 h 10 ; l'application de l'import du devis a11, confirmée à 14 h 06 ;
+14 h 07 et relancé à 14 h 10 (la sortie qui marque en reprend les instants à 30 s près, l'échec,
+la relance et sa réussite s'enchaînant comme ceux du marquage) ; l'application de l'import du devis a11, confirmée à 14 h 06 ;
 l'export, demandé à 14 h 06 min 30 s. Chacune a son instant, dans les dix minutes qui suivent
 aujourd'hui : `test_mockhistory` admet nommément ces instants, bornés, et toute expiration à venir
 dans la journée — une session, un lien, un import —, l'inactivité d'une session dans les deux
@@ -9595,7 +9596,7 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   `task_exit_mark_running`, `task_exit_mark_succeeded` (« Clôture » marquée, la sortie appliquée)
   et `task_exit_mark_failed` (le motif de `task_failed`, la sortie non appliquée), déclarés à
   `getBackgroundTask` — et se relance par la sortie elle-même, du même corps :
-  `task_exit_mark_relaunched` (959, le dernier libre de la famille des tâches de fond), seconde
+  `task_exit_mark_relaunched` (959, le dernier numéro de la famille des tâches de fond), seconde
   réponse 202 d'`exitProject`, et sa lecture réussie, `task_exit_mark_relaunched_succeeded` (959,
   la même « Clôture » marquée et la sortie appliquée, à l'issue de la relance), déclarée aussi à
   `getBackgroundTask`. Le suivi du front apparie les lectures à la tâche par son

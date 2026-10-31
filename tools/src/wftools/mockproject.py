@@ -162,12 +162,16 @@ _INSTANTS = ("submitted_at", "finished_at")
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
+def _moment(instant: JsonValue) -> datetime:
+    """Return an instant of a task as a moment."""
+    return datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
+
+
 def _later(instant: JsonValue) -> JsonValue:
     """Return an instant of a task of the marking, as long after as the exit's is, or none."""
     if instant is None:
         return None
-    moment = datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
-    return (moment + EXIT_DELAY).strftime(_FORMAT)
+    return (_moment(instant) + EXIT_DELAY).strftime(_FORMAT)
 
 
 def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
@@ -184,24 +188,19 @@ def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
     }
 
 
-def _moment(instant: JsonValue) -> datetime:
-    """Return an instant of a task as a moment."""
-    return datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
-
-
 def exit_relaunched_succeeded() -> JsonObject:
     """Return the success of the exit run again.
 
     The task the relaunch starts, which took as long to succeed as the marking of today
     (`task_succeeded`) did, the exit applied all the same.
     """
-    relaunched = exit_task("task_mark_relaunched", EXIT_RELAUNCHED_TASK)
     marking = cast("JsonObject", fixture("task_succeeded"))
     took = _moment(marking["finished_at"]) - _moment(marking["submitted_at"])
-    finished = _moment(relaunched["submitted_at"]) + took
+    submitted = _later(cast("JsonObject", fixture("task_mark_relaunched"))["submitted_at"])
+    finished = _moment(submitted) + took
     return {
         **exit_task("task_succeeded", EXIT_RELAUNCHED_TASK),
-        "submitted_at": relaunched["submitted_at"],
+        "submitted_at": submitted,
         "finished_at": finished.strftime(_FORMAT),
     }
 
