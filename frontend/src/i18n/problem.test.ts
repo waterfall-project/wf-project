@@ -114,13 +114,92 @@ describe("the sentence of a refusal", () => {
   it("names the missing condition by its label", () => {
     const problem: ProblemText = {
       code: "STATE_FORBIDS_OPERATION",
-      params: { missing_condition: "revision_draft" },
+      params: { missing_condition: "no_current_revision" },
     };
+    const condition = CATALOGUES.fr.enums.CommandCondition.no_current_revision;
     expect(say(problem, "fr")).toBe(
-      "L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: révision en cours d\u2019élaboration.",
+      `L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: ${condition}.`,
     );
-    expect(say(problem, "en")).toBe(
-      "The current state does not allow this operation. Unmet condition: draft revision.",
+  });
+
+  it("says a project terminal and a revision marked as facts, not as conditions unmet, from the refusals of the contract (US-0702/L1)", () => {
+    expect(say(example("timeline_create_terminal") as ProblemText, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. Le projet est clos\u00A0: il ne se modifie plus.",
+    );
+    expect(say(example("node_create_marked_refused") as ProblemText, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. La révision est marquée\u00A0: elle ne se modifie plus.",
+    );
+    expect(say(example("node_create_marked_refused") as ProblemText, "en")).toBe(
+      "The current state does not allow this operation. The revision is marked: it no longer changes.",
+    );
+  });
+
+  it("names the object a later change took back, which an undo or a redo would undo, by the label the refusal gives [WF-IHM-0110-A]", () => {
+    for (const refused of ["undo_later_change", "redo_later_change"]) {
+      expect(say(example(refused) as ProblemText, "fr")).toBe(
+        `${CATALOGUES.fr.errors.UNDO_CONFLICT} Objet repris depuis\u00A0: «\u00A0Raccordement des borniers\u00A0».`,
+      );
+    }
+    expect(say(example("undo_later_change") as ProblemText, "en")).toBe(
+      `${CATALOGUES.en.errors.UNDO_CONFLICT} Object changed since: “Raccordement des borniers”.`,
+    );
+  });
+
+  it("lists the categories of labour without an hourly rate for the year of reference, by their labels and the year [WF-DEV-0010-A]", () => {
+    expect(say(example("estimate_line_rate_missing") as ProblemText, "fr")).toBe(
+      `${CATALOGUES.fr.errors.HOURLY_RATE_MISSING} Sans taux horaire\u00A0: «\u00A0Ingénierie électrique\u00A0» en 2026.`,
+    );
+    expect(say(example("estimate_line_rate_missing") as ProblemText, "en")).toBe(
+      `${CATALOGUES.en.errors.HOURLY_RATE_MISSING} Without an hourly rate: “Ingénierie électrique” in 2026.`,
+    );
+  });
+
+  it("names the subordinates a summary task takes a date from, as the screen read them, and counts them otherwise [WF-IHM-0030-A]", () => {
+    // A refusal by field is said at its field, by the sentence of the field's code and parameters.
+    const [field] = (example("task_summary_date_refused") as ProblemText).fields ?? [];
+    const refused: ProblemText = {
+      code: field?.code ?? "VALIDATION_FAILED",
+      params: field?.params ?? {},
+    };
+    const ids = field?.params?.subordinate_node_ids ?? [];
+    const labels = ["Câblage des armoires", "Raccordement des borniers", "Essais"];
+    const named = problemMessage(refused, {
+      locale: "fr",
+      messages: CATALOGUES.fr,
+      names: Object.fromEntries(ids.map((id, rank) => [id, labels[rank] ?? ""])),
+    });
+    expect(named).toBe(
+      `${CATALOGUES.fr.errors.SUMMARY_TASK_DERIVED} ` +
+        "Elle tient cette valeur de ses subordonnées\u00A0: «\u00A0Câblage des armoires\u00A0», " +
+        "«\u00A0Raccordement des borniers\u00A0» et «\u00A0Essais\u00A0».",
+    );
+    expect(say(example("task_progress_summary_refused") as ProblemText, "fr")).toBe(
+      `${CATALOGUES.fr.errors.SUMMARY_TASK_DERIVED} Elle tient cette valeur de ses 5 subordonnées.`,
+    );
+  });
+
+  it("names the risks whose line of provision a deletion would leave without a task, by their labels", () => {
+    expect(say(example("node_delete_last_provision_task_refused") as ProblemText, "fr")).toBe(
+      `L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: ${CATALOGUES.fr.enums.CommandCondition.at_least_one_task}. ` +
+        "Risque concerné\u00A0: «\u00A0Risque de reprise du câblage\u00A0».",
+    );
+  });
+
+  it("tells the refusals US-0702/L2 gave a code by their sentence: a predecessor named twice, a timeline of another project, a confirmation absent, an unexpected error", () => {
+    for (const [refused, code] of [
+      ["predecessors_duplicate", "DUPLICATE_PREDECESSOR"],
+      ["node_tracking_timeline_unknown", "UNKNOWN_TIMELINE"],
+    ] as const) {
+      // Said at the field the refusal points at, by the sentence of the field's code.
+      const [field] = (example(refused) as ProblemText).fields ?? [];
+      expect(field?.code).toBe(code);
+      expect(say({ code, params: field?.params ?? {} }, "fr")).toBe(CATALOGUES.fr.errors[code]);
+    }
+    expect(say(example("project_exit_unconfirmed") as ProblemText, "fr")).toBe(
+      CATALOGUES.fr.errors.CONFIRMATION_REQUIRED,
+    );
+    expect(say(example("internal_error") as ProblemText, "fr")).toBe(
+      CATALOGUES.fr.errors.INTERNAL_ERROR,
     );
   });
 

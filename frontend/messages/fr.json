@@ -2744,7 +2744,17 @@
     "ambiguous_label": "Libellé lu : « {label} », porté par les tâches {tasks}.",
     "wbs_element": "Élément d’OTP lu : « {element} ».",
     "project_code": "Code projet lu : « {code} ».",
-    "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}."
+    "duplicate_rows": "{count, plural, one {Autre ligne} other {Autres lignes}} du fichier de même pièce et de même poste : {rows}.",
+    "project_terminal": "Le projet est clos : il ne se modifie plus.",
+    "revision_marked": "La révision est marquée : elle ne se modifie plus.",
+    "subordinates": "{count, plural, one {Elle tient cette valeur de sa subordonnée} other {Elle tient cette valeur de ses subordonnées}} : {tasks}.",
+    "subordinates_unnamed": "{count, plural, one {Elle tient cette valeur de sa subordonnée.} other {Elle tient cette valeur de ses # subordonnées.}}",
+    "missing_rates": "Sans taux horaire : {categories}.",
+    "missingRate": "« {label} » en {year}",
+    "missingRateYear": "une catégorie en {year}",
+    "risks": "{count, plural, one {Risque concerné} other {Risques concernés}} : {risks}.",
+    "riskName": "« {label} »",
+    "conflicting_object": "Objet repris depuis : « {label} »."
   },
   "permissions": {
     "users": {

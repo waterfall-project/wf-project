@@ -2744,7 +2744,17 @@
     "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
     "wbs_element": "Work breakdown element read: “{element}”.",
     "project_code": "Project code read: “{code}”.",
-    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}."
+    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}.",
+    "project_terminal": "The project is closed: it no longer changes.",
+    "revision_marked": "The revision is marked: it no longer changes.",
+    "subordinates": "{count, plural, one {It takes this value from its subordinate} other {It takes this value from its subordinates}}: {tasks}.",
+    "subordinates_unnamed": "{count, plural, one {It takes this value from its subordinate.} other {It takes this value from its # subordinates.}}",
+    "missing_rates": "Without an hourly rate: {categories}.",
+    "missingRate": "“{label}” in {year}",
+    "missingRateYear": "a category in {year}",
+    "risks": "{count, plural, one {Risk at issue} other {Risks at issue}}: {risks}.",
+    "riskName": "“{label}”",
+    "conflicting_object": "Object changed since: “{label}”."
   },
   "permissions": {
     "users": {
