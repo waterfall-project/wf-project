@@ -30,8 +30,8 @@ L-25, on examples drawn from those written by hand:
   entry of the work breakdown, the exits the witness lists, the occurrence of a risk and the
   imports that would write in the revision — unavailable, ``no_background_task_running`` missing
   after their conditions of state; the others, its contributors, its timelines, its actual costs
-  and its attributes among them, as the witness
-  lists them (WF-IHM-0090, WF-PLA-0170, WF-CYC-0090; #1142, point 5, US-0660/L2).
+  and its attributes among them, as the witness lists them (WF-IHM-0090, WF-PLA-0170,
+  WF-CYC-0090; #1142, point 5, US-0660/L2).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """

@@ -10042,15 +10042,15 @@ manquante — seul le 409 de `setWorkBreakdown` la nommait (`work_breakdown_back
 et le test de l'écran construisait la liste à la main. Le manque se corrige au contrat, dans
 l'US. Aucun schéma ne change.
 
-- **`project_background_task_running`**, nouvel exemple de `getProject`
-  (`background_task_running`), engendré par `wftools.mockproject` : variante contrefactuelle
-  déclarée, le projet témoin lu pendant que court le marquage de sa révision en cours, celui que
-  montre `revision_marking`. Les commandes que ce traitement rendrait caduques, comme
-  `CommandCondition` les nomme — la saisie du lotissement, les sorties listées au témoin (`complete`,
-  `abandon` ; `lose`, absente dès En cours, n'y figure pas), la déclaration d'un risque survenu et
-  les trois imports qui écriraient dans la révision —, sont indisponibles, `no_background_task_running` ajoutée après leurs conditions
-  d'état (`mockproject.SUSPENDED`) ; les autres, ses attributs et son compteur sont ceux de
-  `project`, le marquage n'écrivant rien dans le projet.
+- **`project_background_task_running`**, nouvel exemple de `getProject` (`background_task_running`),
+  engendré par `wftools.mockproject` : variante contrefactuelle déclarée, le projet témoin lu
+  pendant que court le marquage de sa révision en cours, celui que montre `revision_marking`. Les
+  commandes que ce traitement rendrait caduques, comme `CommandCondition` les nomme — la saisie du
+  lotissement, les sorties listées au témoin (`complete`, `abandon` ; `lose`, absente dès En cours,
+  n'y figure pas), la déclaration d'un risque survenu et les trois imports qui écriraient dans la
+  révision —, sont indisponibles, `no_background_task_running` ajoutée après leurs conditions d'état
+  (`mockproject.SUSPENDED`) ; les autres, ses attributs et son compteur sont ceux de `project`, le
+  marquage n'écrivant rien dans le projet.
 - **Le marquage, non un import ni une survenance** : `revision_marking` et
   `work_breakdown_background_task` en montrent déjà la révision et le refus, et l'exemple les
   rejoint au même instant ; l'application d'un import suspend les mêmes commandes du projet.
