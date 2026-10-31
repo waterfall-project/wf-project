@@ -107,6 +107,29 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
 }
 
 /**
+ * The reasons that reject the whole file (`refusals`, WF-INTF-0040, WF-PLA-0150, WF-PLA-0170), each
+ * by its sentence, the tasks it names by their labels, in the order received: nothing is applied,
+ * not even the lines accepted.
+ */
+function Refusals({ refusals }: { readonly refusals: Report["refusals"] }) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  const messages = useMessages();
+  return (
+    <div role="alert" className="space-y-1 text-destructive">
+      <h3 className={HEADING}>{t("refusals", { count: refusals.length })}</h3>
+      <ul className="list-inside list-disc text-sm">
+        {refusals.map((refusal, index) => (
+          <li key={`${refusal.code}-${String(index)}`}>
+            {problemMessage(refusal, { locale, messages })}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * The differences with the existing data, each by its change, its object, its label and the fields
  * it changes, named by the catalogue of their columns (WF-ARC-0110), in the order received.
  */
@@ -306,6 +329,7 @@ function Findings({ report }: { readonly report: Report }) {
           </ul>
         </div>
       )}
+      {report.refusals.length === 0 ? null : <Refusals refusals={report.refusals} />}
       <Rejections rejected={report.rejected} />
       <Differences differences={report.differences} />
       {report.signals.length === 0 ? null : <Signals signals={report.signals} />}
@@ -315,6 +339,17 @@ function Findings({ report }: { readonly report: Report }) {
       {report.ignored.length === 0 ? null : <Ignored ignored={report.ignored} />}
     </div>
   );
+}
+
+/**
+ * What the import may still be asked: a file the report rejects whole is applied no more, and only
+ * its abandonment stays offered (`import_file_accepted`, WF-INTF-0040).
+ */
+function stepsOf(entry: Import): (typeof IMPORT_STEPS)[Import["status"]] {
+  const steps = IMPORT_STEPS[entry.status];
+  return entry.report != null && entry.report.refusals.length > 0
+    ? { ...steps, apply: false }
+    : steps;
 }
 
 /** The import a report is of, what the server offers of its kind, and where the screen started. */
@@ -375,7 +410,7 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
         importId={entry.import_id}
         filename={entry.filename}
         offer={offer}
-        steps={IMPORT_STEPS[entry.status]}
+        steps={stepsOf(entry)}
         start={start}
         then={then}
       />

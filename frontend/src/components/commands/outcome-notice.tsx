@@ -76,6 +76,11 @@ export function KnownNames({
   return <Known value={names}>{children}</Known>;
 }
 
+/** The names of objects the screen lends every notice under it, by identifier. */
+export function useKnownNames(): ObjectNames {
+  return useContext(Known);
+}
+
 /** The offer to read anew, by a command, what its confirmation carried (412). */
 export interface Reread {
   readonly label: string;

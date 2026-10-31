@@ -589,6 +589,30 @@ describe("the report of an import", () => {
     expect(within(tasks()).queryByText(/Application d’un import/)).toBeNull();
   });
 
+  it("presents a file the report rejects whole by its reasons, naming the tasks, and offers its abandonment alone [WF-INTF-0040-A]", () => {
+    serve({});
+    open(report(example("import_planning_rejected") as Import));
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("2 motifs rejettent le fichier entier");
+    expect(alert).toHaveTextContent(/Poste de commande.*Câblage des armoires.*Mise en service/);
+    expect(screen.queryByRole("button", { name: "Appliquer l’import" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Abandonner l’import" })).toBeInTheDocument();
+  });
+
+  it("tells the condition a file rejected whole misses when the server refuses its application [WF-INTF-0040-A]", async () => {
+    serve({ [APPLY]: { problem: example("import_apply_rejected") as Problem & { status: 409 } } });
+    open(report(example("import_analysed") as Import));
+    await userEvent.click(screen.getByRole("button", { name: "Appliquer l’import" }));
+    const confirmation = screen.getByRole("form", { name: "Confirmation de l’application" });
+    await userEvent.click(
+      within(confirmation).getByRole("button", { name: "Confirmer l’application" }),
+    );
+    await settled(confirmation);
+    expect(within(confirmation).getByRole("alert")).toHaveTextContent(
+      "Condition non remplie : fichier accepté par le compte rendu",
+    );
+  });
+
   it("abandons the import, which applies nothing and leads back to the screen as it was before it", async () => {
     const client = serve({ [ABANDON]: { status: 204 } });
     open(report(example("import_analysed") as Import));

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 import { SHOWN } from "@/test/grid-preferences";
 
@@ -97,6 +97,32 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("the refusal of a cell that would leave a task without a working hour (#779)", () => {
+  it("names the task by its label and the role by the label the grid knows, from the refusal of the contract [WF-PLA-0010-A]", async () => {
+    const client = fakeClient({
+      [LINE]: { problem: example("estimate_line_without_hours") as Problem & { status: 422 } },
+    });
+    server.client = client;
+    render(grid(estimate));
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle" }),
+      "Monteur câbleur",
+    );
+    await userEvent.keyboard("{Tab}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(alert).toHaveTextContent("Rôle dont le calendrier n’a aucune heure");
+    expect(alert).toHaveTextContent("Monteur câbleur");
+    expect(alert).toHaveTextContent("Tâche en cause");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+    expect(written(client)).toEqual([
+      { resource_role_id: "01926f3a-7c00-7000-8000-000000000454", lock_version: 1 },
+    ]);
+  });
+});
+
 describe("the sub-project, the payment delay and the deactivated object of a line (#349)", () => {
   it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, on a line of labour as on a disbursement, the sub-project being chosen from the menu of the cell [WF-DEV-0020-A]", async () => {
     const client = serve();
@@ -141,7 +167,10 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     await vi.waitFor(() => {
       expect(written(client)).toHaveLength(2);
     });
-    expect(written(client)[1]).toMatchObject({ payment_delay_days: 20 });
+    expect(written(client)).toEqual([
+      { payment_delay_days: 45, lock_version: 1 },
+      { payment_delay_days: 20, lock_version: 1 },
+    ]);
   });
 
   it("marks the lines that bear a deactivated role, as the server says it, and keeps them readable [WF-REF-0010-A]", async () => {

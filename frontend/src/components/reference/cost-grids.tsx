@@ -181,6 +181,9 @@ export function costCategoryGrid(
           },
           name: category.label,
           commands: category.available_commands,
+          // The nature to reactivate first (`cost_type_active`, WF-REF-0010), named as the category
+          // names it.
+          conflict: { id: category.cost_type_id, name: category.cost_type_label },
         }),
         "is_active",
       ),

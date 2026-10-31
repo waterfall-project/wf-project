@@ -10,7 +10,9 @@
  * label in the enumeration the envelope names with it (`state_enum`, #413), the object it is the
  * state of named by the sentence, the lines that bear a sub-project (`estimate_lines`) by their
  * numbers and their labels, the roles a nature or a category keeps in labour (`resource_roles`) by
- * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
+ * their labels and codes, the categories that forbid a change of the type of their nature
+ * (`cost_categories`) by theirs, the tasks a write would leave without an hour (`tasks`) by their
+ * labels, the projects a calendar would leave a task without hours in (`projects`)
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
  * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
@@ -137,6 +139,11 @@ function isLabelled(value: unknown): value is { readonly label: string } {
   );
 }
 
+/** Whether a value is an object a refusal names by its code and its label (`cost_categories`). */
+function isCoded(value: unknown): value is { readonly code: string; readonly label: string } {
+  return isLabelled(value) && "code" in value && typeof value.code === "string";
+}
+
 /** The projects the parameters of a refusal name (`projects`), in the order of the server. */
 export function namedProjects(params: Readonly<Params> | undefined): readonly NamedProject[] {
   return params?.projects ?? [];
@@ -236,6 +243,29 @@ const DETAILS: readonly Reader[] = [
     return named.length === 0
       ? ["resource_role_ids_unnamed", { count }]
       : ["resource_role_ids", { roles: conjunction(named, locale), count }];
+  },
+  // The categories of a nature that a change of its type is refused for — those employed, or those
+  // that bear an hourly rate —, each by its label and its code, to attach first to another nature of
+  // the same type (`cost_type_unused`, `cost_type_unrated`, WF-REF-0030, WF-IHM-0090).
+  ({ cost_categories }, _label, locale, say) => {
+    const named = itemsOf(cost_categories, isCoded).map(({ code, label }) =>
+      say("codedName", { code, label }),
+    );
+    return named.length === 0
+      ? undefined
+      : ["cost_categories", { categories: conjunction(named, locale), count: named.length }];
+  },
+  // The tasks a write would leave without a working hour, each by its label (`tasks`,
+  // `TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010, #779); the tasks that share a label read in a file
+  // are said with it (`ambiguous_label`).
+  ({ tasks, label }, _label, locale, say) => {
+    const named =
+      typeof label === "string"
+        ? []
+        : itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
+    return named.length === 0
+      ? undefined
+      : ["tasks", { tasks: conjunction(named, locale), count: named.length }];
   },
   // Each project by its label and its code, by its label alone without one (WF-PLA-0010); beyond a
   // few, counted, the notice listing them.

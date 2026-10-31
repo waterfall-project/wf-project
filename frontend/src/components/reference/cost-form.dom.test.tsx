@@ -363,6 +363,10 @@ describe("the type of a nature, as its commands say it", () => {
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération. Condition non remplie : aucune catégorie de la nature employée.",
     );
+    // Le refus nomme les catégories de la nature, à rattacher d’abord à une autre nature [WF-REF-0030-A].
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Catégories de la nature à rattacher d’abord à une autre nature du même type : Sous-traitance (ACH-001) et Matériel électrique (ACH-002).",
+    );
     expect(client.calls[0]?.body).toEqual({
       code: "FRN",
       label: "Fournitures",
