@@ -213,6 +213,13 @@ test.describe("on a narrow window", () => {
     const box = scroller(grid(page));
     await expect(label).toBeInViewport({ ratio: 1 });
     await expect(totals).toBeInViewport({ ratio: 1 });
+    // The revision it is a copy of stays shown, not only named to a screen reader, the banner
+    // keeping its one row [WF-IHM-0020-A].
+    const source = page
+      .getByRole("region", { name: "Contexte de lecture" })
+      .getByRole("definition")
+      .filter({ hasText: /^Copie de « / });
+    await expect(source).toBeVisible();
 
     // The grid is wider than the window: it scrolls sideways, to its last column.
     await box.evaluate((element) => {

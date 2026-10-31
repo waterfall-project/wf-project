@@ -210,14 +210,19 @@ function useChips(
 
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
- * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown from the
- * extra-large window up and named to a screen reader alone below, so that the banner keeps its one
- * row on a narrow window, the totals of the grid in view under it (WF-IHM-0060).
+ * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown at every
+ * width: on a narrow window it is the one fact that shrinks, cut with an ellipsis and its full text
+ * in the `title`, so that the banner keeps its one row, the totals of the grid in view under it
+ * (WF-IHM-0060).
  */
 function RevisionFacts({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
+  const source =
+    revision.source_version_name === null
+      ? undefined
+      : t("contextBanner.sourceRevision", { name: revision.source_version_name });
   return (
-    <div className={FACT}>
+    <div className={`${FACT} min-w-0`}>
       <dt>
         <GitBranch aria-hidden="true" className={ICON} />
         <span className="sr-only">{t("contextBanner.revision")}</span>
@@ -226,9 +231,9 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
       <dd>
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
-      {revision.source_version_name === null ? null : (
-        <dd className="sr-only xl:not-sr-only">
-          {t("contextBanner.sourceRevision", { name: revision.source_version_name })}
+      {source === undefined ? null : (
+        <dd className="min-w-0 truncate" title={source}>
+          {source}
         </dd>
       )}
       {revision.is_reference ? (
@@ -332,7 +337,7 @@ export function ContextBanner({
           state: project.state,
         }}
       />
-      <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <dl className="flex min-w-0 flex-1 items-center gap-x-4">
         <div className={FACT}>
           <dt>
             <Folder aria-hidden="true" className={ICON} />
