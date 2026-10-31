@@ -210,7 +210,9 @@ function useChips(
 
 /**
  * The revision read: its name, its status, the revision it is a copy of when it has one
- * (`source_version_name`, WF-IHM-0020), whether it is the reference.
+ * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown from the
+ * extra-large window up and named to a screen reader alone below, so that the banner keeps its one
+ * row on a narrow window, the totals of the grid in view under it (WF-IHM-0060).
  */
 function RevisionFacts({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
@@ -225,7 +227,9 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
       {revision.source_version_name === null ? null : (
-        <dd>{t("contextBanner.sourceRevision", { name: revision.source_version_name })}</dd>
+        <dd className="sr-only xl:not-sr-only">
+          {t("contextBanner.sourceRevision", { name: revision.source_version_name })}
+        </dd>
       )}
       {revision.is_reference ? (
         <dd>
