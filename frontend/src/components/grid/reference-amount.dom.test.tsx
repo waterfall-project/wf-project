@@ -118,5 +118,16 @@ describe("the amount at the rates of the year of reference, after a write that m
     expect(cell(SUMMARY, "base_amount")).toHaveTextContent(/^18\s600,00$/);
     expect(cell(COMMISSIONING_LINE, "base_amount")).toHaveTextContent(/^6\s000,00$/);
     expect(cell(COMMISSIONING, "base_amount")).toHaveTextContent(/^6\s000,00$/);
+    // The amount re-estimated, inflation included, moves with them, in its own column and never
+    // in that of the reference: the commissioning and its line 6 180,00 for 6 000,00 at the
+    // reference, the summary 18 780,00 for 18 600,00, and the totals of the structure the server
+    // gives, 68 923 871,06 for 66 105 223,89 [WF-DEV-0050-A].
+    expect(cell(COMMISSIONING_LINE, "reestimated_amount")).toHaveTextContent(/^6\s180,00$/);
+    expect(cell(COMMISSIONING, "reestimated_amount")).toHaveTextContent(/^6\s180,00$/);
+    expect(cell(SUMMARY, "reestimated_amount")).toHaveTextContent(/^18\s780,00$/);
+    const foot = [
+      ...(screen.getByRole("treegrid").querySelector("tfoot tr")?.querySelectorAll("td") ?? []),
+    ].map((each) => each.textContent);
+    expect(foot.slice(-2)).toEqual(["66\u202f105\u202f223,89", "68\u202f923\u202f871,06"]);
   });
 });

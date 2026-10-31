@@ -8,7 +8,7 @@
  * amount at the rates of the year of reference, before inflation (`base_amount`, WF-DEV-0030), and
  * the amount re-estimated, inflation included, projected on the year of consumption
  * (`reestimated_amount`, WF-DEV-0020, WF-DEV-0050) —, never the budgeted amount, which is that of
- * the reference and not of this grid (L-01, which rewrites #235). The figures and the sub-project
+ * the reference and not of this grid. The figures and the sub-project
  * of a provision are computed too, from its risk, which its node says (`computed_fields`,
  * WF-IHM-0030). The totals are those of the answer: the hours and the two amounts of the lines
  * retained, never the amounts of the tasks, which would count them twice.

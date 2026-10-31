@@ -224,7 +224,7 @@ describe("a field of a line that says nothing, left out by the projection", () =
 // The shares the projections weigh on the volume, as measured, each bound a hundredth or less above
 // it: 0.640 for the estimate, 0.455 for the planning — what each node accepts (`editable_fields`,
 // #219) counted, whose weight #238 weighs. The labels of a line and the amounts at the year of
-// reference and corrected for inflation (#235, #305) made the answer heavier, 6.46 million
+// reference and corrected for inflation (#305) made the answer heavier, 6.46 million
 // characters for 5.70: the estimate reads two labels and two amounts where it read one amount, and
 // its rows grew from 3.43 to 3.83 million; the planning reads none of them, its rows stayed at 2.94
 // million, a smaller share of a larger answer. The sub-project, its identifier and its label, the

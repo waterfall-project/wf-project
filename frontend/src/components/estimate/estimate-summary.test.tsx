@@ -76,6 +76,21 @@ describe("the summary of the estimate", () => {
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
   });
 
+  it("presents the total of the estimate inflation included, the amount re-estimated of the structure, never its amount at the rates of the year of reference [WF-DEV-0050-A]", () => {
+    const totals = (
+      example("volume/nodes_thousand") as {
+        totals: { base_amount: string; reestimated_amount: string };
+      }
+    ).totals;
+    // The same structure, whose totals the grid shows: 66 105 223,89 at the year of reference,
+    // 68 923 691,06 re-estimated; the indicator is the second (`EstimateLineFacet.reestimated_amount`).
+    expect(totals.base_amount).toBe("66105223.89");
+    expect(totals.reestimated_amount).toBe("68923691.06");
+    const html = text(summary("estimate_indicators", "missing_rates_none"));
+    expect(html).toContain("Total du devis 68 923 691,06");
+    expect(html).not.toContain("66 105 223,89");
+  });
+
   it("breaks the total down by nature of cost, in amount and in share, and by sub-project, as the API gives them", () => {
     // The estimate the offer v1.0 kept at its marking, before any risk: no provision.
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none", all, "en"));
