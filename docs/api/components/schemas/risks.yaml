@@ -142,10 +142,14 @@ Risk:
       description: >-
         Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le
         refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre,
-        pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —,
-        ils se lisent avec le risque, sans appel au refus.
+        pour tout risque, puis le coût à la survenance d'un risque survenu. La gravité dépend du
+        devis propre (`own_estimate`) ; la provision d'un risque identifié, de sa gravité et de
+        sa probabilité (`severity_and_probability`), celle d'un risque survenu ou écarté, de la
+        révision de référence (`reference_provision`) ; le coût à la survenance, du devis propre
+        au moment de la survenance (`occurrence_estimate`). Les règles du calcul, pas les lignes
+        du devis propre : elles se lisent avec le risque, sans appel au refus.
       minItems: 2
-      maxItems: 2
+      maxItems: 3
       items: { $ref: '#/RiskComputedField' }
     available_commands:
       type: array
@@ -225,7 +229,7 @@ RiskComputedField:
   properties:
     field:
       type: string
-      enum: [severity, provision_amount]
+      enum: [severity, provision_amount, occurrence_cost]
     dependencies:
       type: array
       minItems: 1

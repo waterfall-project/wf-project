@@ -3,16 +3,19 @@
 /**
  * The configuration of the grid of the risks (WF-RIS-0040), the register of the risks of the
  * project as the revision read holds them: for each risk, its label, its probability, its
- * severity, the amount of its provision, its state and the date of its last review, and the cell
- * of the matrix that colours it. The same dense grid as the planning and the estimate: another
- * configuration, read only — a risk is entered by the epic of the risks (EP-08).
+ * severity, the amount of its provision — for a risk occurred or dismissed, the provision it bore
+ * in the reference revision —, its cost at the occurrence when it occurred (WF-RIS-0010), its
+ * state and the date of its last review, and the cell of the matrix that colours it. The same
+ * dense grid as the planning and the estimate: another configuration, read only — a risk is
+ * entered by the epic of the risks (EP-08).
  *
- * Each column but the cell of the matrix sorts by the column of the contract of the same name, the
- * server sorting (WF-IHM-0130). The severity and the provision are computed (WF-RIS-0010,
- * WF-IHM-0030): columns computed whole, Σ in their header and in each cell, never entered; their
- * refusal names what they depend on as the risk itself says it (`computed_fields`), without asking
- * the server. The totals row shows the general total of the provisions the server gives, never a
- * sum.
+ * Each column but the cost at the occurrence and the cell of the matrix sorts by the column of the
+ * contract of the same name, the server sorting (WF-IHM-0130); it sorts by neither of the two.
+ * The severity, the provision and the cost at the occurrence are computed (WF-RIS-0010,
+ * WF-IHM-0030): columns computed whole, Σ in their header and in each cell that bears a value,
+ * never entered; their refusal names what they depend on as the risk itself says it
+ * (`computed_fields`), without asking the server. The totals row shows the general total of the
+ * provisions the server gives, never a sum.
  */
 import { Grid2x2 } from "lucide-react";
 
@@ -39,6 +42,7 @@ export const RISK_FIELDS = [
   "probability",
   "severity",
   "provision_amount",
+  "occurrence_cost",
   "state",
   "last_review_on",
   "matrix_cell",
@@ -60,13 +64,14 @@ export interface RiskRows {
  */
 export function riskRow(risk: Risk): RiskRow {
   const { risk_id, label, probability, severity, provision_amount, state, computed_fields } = risk;
-  const { last_review_on, matrix_cell } = risk;
+  const { occurrence_cost, last_review_on, matrix_cell } = risk;
   return {
     risk_id,
     label,
     probability,
     severity,
     provision_amount,
+    occurrence_cost,
     state,
     computed_fields,
     last_review_on,
@@ -78,13 +83,16 @@ export function riskRow(risk: Risk): RiskRow {
 type RiskComputedField = components["schemas"]["RiskComputedField"]["field"];
 
 /**
- * A value the server computes in every risk: no field of a node to ask about, the rules it depends
- * on read from the risk itself.
+ * A value the server computes, in every risk that bears it — all, unless `bears` says otherwise —:
+ * no field of a node to ask about, the rules it depends on read from the risk itself.
  */
-function computedInEveryRisk(field: RiskComputedField): ComputedCells<RiskRow> {
+function computedInRisks(
+  field: RiskComputedField,
+  bears: (risk: RiskRow) => boolean = () => true,
+): ComputedCells<RiskRow> {
   return {
     whole: true,
-    in: () => true,
+    in: bears,
     field: () => undefined,
     dependsOn: (risk) => risk.computed_fields.find((entry) => entry.field === field)?.dependencies,
   };
@@ -123,7 +131,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       help: "risks.severity",
       format: "money",
       width: 120,
-      computed: computedInEveryRisk("severity"),
+      computed: computedInRisks("severity"),
       contract: "severity",
       value: (risk) => risk.severity,
     },
@@ -133,10 +141,21 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       help: "risks.provisionAmount",
       format: "money",
       width: 120,
-      computed: computedInEveryRisk("provision_amount"),
+      computed: computedInRisks("provision_amount"),
       contract: "provision_amount",
       value: (risk) => risk.provision_amount,
       total: (totals) => totals.total,
+    },
+    {
+      key: "occurrence_cost",
+      label: "occurrenceCost",
+      help: "risks.occurrenceCost",
+      format: "money",
+      width: 120,
+      // Computed at the occurrence, then kept (WF-RIS-0010): a risk occurred alone bears it, the
+      // cell of another empty. The server does not sort by it: the column offers no sort.
+      computed: computedInRisks("occurrence_cost", (risk) => risk.occurrence_cost !== null),
+      value: (risk) => risk.occurrence_cost,
     },
     {
       key: "state",

@@ -136,6 +136,7 @@
       "probability": "Probability",
       "severity": "Severity",
       "provisionAmount": "Provision",
+      "occurrenceCost": "Cost at occurrence",
       "state": "State",
       "lastReview": "Last review",
       "matrixCell": "Matrix cell",
@@ -485,6 +486,7 @@
         "probability": "Probability",
         "severity": "Severity",
         "provision": "Provision",
+        "referenceProvision": "Reference provision",
         "state": "State",
         "zone": "Zone",
         "closed": "Project cannot be opened"
@@ -496,10 +498,11 @@
       "mitigation": "Mitigation actions",
       "notSet": "Not set",
       "neverReviewed": "Never reviewed",
+      "referenceProvision": "Reference provision",
       "provisionLine": {
         "title": "Provision line",
         "present": "In the main structure: the provision weighs on the estimate.",
-        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
+        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear its cost.",
         "absent": "Not in the main structure: the risk does not weigh on the estimate.",
         "category": "Category",
         "subproject": "Subproject",
@@ -1420,7 +1423,10 @@
         "help": "Severity: what the risk would cost if it occurred, the total of its own estimate, computed by the server."
       },
       "provisionAmount": {
-        "help": "Provision: the severity weighted by the probability, computed by the server; a risk that occurred or was dismissed bears none any more."
+        "help": "Provision: for an identified risk, the severity weighted by the probability; for a risk that occurred or was dismissed, the provision it bore in the reference revision. Computed by the server."
+      },
+      "occurrenceCost": {
+        "help": "Cost at occurrence of a risk that occurred: the total of its own estimate when it was declared occurred, which neither reestimates nor the completion of its tasks change. Computed by the server."
       },
       "state": {
         "help": "State of the risk: identified, occurred or dismissed."
@@ -1440,7 +1446,7 @@
         "help": "First name of the holder of the account."
       },
       "email": {
-        "help": "Email address of the account, by which it signs in and receives its invitation."
+        "help": "Email address of the account, at which it receives its invitation."
       },
       "origin": {
         "help": "Where the account comes from: created in Waterfall, imported from the directory or created by the identity provider."
@@ -1749,7 +1755,7 @@
     "identified": "Risk “{name}” identified.",
     "modify": "Modify",
     "modifyTitle": "Modify “{name}”",
-    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered.",
+    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered. The probability changes by a review alone.",
     "probability": "Probability (%)",
     "task": "Task of the provision",
     "firstTask": "First task of the first level",
@@ -3396,7 +3402,9 @@
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
       "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
       "own_estimate": "The severity of a risk is the total of its own estimate.",
-      "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
+      "severity_and_probability": "The provision of a risk is its severity weighted by its probability.",
+      "reference_provision": "The provision of a risk that occurred or was dismissed is the one it bore in the reference revision.",
+      "occurrence_estimate": "The cost at occurrence of a risk is the total of its own estimate when it was declared occurred."
     },
     "WorkloadPlan": {
       "basis": {
@@ -3487,7 +3495,8 @@
     "RiskComputedField": {
       "field": {
         "severity": "Severity",
-        "provision_amount": "Provision"
+        "provision_amount": "Provision",
+        "occurrence_cost": "Cost at occurrence"
       }
     },
     "RiskReviewWrite": {

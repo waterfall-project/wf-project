@@ -213,6 +213,7 @@ describe("the screen of the risks", () => {
       "probability",
       "severity",
       "provision_amount",
+      "occurrence_cost",
       "state",
       "computed_fields",
       "last_review_on",
@@ -388,8 +389,33 @@ describe("the screen of the risks", () => {
     };
     const page = await risksAt({ risk: DELIVERY });
     expect(text(page)).toContain(
-      "Provision line Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
+      "Provision line Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear its cost.",
     );
+  });
+
+  it("says of a risk occurred the provision of the reference and its cost at the occurrence, each computed, in its detail", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISK]: { example: "risk_occurred_detail", status: 200 },
+    };
+    const page = await risksAt({ risk: DELIVERY });
+    expect(text(page)).toContain(
+      "State Occurred Probability 30% Severity 200.00 Reference provision 60.00 Cost at occurrence 200.00 Last review",
+    );
+    expect(page).toMatch(
+      /Cost at occurrence<\/dt><dd[^>]*><span[^>]*><svg[^>]*role="img" aria-label="Computed"/,
+    );
+  });
+
+  it("says no cost at the occurrence of a risk identified, and its provision its own", async () => {
+    const said = text(await risksAt({ risk: CABLING }));
+    // The detail alone: the register heads the column for every risk.
+    const start = said.indexOf("Risque de reprise du câblage Modify");
+    expect(start).toBeGreaterThan(-1);
+    const detail = said.slice(start);
+    expect(detail).toContain("Provision 500,000.00 Last review");
+    expect(detail).not.toContain("Cost at occurrence");
+    expect(detail).not.toContain("Reference provision");
   });
 
   it("says a risk retained by none of its filters, its totals those of the server", async () => {
