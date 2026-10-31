@@ -1985,7 +1985,11 @@
   },
   "exitProject": {
     "statement": "This exit is final: the project will go to the state “{state}”, and it and all its data — plannings, estimates, remaining commitments, actual costs — will become read only. No transition leaves a terminal state.",
-    "abandonedRevision": "The current revision of the project will be abandoned: it will be deleted, and this cannot be undone.",
+    "fate": "Fate of the current revision",
+    "mark": "Mark the current revision: it becomes a marked revision, under the version name given.",
+    "abandon": "Abandon the current revision: it will be deleted, and this cannot be undone.",
+    "versionName": "Version name",
+    "description": "Description (optional)",
     "reason": "Motive (optional)",
     "submit": "Confirm the exit",
     "cancel": "Cancel",

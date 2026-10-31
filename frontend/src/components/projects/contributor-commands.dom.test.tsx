@@ -261,6 +261,48 @@ describe("the modification of the contributors of a project", () => {
     });
   });
 
+  it("lets a non-contributor who may write the settings inscribe a project manager when none has an active account [WF-PRJ-0060]", async () => {
+    // Quand le compte du dernier chef de projet est désactivé, un utilisateur non contributeur,
+    // qui porte le paramétrage du projet et « consulter tous les projets », voit la commande
+    // `manage_contributors` disponible et y inscrit un chef de projet.
+    const rescue = example("project_rescue") as {
+      available_commands: (CommandOffer & { command: string })[];
+    };
+    const offer = rescue.available_commands.find((each) => each.command === "manage_contributors");
+    expect(offer?.is_available).toBe(true);
+    const bare = example("contributors_without_active_manager") as ContributorReading;
+    const client = serve({ [SET]: "contributors_set_by_rescuer" });
+    render(list(offer, bare, bare));
+    expect(screen.getByRole("button", { name: "Modifier les contributeurs" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    const form = await modify();
+    // No project manager has an active account: the list as it is read is refused before any call.
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "Un projet garde au moins un chef de projet.",
+    );
+    expect(client.calls).toEqual([]);
+    // Inès Roux, active, becomes project manager: the list is written, with the counter read.
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Qualité de Inès Roux" }),
+      "Chef de projet",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(1);
+    });
+    const [body] = written(client) as { lock_version: number; contributors: unknown[] }[];
+    expect(body?.lock_version).toBe(bare.lock_version);
+    expect(body?.contributors).toContainEqual({ user_id: user(306), kind: "project_manager" });
+    // The screen shows the list the server answered, the project managers first.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(names()).toEqual(["Camille Martin", "Inès Roux", "Alix Moreau", "Lucas Petit"]);
+  });
+
   it("says a refusal by field at the row of the account it points at, naming it, and the rest under the form", async () => {
     serve({
       [SET]: {

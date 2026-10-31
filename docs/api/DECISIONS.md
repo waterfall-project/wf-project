@@ -2277,7 +2277,8 @@ Chaque exemple de tâche de fond est une suite possible, indépendante des autre
 moment d'une seule séquence : le marquage a une variante aboutie et une variante échouée, que rien
 n'enchaîne. Ainsi : le
 marquage demandé à 14 h 05, qui court à 40 % (`tasks_running`), abouti à 14 h 09 ou échoué à
-14 h 07 et relancé à 14 h 10 ; l'application de l'import du devis a11, confirmée à 14 h 06 ;
+14 h 07 et relancé à 14 h 10 (la sortie qui marque en reprend les instants à 30 s près, l'échec,
+la relance et sa réussite s'enchaînant comme ceux du marquage) ; l'application de l'import du devis a11, confirmée à 14 h 06 ;
 l'export, demandé à 14 h 06 min 30 s. Chacune a son instant, dans les dix minutes qui suivent
 aujourd'hui : `test_mockhistory` admet nommément ces instants, bornés, et toute expiration à venir
 dans la journée — une session, un lien, un import —, l'inactivité d'une session dans les deux
@@ -9590,6 +9591,17 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   à US-0702 : le compteur de la sortie (E-13, E-24) — le sort ne porte pas celui de la révision — et
   les codes des autres refus d'`exitProject` (D-03), dont un sort envoyé à un projet sans révision
   en cours, que ni la spécification ni la revue ne disent.
+  **Complété par US-0703/L4** (#1615) : la tâche de la sortie se lit comme celle du marquage, dont
+  elle reprend les lectures, sous son identifiant (955) et trente secondes plus tard —
+  `task_exit_mark_running`, `task_exit_mark_succeeded` (« Clôture » marquée, la sortie appliquée)
+  et `task_exit_mark_failed` (le motif de `task_failed`, la sortie non appliquée), déclarés à
+  `getBackgroundTask` — et se relance par la sortie elle-même, du même corps :
+  `task_exit_mark_relaunched` (959, le dernier numéro de la famille des tâches de fond), seconde
+  réponse 202 d'`exitProject`, et sa lecture réussie, `task_exit_mark_relaunched_succeeded` (959,
+  la même « Clôture » marquée et la sortie appliquée, à l'issue de la relance), déclarée aussi à
+  `getBackgroundTask`. Le suivi du front apparie les lectures à la tâche par son
+  identifiant : sans eux, son test réécrivait celui des exemples du marquage (…931), contre
+  « aucun mock ».
 - **Une sortie qui ne le deviendra jamais n'est pas listée** (D-02, L-03 ; Vérif de
   WF-CYC-0060). `ProjectCommand` dit la règle : `complete` listée à tout état non terminal,
   `project_in_progress` manquante avant En cours ; `lose` aux états Créé, `project_in_pricing`

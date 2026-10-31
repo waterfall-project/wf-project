@@ -235,6 +235,11 @@
               merge_horizon_exceeded: { $ref: ../../../fixtures/api/task_merge_horizon_exceeded.json }
               merge_running: { $ref: ../../../fixtures/api/task_merge_running.json }
               merge_succeeded: { $ref: ../../../fixtures/api/task_merge_succeeded.json }
+              exit_mark_running: { $ref: ../../../fixtures/api/task_exit_mark_running.json }
+              exit_mark_succeeded: { $ref: ../../../fixtures/api/task_exit_mark_succeeded.json }
+              exit_mark_failed: { $ref: ../../../fixtures/api/task_exit_mark_failed.json }
+              exit_mark_relaunched: { $ref: ../../../fixtures/api/task_exit_mark_relaunched.json }
+              exit_mark_relaunched_succeeded: { $ref: ../../../fixtures/api/task_exit_mark_relaunched_succeeded.json }
               identity_sync_succeeded: { $ref: ../../../fixtures/api/identity_sync_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }

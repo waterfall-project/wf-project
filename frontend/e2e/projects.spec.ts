@@ -115,7 +115,7 @@ test("the home filters its projects by the period of their last modification on 
   await expect(apply).toBeFocused();
 });
 
-test("a project, its settings and its lifecycle show what the fake back serves, and offer the commands the project lists: its modification, those of its lists, and the exits", async ({
+test("a project, its settings and its lifecycle show what the fake back serves, and offer the commands the project lists: its modification, those of its lists, and the exits [WF-CYC-0060]", async ({
   page,
 }) => {
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
@@ -152,10 +152,13 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   await expect(main.getByRole("region", { name: "Prochain état" })).toContainText(
     "seules les sorties du cycle de vie restent",
   );
-  await expect(main.getByRole("region", { name: "Commandes" }).getByRole("button")).toHaveText([
+  // Déclarer perdu depuis En cours n'y figure pas : la perte n'est possible que depuis Chiffrage.
+  const exits = main.getByRole("region", { name: "Commandes" });
+  await expect(exits.getByRole("button")).toHaveText([
     "Terminer le projet",
     "Abandonner le projet",
   ]);
+  await expect(exits.getByRole("button", { name: "Déclarer le projet perdu" })).toHaveCount(0);
 });
 
 test("creates a project from the home, then modifies the identity of a project on its settings, the mock-up saying the fake back keeps nothing (EP-02/L44a) [WF-PRJ-0080-A]", async ({
@@ -214,7 +217,7 @@ test("creates a project from the home, then modifies the identity of a project o
   await expect(main.getByRole("alert")).toHaveCount(0);
 });
 
-test("an exit of the lifecycle is confirmed, naming the state it leads to, before the API applies it", async ({
+test("an exit of the lifecycle is confirmed, naming the state it leads to and asking what becomes of the current revision, before the API applies it [WF-CYC-0090] [WF-CYC-0090-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/lifecycle`);
@@ -225,6 +228,13 @@ test("an exit of the lifecycle is confirmed, naming the state it leads to, befor
   await expect(confirmation).toContainText("Terminé");
   await expect(confirmation).toContainText("passeront en lecture seule");
   await confirmation.getByRole("textbox", { name: "Motif (facultatif)" }).fill("Recette prononcée");
+  // The project carries the current revision 102: marking it asks for a version name, abandoning
+  // it does not. The fake back answers the first example of the exit, a 200: the marking, which
+  // answers a task (202), is proved by the tests of the component (`exit-command.dom.test.tsx`).
+  await confirmation.getByRole("radio", { name: /^Marquer la révision en cours/ }).check();
+  await expect(confirmation.getByRole("textbox", { name: "Nom de version" })).toBeVisible();
+  await confirmation.getByRole("radio", { name: /^Abandonner la révision en cours/ }).check();
+  await expect(confirmation.getByRole("textbox", { name: "Nom de version" })).toHaveCount(0);
   await confirmation.getByRole("button", { name: "Confirmer la sortie" }).click();
   await expect(commands.getByRole("status").filter({ hasText: /./ })).toHaveText(
     /^Le projet est passé à l’état «\s?Terminé\s?»\.$/,
