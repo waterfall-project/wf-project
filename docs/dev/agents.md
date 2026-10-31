@@ -76,6 +76,8 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   son langage, défauts déjà rencontrés compris.
 - **Le code est en anglais, la documentation en français**, comme les messages de commit :
   une ligne qui dit ce qui change, puis un corps qui dit pourquoi.
+- **Un `README-fr.md` de `docs/` ne change pas seul** : sa modification se porte, traduite,
+  dans le `README.md` voisin, dans la même pull request ; `make readmes` le vérifie.
 - **Aucune règle ne se contourne dans le code** : pas de commentaire d'exemption, jamais.
 - **Taille** : un lot vise la taille de la section « Lots » du README de la roadmap ; sa
   pull request met sa taille réelle, `make lot-size BASE=origin/epic/EP-nn`, à côté de

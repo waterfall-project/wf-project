@@ -4082,6 +4082,16 @@ The rules are in the [README of the roadmap](../roadmap/README.md), sections « 
 « Branches », and in [CONTRIBUTING](../../CONTRIBUTING.md): one lot, one issue, one branch
 `lot/<identifiant>` created from `epic/EP-nn`, one pull request that returns to it.
 
+Each directory of `docs/` has its README in English, `README.md`, next to its French original,
+`README-fr.md`, which is the reference. A lot that changes a `README-fr.md` carries the same
+change, translated, to the neighbouring `README.md`, in the same pull request: a heading added,
+removed or moved in one is so in the other, at the same rank and the same level. The check does
+not judge the translation; it proves that its structure follows the original.
+
+_Check_: `make readmes` (`wftools.readmes`, family `repo`), which fails on a `README-fr.md` of
+`docs/` without its `README.md`, or the reverse, and on a pair whose headings differ, one for
+one — in number, or in level at a given rank.
+
 ## Commit signing
 
 The commits that reach `main` are signed: GitHub's « Require signed commits » rule

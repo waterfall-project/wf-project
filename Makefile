@@ -59,7 +59,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
-	requirements-release screens reuse lint-workflows \
+	requirements-release screens readmes reuse lint-workflows \
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
@@ -167,6 +167,9 @@ requirements-release: ## Same, and fail on an F0 requirement no test covers
 
 screens: ## Each leaf of the FBS has its route in the table of the front, answered by a page (EP-02/L3)
 	@$(WFTOOLS).screens
+
+readmes: ## Each README-fr.md of docs/ has its English README.md, their headings one for one (#1711)
+	@$(WFTOOLS).readmes
 
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
@@ -308,7 +311,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
+	requirements screens readmes lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
