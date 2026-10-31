@@ -1321,7 +1321,7 @@ touche) ; #1230 : EP-17 ; ajouter ou retirer un écran du parcours d'accessibili
 
 ## US-0590h — La sonde d'hydratation ferme sa course avec sa route
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1689
