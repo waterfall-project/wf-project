@@ -1257,7 +1257,7 @@ disparaît au rejeu (#1522).
 
 ## US-0590g — La stabilité du harnais sous charge : le parcours au Tab et trois parcours non examinés
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1543

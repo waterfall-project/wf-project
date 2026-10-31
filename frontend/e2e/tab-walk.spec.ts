@@ -7,13 +7,78 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 
-import { lost, walkByTab } from "./tab-walk";
+import { BATCH, lost, walkByTab } from "./tab-walk";
 
 /** A page of its own, written in the window of the harness. */
 async function write(page: Page, body: string): Promise<void> {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.setContent(`<!doctype html><html lang="fr"><body>${body}</body></html>`);
 }
+
+/**
+ * The page, its trips to the browser counted: each `evaluate`, each press of a key. Every other
+ * property reads as the page's own, its methods called on the page itself.
+ */
+function counted(page: Page): { page: Page; trips: { evaluate: number; press: number } } {
+  const trips = { evaluate: 0, press: 0 };
+  const keyboard = new Proxy(page.keyboard, {
+    get(target, key) {
+      const value: unknown = Reflect.get(target, key, target);
+      if (key === "press") {
+        return (...args: Parameters<Page["keyboard"]["press"]>) => {
+          trips.press += 1;
+          return target.press(...args);
+        };
+      }
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+  const proxy = new Proxy(page, {
+    get(target, key) {
+      if (key === "keyboard") {
+        return keyboard;
+      }
+      const value: unknown = Reflect.get(target, key, target);
+      if (key === "evaluate") {
+        return (...args: Parameters<Page["evaluate"]>) => {
+          trips.evaluate += 1;
+          return target.evaluate(...args);
+        };
+      }
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+  return { page: proxy, trips };
+}
+
+test("goes to the browser once for each element, by its press of Tab, reading what the page measured a batch at a time, and ends on the first element again", async ({
+  page,
+}) => {
+  const elements = 3 * BATCH + 5;
+  await write(
+    page,
+    Array.from({ length: elements }, (_, index) => `<button>B${String(index)}</button>`).join(""),
+  );
+  const { page: watched, trips } = counted(page);
+  const walk = await walkByTab(watched);
+  expect(walk.reached).toEqual(
+    Array.from({ length: elements }, (_, index) => `button « B${String(index)} »`),
+  );
+  expect(walk.missed).toEqual([]);
+  expect(walk.trapped).toBeUndefined();
+  // Every element, the leave of the document, the first again: so many presses, read by batches,
+  // beside the three trips of the walk itself — the probe given, the start, the end.
+  const presses = elements + 2;
+  const batches = Math.ceil(presses / BATCH);
+  expect(trips.press).toBe(batches * BATCH);
+  expect(trips.evaluate).toBe(3 + batches);
+  // The presses past the return to the first element moved nothing: the focus is on it still.
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B0");
+});
 
 test("names what a narrower window takes out of the reach of the keyboard", async ({ page }) => {
   await write(
@@ -284,4 +349,31 @@ test("takes a widget that hands the focus to one of its items for reached, and n
     "button « Après »",
   ]);
   expect(walk.missed).toEqual(["button « Carte »"]);
+});
+
+test("ends the walk of the probe when a read fails, so that Tab moves the focus again", async ({
+  page,
+}) => {
+  await write(page, Array.from({ length: 3 }, (_, i) => `<button>B${String(i)}</button>`).join(""));
+  // The probe given, the walk started, then the first read: it fails, one batch of presses in,
+  // when the focus has come back to the first button already.
+  let trips = 0;
+  const failing = new Proxy(page, {
+    get(target, key) {
+      const value: unknown = Reflect.get(target, key, target);
+      if (key === "evaluate") {
+        return (...args: Parameters<Page["evaluate"]>) => {
+          trips += 1;
+          return trips === 3 ? Promise.reject(new Error("read failed")) : target.evaluate(...args);
+        };
+      }
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+  await expect(walkByTab(failing)).rejects.toThrow("read failed");
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B0");
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B1");
 });
