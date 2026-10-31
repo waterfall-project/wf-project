@@ -486,6 +486,7 @@
         "probability": "Probabilité",
         "severity": "Gravité",
         "provision": "Provision",
+        "referenceProvision": "Provision de la référence",
         "state": "État",
         "zone": "Zone",
         "closed": "Projet non ouvrable"
@@ -3494,7 +3495,8 @@
     "RiskComputedField": {
       "field": {
         "severity": "Gravité",
-        "provision_amount": "Provision"
+        "provision_amount": "Provision",
+        "occurrence_cost": "Coût à la survenance"
       }
     },
     "RiskReviewWrite": {

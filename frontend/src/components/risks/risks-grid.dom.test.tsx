@@ -244,7 +244,7 @@ describe("the grid of the risks", () => {
 
   it("presents no cell of the grid for entry: a risk is entered by the epic of the risks", async () => {
     renderRisks();
-    for (const position of [0, 1, STATE, STATE + 1]) {
+    for (const position of [0, 1, OCCURRENCE, STATE, STATE + 1]) {
       cell("Risque de reprise du câblage", position).focus();
       await userEvent.keyboard("{F2}");
       expect(screen.queryByRole("textbox")).toBeNull();

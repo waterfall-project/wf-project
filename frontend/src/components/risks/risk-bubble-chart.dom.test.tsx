@@ -428,6 +428,18 @@ describe("the risk matrix as a bubble chart", () => {
     expect(tooltip.formatter({ data: { id: "other" } })).toBe("");
   });
 
+  it("names the provision of a risk occurred or dismissed that of the reference, in its tooltip", () => {
+    project();
+    const { option } = drawn();
+    const tooltip = option?.tooltip as { formatter: (params: unknown) => string };
+    for (const [id, amount] of [
+      [DELIVERY, "60.00"],
+      [AUTOMATON, "600,000.00"],
+    ] as const) {
+      expect(tooltip.formatter({ data: { id } })).toContain(`Reference provision : ${amount}`);
+    }
+  });
+
   it("leads a click on a bubble to the detail of its risk, from the address asked", () => {
     project();
     const { onPoint } = charts.props.at(-1) ?? {};

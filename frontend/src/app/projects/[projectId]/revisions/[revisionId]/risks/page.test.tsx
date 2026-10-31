@@ -410,7 +410,9 @@ describe("the screen of the risks", () => {
   it("says no cost at the occurrence of a risk identified, and its provision its own", async () => {
     const said = text(await risksAt({ risk: CABLING }));
     // The detail alone: the register heads the column for every risk.
-    const detail = said.slice(said.indexOf("Risque de reprise du câblage Modify"));
+    const start = said.indexOf("Risque de reprise du câblage Modify");
+    expect(start).toBeGreaterThan(-1);
+    const detail = said.slice(start);
     expect(detail).toContain("Provision 500,000.00 Last review");
     expect(detail).not.toContain("Cost at occurrence");
     expect(detail).not.toContain("Reference provision");

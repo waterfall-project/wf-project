@@ -86,7 +86,7 @@ type RiskComputedField = components["schemas"]["RiskComputedField"]["field"];
  * A value the server computes, in every risk that bears it — all, unless `bears` says otherwise —:
  * no field of a node to ask about, the rules it depends on read from the risk itself.
  */
-function computedInEveryRisk(
+function computedInRisks(
   field: RiskComputedField,
   bears: (risk: RiskRow) => boolean = () => true,
 ): ComputedCells<RiskRow> {
@@ -131,7 +131,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       help: "risks.severity",
       format: "money",
       width: 120,
-      computed: computedInEveryRisk("severity"),
+      computed: computedInRisks("severity"),
       contract: "severity",
       value: (risk) => risk.severity,
     },
@@ -141,7 +141,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       help: "risks.provisionAmount",
       format: "money",
       width: 120,
-      computed: computedInEveryRisk("provision_amount"),
+      computed: computedInRisks("provision_amount"),
       contract: "provision_amount",
       value: (risk) => risk.provision_amount,
       total: (totals) => totals.total,
@@ -154,7 +154,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       width: 120,
       // Computed at the occurrence, then kept (WF-RIS-0010): a risk occurred alone bears it, the
       // cell of another empty. The server does not sort by it: the column offers no sort.
-      computed: computedInEveryRisk("occurrence_cost", (risk) => risk.occurrence_cost !== null),
+      computed: computedInRisks("occurrence_cost", (risk) => risk.occurrence_cost !== null),
       value: (risk) => risk.occurrence_cost,
     },
     {

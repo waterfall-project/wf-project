@@ -486,6 +486,7 @@
         "probability": "Probability",
         "severity": "Severity",
         "provision": "Provision",
+        "referenceProvision": "Reference provision",
         "state": "State",
         "zone": "Zone",
         "closed": "Project cannot be opened"
@@ -3494,7 +3495,8 @@
     "RiskComputedField": {
       "field": {
         "severity": "Severity",
-        "provision_amount": "Provision"
+        "provision_amount": "Provision",
+        "occurrence_cost": "Cost at occurrence"
       }
     },
     "RiskReviewWrite": {
