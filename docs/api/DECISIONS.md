@@ -9596,7 +9596,9 @@ Complétées, plus haut : « Le projet terminal n'a pas de révision en cours »
   et `task_exit_mark_failed` (le motif de `task_failed`, la sortie non appliquée), déclarés à
   `getBackgroundTask` — et se relance par la sortie elle-même, du même corps :
   `task_exit_mark_relaunched` (959, le dernier libre de la famille des tâches de fond), seconde
-  réponse 202 d'`exitProject`. Le suivi du front apparie les lectures à la tâche par son
+  réponse 202 d'`exitProject`, et sa lecture réussie, `task_exit_mark_relaunched_succeeded` (959,
+  la même « Clôture » marquée et la sortie appliquée, à l'issue de la relance), déclarée aussi à
+  `getBackgroundTask`. Le suivi du front apparie les lectures à la tâche par son
   identifiant : sans eux, son test réécrivait celui des exemples du marquage (…931), contre
   « aucun mock ».
 - **Une sortie qui ne le deviendra jamais n'est pas listée** (D-02, L-03 ; Vérif de

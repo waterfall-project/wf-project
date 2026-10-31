@@ -89,6 +89,7 @@ _SEQUELS = {
     "task_exit_mark_succeeded.json",
     "task_exit_mark_failed.json",
     "task_exit_mark_relaunched.json",
+    "task_exit_mark_relaunched_succeeded.json",
     "task_import_queued.json",
     "task_import_succeeded.json",
     "task_export_queued.json",

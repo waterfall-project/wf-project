@@ -12,7 +12,8 @@ L-25, on examples drawn from those written by hand:
   the marking (``task_exit_mark_queued.json``), the exit applied when it succeeds (WF-CYC-0090,
   WF-ARC-0090); that task read as the marking's are — ``task_exit_mark_running.json``,
   ``task_exit_mark_succeeded.json``, the exit applied, and ``task_exit_mark_failed.json``, nothing
-  applied — and run again, ``task_exit_mark_relaunched.json``, a task of its own (US-0703/L4);
+  applied — and run again, ``task_exit_mark_relaunched.json``, a task of its own, and
+  ``task_exit_mark_relaunched_succeeded.json``, its success (US-0703/L4);
   ``project_exit_revision_required.json``, the exit sent without the fate of the
   revision in progress, refused; ``project_exit_version_name_required.json`` and
   ``project_exit_version_name_taken.json``, the exit that marks it without a version name, or
@@ -180,6 +181,28 @@ def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
         **task,
         "task_id": task_id,
         **{key: _later(task[key]) for key in _INSTANTS},
+    }
+
+
+def _moment(instant: JsonValue) -> datetime:
+    """Return an instant of a task as a moment."""
+    return datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
+
+
+def exit_relaunched_succeeded() -> JsonObject:
+    """Return the success of the exit run again.
+
+    The task the relaunch starts, which took as long to succeed as the marking of today
+    (`task_succeeded`) did, the exit applied all the same.
+    """
+    relaunched = exit_task("task_mark_relaunched", EXIT_RELAUNCHED_TASK)
+    marking = cast("JsonObject", fixture("task_succeeded"))
+    took = _moment(marking["finished_at"]) - _moment(marking["submitted_at"])
+    finished = _moment(relaunched["submitted_at"]) + took
+    return {
+        **exit_task("task_succeeded", EXIT_RELAUNCHED_TASK),
+        "submitted_at": relaunched["submitted_at"],
+        "finished_at": finished.strftime(_FORMAT),
     }
 
 
@@ -420,6 +443,15 @@ def examples() -> dict[str, JsonObject]:
             f"pas encore commencé ; la sortie s'appliquera quand il réussira (WF-CYC-0090, "
             f"WF-ARC-0090, WF-IHM-0080).",
             exit_task("task_mark_relaunched", EXIT_RELAUNCHED_TASK),
+        ),
+        "task_exit_mark_relaunched_succeeded.json": mocktext.example(
+            f"La suite de la sortie du projet témoin relancée (task_exit_mark_relaunched) : le "
+            f"marquage de la révision 102 sous « {VERSION_NAME} » a abouti, la révision est "
+            f"marquée « {VERSION_NAME} », figée et ses indicateurs calculés, et la sortie "
+            f"s'applique, le projet passe Terminé ; après la sortie, le projet n'a plus de "
+            f"révision en cours, et ses indicateurs se lisent dans sa dernière révision marquée, "
+            f"« {VERSION_NAME} » (WF-CYC-0090, WF-REV-0020, WF-ARC-0090, WF-IHM-0080).",
+            exit_relaunched_succeeded(),
         ),
         "project_exit_revision_required.json": mocktext.example(
             "La sortie du projet témoin vers Terminé, confirmée sans le sort de sa révision en "

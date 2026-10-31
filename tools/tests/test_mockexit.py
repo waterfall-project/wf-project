@@ -150,6 +150,7 @@ def test_the_task_of_the_exit_is_read_as_the_marking_s_and_runs_again_as_a_task_
         "task_exit_mark_failed": "task_failed",
         "task_exit_mark_relaunched": "task_mark_relaunched",
     }
+    relaunched_ok = fixture("task_exit_mark_relaunched_succeeded")
     instants = ("task_id", "submitted_at", "finished_at")
     for name, marking in reads.items():
         read, model = fixture(name), fixture(marking)
@@ -174,16 +175,26 @@ def test_the_task_of_the_exit_is_read_as_the_marking_s_and_runs_again_as_a_task_
     assert relaunched["task_id"] not in others
     assert relaunched["status"] == "queued"
     assert failed["finished_at"] < relaunched["submitted_at"]
+    # The relaunch succeeds: the same task, read again once it is done, the exit applied as the
+    # first success's is (same summary), after the relaunch was put in the queue.
+    assert relaunched_ok["task_id"] == relaunched["task_id"]
+    assert (relaunched_ok["status"], relaunched_ok["progress"]) == ("succeeded", 100)
+    assert relaunched_ok["problem"] is None
+    assert relaunched_ok["submitted_at"] == relaunched["submitted_at"]
+    assert relaunched["submitted_at"] < relaunched_ok["finished_at"]
+    assert relaunched_ok["kind"] == succeeded["kind"]
     # The exit applied when the task succeeds, under the name its body gives; not when it fails.
     named = f"« {fixture('project_exit_marking')['current_revision']['version_name']} »"
     assert named in _summary("task_exit_mark_succeeded")
     assert CYC_0090 in _summary("task_exit_mark_succeeded")
+    assert named in _summary("task_exit_mark_relaunched_succeeded")
+    assert CYC_0090 in _summary("task_exit_mark_relaunched_succeeded")
     assert "la sortie ne s'applique pas" in _summary("task_exit_mark_failed")
     # Declared where the front reads them: the reads of the task, and the exit run again.
     paths = yaml.safe_load((API / "paths" / "system.yaml").read_text("utf-8"))
     task = paths["/tasks/{task_id}"]["get"]["responses"]["200"]["content"]["application/json"]
     declared = {Path(each["$ref"]).stem for each in task["examples"].values()}
-    assert set(reads) <= declared
+    assert {*reads, "task_exit_mark_relaunched_succeeded"} <= declared
     exit_ = _operation("/projects/{project_id}/exit", "post")["responses"]["202"]
     answered = exit_["content"]["application/json"]["examples"]
     assert {key: Path(each["$ref"]).stem for key, each in answered.items()} == {
