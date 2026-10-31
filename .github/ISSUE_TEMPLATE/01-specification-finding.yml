@@ -8,7 +8,7 @@ body:
       value: >-
         Raised during an epic? Title it `[EP-nn] spec : …`, open it as a sub-issue of the lot
         that raised it — or of the epic's issue —, and give it a decision in « Decision »
-        (`docs/roadmap/README.md`, « Suivi sur GitHub »).
+        (`docs/roadmap/README.md`, « Tracking on GitHub »).
   - type: markdown
     attributes:
       value: >-

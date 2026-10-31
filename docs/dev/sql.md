@@ -1,7 +1,7 @@
 # Règles de codage — SQL et migrations
 
 Pour la base du service (PostgreSQL), ses tables, ses requêtes et ses migrations. Ce fichier
-complète le [guide](README.md), qui décrit l'écriture d'une migration (« Migrations »), et les
+complète le [guide](README-fr.md), qui décrit l'écriture d'une migration (« Migrations »), et les
 règles de [Python](python.md), qui disent comment le code parle à la base. Il ne recopie ni la
 spécification (§4.4.1, WF-DAT-0060 à WF-DAT-0140), ni les décisions de la conception d'EP-03
 (« Tables et migrations ») : il y renvoie.
@@ -68,7 +68,7 @@ le choix du type d'une grandeur, la revue.
 ### Trier et chercher un texte
 
 Le contrat trie un texte dans l'ordre des points de code, accents et casse compris, et cherche
-sans égard à la casse ni aux accents (`docs/api/README.md`, « Une recherche… »). Une colonne
+sans égard à la casse ni aux accents (`docs/api/README-fr.md`, « Une recherche… »). Une colonne
 de texte qu'une table trie porte donc la collation `C` (`Text(collation="C")`), que ses index
 partagent. Une recherche compare les deux textes translittérés par `unaccent` — l'extension que
 crée la migration `0004` —, puis mis en minuscules dans une collation qui connaît toutes les

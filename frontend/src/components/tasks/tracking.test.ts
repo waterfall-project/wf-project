@@ -21,7 +21,7 @@ function following(given: BackgroundTask): Tracking {
 
 describe("what the tracker follows", () => {
   it("drops the answer to a task a relaunch has replaced since it was asked", () => {
-    const relaunched = { ...task("task_running"), task_id: "01926f3a-7c00-7000-8000-000000000959" };
+    const relaunched = task("task_mark_relaunched");
     const before = tracking(following(task("task_failed")), {
       type: "answer",
       source: "read",
@@ -38,7 +38,8 @@ describe("what the tracker follows", () => {
       outcome: { kind: "done", data: task("task_failed") },
     });
     expect(after).toBe(before);
-    expect(after.tasks[0]?.task.status).toBe("running");
+    expect(after.tasks[0]?.task.task_id).toBe(relaunched.task_id);
+    expect(after.tasks[0]?.task.status).toBe("queued");
   });
 
   it("changes nothing, not even the list, when a read finds the task where it stood", () => {

@@ -12,8 +12,8 @@ personne ou un agent de développement corrigera.
 
 ## Ce que tu lis, et ce que tu ne lis pas
 
-- **Le guide, `docs/dev/README.md`, par sections, jamais en entier.** Repère ses titres avec
-  `grep -n '^## ' docs/dev/README.md`, puis lis seulement, avec `sed -n 'a,bp'`, les
+- **Le guide, `docs/dev/README-fr.md`, par sections, jamais en entier.** Repère ses titres avec
+  `grep -n '^## ' docs/dev/README-fr.md`, puis lis seulement, avec `sed -n 'a,bp'`, les
   sections « Arborescence », « Le back et les frontières du noyau », « Commandes »,
   « Nommage », « En-têtes et licences », « La roadmap et les exigences », « Commentaires »,
   « Lint, typage et format », « Règles de codage », « Tests » — sauf sa sous-section « Un

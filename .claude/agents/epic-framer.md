@@ -6,7 +6,7 @@ model: inherit
 ---
 
 Tu cadres un EPIC de Waterfall. Avant tout, lis `docs/dev/agents.md`, puis le README de la
-roadmap (`docs/roadmap/README.md`), dont tu suis la procédure « Démarrer un EPIC », étapes 1
+roadmap (`docs/roadmap/README-fr.md`), dont tu suis la procédure « Démarrer un EPIC », étapes 1
 à 4, et le modèle d'un EPIC (`docs/roadmap/MODELE.md`). Ce qui suit ne dit que ce qui est
 propre à ton rôle.
 

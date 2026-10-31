@@ -368,7 +368,7 @@ une variable locale rejoue les parcours contre `next dev`.
     - la mesure de la seconde ne la suit jamais, et se joue toujours contre le front construit ;
     - le harnais refuse de démarrer quand elle est posée dans la chaîne (`CI` défini), en le
       disant ;
-    - le guide la documente (`docs/dev/README.md`, « Un parcours de bout en bout ») ;
+    - le guide la documente (`docs/dev/README-fr.md`, « Un parcours de bout en bout ») ;
     - le préchauffage ne revient pas pour elle : un rejeu local se joue sur peu de fichiers, et la
       première compilation d'une route s'y attend.
   - Le build est celui de `make build-front`, qui ne joint aucune API pendant la construction
@@ -1064,7 +1064,7 @@ contrat : le contrat et le faux back sont inchangés.
   même avec d'autres états. Il se lit sur `answer.scope.states`, ce que le serveur a retenu ;
   écarté : `perimeter.states`, car une adresse sans `states` laisse le serveur choisir et
   `PerimeterBar` ne suppose aucun défaut. `completed` seul ; écarté : nommer aussi `pricing` sur la
-  santé du pilotage, où le contrat le dit sans effet — constat distinct #1691, à trancher. Écarté :
+  santé du pilotage, où le contrat le dit sans effet — sans objet, décision de l’auteur du 2026-10-31 (#1691). Écarté :
   laisser l'avis au contrat seul, qui le dit déjà sans qu'aucun écran le dise.
 - **La sonde d'hydratation** (US-0590h #1689). Un helper partagé du harnais, dans
   `frontend/e2e/hydration.ts` ou un module voisin : son gestionnaire ignore une route déjà traitée

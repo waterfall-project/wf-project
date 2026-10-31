@@ -638,7 +638,11 @@
       "byDefault": "Par défaut",
       "horizon": "Horizon",
       "months": "{months} mois",
-      "threshold": "Seuil de sous-charge"
+      "threshold": "Seuil de sous-charge",
+      "completedWithoutEffect": {
+        "workload": "Les projets terminés sont sans effet sur le plan de charge.",
+        "pilotHealth": "Les projets terminés sont sans effet sur la santé du pilotage."
+      }
     },
     "scope": {
       "noPeriod": "{states} · {count, plural, =0 {aucun projet} one {# projet} other {# projets}} · calculé au {asOf}",
@@ -1985,7 +1989,11 @@
   },
   "exitProject": {
     "statement": "Cette sortie est définitive : le projet passera à l’état « {state} », et lui comme toutes ses données — plannings, devis, restes à engager, coûts réels — passeront en lecture seule. Aucune transition ne part d’un état terminal.",
-    "abandonedRevision": "La révision en cours du projet sera abandonnée : elle sera supprimée, sans retour possible.",
+    "fate": "Sort de la révision en cours",
+    "mark": "Marquer la révision en cours : elle devient une révision marquée, sous le nom de version donné.",
+    "abandon": "Abandonner la révision en cours : elle sera supprimée, sans retour possible.",
+    "versionName": "Nom de version",
+    "description": "Description (facultative)",
     "reason": "Motif (facultatif)",
     "submit": "Confirmer la sortie",
     "cancel": "Annuler",
