@@ -282,8 +282,34 @@ test("walks the screens of the cycle of a risk: identify it, open an estimate, r
   await detail.getByRole("button", { name: "Déclarer survenu" }).click();
   const declare = detail.getByRole("form", { name: "Déclarer survenu" });
   await expect(declare).toContainText("sa ligne de provision est retirée du reste à engager");
+  await expect(declare.getByRole("table", { name: /écarts/i })).toBeVisible({ timeout: WORKING });
   await declare.getByRole("button", { name: "Déclarer le risque survenu" }).click();
   await expect(
     detail.getByText(/La survenance de « Risque de reprise du câblage » est confiée/),
   ).toBeVisible();
+});
+
+test("shows the report of the occurrence in the marks before confirming, and abandons without writing [WF-RIS-0060-A] [WF-IHM-0110-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${RISKS}?risk=${CABLING}`);
+  const detail = page.getByRole("region", { name: "Risque de reprise du câblage" });
+  await detail.getByRole("button", { name: "Déclarer survenu" }).click();
+  const declare = detail.getByRole("form", { name: "Déclarer survenu" });
+  const table = declare.getByRole("table", { name: /écarts/i });
+  await expect(table).toBeVisible({ timeout: WORKING });
+  // The marks of the diff of the grids, each doubled by a word, and the provision withdrawn.
+  const markOf = (label: string) =>
+    table
+      .getByRole("row", { name: new RegExp(label) })
+      .getByRole("cell")
+      .first();
+  await expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
+  await expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
+  await expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
+  await expect(declare).toContainText("500 000,00 de provision en moins");
+  // Abandoned: the form closes and nothing is declared.
+  await declare.getByRole("button", { name: "Annuler" }).click();
+  await expect(declare).toBeHidden();
+  await expect(detail.getByText(/est confiée/)).toBeHidden();
 });

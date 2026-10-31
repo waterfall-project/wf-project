@@ -1774,6 +1774,14 @@
     "queued": "La survenance de « {name} » est confiée au traitement de fond ; elle est suivie dans « Tâches de fond ».",
     "succeeded": "La survenance de « {name} » est terminée : son devis propre est fusionné dans la structure principale."
   },
+  "riskOccurrenceReport": {
+    "title": "Compte rendu de la survenance",
+    "reading": "Lecture du compte rendu…",
+    "createsRevision": "Le projet n’a pas de révision en cours : la survenance la crée d’abord par copie de la dernière révision marquée, y fusionne le devis propre du risque, dans la même tâche de fond. Si elle échoue, aucune révision n’est créée.",
+    "provision": "La ligne de provision du risque est retirée du reste à engager : {amount} de provision en moins.",
+    "refusals": "{count, plural, one {# motif refuse la survenance} other {# motifs refusent la survenance}}",
+    "reread": "Relire le compte rendu"
+  },
   "projectForm": {
     "create": "Créer un projet",
     "createHint": "Le projet naît à l’état Créé, et vous en êtes chef de projet. Le code projet peut attendre la commande.",

@@ -12,16 +12,21 @@
  * read anew for a risk it can no longer find. A risk declared occurred is handed to the worker, which
  * merges its own estimate into the main structure and withdraws its line of provision (202): the
  * tracker of the shell follows the task (WF-IHM-0080), and once it has succeeded the screen says so and
- * is read anew, the risk then listing no command of entry. The report of the merge before the
- * confirmation has no source in the contract (#1383): the confirmation says what the declaration does,
- * and shows no report.
+ * is read anew, the risk then listing no command of entry.
+ *
+ * « Déclarer survenu » first reads the report of the occurrence (`getRiskOccurrenceReport`, US-0680)
+ * and presents it in the confirmation (`occurrence-report.tsx`); it confirms with the counters of the
+ * report shown (`declareRiskOccurrence`), and offers it only while the report carries no motive of
+ * refusal. A report gone stale (412) offers to read it anew. A task of the worker that failed is not
+ * run again from the tracker, which would confirm counters read before: the entry says to start again
+ * from the screen of the risk, where the command reads the report anew and shows it.
  */
 "use client";
 
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { declareRiskOccurrence, deleteRisk } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
@@ -32,6 +37,7 @@ import { findOffer } from "@/components/commands/offer";
 import { DoneNotice } from "@/components/notices/done-notice";
 import { Following } from "@/components/tasks/following";
 
+import { type OccurrenceReport, OccurrencePanel } from "./occurrence-report";
 import { useRiskNavigation } from "./risk-cells";
 
 /** A risk, as the contract gives it. */
@@ -72,12 +78,6 @@ export function DeleteRisk({
   );
 }
 
-/** A declaration handed to the worker: its task, and the command that runs it again. */
-interface Declared {
-  readonly task: BackgroundTask;
-  readonly command: () => Promise<Outcome<BackgroundTask>>;
-}
-
 /** « Déclarer survenu », as the risk lists `declare_occurrence`; the tracker follows the task. */
 export function DeclareOccurrence({
   projectId,
@@ -87,14 +87,29 @@ export function DeclareOccurrence({
   readonly risk: Risk;
 }) {
   const t = useTranslations("riskOccurrence");
+  const reading = useTranslations("riskOccurrenceReport");
   const helps = useTranslations("commands");
-  const [followed, setFollowed] = useState<Declared>();
+  const [report, setReport] = useState<Outcome<OccurrenceReport>>();
+  const [attempt, setAttempt] = useState(0);
+  const [followed, setFollowed] = useState<BackgroundTask>();
   const [succeeded, setSucceeded] = useState<{ readonly name: string }>();
+  // Kept as it was read: what the confirmation carries is the report it shows.
+  const onRead = useCallback((next: Outcome<OccurrenceReport> | undefined) => {
+    setReport(next);
+  }, []);
   const offer = findOffer(risk.available_commands, "declare_occurrence");
   if (offer === undefined) {
     return null;
   }
-  const run = () => declareRiskOccurrence(projectId, risk.risk_id);
+  const read = report?.kind === "done" ? report.data : undefined;
+  const run = () =>
+    read === undefined
+      ? Promise.reject(new Error("the occurrence is confirmed once its report is read"))
+      : declareRiskOccurrence(projectId, risk.risk_id, {
+          mainStructureLockVersion: read.main_structure_lock_version,
+          riskLockVersion: read.risk_lock_version,
+          createsCurrentRevision: read.creates_current_revision,
+        });
   return (
     <div className="space-y-2">
       <ConfirmedCommand
@@ -104,20 +119,36 @@ export function DeclareOccurrence({
         icon={commandIcon(PROJECT_COMMAND_ICONS.declare_risk_occurrence)}
         statement={t("statement")}
         submit={t("submit")}
+        ready={read?.refusals.length === 0}
         names={{}}
         subject={risk.label}
         run={run}
         done={() => t("queued", { name: risk.label })}
         onDone={(task) => {
-          setFollowed({ task, command: run });
+          setFollowed(task);
         }}
-      />
+        reread={{
+          label: reading("reread"),
+          run: () => {
+            setAttempt(attempt + 1);
+          },
+        }}
+      >
+        <OccurrencePanel
+          projectId={projectId}
+          riskId={risk.risk_id}
+          subject={risk.label}
+          attempt={attempt}
+          report={report}
+          onRead={onRead}
+          names={{}}
+        />
+      </ConfirmedCommand>
       {followed === undefined ? null : (
         <Following
-          key={followed.task.task_id}
-          task={followed.task}
+          key={followed.task_id}
+          task={followed}
           subject={risk.label}
-          command={followed.command}
           onSucceeded={() => {
             setSucceeded({ name: risk.label });
           }}

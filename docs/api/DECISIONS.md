@@ -8787,7 +8787,8 @@ ni le cas du jalon.
   `differences`, des `ImportDifference`, dans cet ordre — les tâches et les lignes du devis propre
   ajoutées dans l'ordre de son plan, la tâche porteuse modifiée, la ligne de provision retirée — ;
   `provision_amount`, le montant de la ligne retirée du reste à engager ; `refusals`, des
-  `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux tableaux sont toujours rendus. Choix de forme du lot, là où la conception se taisait :
+  `ReportRefusal`, dont `TASK_WITHOUT_WORKING_HOURS`. Les deux tableaux sont toujours rendus. Choix
+  de forme du lot, là où la conception se taisait :
   - un ajout n'a pas de lignée, et les liaisons internes du devis propre ne sont pas des écarts à
     part : elles viennent avec ses tâches, comme celles des tâches qu'un différentiel ajoute
     (`structure_merge_report`) ;
@@ -8857,8 +8858,8 @@ ni le cas du jalon.
   sa fin, la provision de 500 000,00 retirée, les compteurs 1 et 4, `creates_current_revision`
   faux, le témoin ayant une révision en cours ; `risk_occurrence_sent`, la confirmation, exemple
   du corps de `declareRiskOccurrence`, qui renvoie ces trois valeurs ;
-  `risk_occurrence_not_identified`, le 409, sur « Indisponibilité de l'automaticien », écarté le 2 février, cité par les deux
-  opérations ; `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du
+  `risk_occurrence_not_identified`, le 409, sur « Indisponibilité de l'automaticien », écarté le
+  2 février, cité par les deux opérations ; `risk_occurrence_report_stale`, le 412, un compte rendu lu avant le réexamen du
   2 mars. `tools/tests/test_mockriskwrites.py` les tient contre le registre, les structures et la
   structure principale.
 

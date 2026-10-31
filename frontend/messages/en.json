@@ -1774,6 +1774,14 @@
     "queued": "The occurrence of “{name}” is handed to the background processing; it is followed in “Background tasks”.",
     "succeeded": "The occurrence of “{name}” is done: its own estimate is merged into the main structure."
   },
+  "riskOccurrenceReport": {
+    "title": "Report of the occurrence",
+    "reading": "Reading the report…",
+    "createsRevision": "The project has no revision in progress: the occurrence first creates it by copying the last marked revision, and merges the own estimate of the risk into it, in the same background task. If it fails, no revision is created.",
+    "provision": "The line of provision of the risk is withdrawn from the remaining to commit: {amount} of provision less.",
+    "refusals": "{count, plural, one {# reason refuses the occurrence} other {# reasons refuse the occurrence}}",
+    "reread": "Read the report again"
+  },
   "projectForm": {
     "create": "Create a project",
     "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
