@@ -30,6 +30,8 @@
  * parts of the chain, not as a file. The session of the fake back grants the whole catalogue of
  * permissions: every command a screen can offer is offered. A browser in French.
  */
+import path from "node:path";
+
 import { expect, type Page, type PlaywrightWorkerOptions, test } from "@playwright/test";
 
 import { type AxeBreach, axeAudit } from "./axe";
@@ -97,7 +99,12 @@ async function resize(page: Page, size: (typeof WINDOWS)[number]): Promise<void>
 }
 
 /** The modes of the trace that record every run of a test; the others are left as they are. */
-const EVERY_RUN: readonly string[] = ["on", "retain-on-failure", "retain-on-failure-and-retries"];
+const EVERY_RUN: readonly string[] = [
+  "on",
+  "retain-on-failure",
+  "retain-on-first-failure",
+  "retain-on-failure-and-retries",
+];
 
 /**
  * Trace the rest of the test without a snapshot of the page at each action: the walk presses Tab
@@ -106,6 +113,14 @@ const EVERY_RUN: readonly string[] = ["on", "retain-on-failure", "retain-on-fail
  * faults in what it found. `test.use({ trace })` cannot do it for one test, a describe group
  * being refused an option that forces a new worker: the tracing the harness started for the test
  * is restarted with the same options, the snapshots left out, and ends as it would have.
+ *
+ * Only the modes that record the first run of a test are handled (`EVERY_RUN`). `on-first-retry`,
+ * `on-all-retries` and `off` are left as they are: they record nothing on the first run, where
+ * the walk is, and a retry is not a run to rework here. The restart relies on how the harness
+ * ends the trace it opened: `stopChunk` when the context is torn down, which closes the tracing
+ * restarted here as well, with the title below, the one the harness gives. Checked in Playwright
+ * 1.64.1 (`lib/index.js`, `_startTraceChunkOnContextCreation` and `_stopTracing`); to check again
+ * at each rise of its version.
  */
 async function withoutSnapshots(
   page: Page,
@@ -116,7 +131,12 @@ async function withoutSnapshots(
   const { screenshots = true, sources = true } = typeof trace === "string" ? {} : trace;
   const { tracing } = page.context();
   await tracing.stop();
-  await tracing.start({ screenshots, snapshots: false, sources });
+  const info = test.info();
+  const title = [
+    `${path.relative(info.project.testDir, info.file)}:${String(info.line)}`,
+    ...info.titlePath.slice(1),
+  ].join(" \u203A ");
+  await tracing.start({ screenshots, snapshots: false, sources, title });
 }
 
 /** The breaches of the rules of the labels and the descriptions, or of every other rule. */

@@ -171,24 +171,36 @@ export async function walkByTab(page: Page): Promise<Walk> {
   let pressed = 0;
   let taken = 0;
   const going = () => !tally.back && tally.trapped === undefined;
-  while (pressed < PRESSES && going()) {
-    const batch = Math.min(BATCH, PRESSES - pressed);
-    for (let press = 0; press < batch; press += 1) {
-      await page.keyboard.press("Tab");
-    }
-    pressed += batch;
-    for (const focus of await readWalk(page)) {
-      if (!going()) {
-        break;
+  let ended = false;
+  let end: Awaited<ReturnType<typeof finishWalk>>;
+  try {
+    while (pressed < PRESSES && going()) {
+      const batch = Math.min(BATCH, PRESSES - pressed);
+      for (let press = 0; press < batch; press += 1) {
+        await page.keyboard.press("Tab");
       }
-      take(tally, focus);
-      taken += 1;
+      pressed += batch;
+      for (const focus of await readWalk(page)) {
+        if (!going()) {
+          break;
+        }
+        take(tally, focus);
+        taken += 1;
+      }
+    }
+    if (!tally.back) {
+      tally.trapped ??= `no way back to the first element after ${String(PRESSES)} presses`;
+    }
+    ended = true;
+    end = await finishWalk(page, taken);
+  } finally {
+    // A walk cut short (a read that failed, a key that could not be pressed) must not leave the
+    // probe walking: it would swallow every Tab of what comes next.
+    if (!ended) {
+      await finishWalk(page, 0).catch(() => undefined);
     }
   }
-  if (!tally.back) {
-    tally.trapped ??= `no way back to the first element after ${String(PRESSES)} presses`;
-  }
-  const { missed, stopless } = await finishWalk(page, taken);
+  const { missed, stopless } = end;
   const { reached, unseen, covered, unmarked, unjudged, trapped } = tally;
   return {
     reached,

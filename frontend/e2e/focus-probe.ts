@@ -12,11 +12,11 @@
  * the browser twice per element, which the load of a workstation made last past the delay of a
  * test (#1540). A press of Tab heard at its `keyup` — the focus moved by then, or kept, the trap the
  * walk must see — owes a reading, taken when the walk is next heard from: the next press of Tab, as
- * it goes down and before anything of the page sees it, or the walk reading the batch. That is the
+ * it goes down and before any listener the page set after the probe sees it, or the walk reading the batch. That is the
  * moment a reading of its own was taken, after the press and before the next one, whatever the page
  * did meanwhile on a timer or a frame. `focusin` would not do: it fires neither when the focus stays
  * where it is nor when it leaves the document. Once a reading finds the focus back on the first
- * element, the page stops: the presses left of the batch reach neither the page nor the focus, and
+ * element, the page stops: the presses left of the batch reach neither the listeners the page set after the probe nor the focus, and
  * the walk ends where it came back, as when it read each press.
  */
 import type { Page } from "@playwright/test";

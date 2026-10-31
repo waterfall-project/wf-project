@@ -3581,11 +3581,11 @@ two widths:
   loaded workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe
   hears each Tab at its `keyup` — the focus moved, or it stayed, the trap the walk must see — and
   takes the measurement, by the same code, at the moment the walk used to take it: when the page
-  hears the walk again, the next key before anything of the page sees it, or the read of the
+  hears the walk again, the next key before any listener the page set after the probe sees it, or the read of the
   batch. `focusin` is not enough: it fires neither when the focus stays, nor when it leaves the
   document. Back at the first element, the page stops measuring, and the keys left in the batch
-  reach neither the page nor the focus: the second walk always starts from where the first one
-  stopped; what the page measured beyond a trap is not read, nor counted in what Tab did not
+  reach neither the listeners the page set after the probe nor the focus, so that the focus is
+  back on the first element when the next walk starts; what the page measured beyond a trap is not read, nor counted in what Tab did not
   reach. The count of reached elements and of traps stays on the test's side. The walk, and it
   alone, keeps its trace without DOM snapshots (`withoutSnapshots`): a snapshot per key weighed
   more than the walk itself under load (#1540), and its faults are read in its findings.
