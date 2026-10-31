@@ -350,3 +350,30 @@ test("takes a widget that hands the focus to one of its items for reached, and n
   ]);
   expect(walk.missed).toEqual(["button « Carte »"]);
 });
+
+test("ends the walk of the probe when a read fails, so that Tab moves the focus again", async ({
+  page,
+}) => {
+  await write(page, Array.from({ length: 3 }, (_, i) => `<button>B${String(i)}</button>`).join(""));
+  // The probe given, the walk started, then the first read: it fails, one batch of presses in,
+  // when the focus has come back to the first button already.
+  let trips = 0;
+  const failing = new Proxy(page, {
+    get(target, key) {
+      const value: unknown = Reflect.get(target, key, target);
+      if (key === "evaluate") {
+        return (...args: Parameters<Page["evaluate"]>) => {
+          trips += 1;
+          return trips === 3 ? Promise.reject(new Error("read failed")) : target.evaluate(...args);
+        };
+      }
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+  await expect(walkByTab(failing)).rejects.toThrow("read failed");
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B0");
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B1");
+});
