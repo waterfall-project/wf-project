@@ -8,9 +8,9 @@
  * wraps onto a second row, and the page scrolls when the window is too low for the floor of the
  * grid under it (US-0560). A choice only changes the address (`structureHref`), the rest of its
  * query kept, from the address last asked (`usePendingAddress`) — which the screen shares between
- * its banner and its grid (`PendingAddress`), so that a sort asked before the structure arrives keeps it, and the reverse
- * (défaut n° 20 de `typescript.md`); the page reads the grid anew on the structure chosen, which the
- * menu shows checked meanwhile (défaut n° 21).
+ * its banner and its grid (`PendingAddress`), so that a sort asked before the structure arrives
+ * keeps it, and the reverse (défaut n° 20 de `typescript.md`); the page reads the grid anew on the
+ * structure chosen, which the menu shows checked meanwhile (défaut n° 21).
  *
  * Every prop is data, the texts given translated, never a function: the banner, a server component,
  * hands it over (défaut n° 12).
