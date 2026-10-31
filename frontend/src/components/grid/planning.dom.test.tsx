@@ -415,9 +415,14 @@ describe("the grid of the planning", () => {
     expect(
       [studies[at("started_on")], studies[at("completed_on")]].map((c) => c?.textContent),
     ).toEqual(["02/03/2026", ""]);
+    // A leaf completed shows both, as the example gives them.
+    const review = cellsOf("Revue de conception");
+    expect(
+      [review[at("started_on")], review[at("completed_on")]].map((c) => c?.textContent),
+    ).toEqual(["13/04/2026", "24/04/2026"]);
   });
 
-  it("has a column for each column of the contract a block pasted from the float fills, but the critical path the float marks [WF-PLA-0080-A]", () => {
+  it("has a column for each of started_on, completed_on and predecessors, which a block pasted from the float fills [WF-PLA-0080-A]", () => {
     // Un collage de quatre colonnes et plus depuis la marge ne bute plus sur « démarrée le » ni sur
     // « terminée le » (#1649) : il va, dans l'ordre du contrat, jusqu'aux prédécesseurs.
     const task = planning.items[0];
@@ -433,7 +438,11 @@ describe("the grid of the planning", () => {
       "completed_on",
       "predecessors",
     ]);
-    expect(span?.slice(0, 5).filter((column) => !contracts.has(column))).toEqual(["is_critical"]);
+    expect(
+      (["started_on", "completed_on", "predecessors"] as const).filter(
+        (column) => !contracts.has(column),
+      ),
+    ).toEqual([]);
   });
 
   it("names the link in conflict on the manual task and on its predecessor, never by a colour alone [WF-PLA-0020-A]", () => {

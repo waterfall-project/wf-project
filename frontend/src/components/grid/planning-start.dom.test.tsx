@@ -149,9 +149,15 @@ describe("the planning start date of the grid of the planning", () => {
     render(grid());
     // The Saturday of the example.
     await change("2026-12-19");
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /^Les données saisies ne sont pas valides\. Le samedi 19 décembre n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 21 décembre\./,
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      /^Les données saisies ne sont pas valides\. Le samedi 19 décembre n’est pas travaillé sur le calendrier par défaut ; saisis le lundi 21 décembre\./,
     );
+    // Said with the field: in the form that holds it, the field and the refusal together.
+    const form = screen
+      .getByLabelText("Date de début de planning", { selector: "input" })
+      .closest("form");
+    expect(form).toContainElement(alert);
     expect(written(client)).toEqual([{ planning_start_on: "2026-12-19", lock_version: 1 }]);
     // Nothing is applied: the date read stays, and the page is not read anew.
     const region = screen.getByRole("region", { name: "Date de début de planning" });

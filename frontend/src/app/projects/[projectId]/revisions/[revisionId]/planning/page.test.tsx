@@ -163,6 +163,15 @@ describe("the screen of the planning", () => {
     });
   });
 
+  it("gives the grid the planning start date of the structure it reads, which it presents above the tasks [WF-PLA-0020-A]", async () => {
+    const page = await planning();
+    // The 2 March 2026 of the witness, as the server gives it.
+    expect(grid.given.at(-1)?.planningStart?.on).toBe("2026-03-02");
+    expect(page).toMatch(
+      /<section aria-label="Planning start date"(?:(?!<\/section>).)*dateTime="2026-03-02"/,
+    );
+  });
+
   it("gives the grid what the project lists of the creation of a timeline, as the server says it [WF-IHM-0090-A]", async () => {
     await planning();
     expect(grid.given.at(-1)?.timelineCreation).toMatchObject({

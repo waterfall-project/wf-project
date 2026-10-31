@@ -50,7 +50,10 @@ import type { Locale } from "./locale";
  * by field — a refusal by field is itself a code and its parameters.
  */
 export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "params"> & {
-  readonly fields?: readonly Pick<components["schemas"]["FieldProblem"], "params">[] | undefined;
+  readonly fields?:
+    | readonly (Pick<components["schemas"]["FieldProblem"], "params"> &
+        Partial<Pick<components["schemas"]["FieldProblem"], "pointer">>)[]
+    | undefined;
 };
 
 /** The language to write in, its catalogue, and the names of the objects the screen read. */
@@ -89,6 +92,8 @@ type Reader = (
   locale: Locale,
   say: Say,
   names: Readonly<Record<string, string>>,
+  /** The pointer of the field the parameters belong to; none for those of the envelope. */
+  pointer?: string,
 ) => Detail | undefined;
 
 /** A line of an estimate a refusal names (`estimate_lines`): its number and its label. */
@@ -176,6 +181,9 @@ const KEPT_IN_LABOUR: Readonly<Record<string, "cost_type" | "cost_category">> = 
   cost_type_without_role: "cost_type",
   cost_category_without_role: "cost_category",
 };
+
+/** The field of the planning start date of a structure, judged on the default calendar. */
+const STRUCTURE_START = "/planning_start_on";
 
 /** The parameters of the envelope a reader is told about, in the order they are told. */
 const DETAILS: readonly Reader[] = [
@@ -312,13 +320,15 @@ const DETAILS: readonly Reader[] = [
       : undefined,
   // The day a date entered falls on without an hour worked, and the working day that follows, both
   // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
-  ({ date, next_working_day }, _label, locale) =>
+  // The planning start date of a structure (`/planning_start_on`) is judged on the default calendar,
+  // no task being concerned: its refusal says so.
+  ({ date, next_working_day }, _label, locale, _say, _names, pointer) =>
     typeof date === "string" &&
     typeof next_working_day === "string" &&
     isPlanningDate(date) &&
     isPlanningDate(next_working_day)
       ? [
-          "non_working_day",
+          pointer === STRUCTURE_START ? "non_working_day_structure" : "non_working_day",
           {
             date: formatPlanningDay(date, locale),
             next: formatPlanningDay(next_working_day, locale),
@@ -488,11 +498,16 @@ export function problemMessage(
   const label = labelIn(messages);
   const say: Say = (key, values) => t(`problemDetails.${key}`, values);
   const every = [
-    problem.params ?? {},
-    ...(problem.fields ?? []).map((field) => field.params ?? {}),
+    { params: problem.params ?? {}, pointer: undefined },
+    ...(problem.fields ?? []).map((field) => ({
+      params: field.params ?? {},
+      pointer: field.pointer,
+    })),
   ];
   const details = every
-    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale, say, names)))
+    .flatMap(({ params, pointer }) =>
+      DETAILS.map((detail) => detail(params, label, locale, say, names, pointer)),
+    )
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => say(key, values));
   return [t(`errors.${problem.code}`), ...details].join(" ");

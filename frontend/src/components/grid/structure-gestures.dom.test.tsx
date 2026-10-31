@@ -304,8 +304,9 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
       parent_id: node(TASK)?.node_id,
       estimate_line: { cost_category_id: CATEGORY, quantity: "1" },
     });
-    // Told by the task that bears the line, the label the server composes being its own to give.
-    expect(await screen.findByText("« Câblage des armoires » créée.")).toBeVisible();
+    // The label the server composes is its own to give — of the task and of the role, not of the row
+    // acted on, which it is not when the line is inserted below a sister line: told without a name.
+    expect(await screen.findByText("Ligne créée.")).toBeVisible();
   });
 
   it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
