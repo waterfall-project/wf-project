@@ -23,7 +23,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useMessages, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 
@@ -34,6 +34,7 @@ import { DoneNotice } from "@/components/notices/done-notice";
 import { useTrackTask, useWhenTaskSucceeds } from "@/components/tasks/task-tracker";
 import type { TaskCommand } from "@/components/tasks/tracking";
 import { Button } from "@/components/ui/button";
+import { problemMessage } from "@/i18n/problem";
 import type { ProjectState } from "@/navigation/home";
 
 import { Command } from "./command";
@@ -81,7 +82,8 @@ interface ExitFormProps {
   readonly onClose: () => void;
   /** The exit is applied, or — marking — its task handed to the tracker, by its identifier. */
   readonly onDone: (state: ProjectState, marking?: string) => void;
-  readonly onRefused: (outcome: Outcome<unknown>) => void;
+  /** What of a refusal is no field's to say: none when every refusal is said at its field. */
+  readonly onRefused: (outcome: Outcome<unknown> | undefined) => void;
 }
 
 const FIELD = "w-full max-w-md rounded-md border border-input bg-background px-2 py-1";
@@ -105,6 +107,51 @@ function asTask(exit: () => Promise<Outcome<ExitResult>>): TaskCommand {
 }
 const UNAVAILABLE = "aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
 
+type FieldProblem = components["schemas"]["FieldProblem"];
+/** The fields of the confirmation a refusal is said at, by the pointer the contract gives each. */
+const POINTERS = {
+  name: "/current_revision/version_name",
+  fate: "/current_revision",
+} as const;
+type Field = keyof typeof POINTERS;
+type Problems = Readonly<Partial<Record<Field, FieldProblem>>>;
+
+/** The refusals once the user has changed a field: the one said at it goes. */
+function without(problems: Problems, field: Field): Problems {
+  return Object.fromEntries(Object.entries(problems).filter(([name]) => name !== field));
+}
+
+/**
+ * The refusals of the API the confirmation says at a field, and the outcome to tell under the
+ * command: none when every refusal is said at its field.
+ */
+function placed(outcome: Outcome<unknown>): {
+  readonly problems: Problems;
+  readonly told: Outcome<unknown> | undefined;
+} {
+  if (!("problem" in outcome) || outcome.problem.fields === undefined) {
+    return { problems: {}, told: outcome };
+  }
+  let problems: Problems = {};
+  const rest = outcome.problem.fields.filter((problem) => {
+    const field = (Object.keys(POINTERS) as Field[]).find(
+      (name) => POINTERS[name] === problem.pointer,
+    );
+    if (field !== undefined) {
+      problems = { ...problems, [field]: problem };
+    }
+    return field === undefined;
+  });
+  if (rest.length === outcome.problem.fields.length) {
+    return { problems, told: outcome };
+  }
+  return {
+    problems,
+    told:
+      rest.length === 0 ? undefined : { ...outcome, problem: { ...outcome.problem, fields: rest } },
+  };
+}
+
 /** Confirm an exit, with its motive if the user gives one, and ask the API for it. */
 function ExitForm({
   id,
@@ -124,6 +171,14 @@ function ExitForm({
   const [fate, setFate] = useState<Fate>();
   const [versionName, setVersionName] = useState("");
   const [description, setDescription] = useState("");
+  const locale = useLocale();
+  const messages = useMessages();
+  // The refusals said at their fields, the client's own or the API's, and the field refused first,
+  // which takes the focus in the commit after the one that says it: focused, it is heard with it.
+  const [problems, setProblems] = useState<Problems>({});
+  const [focused, setFocused] = useState<{ readonly name: Field }>();
+  const nameInput = useRef<HTMLInputElement>(null);
+  const firstFate = useRef<HTMLInputElement>(null);
   // Busy from the confirmation to the answer, and lifted in the very update that tells it — not a
   // transition, whose end would wait for every other async action of the page (#1484).
   const [busy, setBusy] = useState(false);
@@ -131,15 +186,43 @@ function ExitForm({
   useEffect(() => {
     input.current?.focus();
   }, []);
+  useEffect(() => {
+    if (focused !== undefined) {
+      (focused.name === "name" ? nameInput : firstFate).current?.focus();
+    }
+  }, [focused]);
   const state = EXIT_STATES[command];
+
+  /** Say the refusals at their fields, and give the focus to the first one: the fate, then the name. */
+  const refuse = (refused: Problems) => {
+    setProblems(refused);
+    const first =
+      refused.fate === undefined ? (refused.name === undefined ? undefined : "name") : "fate";
+    if (first !== undefined) {
+      setFocused({ name: first });
+    }
+  };
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) {
       return;
     }
-    // The fate of the revision is the user's choice (WF-CYC-0090-A): without one the API refuses
-    // the exit, and the refusal is told under the confirmation.
+    // The fate of the revision is the user's choice (WF-CYC-0090-A), and a marking needs its version
+    // name (WF-REV-0020): the page says what lacks at its field, without asking the API.
+    if (
+      hasCurrentRevision &&
+      (fate === undefined || (fate === "mark" && versionName.trim() === ""))
+    ) {
+      refuse({
+        [fate === undefined ? "fate" : "name"]: {
+          pointer: fate === undefined ? POINTERS.fate : POINTERS.name,
+          code: "VALUE_REQUIRED",
+        },
+      });
+      return;
+    }
+    setProblems({});
     const current_revision =
       fate === "mark"
         ? {
@@ -164,7 +247,9 @@ function ExitForm({
       .then((result) => {
         setBusy(false);
         if (result.kind !== "done") {
-          onRefused(result);
+          const refused = placed(result);
+          refuse(refused.problems);
+          onRefused(refused.told);
         } else if ("marking" in result.data) {
           track(result.data.marking, { command: asTask(command), subject: versionName });
           onDone(state, result.data.marking.task_id);
@@ -179,6 +264,7 @@ function ExitForm({
       id={id}
       aria-label={t(`enums.ProjectCommand.${command}`)}
       aria-busy={busy}
+      noValidate
       onSubmit={submit}
       className="max-w-xl space-y-2 rounded-md border p-3 text-sm"
     >
@@ -200,21 +286,32 @@ function ExitForm({
         className={FIELD}
       />
       {hasCurrentRevision ? (
-        <fieldset className="space-y-1">
+        <fieldset
+          className="space-y-1"
+          aria-invalid={problems.fate === undefined ? undefined : true}
+          aria-describedby={problems.fate === undefined ? undefined : `${field}-fate-problem`}
+        >
           <legend className="font-medium">{t("exitProject.fate")}</legend>
           {(["mark", "abandon"] as const).map((action) => (
             <label key={action} className="flex items-start gap-2">
               <input
                 type="radio"
+                ref={action === "mark" ? firstFate : undefined}
                 name={`${field}-fate`}
                 checked={fate === action}
                 onChange={() => {
                   setFate(action);
+                  setProblems(without(problems, "fate"));
                 }}
               />
               {t(`exitProject.${action}`)}
             </label>
           ))}
+          {problems.fate === undefined ? null : (
+            <p id={`${field}-fate-problem`} role="alert" className="text-sm text-destructive">
+              {problemMessage(problems.fate, { locale, messages })}
+            </p>
+          )}
           {fate === "mark" ? (
             <div className="space-y-1 pl-6">
               <label htmlFor={`${field}-version`} className="block font-medium">
@@ -222,13 +319,23 @@ function ExitForm({
               </label>
               <input
                 id={`${field}-version`}
+                ref={nameInput}
                 value={versionName}
                 maxLength={100}
+                aria-required
+                aria-invalid={problems.name === undefined ? undefined : true}
+                aria-describedby={problems.name === undefined ? undefined : `${field}-name-problem`}
                 onChange={(event) => {
                   setVersionName(event.target.value);
+                  setProblems(without(problems, "name"));
                 }}
                 className={`h-9 ${FIELD}`}
               />
+              {problems.name === undefined ? null : (
+                <p id={`${field}-name-problem`} role="alert" className="text-sm text-destructive">
+                  {problemMessage(problems.name, { locale, messages })}
+                </p>
+              )}
               <label htmlFor={`${field}-description`} className="block font-medium">
                 {t("exitProject.description")}
               </label>

@@ -15,12 +15,11 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 test("a command the project cannot take now is shown unavailable, naming the condition it lacks [WF-IHM-0090-A]", async ({
   page,
 }) => {
-  // The example of the Vérif of WF-IHM-0090-A — completing a project in pricing — is proved by the
-  // test of the component only (`exit-command.dom.test.tsx`): no example the fake back serves
-  // first lists it. What this journey plays end to end is the same rule on a command it does serve,
-  // the opening of a revision while one is current; the condition itself, as the opening names it,
-  // is also read by `revision-cycle.spec.ts` (WF-REV-0010-A) — here the presentation is proved:
-  // shown beside the command, in the order of the keyboard, doing nothing when pressed.
+  // The example of the Vérif (completing a project in pricing) is not served by the fake back: only
+  // `exit-command.dom.test.tsx` proves it. This journey plays the same rule on a command it does
+  // serve, opening a revision. `revision-cycle.spec.ts` reads the same condition for its refusal
+  // (WF-REV-0010-A); this one proves its presentation: shown beside the command, kept in the
+  // keyboard order, doing nothing when pressed.
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const commands = page.getByRole("main").getByRole("region", { name: "Commandes" });
 

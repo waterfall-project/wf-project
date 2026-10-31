@@ -151,30 +151,6 @@ async function confirm(name: string, options: { revision?: boolean } = {}) {
   await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
 }
 
-/**
- * The fake back for an exit that marks: it answers the exit with the task of the contract (202)
- * and reads of that task the examples of the contract, running then succeeded, under the
- * identifier the exit's task bears — the contract has no running or succeeded example for it, only
- * for the marking's own. It gives back the bodies of the exits it received.
- */
-function serveMarking(): unknown[] {
-  const queued = example("task_exit_mark_queued") as { task_id: string };
-  const reads = ["task_running", "task_succeeded"].map((name) => ({
-    ...(example(name) as object),
-    task_id: queued.task_id,
-  }));
-  const sent: unknown[] = [];
-  const answer = async (request: Request): Promise<Response> => {
-    if (request.method === "POST") {
-      sent.push(await request.json());
-      return Response.json(queued, { status: 202 });
-    }
-    return Response.json(reads.length > 1 ? reads.shift() : reads[0]);
-  };
-  server.client = createApiClient({ address: "http://fake.invalid", fetch: answer });
-  return sent;
-}
-
 /** Let the time of one read of the task go by, and the read be answered. */
 async function tick() {
   await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
@@ -322,7 +298,11 @@ describe("the exits of the lifecycle of a project", () => {
   it("marks the current revision under the version name given, and follows the task of the marking until the exit applies [WF-CYC-0090-A] [WF-REV-0020] [WF-IHM-0080]", async () => {
     // La sortie qui marque rend 202 et la tâche ; elle s'applique à la réussite de la tâche.
     forgetMessages();
-    const sent = serveMarking();
+    // The exit answers the task of the contract (202), read running then succeeded.
+    const client = serve({
+      [EXIT]: { example: "task_exit_mark_queued", status: 202 },
+      [TASK]: ["task_exit_mark_running", "task_exit_mark_succeeded"],
+    });
     open();
     await userEvent.click(exit("Terminer le projet"));
     await chooseMarking();
@@ -331,7 +311,7 @@ describe("the exits of the lifecycle of a project", () => {
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });
-    expect(sent).toEqual([
+    expect(exits(client)).toEqual([
       { to_state: "completed", confirmed: true, lock_version: LOCK, current_revision: MARKING },
     ]);
     // The task is followed by the tracker as a marking; nothing is applied yet: the page is not
@@ -360,8 +340,11 @@ describe("the exits of the lifecycle of a project", () => {
 
   it("applies nothing when the task of the marking fails, and runs the same exit again from the tracker [WF-IHM-0080] [WF-CYC-0090-A]", async () => {
     const client = serve({
-      [EXIT]: { example: "task_exit_mark_queued", status: 202 },
-      [TASK]: "task_failed",
+      [EXIT]: [
+        { example: "task_exit_mark_queued", status: 202 },
+        { example: "task_exit_mark_relaunched", status: 202 },
+      ],
+      [TASK]: "task_exit_mark_failed",
     });
     open();
     await userEvent.click(exit("Terminer le projet"));
@@ -400,26 +383,107 @@ describe("the exits of the lifecycle of a project", () => {
     expect(within(tasksRegion()).queryByRole("list")).toBeNull();
   });
 
+  it("says a version name missing at its field, the field focused, and asks nothing of the API [WF-CYC-0090-A] [WF-REV-0020]", async () => {
+    const client = serve({});
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await choose("mark");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    const field = screen.getByRole("textbox", { name: "Nom de version" });
+    expect(screen.getByRole("alert")).toHaveTextContent("Une valeur est requise.");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Une valeur est requise.");
+    await waitFor(() => {
+      expect(field).toHaveFocus();
+    });
+    // Spaces are no name either; typing takes the notice away.
+    await userEvent.type(field, "   ");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(exits(client)).toEqual([]);
+  });
+
+  it("says a fate not chosen at its group, the first choice focused, and asks nothing of the API [WF-CYC-0090-A]", async () => {
+    const client = serve({});
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    const group = screen.getByRole("group", { name: "Sort de la révision en cours" });
+    expect(within(group).getByRole("alert")).toHaveTextContent("Une valeur est requise.");
+    expect(group).toHaveAccessibleDescription("Une valeur est requise.");
+    await waitFor(() => {
+      expect(within(group).getAllByRole("radio")[0]).toHaveFocus();
+    });
+    // Choosing takes the notice away.
+    await choose("abandon");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(exits(client)).toEqual([]);
+  });
+
   it.each([
-    ["the version name missing", refused("project_exit_version_name_required", 422)],
-    ["the version name taken", refused("project_exit_version_name_taken", 409)],
-    ["the fate missing", refused("project_exit_revision_required", 422)],
-    ["the counter stale", { problem: { code: "STALE_LOCK_VERSION", status: 412 } } as const],
-  ])(
-    "tells under the confirmation an exit refused for %s, which stays open and follows no task [WF-CYC-0090-A]",
-    async (_, refusal) => {
+    [
+      "the version name missing, at the version name",
+      refused("project_exit_version_name_required", 422),
+      "mark",
+      "Nom de version",
+      "Une valeur est requise.",
+    ],
+    [
+      "the version name taken, at the version name",
+      refused("project_exit_version_name_taken", 409),
+      "mark",
+      "Nom de version",
+      "Cet élément existe déjà.",
+    ],
+    [
+      "the fate missing, at the fate",
+      refused("project_exit_revision_required", 422),
+      "abandon",
+      undefined,
+      "Une valeur est requise.",
+    ],
+  ] as const)(
+    "tells an exit refused for %s, which stays open and follows no task [WF-CYC-0090-A]",
+    async (_, refusal, fate, field, message) => {
       serve({ [EXIT]: refusal });
       open();
       await userEvent.click(exit("Terminer le projet"));
-      await choose("mark");
+      await choose(fate);
+      if (field !== undefined) {
+        await userEvent.type(screen.getByRole("textbox", { name: field }), "Référence");
+      }
       await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
       const alert = await screen.findByRole("alert");
-      expect(alert).toHaveTextContent(/\S/);
+      expect(alert).toHaveTextContent(message);
+      // Said at its field: the field it points at is described by it, and takes the focus.
+      const described =
+        field === undefined
+          ? screen.getByRole("group", { name: "Sort de la révision en cours" })
+          : screen.getByRole("textbox", { name: field });
+      expect(described).toHaveAccessibleDescription(message);
+      if (field !== undefined) {
+        await waitFor(() => {
+          expect(described).toHaveFocus();
+        });
+      }
       expect(screen.getByRole("form", { name: "Terminer le projet" })).toBeInTheDocument();
       expect(within(tasksRegion()).queryByRole("list")).toBeNull();
       expect(router.refresh).not.toHaveBeenCalled();
     },
   );
+
+  it("tells under the confirmation an exit refused for a stale counter, which stays open and follows no task [WF-CYC-0090-A]", async () => {
+    serve({ [EXIT]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
+    open();
+    await userEvent.click(exit("Terminer le projet"));
+    await choose("abandon");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmer la sortie" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/\S/);
+    expect(screen.getByRole("form", { name: "Terminer le projet" })).toBeInTheDocument();
+    expect(within(tasksRegion()).queryByRole("list")).toBeNull();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
 
   it("sends no current revision when the project carries none [WF-CYC-0090-A]", async () => {
     const client = serve({ [EXIT]: "project_completed" });
