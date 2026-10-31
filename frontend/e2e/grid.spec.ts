@@ -273,8 +273,8 @@ test.describe("on a narrow window", () => {
       .selectOption({ label: "Lot\u00a0: Lot 1" });
     const chip = banner.getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
     await expect(chip).toHaveText(["Lot : Lot 1, sur la grille seulement"], { timeout: WORKING });
-    await expect(chip).toBeInViewport();
-    await expect(source).toBeInViewport();
+    await expect(chip).toBeInViewport({ ratio: 1 });
+    await expect(source).toBeInViewport({ ratio: 1 });
     expect(await isUncut(source)).toBe(true);
     expect(disjoint(await chip.boundingBox(), await source.boundingBox())).toBe(true);
   });

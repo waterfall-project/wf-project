@@ -242,8 +242,8 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
  * The structure read, and the others of the revision offered when it has some — each named by its
  * label and whether it is merged, under the name of its kind but for the main one. A grid opened on a
  * differential, or on the own estimate of a risk, names it and its kind in a badge (WF-IHM-0020); the
- * main structure, which the head of the grid names too, is named to a screen reader alone, so that
- * the banner stays short — and not at all when the revision has no other, nothing being offered.
+ * main structure, which the head of the grid names already, is named to a screen reader alone — and
+ * not at all when the revision has no other, nothing being offered.
  */
 function StructureFacts({ structure }: { readonly structure: StructureChoices }) {
   const t = useTranslations();

@@ -107,9 +107,10 @@ describe("the banner of the reading context", () => {
     const region = () => screen.getByRole("region");
     const source = within(region()).getByText("Copie de « Référence »");
     expect(source).toBeInTheDocument();
-    // The source is shown at every width: neither it nor an ancestor in the banner is `sr-only`.
+    // The source is shown at every width: neither it nor an ancestor in the banner is `sr-only` or
+    // `hidden`, whatever the breakpoint variant.
     for (let node: Element | null = source; node !== null; node = node.parentElement) {
-      expect(node).not.toHaveClass("sr-only");
+      expect(node.className).not.toMatch(/(^|\s|:)(sr-only|hidden)(\s|$)/);
       if (node === region()) {
         break;
       }
