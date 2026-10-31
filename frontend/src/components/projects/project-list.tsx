@@ -21,8 +21,9 @@ import { parametersHref } from "@/components/portfolio/address";
 import { NoProjects } from "@/components/system/empty-states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { CONTRIBUTOR_PARAMETER, HOME } from "@/navigation/home";
+import { CONTRIBUTOR_PARAMETER, DEFAULT_STATES, HOME } from "@/navigation/home";
 
+import { ProjectStateBadge } from "./project-state-badge";
 import type { ListedProjectPage, ListedProjectRow, ListedProjectSort } from "./project-list-grid";
 import { ProjectListGrid } from "./project-list-view";
 
@@ -72,6 +73,26 @@ export function ContributorFilter({ filtered, mayLift, query }: ContributorFilte
           {t("apply")}
         </Link>
       )}
+    </section>
+  );
+}
+
+/**
+ * The filter by default of the list by state, said as the filter of the contributor is: shown while
+ * it applies — the states retained are pricing and in progress, by the address, the account's
+ * settings or neither —, and lifted by « Tous les états » of the filter by state beside it.
+ */
+export function DefaultStatesFilter() {
+  const t = useTranslations("projectList.filter");
+  return (
+    <section aria-label={t("defaultLabel")} className="flex flex-wrap items-center gap-2 text-sm">
+      <Badge variant="outline">
+        <ListFilter aria-hidden="true" />
+        {t("defaultStates")}
+      </Badge>
+      {DEFAULT_STATES.map((state) => (
+        <ProjectStateBadge key={state} state={state} />
+      ))}
     </section>
   );
 }

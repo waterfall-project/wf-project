@@ -1725,6 +1725,8 @@
       "apply": "Show only my projects",
       "states": "Filter by state",
       "everyState": "Every state",
+      "defaultLabel": "Default filter of the list by state",
+      "defaultStates": "By default:",
       "period": "Modification period"
     },
     "periodRefused": "The list is not read: the server refuses the period asked."

@@ -13,6 +13,7 @@ import {
   readValues,
   refusedBounds,
   refusedSides,
+  readFilter,
   valuesHref,
   withoutParameters,
 } from "./filters";
@@ -66,6 +67,25 @@ describe("the filters of a list in the address", () => {
     expect(
       filterHref("/x", pages, "include_inactive", "true", ["role_offset", "calendar_offset"]),
     ).toBe("/x?sort_by=code&include_inactive=true");
+  });
+});
+
+describe("a filter with a default in the address", () => {
+  it("writes its lifted value for none, or every value, so that an address without the parameter keeps meaning the default", () => {
+    const query = new URLSearchParams("sort_by=code&offset=50");
+    const filter = { name: "states", values: ORIGINS, page: "offset", lifted: "all" };
+    expect(valuesHref("/", query, filter, [])).toBe("/?sort_by=code&states=all");
+    expect(valuesHref("/", query, filter, [...ORIGINS])).toBe("/?sort_by=code&states=all");
+    expect(valuesHref("/", query, filter, ["local"])).toBe("/?sort_by=code&states=local");
+  });
+
+  it("reads the values by default for an address that does not name the parameter, and none for one that lifts it", () => {
+    const filter = { name: "states", values: ORIGINS, unnamed: ["local" as const] };
+    expect(readFilter(new URLSearchParams(), filter)).toEqual(["local"]);
+    expect(readFilter(new URLSearchParams("states=all"), filter)).toEqual([]);
+    expect(readFilter(new URLSearchParams("states=identity_provider"), filter)).toEqual([
+      "identity_provider",
+    ]);
   });
 });
 

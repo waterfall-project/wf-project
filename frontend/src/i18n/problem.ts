@@ -483,9 +483,9 @@ function labelIn(messages: Catalogue): Label {
 }
 
 /**
- * The codes of the other reasons a refusal gives for the field it was reduced to (`byField`, #1533):
- * the fields that point where the field of its own code points, with another code, once each. None
- * for an envelope that was not reduced to a field's code.
+ * The codes of the other reasons a refusal gives for the field it was reduced to (`byField`,
+ * #1533): the fields that point where the field of its own code points, with another code, once
+ * each. None for an envelope that was not reduced to a field's code.
  */
 function furtherReasons({ code, fields = [] }: ProblemText): readonly ProblemText["code"][] {
   const own = fields.find((field) => field.code === code);

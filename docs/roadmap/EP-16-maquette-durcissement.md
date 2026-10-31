@@ -1706,7 +1706,7 @@ par une version ne bouscule pas la grille que j'ai réglée.
 
 ## US-0660 — Ce que le contrat décrit, adopté par les écrans
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : celles des six points de #1142, celles des saisies que refuse
   `TASK_WITHOUT_WORKING_HOURS`, et celles qu'US-0640/L6 modifie — `listRisks`, `createNode`, les
