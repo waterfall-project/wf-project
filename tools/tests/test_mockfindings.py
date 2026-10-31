@@ -18,6 +18,7 @@ from typing import Any, cast
 import yaml
 
 from wftools import REPOSITORY, mocknonworking
+from wftools.mockhistory import RISKS_PAGE
 from wftools.mockwitness import default_calendar, fixture
 
 API = REPOSITORY / "docs" / "api"
@@ -146,8 +147,8 @@ def test_the_register_of_the_risks_is_paged_its_totals_on_every_risk_retained() 
         register = fixture(name)
         if name == "risks_page":
             # A page shorter than the register: its count and its totals of the whole (US-0660/L3).
-            assert register["meta"] == {"limit": 2, "offset": 0, "total": len(whole["items"])}
-            assert register["items"] == whole["items"][:2]
+            assert register["meta"] == {"limit": RISKS_PAGE, "offset": 0, "total": len(whole["items"])}
+            assert register["items"] == whole["items"][:RISKS_PAGE]
             assert register["totals"] == whole["totals"]
             continue
         assert register["meta"] == {"limit": 50, "offset": 0, "total": len(register["items"])}
