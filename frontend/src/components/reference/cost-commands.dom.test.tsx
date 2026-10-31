@@ -851,19 +851,16 @@ describe("the activation of a nature or a category", () => {
 
   it("presents the reactivation of a category deactivated with its nature unavailable, with its condition, and runs nothing when pressed [WF-REF-0010-A]", async () => {
     const client = serve();
-    const deactivated = example("cost_category_deactivated") as CostCategory;
-    // The row the page reads once the nature is deactivated: the category with it, and no way back
-    // before the nature (`cost_type_active`).
-    const cascaded: CostCategory = {
-      ...deactivated,
-      cost_type_is_active: false,
-      available_commands: [
-        { command: "reactivate", is_available: false, missing_conditions: ["cost_type_active"] },
-      ],
-    };
+    // The row the page reads once the nature is deactivated (`cost_type_active` missing).
+    const [cascaded] = (
+      example("volume/cost_categories_type_deactivated") as { items: CostCategory[] }
+    ).items;
+    if (cascaded === undefined) {
+      throw new Error("the example holds a category");
+    }
     render(categoryList([cascaded]));
     const command = screen.getByRole("button", {
-      name: "Réactiver «\u00a0Matériel électrique\u00a0»",
+      name: "Réactiver «\u00a0Sous-traitance\u00a0»",
     });
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAccessibleDescription(
@@ -871,7 +868,7 @@ describe("the activation of a nature or a category", () => {
     );
     await userEvent.click(command);
     expect(announced()).toContain(
-      "La réactivation de «\u00a0Matériel électrique\u00a0» est indisponible. Condition non remplie\u00a0: nature de coût active.",
+      "La réactivation de «\u00a0Sous-traitance\u00a0» est indisponible. Condition non remplie\u00a0: nature de coût active.",
     );
     expect(client.calls).toEqual([]);
   });
@@ -882,20 +879,11 @@ describe("the activation of a nature or a category", () => {
         problem: example("cost_category_reactivation_refused") as Problem & { status: 409 },
       },
     });
-    const [category] = first;
-    if (category === undefined) {
-      throw new Error("the volumes hold a category");
-    }
-    const deactivated = {
-      ...category,
-      is_active: false,
-      available_commands: [
-        { command: "reactivate" as const, is_available: true, missing_conditions: [] },
-      ],
-    };
-    render(categoryList([deactivated]));
+    // The row as the page read it before the nature was deactivated elsewhere: the command is
+    // offered, and the server refuses it.
+    render(categoryList([example("cost_category_deactivated") as CostCategory]));
     await userEvent.click(
-      screen.getByRole("button", { name: "Réactiver «\u00a0Sous-traitance\u00a0»" }),
+      screen.getByRole("button", { name: "Réactiver «\u00a0Matériel électrique\u00a0»" }),
     );
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("nature de coût active");

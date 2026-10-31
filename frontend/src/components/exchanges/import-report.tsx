@@ -343,7 +343,9 @@ function Findings({ report }: { readonly report: Report }) {
 
 /**
  * What the import may still be asked: a file the report rejects whole is applied no more, and only
- * its abandonment stays offered (`import_file_accepted`, WF-INTF-0040).
+ * its abandonment stays offered (`import_file_accepted`, WF-INTF-0040). The contract lists no
+ * commands on an import (`Import` has no `available_commands`; the project's offer is not about
+ * one import), so the report itself says it: the one rule the screen reads from it.
  */
 function stepsOf(entry: Import): (typeof IMPORT_STEPS)[Import["status"]] {
   const steps = IMPORT_STEPS[entry.status];

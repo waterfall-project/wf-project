@@ -121,6 +121,47 @@ describe("the refusal of a cell that would leave a task without a working hour (
       { resource_role_id: "01926f3a-7c00-7000-8000-000000000454", lock_version: 1 },
     ]);
   });
+
+  it("says the roles of the refusal are unnamed, by no identifier and no blank, when neither a line shown nor the roles the session reads know them [WF-PLA-0010-A]", async () => {
+    // An estimator reads the active roles alone (`resource_settings.read` missing): the two roles of
+    // the refusal are deactivated, and no line of the grid bears them.
+    const refused = example("estimate_line_without_hours") as Problem & { status: 422 };
+    const unknown = [AUTOMATION_ENGINEER, "01926f3a-7c00-7000-8000-000000000455"];
+    const client = fakeClient({
+      [LINE]: {
+        problem: { ...refused, params: { ...refused.params, resource_role_ids: unknown } },
+      },
+    });
+    server.client = client;
+    const reference = estimateReference();
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          nodes={estimate}
+          structure={STRUCTURE}
+          structureVersion={1}
+          reference={{ ...reference, roles: reference.roles?.filter((role) => role.active) }}
+          editable
+          tasksEditable
+          query={NO_QUERY}
+          filters={{}}
+          preferences={SHOWN}
+        />
+      </NextIntlClientProvider>,
+    );
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle" }),
+      "Monteur câbleur",
+    );
+    await userEvent.keyboard("{Tab}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Les calendriers de ses rôles ne se recoupent aucun jour.");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+    expect(alert).not.toHaveTextContent("000000000453");
+    expect(alert).not.toHaveTextContent("Automaticien");
+  });
 });
 
 describe("the sub-project, the payment delay and the deactivated object of a line (#349)", () => {
