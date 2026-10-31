@@ -37,6 +37,8 @@ export interface GanttTask {
   readonly is_summary: boolean;
   readonly is_milestone: boolean;
   readonly is_critical?: boolean;
+  /** The links this task is in conflict by, named by the bar (WF-PLA-0020). */
+  readonly link_conflicts?: components["schemas"]["LinkConflict"][];
   /** The hours of each weekday of its calendar: a day at 0 hours is a day off (US-0530/L5). */
   readonly calendar_hours?: WeeklyHours;
 }
@@ -44,6 +46,8 @@ export interface GanttTask {
 /** What the Gantt reads of a row: its identity, its task, its links. */
 export interface GanttRow {
   readonly node_id: string;
+  /** Its row number, which names a link in conflict. */
+  readonly row_number?: number;
   readonly task?: GanttTask | null;
   readonly predecessors?: readonly Predecessor[];
 }

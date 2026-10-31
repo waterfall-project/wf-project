@@ -52,6 +52,7 @@ import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
 import { DenseGrid } from "./dense-grid";
+import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeFilters,
@@ -71,6 +72,7 @@ import {
   type PlanningWrites,
 } from "./planning";
 import type { BreakdownItem } from "./planning-attachment";
+import { PlanningStart } from "./planning-start";
 import type { GridQuery } from "./query";
 import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
@@ -113,6 +115,12 @@ export interface PlanningGridProps {
    * among, given where the planning may be entered; none, and the attachment is read only.
    */
   readonly breakdown?: readonly BreakdownItem[] | undefined;
+  /**
+   * The planning start date of the structure read (`CostStructure.planning_start_on`) and how the
+   * screen names the structure: shown above the grid, and entered where the structure lists
+   * `edit_planning` (`updateCostStructure`, WF-PLA-0020). None, and the grid shows none.
+   */
+  readonly planningStart?: { readonly on: string; readonly label: string } | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -285,6 +293,7 @@ export function PlanningGrid({
   editable,
   breakdown,
   skeleton,
+  planningStart,
   timelines,
   timelineCreation,
   differential,
@@ -455,35 +464,52 @@ export function PlanningGrid({
           ),
         };
   const offered = nodes.items.length === 0 || ours !== undefined;
+  // The row of a task of the rows read, by its node, which a link in conflict is named by.
+  const rowNumbers = useMemo(() => {
+    const numbers = new Map(shown.items.map((node) => [node.node_id, node.row_number]));
+    return (nodeId: string) => numbers.get(nodeId);
+  }, [shown.items]);
   return (
     <>
+      {planningStart === undefined ? null : (
+        <PlanningStart
+          structure={structure}
+          planningStart={planningStart.on}
+          read={structureVersion}
+          label={planningStart.label}
+          account={account}
+          editable={editable === true}
+        />
+      )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (
         <SkeletonOffer offer={skeleton} generate={generate} generated={ours} />
       ) : null}
-      <DenseGrid
-        config={config}
-        rows={shown.items}
-        totals={shown.totals}
-        totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
-        query={query}
-        preferences={preferences}
-        dependencies={dependencies}
-        foldScope={structure.revision_id}
-        narrowing={nodeNarrowing(filters)}
-        undoable={undoable}
-        commands={zoomed}
-        around={(rows, table) => (
-          <GanttRows
-            rows={rows}
-            scope={`${config.key}:${structure.revision_id}`}
-            hoursPerDay={gantt?.hoursPerDay}
-            exported={gantt?.exported}
-          >
-            {table}
-            <GanttLegend />
-          </GanttRows>
-        )}
-      />
+      <RowNumbers value={rowNumbers}>
+        <DenseGrid
+          config={config}
+          rows={shown.items}
+          totals={shown.totals}
+          totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
+          query={query}
+          preferences={preferences}
+          dependencies={dependencies}
+          foldScope={structure.revision_id}
+          narrowing={nodeNarrowing(filters)}
+          undoable={undoable}
+          commands={zoomed}
+          around={(rows, table) => (
+            <GanttRows
+              rows={rows}
+              scope={`${config.key}:${structure.revision_id}`}
+              hoursPerDay={gantt?.hoursPerDay}
+              exported={gantt?.exported}
+            >
+              {table}
+              <GanttLegend />
+            </GanttRows>
+          )}
+        />
+      </RowNumbers>
     </>
   );
 }

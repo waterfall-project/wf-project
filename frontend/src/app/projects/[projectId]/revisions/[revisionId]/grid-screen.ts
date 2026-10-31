@@ -169,6 +169,8 @@ export interface GridScreen<Row> {
   readonly structure: StructurePath;
   /** The version of the structure read, which every write of the grid goes on from (#201, #819.7). */
   readonly structureVersion: number;
+  /** The planning start date of the structure read (`CostStructure.planning_start_on`). */
+  readonly planningStart: string;
   /**
    * The structure read and those of the revision, which the banner names and offers; none for a
    * grid that reads the main structure alone (`GridReading.chooses`).
@@ -315,6 +317,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     kind: read.kind,
     structure,
     structureVersion: read.lock_version,
+    planningStart: read.planning_start_on,
     structures: chooses
       ? { read: listedStructure(read), listed: structures.map(listedStructure) }
       : undefined,

@@ -840,7 +840,7 @@ describe("the banner of the reading context on the witness path", () => {
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Revision Current revision Draft Structure Structure principale Subproject: No subproject Costing and estimate /,
+      /^Project Modernisation du poste de commande Revision Current revision Draft Copy of “Référence” Structure Structure principale Subproject: No subproject Costing and estimate /,
     );
     expect(html).toContain('aria-label="Remove the filter “Subproject: No subproject”"');
   });

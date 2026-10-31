@@ -11,11 +11,14 @@
  * inscribed to (`setNodeTracking`), a block pasted from a
  * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
  * (`listNodes`), the skeleton of the planning generated on an empty main structure
- * (`generatePlanningSkeleton`) —: the grid asks the server of Next,
+ * (`generatePlanningSkeleton`), the planning start date of a structure written (`updateStructure`)
+ * —: the grid asks the server of Next,
  * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
  * (`src/api/problem.ts`).
  */
 "use server";
+
+import { refresh } from "next/cache";
 
 import type { components, operations } from "@/api/generated/schema";
 import { decode, type Outcome } from "@/api/problem";
@@ -343,4 +346,27 @@ export async function generatePlanningSkeleton(
       params: { path: { project_id: projectId, revision_id: revisionId } },
     }),
   );
+}
+
+/**
+ * Write the planning start date of a structure, with the version of the structure read (WF-PLA-0020):
+ * the API answers the tasks it redates, their amounts and the totals, with the version the structure
+ * moved on to — or refuses a day without a working hour (422 `NON_WORKING_DAY`, at `/planning_start_on`)
+ * or a version it no longer has. The page is read anew once it is written: the tasks it redates are
+ * the server's again, in the grid and in the Gantt.
+ */
+export async function updateStructure(
+  structure: StructurePath,
+  update: components["schemas"]["StructureUpdate"],
+): Promise<Outcome<NodesWritten>> {
+  const outcome = await decode(() =>
+    serverClient().PATCH(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}",
+      { params: { path: structure }, body: update },
+    ),
+  );
+  if (outcome.kind === "done") {
+    refresh();
+  }
+  return outcome;
 }

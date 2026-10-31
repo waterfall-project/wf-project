@@ -440,6 +440,19 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it("says the default calendar, not the one of a task, when the planning start date of a structure is refused [WF-PLA-0020-A]", () => {
+    const refused = example("structure_start_non_working_day") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Le samedi 19 décembre n’est pas travaillé sur le " +
+        "calendrier par défaut ; saisis le lundi 21 décembre.",
+    );
+    expect(say(refused, "en")).toContain("is not worked on the default calendar; enter");
+    // A task's date keeps the calendar of the task.
+    expect(say(example("task_date_non_working_day") as ProblemText, "en")).toContain(
+      "is not worked on the calendar of the task; enter",
+    );
+  });
+
   it("tells the dates a summary task takes from its subordinates, in the language of the reader, when a file corrects its manual mode [WF-PLA-0040-A]", () => {
     const signal = {
       code: "SUMMARY_TASK_DERIVED",

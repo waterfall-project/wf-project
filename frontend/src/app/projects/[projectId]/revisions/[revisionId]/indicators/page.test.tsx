@@ -362,7 +362,7 @@ describe("the screen of the indicators of a project", () => {
       });
     }
     expect(page).toContain(
-      "Revision Référence Marked Reference revision Revision of the calculation Current revision",
+      "Revision Référence Marked Copy of “Offre v1.0” Reference revision Revision of the calculation Current revision",
     );
     // The evolution of the indices is computed on the revision of the indicators, which the banner
     // names: the head of the screen says nothing that would contradict it.

@@ -181,6 +181,7 @@ afterEach(() => {
 
 // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment delay,
 // inactive object, amount at the year of reference.
+const CATEGORY = 2;
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
@@ -440,6 +441,24 @@ describe("a value of a grid the server computes", () => {
       "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
+  });
+
+  it("marks the category of a line of labour, the one of its role, and names the role it depends on [WF-DEV-0020-A]", async () => {
+    // La catégorie d'une ligne de main-d'œuvre est celle de son rôle, calculée ; celle d'un débours se saisit.
+    const client = serve({ [DEPENDENCIES]: "dependencies_labour_category" });
+    renderGrid("estimate");
+    const labour = cell("Raccordement des borniers", CATEGORY);
+    expect(labour).toHaveClass("bg-muted");
+    expect(labour).toHaveAccessibleName(/^Calculé/);
+    expect(labour).toHaveAttribute("aria-haspopup", "dialog");
+    expect(cell("Borniers", CATEGORY)).toHaveClass("bg-background");
+    expect(cell("Borniers", CATEGORY)).not.toHaveAttribute("aria-haspopup");
+    await userEvent.click(labour);
+    expect((await said()).paragraphs.slice(1, 3)).toEqual([
+      "Catégorie ne se saisit pas : Waterfall calcule cette valeur.",
+      "Le rôle d’une ligne de main-d’œuvre détermine sa catégorie de coût.",
+    ]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.cost_category_id"]);
   });
 
   it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on [WF-RIS-0010-A]", async () => {

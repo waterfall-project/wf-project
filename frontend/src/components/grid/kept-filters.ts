@@ -24,18 +24,25 @@ export type { KeptFilters } from "./kept-address";
  * read nor written.
  */
 export function useKeptFilters(
-  config: { readonly filters?: readonly string[] | undefined; readonly address?: GridAddress },
+  config: {
+    readonly filters?: readonly string[] | undefined;
+    readonly address?: GridAddress;
+    readonly defaulted?: Readonly<Record<string, string>> | undefined;
+    readonly searchKept?: boolean | undefined;
+  },
   preferences: GridPreferences | undefined,
   record: (filters: KeptFilters) => void,
 ): RefObject<KeptFilters | undefined> {
   // The search and the filters of the grid, as the address names them.
-  const reading = useMemo(
-    () =>
-      config.filters === undefined
-        ? undefined
-        : keptReading(config.address ?? CONTRACT_ADDRESS, config.filters),
-    [config.address, config.filters],
-  );
+  const reading = useMemo(() => {
+    if (config.filters === undefined) {
+      return undefined;
+    }
+    const read = keptReading(config.address ?? CONTRACT_ADDRESS, config.filters);
+    return config.searchKept === false
+      ? { ...read, filters: read.filters.filter((name) => name !== read.search) }
+      : read;
+  }, [config.address, config.filters, config.searchKept]);
   const query = useSearchParams().toString();
   const kept = useRef(
     reading === undefined
@@ -47,11 +54,31 @@ export function useKeptFilters(
       return;
     }
     const address = new URLSearchParams(query);
-    const shown = keptFilters(reading, (name) => address.get(name));
+    const shown = keptFilters(reading, (name) =>
+      shownFilter(name, address.get(name), config.defaulted, kept.current),
+    );
     if (!sameFilters(shown, kept.current)) {
       kept.current = shown;
       record(shown);
     }
-  }, [query, reading, record]);
+  }, [query, reading, record, config.defaulted]);
   return kept;
+}
+
+/**
+ * The text a filter shows in the address, for the record: a filter with a default that the address
+ * does not name is the one kept, and one shown at the default keeps nothing.
+ */
+function shownFilter(
+  name: string,
+  text: string | null,
+  defaulted: Readonly<Record<string, string>> | undefined,
+  kept: KeptFilters | undefined,
+): string | null | undefined {
+  const base = defaulted?.[name];
+  if (base === undefined) {
+    return text;
+  }
+  const shown = text ?? kept?.[name];
+  return shown === base ? undefined : shown;
 }
