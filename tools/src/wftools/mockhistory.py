@@ -259,10 +259,23 @@ def reserve(rows: Iterable[mockcore.Row]) -> Decimal:
 
 # --- The risks --------------------------------------------------------------------------------
 
-_COMPUTED: list[JsonValue] = [
-    {"field": "severity", "dependencies": ["own_estimate"]},
-    {"field": "provision_amount", "dependencies": ["severity_and_probability"]},
-]
+
+def computed_fields(state: str) -> list[JsonValue]:
+    """Return the fields of a risk the server computes, each with what it depends on.
+
+    The severity and the provision, then, for a risk that occurred, its cost at occurrence
+    (`Risk.computed_fields`, WF-IHM-0030): the provision of an identified risk from its severity
+    and its probability, that of a risk occurred or dismissed from the reference revision
+    (`provision_amount`), the cost at occurrence from its own estimate when it occurred.
+    """
+    provision = "severity_and_probability" if state == IDENTIFIED else "reference_provision"
+    fields: list[JsonValue] = [
+        {"field": "severity", "dependencies": ["own_estimate"]},
+        {"field": "provision_amount", "dependencies": [provision]},
+    ]
+    if state == OCCURRED:
+        fields.append({"field": "occurrence_cost", "dependencies": ["occurrence_estimate"]})
+    return fields
 
 
 def provision(risk: Risk) -> Decimal:
@@ -443,7 +456,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
         "provision_task": provision_task(risk, bearer),
         "matrix_cell": matrix_cell(risk, budget),
         "last_review_on": last.at.date().isoformat(),
-        "computed_fields": _COMPUTED,
+        "computed_fields": computed_fields(last.state),
         "available_commands": commands(risk),
         "audit": {
             "created_at": stamp(risk.reviews[0].at),

@@ -19,7 +19,7 @@ import yaml
 from wftools import REPOSITORY, mockcore, mockhistory, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import N
-from wftools.mockwitnessrisks import DELIVERY_DELAY, IDENTIFIED, OCCURRED, REGISTER
+from wftools.mockwitnessrisks import DELIVERY_DELAY, DISMISSED, IDENTIFIED, OCCURRED, REGISTER
 
 type Entry = dict[str, Any]
 
@@ -75,6 +75,35 @@ def test_a_risk_that_occurred_keeps_its_cost_at_occurrence_and_the_others_have_n
     occurrence_cost = _risks_schemas()["Risk"]["properties"]["occurrence_cost"]
     assert "coût à la survenance" in occurrence_cost["description"]
     assert "occurrence_cost" in _risks_schemas()["Risk"]["required"]
+
+
+def test_a_risk_names_the_rules_of_its_computed_fields_by_its_state() -> None:
+    # US-0703/L3: the provision of a risk occurred or dismissed is that of the reference (H-03),
+    # and a risk that occurred alone bears a cost at occurrence (H-02).
+    rules = {
+        IDENTIFIED: [
+            {"field": "severity", "dependencies": ["own_estimate"]},
+            {"field": "provision_amount", "dependencies": ["severity_and_probability"]},
+        ],
+        DISMISSED: [
+            {"field": "severity", "dependencies": ["own_estimate"]},
+            {"field": "provision_amount", "dependencies": ["reference_provision"]},
+        ],
+        OCCURRED: [
+            {"field": "severity", "dependencies": ["own_estimate"]},
+            {"field": "provision_amount", "dependencies": ["reference_provision"]},
+            {"field": "occurrence_cost", "dependencies": ["occurrence_estimate"]},
+        ],
+    }
+    for state, expected in rules.items():
+        assert mockhistory.computed_fields(state) == expected, state
+    items = {item["risk_id"]: item for item in _items()}
+    assert {risk.last.state for risk in REGISTER} == set(rules)
+    for risk in REGISTER:
+        item = items[universe(risk.number)]
+        assert item["computed_fields"] == rules[risk.last.state], risk.label
+        named = {entry["field"] for entry in item["computed_fields"]}
+        assert ("occurrence_cost" in named) == (item["occurrence_cost"] is not None), risk.label
 
 
 @pytest.mark.requirement("WF-RIS-0040-A")
