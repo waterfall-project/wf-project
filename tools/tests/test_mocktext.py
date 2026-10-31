@@ -3,7 +3,7 @@
 """Tests of how the fake back compares a searched text, and of how it says a Kanban.
 
 A searched text is found whatever its case and its accents: the rule of every search of the
-contract (docs/api/README.md, « Une recherche… »), decided by the author on 2026-10-09. A search
+contract (docs/api/README.md, « A search… »), decided by the author on 2026-10-09. A search
 transliterates as PostgreSQL's ``unaccent`` does with the table it ships, then lowers, as the
 service will by ``lower(unaccent(…))`` (EP-03). The summary of a Kanban is read from its answer
 (EP-14/L45b). Not the Vérif of a requirement: none is cited (WF-QUA-0010).

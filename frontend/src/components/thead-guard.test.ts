@@ -4,7 +4,7 @@
  * The guard of the header row of the tables (#508): the header row of every table, a list or a
  * dense grid, is set on the muted background of the charter. `TableHead` sets it on the header of a
  * column (`components/ui/table.tsx`); a head written by hand, `<thead>` outside of it, takes it
- * itself. The rule is in `docs/dev/README.md`, « Une grille »; nothing else holds it: the sources
+ * itself. The rule is in `docs/dev/README.md`, « Grids »; nothing else holds it: the sources
  * are read, as the guard of `useId` reads them.
  */
 import { readdirSync, readFileSync } from "node:fs";

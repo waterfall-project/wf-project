@@ -4,7 +4,7 @@ Pour l'extension Keycloak de Waterfall (`deploy/keycloak/extension/`), et pour e
 point d'entrée `password-setup-link`, les règles de politique `not-last-name` et
 `local-account-only`, et le gestionnaire du lien « mot de passe oublié », `reset-credentials`
 (EP-03, « Conception », « L'extension Keycloak »). Ce fichier complète le
-[guide](README.md) et les règles de [Python](python.md), dont il reprend la forme ; il ne
+[guide](README-fr.md) et les règles de [Python](python.md), dont il reprend la forme ; il ne
 recopie ni la conception d'EP-03, ni la documentation de Keycloak.
 
 Une règle qu'un outil contrôle nomme son contrôle. Une règle que rien ne contrôle le dit :

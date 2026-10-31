@@ -6,7 +6,7 @@
 # of PostgreSQL 16.14, copied from /usr/share/postgresql/16/tsearch_data/unaccent.rules of the
 # package postgresql-16 16.14-0ubuntu0.24.04.1. Every line after this header is the shipped
 # file, unchanged. wftools.mocktext reads it so that the fake back searches as the service
-# will, by lower(unaccent(...)) with this table (docs/api/README.md, « Une recherche… »).
+# will, by lower(unaccent(...)) with this table (docs/api/README.md, « A search… »).
 # PostgreSQL itself reads no comment in a rules file: this header is for this copy only, and
 # no rule starts with « # ».
 #

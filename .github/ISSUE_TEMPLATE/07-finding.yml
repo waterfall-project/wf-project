@@ -9,7 +9,7 @@ body:
         A finding raised during an epic is not fixed in the lot that raised it: it is opened
         here, as a sub-issue of that lot — or of the epic's issue when no lot raised it —,
         with a decision, also written in the epic's tracking table
-        (`docs/roadmap/README.md`, « Suivi sur GitHub »). Title: `[EP-nn] <nature> : …`, the
+        (`docs/roadmap/README.md`, « Tracking on GitHub »). Title: `[EP-nn] <nature> : …`, the
         nature being `front`, `back` or `outil`; a finding on the contract or on the
         specification takes its own template.
   - type: input

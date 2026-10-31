@@ -1,7 +1,7 @@
 # Accord de licence de contribution
 
 Version : 1.0 du 18 octobre 2026, applicable à compter de sa fusion dans `main`.
-[`README.md`](README.md) dit les choix de ce texte et la raison de chacun.
+[`README-fr.md`](README-fr.md) dit les choix de ce texte et la raison de chacun.
 
 Ce texte est le modèle public de l'accord. Chaque contributeur en reçoit un exemplaire dont
 l'annexe porte l'identité complète du mainteneur ; cette annexe n'est jamais publiée

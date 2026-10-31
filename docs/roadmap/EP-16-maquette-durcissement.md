@@ -368,7 +368,7 @@ une variable locale rejoue les parcours contre `next dev`.
     - la mesure de la seconde ne la suit jamais, et se joue toujours contre le front construit ;
     - le harnais refuse de démarrer quand elle est posée dans la chaîne (`CI` défini), en le
       disant ;
-    - le guide la documente (`docs/dev/README.md`, « Un parcours de bout en bout ») ;
+    - le guide la documente (`docs/dev/README-fr.md`, « Un parcours de bout en bout ») ;
     - le préchauffage ne revient pas pour elle : un rejeu local se joue sur peu de fichiers, et la
       première compilation d'une route s'y attend.
   - Le build est celui de `make build-front`, qui ne joint aucune API pendant la construction
