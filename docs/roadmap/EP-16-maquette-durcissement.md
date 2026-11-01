@@ -1356,7 +1356,7 @@ et la file de fusion ne rejettent plus un lot sur « Route is already handled »
 
 ## US-0590i — La stabilité de `store.test.ts:142` sous charge
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1690
