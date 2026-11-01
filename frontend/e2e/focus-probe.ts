@@ -713,8 +713,15 @@ export async function startWalk(page: Page): Promise<Start> {
  * past the return to the first element.
  */
 export function readWalk(page: Page): Promise<Focus[]> {
-  return page.evaluate(() => (window as unknown as { focusProbe: Probe }).focusProbe.read());
+  return page.evaluate(readInPage);
 }
+
+/**
+ * What `readWalk` runs in the page: a single function, so that a test can tell this call from the
+ * others by its identity (`args[0] === readInPage`), not by its serialised source.
+ */
+export const readInPage = (): Focus[] =>
+  (window as unknown as { focusProbe: Probe }).focusProbe.read();
 
 /**
  * End a walk: what Tab may reach and never reached, the widgets it never entered, judged by the

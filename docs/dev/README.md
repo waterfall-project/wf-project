@@ -3574,24 +3574,24 @@ two widths:
   Tabs at each width, at 84 of the 90 seconds of its timeout under four workers, 69 once only the
   elements without pointer were changed, all of them, at each Tab, 54 once those that touch
   the element were changed (#1263). The rest is that of the page and of the round trips: alone,
-  each width of the walk occupies the browser 12 of its 16 seconds, 10 without any pointer measurement.
-  The walk presses Tab in batches (`BATCH`, sixteen keys) and reads in a single `evaluate`, after
-  each batch, what the page measured for each key: only one round trip per element remains,
-  that of the key, which the keyboard imposes; a read after each key made a second one, and the
-  loaded workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe
+  each width of the walk occupies the browser 12 of its 16 seconds, 10 without any pointer
+  measurement. The walk presses Tab in batches (`BATCH`, sixteen keys) and reads in a single
+  `evaluate`, after each batch, what the page measured for each key: only one round trip per element
+  remains, that of the key, which the keyboard imposes; a read after each key made a second one, and
+  the loaded workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe
   hears each Tab at its `keyup` — the focus moved, or it stayed, the trap the walk must see — and
   takes the measurement, by the same code, at the moment the walk used to take it: when the page
   hears the walk again, the next key before any listener the page set after the probe sees it, or
-  the read of the batch. `focusin` is not enough: it fires neither when the focus stays, nor when
-  it leaves the document. Back at the first element, the page stops measuring, and the keys left
-  in the batch reach neither the listeners the page set after the probe nor the focus, so that the
-  focus is back on the first element when the next walk starts; what the page measured beyond a
-  trap is not read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on the test's side. The walk, and it
-  alone, keeps its trace without DOM snapshots (`withoutSnapshots`): a snapshot per key weighed
-  more than the walk itself under load (#1540), and its faults are read in its findings.
-  `test.use({ trace })` does not apply to a single test — a group refuses an option that forces a
-  new worker: the test restarts the trace the harness opened, with the same options, without the
-  snapshots.
+  the read of the batch. `focusin` is not enough: it fires neither when the focus stays, nor when it
+  leaves the document. Back at the first element, the page stops measuring, and the keys left in the
+  batch reach neither the listeners the page set after the probe nor the focus, so that the focus is
+  back on the first element when the next walk starts; what the page measured beyond a trap is not
+  read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on
+  the test's side. The walk, and it alone, keeps its trace without DOM snapshots
+  (`withoutSnapshots`): a snapshot per key weighed more than the walk itself under load (#1540), and
+  its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
+  group refuses an option that forces a new worker: the test restarts the trace the harness opened,
+  with the same options, without the snapshots.
 
 `frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
 themselves, on pages written for them (`page.setContent`): each defect they must

@@ -7,6 +7,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 
+import { readInPage } from "./focus-probe";
 import { BATCH, lost, walkByTab } from "./tab-walk";
 
 /** A page of its own, written in the window of the harness. */
@@ -364,7 +365,7 @@ test("ends the walk of the probe when a read fails, so that Tab moves the focus 
       const value: unknown = Reflect.get(target, key, target);
       if (key === "evaluate") {
         return (...args: Parameters<Page["evaluate"]>) => {
-          if (String(args[0]).includes("focusProbe.read()")) {
+          if (args[0] === readInPage) {
             reads += 1;
             return Promise.reject(new Error("read failed"));
           }
