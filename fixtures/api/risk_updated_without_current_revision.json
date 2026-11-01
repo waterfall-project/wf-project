@@ -1,0 +1,39 @@
+{
+  "summary": "« Risque de reprise du câblage », modifié aujourd'hui sur le projet sans révision en cours (project_without_current_revision), la révision 102 abandonnée à 14 h 05 : ses actions de mitigation saisies, une donnée du projet. Aucune révision n'est créée, et la modification n'entre dans aucun historique d'annulation. Le risque se lit tel que la dernière révision marquée, la référence 101, le porte, l'abandon l'y ayant rendu : son évaluation du 12 janvier 2026, sa structure propre de la référence et sa ligne de provision sous « Câblage des armoires ». Son compteur, qui ne revient jamais en arrière, avance d'une version pour l'abandon et d'une pour la modification (WF-RIS-0020, #1782).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+    "label": "Risque de reprise du câblage",
+    "description": "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
+    "mitigation_notes": "Contrôle du câblage en atelier avant expédition ; essais de continuité et d'isolement systématiques.",
+    "probability": "0.25",
+    "severity": "1000000.00",
+    "provision_amount": "250000.00",
+    "occurrence_cost": null,
+    "occurred_reestimated_amount": null,
+    "state": "identified",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000214",
+    "provision_node_id": "01926f3a-7c00-7000-8000-000000000555",
+    "provision_cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+    "provision_cost_category_label": "Provisions pour risques",
+    "provision_cost_category_is_active": true,
+    "provision_subproject_id": null,
+    "provision_subproject_label": null,
+    "provision_task": {"node_id":"01926f3a-7c00-7000-8000-000000000552","label":"Câblage des armoires"},
+    "matrix_cell": {"probability_level":2,"severity_level":2,"zone":"nominal"},
+    "last_review_on": "2026-01-12",
+    "computed_fields": [
+      {"field":"severity","dependencies":["own_estimate"]},
+      {"field":"provision_amount","dependencies":["severity_and_probability"]}
+    ],
+    "available_commands": [
+      {"command":"update","is_available":true,"missing_conditions":[]},
+      {"command":"update_provision","is_available":true,"missing_conditions":[]},
+      {"command":"review","is_available":true,"missing_conditions":[]},
+      {"command":"declare_occurrence","is_available":true,"missing_conditions":[]},
+      {"command":"delete","is_available":false,"missing_conditions":["risk_not_cited"]}
+    ],
+    "audit": {"created_at":"2026-01-12T10:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-06-03T14:05:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 6
+  }
+}

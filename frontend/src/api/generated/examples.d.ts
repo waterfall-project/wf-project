@@ -261,7 +261,7 @@ export interface Examples {
     200: "task_attached" | "task_dates_conflicting" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
   };
   "PATCH /projects/{project_id}/risks/{risk_id}": {
-    200: "risk_updated";
+    200: "risk_updated" | "risk_updated_without_current_revision";
   };
   "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
     200: "subproject_updated";
