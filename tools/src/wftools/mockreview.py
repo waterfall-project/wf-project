@@ -11,7 +11,10 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   #1747);
 - ``subproject_code_too_long.json``, a subproject created under a code one character longer than
   the tab of the file of the remaining to commit admits, refused by ``VALUE_TOO_LONG``, its
-  ``params.max_length`` the bound of the field, which every ``VALUE_TOO_LONG`` bears (J-02, #1796).
+  ``params.max_length`` the bound of the field, which every ``VALUE_TOO_LONG`` bears (J-02, #1796);
+- ``rate_update_category_not_proposed.json``, the rate update of the revision 101 sent with a
+  category its proposal does not present, refused by the rank of that category in the list sent
+  (``RateUpdateApply``; E-03, #1755).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -22,6 +25,7 @@ from typing import TYPE_CHECKING, cast
 
 from wftools import mocktext
 from wftools.mockids import universe
+from wftools.mockindicators import rate_update
 from wftools.mocklists import PROJECT_STATES, project_page
 from wftools.mockwitness import fixture
 
@@ -37,6 +41,13 @@ TOO_LONG_CODE = "ESSAIS-MISE-EN-SERVICE-LIGNE-002"
 
 TOO_LONG_CORRELATION = universe(1669)
 """The correlation of the refusal of a code of a subproject too long."""
+
+
+NOT_PROPOSED_CORRELATION = universe(1670)
+"""The correlation of the refusal of a rate update sent with a category not proposed."""
+
+NOT_PROPOSED_CATEGORY = universe(403)
+"""« Matériel électrique », a category of disbursement, which no rate update presents."""
 
 
 def too_long(pointer: str, bound: int) -> JsonObject:
@@ -66,6 +77,33 @@ def _code_too_long() -> JsonObject:
     )
 
 
+def _category_not_proposed() -> JsonObject:
+    proposed = cast("list[JsonObject]", rate_update()["categories"])
+    if any(entry["cost_category_id"] == NOT_PROPOSED_CATEGORY for entry in proposed):
+        message = f"{NOT_PROPOSED_CATEGORY}: the proposal presents it"
+        raise ValueError(message)
+    first = proposed[0]
+    sent = [first["cost_category_id"], NOT_PROPOSED_CATEGORY]
+    return mocktext.example(
+        f"La mise à jour des taux de la révision 101, le 12 janvier 2026, envoyée pour "
+        f"« {first['label']} », que la proposition présente (rate_update), et pour le « Matériel "
+        f"électrique », catégorie de débours qu'elle ne présente pas : refusée, la seconde "
+        f"désignée par son rang dans la liste envoyée (/cost_category_ids/1) ; rien n'est écrit, "
+        f"et la révision garde sa version (WF-REV-0060, #1755).",
+        {
+            "code": "VALIDATION_FAILED",
+            "status": 422,
+            "fields": [
+                {
+                    "pointer": f"/cost_category_ids/{sent.index(NOT_PROPOSED_CATEGORY)}",
+                    "code": "UNKNOWN_COST_CATEGORY",
+                }
+            ],
+            "correlation_id": NOT_PROPOSED_CORRELATION,
+        },
+    )
+
+
 def _with_created() -> JsonObject:
     projects = cast("list[JsonObject]", fixture("projects")["items"])
     created = fixture("project_created")
@@ -87,4 +125,5 @@ def examples() -> dict[str, JsonObject]:
     return {
         "projects_with_created.json": _with_created(),
         "subproject_code_too_long.json": _code_too_long(),
+        "rate_update_category_not_proposed.json": _category_not_proposed(),
     }

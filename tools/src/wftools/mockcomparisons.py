@@ -210,9 +210,11 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
     added, removed, changed, content = mockdiff.grouped(nodes)
     rerated = (
-        ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre "
-        "et sont réestimées au taux de 2026 de leur catégorie"
-        if all(entry["changes"] == ["reestimated_amount"] for entry in changed)
+        ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre, "
+        "sont réestimées au taux de 2026 de leur catégorie — d'une année de référence à l'autre, "
+        "le réestimé vient aussi des taux projetés ou mis à jour (WF-REV-0060, #1754) — et "
+        "changent de sous-projet (`changes` : reestimated_amount, subproject ; #1751)"
+        if all(entry["changes"] == ["reestimated_amount", "subproject"] for entry in changed)
         else ""
     )
     return mocktext.example(
@@ -229,7 +231,10 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
         f"{_deltas_text(deltas, 'cost_type')} — "
         f"et par sous-projet — {_deltas_text(deltas, 'subproject')} : l'offre n'en portait aucun, "
         f"les sous-projets ayant été déclarés après la commande, et ses lignes passent de "
-        f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193).",
+        f"l'ensemble hors sous-projet au sien : chacune compte sous la clé qu'elle porte dans "
+        f"chaque révision, son montant entier en moins hors sous-projet et en plus sous le sien, "
+        f"même inchangé, si bien que la somme des écarts par sous-projet égale celle par nature "
+        f"(WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193, #1751).",
         compared,
     )
 

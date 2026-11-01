@@ -211,3 +211,66 @@ def test_every_value_too_long_bears_the_bound_of_its_field() -> None:
                 params = cast("Entry", entry.get("params", {}))
                 assert isinstance(params.get("max_length"), int), path.name
     assert found >= 6
+
+
+def test_the_reestimate_after_a_merge_follows_the_reference_year() -> None:
+    # E-02, #1754: the rule of the merge holds between two revisions of the same reference year;
+    # between two years, the rates projected or updated move the re-estimate, not the budget.
+    deltas = _schemas("revisions.yaml")["RevisionComparison"]["properties"]["amount_deltas"]
+    properties = deltas["items"]["properties"]
+    reestimated = _flat(properties["reestimated_delta"]["description"])
+    assert "Entre deux révisions de même année de référence" in reestimated
+    assert "Entre deux révisions d'années de référence différentes" in reestimated
+    assert "(`comparison`, #1754)" in reestimated
+    assert "quelle que soit l'année de référence" in _flat(
+        properties["budgeted_delta"]["description"]
+    )
+
+
+def test_the_rate_update_carries_its_counter_and_categories_the_proposal_presents() -> None:
+    # E-03, #1755: a body of its own, the counter required, the list never empty; a category the
+    # proposal does not present refused by its rank in the list sent.
+    body = _operations()["applyRateUpdate"]["requestBody"]["content"]["application/json"]
+    assert body["schema"] == {"$ref": "../components/schemas/revisions.yaml#/RateUpdateApply"}
+    schema = _schemas("revisions.yaml")["RateUpdateApply"]
+    assert schema["required"] == ["cost_category_ids", "lock_version"]
+    assert schema["properties"]["cost_category_ids"]["minItems"] == 1
+    assert _cited("applyRateUpdate", "422") == ["rate_update_category_not_proposed"]
+    refused = fixture("rate_update_category_not_proposed")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/cost_category_ids/1", "code": "UNKNOWN_COST_CATEGORY"}]
+    proposed = {entry["cost_category_id"] for entry in fixture("rate_update")["categories"]}
+    assert mockreview.NOT_PROPOSED_CATEGORY not in proposed
+
+
+def test_a_merged_structure_is_not_taken_up_by_the_next_revision() -> None:
+    # E-04, #1758: the creation of a revision says it, and a revision in progress never reads a
+    # structure merged.
+    said = _flat(_operations()["createRevision"]["description"])
+    assert "Elle ne reprend pas les structures fusionnées" in said
+    assert "Le devis propre d'un risque écarté, qui peut redevenir identifié, est repris" in said
+    merged = _flat(
+        _schemas("revisions.yaml")["CostStructure"]["properties"]["is_merged"]["description"]
+    )
+    assert "Une révision en cours ne porte donc jamais une structure fusionnée" in merged
+    # The current revision bears no amendment merged; the one merged structure it reads is the
+    # estimate of the risk that occurred since it was opened.
+    current = [each for each in fixture("structures") if each["is_merged"]]
+    assert [each["kind"] for each in current] == ["risk"]
+    merged_before = [each for each in fixture("structures_amendments") if each["is_merged"]]
+    assert [each["kind"] for each in merged_before] == ["amendment"]
+    assert merged_before[0]["label"] not in {each["label"] for each in fixture("structures")}
+
+
+def test_the_rates_of_a_new_revision_are_projected_by_default() -> None:
+    # E-05, #1764: false or absent, the rates of the source projected to the new reference year.
+    said = _flat(
+        _schemas("revisions.yaml")["RevisionCreate"]["properties"]["apply_rate_update"][
+            "description"
+        ]
+    )
+    assert "projetés par le taux d'inflation du projet" in said
+    assert "les autres gardent leur taux projeté" in said
+    assert "projetés par le taux d'inflation du projet" in _flat(
+        _operations()["createRevision"]["description"]
+    )

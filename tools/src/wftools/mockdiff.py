@@ -14,8 +14,8 @@ removed holds its row: the rows and the ranks count the tree rendered, the nodes
 them, and a predecessor is named by the row it is rendered at.
 
 A task is changed by its dates, its duration, its progress or its parent; a line by its amounts,
-its delay of payment (#1566) or its parent: the amount of a task is its lines', said by them
-(``wftools.mockhistory``, #287).
+its delay of payment (#1566), its subproject, its cost category (#1751) or its parent: the amount
+of a task is its lines', said by them (``wftools.mockhistory``, #287).
 
 A marked tree is read by a window (``window``, ``subtree_of``), or by its differences alone
 (``differences``, the filter ``difference``, #1398).
@@ -46,6 +46,8 @@ _LINE_CHANGES = (
     ("budgeted_amount", ("budgeted_amount",)),
     ("reestimated_amount", ("reestimated_amount",)),
     ("payment_delay_days", ("payment_delay_days",)),
+    ("subproject", ("subproject_id",)),
+    ("cost_category", ("cost_category_id",)),
 )
 
 

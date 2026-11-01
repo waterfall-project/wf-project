@@ -275,8 +275,13 @@ RevisionCreate:
       type: boolean
       default: false
       description: >-
-        Applique la mise à jour des taux proposée par WF-REV-0060. Jamais imposée :
-        la valeur par défaut conserve les taux de la révision source.
+        Applique la mise à jour des taux proposée par WF-REV-0060. Faux ou absent, la révision
+        est chiffrée aux taux de la révision source projetés par le taux d'inflation du projet
+        jusqu'à son année de référence (WF-REV-0060, WF-REV-0010, WF-DEV-0030), la mise à jour
+        restant proposée (`getRateUpdateProposal`). Vrai, chaque catégorie que la proposition
+        présenterait au taux du référentiel de l'année (`reference_rate`) est chiffrée à ce taux,
+        comme `applyRateUpdate` sur toutes ; les autres gardent leur taux projeté. Jamais
+        imposée (#1764).
 
 RevisionMark:
   type: object
@@ -349,6 +354,30 @@ RateUpdateProposal:
             type: string
             enum: [reference_rate, inflated_previous]
 
+RateUpdateApply:
+  type: object
+  required: [cost_category_ids, lock_version]
+  description: >-
+    Accepte la mise à jour des taux pour les catégories retenues (`applyRateUpdate`,
+    WF-REV-0060), le compteur lu de la révision avec elles, comme toute écriture de la famille
+    (WF-IHM-0110 ; E-03, #1755).
+  properties:
+    cost_category_ids:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: >-
+        Les catégories acceptées parmi celles que la proposition présente
+        (`getRateUpdateProposal`) ; une catégorie qu'elle ne présente pas est refusée par 422
+        `VALIDATION_FAILED`, `fields` sur `/cost_category_ids/<n>`, et une liste vide de même, sur
+        `/cost_category_ids` ; rien n'est écrit.
+      items: { $ref: ../common.yaml#/Uuid }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur lu de la révision (`Revision.lock_version`) ; périmé, 412 et rien n'est
+        écrit.
+
 StructureKind:
   type: string
   enum: [main, amendment, risk]
@@ -389,7 +418,12 @@ CostStructure:
       type: boolean
       description: >-
         Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou
-        lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060).
+        lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060). Une
+        structure fusionnée est consommée : elle n'est que dans la révision où elle a été
+        fusionnée, que son marquage fige, et la révision suivante ne la reprend pas
+        (`createRevision`). Une révision en cours ne porte donc jamais une structure fusionnée
+        qu'elle a reprise ; vrai ne s'y lit que pour le devis propre d'un risque survenu depuis
+        son ouverture, la survenance ne marquant aucune révision (WF-RIS-0060 ; #1758).
     available_commands:
       type: array
       description: >-
@@ -716,14 +750,26 @@ NodeDifference:
 NodeChange:
   type: string
   enum:
-    [dates, duration, progress, budgeted_amount, reestimated_amount, payment_delay_days, parent]
+    - dates
+    - duration
+    - progress
+    - budgeted_amount
+    - reestimated_amount
+    - payment_delay_days
+    - subproject
+    - cost_category
+    - parent
   description: >-
     Ce qui change d'un nœud présent des deux côtés (WF-REV-0080) : pour une tâche, ses dates, sa
     durée, son état d'avancement et son parent — « Une tâche déplacée sous une autre
     récapitulative est présentée modifiée » — ; pour une ligne de devis, ses montants budgété et
     réestimé, qui disent ses grandeurs, son délai de paiement, qui déplace ses décaissements sans
-    changer aucun montant (WF-DEV-0020, WF-IND-0100 ; #1566), et son parent, la tâche qui la
-    porte. Le montant d'une tâche est celui de ses lignes, qui le disent.
+    changer aucun montant (WF-DEV-0020, WF-IND-0100 ; #1566), son sous-projet (`subproject`) et sa
+    catégorie de coût (`cost_category`), qui changent la clé sous laquelle elle compte ses écarts
+    même à montant inchangé — une catégorie qui change peut changer sa nature
+    (`RevisionComparison.amount_deltas`, #1751) —, et son parent, la tâche qui la porte. Une ligne
+    qui change de sous-projet ou de catégorie est donc `modified`, et « Écarts seulement »
+    (`difference`) la retient. Le montant d'une tâche est celui de ses lignes, qui le disent.
 
 KanbanTask:
   description: >-
@@ -2376,7 +2422,14 @@ RevisionComparison:
         retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue,
         selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y
         apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la
-        révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux
+        révision de base, où qu'elle fût dans celle-ci. Une ligne compte sous la clé qu'elle porte
+        dans chaque révision : son montant dans la révision comparée sous sa nature et son
+        sous-projet d'alors, moins son montant dans la révision de base sous les siens. Une ligne
+        qui change de nature ou de sous-projet compte donc son montant entier en moins sous
+        l'ancienne clé et en plus sous la nouvelle, même quand son montant ne change pas ; l'offre
+        sans sous-projet comparée à la référence en est l'exemple (`comparison`). L'écart d'une clé
+        est ainsi la différence de ses totaux entre les deux révisions, et la somme des écarts par
+        sous-projet égale celle par nature (#1751). Une nature ou un sous-projet dont les deux
         écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte
         donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul
         montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait.
@@ -2405,15 +2458,20 @@ RevisionComparison:
               comparé (`EstimateIndicators.delta_to_reference`). La comparaison d'une révision
               obtenue par fusion d'un différentiel avec la révision marquée qui la précède, sans
               autre modification entre les deux, restitue exactement les montants budgétés de ce
-              différentiel.
+              différentiel, quelle que soit l'année de référence de chacune (WF-REV-0080, #1754).
           reestimated_delta:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
               L'écart des montants réestimés de la nature ou du sous-projet, inflation comprise,
-              dans le même sens (WF-REV-0080). Après une fusion, il ne vient que des lignes que le
-              différentiel ajoute ou retire, de celles des tâches démarrées qu'il termine et de
-              celles dont il change l'année de consommation : une ligne existante dont le
-              différentiel ne modifie que le montant budgété n'y apporte rien.
+              dans le même sens (WF-REV-0080). Entre deux révisions de même année de référence, il
+              ne vient, après une fusion, que des lignes que le différentiel ajoute ou retire, de
+              celles des tâches démarrées qu'il termine et de celles dont il change l'année de
+              consommation : une ligne existante dont le différentiel ne modifie que le montant
+              budgété n'y apporte rien. Entre deux révisions d'années de référence différentes, il
+              vient aussi de chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la
+              nouvelle année de référence (WF-REV-0060), les montants budgétés restant ceux du
+              différentiel ; l'offre de 2025 comparée à la référence de 2026 en est l'exemple
+              (`comparison`, #1754).
 
 ComparedNodeRead:
   type: object

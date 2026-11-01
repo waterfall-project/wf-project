@@ -523,6 +523,9 @@ ErrorCode:
     - VALUE_OUT_OF_RANGE
     - NUMBER_INVALID
     - DATE_INVALID
+    # Une catégorie de coût que le référentiel n'a pas ; aussi, à la mise à jour des taux, une
+    # catégorie que la proposition ne présente pas (`/cost_category_ids/<n>`, `applyRateUpdate`,
+    # `RateUpdateApply`, WF-REV-0060 ; E-03, #1755).
     - UNKNOWN_COST_CATEGORY
     # Une nature de coût que le référentiel n'a pas, donnée à une catégorie (`/cost_type_id`,
     # WF-REF-0040).

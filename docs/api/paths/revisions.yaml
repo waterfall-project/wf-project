@@ -59,9 +59,17 @@
       Un projet comporte au plus une révision en cours ; sa création copie les structures de la
       dernière révision marquée et les valeurs du référentiel qu'elles emploient (WF-REV-0010,
       WF-DAT-0010), rattachements des tâches au lotissement compris, sauf à un lot ou à un poste
-      marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). La révision retient pour année
-      de référence l'année courante (`reference_year`) ; quand elle diffère de celle de la
-      révision copiée, la mise à jour des taux est proposée, jamais imposée (WF-REV-0060).
+      marqué supprimé, que la copie ne reprend pas (WF-PLA-0170). Elle ne reprend pas les
+      structures fusionnées (`CostStructure.is_merged`) : un différentiel fusionné, consommé par
+      sa fusion, dont le contenu est dans la structure principale (WF-REV-0050), et le devis
+      propre d'un risque survenu, consommé par sa survenance (WF-RIS-0060), dont le coût reste
+      dans `Risk.occurrence_cost` ; ce qu'ils contenaient se relit dans la révision où ils ont été
+      fusionnés (WF-DAT-0020). Le devis propre d'un risque écarté, qui peut redevenir identifié,
+      est repris (WF-REV-0100 ; #1758, #1757). La révision retient pour année de référence
+      l'année courante (`reference_year`) ; quand elle diffère de celle de la révision copiée,
+      elle est chiffrée aux taux de la révision copiée, projetés par le taux d'inflation du projet
+      jusqu'à son année de référence, sauf `apply_rate_update`, et la mise à jour des taux est
+      proposée, jamais imposée (WF-REV-0060, WF-REV-0010 ; #1764).
       C'est la première des deux écritures du squelette de planning sur un projet sans révision
       en cours, que le projet dit d'avance (`ProjectCommand.generate_skeleton`) : la révision
       rendue liste `generate_skeleton`, et `generatePlanningSkeleton` s'y applique
@@ -382,14 +390,7 @@
       required: true
       content:
         application/json:
-          schema:
-            type: object
-            required: [cost_category_ids]
-            properties:
-              cost_category_ids:
-                type: array
-                items: { $ref: ../components/common.yaml#/Uuid }
-              lock_version: { $ref: ../components/common.yaml#/LockVersion }
+          schema: { $ref: ../components/schemas/revisions.yaml#/RateUpdateApply }
     responses:
       '200':
         description: >-
@@ -419,7 +420,19 @@
               revision_marked: { $ref: ../../../fixtures/api/rate_update_revision_marked.json }
               not_available: { $ref: ../../../fixtures/api/rate_update_not_available.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Une catégorie que la proposition ne présente pas (`getRateUpdateProposal`) :
+          `VALIDATION_FAILED`, `fields` sur `/cost_category_ids/<n>`, son rang dans la liste
+          envoyée, par `UNKNOWN_COST_CATEGORY` (`category_not_proposed`) ; ou une liste vide, sur
+          `/cost_category_ids`. Rien
+          n'est écrit (`RateUpdateApply`, WF-REV-0060 ; #1755).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              category_not_proposed:
+                $ref: ../../../fixtures/api/rate_update_category_not_proposed.json
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

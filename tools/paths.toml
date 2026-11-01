@@ -570,6 +570,7 @@ paths = [
     "fixtures/api/access_role_delete_stale.json",
     "fixtures/api/projects_with_created.json",
     "fixtures/api/subproject_code_too_long.json",
+    "fixtures/api/rate_update_category_not_proposed.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",
