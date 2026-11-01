@@ -83,7 +83,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-PLA-0110-A` | Vue en arborescence de tâches | entière | — |
 | `WF-PLA-0120-A` | Export de l’arborescence de tâches | entière | — |
 | `WF-IHM-0110-A` | Annulation et rétablissement des saisies | fin — amorcée en EP-02 | — |
-| `WF-PLA-0160-A` | Unités de durée | fin — amorcée en EP-15 | — |
+| `WF-PLA-0160-A` | Unités de durée | fin — amorcée en EP-15, EP-05 | — |
 | `WF-QUA-0080-A` | Corpus de plannings de référence et schéma d’échange | entière | — |
 | `WF-INTF-0040-A` | Imports MS Project | entière | — |
 | `WF-INTF-0050-A` | Exports MS Project | entière | — |
@@ -93,6 +93,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-ARC-0100-A` | Import en deux temps | entière | — |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | fin — amorcée en EP-03 | — |
 | `WF-DAT-0120-A` | Contenu et purge du stockage objet | fin — amorcée en EP-03 | — |
+| `WF-ADM-0110-A` | Évaluation d’une action | fin — amorcée en EP-03, EP-04 | — |
 
 WF-PLA-0080 et WF-PLA-0090 sont partiels avant cet EPIC : l'arbre pliable des grilles et le pliage
 commun de la grille et du Gantt sont faits par EP-02/L40, dans la maquette, sans qu'aucune US
@@ -132,6 +133,18 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
 - le parcours de bout en bout construit un planning contre le service réel.
 
 ## Constats reçus
+
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
+  contrat #1769).
+- #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
+  (F-04 ; contrat #1771).
+- #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
+  l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
+  #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle.
 
 - #1339, pour #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - l'import MS Project lit la description d'une tâche dans ses notes, et l'export l'y écrit

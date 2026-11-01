@@ -54,8 +54,8 @@ suivra les imitera. Les agents de l'US-0280 prennent le relais à partir d'EP-02
 
 - toute règle métier, tout calcul, toute table : il n'y a pas encore de base — EP-03 ;
 - les écrans — EP-02 ; seul le parcours témoin du harnais touche le front ;
-- le jeu de données de référence de WF-QUA-0040, qui demande le modèle : il naît en EP-04 et
-  grossit avec chaque EPIC ;
+- le jeu de données de référence de WF-QUA-0040, qui demande le modèle : il naît en EP-05, de
+  l'univers témoin, et grossit avec chaque EPIC du back (#1402) ;
 - les sept flux de bout en bout de WF-QUA-0050 — EP-06, EP-07 et EP-09, qui les portent ;
 - la livraison continue — la construction et la publication des images, le chart Helm, tout
   déploiement — et les tests de charge de WF-QUA-0060 — EP-13 : la chaîne d'EP-01 intègre

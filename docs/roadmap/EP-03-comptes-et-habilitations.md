@@ -112,7 +112,7 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-ADM-0020-A` | Aucune action réservée à un acteur | début — close en EP-05 | US-0380 |
 | `WF-ADM-0090-A` | Rôles et permissions | entière | US-0380 |
 | `WF-ADM-0100-A` | Catalogue des permissions | début — close en EP-08 | US-0380 |
-| `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-04 | US-0390 |
+| `WF-ADM-0110-A` | Évaluation d’une action | début — close en EP-06 | US-0390 |
 | `WF-ADM-0120-A` | Dernier administrateur | entière | US-0380 |
 | `WF-ARC-0060-A` | Contrat OpenAPI | fin — amorcée en EP-01 | US-0340 |
 | `WF-ARC-0110-A` | Le texte est rendu au plus près du lecteur | début — close en EP-06 | US-0410 |
@@ -120,11 +120,11 @@ close ici après avoir été commencée plus tôt. Chaque exigence n'est close q
 | `WF-ARC-0090-A` | Traitements longs confiés au worker | début — close en EP-13 | US-0370 |
 | `WF-DAT-0060-A` | Identifiants | début — close en EP-04 | US-0330 |
 | `WF-DAT-0070-A` | Colonnes d’audit | début — close en EP-09 | US-0330 |
-| `WF-DAT-0080-A` | Régimes de suppression | début — close en EP-04 | US-0330 |
+| `WF-DAT-0080-A` | Régimes de suppression | début — close en EP-07 | US-0330 |
 | `WF-DAT-0090-A` | Intégrité déclarée en base | début — close en EP-07 | US-0330 |
 | `WF-DAT-0100-A` | Types des grandeurs | début — close en EP-07 | US-0330 |
 | `WF-DAT-0140-A` | Migrations du schéma | début — close en EP-13 | US-0330 |
-| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | US-0420 |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-07 | US-0420 |
 | `WF-SEC-0010-A` | Transport et secrets | début — close en EP-13 | US-0330, US-0430 |
 | `WF-SEC-0020-A` | Session et révocation | entière | US-0350 |
 | `WF-SEC-0030-A` | Journal d'audit des actions irréversibles ou structurantes | début — close en EP-13 | US-0410 |

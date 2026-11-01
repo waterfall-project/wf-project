@@ -73,6 +73,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0030-A` | Identité de lignée des objets d’une révision | fin — amorcée en EP-04 | — |
 | `WF-DAT-0040-A` | Conservation des indicateurs des révisions marquées | fin — amorcée en EP-04 | — |
 | `WF-DAT-0130-A` | Contenu et invalidation du cache | entière | — |
+| `WF-CYC-0090-A` | Confirmation des sorties | fin — amorcée en EP-04 | — |
 
 ## Opérations du contrat
 
@@ -89,6 +90,16 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (6) :
 - `reference` : `getReferenceSettings`, `updateReferenceSettings` ;
 - `revisions` : `createNode`, `setTaskProgress`, `setNodeTracking` ;
 - `analysis` : `getEstimateIndicators`.
+
+## Constats reçus
+
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1779 — l'évolution des indices et le temps/temps avant l'état En cours : aucun point pour une
+  révision marquée en chiffrage, et le 409 des autres lectures d'indicateurs projets (G-01, G-02 ;
+  contrat #1777, #1778).
 
 ## Préalables
 

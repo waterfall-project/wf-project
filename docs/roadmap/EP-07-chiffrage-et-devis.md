@@ -84,6 +84,18 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-INTF-0110-A` | Export du devis (FLX-04) | entière | — |
 | `WF-INTF-0180-A` | Formats indépendants de la langue | fin — amorcée en EP-02 | — |
 | `WF-DAT-0110-A` | Idempotence garantie par la base | début — close en EP-09 | — |
+| `WF-REF-0010-A` | Désactivation plutôt que suppression | fin — amorcée en EP-05 | — |
+| `WF-REF-0030-A` | Natures de coût | fin — amorcée en EP-05 | — |
+| `WF-REF-0040-A` | Catégories de coût | fin — amorcée en EP-05 | — |
+| `WF-PRJ-0060-A` | Liste des contributeurs | fin — amorcée en EP-04 | — |
+| `WF-DAT-0010-A` | Copie complète des révisions | fin — amorcée en EP-04 | — |
+| `WF-DAT-0020-A` | Immuabilité garantie par la base | fin — amorcée en EP-04 | — |
+| `WF-DAT-0080-A` | Régimes de suppression | fin — amorcée en EP-03, EP-04 | — |
+| `WF-REV-0070-A` | Historique des révisions | fin — amorcée en EP-04 | — |
+| `WF-REV-0020-A` | Marquage d’une révision | fin — amorcée en EP-04 | — |
+| `WF-REV-0010-A` | Unicité de la révision en cours | fin — amorcée en EP-15, EP-04 | — |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | fin — amorcée en EP-03, EP-05, EP-16, EP-04 | — |
+| `WF-PRJ-0080-A` | Attributs d’un projet | fin — amorcée en EP-16, EP-04 | — |
 
 ## Opérations du contrat
 
@@ -122,6 +134,18 @@ EP-06 livré : une ligne de devis est portée par une tâche.
 
 ## Constats reçus
 
-Aucun. #624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1752 — la comparaison compte une ligne sous la clé de chaque révision ; `subproject` et
+  `cost_category` dans `changes` ; le réestimé entre années de référence (E-01, E-02 ; contrat
+  #1751, #1754).
+- #1756 — `applyRateUpdate` exige le compteur et des catégories de la proposition (E-03 ; contrat
+  #1755).
+- #1767 — les saisies du devis refusées sur la structure principale en réalisation et sous une
+  tâche terminée, permises dans un différentiel (F-01 ; contrat #1766 ; spécification #1765).
+
+#624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
 2026-10-18, sont ramenés en EP-15 le même jour (décision de l'auteur) : la comparaison passe dans la
 grille dense, marquée comme un diff (#1060, US-0500).

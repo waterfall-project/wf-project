@@ -69,6 +69,7 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-IND-0030-A` | Valeur acquise | fin — amorcée en EP-10 | — |
 | `WF-IND-0100-A` | Courbe de coûts cumulés | fin — amorcée en EP-10 | — |
 | `WF-INTF-0010-A` | Usages du chef de projet | fin — amorcée en EP-06 | — |
+| `WF-REF-0160-A` | Matrice de risques | fin — amorcée en EP-05 | — |
 
 ## Opérations du contrat
 
@@ -106,7 +107,22 @@ avenant.
 
 ## Constats reçus
 
-Aucun. #763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1762 — la trace des nœuds issus d'un risque survenu (`origin_risk_id`), ses filtres, et leur
+  réestimé face au coût à la survenance (E-04 ; contrat #1761 ; spécification #1760).
+- #1783 — l'identité d'un risque, donnée du projet (`updateRisk`) ; sa provision, saisie de la
+  révision (`updateRiskProvision`) (H-02 ; contrat #1782).
+- #1786 — le registre des risques se filtre sur chacune de ses colonnes (H-01 ; contrat #1785).
+
+- #1363 — faux back : l'avenant que crée « Préparer un avenant » (structure 213) ne s'ouvre pas ;
+  #1369 — faux back : la structure du risque créé (208) n'est pas listée. Relevés par EP-15, la
+  limite d'un faux back sans état que le service des structures différentielles et des devis
+  propres lève ici ; reportés d'EP-04 au cadrage du 2026-10-28 (décision de l'auteur).
+
+#763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
 2026-10-18 (décision de l'auteur) : le parcours du risque est montré dans la maquette pour
 validation (#1062, US-0520) ; le comportement réel — provision, réserve, fusion à la survenance —
 reste ici.
