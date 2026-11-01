@@ -826,6 +826,17 @@ describe("the reading of the help", () => {
     },
   );
 
+  it.each([["../fr"], ["fr/../en"], ["de"], [""]])(
+    "refuses, where the path is written, a language the interface is not offered in: %o [WF-IHM-0140-A]",
+    async (language) => {
+      // The bound of the reading starts from the directory of the language: a language not checked
+      // would move it along (#1811).
+      await expect(
+        readHelpPage({ kind: "screen", code: "FBS-4.3" }, language as Locale),
+      ).rejects.toThrow("The help is written in no language");
+    },
+  );
+
   it("refuses, where the path is written, a file outside the directory of the help [WF-IHM-0140-A]", async () => {
     // The action refuses such a target first; the reading holds the same bound for any caller
     // (#1462). The file named here exists: the README of the repository, three levels up.

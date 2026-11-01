@@ -1131,7 +1131,7 @@ module du noyau, aucune modification du contrat.
 - **Les mêmes fichiers, par langue.** `frontend/help/en/` reprend les noms des fichiers du français,
   notions comprises : un nom de notion est une clé, non un mot affiché, et les liens entre pages
   restent les mêmes. Le contenu est traduit fidèlement, rien n'y est ajouté ni retiré ; seuls
-  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `w`, FS/SS,
+  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `wk`, FS/SS,
   #1441), et les libellés cités, pris au catalogue `en`.
 - **La langue est celle de l'interface.** `HELP_LANGUAGE` disparaît : l'action `readHelp` reçoit la
   langue (`Locale`) et la valide comme la cible, la lecture et l'index sont tenus par langue, les
@@ -1856,7 +1856,7 @@ suis.
   constaté par EP-15 (US-0580/L2), inchangé ici ; EP-11 clôt.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
-  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
+  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `wk`, FS/SS
   (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), et relues par
   l'auteur le 2026-11-01 ; la version anglaise, décidée le même jour, est la part détachée
   US-0670b (#1811), qui solde cet écart : le critère y est tenu ; EP-11 clôt.
@@ -1933,7 +1933,7 @@ dans ma langue sans lire une aide française.
   `frontend/help/fr/` a sa traduction dans `frontend/help/en/`, sous le même nom de fichier, dans
   la structure fixe dite en anglais ; le test de complétude (`help.test.ts`) exige un fichier par
   code et par notion dans chaque langue, et une page manquante est un échec dans chaque langue ;
-  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `w`, FS/SS, #1441) ;
+  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `wk`, FS/SS, #1441) ;
 - propre à l'US : la traduction est fidèle au français relu, sans rien y ajouter ni retirer ; les
   libellés des commandes et des colonnes cités sont ceux du catalogue `en` ; un écart entre une
   page et son écran devient un constat, non une correction ;

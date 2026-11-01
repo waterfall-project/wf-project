@@ -447,7 +447,7 @@ describe("the panel of the help", () => {
     expect(within(dialog).getByRole("link", { name: "le devis" })).toBeInTheDocument();
   });
 
-  it("drops the answer of a page asked before the one shown, and says a failed reading", async () => {
+  it("drops the answer of a page asked before the one shown, and says a failed reading [WF-IHM-0140-A]", async () => {
     let release: (reading: HelpReading | undefined) => void = () => undefined;
     const user = userEvent.setup();
     renderHeader();
@@ -472,6 +472,25 @@ describe("the panel of the help", () => {
     });
     expect(within(dialog).getByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Chiffrage et devis" })).toBeNull();
+  });
+
+  it("reads the open page again in the new language when the language of the interface changes [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    await panel("Planning");
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <PageHeader title="Planification" />
+        <input aria-label="Ailleurs" />
+      </NextIntlClientProvider>,
+    );
+    const dialog = await panel("Planification");
+    expect(readHelp).toHaveBeenLastCalledWith({ kind: "screen", code: "FBS-4.3" }, "fr");
+    expect(within(dialog).getByRole("heading", { level: 2 })).toHaveAttribute("lang", "fr");
+    expect(
+      await within(dialog).findByRole("heading", { level: 3, name: "Ses commandes" }),
+    ).toBeInTheDocument();
   });
 
   it("opens, on the page of a project, the help of the projects, FBS-4 [WF-IHM-0140-A]", async () => {

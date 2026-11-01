@@ -43,7 +43,7 @@ import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
-import type { Locale } from "@/i18n/locale";
+import { isLocale, type Locale } from "@/i18n/locale";
 
 import {
   fileOf,
@@ -56,8 +56,15 @@ import {
 } from "./help";
 import { NOTIONS_TO_COME, SCREENS_TO_COME } from "./to-come";
 
-/** The directory of the pages of the help in a language. */
+/**
+ * The directory of the pages of the help in a language of the interface. A value that names none
+ * fails, before any path is built from it: the bound of `readText` starts from this directory, and
+ * a language such as `../fr` would move it along (#1811).
+ */
 export function helpDirectory(language: Locale): string {
+  if (!isLocale(language)) {
+    throw new Error(`The help is written in no language ${String(language)}.`);
+  }
   return path.join(process.cwd(), "help", language);
 }
 

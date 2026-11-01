@@ -218,6 +218,16 @@ interface WrittenShown {
   readonly language: Locale;
 }
 
+const LOADING: Shown = { kind: "loading" };
+
+/**
+ * What the panel shows in the language of the interface: a page read in another is on its way again
+ * in this one — the language changed under an open panel.
+ */
+function shownIn(answered: Shown, locale: Locale): Shown {
+  return answered.kind === "read" && answered.reading.language !== locale ? LOADING : answered;
+}
+
 /** The page shown when it is written, and the language it was read in; `undefined` otherwise. */
 function writtenOf(shown: Shown): WrittenShown | undefined {
   if (shown.kind !== "read" || shown.reading.page.kind !== "written") {
@@ -279,10 +289,12 @@ function ScreenHelp({ code }: { readonly code: string }) {
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState<HelpTarget>({ kind: "screen", code });
   const [history, setHistory] = useState<readonly HelpTarget[]>([]);
-  const [shown, setShown] = useState<Shown>({ kind: "loading" });
+  const [answered, setShown] = useState<Shown>(LOADING);
+  const shown = shownIn(answered, locale);
   // The index of the last reading, and the language it was read in, which its titles say.
   const [indexed, setIndexed] = useState<Indexed>(NO_INDEX);
-  const { index } = indexed;
+  // An index read in another language than the interface's is not searched: the language changed.
+  const index = indexed.language === locale ? indexed.index : NO_INDEX.index;
   const [query, setQuery] = useState("");
   const panelId = useId();
   // The page asked last: an answer to an earlier one, arriving after it, is dropped.
@@ -295,14 +307,13 @@ function ScreenHelp({ code }: { readonly code: string }) {
   // which it goes back to on closing: the panel has no trigger of Radix to give it back to.
   const returnTo = useRef<HTMLElement | null>(null);
 
-  const show = useCallback(
-    (target: HelpTarget, past: readonly HelpTarget[]) => {
+  // Read a page in the language of the interface: its answer is shown only if no other page was
+  // asked after it. Nothing is set before the answer, so that a language changed under an open
+  // panel reads again from an effect.
+  const read = useCallback(
+    (target: HelpTarget) => {
       asked.current += 1;
       const ticket = asked.current;
-      setPage(target);
-      setHistory(past);
-      setShown({ kind: "loading" });
-      setQuery("");
       const answer = (next: Shown) => {
         if (ticket === asked.current) {
           setShown(next);
@@ -322,6 +333,30 @@ function ScreenHelp({ code }: { readonly code: string }) {
     },
     [locale],
   );
+
+  const show = useCallback(
+    (target: HelpTarget, past: readonly HelpTarget[]) => {
+      setPage(target);
+      setHistory(past);
+      setShown(LOADING);
+      setQuery("");
+      read(target);
+    },
+    [read],
+  );
+
+  // The language the page was asked in: the language changed under an open panel reads the same
+  // page again in the new one, the page of the old one shown as on its way meanwhile.
+  const askedIn = useRef(locale);
+  useEffect(() => {
+    if (askedIn.current === locale) {
+      return;
+    }
+    askedIn.current = locale;
+    if (open) {
+      read(page);
+    }
+  }, [locale, open, page, read]);
 
   const openScreen = useCallback(() => {
     if (!open) {
