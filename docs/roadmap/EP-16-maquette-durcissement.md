@@ -1068,7 +1068,8 @@ adopte. US-0670/L3 à L5 suivent US-0703 ; le gel vient toujours en dernier.
    celles des autres lots : l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du
    2026-10-26, #1139).
 9. **US-0704**, le contrat qui suit les majeurs de la revue du 2026-10-31 (décision de l'auteur du
-   2026-11-01) : après US-0703, en un seul lot et une seule pull request, avant le gel.
+   2026-11-01) : après US-0703, avant le gel ; ses décisions d'abord (#1799), puis son
+   implémentation en un seul lot, dans une pull request dédiée.
 10. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
     lots — US-0670/L3 à L5, US-0690 et US-0701 à US-0704 compris (décisions de l'auteur du
     2026-10-28 et du 2026-11-01) : le contrat est figé, `info.version` passe à `1.0.0`. La règle
@@ -2142,9 +2143,9 @@ spécification 1.0.1 contredit.
 - propre à l'US : le client engendré est régénéré, et la vérification de types et les tests du
   front qu'il casse sont corrigés dans l'US.
 
-**Notes de réalisation.** Un seul lot, une seule pull request (#1799), non découpé malgré sa taille
-(décision de l'auteur du 2026-11-01). Les décisions s'écrivent d'abord, les modifications du contrat
-suivent issue par issue. Les issues de spécification sont citées, non portées.
+**Notes de réalisation.** Les décisions sont écrites d'abord, dans `DECISIONS.md` (#1799) ;
+l'implémentation suit, en un seul lot, non découpé malgré sa taille, dans une pull request dédiée
+(décisions de l'auteur du 2026-11-01). Les issues de spécification sont citées, non portées.
 
 **Hors périmètre.** La spécification (cinq issues à part) ; le service, aux EPIC de domaine ; les
 écrans, à EP-17 ; les 89 mineurs restants, après le gel.
