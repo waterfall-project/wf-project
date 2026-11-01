@@ -43,7 +43,7 @@ import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
-import { isLocale, type Locale } from "@/i18n/locale";
+import { isLocale, LOCALES, type Locale } from "@/i18n/locale";
 
 import {
   fileOf,
@@ -239,19 +239,26 @@ export async function readHelpPage(target: HelpTarget, language: Locale): Promis
 }
 
 /** The names of the notions written in a language, by their files. */
-async function notionNames(language: Locale): Promise<string[]> {
+async function notionsWrittenIn(language: Locale): Promise<string[]> {
   try {
     const files = await readdir(path.join(helpDirectory(language), "notions"));
-    return files
-      .filter((file) => file.endsWith(".md"))
-      .map((file) => file.slice(0, -".md".length))
-      .sort((one, other) => one.localeCompare(other));
+    return files.filter((file) => file.endsWith(".md")).map((file) => file.slice(0, -".md".length));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       return [];
     }
     throw error;
   }
+}
+
+/**
+ * The names of the notions the help has, in the order of their names: those written in any language
+ * of the interface. A notion written in one and missing from another is a page that should be
+ * written there, which fails the index of that language instead of leaving a hole in it (#1823).
+ */
+async function notionNames(): Promise<string[]> {
+  const written = await Promise.all(LOCALES.map((language) => notionsWrittenIn(language)));
+  return [...new Set(written.flat())].sort((one, other) => one.localeCompare(other));
 }
 
 /**
@@ -263,7 +270,7 @@ const indexed = new Map<Locale, Promise<HelpEntry[]>>();
 async function readIndex(language: Locale): Promise<HelpEntry[]> {
   const targets: HelpTarget[] = [
     ...HELP_CODES.map((code) => ({ kind: "screen", code }) as const),
-    ...(await notionNames(language)).map((name) => ({ kind: "notion", name }) as const),
+    ...(await notionNames()).map((name) => ({ kind: "notion", name }) as const),
   ];
   // A page that should be written and is missing or untitled fails the index, as it fails its own
   // reading, so that the process does not keep an index with a hole in it.

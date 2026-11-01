@@ -763,6 +763,24 @@ describe("the reading of the help", () => {
     },
   );
 
+  it("fails the English index on a notion written in French and missing in English, every screen carried [WF-IHM-0140-A]", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "waterfall-help-"));
+    folders.push(root);
+    for (const language of ["fr", "en"] as const) {
+      cpSync(DIRECTORIES[language], path.join(root, "help", language), { recursive: true });
+    }
+    rmSync(path.join(root, "help", "en", "notions", "indices.md"));
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const fresh = await import("./read");
+    await expect(fresh.helpIndex("en")).rejects.toThrow("notions/indices.md is missing");
+    // The French index, whose notions are all written, is read.
+    const french = await fresh.helpIndex("fr");
+    expect(french.some((entry) => fileOf(entry.target) === "notions/indices.md")).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
   it.each([
     ["fr", "Gestion des utilisateurs", "La valeur acquise"],
     ["en", "User management", "Earned value"],
