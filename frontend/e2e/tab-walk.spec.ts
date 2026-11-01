@@ -7,6 +7,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 
+import { readInPage } from "./focus-probe";
 import { BATCH, lost, walkByTab } from "./tab-walk";
 
 /** A page of its own, written in the window of the harness. */
@@ -355,16 +356,20 @@ test("ends the walk of the probe when a read fails, so that Tab moves the focus 
   page,
 }) => {
   await write(page, Array.from({ length: 3 }, (_, i) => `<button>B${String(i)}</button>`).join(""));
-  // The probe given, the walk started, then the first read: it fails, one batch of presses in,
-  // when the focus has come back to the first button already.
-  let trips = 0;
+  // The first read of the readings fails, one batch of presses in, when the focus has come back to
+  // the first button already: the call is picked by the function it runs in the page, whatever
+  // calls the probe makes before it (#1718).
+  let reads = 0;
   const failing = new Proxy(page, {
     get(target, key) {
       const value: unknown = Reflect.get(target, key, target);
       if (key === "evaluate") {
         return (...args: Parameters<Page["evaluate"]>) => {
-          trips += 1;
-          return trips === 3 ? Promise.reject(new Error("read failed")) : target.evaluate(...args);
+          if (args[0] === readInPage) {
+            reads += 1;
+            return Promise.reject(new Error("read failed"));
+          }
+          return target.evaluate(...args);
         };
       }
       return typeof value === "function"
@@ -373,6 +378,7 @@ test("ends the walk of the probe when a read fails, so that Tab moves the focus 
     },
   });
   await expect(walkByTab(failing)).rejects.toThrow("read failed");
+  expect(reads).toBe(1);
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B0");
   await page.keyboard.press("Tab");
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B1");
