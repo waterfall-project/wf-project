@@ -7293,6 +7293,8 @@ révision en cours ; `CommandCondition` le dit désormais pour les quatre. Aucun
 montre : le témoin abandonné n'a ni import ni survenance qui court. Écarté : retirer la condition,
 ce qui aurait fait de `generate_skeleton` la seule commande du projet sans révision qui ne la
 nomme pas.
+*Note du 2026-11-01 : `createRevision` refuse ce cas par `STATE_FORBIDS_OPERATION` à
+`no_current_revision`, `CURRENT_REVISION_EXISTS` sortant du catalogue (US-0704, J-01, #1795).*
 
 **Le refus de `createRevision`** (relecture 1 du lot). Son 409 n'avait pas d'exemple, et le test
 de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est

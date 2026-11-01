@@ -10,7 +10,10 @@
       },
       {
         "pointer": "/kept_columns/1",
-        "code": "VALUE_TOO_LONG"
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 200
+        }
       },
       {
         "pointer": "/kept_columns/3",

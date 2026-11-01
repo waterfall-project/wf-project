@@ -179,11 +179,11 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state, the anonymisation of a deactivated one, and the attribution of its
-    # roles. The one active account that holds the permissions to modify the accounts and the
-    # access roles has its deactivation unavailable, the condition `last_administrator` missing
-    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
-    # available.
+    # changes its state, the anonymisation of a deactivated one, the attribution of its roles, and
+    # for a local one the link that sets its password and its invitation. The one active account
+    # that holds the permissions to modify the accounts and the access roles has its deactivation
+    # unavailable, the condition `last_administrator` missing (WF-ADM-0120); giving it more roles
+    # stays possible, and every other command listed is available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -205,6 +205,14 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             "missing_conditions": [],
         }
         anonymization = [] if user["is_active"] else [anonymize]
+        # A local account carries the link that sets its password and the invitation that bears
+        # it, unavailable while it is deactivated (WF-ADM-0140, #1737); another, never.
+        inactive = [] if user["is_active"] else ["is_active_account"]
+        links: list[dict[str, Any]] = [
+            {"command": command, "is_available": user["is_active"], "missing_conditions": inactive}
+            for command in ("create_password_link", "resend_invitation")
+            if user["origin"] == "local"
+        ]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
@@ -213,6 +221,7 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             },
             *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
+            *links,
         ], user["last_name"]
 
 

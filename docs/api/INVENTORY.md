@@ -43,7 +43,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/users` | Comptes utilisateurs | WF-ADM-0030, WF-ADM-0050, WF-ADM-0060, WF-ADM-0120, WF-DAT-0070, WF-IHM-0060, WF-IHM-0090, WF-IHM-0130 |
-| POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0140, WF-ADM-0180 |
+| POST | `/users` | Créer un compte local | WF-ADM-0050, WF-ADM-0070, WF-ADM-0090, WF-ADM-0100, WF-ADM-0140, WF-ADM-0180 |
 | GET | `/users/{user_id}` | Un compte utilisateur | WF-ADM-0030, WF-ADM-0050 |
 | PATCH | `/users/{user_id}` | Modifier un compte | WF-ADM-0050, WF-ADM-0060, WF-ADM-0070 |
 | PUT | `/users/{user_id}/activation` | Désactiver ou réactiver un compte | WF-ADM-0060, WF-ADM-0120, WF-SEC-0020 |
@@ -75,7 +75,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/backups/{backup_id}` | Marquer une sauvegarde à conserver | WF-ADM-0100, WF-ADM-0170, WF-IHM-0090 |
 | GET | `/backups/{backup_id}/content` | Copier une sauvegarde hors de la plateforme | WF-ADM-0100, WF-ADM-0150, WF-IHM-0090 |
 | GET | `/backup-schedule` | Planification et rétention des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050 |
-| PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0170, WF-EXP-0050, WF-OBS-0030 |
+| PUT | `/backup-schedule` | Régler la planification et la rétention | WF-ADM-0100, WF-ADM-0160, WF-ADM-0170, WF-EXP-0040, WF-EXP-0050, WF-OBS-0030 |
 | GET | `/external-backup-locations` | Emplacements externes des sauvegardes | WF-ADM-0100, WF-ADM-0170 |
 | POST | `/external-backup-locations/{location_name}/test` | Éprouver un emplacement externe des sauvegardes | WF-ADM-0100, WF-ADM-0170, WF-ARC-0110, WF-OBS-0030 |
 | POST | `/restores` | Restaurer la plateforme | WF-ADM-0150, WF-ADM-0160, WF-ARC-0090, WF-DAT-0120, WF-DAT-0130, WF-IHM-0090, WF-SEC-0030 |
@@ -121,7 +121,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | POST | `/reference/cost-categories` | Créer une catégorie de coût | WF-REF-0040 |
 | PATCH | `/reference/cost-categories/{cost_category_id}` | Modifier une catégorie de coût | WF-REF-0030, WF-REF-0040, WF-REF-0050, WF-REF-0130 |
 | PUT | `/reference/cost-categories/{cost_category_id}/activation` | Désactiver ou réactiver une catégorie de coût | WF-ADM-0100, WF-CYC-0120, WF-REF-0010, WF-REF-0020, WF-REF-0030, WF-RIS-0010 |
-| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
+| GET | `/reference/hourly-rates` | Grille des taux horaires | WF-ADM-0100, WF-ADM-0110, WF-IHM-0060, WF-IHM-0130, WF-REF-0050, WF-REF-0060, WF-REF-0150 |
 | GET | `/reference/cost-categories/{cost_category_id}/hourly-rates` | Taux horaires annuels d'une catégorie | WF-DEV-0010, WF-REF-0050, WF-REF-0060 |
 | PUT | `/reference/cost-categories/{cost_category_id}/hourly-rates/{year}` | Fixer le taux horaire d'une année | WF-REF-0030, WF-REF-0050, WF-REF-0130 |
 | GET | `/reference/actual-cost-mapping` | Correspondance de l'extraction des coûts réels | WF-ADM-0100, WF-CRE-0010, WF-REF-0190 |
@@ -133,7 +133,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0010, WF-PTF-0030 |
+| GET | `/projects` | Projets | WF-ADM-0110, WF-IHM-0120, WF-IHM-0130, WF-PRJ-0060, WF-PTF-0030 |
 | POST | `/projects` | Créer un projet | WF-CYC-0010, WF-CYC-0120, WF-PRJ-0060 |
 | GET | `/projects/{project_id}` | Un projet | WF-CYC-0010, WF-PRJ-0010, WF-PRJ-0080 |
 | PATCH | `/projects/{project_id}` | Modifier les paramètres d'un projet | WF-ADM-0110, WF-CYC-0100, WF-PRJ-0040, WF-PRJ-0060, WF-PRJ-0080, WF-PRJ-0090 |

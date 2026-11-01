@@ -131,7 +131,8 @@ CommandCondition:
     saisie du reste à engager (plus bas). `project_in_pricing` manque à la déclaration de perte
     (`lose`) d'un projet Créé : un projet ne se déclare perdu que depuis Chiffrage (WF-CYC-0060).
     `no_current_revision` manque à l'ouverture d'une révision (`create_revision`) tant que le
-    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010).
+    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010) ; `createRevision`
+    la nomme dans son 409 (J-01, #1795).
     `reference_revision_designated` manque, tant que le projet n'a pas de révision de référence, à
     la déclaration d'un risque survenu (`declare_risk_occurrence`, WF-RIS-0060) ; et
     `reference_revision_designated` et `project_code_set`, tant que le projet n'a pas de code
@@ -257,18 +258,24 @@ CommandCondition:
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
     `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et
-    `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
-    n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
-    du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
-    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à
+    `createPasswordSetupLink` et `resendInvitation` les nomment dans leur 409 :
+    `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un
+    fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe
+    à fixer dans Waterfall, et ne liste pas ces commandes —, et `is_active_account` à un compte
+    désactivé, que le compte nomme (`create_password_link`, `resend_invitation`) (WF-ADM-0140,
+    WF-ADM-0060). Deux tiennent à
     l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de
     `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme
     dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ;
     `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que
     le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans
     leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser`
-    nomme dans son 409. Le retrait de l'une de
-    ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    nomme dans son 409 ; elle manque aussi au lien de fixation et au renvoi de l'invitation d'un
+    compte local anonymisé, retiré du fournisseur d'identité, que `createPasswordSetupLink` et
+    `resendInvitation` nomment dans leur 409, jugée entre `is_local_account` et
+    `is_active_account` — le compte anonymisé ne liste pas ces commandes (#1737). Le retrait de
+    l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles
+    envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
     Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`,
     `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une
@@ -277,9 +284,9 @@ CommandCondition:
     production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —,
     à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running`
     manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des
-    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
-    (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
-    dans leur 409.
+    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde, au marquage et au
+    réglage de la planification (WF-ADM-0160, #1742). `startBackup`, `retainBackup`,
+    `downloadBackup`, `startRestore` et `setBackupSchedule` les nomment dans leur 409.
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
@@ -350,8 +357,8 @@ CommandCondition:
     manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
     plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
-    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
-    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
+    première qui manque, dans cet ordre, `STATE_FORBIDS_OPERATION` la nommant, comme toute
+    autre (EP-15/US-0490 ; J-01, #1795).
     `actual_cost_mapping_complete` manque à l'import des coûts réels
     (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
     correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont
@@ -555,7 +562,8 @@ ProjectCode:
     `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement
     de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par
     `PROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` à `["/"]` ; trop long, par
-    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`. Un code à la fois
+    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`, la borne que tout `VALUE_TOO_LONG`
+    porte (J-02, #1796). Un code à la fois
     blanc et porteur d'une barre oblique (« / », « /  ») ne reçoit qu'un refus,
     `PROJECT_CODE_INVALID`, la barre oblique d'abord (D-07, US-0701/L9).
 
@@ -948,8 +956,9 @@ DeclaredSubprojectCode:
     sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse — ce que
     dit le motif (D-7, EP-16/US-0610). Une écriture qui ne le respecte pas est refusée par 422
     `VALIDATION_FAILED`, `fields` désignant `/code` : trop long, par `VALUE_TOO_LONG`,
-    `fields[].params.max_length` à `31` ; portant un caractère interdit, par
-    `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les caractères interdits
+    `fields[].params.max_length` à `31`, la borne que tout `VALUE_TOO_LONG` porte ; portant un
+    caractère interdit, par `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les
+    caractères interdits
     qu'il porte, chacun une fois, dans l'ordre où le code les porte ; valant un nom réservé, par
     `SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name` ce nom tel que Waterfall l'écrit.
     Le code lu dans l'élément d'OTP d'une ligne de coût réel (`ActualCostLine.subproject_code`)

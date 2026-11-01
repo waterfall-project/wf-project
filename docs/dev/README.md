@@ -2504,7 +2504,9 @@ of what it describes, and two generations write the same bytes:
   marking of its revision in progress (`wftools.mockproject`, held by `tools/tests/test_mockexit.py`); and the refusals of one
   form each (`wftools.mockrefusals`, held by `tools/tests/test_mockrefusals.py`), with those the
   contract declared without a code, a condition or an example (`wftools.mockdeclared`, held by
-  `tools/tests/test_mockdeclared.py`).
+  `tools/tests/test_mockdeclared.py`); and the examples of the majors of the review of the
+  contract of 2026-10-31 — the list of the projects with the project created, the code of a
+  subproject too long — (`wftools.mockreview`, held by `tools/tests/test_mockreview.py`).
 
 What the same command generates is never re-read from the disk: the indicators, the risks
 and the curves of the witness, which the portfolio sums, are passed to it in memory, so that one single

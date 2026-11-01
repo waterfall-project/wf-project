@@ -1,8 +1,11 @@
 {
-  "summary": "La désignation de l'offre v1.0 demandée aujourd'hui sur le projet témoin, dont la référence est la 101 depuis la fusion de l'avenant 1 : le projet a reçu des coûts réels et des révisions ont été marquées depuis la dernière désignation, et la référence ne se déplace plus qu'à la contractualisation d'un avenant — refusée par son code, qui dit la condition, sans paramètre ; rien n'est écrit (WF-REV-0040).",
+  "summary": "La désignation de l'offre v1.0 demandée aujourd'hui sur le projet témoin, dont la référence est la 101 depuis la fusion de l'avenant 1 : le projet a reçu des coûts réels et des révisions ont été marquées depuis la dernière désignation, et la référence ne se déplace plus qu'à la contractualisation d'un avenant — refusée en nommant la condition que la commande designate_reference dit d'avance, reference_correctable ; rien n'est écrit (WF-REV-0040).",
   "value": {
-    "code": "REFERENCE_NOT_CORRECTABLE",
+    "code": "STATE_FORBIDS_OPERATION",
     "status": 409,
+    "params": {
+      "missing_condition": "reference_correctable"
+    },
     "correlation_id": "01926f3a-7c00-7000-8000-000000001182"
   }
 }

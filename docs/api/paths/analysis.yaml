@@ -288,7 +288,9 @@
       abscisse comme en ordonnée, et le dernier point d'un jalon non terminé est celui du jour
       courant, par la révision en cours ou, à défaut, la dernière révision marquée
       (WF-IND-0090, WF-IND-0010). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
-      sous-projet n'a pas (WF-IND-0020).
+      sous-projet n'a pas (WF-IND-0020). Sur un projet antérieur à l'état En cours, seuls les
+      indicateurs de devis existent (WF-IND-0010) : refusé par 409, comme les trois autres
+      lectures d'indicateurs projets (décision de l'auteur du 2026-11-01, #1778).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -302,6 +304,16 @@
               none: { $ref: ../../../fixtures/api/milestone_tracking_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
+          l'état du projet et `params.state_enum` `ProjectState` ; seuls les indicateurs de
+          devis existent (WF-IND-0010 ; #1778).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -445,9 +457,12 @@
       (WF-DAT-0040), et le dernier point au jour courant (WF-IND-0010) — sur la révision en
       cours, ou, sur un projet qui n'en a pas, sur sa dernière révision marquée avec le coût
       réel du jour —, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130,
-      WF-REF-0170). Un
-      indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un
-      point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule
+      WF-REF-0170). Une révision marquée avant l'état En cours n'a conservé aucun indicateur
+      projet (WF-DAT-0040) : elle ne donne aucun point. Un indice qu'une révision marquée En
+      cours n'a pas su calculer — sans coût réel, sans valeur planifiée — est un point non
+      calculable, jamais omis (WF-IND-0010 ; #1777). Sur un projet antérieur à l'état En cours,
+      seuls les indicateurs de devis existent (WF-IND-0010) : refusé par 409, comme les trois
+      autres lectures d'indicateurs projets (#1778). Sans `scope`, chaque maille ; avec lui, la seule
       maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que
       `context.scope` nomme (WF-IND-0020).
     parameters:
@@ -464,6 +479,16 @@
               subproject: { $ref: ../../../fixtures/api/index_history_subproject.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
+          l'état du projet et `params.state_enum` `ProjectState` ; seuls les indicateurs de
+          devis existent (WF-IND-0010 ; #1778).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
       '422':
         description: >-
           `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal

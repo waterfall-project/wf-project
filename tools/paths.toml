@@ -272,7 +272,9 @@ by = "make fixtures"
 # its readings by the quality of its reader and during a marking (wftools.mockproject, held by
 # tools/tests/test_mockexit.py), the refusals of one form each (wftools.mockrefusals, held by
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
-# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py).
+# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and the examples
+# of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
+# tools/tests/test_mockreview.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -565,6 +567,9 @@ paths = [
     "fixtures/api/reference_designate_stale.json",
     "fixtures/api/risk_delete_stale.json",
     "fixtures/api/subproject_delete_stale.json",
+    "fixtures/api/access_role_delete_stale.json",
+    "fixtures/api/projects_with_created.json",
+    "fixtures/api/subproject_code_too_long.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

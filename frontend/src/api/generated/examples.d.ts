@@ -78,7 +78,7 @@ export interface Examples {
     200: "portfolio_workload" | "portfolio_workload_org_node";
   };
   "GET /projects": {
-    200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
+    200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code" | "projects_with_created";
   };
   "GET /projects/{project_id}": {
     200: "project" | "project_actual_cost_mapping_incomplete" | "project_background_task_running" | "project_completed" | "project_created" | "project_participant" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_rescue" | "project_revision_opened" | "project_without_current_revision";

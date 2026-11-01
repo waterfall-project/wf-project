@@ -312,7 +312,9 @@ BackupSchedule:
     utilisateur habilité (WF-ADM-0170). Livrée activée, quotidienne, à `01:00` UTC, sept
     sauvegardes conservées, sans copie externe (WF-ADM-0170, WF-EXP-0050) : une installation
     neuve est sauvegardée chaque jour sans qu'aucune planification ait été saisie, et
-    `getBackupSchedule` ne répond jamais 404 faute d'en avoir une.
+    `getBackupSchedule` ne répond jamais 404 faute d'en avoir une. Une restauration la conserve,
+    copie externe comprise, comme la liste des sauvegardes qu'elle gouverne (WF-ADM-0160,
+    #1742).
   properties:
     is_enabled: { type: boolean }
     frequency:

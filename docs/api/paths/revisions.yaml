@@ -87,14 +87,14 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une révision en cours existe déjà : `CURRENT_REVISION_EXISTS`, sans paramètre
-          (WF-REV-0010). Une ouverture demandée depuis un écran lu avant qu'une autre ne
-          l'ouvre — la première des deux écritures du squelette de planning sur un projet qui
-          n'en avait pas — reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4). Ou
-          l'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit, ou
-          son absence d'un projet terminal :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `project_not_terminal` sur un
-          projet terminal (WF-CYC-0100), puis à `no_background_task_running` pendant
+          L'état du projet interdit l'ouverture, comme sa commande `create_revision` le dit, ou
+          son absence d'un projet terminal : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` à `project_not_terminal` sur un projet terminal
+          (WF-CYC-0100) ; à `no_current_revision` quand une révision en cours existe déjà
+          (WF-REV-0010 ; J-01, #1795) — une ouverture demandée depuis un écran lu avant qu'une
+          autre ne l'ouvre, la première des deux écritures du squelette de planning sur un projet
+          qui n'en avait pas, reçoit ce refus, et l'écran relit le projet (EP-15/US-0490/L4) — ;
+          puis à `no_background_task_running` pendant
           l'application d'un import, le traitement d'une survenance ou la fusion d'un différentiel
           de la dernière révision marquée, qui créent eux-mêmes la révision en cours (WF-REV-0010,
           WF-INTF-0090 ; E-13, US-0702/L2). Rien n'est écrit.
@@ -314,8 +314,8 @@
           condition manquante » (WF-CYC-0030), le projet restant sans référence
           (`reference_without_tasks`) ; une désignation qui ne se corrige plus, le projet ayant
           reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation,
-          `REFERENCE_NOT_CORRECTABLE`, sans paramètre, le code disant la condition que la
-          commande nomme `reference_correctable` (WF-REV-0040 ; `reference_not_correctable`) ;
+          de même à `reference_correctable` (WF-REV-0040 ; J-01, #1795 ;
+          `reference_not_correctable`) ;
           ou un traitement de fond qui court sur la révision, `no_background_task_running`
           (EP-15/US-0490).
         content:

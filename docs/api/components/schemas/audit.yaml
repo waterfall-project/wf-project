@@ -246,8 +246,9 @@ AuditParams:
     fields:
       type: array
       description: >-
-        `user_update` : les champs de l'identité que la modification a changés, dans l'ordre du
-        compte ; leurs valeurs n'y sont pas, celles d'avant comme celles d'après.
+        `user_update` : les champs du compte que la modification a changés, dans l'ordre du
+        compte — son identité et son rattachement à un nœud d'organisation (#1739) ; leurs
+        valeurs n'y sont pas, celles d'avant comme celles d'après.
       items: { $ref: '#/AuditUserField' }
     attached:
       type: boolean
@@ -293,10 +294,12 @@ AuditParams:
 
 AuditUserField:
   type: string
-  enum: [last_name, first_name, email]
+  enum: [last_name, first_name, email, org_node_id]
   description: >-
-    Un champ de l'identité d'un compte qu'une modification change (`user_update`), nommé comme
-    la colonne de la table des comptes, que le front rend par son catalogue (WF-ARC-0110).
+    Un champ du compte qu'une modification change (`user_update`), nommé comme la colonne de la
+    table des comptes, que le front rend par son catalogue (WF-ARC-0110) : le nom, le prénom,
+    l'adresse, et le rattachement au nœud d'organisation (`org_node_id`), donné, changé ou retiré
+    (WF-ADM-0030, WF-ADM-0050) ; la valeur n'y est pas, comme pour les autres champs.
 
 AuditAccessRole:
   type: object

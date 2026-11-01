@@ -6,7 +6,10 @@
     "fields": [
       {
         "pointer": "/kept_columns",
-        "code": "VALUE_TOO_LONG"
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 50
+        }
       }
     ],
     "correlation_id": "01926f3a-7c00-7000-8000-000000001560"

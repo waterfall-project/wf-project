@@ -339,8 +339,10 @@ Problem:
         paramètres au signalement d'une telle date importée (`ImportSignal.params`) ;
         `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160) ;
-        `max_length`, dans `fields[].params`, le plus grand nombre de caractères qu'admet le code
-        d'un sous-projet trop long (`VALUE_TOO_LONG`, `31`, WF-PRJ-0050), et
+        `max_length`, dans `fields[].params`, qui accompagne tout `VALUE_TOO_LONG` : la borne du
+        champ refusé, le plus grand nombre de caractères qu'admet un texte (`maxLength`) ou
+        d'éléments qu'admet une liste (`maxItems`) — `50` pour le code d'un projet, `31` pour
+        celui d'un sous-projet (WF-PRJ-0010, WF-PRJ-0050 ; J-02, #1796) —, et
         `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` — et
         `forbidden_characters`, de `PROJECT_CODE_INVALID`, `["/"]` (`createProject`,
         `updateProject`, WF-PRJ-0010 ; D-07, US-0701/L9) — : les
@@ -438,8 +440,6 @@ ErrorCode:
     # (WF-REF-0030, WF-REF-0040) — sans `fields` quand la clé est celle du chemin, le taux d'une
     # catégorie et d'une année (`setHourlyRate`).
     - ALREADY_EXISTS
-    - CURRENT_REVISION_EXISTS
-    - REFERENCE_NOT_CORRECTABLE
     # Une annulation ou un rétablissement qui défairait une modification postérieure portée sur le
     # même objet — qu'un autre contributeur a depuis reprise — : `params.conflicting_object_id` et
     # `params.conflicting_object_label` nomment cet objet, une tâche, une ligne de devis ou un
@@ -516,7 +516,8 @@ ErrorCode:
     # dans la semaine ; aussi motif de rejet d'une ligne collée ou importée (WF-PLA-0010).
     - TASK_WITHOUT_WORKING_HOURS
     # Motifs par champ, par ligne collée ou importée (`fields`, `PastePlan`,
-    # `ImportRejection`).
+    # `ImportRejection`). `VALUE_TOO_LONG` porte toujours `params.max_length`, la borne du champ
+    # refusé, `maxLength` d'un texte ou `maxItems` d'une liste (J-02, #1796).
     - VALUE_REQUIRED
     - VALUE_TOO_LONG
     - VALUE_OUT_OF_RANGE
@@ -681,7 +682,8 @@ ErrorCode:
     # (`/code`, `createSubproject`, `updateSubproject` ; WF-PRJ-0050, D-7, EP-16/US-0610) : il
     # porte un caractère interdit, `fields[].params.forbidden_characters` les nommant, ou vaut un
     # nom réservé, sans égard à la casse, `fields[].params.reserved_name` le nommant. Un code trop
-    # long est `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`.
+    # long est `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`, comme tout `VALUE_TOO_LONG`
+    # porte la borne de son champ.
     - SUBPROJECT_CODE_INVALID
     # Un code projet qui porte une barre oblique, le seul séparateur de l'élément d'OTP qui le
     # porte (`/code`, `createProject`, `updateProject` ; `ProjectCode`, WF-PRJ-0010, WF-CRE-0020 ;

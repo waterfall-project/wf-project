@@ -16,15 +16,17 @@
       modification (`audit.updated_at`), la colonne de date de la liste, comme celle du journal
       d'audit : deux instants, le début inclus, la fin exclue, que l'écran tire des jours de son
       lecteur.
-      Sans `states`, les projets en cours seuls, le défaut du périmètre du portefeuille
-      (WF-PTF-0010) que le paramètre partage : un accueil qui liste tous les projets
-      ouvrables nomme les six états. `meta.states` dit toujours les états retenus, nommés ou
-      par défaut, pour que l'écran montre le filtre que le serveur a appliqué.
+      Tout état que `states` nomme est retenu, par un paramètre propre à la liste
+      (`ProjectStates`, #1747) ; sans `states`, les projets en cours seuls : un accueil qui
+      liste tous les projets ouvrables nomme les six états, et l'accueil retient par défaut
+      Créé, Chiffrage et En cours, qu'il envoie toujours. `meta.states` dit toujours les états
+      retenus, nommés ou par défaut, pour que l'écran montre le filtre que le serveur a
+      appliqué.
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
       - $ref: ../components/parameters.yaml#/Search
-      - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/ProjectStates
       - name: is_contributor
         in: query
         description: Vrai, les seuls projets dont l'appelant est contributeur.
@@ -73,6 +75,7 @@
               default_states: { $ref: ../../../fixtures/api/projects_default_states.json }
               search_code: { $ref: ../../../fixtures/api/projects_search_code.json }
               period: { $ref: ../../../fixtures/api/projects_period.json }
+              with_created: { $ref: ../../../fixtures/api/projects_with_created.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -692,7 +695,8 @@
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
           `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG` —
-          `fields[].params.max_length` à `31` pour `/code` — ; `/code` portant un caractère
+          `fields[].params.max_length` à `31` pour `/code`, à `300` pour `/label`, la borne
+          du champ — ; `/code` portant un caractère
           interdit ou valant un nom réservé, sans égard à la casse, `SUBPROJECT_CODE_INVALID`,
           `fields[].params.forbidden_characters` ou `fields[].params.reserved_name` le nommant :
           le code nomme l'onglet du sous-projet dans le fichier de reste à engager
@@ -703,6 +707,7 @@
             examples:
               code_invalid: { $ref: ../../../fixtures/api/subproject_code_invalid.json }
               code_reserved: { $ref: ../../../fixtures/api/subproject_code_reserved.json }
+              code_too_long: { $ref: ../../../fixtures/api/subproject_code_too_long.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -752,7 +757,8 @@
         description: >-
           `VALIDATION_FAILED`, `fields` désignant chaque champ : `/code` ou `/label` vides,
           `VALUE_REQUIRED`, ou plus longs que le schéma ne l'admet, `VALUE_TOO_LONG` —
-          `fields[].params.max_length` à `31` pour `/code` — ; `/code` portant un caractère
+          `fields[].params.max_length` à `31` pour `/code`, à `300` pour `/label`, la borne
+          du champ — ; `/code` portant un caractère
           interdit ou valant un nom réservé, sans égard à la casse, `SUBPROJECT_CODE_INVALID`,
           `fields[].params.forbidden_characters` ou `fields[].params.reserved_name` le nommant :
           le code nomme l'onglet du sous-projet dans le fichier de reste à engager
@@ -1111,7 +1117,10 @@
       marquée ne la retient, ni ne la fait marquer supprimée, ses inscriptions partant avec elle.
       Le projet dit d'avance si l'appelant peut en supprimer (`ProjectCommand.manage_timelines`) ;
       sur un projet terminal, elle est refusée par 409, comme toute écriture du projet
-      (WF-CYC-0100).
+      (WF-CYC-0100). Elle ne porte pas de compteur, par exception écrite au README : une
+      chronologie n'en a pas, aucune opération ne la modifie — elle se crée et se supprime — et
+      ses inscriptions sont des entrées des tâches, qui ont les leurs ; il n'y a rien à comparer,
+      et une chronologie déjà supprimée est un 404 (décision de l'auteur du 2026-11-01, #1733).
     tags: [planning]
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId

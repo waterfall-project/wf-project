@@ -2522,7 +2522,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   marquage de sa révision en cours (`wftools.mockproject`, tenu par `tools/tests/test_mockexit.py`) ; et les refus d'une seule
   forme (`wftools.mockrefusals`, tenu par `tools/tests/test_mockrefusals.py`), avec ceux que le
   contrat déclarait sans code, condition ni exemple (`wftools.mockdeclared`, tenu par
-  `tools/tests/test_mockdeclared.py`).
+  `tools/tests/test_mockdeclared.py`) ; et les exemples des majeurs de la revue du contrat du
+  2026-10-31 — la liste des projets avec le projet créé, le code d'un sous-projet trop long —
+  (`wftools.mockreview`, tenu par `tools/tests/test_mockreview.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
 et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule

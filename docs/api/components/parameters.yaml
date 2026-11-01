@@ -39,9 +39,11 @@ IncludeInactive:
   name: include_inactive
   in: query
   description: >-
-    Inclut les objets désactivés (WF-REF-0150), sous la permission de modification que
-    l'opération exige : sans elle, la demande est refusée par 403 (`PERMISSION_MISSING`), comme
-    pour `is_active` faux.
+    Inclut les objets désactivés d'une liste du référentiel (WF-REF-0150), sous la permission de
+    modification que l'opération exige : sans elle, la demande est refusée par 403
+    (`PERMISSION_MISSING`), comme pour `is_active` faux. Propre au référentiel : une liste qui
+    ne suit pas cette règle porte son propre paramètre — les comptes, dont les désactivés se
+    lisent comme les actifs (`listUsers`, WF-ADM-0060, #1736).
   schema: { type: boolean, default: false }
 
 IsActive:
@@ -785,6 +787,21 @@ WorkloadBasis:
     référence, une révision marquée pour sa charge réestimée — nommée par `revision_id` —, ou la
     révision en cours (WF-DEV-0070). Les deux dernières sont la base du reste à engager.
   schema: { type: string, enum: [reference_budget, marked_remaining, current_remaining] }
+
+ProjectStates:
+  name: states
+  in: query
+  description: >-
+    États retenus par la liste des projets (`listProjects`) : tout état nommé est retenu — un
+    accueil qui liste tous les projets ouvrables nomme les six. Absent, les projets en cours
+    seuls. `meta.states` dit toujours les états retenus, nommés ou par défaut. Propre à la
+    liste : la règle des vues du portefeuille, qui ne comptent pas certains états
+    (`PortfolioStates`, WF-PTF-0010), ne vaut pas ici (décision de l'auteur du 2026-11-01,
+    #1747).
+  schema:
+    type: array
+    items: { $ref: schemas/projects.yaml#/ProjectState }
+  explode: false
 
 PortfolioStates:
   name: states

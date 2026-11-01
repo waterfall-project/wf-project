@@ -321,8 +321,9 @@ def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObj
         "cost_categories_reader.json": _example(
             f"Les {_count(len(readable))} catégories de coût actives du §4.6.2, par code, lues "
             f"par une session qui ne peut pas modifier les paramètres de coûts — un estimateur "
-            f"qui choisit la catégorie d'une ligne de devis : aucune commande (WF-DEV-0020, "
-            f"WF-IHM-0090).",
+            f"qui choisit la catégorie d'une ligne de devis —, sans permission du référentiel "
+            f"au besoin, toute session ouverte lisant les actifs (#1745) : aucune commande "
+            f"(WF-DEV-0020, WF-IHM-0090).",
             page(readable, MAX_LIMIT, 0),
         ),
         "cost_categories_type_deactivated.json": _example(
@@ -391,15 +392,17 @@ def named() -> dict[str, JsonObject]:
     return {
         "org_nodes_reader.json": _example(
             "L'arbre d'organisation lu par une session qui ne peut pas modifier les paramètres de "
-            "ressources : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une "
+            "ressources, sans permission du référentiel au besoin, toute session ouverte lisant "
+            "les actifs (#1745) : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une "
             "commande (WF-REF-0070, WF-IHM-0090).",
             cast("JsonValue", read_by_a_reader(fixture("org_nodes"))),
         ),
         "resource_roles_reader.json": _example(
             f"Les {_count(len(readable_roles))} rôles de ressources actifs, lus par une session "
             f"qui ne peut pas modifier les paramètres de ressources — un estimateur qui choisit "
-            f"le rôle d'une ligne de devis, sans pouvoir demander les désactivés : aucune "
-            f"commande (WF-DEV-0020, WF-REF-0150, WF-IHM-0090).",
+            f"le rôle d'une ligne de devis, sans pouvoir demander les désactivés —, sans "
+            f"permission du référentiel au besoin, toute session ouverte lisant les actifs "
+            f"(#1745) : aucune commande (WF-DEV-0020, WF-REF-0150, WF-IHM-0090).",
             page(readable_roles, PAGE, 0),
         ),
         "resource_roles_bounded.json": _example(
@@ -412,14 +415,16 @@ def named() -> dict[str, JsonObject]:
         ),
         "calendars_reader.json": _example(
             f"Les {_count(len(readable_calendars))} calendriers actifs, lus par une session qui ne "
-            f"peut pas modifier les paramètres de ressources : aucune commande, pas même la "
-            f"désactivation indisponible du calendrier par défaut (WF-REF-0110, WF-IHM-0090).",
+            f"peut pas modifier les paramètres de ressources, sans permission du référentiel au "
+            f"besoin, toute session ouverte lisant les actifs (#1745) : aucune commande, pas même "
+            f"la désactivation indisponible du calendrier par défaut (WF-REF-0110, WF-IHM-0090).",
             page(readable_calendars, PAGE, 0),
         ),
         "cost_types_reader.json": _example(
             f"Les {_count(len(readable_natures))} natures de coût actives, lues par une session "
-            f"qui ne peut pas modifier les paramètres de coûts : aucune commande (WF-REF-0030, "
-            f"WF-IHM-0090).",
+            f"qui ne peut pas modifier les paramètres de coûts, sans permission du référentiel au "
+            f"besoin, toute session ouverte lisant les actifs (#1745) : aucune commande "
+            f"(WF-REF-0030, WF-IHM-0090).",
             page(readable_natures, PAGE, 0),
         ),
         "org_node_reactivated.json": _example(

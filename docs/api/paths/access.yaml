@@ -36,7 +36,15 @@
           (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le
           prénom suivi du nom, qu'aucune colonne ne porte entier.
         schema: { type: string, minLength: 1, maxLength: 200 }
-      - $ref: ../components/parameters.yaml#/IncludeInactive
+      - name: include_inactive
+        in: query
+        description: >-
+          Inclut les comptes désactivés, lisibles sous la même permission que les actifs
+          (`users.read`) : un compte désactivé reste affiché partout où il a agi (WF-ADM-0060).
+          Propre aux comptes : la règle du référentiel, qui réserve les désactivés à la
+          permission de modification (`IncludeInactive`, WF-REF-0150), ne vaut pas ici
+          (décision de l'auteur du 2026-11-01, #1736).
+        schema: { type: boolean, default: false }
       - name: is_active
         in: query
         description: >-
@@ -164,7 +172,11 @@
       (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Un compte local naît sans mot de passe et ne
       peut pas se connecter avant que son porteur n'en ait fixé un par le lien envoyé à son
       adresse — ou remis par un utilisateur habilité, qui l'obtient de
-      `createPasswordSetupLink` (WF-ADM-0140).
+      `createPasswordSetupLink` (WF-ADM-0140). Il naît aussi sans rôle, comme un compte lu de
+      l'annuaire (WF-ADM-0070) : ses rôles lui sont attribués ensuite par `setUserAccessRoles`,
+      qui exige de plus la permission de modifier les rôles d'habilitation (WF-ADM-0090,
+      WF-ADM-0100) ; la création et l'attribution s'inscrivent chacune au journal sous leur
+      propre requête.
     requestBody:
       required: true
       content:
@@ -199,10 +211,8 @@
       '422':
         description: >-
           Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
-          en défaut (WF-ADM-0050) : un rôle
-          d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
-          `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`,
-          `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
+          en défaut (WF-ADM-0050) : un nœud d'organisation que l'installation n'a pas
+          (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
           (`INACTIVE_REFERENCE_OBJECT`) ; une adresse, un nom ou un prénom que le fournisseur
           d'identité refuse alors que la règle des adresses et des noms du contrat les admet — des
           points qui se suivent, une partie locale de plus de 64 caractères, un caractère qu'il
@@ -505,15 +515,19 @@
       '409':
         description: >-
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque
-          (`CommandCondition`) : `is_local_account` quand le compte n'est pas local — un compte de
-          l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité
-          et n'a pas de mot de passe à fixer ici —, `is_active_account` quand il est désactivé
-          (WF-ADM-0140, WF-ADM-0060). Un compte qui manque aux deux est refusé par la première.
+          (`CommandCondition`), celle que le compte dit d'avance de sa commande
+          (`create_password_link`), jugées dans cet ordre : `is_local_account` quand le compte
+          n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie
+          auprès du fournisseur d'identité et n'a pas de mot de passe à fixer ici —,
+          `is_not_anonymized` quand il est anonymisé — retiré du fournisseur d'identité, de façon
+          irréversible, ce que sa réactivation ne lèverait pas —, `is_active_account` quand il est
+          désactivé (WF-ADM-0140, WF-ADM-0060). Le refus nomme la première qui manque.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_local: { $ref: ../../../fixtures/api/password_link_not_local.json }
+              anonymized: { $ref: ../../../fixtures/api/password_link_anonymized.json }
               deactivated: { $ref: ../../../fixtures/api/password_link_deactivated.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -548,14 +562,17 @@
       '409':
         description: >-
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque
-          (`CommandCondition`), comme pour le lien : `is_local_account` quand le compte n'est pas
-          local, `is_active_account` quand il est désactivé (WF-ADM-0140, WF-ADM-0060). Un compte
-          qui manque aux deux est refusé par la première. Aucun courriel ne part.
+          (`CommandCondition`), celle que le compte dit d'avance de sa commande
+          (`resend_invitation`), jugées comme pour le lien, dans cet ordre : `is_local_account`
+          quand le compte n'est pas local, `is_not_anonymized` quand il est anonymisé,
+          `is_active_account` quand il est désactivé (WF-ADM-0140, WF-ADM-0060). Le refus nomme
+          la première qui manque. Aucun courriel ne part.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_local: { $ref: ../../../fixtures/api/invitation_not_local.json }
+              anonymized: { $ref: ../../../fixtures/api/invitation_anonymized.json }
               deactivated: { $ref: ../../../fixtures/api/invitation_deactivated.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
@@ -957,6 +974,14 @@
       n'a jamais existé. Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          Le compteur du rôle supprimé, tel que l'écran l'a lu (`AccessRole.lock_version`) :
+          périmé, la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110 ;
+          décision de l'auteur du 2026-11-01, #1733).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
         description: Rôle supprimé.
@@ -972,5 +997,15 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               in_use: { $ref: ../../../fixtures/api/access_role_delete_refused.json }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : le rôle a été écrit depuis sa lecture, et rien n'est supprimé ;
+          `params.expected_lock_version` est son compteur courant (WF-IHM-0110, #1733).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/access_role_delete_stale.json }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
