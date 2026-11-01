@@ -245,6 +245,28 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   (#1218) ; borné : la cause d'abord, un budget, un correctif à la cause (décision de l'auteur du
   2026-10-28).
 
+**La revue du contrat du 2026-10-31.** Les écrans de ce que la revue du contrat a changé, tranché
+par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), et les écrans viennent à
+EP-17 (décision de l'auteur du 2026-11-01). Sous-issues de #1547, chacune à ranger sous l'US qui la
+règle au cadrage.
+
+- #1748 — le défaut de l'accueil retient aussi les projets créés : Créé, Chiffrage et En cours
+  (D-01 ; contrat #1747).
+- #1753 — les libellés de `NodeChange.subproject` et `cost_category` dans la comparaison (E-01 ;
+  contrat #1751).
+- #1763 — les lignes issues d'un risque survenu : filtre, marque, et réestimé face au coût à la
+  survenance (E-04 ; contrat #1761).
+- #1773 — indenter ou créer une sous-tâche sous un jalon, indisponible d'avance (F-04 ; contrat
+  #1771).
+- #1776 — signaler les lignes propres ouvertes d'une récapitulative, au reste à engager et au Kanban
+  (F-05 ; contrat #1774).
+- #1784 — le détail du risque écrit son identité et sa provision par deux opérations (H-02 ; contrat
+  #1782).
+- #1787 — le registre des risques filtre chacune de ses colonnes depuis son adresse (H-01 ; contrat
+  #1785).
+- #1791 — le compte rendu d'import lit ses commandes et présente l'état `refused` (I-01, I-02 ;
+  contrat #1789).
+
 ## Conception
 
 EP-17 est un EPIC du front et de son harnais : il ne crée **aucune table ni migration**, ne touche

@@ -132,6 +132,15 @@ compte à un nœud (`org_node_id`, `org_node_label`) : `listUsers`, `getUser`, `
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1740 — la modification du rattachement d'un compte inscrite au journal, `org_node_id` dans
+  `fields` (B-01 ; contrat #1739).
+- #1746 — les objets actifs du référentiel lus par toute session, la grille des taux sous
+  `cost_settings.read` (C-01 ; contrat #1745).
+
 - #1338, pour #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   le nom de l'entreprise à l'amorçage et dans les paramètres communs, et la correspondance de
   l'extraction des coûts réels, stockée avec ses règles.

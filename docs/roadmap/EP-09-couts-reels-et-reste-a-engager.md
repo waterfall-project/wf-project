@@ -99,6 +99,15 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1775 — `awaiting_own_lines`, la récapitulative qui n'attend plus que ses lignes propres (F-05 ;
+  contrat #1774).
+- #1794 — l'import du reste à engager rejette la ligne nouvelle sous une tâche terminée (I-05 ;
+  contrat #1793).
+
 - #1340, pour #1304, points 3, 4 et 5 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - la lecture de l'extraction selon la correspondance qu'EP-05 stocke : le refus tant
     qu'elle est incomplète, la colonne exigée absente nommée, les colonnes ignorées nommées au

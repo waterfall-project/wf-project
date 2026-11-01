@@ -107,6 +107,16 @@ avenant.
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1762 — la trace des nœuds issus d'un risque survenu (`origin_risk_id`), ses filtres, et leur
+  réestimé face au coût à la survenance (E-04 ; contrat #1761 ; spécification #1760).
+- #1783 — l'identité d'un risque, donnée du projet (`updateRisk`) ; sa provision, saisie de la
+  révision (`updateRiskProvision`) (H-02 ; contrat #1782).
+- #1786 — le registre des risques se filtre sur chacune de ses colonnes (H-01 ; contrat #1785).
+
 - #1363 — faux back : l'avenant que crée « Préparer un avenant » (structure 213) ne s'ouvre pas ;
   #1369 — faux back : la structure du risque créé (208) n'est pas listée. Relevés par EP-15, la
   limite d'un faux back sans état que le service des structures différentielles et des devis
