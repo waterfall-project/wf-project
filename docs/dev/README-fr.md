@@ -2200,7 +2200,10 @@ même. L'infobulle dit :
 Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'article
 (`item={ContextMenuItem}` ou `DropdownMenuItem`), le nom, l'aide, les touches, la condition, l'icône
 et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
-sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie.
+sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie. Un article qui
+mène ailleurs prend `href` au lieu d'`onSelect` — l'un ou l'autre, jamais les deux —, et s'y rend en
+lien ; `detail` est un texte que l'article dit sous son nom, la condition qui manque à un geste du
+Kanban (#1435).
 
 L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
 aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,

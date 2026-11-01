@@ -8,7 +8,7 @@ Le **Diagramme temps/temps**, sous les cartes des [indicateurs projets](FBS-4.8.
 - Terminé, sa courbe s’arrête par un point à sa date de terminaison, sur la diagonale des **Dates égales**, et aucune révision marquée ensuite n’y ajoute de point.
 - Les révisions marquées avant l’état En cours ne donnent aucun point.
 
-Seuls les jalons inscrits au suivi temps/temps y figurent : un jalon s’y inscrit depuis la [grille de planning](FBS-4.3.2.md), par **Suivi temps/temps** dans le menu de sa cellule. Sans jalon inscrit, l’écran dit « Aucun jalon n’est inscrit au suivi. »
+Seuls les jalons inscrits au suivi temps/temps y figurent : un jalon s’y inscrit depuis la [grille de planning](FBS-4.3.2.md), par **Suivi temps/temps**, dans le sous-menu **Chronologies** du menu de sa cellule. Sans jalon inscrit, l’écran dit « Aucun jalon n’est inscrit au suivi. »
 
 Le suivi porte sur le projet entier, quel que soit son état : un sous-projet n’a pas de jalons. Quand le bandeau filtre un sous-projet, la section le dit.
 

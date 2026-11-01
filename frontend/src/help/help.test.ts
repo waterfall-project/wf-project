@@ -322,17 +322,22 @@ describe("the reading of the help", () => {
       SCREENS_TO_COME: { "FBS-4.8": "a lot to come" },
       NOTIONS_TO_COME: { indices: "a lot to come" },
     }));
-    const fresh = await import("./read");
-    expect(await fresh.readHelpPage({ kind: "screen", code: "FBS-4.8" })).toEqual({
-      kind: "pending",
-      target: { kind: "screen", code: "FBS-4.8" },
-    });
-    expect((await fresh.readHelpPage({ kind: "notion", name: "indices" })).kind).toBe("pending");
-    // A page not listed to come, and not carried, fails.
-    await expect(fresh.readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow(
-      "FBS-4.3.md",
-    );
-    vi.doUnmock("./to-come");
+    try {
+      const fresh = await import("./read");
+      expect(await fresh.readHelpPage({ kind: "screen", code: "FBS-4.8" })).toEqual({
+        kind: "pending",
+        target: { kind: "screen", code: "FBS-4.8" },
+      });
+      expect((await fresh.readHelpPage({ kind: "notion", name: "indices" })).kind).toBe("pending");
+      // A page not listed to come, and not carried, fails.
+      await expect(fresh.readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow(
+        "FBS-4.3.md",
+      );
+    } finally {
+      // The lists mocked never reach the tests after it, whatever this one does.
+      vi.doUnmock("./to-come");
+      vi.resetModules();
+    }
   });
 
   it.each([
