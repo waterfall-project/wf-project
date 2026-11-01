@@ -428,8 +428,7 @@ describe("the witness path", () => {
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
   });
 
-  it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
-    // The deactivated roles refused (403): any session reads the active ones (C-01).
+  it("shows the grid without naming the roles when the API refuses them (403, the deactivated ones: any session reads the active ones, C-01)", async () => {
     const { html, grid } = await estimateWith({
       "GET /reference/resource-roles": { problem: { code: "PERMISSION_MISSING", status: 403 } },
     });
