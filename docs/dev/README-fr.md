@@ -1461,13 +1461,10 @@ heure travaillée — un calendrier modifié ou désigné par défaut, un rôle 
 (`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la semaine. »)
 en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par son seul
 libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de
-l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `resource_role_ids` : les
-rôles dont les calendriers ne se recoupent aucun jour, que le refus ne donne que par leurs
-identifiants — la page, pour une session qui écrit, lit tous les rôles, désactivés compris comme elle
-le peut (`readEveryRole`), et les prête à chaque avis de leurs deux listes (`RoleNames`, `KnownNames`
-d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit sans nom quand elle
-n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
-défaut vidé ou désigné.
+l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `params.resource_roles` : les rôles dont les calendriers ne se recoupent
+aucun jour, que le refus nomme lui-même par leur code et leur libellé, partout où il se dit, le
+planning compris, la page n'en lisant aucun ; une liste vide désigne le calendrier par défaut,
+quand seules des tâches sans ligne de main-d'œuvre perdent leurs heures, vidé ou désigné.
 
 ### Les paramètres des risques et des indicateurs
 
@@ -3716,7 +3713,7 @@ ses paramètres, jamais une phrase.
   statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
-  quand l'écran les a lus (`names`, et `KnownNames` pour tous les avis d'un écran) ; les lignes
+  quand l'écran les a lus (`names`) ; les lignes
   ou les projets nommés au-delà de la phrase, hors de l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
   (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
   `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de

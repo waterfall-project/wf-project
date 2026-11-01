@@ -280,8 +280,7 @@ export interface CellWrites<Row, Totals> {
 /**
  * Write the cells of a grid, on the rows of a reading, by the rules of the grid: its rows told
  * apart by `rowKey`, the totals of a reading the writes do not answer read anew by `retotal`, an
- * answer judged against a row read anew by `fresher`. It needs the `NextIntlClientProvider` and the
- * `Known` context above it: a refusal kept quiet is noted in the history of the messages, in the
+ * answer judged against a row read anew by `fresher`. It needs the `NextIntlClientProvider` above it: a refusal kept quiet is noted in the history of the messages, in the
  * sentence a notice would tell it in (`useNoteRefusal`).
  */
 export function useCellWrites<Row, Totals>(

@@ -38,6 +38,8 @@ const STRUCTURE = {
 };
 // A role of the reference data, deactivated.
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
+const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000451";
+const FITTER = "01926f3a-7c00-7000-8000-000000000454";
 // The rows of the estimate, by their index: its line of labour, its disbursement, its provision.
 const LABOUR = 2;
 const DISBURSEMENT = 3;
@@ -122,33 +124,34 @@ describe("the refusal of a cell that would leave a task without a working hour (
     ]);
   });
 
-  it("names the roles of the refusal by their labels and codes even when neither a line shown nor the roles the session reads know them [WF-PLA-0010-A]", async () => {
-    // An estimator reads the active roles alone (`resource_settings.read` missing): a variant of the
-    // refusal of the contract names two deactivated roles, which no line of the grid bears; the
-    // refusal names them itself (#1684).
-    const refused = example("estimate_line_without_hours") as Problem & { status: 422 };
-    const unknown = [
-      { resource_role_id: AUTOMATION_ENGINEER, code: "AUTOM", label: "Automaticien" },
-      {
-        resource_role_id: "01926f3a-7c00-7000-8000-000000000455",
-        code: "ARCH",
-        label: "Archiviste",
-      },
-    ];
+  it("names the roles of the refusal of the contract as it gives them, though the roles the session reads do not hold the monteur câbleur [WF-PLA-0010-A]", async () => {
+    // An estimator reads the active roles alone (`resource_settings.read` missing), and here not the
+    // monteur câbleur: no line of the grid bears it, no role read names it; the refusal of the contract
+    // names it itself (#1684).
     const client = fakeClient({
-      [LINE]: {
-        problem: { ...refused, params: { ...refused.params, resource_roles: unknown } },
-      },
+      [LINE]: { problem: example("estimate_line_without_hours") as Problem & { status: 422 } },
     });
     server.client = client;
+    // The line of labour bears another role, so that none shown is the monteur câbleur.
+    const read = structuredClone(estimate);
+    const labour = read.items[LABOUR]?.estimate_line;
+    if (labour !== undefined && labour !== null) {
+      labour.resource_role_id = COMMISSIONING;
+      labour.resource_role_label = "Ingénieur électricien";
+    }
     const reference = estimateReference();
     render(
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
         <EstimateGrid
-          nodes={estimate}
+          nodes={read}
           structure={STRUCTURE}
           structureVersion={1}
-          reference={{ ...reference, roles: reference.roles?.filter((role) => role.active) }}
+          reference={{
+            ...reference,
+            roles: reference.roles?.filter(
+              (role) => role.active && role.resource_role_id !== FITTER,
+            ),
+          }}
           editable
           tasksEditable
           query={NO_QUERY}
@@ -161,15 +164,15 @@ describe("the refusal of a cell that would leave a task without a working hour (
     await userEvent.keyboard("{Enter}");
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: "Rôle" }),
-      "Monteur câbleur",
+      "Technicien de mise en service",
     );
     await userEvent.keyboard("{Tab}");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      "Rôles dont les calendriers ne se recoupent aucun jour : Automaticien (AUTOM) et Archiviste (ARCH).",
+      "Rôle dont le calendrier n’a aucune heure : Monteur câbleur (MONT-CAB).",
     );
     expect(alert).toHaveTextContent("Câblage des armoires");
-    expect(alert).not.toHaveTextContent("000000000453");
+    expect(alert).not.toHaveTextContent("000000000454");
   });
 });
 

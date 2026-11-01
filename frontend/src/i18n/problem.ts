@@ -254,8 +254,8 @@ const DETAILS: readonly Reader[] = [
     }
     const roles = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
     return roles.length === 0
-      ? ["resource_role_ids_none", {}]
-      : ["resource_role_ids", { roles: conjunction(roles, locale), count: roles.length }];
+      ? ["resource_roles_calendar_none", {}]
+      : ["resource_roles_calendar", { roles: conjunction(roles, locale), count: roles.length }];
   },
   // The categories of a nature that a change of its type is refused for — those employed, or those
   // that bear an hourly rate —, each by its label and its code, to attach first to another nature of

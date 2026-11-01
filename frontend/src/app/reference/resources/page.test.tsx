@@ -77,8 +77,6 @@ vi.mock("next/headers", () => ({
 /** A list read whole as a list of choices is: every page, by the largest the contract takes. */
 const WHOLE = { limit: "500", offset: "0" };
 
-/** Every role, deactivated ones too, which a session that writes them reads (EP-14/L54). */
-
 /** The node of the electrical design office, in the tree of the witness. */
 const BUREAU = "01926f3a-7c00-7000-8000-000000000471";
 /** The electrical engineering category and the standard week of the witness. */

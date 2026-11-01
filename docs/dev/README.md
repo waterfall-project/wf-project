@@ -1453,12 +1453,10 @@ default, a role modified — is refused (`TASK_WITHOUT_WORKING_HOURS`, « A task
 hour left in the week. ») by saying why and by naming each project involved by its label and its
 code, by its label alone without a code (`params.projects`, WF-PLA-0010), up to five in the
 sentence, as a list outside the alert beyond, like the lines of a subproject. The cause is that of
-`resource_role_ids`: the roles whose calendars overlap on no day, which the refusal gives only by
-their identifiers — the page, for a session that writes, reads all the roles, deactivated ones
-included as far as it can (`readEveryRole`), and lends them to each notice of their two lists
-(`RoleNames`, `KnownNames` of `outcome-notice.tsx`), each by its label and its code, and the cause
-is said without a name when it has read none —; no role given, the tasks without a labour line,
-on the default calendar emptied or designated.
+`params.resource_roles`: the roles whose calendars overlap on no day, which the refusal names itself by
+their code and their label, wherever it is told, the planning included, the page reading none; an
+empty list designates the default calendar, when only tasks without a labour line lose their hours,
+emptied or designated.
 
 ### Risk and indicator settings
 
@@ -3696,7 +3694,7 @@ its parameters, never a sentence.
   the status received: the screen never displays a raw key. The component says it through
   `OutcomeNotice` (`frontend/src/components/commands/`), as an alert: the sentence of
   `problemMessage`, which also names the objects the refusal gives only by their identifiers
-  when the screen has read them (`names`, and `KnownNames` for all the notices of a screen); the lines
+  when the screen has read them (`names`); the lines
   or the projects named beyond the sentence, outside the alert and described by its sentence (#765); on 412, the offer to reload the screen; the conflicting object
   (`params.conflicting_object_id`, or failing that the one of the first refusal by field that names one,
   `fields[].params.conflicting_object_id` of a 409 `ALREADY_EXISTS` — `conflictingOf` of

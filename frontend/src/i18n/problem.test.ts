@@ -40,8 +40,6 @@ function portfolioProjects(count: number) {
     .map(({ label, code }) => ({ project_label: label, project_code: code }));
 }
 
-/** The monteur câbleur and the electrical engineer of the witness, as a refusal gives them. */
-
 /** The sentence of a refusal in a language. */
 function say(problem: ProblemText, locale: Locale): string {
   return problemMessage(problem, { locale, messages: CATALOGUES[locale] });
