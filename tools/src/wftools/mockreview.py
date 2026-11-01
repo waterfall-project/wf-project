@@ -476,7 +476,7 @@ def _from_risk_examples() -> dict[str, JsonObject]:
     estimate = nodes_risk_estimate_occurred()
     found = nodes_from_risk()
     origins = {
-        cast("JsonObject", node).get("origin_risk_id")
+        str(node["origin_risk_id"])
         for node in cast("list[JsonObject]", found["items"])
         if node["node_id"] != station.node["node_id"]
     }
