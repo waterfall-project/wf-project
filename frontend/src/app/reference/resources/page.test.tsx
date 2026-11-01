@@ -209,11 +209,13 @@ describe("the roles", () => {
   });
 
   it("are shown all the same when the API refuses to read every one, their names done without", async () => {
+    // The deactivated roles refused (403): the active ones are read by any session, never not found
+    // (C-01).
     server.answers = {
       ...server.answers,
       "GET /reference/resource-roles": [
         "resource_roles",
-        { problem: { code: "NOT_FOUND", status: 404 } },
+        { problem: { code: "PERMISSION_MISSING", status: 403 } },
       ],
     };
     const page = await resourcesAt();

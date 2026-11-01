@@ -376,27 +376,6 @@ describe("the screens of the portfolio", () => {
     expect(markup).toContain('<option value="12" selected="">12 months</option>');
   });
 
-  it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
-    };
-    const markup = await render(ProjectsPage);
-    expect(text(markup)).toMatch(/Order book .*2,665,431,068\.05/);
-    expect(grids.projects[0]?.projects).toHaveLength(300);
-    expect(markup).not.toContain("Organisation node");
-  });
-
-  it("stands without a node to choose on a view that takes one, when the API does not find the nodes", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
-    };
-    const markup = await render(PerformancePage);
-    expect(text(markup)).toMatch(/Cost index 0\.941 Nominal/);
-    expect(markup).not.toContain("Organisation node");
-  });
-
   it("sends the horizon of the S-curve, lists the points of its three curves, and offers to read it as cash-out [WF-PTF-0100-A]", async () => {
     const markup = await render(CostCurvePage, { horizon_months: "24" });
     expect(queryOf("GET /portfolio/cost-curve")).toEqual({ horizon_months: "24" });

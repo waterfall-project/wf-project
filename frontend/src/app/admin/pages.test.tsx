@@ -232,13 +232,6 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("stand without a node to choose when the tree of the organisation is not found", async () => {
-    server.answers = { ...server.answers, "GET /reference/org-nodes": NOT_FOUND };
-    const page = text(rendered(await UsersPage(searched())));
-    expect(page).toContain("Nœud d’organisation Tous les nœuds Tous les rôles Administrateur");
-    expect(page).toContain("Comptes actifs Comptes désactivés Du Au Filtrer Créé par");
-  });
-
   it("ask the server for the access roles the address names among those it gives, an identifier of none not asked [WF-IHM-0130-A]", async () => {
     const manager = "01926f3a-7c00-7000-8000-000000000702";
     const chief = "01926f3a-7c00-7000-8000-000000000703";

@@ -120,7 +120,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     setDeleting((before) => new Set(before).add(id));
-    void deleteAccessRole(id)
+    void deleteAccessRole(id, role.lock_version)
       .catch(rejected)
       .then((outcome) => {
         setDeleting((before) => {

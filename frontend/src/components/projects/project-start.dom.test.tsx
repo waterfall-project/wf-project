@@ -598,15 +598,20 @@ describe("« Engendrer le planning » on a project without revision", () => {
     expect(command).toHaveFocus();
   });
 
-  it("reads the page anew after a conflict of the opening, generates nothing, and tells it", async () => {
-    // The refusal of the contract: a revision opened meanwhile (`current_revision_exists`).
+  it("reads the page anew after a conflict of the opening, generates nothing, and tells the condition it lacks [WF-REV-0010-A]", async () => {
+    // The refusal of the contract: a revision opened meanwhile (`current_revision_exists`), told by
+    // the condition `create_revision` names, as every refusal of a state (J-01).
     const refusal = example("current_revision_exists") as components["schemas"]["Problem"];
-    expect(refusal.code).toBe("CURRENT_REVISION_EXISTS");
+    expect(refusal).toMatchObject({
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "no_current_revision" },
+    });
     const client = serve({ [CREATE]: { problem: { ...refusal, status: 409 as const } } });
     open(generate());
     await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.CURRENT_REVISION_EXISTS);
+    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION);
+    expect(alert).toHaveTextContent(CATALOGUES.fr.enums.CommandCondition.no_current_revision);
     expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
     expect(router.refresh).toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();

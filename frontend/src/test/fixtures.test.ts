@@ -170,7 +170,7 @@ describe("fakeClient", () => {
 
   it("answers a deletion without a body", async () => {
     const client = fakeClient({ "DELETE /access-roles/{access_role_id}": { status: 204 } });
-    const params = { path: { access_role_id: ROLE } };
+    const params = { path: { access_role_id: ROLE }, query: { lock_version: 1 } };
     const { data, response } = await client.DELETE("/access-roles/{access_role_id}", { params });
     expect(response.status).toBe(204);
     expect(data).toBeUndefined();

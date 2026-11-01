@@ -127,7 +127,8 @@ export function exportOffers(revision: Revision | undefined): ExportOffers {
 /**
  * Whether an import, by its status, may still be applied — its report analysed, awaiting the
  * decision of the user — or abandoned — still open. Every status of the contract is named: one
- * the contract adds fails the type check until it is classified here.
+ * the contract adds fails the type check until it is classified here. The import now lists these
+ * two commands itself (`available_commands`, I-02), which the screen reads by #1791.
  */
 export const IMPORT_STEPS: Readonly<
   Record<ImportStatus, { readonly apply: boolean; readonly abandon: boolean }>
@@ -139,6 +140,7 @@ export const IMPORT_STEPS: Readonly<
   abandoned: { apply: false, abandon: false },
   expired: { apply: false, abandon: false },
   failed: { apply: false, abandon: false },
+  refused: { apply: false, abandon: false },
 };
 
 /** A mebibyte, in bytes. */

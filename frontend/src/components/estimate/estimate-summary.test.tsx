@@ -205,12 +205,17 @@ describe("the summary of the estimate", () => {
   });
 
   it("never names a category or a nature by its identifier when the API gives no label", () => {
+    // Counterfactual variants: a missing rate without a label, and natures of cost whose label is
+    // null, which the contract gives to `unassigned` alone (G-03).
     const unlabelled = <T extends { label?: string }>(items: readonly T[]) =>
       items.map((item) => ({ ...item, label: undefined }));
     const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
     const html = text(
       renderSummary(
-        { ...breakdown, by_cost_type: unlabelled(breakdown.by_cost_type) },
+        {
+          ...breakdown,
+          by_cost_type: breakdown.by_cost_type.map((item) => ({ ...item, label: null })),
+        },
         unlabelled(example("missing_rates") as MissingRates),
       ),
     );

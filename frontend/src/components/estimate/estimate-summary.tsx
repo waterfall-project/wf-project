@@ -228,15 +228,11 @@ function Figures({
       <FiguresCard title={t("title")} context={context}>
         <FiguresList>
           <Figure name={t("total")} amount={indicators.total} currency={currency} />
-          {provisions === undefined ? null : (
-            <Figure name={t("provisions")} amount={provisions} currency={currency} />
-          )}
+          <Figure name={t("provisions")} amount={provisions} currency={currency} />
           {reference === null ? null : (
             <Figure name={t("deltaToReference")} amount={reference} currency={currency} />
           )}
-          {delta === null || delta === undefined ? null : (
-            <Figure name={t("delta")} amount={delta} currency={currency} />
-          )}
+          {delta === null ? null : <Figure name={t("delta")} amount={delta} currency={currency} />}
         </FiguresList>
       </FiguresCard>
       <Breakdown

@@ -47,13 +47,19 @@ export async function updateAccessRole(
   );
 }
 
-/** Delete a role no account holds: logically, its trace kept (WF-DAT-0080). */
-export async function deleteAccessRole(accessRoleId: string): Promise<Settled> {
+/**
+ * Delete a role no account holds, from the version read: logically, its trace kept (WF-DAT-0080).
+ * A role written since is not deleted (412, A-02).
+ */
+export async function deleteAccessRole(
+  accessRoleId: string,
+  lockVersion: number,
+): Promise<Settled> {
   return settled(
     readAnew(
       await decode(() =>
         serverClient().DELETE("/access-roles/{access_role_id}", {
-          params: { path: { access_role_id: accessRoleId } },
+          params: { path: { access_role_id: accessRoleId }, query: { lock_version: lockVersion } },
         }),
       ),
     ),
