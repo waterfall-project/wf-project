@@ -517,6 +517,7 @@ paths = [
     "fixtures/api/contributors_without_active_manager.json",
     "fixtures/api/contributors_set_by_rescuer.json",
     "fixtures/api/timeline_create_terminal.json",
+    "fixtures/api/reference_designation_terminal.json",
     "fixtures/api/node_create_marked_refused.json",
     "fixtures/api/skeleton_marked_refused.json",
     "fixtures/api/project_update_not_manager.json",

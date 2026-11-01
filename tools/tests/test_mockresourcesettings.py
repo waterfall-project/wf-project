@@ -255,7 +255,7 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
         "updateResourceRole": flat(_block("updateResourceRole").split("'422':", 1)[1]),
         "createNode": flat(described("createNode").split("    parameters:", 1)[0]),
         "updateEstimateLine": flat(described("updateEstimateLine").split("'422':", 1)[1]),
-        "resource_role_ids": problem.split("`resource_role_ids` pour", 1)[1].split("; `", 1)[0],
+        "resource_roles": problem.split("`resource_roles` pour tout", 1)[1].split("; `", 1)[0],
     }
     for name, text in texts.items():
         assert re.search(r"ne (?:recoupe|se recoupent) jamais", text), name
@@ -266,7 +266,7 @@ def test_the_refusal_of_a_calendar_names_each_project_by_its_label_and_its_code_
     assert "ne se recoupant plus aucun jour" in calendar
     assert (
         "sur une tâche dont un rôle est le seul, le calendrier de ce rôle n'ayant plus aucune heure"
-        " dans la semaine — `params.resource_role_ids` nommant alors ce seul rôle"
+        " dans la semaine — `params.resource_roles` nommant alors ce seul rôle"
     ) in calendar
 
 
@@ -280,21 +280,18 @@ def _roles_by_task(structure: str) -> dict[str, set[str]]:
     return found
 
 
-def test_the_refusal_of_a_calendar_names_its_roles_by_their_identifiers_alone() -> None:
-    # The session of the three writes may read every role, deactivated ones included, and a seizure
-    # in a revision knows the label of its roles by its lines: identifiers suffice, unlike the
-    # refusals of the cost settings, whose screen does not read the deactivated roles (revue 3).
+def test_the_refusal_of_a_calendar_names_its_roles_by_their_labels() -> None:
+    # #1684 (option A of the author): every `TASK_WITHOUT_WORKING_HOURS` names its roles by their
+    # identifier, code and label, as the import already did (#768), so that the planning and a
+    # session without `resource_settings.read` name them without reading them; their identifiers
+    # alone are no longer rendered.
     common = (API / "components" / "common.yaml").read_text(encoding="utf-8")
     problem = " ".join(common.split("\nProblem:\n", 1)[1].split("\n\n", 1)[0].split())
-    assert (
-        "par leurs seuls identifiants, que la session d'une modification du référentiel peut"
-        " nommer, lisant tous les rôles (`listResourceRoles`, `include_inactive`), et une saisie"
-        " d'une révision d'après ses lignes (`resource_role_label`)"
-    ) in problem
+    assert "`resource_role_ids`" not in problem
     for operation in PROJECTS_NAMED:
         refusals = " ".join(_block(operation).split("'422':", 1)[1].split("content:", 1)[0].split())
-        assert "`params.resource_role_ids`" in refusals, operation
-        assert "resource_roles" not in refusals, operation
+        assert "`params.resource_roles`" in refusals, operation
+        assert "resource_role_ids" not in refusals, operation
 
 
 def test_a_calendar_emptied_of_its_hours_is_refused_naming_its_roles_and_its_projects() -> None:
@@ -305,7 +302,7 @@ def test_a_calendar_emptied_of_its_hours_is_refused_naming_its_roles_and_its_pro
     refused = fixture("calendar_update_without_hours")
     assert (refused["status"], refused["code"]) == (422, "TASK_WITHOUT_WORKING_HOURS")
     assert set(refused) == {"code", "status", "params", "correlation_id"}
-    assert list(refused["params"]) == ["resource_role_ids", "projects"]
+    assert list(refused["params"]) == ["resource_roles", "projects"]
     emptied = universe(482)
     assert _calendars()[emptied]["is_default"] is False
     calendar = {r["resource_role_id"]: r["calendar_id"] for r in fixture("resource_roles")["items"]}
@@ -317,7 +314,12 @@ def test_a_calendar_emptied_of_its_hours_is_refused_naming_its_roles_and_its_pro
         if any(calendar[role] == emptied for role in roles)
         for role in roles
     }
-    assert refused["params"]["resource_role_ids"] == sorted(in_cause) == [universe(454)]
+    named = refused["params"]["resource_roles"]
+    assert [role["resource_role_id"] for role in named] == sorted(in_cause) == [universe(454)]
+    roles = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
+    for role in named:
+        assert role == {key: roles[role["resource_role_id"]][key] for key in role}
+        assert set(role) == {"resource_role_id", "code", "label"}
     # The projects of the installation in cause: the witness, whose current revision bears these
     # tasks, and the generated projects that employ one of these roles. The universe does not say
     # which projects in progress among the generated ones have a revision in progress; supposed:

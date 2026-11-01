@@ -4,6 +4,15 @@ Ce que la spécification ne dictait pas et qu'il a fallu trancher pour écrire u
 cohérent. Chaque décision est réversible, mais aucune ne se change sans toucher plusieurs
 dizaines d'opérations : c'est pourquoi elles sont écrites ici plutôt que découvertes.
 
+## La règle d'après le gel
+
+Le contrat est figé : `info.version` vaut `1.0.0` depuis la livraison d'EP-16 (US-0640/L5, #1333).
+Désormais, **toute modification du contrat par un EPIC de domaine passe par une issue
+« contrat »** (« Interface contract issue », label `contract`) **que l'auteur tranche, et s'inscrit
+dans ce fichier** : une entrée qui cite l'issue et la décision, avec ses exemples, comme les
+entrées qui suivent (décision de l'auteur du 2026-10-22, conception d'EP-16). Écartées : la
+version seule, sans règle, et rien.
+
 ## Forme des chemins
 
 **Un état est une ressource, pas un verbe.** `PUT /users/{id}/activation`,
@@ -1507,6 +1516,11 @@ nomment les projets (`params.projects`, sans identifiant ni tâche, #762 option 
 *Remplacé en partie par EP-14/L42s : la tâche dont un rôle est le seul, que le calendrier de ce rôle
 laisserait sans heure, est refusée de même — `createNode`, `updateEstimateLine`,
 `updateResourceRole` —, `params.resource_role_ids` nommant ce rôle seul (#766).*
+
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu
+(« Les rôles d'une tâche sans heure, nommés par leur libellé », section « Le contrat figé
+(EP-16) »).*
 
 **Les risques ont leurs commandes** (#244 ; WF-IHM-0090, WF-RIS-0020, WF-RIS-0060, WF-ADM-0100).
 `RiskCommand` — `update`, `review`, `declare_occurrence`, `delete`, une par opération —,
@@ -5342,6 +5356,9 @@ autre détail ». Écartée : l'option (b) de #762, garder `params.tasks` et pas
 libellé d'une tâche d'un projet que l'appelant ne consulte pas — la forme du refus aurait dépendu de
 ce que l'appelant consulte, et un même refus se serait lu autrement d'une session à l'autre.
 
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu.*
+
 Exemple `calendar_update_without_hours` (corrélation 1112), cité sous le 422 d'`updateCalendar`
 après `hours_out_of_range`, qui reste le premier : la semaine de quatre jours, le calendrier du
 monteur câbleur, vidée de ses heures. Ce rôle travaille seul sur les cent trois tâches de câblage de
@@ -5371,6 +5388,11 @@ les pages de `listResourceRoles` avec `include_inactive` pour les nommer ; une s
 connaît le libellé de ses rôles par ses lignes (`resource_role_label`). Le compte rendu d'un import,
 qui ne porte que les identifiants, est suivi par #768. `Problem.params` le dit, et
 `test_mockresourcesettings.py` en tient le texte.
+
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu
+(« Les rôles d'une tâche sans heure, nommés par leur libellé », section « Le contrat figé
+(EP-16) »).*
 
 **La largeur d'une colonne a son refus** (#711). `GridPreferences.column_widths` publie `minimum:
 20`, et `updateMyPreferences` ne déclarait aucun 422. Il déclare désormais `VALIDATION_FAILED`,
@@ -5846,6 +5868,9 @@ calendrier sans heure ; et de même `createNode`, le 422 d'`updateEstimateLine` 
 section d'EP-02/L30 le dit. Pas d'exemple nouveau : le refus a la forme de
 `calendar_update_without_hours`.
 
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu.*
+
 **Le refus d'un changement de type nomme les catégories en cause** (#766, point 2 ; WF-IHM-0090 :
 « Tout refus nomme la condition manquante et, lorsqu'elle est atteignable par l'utilisateur, ce
 qu'il faut faire pour la satisfaire »). Rattacher une catégorie à une autre nature du même type
@@ -5961,13 +5986,13 @@ et sous les conditions d'`update`, le dit (`no_background_task_running`), comme
 `update_win_probability` dit la probabilité figée (L42i) ; `setWorkBreakdown` déclare son 409, qui
 nomme la première condition qui manque dans l'ordre de la commande, `project_not_terminal` puis
 `no_background_task_running` (depuis US-0702/L3, #1657, la commande n'est plus listée sur un projet
-terminal, et cet ordre ne vaut d'avance que pour les états non terminaux ; relecture 1 ; défaut n° 2 du guide, la route sœur d'`updateProject`) ;
-exemple `work_breakdown_background_task` (corrélation 1154). Les compteurs : celui du lotissement,
-toujours ; quand des rattachements sont retirés, celui de chaque tâche touchée et celui de la
-structure principale, comme une écriture de grille. Les huit projets écrits à la main listent la
-commande ; les listes dérivées sont engendrées. Écartés : la condition sur `update`, qui aurait
-fermé l'identité du projet pendant un marquage ; le 409 seul, une commande que l'état rend
-impossible devant être présentée indisponible (WF-IHM-0090).
+terminal, et cet ordre ne vaut d'avance que pour les états non terminaux ; relecture 1 ; défaut n° 2
+du guide, la route sœur d'`updateProject`) ; exemple `work_breakdown_background_task` (corrélation
+1154). Les compteurs : celui du lotissement, toujours ; quand des rattachements sont retirés, celui
+de chaque tâche touchée et celui de la structure principale, comme une écriture de grille. Les huit
+projets écrits à la main listent la commande ; les listes dérivées sont engendrées. Écartés : la
+condition sur `update`, qui aurait fermé l'identité du projet pendant un marquage ; le 409 seul, une
+commande que l'état rend impossible devant être présentée indisponible (WF-IHM-0090).
 
 *Complété par US-0660/L2 : la commande présentée indisponible a son exemple,
 `project_background_task_running` de `getProject`, section « La saisie du lotissement indisponible
@@ -7264,9 +7289,9 @@ et de la saisie des risques :
   (WF-REV-0010) : `main_structure_without_tasks` manque quand sa structure principale comporte
   une tâche, comme `at_least_one_task` à `declare_risk` quand elle n'en comporte aucune ;
 - ses conditions dans l'ordre de `declare_risk`, sa sœur au niveau du projet : celles de l'état
-  d'abord, `project_not_terminal` puis `no_background_task_running` (la première, depuis
-  US-0702/L3, #1657, nommée par le seul 409 : un projet terminal ne liste plus la commande), puis
-  la condition propre, `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
+  d'abord, `project_not_terminal` puis `no_background_task_running` (la première, depuis US-0702/L3,
+  #1657, nommée par le seul 409 : un projet terminal ne liste plus la commande), puis la condition
+  propre, `main_structure_without_tasks`, puis `may_create_revision` à qui ne peut pas ouvrir la
   révision, comme pour les imports et `declare_risk`. C'est l'exception du 2026-10-05
   (`Project.available_commands`), étendue à cette commande.
 
@@ -7937,8 +7962,8 @@ frise ne range pas, et sa disposition se dessinait comme l'automatique.
 EP-16 fige le contrat : `info.version` passe à `1.0.0` par son dernier lot de contrat (US-0640/L5).
 Chaque modification qu'il y apporte a son entrée ici, avec ses exemples ; ensuite, toute
 modification du contrat par un EPIC de domaine passe par une issue « contrat » que l'auteur tranche,
-et s'inscrit à son tour dans cette section (décision de l'auteur du 2026-10-22, conception
-d'EP-16).
+et s'inscrit à son tour dans ce fichier (décision de l'auteur du 2026-10-22, conception d'EP-16 ;
+« La règle d'après le gel », en tête). Le gel est fait (US-0640/L5, #1333).
 
 ### Le nom de l'entreprise dans les paramètres communs (US-0600, #1314)
 
@@ -8406,7 +8431,8 @@ Sans objet :
   de `import_analysed` et rejette sa quatrième ligne de l'onglet « Hors lot » : `resource_roles` y
   nomme le monteur câbleur et le technicien de mise en service, `tasks` le « Câblage des armoires »
   par sa lignée. Un test d'outil le recoupe avec les rôles et le cœur du témoin, un test du back le
-  fait lire en entier par le modèle engendré.
+  fait lire en entier par le modèle engendré. *Le refus d'une saisie, d'un collage et d'une fusion
+  nomme ses rôles de même depuis US-0640/L5 (#1684), par `resource_roles`.*
 - **La ligne de provision déplacée, au compte rendu** (#789, WF-RIS-0010). Quand l'import d'un
   planning ou la fusion d'un différentiel retire la tâche qui porte une ligne de provision, la ligne
   passe sur la tâche parente — ou, pour une tâche de premier niveau, sur la première tâche de
@@ -8491,8 +8517,8 @@ Aucune opération nouvelle.
     décrivant la révision à créer, qui ne dirait rien de plus que le chemin et la confirmation ; une
     lecture à part, sur le projet.
   - *Les conditions de la commande.* Sur la dernière révision marquée d'un projet sans révision en
-    cours, `merge_structure` nomme, dans cet ordre, `project_not_terminal` (avant US-0702/L3, #1657 ;
-    un projet terminal ne liste plus la commande, et seul le 409 de l'appel direct la nomme),
+    cours, `merge_structure` nomme, dans cet ordre, `project_not_terminal` (avant US-0702/L3,
+    #1657 ; un projet terminal ne liste plus la commande, et seul le 409 de l'appel direct la nomme),
     `no_background_task_running` pendant un traitement qui crée la révision en cours — un import
     appliqué, une survenance, une autre fusion de cette révision —, `unmerged_amendment_exists`,
     puis `may_create_revision` à qui n'a pas `revisions.write`, comme les autres commandes qui
@@ -9848,13 +9874,14 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   `structure_create_revision_marked`, sur la référence 101) ; `RevisionCommand` dit les conditions
   de `mark`, `abandon` et `designate_reference`. `project_not_terminal` n'y est pas nommée : toute
   révision d'un projet terminal est marquée, et `revision_draft` y suffit (US-0702/L1).
-  L'ouverture d'une révision nomme aussi `project_not_terminal` et `no_background_task_running`
-  pendant un traitement qui la crée (`revision_create_background_running`, variante de l'offre).
-  Le nom de version déjà employé est refusé par le marquage et par la fusion comme par la sortie,
-  `ALREADY_EXISTS` sur `/version_name` (`mark_version_name_taken`, `merge_version_name_taken`),
-  jugé au dépôt de la fusion : aucune révision en cours n'est créée pour échouer au marquage
-  (#790). Un différentiel naît copie de la structure principale, ses nœuds `unchanged` ; son
-  libellé n'est pas unique, plusieurs coexistant (#1211).
+  L'ouverture d'une révision nomme aussi `project_not_terminal`, par le seul 409 — un projet
+  terminal ne liste pas la commande —, et `no_background_task_running` pendant un traitement qui la
+  crée (`revision_create_background_running`, variante de l'offre). Le nom de version déjà employé
+  est refusé par le marquage et par la fusion comme par la sortie, `ALREADY_EXISTS` sur
+  `/version_name` (`mark_version_name_taken`, `merge_version_name_taken`), jugé au dépôt de la
+  fusion : aucune révision en cours n'est créée pour échouer au marquage (#790). Un différentiel
+  naît copie de la structure principale, ses nœuds `unchanged` ; son libellé n'est pas unique,
+  plusieurs coexistant (#1211).
 - **L'arbre commun** (F-03, F-04, H-05, F-11 ; WF-PLA-0030, WF-PLA-0060, WF-PLA-0070,
   WF-RIS-0010). Un prédécesseur nommé deux fois : 422, motif nouveau `DUPLICATE_PREDECESSOR`
   sur chaque occurrence après la première (`predecessors_duplicate`) — ni `ALREADY_EXISTS`, l'unicité
@@ -9883,13 +9910,13 @@ d'US-0702/L1 ; ses exemples sont engendrés par `make mock-data` (`wftools.mockd
   A-05). Le 409 de `declareRiskOccurrence` dit l'ordre : les conditions du projet, puis celles du
   risque (`risk_occurrence_not_identified`, US-0700/L1). Celui de `setActualCostTrackedScope` nomme
   `project_not_terminal` puis `project_in_progress`, comme `exclude_cost_lines`
-  (`actual_cost_scope_terminal`) ; depuis US-0702/L3 (#1657), un projet terminal ne liste plus
-  ces commandes, et seul ce 409 nomme `project_not_terminal`. Le 409 de `requestExport` est retiré : un export ne manque
-  d'aucune condition (EP-02/L17). Celui de `getBackgroundTaskResult` nomme la condition nouvelle
-  `task_succeeded` pour une tâche en file, en cours ou en échec (`task_result_not_succeeded`) ; une
-  tâche qui ne produit pas de fichier est un 404, comme un résultat supprimé. Écarté : le même
-  `task_succeeded` pour une tâche aboutie sans fichier, que la revue proposait — la condition ne
-  dirait pas la vraie cause.
+  (`actual_cost_scope_terminal`) ; depuis US-0702/L3 (#1657), un projet terminal ne liste plus ces
+  commandes, et seul ce 409 nomme `project_not_terminal`. Le 409 de `requestExport` est retiré : un
+  export ne manque d'aucune condition (EP-02/L17). Celui de `getBackgroundTaskResult` nomme la
+  condition nouvelle `task_succeeded` pour une tâche en file, en cours ou en échec
+  (`task_result_not_succeeded`) ; une tâche qui ne produit pas de fichier est un 404, comme un
+  résultat supprimé. Écarté : le même `task_succeeded` pour une tâche aboutie sans fichier, que la
+  revue proposait — la condition ne dirait pas la vraie cause.
 - **Le référentiel** (C-01, D-10 ; WF-REF-0150, WF-ADM-0100, WF-ADM-0110). `listOrgNodes`,
   `listCalendars` et `listCostTypes` déclarent le 403 de `include_inactive` et `is_active` faux,
   `PERMISSION_MISSING` à `resource_settings.write` ou `cost_settings.write`, avec un exemple chacune
@@ -10059,6 +10086,11 @@ manque se corrige au contrat, dans l'US. Aucun schéma ne change.
   « Préparation 1.1.1 » gardant l'ingénieur ; variante contrefactuelle déclarée, `paste_id` 997.
   La confirmation redit ce refus comme tout refus de l'aperçu (`PasteApplied.rejected`) : aucun
   exemple de `applyPaste` n'est ajouté, `paste_applied_partial` montrant déjà la forme.
+
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu
+(« Les rôles d'une tâche sans heure, nommés par leur libellé », section « Le contrat figé
+(EP-16) »).*
 
 ### Le lot sans tâche rattachée, présenté sans total (US-0660/L2, #1336, #1142)
 
@@ -10654,6 +10686,59 @@ Décisions de l'auteur du 2026-11-01.
   montre (J-02).
 
 Le service le suit par #1797 (EP-04) et #1798 (EP-03, la traduction commune des refus).
+
+### Le gel : la version 1.0.0 et les derniers mineurs (US-0640/L5, #1333)
+
+Le dernier lot d'EP-16 fige le contrat : `info.version` passe de `1.0.0-draft` à `1.0.0`, et la
+règle d'après s'écrit en tête de ce fichier (« La règle d'après le gel »). Les deux rapports de
+revue datés (`2026-10-28-contrat-avant-gel.md`, `2026-10-31-contrat-spec-et-fixtures.md`) citent la
+version de leur jour et ne changent pas. Le gel solde aussi les constats qui lui étaient rattachés,
+chacun selon la décision écrite dans son issue.
+
+- **La désignation de la référence sur un projet terminal** (#1674, option 2 de l'auteur ;
+  WF-CYC-0100). Le 409 de `designateReferenceRevision` nomme aussi `project_not_terminal`, avant
+  toute condition de `designate_reference`, que le projet terminal ne liste pas : la règle unique
+  d'US-0702 vaut sans exception. Écartée : l'option 1, une exception écrite au README et ici, la
+  désignation laissée à ses seules conditions. Exemple `reference_designation_terminal`
+  (`project_terminal`, dernier des 409, corrélation 1683), engendré par `wftools.mockrefusals` :
+  l'offre v1.0 désignée sur le témoin terminé aujourd'hui (`project_completed`).
+- **`project_not_terminal` reste une `CommandCondition`** (#1675). Des deux formes que l'issue
+  laissait, la phrase et le test : la description de `CommandCondition` dit qu'aucun
+  `missing_conditions` ne la contient jamais — ni celui d'une commande listée, ni celui d'une
+  saisie (`EntryAvailability`) —, et `test_no_command_an_example_lists_names_project_not_terminal`
+  le tient sur chaque `missing_conditions` de chaque exemple, non plus sur les seules commandes
+  listées. Écarté : un type propre au `missing_condition` du 409, qui donnerait à une même
+  condition deux types selon qu'un objet la dit d'avance ou qu'un refus la nomme, contre la forme
+  unique des refus d'US-0702, rouvrirait la décision d'US-0702/L3 (« `project_not_terminal` reste
+  dans `CommandCondition` »), et retirerait la valeur du type que le client du front et les
+  modèles du service lisent déjà. Les conditions qu'ajoute US-0704 (`import_awaiting_decision`,
+  `import_not_applied`) sont listées par `ImportDetail.available_commands` et n'y changent rien.
+- **Les rôles d'une tâche sans heure, nommés par leur libellé** (#1684, option A de l'auteur ;
+  WF-PLA-0010). Tout refus `TASK_WITHOUT_WORKING_HOURS` — `createNode`, `updateEstimateLine`,
+  `moveNodes`, le collage, la fusion, `updateResourceRole`, `updateCalendar`,
+  `setDefaultCalendar`, et la ligne importée, qui le faisait déjà (#768) — nomme ses rôles par
+  `params.resource_roles`, chacun par son identifiant, son code et son libellé
+  (`ProblemResourceRole`), comme `params.tasks` nomme la tâche : le planning, qui ne lit ni ligne
+  ni rôle, et une session sans `resource_settings.read` les nomment sans rien relire.
+  `resource_roles` **remplace** `resource_role_ids` : les identifiants seuls redoubleraient ceux
+  que chaque élément porte, et deux paramètres pour les mêmes rôles laisseraient au front le
+  choix de la forme. Le type existant est repris, avec le code, plutôt qu'un `{id, label}`
+  nouveau : un même paramètre a une seule forme, dans tous les refus qui le portent, celle que le
+  compte rendu d'un import et les refus des coûts donnaient déjà. Les exemples suivent :
+  `node_create_without_hours`, `estimate_line_without_hours`, `nodes_move_without_hours` et
+  `paste_plan_without_hours`, engendrés par `wftools.mockrefusals` ; `calendar_update_without_hours`
+  et `calendar_default_without_hours` (rôles vides), écrits à la main.
+  `test_every_refusal_of_a_task_without_hours_names_its_roles_by_their_label` le tient sur tous les
+  exemples. Le front lit ces libellés partout, planning compris, par la part front de ce lot.
+- **Les mineurs** (#1665, #1678, #1695, #1708). La description de `deleteNode` dit que le nouveau
+  compteur du risque dont la provision change de tâche se relit par `getRisk` avant d'enchaîner un
+  `updateRiskProvision` ou un `updateRisk` ; le test de `provision_moved` vérifie l'exemple que le
+  contrat cite, non une phrase. Le 409 de `createRisk` est tenu dans son ordre :
+  `project_not_terminal` après « sur un projet terminal, où la commande n'est pas listée ». Le
+  registre vide (`risks_empty`), écrit à la main, est tenu à des totaux nuls. L'analyse des
+  instants des exemples est publique (`wftools.mockproject.moment`), et le test de la sortie la
+  réemploie. Les lignes trop longues et les retours irréguliers que les relectures ont relevés sont
+  refluées (`costs.yaml`, `revisions.yaml`, `risks.yaml`, `projects.yaml`, et ce fichier).
 
 ## Collage et annulation
 

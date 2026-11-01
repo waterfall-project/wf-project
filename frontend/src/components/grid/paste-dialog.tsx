@@ -33,7 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useKnownNames } from "@/components/commands/outcome-notice";
 import { problemMessage } from "@/i18n/problem";
 
 import {
@@ -81,7 +80,6 @@ function RefusedRows({
   const t = useTranslations("grid.paste");
   const locale = useLocale();
   const messages = useMessages();
-  const names = useKnownNames();
   return (
     <ul className="space-y-1">
       {rejected.map((rejection, index) => (
@@ -94,7 +92,7 @@ function RefusedRows({
             <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
             {t("rejectedRow", {
               row: rejection.row + 1,
-              reason: problemMessage(rejection, { locale, messages, names }),
+              reason: problemMessage(rejection, { locale, messages }),
             })}
           </p>
           <p className="flex flex-wrap gap-x-3 pl-5.5 text-muted-foreground">

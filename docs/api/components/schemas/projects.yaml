@@ -127,10 +127,13 @@ CommandCondition:
     refuse par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant (README,
     « Conventions » ; US-0702/L1).
     `project_not_terminal` manque à toute écriture d'un projet terminal — Terminé, Perdu ou
-    Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) : aucune commande ne la
-    nomme, un projet terminal et ses objets ne listant aucune commande qui les modifierait
-    (`Project.available_commands`), et le 409 `STATE_FORBIDS_OPERATION` d'un appel direct la
-    nomme, dans l'ordre que l'opération dit (US-0702/L3) ; `revision_draft` à
+    Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) : seul le 409
+    `STATE_FORBIDS_OPERATION` d'un appel direct la nomme, dans l'ordre que l'opération dit
+    (US-0702/L3). Aucun `missing_conditions` ne la contient jamais — ni celui d'une commande
+    listée, ni celui d'une saisie (`EntryAvailability`) —, un projet terminal et ses objets ne
+    listant aucune commande qui les modifierait (`Project.available_commands`) ; elle reste dans
+    cette énumération parce que `params.missing_condition` en est une valeur (#1675) ;
+    `revision_draft` à
     toute commande qui modifierait une révision marquée, qui ne se modifie plus (WF-DAT-0020) —
     toute révision d'un projet terminal l'est. `project_in_progress` manque hors de l'état En cours
     à ce qui ne se fait qu'en réalisation : la sortie vers Terminé (`complete`, WF-CYC-0060), la
@@ -378,7 +381,8 @@ CommandCondition:
     plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
     première qui manque, dans cet ordre, `STATE_FORBIDS_OPERATION` la nommant, comme toute
-    autre (EP-15/US-0490 ; J-01, #1795).
+    autre (EP-15/US-0490 ; J-01, #1795) ; sur un projet terminal, il nomme d'abord
+    `project_not_terminal` (#1674).
     `actual_cost_mapping_complete` manque à l'import des coûts réels
     (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
     correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont

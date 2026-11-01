@@ -17,8 +17,8 @@ import {
   type Problem,
 } from "@/test/fixtures";
 
-import { type Calendar, type ResourceRole } from "./resource-grids";
-import { CalendarList, RoleNames } from "./resource-lists";
+import { type Calendar } from "./resource-grids";
+import { CalendarList } from "./resource-lists";
 
 // The commands of the calendars (EP-02/L43b, EP-14/L43g), the forms of the nodes and of the roles
 // being those of `resource-commands.dom.test.tsx`. The server of Next, as far as the list needs it:
@@ -42,7 +42,6 @@ const DEFAULT = "PUT /reference/calendars/{calendar_id}/default";
 
 const NO_QUERY = { sort: undefined, search: undefined, size: undefined };
 const calendars = example("calendars_with_inactive") as { items: Calendar[]; meta: ListPage };
-const roles = (example("resource_roles") as { items: ResourceRole[] }).items;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}): FakeClient {
@@ -58,7 +57,7 @@ function serve(answers: FakeAnswers = {}): FakeClient {
 
 /**
  * The calendars, in French, the active ones unless told, for a session that may write them — their
- * commands listed —, every role of the witness read, as the page reads them for such a session.
+ * commands listed.
  */
 function calendarList(
   rows: readonly Calendar[] = calendars.items.filter((calendar) => calendar.is_active),
@@ -66,17 +65,15 @@ function calendarList(
   return (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
-        <RoleNames roles={roles}>
-          <CalendarList
-            rows={rows}
-            page={calendars.meta}
-            query={NO_QUERY}
-            preferences={undefined}
-            readsInactive
-            editable
-            state={undefined}
-          />
-        </RoleNames>
+        <CalendarList
+          rows={rows}
+          page={calendars.meta}
+          query={NO_QUERY}
+          preferences={undefined}
+          readsInactive
+          editable
+          state={undefined}
+        />
       </PendingAddress>
     </NextIntlClientProvider>
   );
@@ -307,7 +304,7 @@ describe("the calendars", () => {
     );
   });
 
-  it("tells under the form a calendar that would leave tasks without hours, naming the roles as the page read them and the project by its label and its code [WF-PLA-0010-A]", async () => {
+  it("tells under the form a calendar that would leave tasks without hours, naming the roles as the refusal gives them and the project by its label and its code [WF-PLA-0010-A]", async () => {
     // La modification d'un calendrier qui laisserait une tâche sans heure dans un projet que le
     // manager ne peut pas consulter est refusée en nommant ce projet par son libellé et son code.
     serve({
@@ -326,7 +323,7 @@ describe("the calendars", () => {
       await userEvent.type(hours, "0");
     }
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
-    // The role by its identifier alone, which the page names as it read every role.
+    // The role by its label and its code, as the refusal gives it (#1684).
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
         "n’a aucune heure : Monteur câbleur (MONT-CAB). Projets en cause : Modernisation du " +

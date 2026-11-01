@@ -209,34 +209,34 @@ Problem:
         déclare pour elle (`labels`) ; `columns` quand `missing_condition` nomme
         `actual_cost_mapping_complete` (`STATE_FORBIDS_OPERATION`, `openImport`, WF-REF-0190) :
         les colonnes exigées de la correspondance qui n'ont aucun intitulé, chacune par son
-        identifiant (`ActualCostSourceColumn`), dans l'ordre de la correspondance ; `resource_role_ids` pour une écriture qui laisserait une
-        tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) : les rôles dont
-        les calendriers ne se recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle
-        est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le
-        calendrier par défaut d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, par
-        leurs seuls identifiants, que
-        la session d'une modification du référentiel peut nommer, lisant tous les rôles
-        (`listResourceRoles`, `include_inactive`), et une saisie d'une révision d'après ses lignes
-        (`resource_role_label`) — non le motif d'une ligne importée, que le compte rendu lit sans
-        relire les rôles, et qui les nomme par `resource_roles` (#768, point 1) ; `resource_roles` quand
-        `missing_condition` nomme `cost_type_without_role` ou `cost_category_without_role`
-        (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous les rôles en cause, actifs ou
-        désactivés, chacun par son identifiant, son code et son libellé (`resource_role_id`,
-        `code`, `label`) — l'écran des paramètres de coûts ne lit pas les rôles désactivés —, à
-        rattacher d'abord à une catégorie de main-d'œuvre hors de la catégorie, ou de la nature,
-        refusée (WF-IHM-0090) ; `cost_categories` quand `missing_condition` nomme
-        `cost_type_unused` ou `cost_type_unrated` (`updateCostType`, WF-REF-0030) : toutes les
-        catégories de la nature employées pour `cost_type_unused`, toutes celles qui portent un
-        taux horaire pour `cost_type_unrated`, actives ou désactivées, chacune par son
-        identifiant, son code et son libellé (`cost_category_id`, `code`,
-        `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du même type
-        (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision — `createNode`,
-        `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une ligne collée ou
-        importée — qui laisserait une tâche sans heure travaillée (`TASK_WITHOUT_WORKING_HOURS`) :
-        les tâches en cause, chacune par son projet, son nœud et son libellé (`project_id`,
-        `node_id`, `label`), l'auteur de la saisie consultant son projet — au motif d'une ligne
-        importée, par sa lignée et son libellé (`lineage_id`, `label`), comme le compte rendu nomme
-        ses objets (#768, point 2) ; `projects` pour une
+        identifiant (`ActualCostSourceColumn`), dans l'ordre de la correspondance ;
+        `resource_roles` pour tout refus qui laisserait une tâche sans heure travaillée
+        (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — une écriture du référentiel ou d'une
+        révision, une ligne collée ou importée, une fusion — : les rôles dont les calendriers ne se
+        recoupent jamais — ce rôle seul quand, sur une tâche dont ce rôle est le seul, il n'a
+        aucune heure dans la semaine (EP-14/L42s) ; aucun quand c'est le calendrier par défaut
+        d'une tâche sans ligne de main-d'œuvre qui n'a plus d'heure —, actifs ou désactivés,
+        chacun par son identifiant, son code et son libellé (`resource_role_id`, `code`,
+        `label`), pour que le refus se lise sans relire les rôles, depuis le planning comme
+        depuis la grille, et sans `resource_settings.read` (#768, point 1 ; #1684) ;
+        `resource_roles` quand `missing_condition` nomme `cost_type_without_role` ou
+        `cost_category_without_role` (`STATE_FORBIDS_OPERATION`, WF-REF-0030, WF-REF-0040) : tous
+        les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son
+        libellé (`resource_role_id`, `code`, `label`) — l'écran des paramètres de coûts ne lit pas
+        les rôles désactivés —, à rattacher d'abord à une catégorie de main-d'œuvre hors de la
+        catégorie, ou de la nature, refusée (WF-IHM-0090) ; `cost_categories` quand
+        `missing_condition` nomme `cost_type_unused` ou `cost_type_unrated` (`updateCostType`,
+        WF-REF-0030) : toutes les catégories de la nature employées pour `cost_type_unused`,
+        toutes celles qui portent un taux horaire pour `cost_type_unrated`, actives ou
+        désactivées, chacune par son identifiant, son code et son libellé (`cost_category_id`,
+        `code`, `label`), dans l'ordre de leur code — à rattacher d'abord à une autre nature du
+        même type (WF-IHM-0090 ; EP-14/L42s) ; `tasks` pour une saisie d'une révision —
+        `createNode`, `updateEstimateLine`, `moveNodes`, `mergeCostStructure`, et le motif d'une
+        ligne collée ou importée — qui laisserait une tâche sans heure travaillée
+        (`TASK_WITHOUT_WORKING_HOURS`) : les tâches en cause, chacune par son projet, son nœud et
+        son libellé (`project_id`, `node_id`, `label`), l'auteur de la saisie consultant son
+        projet — au motif d'une ligne importée, par sa lignée et son libellé (`lineage_id`,
+        `label`), comme le compte rendu nomme ses objets (#768, point 2) ; `projects` pour une
         modification du référentiel qui produirait le même effet (`updateCalendar`,
         `setDefaultCalendar`, `updateResourceRole`), un élément par projet en cause, par son
         libellé et son code (`project_label`, `project_code`, nul pour un projet sans code), sans
@@ -779,8 +779,11 @@ ProblemParams:
         Les rôles en cause, actifs ou désactivés, chacun par son identifiant, son code et son
         libellé, que l'auteur lise ou non les rôles (`STATE_FORBIDS_OPERATION`,
         `cost_type_without_role`, `cost_category_without_role`, WF-REF-0030, WF-REF-0040 ;
-        EP-14/L42r) ; et ceux d'une ligne importée qui laisserait sa tâche sans heure travaillée
-        (`TASK_WITHOUT_WORKING_HOURS`, `ImportRejection.params`, WF-PLA-0010 ; #768).
+        EP-14/L42r) ; et ceux de tout refus qui laisserait une tâche sans heure travaillée
+        (`TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010) — une écriture du référentiel ou d'une
+        révision, une ligne collée (`PasteRejection.params`) ou importée
+        (`ImportRejection.params`), une fusion —, vide quand seules des tâches sans ligne de
+        main-d'œuvre perdent leurs heures (#768 ; #1684).
       items: { $ref: '#/ProblemResourceRole' }
     projects:
       type: array

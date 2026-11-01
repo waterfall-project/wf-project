@@ -570,13 +570,17 @@ def test_a_terminal_project_lists_no_command_and_refuses_a_write_by_its_conditio
 
 
 def test_no_command_an_example_lists_names_project_not_terminal(examples: dict[str, Any]) -> None:
+    # #1675: the condition stays a `CommandCondition`, the type of the 409's `missing_condition`,
+    # and no `missing_conditions` ever holds it, neither that of a command listed nor that of an
+    # entry (`EntryAvailability`, which names no command): only the 409 of a direct call does.
     listed = [
-        (name, entry["command"], entry["missing_conditions"])
+        (name, found.get("command"), found["missing_conditions"])
         for name, example in examples.items()
         for found in _walk(example["value"])
-        for entry in cast("list[Entry]", found.get("available_commands") or [])
+        if "missing_conditions" in found
     ]
-    assert listed
+    assert any(command is None for _, command, _ in listed)
+    assert any(command is not None for _, command, _ in listed)
     for name, command, missing in listed:
         assert NOT_TERMINAL not in missing, (name, command)
 

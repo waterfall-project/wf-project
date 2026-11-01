@@ -22,10 +22,9 @@
  * and `tasks`, `wbs_element`, `project_code`, `rows`); a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
- * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
- * its roles, which never overlap, named when the screen read them (`ProblemLanguage.names`), or,
- * none given, the default calendar of a task without a line of labour — the refusal of a line
- * imported names these roles itself (`resource_roles`, #768). The parameters several refusals
+ * working hour: the calendar of its one role, which has no hour, or those of its roles, which never
+ * overlap, which every such refusal names itself (`resource_roles`, #768, #1684), or, none given,
+ * the default calendar of a task without a line of labour. The parameters several refusals
  * share are typed by the contract (`ProblemParams`), read as they are; the others stay open, their
  * shape checked before they are said. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
@@ -61,8 +60,8 @@ export interface ProblemLanguage {
   readonly locale: Locale;
   readonly messages: Catalogue;
   /**
-   * The names of the objects the screen read, by identifier: what names the roles a refusal gives by
-   * their identifiers alone (`resource_role_ids`); none, and they are left unnamed.
+   * The names of the objects the screen read, by identifier: what names the objects a refusal gives by
+   * their identifiers alone; none, and they are left unnamed.
    */
   readonly names?: Readonly<Record<string, string>> | undefined;
 }
@@ -246,30 +245,17 @@ const DETAILS: readonly Reader[] = [
       ? undefined
       : ["resource_roles", { roles: conjunction(named, locale), of }];
   },
-  // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap —
-  // named by the refusal of a line imported (`resource_roles`, #768), or given by their identifiers
-  // alone and named as the screen read them (`resource_role_ids`); none given, the default calendar
-  // of a task without a line of labour.
-  ({ resource_roles, resource_role_ids, missing_condition }, _label, locale, say, names) => {
-    if (resource_roles !== undefined && missing_condition === undefined) {
-      const roles = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
-      return roles.length === 0
-        ? ["resource_role_ids_none", {}]
-        : ["resource_role_ids", { roles: conjunction(roles, locale), count: roles.length }];
-    }
-    if (Array.isArray(resource_role_ids) && resource_role_ids.length === 0) {
-      return ["resource_role_ids_none", {}];
-    }
-    const ids = itemsOf(resource_role_ids, (id): id is string => typeof id === "string");
-    const named = ids.map((id) => names[id]).filter((name) => name !== undefined);
-    if (ids.length === 0) {
+  // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap,
+  // each by its code and its label (`resource_roles`, #768, #1684); none, the default calendar of a
+  // task without a line of labour.
+  ({ resource_roles, missing_condition }, _label, locale, say) => {
+    if (resource_roles === undefined || missing_condition !== undefined) {
       return undefined;
     }
-    // One role alone: its calendar has no hour; several: their calendars never overlap.
-    const count = ids.length;
-    return named.length === 0
-      ? ["resource_role_ids_unnamed", { count }]
-      : ["resource_role_ids", { roles: conjunction(named, locale), count }];
+    const roles = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
+    return roles.length === 0
+      ? ["resource_roles_calendar_none", {}]
+      : ["resource_roles_calendar", { roles: conjunction(roles, locale), count: roles.length }];
   },
   // The categories of a nature that a change of its type is refused for — those employed, or those
   // that bear an hourly rate —, each by its label and its code, to attach first to another nature of

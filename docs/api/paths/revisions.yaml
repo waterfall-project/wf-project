@@ -316,25 +316,27 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Une condition que la commande `designate_reference` de la révision dit manquante, la
-          première dans l'ordre où elle les liste, rien n'étant écrit : une révision en cours,
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `revision_marked` ; une
-          révision dont la structure principale ne porte aucune tâche ou aucune ligne de devis,
-          de même à `revision_has_tasks_and_lines` — « La désignation comme référence d'une
-          révision qui ne porte aucune tâche ou aucune ligne de devis est refusée, en nommant la
-          condition manquante » (WF-CYC-0030), le projet restant sans référence
+          `STATE_FORBIDS_OPERATION`, rien n'étant écrit. Sur un projet terminal, où la commande
+          n'est pas listée, `params.missing_condition` à `project_not_terminal`, avant toute autre
+          (WF-CYC-0100 ; `project_terminal`, #1674). Sinon, une condition que la commande
+          `designate_reference` de la révision dit manquante, la première dans l'ordre où elle les
+          liste : une révision en cours, `revision_marked` ; une révision dont la structure
+          principale ne porte aucune tâche ou aucune ligne de devis, de même à
+          `revision_has_tasks_and_lines` — « La désignation comme référence d'une révision qui ne
+          porte aucune tâche ou aucune ligne de devis est refusée, en nommant la condition
+          manquante » (WF-CYC-0030), le projet restant sans référence
           (`reference_without_tasks`) ; une désignation qui ne se corrige plus, le projet ayant
-          reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation,
-          de même à `reference_correctable` (WF-REV-0040 ; J-01, #1795 ;
-          `reference_not_correctable`) ;
-          ou un traitement de fond qui court sur la révision, `no_background_task_running`
-          (EP-15/US-0490).
+          reçu un coût réel ou une révision ayant été marquée depuis la dernière désignation, de
+          même à `reference_correctable` (WF-REV-0040 ; J-01, #1795 ;
+          `reference_not_correctable`) ; ou un traitement de fond qui court sur la révision,
+          `no_background_task_running` (EP-15/US-0490).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               without_tasks: { $ref: ../../../fixtures/api/reference_without_tasks.json }
               not_correctable: { $ref: ../../../fixtures/api/reference_not_correctable.json }
+              project_terminal: { $ref: ../../../fixtures/api/reference_designation_terminal.json }
       '412':
         description: >-
           `STALE_LOCK_VERSION` : le projet a été écrit depuis sa lecture, et la référence ne change
@@ -1344,32 +1346,35 @@
       celle d'une récapitulative emporte aussi ses subordonnées, leurs lignes et leurs liaisons,
       et le devis diminue d'autant (Vérif de WF-PLA-0070). « Une tâche démarrée ou terminée ne
       peut pas être supprimée » (WF-PLA-0070), ni une récapitulative dont une subordonnée l'est :
-      le refus nomme la condition, `task_not_started`, et l'écran renvoie à la mise à zéro de
-      son reste à engager (Vérif de WF-PLA-0070). Les lignes de provision que portent la tâche
-      supprimée et ses subordonnées ne sont pas emportées : elles passent sur la tâche parente
-      de la tâche supprimée ou, pour une tâche de premier niveau, sur la première tâche de premier
+      le refus nomme la condition, `task_not_started`, et l'écran renvoie à la mise à zéro de son
+      reste à engager (Vérif de WF-PLA-0070). Les lignes de provision que portent la tâche
+      supprimée et ses subordonnées ne sont pas emportées : elles passent sur la tâche parente de
+      la tâche supprimée ou, pour une tâche de premier niveau, sur la première tâche de premier
       niveau restante, le total du devis inchangé (WF-PLA-0070, WF-RIS-0010) ; `nodes` les rend
       écrites sous leur tâche nouvelle, `ancestors` cette tâche et ses ancêtres, et chaque risque
       concerné voit sa tâche de provision (`Risk.provision_node_id`) et son compteur changer. La
-      suppression qui laisserait sans tâche une structure principale qui porte une ligne de
-      provision est refusée en nommant les risques (WF-RIS-0010). Une récapitulative qui perd sa
-      dernière subordonnée devient une tâche feuille en mode automatique : elle prend pour
-      durée celle qu'elle calculait, conserve son état, ses lignes propres et son rattachement
-      au lotissement (WF-PLA-0170), et ses dates sont recalculées ; si cette durée est nulle,
-      elle devient un jalon, à l'état non démarré ou terminé qu'elle avait ; démarrée, elle
-      prend une durée d'un jour (WF-PLA-0040, WF-PLA-0160). Elle est rendue telle qu'elle devient dans `ancestors`,
-      ses `computed_fields` et `editable_fields` changés avec elle. Une écriture de grille
-      comme les autres : elle rend ses ancêtres recalculés, les totaux et le compteur de la
-      structure, qui a avancé (`NodesWritten`), pour que la grille montre juste et que le collage
-      suivant porte le bon compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les
-      successeurs de la tâche et déplacer le chemin critique : ces tâches sont rendues dans
-      `rescheduled` (WF-PLA-0020, WF-PLA-0100), et leurs montants, inflation comprise, dans
-      `reinflated` (WF-DEV-0040). Une tâche que la suppression laisse sans prédécesseur se replace
-      selon son mode (WF-PLA-0020) sans changer d'état : une date de début passée ne la démarre ni
-      ne la termine (WF-RAE-0030 ; `provision_moved`, #1768). Comme toute modification, elle porte le compteur lu du nœud supprimé
-      (`lock_version`, WF-IHM-0110) : un nœud écrit depuis sa lecture n'est pas supprimé (#1210).
-      Sur la structure principale, une ligne d'une tâche terminée ne se supprime pas, la tâche se
-      rouvrant d'abord depuis le Kanban (`task_not_completed`, WF-RAE-0040) ; dans un
+      réponse ne rend pas le risque : son nouveau compteur (`Risk.lock_version`) se relit par
+      `getRisk` avant d'enchaîner un `updateRiskProvision` ou un `updateRisk`, qui le portent
+      (WF-IHM-0110 ; `provision_moved`, #1665). La suppression qui laisserait sans tâche une
+      structure principale qui porte une ligne de provision est refusée en nommant les risques
+      (WF-RIS-0010). Une récapitulative qui perd sa dernière subordonnée devient une tâche feuille
+      en mode automatique : elle prend pour durée celle qu'elle calculait, conserve son état, ses
+      lignes propres et son rattachement au lotissement (WF-PLA-0170), et ses dates sont
+      recalculées ; si cette durée est nulle, elle devient un jalon, à l'état non démarré ou
+      terminé qu'elle avait ; démarrée, elle prend une durée d'un jour (WF-PLA-0040, WF-PLA-0160).
+      Elle est rendue telle qu'elle devient dans `ancestors`, ses `computed_fields` et
+      `editable_fields` changés avec elle. Une écriture de grille comme les autres : elle rend ses
+      ancêtres recalculés, les totaux et le compteur de la structure, qui a avancé
+      (`NodesWritten`), pour que la grille montre juste et que le collage suivant porte le bon
+      compteur (WF-IHM-0110). Les liaisons emportées peuvent redater les successeurs de la tâche
+      et déplacer le chemin critique : ces tâches sont rendues dans `rescheduled` (WF-PLA-0020,
+      WF-PLA-0100), et leurs montants, inflation comprise, dans `reinflated` (WF-DEV-0040). Une
+      tâche que la suppression laisse sans prédécesseur se replace selon son mode (WF-PLA-0020)
+      sans changer d'état : une date de début passée ne la démarre ni ne la termine (WF-RAE-0030 ;
+      `provision_moved`, #1768). Comme toute modification, elle porte le compteur lu du nœud
+      supprimé (`lock_version`, WF-IHM-0110) : un nœud écrit depuis sa lecture n'est pas supprimé
+      (#1210). Sur la structure principale, une ligne d'une tâche terminée ne se supprime pas, la
+      tâche se rouvrant d'abord depuis le Kanban (`task_not_completed`, WF-RAE-0040) ; dans un
       différentiel, elle se supprime comme une autre, l'avenant la rebudgétant (WF-REV-0050 ;
       F-01, #1766). La phase du projet ne refuse rien (C-358).
     parameters:
@@ -1684,7 +1689,7 @@
           (`role_required`, WF-DEV-0020) ; ou un rôle changé qui laisserait la tâche
           sans heure travaillée dans la semaine — son calendrier ne recoupe jamais celui d'un autre
           rôle de la tâche, ou, sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la
-          semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` et
+          semaine (EP-14/L42s) — : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` et
           `params.tasks` nommant les rôles et la tâche, inchangée (WF-PLA-0010) ; ou une
           catégorie de type provision pour risques donnée à une ligne saisie : `VALIDATION_FAILED`,
           `fields` sur `/cost_category_id`, motif `PROVISION_CATEGORY_RESERVED` (WF-DEV-0020) ;
@@ -2087,28 +2092,28 @@
           `ORDER_ITEM_OUTSIDE_WORK_PACKAGE`, `fields[].params.work_package_task` et
           `order_item_tasks` nommant la tâche du lot et celles des postes par leur nœud et leur
           libellé, comme l'échec d'une fusion (`NodeMove`, WF-IHM-0080). Ou une ligne de
-          main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la reçoit sans aucune
-          heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
-          (WF-PLA-0010). Ou un nœud après lequel se placer qui n'est pas un frère sous le parent
-          visé : `fields` sur `/after_node_id`, `NODE_NOT_SIBLING`, sans paramètre (`NodeMove` ;
-          #1183). Ou une tâche déplacée sous un jalon, qui ne porte pas de sous-tâches : `fields`
-          sur `/parent_id`, `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon
-          (`node_id`, `label` ; WF-PLA-0050, #1771). Ou, sans `fields`, un déplacement qui, en
+          main-d'œuvre déplacée change de tâche porteuse, et son rôle laisserait la tâche qui la
+          reçoit sans aucune heure travaillée dans la semaine : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_roles` et `params.tasks` nommant les rôles et la tâche, chacun par son
+          libellé (WF-PLA-0010 ; #1684). Ou un nœud après lequel se placer qui n'est pas un frère
+          sous le parent visé : `fields` sur `/after_node_id`, `NODE_NOT_SIBLING`, sans paramètre
+          (`NodeMove` ; #1183). Ou une tâche déplacée sous un jalon, qui ne porte pas de sous-tâches
+          : `fields` sur `/parent_id`, `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le
+          jalon (`node_id`, `label` ; WF-PLA-0050, #1771). Ou, sans `fields`, un déplacement qui, en
           changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
-          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
-          la ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés :
-          sa tâche est celle que son risque désigne, et elle se déplace par le formulaire du
-          risque (`updateRiskProvision`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
-          motif `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par
-          son identifiant et son libellé (`risk_id`, `label`), que la grille ne lit pas
-          (WF-RIS-0010 ; #1227) ; une tâche qui porte une ligne de provision se déplace, elle,
-          avec sa ligne. Ou, sans `fields`, un déplacement ou une mise en
-          retrait qui relierait la récapitulative qui reçoit le nœud, ou l'un de ses ancêtres, au
-          nœud ou à l'une de ses subordonnées : `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030,
-          WF-PLA-0040) ; ou qui fermerait une boucle de liaisons à travers elle : `LINK_CYCLE`,
-          `params.cycle` nommant les tâches de la boucle par leur nœud et leur libellé, dans
-          l'ordre des liaisons (WF-PLA-0030) — la grille, filtrée, peut ne pas les lire.
+          `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit la
+          ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés : sa
+          tâche est celle que son risque désigne, et elle se déplace par le formulaire du risque
+          (`updateRiskProvision`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
+          motif `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par son
+          identifiant et son libellé (`risk_id`, `label`), que la grille ne lit pas (WF-RIS-0010 ;
+          #1227) ; une tâche qui porte une ligne de provision se déplace, elle, avec sa ligne. Ou,
+          sans `fields`, un déplacement ou une mise en retrait qui relierait la récapitulative qui
+          reçoit le nœud, ou l'un de ses ancêtres, au nœud ou à l'une de ses subordonnées :
+          `LINK_FORBIDDEN`, sans paramètre (WF-PLA-0030, WF-PLA-0040) ; ou qui fermerait une boucle
+          de liaisons à travers elle : `LINK_CYCLE`, `params.cycle` nommant les tâches de la boucle
+          par leur nœud et leur libellé, dans l'ordre des liaisons (WF-PLA-0030) — la grille,
+          filtrée, peut ne pas les lire.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }

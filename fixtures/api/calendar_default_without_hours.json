@@ -4,7 +4,7 @@
     "code": "TASK_WITHOUT_WORKING_HOURS",
     "status": 422,
     "params": {
-      "resource_role_ids": [],
+      "resource_roles": [],
       "projects": [
         {
           "project_label": "Modernisation du poste de commande",

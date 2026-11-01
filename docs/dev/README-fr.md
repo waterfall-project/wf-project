@@ -1456,18 +1456,16 @@ désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des heures hors de 0 à 2
 négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un calendrier,
 désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon générique
 sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre de relire ;
-l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait une tâche sans
-heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est refusée
+l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait une tâche
+sans heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est refusée
 (`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la semaine. »)
 en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par son seul
 libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de
-l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `resource_role_ids` : les
-rôles dont les calendriers ne se recoupent aucun jour, que le refus ne donne que par leurs
-identifiants — la page, pour une session qui écrit, lit tous les rôles, désactivés compris comme elle
-le peut (`readEveryRole`), et les prête à chaque avis de leurs deux listes (`RoleNames`, `KnownNames`
-d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit sans nom quand elle
-n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
-défaut vidé ou désigné.
+l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `params.resource_roles` :
+les rôles dont les calendriers ne se recoupent aucun jour, que le refus nomme lui-même par leur code
+et leur libellé, partout où il se dit, le planning compris, la page n'en lisant aucun ; une liste
+vide désigne le calendrier par défaut, vidé ou désigné, quand seules des tâches sans ligne de
+main-d'œuvre perdent leurs heures.
 
 ### Les paramètres des risques et des indicateurs
 
@@ -3728,15 +3726,15 @@ ses paramètres, jamais une phrase.
   statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
   `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
   `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
-  quand l'écran les a lus (`names`, et `KnownNames` pour tous les avis d'un écran) ; les lignes
-  ou les projets nommés au-delà de la phrase, hors de l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
-  (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
-  `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
+  quand l'écran les a lus (`names`) ; les lignes ou les projets nommés au-delà de la phrase, hors de
+  l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en
+  conflit (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme
+  un, `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
   `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names`, ou à défaut par le
   libellé que le refus lui donne (`conflicting_object_label`) — un projet, un sous-projet que
-  l'écran ne montre pas, dont le code pris revient le dialogue fermé (#714) ; sur 401, le
-  lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
-  inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
+  l'écran ne montre pas, dont le code pris revient le dialogue fermé (#714) ; sur 401, le lien vers
+  la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur inattendue avec sa
+  référence (`correlation_id`), comme l'écran de panne. Une action serveur
   dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`
   (`frontend/src/components/commands/rejection.ts`), une règle pour tous les écrans (#330) —
   une `TypeError` est l'API injoignable : c'est ce que lève le `fetch` du navigateur rejeté, et

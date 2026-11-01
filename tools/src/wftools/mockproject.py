@@ -162,8 +162,12 @@ _INSTANTS = ("submitted_at", "finished_at")
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
-def _moment(instant: JsonValue) -> datetime:
-    """Return an instant of a task as a moment."""
+def moment(instant: JsonValue) -> datetime:
+    """Return an instant of an example, ``2026-06-03T14:05:00Z``, as a moment in universal time.
+
+    Public, so that the tests of the exit read the instants of its tasks as this module writes
+    them, not by a copy of their format (#1708).
+    """
     return datetime.strptime(cast("str", instant), _FORMAT).replace(tzinfo=UTC)
 
 
@@ -171,7 +175,7 @@ def _later(instant: JsonValue) -> JsonValue:
     """Return an instant of a task of the marking, as long after as the exit's is, or none."""
     if instant is None:
         return None
-    return (_moment(instant) + EXIT_DELAY).strftime(_FORMAT)
+    return (moment(instant) + EXIT_DELAY).strftime(_FORMAT)
 
 
 def exit_task(marking: str, task_id: str = EXIT_TASK) -> JsonObject:
@@ -195,9 +199,9 @@ def exit_relaunched_succeeded() -> JsonObject:
     (`task_succeeded`) did, the exit applied all the same.
     """
     marking = cast("JsonObject", fixture("task_succeeded"))
-    took = _moment(marking["finished_at"]) - _moment(marking["submitted_at"])
+    took = moment(marking["finished_at"]) - moment(marking["submitted_at"])
     submitted = _later(cast("JsonObject", fixture("task_mark_relaunched"))["submitted_at"])
-    finished = _moment(submitted) + took
+    finished = moment(submitted) + took
     return {
         **exit_task("task_succeeded", EXIT_RELAUNCHED_TASK),
         "submitted_at": submitted,

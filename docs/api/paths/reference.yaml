@@ -683,22 +683,22 @@
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
           `/label` vides ou trop longs ; un nœud envoyé autre que celui du rôle, `/org_node_id` par
-          `FIELD_READ_ONLY` — renvoyé inchangé, il ne l'est pas (WF-REF-0090) ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
-          `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une
-          catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle
-          garde ne l'est jamais, aucune catégorie à laquelle un rôle est rattaché ne quittant la
-          main-d'œuvre (WF-REF-0040, `cost_category_without_role`) — ; une capacité négative, par
-          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification
-          change la catégorie ou le calendrier du rôle, un objet désactivé, par
-          `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés
-          depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une
-          révision en cours sans aucune heure travaillée dans la semaine : il ne recoupe jamais
-          celui d'un autre rôle de ses lignes de main-d'œuvre, ou, sur une tâche dont ce rôle est
-          le seul, il n'a aucune heure dans la semaine (EP-14/L42s) : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` nommant les rôles en cause et `params.projects` chaque projet
-          en cause, par son libellé et son code (`project_label`, `project_code`), sans
-          identifiant ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110).
-          Rien n'est écrit.
+          `FIELD_READ_ONLY` — renvoyé inchangé, il ne l'est pas (WF-REF-0090) ; `/cost_category_id`
+          ou `/calendar_id` absent ou nul, par `VALUE_REQUIRED`, inconnu, par
+          `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, par
+          `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle garde ne l'est jamais, aucune
+          catégorie à laquelle un rôle est rattaché ne quittant la main-d'œuvre (WF-REF-0040,
+          `cost_category_without_role`) — ; une capacité négative, par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `0` ; et, quand la modification change la catégorie ou le
+          calendrier du rôle, un objet désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un
+          rôle qui garde les siens, désactivés depuis, se modifie. Ou bien le calendrier donné au
+          rôle laisserait une tâche d'une révision en cours sans aucune heure travaillée dans la
+          semaine : il ne recoupe jamais celui d'un autre rôle de ses lignes de main-d'œuvre, ou,
+          sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) :
+          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` nommant les rôles en cause, par leur
+          identifiant, leur code et leur libellé (#1684), et `params.projects` chaque projet en
+          cause, par son libellé et son code (`project_label`, `project_code`), sans identifiant ni
+          tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1025,20 +1025,20 @@
               stale: { $ref: ../../../fixtures/api/calendar_update_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label`
-          vide ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la
-          seule borne franchie (WF-REF-0110). Ou bien les heures données au calendrier
-          laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la
-          semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus
-          aucun jour, ou, sur une tâche dont un rôle est le seul, le calendrier de ce rôle
-          n'ayant plus aucune heure dans la semaine — `params.resource_role_ids` nommant alors ce
-          seul rôle, comme `updateResourceRole` (EP-14/L42s, #795) — ; ou, pour le calendrier
-          par défaut, une tâche sans ligne de main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` nommant les rôles en cause — vide quand seules des tâches sans
-          ligne de main-d'œuvre perdent leurs heures — et `params.projects` chaque projet en
-          cause, par son libellé et son code (`project_label`, `project_code`), sans identifiant
-          ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est
-          écrit.
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label` vide
+          ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la seule borne
+          franchie (WF-REF-0110). Ou bien les heures données au calendrier laisseraient une tâche
+          d'une révision en cours sans aucune heure travaillée dans la semaine : les calendriers des
+          rôles de ses lignes de main-d'œuvre ne se recoupant plus aucun jour, ou, sur une tâche
+          dont un rôle est le seul, le calendrier de ce rôle n'ayant plus aucune heure dans la
+          semaine — `params.resource_roles` nommant alors ce seul rôle, comme `updateResourceRole`
+          (EP-14/L42s, #795) — ; ou, pour le calendrier par défaut, une tâche sans ligne de
+          main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_roles` nommant les rôles en cause, par leur identifiant, leur code et
+          leur libellé (#1684) — vide quand seules des tâches sans ligne de main-d'œuvre perdent
+          leurs heures — et `params.projects` chaque projet en cause, par son libellé et son code
+          (`project_label`, `project_code`), sans identifiant ni tâche : l'appelant peut ne pas le
+          consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1116,7 +1116,7 @@
         description: >-
           Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de
           main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure
-          travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide,
+          travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` vide,
           `params.projects` nommant chaque projet en cause par son libellé et son code
           (`project_label`, `project_code`), sans identifiant ni tâche (WF-PLA-0010,
           WF-ADM-0110). Ou un corps refusé, un compteur absent ou d'un autre type :

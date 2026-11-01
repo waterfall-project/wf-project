@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Waterfall API
-  version: 1.0.0-draft
+  version: 1.0.0
   summary: Contrat de l'interface entre le front et les services de Waterfall
   description: >-
     Contrat écrit à la main, qui fait foi : tout endpoint, tout schéma et toute erreur
