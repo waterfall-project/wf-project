@@ -19,7 +19,10 @@
  * the conditions are not read. Any other form — a call of another function, a literal, a list with a
  * column of its own — is not a grid, and is reported: a false positive is better than a miss.
  *
- * What the reading cannot tell stays with the review: a factory is seen by its name, not by the
+ * What the reading cannot tell stays with the review: a config that mixes a parameter with other
+ * columns; a `columns` written in shorthand or computed; a `.concat()` on a listed grid; a JSX
+ * spread after `config` (`<DenseGrid config={x} {...more} />`) — all deliberate circumventions the
+ * guard does not aim at; a factory is seen by its name, not by the
  * variant it is called for (`subprojectGrid(true)` or not); a `DenseGrid` renamed on import is not
  * found; a `<DenseGrid {...props} />` has no `config` to read and is reported; a config that
  * arrives as a parameter of a component (the `make` of the reference grids) cannot be followed, and
@@ -90,7 +93,11 @@ function root(node: ts.Expression): string | undefined {
   }
 }
 
-/** The grids a test checks: the roots of the `.columns` it reads. */
+/**
+ * The grids a test checks: the roots of the `.columns` its completeness tables read — what each
+ * `it.each(…)` is given, and the constants it names. A `.columns` read once, outside a table, is
+ * not a check of every column.
+ */
 function gridNames(file: ts.SourceFile): Set<string> {
   const names = new Set<string>();
   // A root is a name the file imports or holds at its top: not a variable of a loop or a callback.
@@ -104,12 +111,30 @@ function gridNames(file: ts.SourceFile): Set<string> {
       }
     }
   }
-  const visit = (node: ts.Node) => {
+  const followed = new Set<string>();
+  const columns = (node: ts.Node) => {
     if (ts.isPropertyAccessExpression(node) && node.name.text === "columns") {
       const name = root(node.expression);
       if (name !== undefined && known.has(name)) {
         names.add(name);
       }
+    }
+    if (ts.isIdentifier(node) && !followed.has(node.text)) {
+      followed.add(node.text);
+      const bound = scoped(node.text, node);
+      if (bound !== undefined) {
+        columns(bound);
+      }
+    }
+    ts.forEachChild(node, columns);
+  };
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "each"
+    ) {
+      node.arguments.forEach(columns);
     }
     ts.forEachChild(node, visit);
   };
@@ -395,6 +420,19 @@ describe("the grids of the front", () => {
     ]) {
       expect(grids.has(other), other).toBe(false);
     }
+  });
+
+  it("takes for a checked grid one the completeness tables read, not one read once beside them", () => {
+    const list = parse(
+      `import { a, b, c } from "x";
+       const SEEN = c(1).columns;
+       describe("d", () => {
+         it.each([["a", a.columns], ["s", SEEN]])("t", () => {});
+         it("one", () => { expect(b(1).columns.length).toBe(2); });
+       });`,
+      "list.ts",
+    );
+    expect([...gridNames(list)].sort()).toEqual(["a", "c"]);
   });
 
   it("reads the grids the list has, and names one it does not", () => {

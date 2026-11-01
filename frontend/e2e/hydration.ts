@@ -174,7 +174,7 @@ export interface HeldScripts {
  * network when the interception of the page is taken away under it, and the handler's own answer
  * then fails with this message, which no type of error tells (#1635).
  */
-function handledAlready(error: unknown): boolean {
+export function handledAlready(error: unknown): boolean {
   return error instanceof Error && error.message.includes("Route is already handled");
 }
 

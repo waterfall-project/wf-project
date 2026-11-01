@@ -3,7 +3,7 @@
 import { expect, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openMenu, setExpanded } from "./hydration";
+import { handledAlready, openMenu, setExpanded } from "./hydration";
 
 // The session of the fake back is Camille Martin's, whose role grants the whole catalogue of
 // permissions: every function is offered, and the menu of the account.
@@ -203,12 +203,24 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   });
   const handlers = new Set<Promise<void>>();
   const record = async (route: Route): Promise<void> => {
-    if (route.request().headers()["next-action"] === undefined) {
-      await route.continue();
-      return;
+    try {
+      if (route.request().headers()["next-action"] === undefined) {
+        await route.continue();
+        return;
+      }
+      await held;
+      await route.abort();
+    } catch (error) {
+      // The interception taken away under a request caught as it was: the network served it.
+      if (!handledAlready(error)) {
+        throw error;
+      }
     }
-    await held;
-    await route.abort();
+  };
+  const drain = async (): Promise<void> => {
+    while (handlers.size > 0) {
+      await Promise.allSettled([...handlers]);
+    }
   };
   const account = (route: Route): Promise<void> => {
     const handled = record(route);
@@ -220,35 +232,39 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
     return handled;
   };
   await page.route("**/account", account);
-  // A choice made before React hydrated the page is lost: it is made again until it holds.
-  const dark = page.getByRole("radio", { name: "Sombre" });
-  await expect(async () => {
-    await dark.click();
-    await expect(dark).toBeChecked({ timeout: 500 });
-  }).toPass();
-  const sent = page.waitForRequest((request) => request.headers()["next-action"] !== undefined);
-  await page.getByRole("button", { name: "Enregistrer" }).click();
-  await sent;
+  try {
+    // A choice made before React hydrated the page is lost: it is made again until it holds.
+    const dark = page.getByRole("radio", { name: "Sombre" });
+    await expect(async () => {
+      await dark.click();
+      await expect(dark).toBeChecked({ timeout: 500 });
+    }).toPass();
+    const sent = page.waitForRequest((request) => request.headers()["next-action"] !== undefined);
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await sent;
 
-  await page.goBack();
-  await expect(page).toHaveURL("/");
-  // The record is held by a local state, not a transition (#1484): the router shows the home at
-  // once, the record still under way, and the screen of the account goes with what would tell its
-  // refusal — released, the write is told by the bar once refused, not before.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
-  await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
-  const bar = page.getByRole("banner");
-  await expect(bar.getByRole("alert")).toHaveCount(0);
-  cut();
-  const alert = bar.getByRole("alert");
-  await expect(alert).toHaveText(
-    /^Une modification qui n’est plus affichée a été refusée\s: elle n’est pas enregistrée\./,
-  );
-  await alert.getByRole("button", { name: "Fermer l’avis" }).click();
-  await expect(alert).toHaveCount(0);
-  // The route is taken away once its handlers are done, as `holdScripts` does (#1721).
-  while (handlers.size > 0) {
-    await Promise.allSettled([...handlers]);
+    await page.goBack();
+    await expect(page).toHaveURL("/");
+    // The record is held by a local state, not a transition (#1484): the router shows the home at
+    // once, the record still under way, and the screen of the account goes with what would tell its
+    // refusal — released, the write is told by the bar once refused, not before.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+    await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
+    const bar = page.getByRole("banner");
+    await expect(bar.getByRole("alert")).toHaveCount(0);
+    cut();
+    const alert = bar.getByRole("alert");
+    await expect(alert).toHaveText(
+      /^Une modification qui n’est plus affichée a été refusée\s: elle n’est pas enregistrée\./,
+    );
+    await alert.getByRole("button", { name: "Fermer l’avis" }).click();
+    await expect(alert).toHaveCount(0);
+  } finally {
+    // Whatever the test ended in: the record released, the handlers done, the route taken away
+    // (#1721), and the window of the removal waited for too.
+    cut();
+    await drain();
+    await page.unroute("**/account", account);
+    await drain();
   }
-  await page.unroute("**/account", account);
 });
