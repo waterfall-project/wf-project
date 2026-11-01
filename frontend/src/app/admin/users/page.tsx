@@ -24,15 +24,17 @@
  * the accounts, the command that asks a new one; then its periodicity (`getIdentitySyncSchedule`,
  * WF-ADM-0070), which that session sets (`IdentitySync`): an installation always has one, but the
  * service, behind the contract until EP-04, does not serve it yet, and a 404 leaves the section
- * out rather than the page. A read the API refuses, or cannot answer, is thrown for the pages of
- * the shell to say; the active nodes of the organisation, which any session reads (C-01), among
- * them.
+ * out rather than the page. The active nodes of the organisation are read by any session (C-01),
+ * and the contract declares no 404 for them any more; but the service, behind the contract until
+ * EP-05 (#1746), does not serve them yet, and a 404 leaves the screen standing, without a node to
+ * choose, rather than the page not found. Any other read the API refuses, or cannot answer, is
+ * thrown for the pages of the shell to say.
  */
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { readOrFail, readOrRefused, readUnlessRefused } from "@/api/problem";
+import { readOrRefused, readUnlessRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { UserList } from "@/components/admin/account-lists";
 import { IdentitySync } from "@/components/admin/identity-sync";
@@ -78,11 +80,14 @@ function UsersHeader() {
 
 /**
  * The nodes of organisation the accounts may be restricted to, in the order of the tree: the active
- * ones, which any session reads (C-01).
+ * ones, which any session reads (C-01); none while the service, behind the contract until EP-05
+ * (#1746), does not serve them (404), which the contract no longer declares.
  */
 async function readNodes() {
-  const nodes = await readOrFail("listOrgNodes", () => serverClient().GET("/reference/org-nodes"));
-  return nodes.map((node) => ({
+  const nodes = await readUnlessRefused("listOrgNodes", [{ status: 404 }], () =>
+    serverClient().GET("/reference/org-nodes"),
+  );
+  return (nodes ?? []).map((node) => ({
     id: node.org_node_id,
     code: node.code,
     label: node.label,

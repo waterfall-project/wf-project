@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { Problem } from "@/api/problem";
 
-import { example, type FakeAnswers, fakeClient } from "./fixtures";
+import { behindTheContract, example, type FakeAnswers, fakeClient } from "./fixtures";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -282,5 +282,21 @@ describe("fakeClient", () => {
       "fakeClient: no answer for GET /projects",
     );
     await expect(client.GET("/me")).rejects.toThrow("fakeClient: no answer for GET /me");
+  });
+});
+
+describe("behindTheContract", () => {
+  it("answers one operation the refusal the contract no longer declares, records it, and leaves the others to their examples", async () => {
+    const client = behindTheContract(
+      fakeClient({ "GET /reference/org-nodes": "org_nodes", "GET /me": "me" }),
+      "GET /reference/org-nodes",
+      NOT_FOUND.problem,
+    );
+    const nodes = await client.GET("/reference/org-nodes");
+    expect(nodes.data).toBeUndefined();
+    expect(nodes.error).toEqual(NOT_FOUND.problem);
+    expect(nodes.response.status).toBe(404);
+    expect((await client.GET("/me")).data).toEqual(example("me"));
+    expect(client.calls.map(({ route }) => route)).toEqual(["GET /reference/org-nodes", "GET /me"]);
   });
 });
