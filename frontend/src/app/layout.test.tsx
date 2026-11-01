@@ -7,6 +7,7 @@ import { createApiClient } from "@/api/client";
 import type { BackgroundTask } from "@/api/problem";
 import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
+import { useCurrency } from "@/currency/context";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
 import { type FakeAnswers, type FakeClient, type FakeTiming, fakeClient } from "@/test/fixtures";
 
@@ -85,6 +86,7 @@ function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: Fake
     {
       "GET /me": "me",
       "GET /installation": "installation",
+      "GET /reference/settings": "reference_settings",
       "GET /tasks": "tasks_none",
       ...answers,
     },
@@ -93,9 +95,20 @@ function request(acceptLanguage: string, answers: FakeAnswers = {}, timing: Fake
   server.acceptLanguage = acceptLanguage;
 }
 
+/** What a page below the layout reads as the currency of the amounts. */
+function Currency() {
+  return <p>{`currency:${useCurrency() ?? "none"}`}</p>;
+}
+
 /** The document the layout renders around a page. */
 async function page(): Promise<string> {
   return renderToStaticMarkup(await RootLayout({ children: <p>page</p> }));
+}
+
+/** The currency a page below the layout reads. */
+async function currencyOfPage(): Promise<string | undefined> {
+  const html = renderToStaticMarkup(await RootLayout({ children: <Currency /> }));
+  return /currency:([^<]*)/.exec(html)?.[1];
 }
 
 beforeEach(() => {
@@ -204,9 +217,14 @@ describe("RootLayout", () => {
     await page();
     await server.running;
     const routes = server.client?.calls.map((call) => call.route);
-    // The browser asks for no language offered: the installation decides. The tasks of the
-    // user that still run are asked once the session is known to be open, for the tracker.
-    expect(routes).toEqual(["GET /me", "GET /installation", "GET /tasks"]);
+    // The browser asks for no language offered: the installation decides. The currency and the
+    // tasks of the user that still run are asked once the session is known to be open.
+    expect(routes).toEqual([
+      "GET /me",
+      "GET /installation",
+      "GET /reference/settings",
+      "GET /tasks",
+    ]);
     const tasks = server.client?.calls.find((call) => call.route === "GET /tasks");
     expect(tasks?.query.get("status")).toBe("queued,running");
   });
@@ -250,12 +268,37 @@ describe("RootLayout", () => {
     expect(await server.running).toEqual([]);
   });
 
+  it("hands every page the currency of the installation, read once for any open session [WF-REF-0140-A]", async () => {
+    request("fr");
+    expect(await currencyOfPage()).toBe("EUR");
+    // A session without the administration of the reference data reads it all the same.
+    server.cached.clear();
+    request("fr", { "GET /me": "me_without_administration" });
+    expect(await currencyOfPage()).toBe("EUR");
+    const reads = server.client?.calls.filter((call) => call.route === "GET /reference/settings");
+    expect(reads).toHaveLength(1);
+  });
+
+  it("shows amounts bare, rather than failing the page, when there is no session or the settings cannot be read [WF-REF-0140-A]", async () => {
+    request("fr", { "GET /me": UNAUTHORIZED });
+    expect(await currencyOfPage()).toBe("none");
+    expect(server.client?.calls.map((call) => call.route)).not.toContain("GET /reference/settings");
+    server.cached.clear();
+    request("fr", { "GET /reference/settings": UNAUTHORIZED });
+    expect(await currencyOfPage()).toBe("none");
+  });
+
   it("asks the installation once for a request whose browser leaves it the language", async () => {
     request("*");
     await page();
     await generateMetadata();
     const routes = server.client?.calls.map((call) => call.route);
-    expect(routes).toEqual(["GET /me", "GET /installation", "GET /tasks"]);
+    expect(routes).toEqual([
+      "GET /me",
+      "GET /installation",
+      "GET /reference/settings",
+      "GET /tasks",
+    ]);
   });
 
   it("titles the document with the product, from the catalogue", async () => {

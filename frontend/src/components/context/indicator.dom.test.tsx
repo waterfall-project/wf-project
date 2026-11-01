@@ -37,10 +37,11 @@ function page(
   value: Computable,
   locale: Locale = "fr",
   context: ProjectIndicators["context"] = INDICATORS.context,
+  currency?: string,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ComputedIndicator indicator={label} value={value} context={context} />
+      <ComputedIndicator indicator={label} value={value} context={context} currency={currency} />
     </NextIntlClientProvider>
   );
 }
@@ -145,5 +146,21 @@ describe("an indicator", () => {
         .map((item) => item.textContent)
         .filter((text) => !text.startsWith("Computed")),
     ).toEqual(["12.5%", "0.8674"]);
+  });
+
+  it("shows a projection as an amount with the currency of the installation [WF-REF-0140-A]", () => {
+    const projection = { is_computable: true, value: "66505326.8", reason: null };
+    render(
+      page("indicator.names.projectionAtObservedRate", projection, "en", INDICATORS.context, "EUR"),
+    );
+    render(
+      page("indicator.names.projectionAtObservedRate", projection, "fr", INDICATORS.context, "EUR"),
+    );
+    expect(
+      screen
+        .getAllByRole("definition")
+        .map((item) => item.textContent)
+        .filter((text) => !text.startsWith("Comput") && !text.startsWith("Calcul")),
+    ).toEqual(["€66,505,326.80", "66\u202f505\u202f326,80\u00a0€"]);
   });
 });

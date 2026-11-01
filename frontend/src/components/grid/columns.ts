@@ -506,15 +506,21 @@ export function alignment(column: { readonly format: CellFormat; readonly align?
 
 /**
  * Show the value of a cell in a language, from the exact string of the contract: nothing for
- * none, a text as it is, a figure by the formats of the interface — never through a float.
+ * none, a text as it is, a figure by the formats of the interface — never through a float. An
+ * amount carries the currency of the installation, when it is known.
  */
-export function formatCell(format: CellFormat, value: CellValue, locale: Locale): string {
+export function formatCell(
+  format: CellFormat,
+  value: CellValue,
+  locale: Locale,
+  currency?: string,
+): string {
   if (value === null || value === undefined) {
     return "";
   }
   switch (format) {
     case "money":
-      return formatMoney(value, locale);
+      return formatMoney(value, locale, currency);
     case "decimal":
       return formatDecimal(value, locale);
     case "percent":

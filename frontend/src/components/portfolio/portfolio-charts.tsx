@@ -29,6 +29,7 @@ import {
   timeAxis,
 } from "@/components/chart/chart";
 import { ComputableValue } from "@/components/computable-value";
+import { useCurrency } from "@/currency/context";
 import {
   formatDecimal,
   formatLocale,
@@ -182,6 +183,7 @@ export function PortfolioCurveChart({
 }) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   const shifted = curves.payment_delays;
   const option = useCallback(
     (palette: ChartPalette): ChartOption => ({
@@ -245,7 +247,7 @@ export function PortfolioCurveChart({
                   {t(`enums.PortfolioCostCurve.series.name.${series.name}`)}
                 </th>
                 <td>{formatPlanningDate(point.date, locale)}</td>
-                <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(point.amount, locale, currency)}</td>
               </tr>
             )),
           )}
@@ -283,6 +285,7 @@ export function CashOutChart({
 }) {
   const t = useTranslations("portfolio.cashOut");
   const locale = useLocale();
+  const currency = useCurrency();
   const last = months.at(-1);
   // The last month holds until the first of the next, as every other: its step ends there.
   const end = last === undefined ? undefined : planningInstant(monthAfter(last.month));
@@ -343,8 +346,8 @@ export function CashOutChart({
               <th scope="row" className="font-normal">
                 {formatMonth(month.month, locale)}
               </th>
-              <td>{formatMoney(month.past, locale)}</td>
-              <td>{formatMoney(month.forecast, locale)}</td>
+              <td>{formatMoney(month.past, locale, currency)}</td>
+              <td>{formatMoney(month.forecast, locale, currency)}</td>
             </tr>
           ))}
         </tbody>

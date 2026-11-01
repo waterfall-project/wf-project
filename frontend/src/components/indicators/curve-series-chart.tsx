@@ -34,6 +34,7 @@ import {
   useProvenance,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
+import { useCurrency } from "@/currency/context";
 import { formatLocale, formatMoney, formatMonth, formatPlanningDate } from "@/i18n/format";
 
 /** Cumulative curves, as the API computes them. */
@@ -61,6 +62,7 @@ export interface CurveSeriesChartProps {
 function CurveValues({ curves }: { readonly curves: CurveSeries }) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   /**
    * The heading of the row of a point: the name of its series, said before or after the step when
    * the point shares its date with the one after or before it.
@@ -105,7 +107,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                   )}
                 </th>
                 <td>{formatPlanningDate(point.date, locale)}</td>
-                <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(point.amount, locale, currency)}</td>
               </tr>
             )),
           )}
@@ -129,7 +131,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                   {formatPlanningDate(step.date, locale)}
                 </th>
                 <td>{t(`enums.CurveSeries.steps.cause.${step.cause}`)}</td>
-                <td className="tabular-nums">{formatMoney(step.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(step.amount, locale, currency)}</td>
               </tr>
             ))}
           </tbody>
@@ -151,8 +153,8 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                 <th scope="row" className="font-normal">
                   {formatMonth(month.month, locale)}
                 </th>
-                <td className="tabular-nums">{formatMoney(month.past, locale)}</td>
-                <td className="tabular-nums">{formatMoney(month.forecast, locale)}</td>
+                <td className="tabular-nums">{formatMoney(month.past, locale, currency)}</td>
+                <td className="tabular-nums">{formatMoney(month.forecast, locale, currency)}</td>
               </tr>
             ))}
           </tbody>

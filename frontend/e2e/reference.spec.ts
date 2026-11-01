@@ -50,7 +50,7 @@ test("reads the settings of the reference data outside any project, and enters a
   await page.keyboard.type("85");
   await page.keyboard.press("Enter");
   await expect(rate).not.toHaveAttribute("aria-busy", "true");
-  await expect(rate).toHaveText("85,48");
+  await expect(rate).toHaveText("85,48 €");
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(rowAt(grid, 4).getByRole("gridcell").nth(6)).toBeFocused();
 
@@ -157,7 +157,7 @@ test("adds the column of a year to the grid of the hourly rates, empty, and refu
   // The column added is empty; the rates of the years before are as they were.
   const first = rowAt(grid, 1);
   await expect(first.locator('td[data-column="year_2027"]')).toHaveText("");
-  await expect(first.locator('td[data-column="year_2026"]')).toHaveText("80,00");
+  await expect(first.locator('td[data-column="year_2026"]')).toHaveText("80,00 €");
   await year.fill("2026");
   await form.getByRole("button", { name: "Ajouter la colonne" }).click();
   await expect(form.getByRole("alert")).toHaveText(
@@ -350,7 +350,7 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   await expect(rate).toBeFocused();
   await page.keyboard.type("85");
   await page.keyboard.press("Enter");
-  await expect(rate).toHaveText("85,48", { timeout: WORKING });
+  await expect(rate).toHaveText("85,48 €", { timeout: WORKING });
 
   // A nature deactivated from its row: the row shows what the server answers, deactivated and
   // offering its reactivation.

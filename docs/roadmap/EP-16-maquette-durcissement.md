@@ -2062,7 +2062,7 @@ est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat ; le READM
 
 ## US-0703 — Les écrans adoptent le contrat aligné
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : celles qu'US-0701 et US-0702 ajoutent ou modifient, côté front
 - **issue** : #1600

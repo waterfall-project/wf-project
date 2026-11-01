@@ -213,7 +213,12 @@ function writtenDuration(
 }
 
 /** What a cell shows of a value validated, until the server answers. */
-export function shownEntry(kind: EntryKind, value: string | null, locale: Locale): string {
+export function shownEntry(
+  kind: EntryKind,
+  value: string | null,
+  locale: Locale,
+  currency?: string,
+): string {
   if (value === null) {
     return "";
   }
@@ -222,7 +227,7 @@ export function shownEntry(kind: EntryKind, value: string | null, locale: Locale
     case "integer":
       return formatDecimal(value, locale);
     case "money":
-      return formatMoney(value, locale);
+      return formatMoney(value, locale, currency);
     case "choice":
       return kind.choices().find((choice) => choice.id === value)?.label ?? "";
     case "duration":

@@ -18,7 +18,7 @@
  */
 import { GitCompareArrows } from "lucide-react";
 import Form from "next/form";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
@@ -30,7 +30,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { GridPreferences } from "@/components/grid/settings";
-import { formatMoney } from "@/i18n/format";
+import { Amount } from "@/components/amount";
 import {
   type ProjectContext,
   REVISION_PARAMETER,
@@ -190,7 +190,6 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   const t = useTranslations("revisionScreen.comparison");
   const dimension = useTranslations("enums.RevisionComparison.amount_deltas.dimension");
   const unassigned = useTranslations("enums.Scope")("unassigned");
-  const locale = useLocale();
   return (
     <Part title={t("deltas")} empty={deltas.length === 0 ? t("noDeltas") : undefined}>
       <ListTable
@@ -204,10 +203,10 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
               {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {formatMoney(delta.budgeted_delta, locale)}
+              <Amount value={delta.budgeted_delta} />
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {formatMoney(delta.reestimated_delta, locale)}
+              <Amount value={delta.reestimated_delta} />
             </TableCell>
           </TableRow>
         ))}

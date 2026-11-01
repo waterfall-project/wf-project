@@ -24,6 +24,7 @@ import { rejected } from "@/components/commands/rejection";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCurrency } from "@/currency/context";
 import { formatMoney } from "@/i18n/format";
 
 import { ScopeCell, useLineNavigation } from "./cost-cells";
@@ -63,6 +64,7 @@ export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
   const t = useTranslations("actualCosts.line");
   const helps = useTranslations("commands");
   const locale = useLocale();
+  const currency = useCurrency();
   const heading = useId();
   const reasonField = useId();
   const [reason, setReason] = useState("");
@@ -89,7 +91,7 @@ export function CostLineScope({ projectId, line, offer }: CostLineScopeProps) {
         <CloseLine />
       </div>
       <p className="flex flex-wrap items-center gap-2">
-        <span className="tabular-nums">{formatMoney(line.amount, locale)}</span>
+        <span className="tabular-nums">{formatMoney(line.amount, locale, currency)}</span>
         <ScopeCell tracked={tracked} />
       </p>
       {tracked ? (

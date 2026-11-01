@@ -246,6 +246,7 @@ beforeEach(() => {
   server.timing = {};
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
     "GET /projects/{project_id}": "project",
@@ -708,7 +709,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 68,923,691.06 .*No\. Label/,
+      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).

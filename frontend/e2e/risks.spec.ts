@@ -47,14 +47,14 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   // server gives, are in view.
   await scrollPageToGrid(grid);
   const total = grid.getByRole("row").last();
-  await expect(total).toHaveText(/^Total général\s*1\s100\s060,00$/);
+  await expect(total).toHaveText(/^Total général\s*1\s100\s060,00\s€$/);
   expect(await withinBox(grid, total)).toBe(true);
   await expect(page.getByRole("region", { name: "Provisions des risques retenus" })).toHaveText(
-    /^Provisions des risques retenus\s*Risques identifiés\s*500\s000,00\s*Risques survenus\s*60,00\s*Risques écartés\s*600\s000,00\s*Total général\s*1\s100\s060,00$/,
+    /^Provisions des risques retenus\s*Risques identifiés\s*500\s000,00\s€\s*Risques survenus\s*60,00\s€\s*Risques écartés\s*600\s000,00\s€\s*Total général\s*1\s100\s060,00\s€$/,
   );
   // The coverage of the risks, each amount as the server computes it, the variance signed.
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
 
   // The detail of a risk, from its label: its notes, its provision line, its reviews.
@@ -208,7 +208,7 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   expect(heaviest.size).toBeGreaterThan(30);
   await page.mouse.move(heaviest.x, heaviest.y);
   await expect(drawing).toContainText("Indisponibilité de l'automaticien");
-  await expect(drawing).toContainText("Gravité : 12 000 000,00 (17,58 %)");
+  await expect(drawing).toContainText("Gravité : 12 000 000,00 € (17,58 %)");
   await page.mouse.click(heaviest.x, heaviest.y);
   await expect(page).toHaveURL(`${RISKS}?risk=01926f3a-7c00-7000-8000-000000000753`, {
     timeout: WORKING,
@@ -308,7 +308,7 @@ test("shows the report of the occurrence in the marks before confirming, and aba
   await expect(markOf("Diagnostic des défauts de câblage")).toHaveAccessibleName("Ajouté");
   await expect(markOf("Câblage des armoires")).toHaveAccessibleName("Modifié");
   await expect(markOf("Provision — risque de reprise du câblage")).toHaveAccessibleName("Retiré");
-  await expect(declare).toContainText("500 000,00 de provision en moins");
+  await expect(declare).toContainText("500 000,00 € de provision en moins");
   // Abandoned: the form closes and nothing is declared.
   await declare.getByRole("button", { name: "Annuler" }).click();
   await expect(declare).toBeHidden();

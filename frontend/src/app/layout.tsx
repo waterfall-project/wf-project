@@ -17,6 +17,8 @@ import { listRunningTasks } from "@/api/actions/tasks";
 import type { BackgroundTask } from "@/api/problem";
 import { Shell, type ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE, sidebarOpen } from "@/components/ui/sidebar-state";
+import { CurrencyProvider } from "@/currency/context";
+import { requestCurrency } from "@/currency/request";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
@@ -68,22 +70,26 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     cookies(),
   ]);
   const account = state.kind === "open" ? state.account : undefined;
+  // The currency every amount of the page carries: read for an open session only, once.
+  const currency = account === undefined ? undefined : await requestCurrency();
   const theme = themePreference(account);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
-        <Shell
-          locale={locale}
-          account={account}
-          preference={preference}
-          theme={theme}
-          permissions={offered(state)}
-          remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
-          sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
-          running={account === undefined ? undefined : running()}
-        >
-          {children}
-        </Shell>
+        <CurrencyProvider currency={currency}>
+          <Shell
+            locale={locale}
+            account={account}
+            preference={preference}
+            theme={theme}
+            permissions={offered(state)}
+            remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
+            sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
+            running={account === undefined ? undefined : running()}
+          >
+            {children}
+          </Shell>
+        </CurrencyProvider>
       </body>
     </html>
   );

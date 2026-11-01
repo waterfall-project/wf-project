@@ -248,6 +248,8 @@ export interface GridKeyboardOptions<Row extends RowData, Sort extends string, T
   readonly inView: (index: number) => boolean;
   readonly writes: CellWrites<Row, Totals>;
   readonly locale: Locale;
+  /** The currency of the amounts it shows, when it is known. */
+  readonly currency: string | undefined;
 }
 
 /** What a cell of the body is: its row, whether the server computes it, how it is entered. */
@@ -289,6 +291,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
   inView,
   writes,
   locale,
+  currency,
 }: GridKeyboardOptions<Row, Sort, Totals>) {
   const [draft, setDraft] = useState<CellDraft>();
   const [refusal, setRefusal] = useState<CellRefusal>({ at: undefined, opening: 0 });
@@ -498,7 +501,7 @@ export function useGridKeyboard<Row extends RowData, Sort extends string, Totals
     closed.current = draft;
     setDraft(undefined);
     if (parsed.value !== (entry.value(cell.row) ?? null)) {
-      const shown = shownEntry(entry.kind, parsed.value, locale);
+      const shown = shownEntry(entry.kind, parsed.value, locale, currency);
       writes.write({ row: cell.row, column: at.column, entry, value: parsed.value, shown });
     }
     moveAfter(at, move);

@@ -73,11 +73,11 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
   // The card holds a list with the lot of the witness, whose posts it contains, with the
-  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56, its
+  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56 €, its
   // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
   const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
-  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s\(0,73\s%\)$/);
+  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/);
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 

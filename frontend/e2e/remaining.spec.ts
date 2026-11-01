@@ -53,6 +53,9 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
+  // The currency now closes each amount of the cards, which wrap a line more: the window is
+  // taller by the height of the grid's totals.
+  await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",
@@ -61,10 +64,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The indicators in cards, dated, each figure as the server gives it, the coverage of the risks
   // in a card of its own.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98/);
+  await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98\s€/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
   // The control station, the tests and commissioning and the whole without sub-project all over
@@ -255,7 +258,7 @@ test("leads from the remaining to commit to the workload of the project, on the 
   await compile(page.request, `${IN_REVISION}/workload`);
   // The link is an icon alone for the room of the head on a window of 1280 points: the title of
   // the screen and the totals of the grid are in view all the same.
-  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
   await expect(
