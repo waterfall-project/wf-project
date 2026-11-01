@@ -610,9 +610,13 @@ travaille, sans changer d'écran.
   ses ancêtres (US-0450/L3) ; le contrat n'a aucun exemple de lecture filtrée par lot ou par poste,
   le faux back rend la structure entière, et ce que le serveur retient se constate contre le
   service ; EP-06 clôt.
-- `WF-DEV-0050-A` — « La création d’une ligne sous une tâche terminée, ou le déplacement d’une
-  ligne vers elle, est refusé. » : le refus est dit à la ligne en cause, sur l'exemple du faux back ;
-  EP-07 le juge sur le service.
+- `WF-DEV-0050-A` — « Dans la structure principale, la création d’une ligne sous une tâche
+  terminée, ou le déplacement d’une ligne vers elle, est refusé. » : le refus est dit à la ligne en
+  cause, sur l'exemple du faux back ; EP-07 le juge sur le service.
+- écart : `WF-DEV-0050-A` — « Dans un différentiel, la modification de la quantité d’une ligne
+  d’une tâche terminée aboutit, et la fusion lui donne ce montant budgété ; dans la structure
+  principale, elle est refusée. » : ajouté par la spécification 1.0.2 (#1765) ; la saisie dans un
+  différentiel et sa fusion sont du service — EP-08.
 - `WF-DEV-0050-A` — « La grille de devis ne propose la saisie ni de la durée ni des prédécesseurs
   d’une tâche. »
 - `WF-DEV-0050-A` — « Sur un projet En cours, la grille de devis de la structure principale ne
@@ -852,7 +856,8 @@ montre tout le cycle, de la création à la réalisation.
   n’est pas marquée. » : « Ouvrir une révision en cours » est offerte comme le projet la liste
   (`create_revision`), indisponible avec sa condition quand une révision est en cours.
 - écart : `WF-REV-0010-A` — « Une révision créée à partir d’une révision marquée porte les mêmes
-  tâches et les mêmes lignes ; à année de référence égale, elle porte aussi les mêmes valeurs de
+  tâches et les mêmes lignes, hors celles des structures qu’elle ne reprend pas (WF-REV-0100) ; à
+  année de référence égale, elle porte aussi les mêmes valeurs de
   référentiel ; sinon, elle porte les mêmes rôles, calendriers et catégories, et, pour chaque
   catégorie dont la mise à jour de WF-REV-0060 n’a pas été acceptée, le taux précédent projeté par
   le taux d’inflation du projet jusqu’à la nouvelle année de référence. » : EP-04.
@@ -957,10 +962,12 @@ travaille, sans table à plat.
   la révision (`structures_amendments`) ; l'indépendance des fusions est du service — EP-08.
 - écart : `WF-REV-0100-A` — « La première révision d'un projet comporte, à sa création, une
   structure principale et aucune autre ; une révision créée à partir d'une révision marquée en
-  reprend toutes les structures, différentielles et propres des risques comprises (WF-REV-0010). » :
-  EP-04.
+  reprend toutes les structures, différentielles et propres des risques comprises, hors les
+  structures différentielles déjà fusionnées et les structures propres des risques survenus
+  (WF-REV-0010, WF-REV-0050, WF-RIS-0060). » : EP-04 ; l'exception est de la spécification 1.0.2
+  (#1757).
 - écart : `WF-REV-0100-A` — « Un risque déclaré ajoute une structure propre, présente dans chaque
-  révision marquée postérieure. » : le devis propre s'ouvre depuis le risque (US-0520) ; la
+  révision marquée postérieure tant qu'il n'est pas survenu. » : le devis propre s'ouvre depuis le risque (US-0520) ; la
   persistance dans chaque révision est du service — EP-08.
 - propre à l'US : l'adresse des grilles de planning et de devis nomme la structure lue
   (`structure`), la principale par défaut ; les gestes d'US-0460 s'y appliquent comme à la
@@ -1249,6 +1256,10 @@ la vue qui les répartit par état.
   cette commande. » : les permissions sont d'EP-02 et d'EP-14.
 - écart : `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas
   contributeur nomme cette condition. » : les contributeurs sont d'EP-02 et d'EP-14.
+- écart : `WF-IHM-0090-A` — « Pendant un traitement de fond sur le projet, la saisie du
+  lotissement est présentée indisponible en nommant le traitement en cours comme condition
+  manquante, et une écriture tentée est refusée en le nommant. » : ajouté par la spécification
+  1.0.2 (#1687) ; le lotissement est d'US-0660/L2 (#1336).
 - propre à l'US : une carte se sélectionne au clic ou au clavier, de carte en carte et de colonne en
   colonne ; les gestes se font par glisser-déposer entre colonnes, par un menu de la carte ou au
   clavier ; la réponse remplace la carte dans sa colonne ; un refus est dit sur la carte ; le focus
