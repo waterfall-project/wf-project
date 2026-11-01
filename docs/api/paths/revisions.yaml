@@ -1135,7 +1135,9 @@
       Une tâche créée sans mode ni durée — depuis la grille de devis ou de reste à engager, qui ne
       les présentent pas — est une feuille en mode automatique, d'une durée d'un jour, sans
       prédécesseur (WF-DEV-0050, WF-RAE-0040). Une tâche créée sous une feuille en mode manuel
-      fait de celle-ci une récapitulative, toujours en mode automatique (WF-PLA-0040). Une ligne
+      fait de celle-ci une récapitulative, toujours en mode automatique (WF-PLA-0040) ; sous un
+      jalon, qui ne porte pas de sous-tâches, elle est refusée par 422
+      `MILESTONE_HAS_NO_SUBTASK`, une ligne de devis restant permise (WF-PLA-0050 ; #1771). Une ligne
       créée sans libellé reçoit celui que le serveur compose de celui de sa tâche et de celui de
       son rôle, et une ligne de main-d'œuvre, la catégorie de son rôle (`EstimateLineWrite`,
       `line_created_labelled`, WF-DEV-0020). Une ligne ajoutée après la référence porte un
@@ -1156,6 +1158,9 @@
       défaut (WF-PLA-0010) — est refusée comme à la modification (`updateTaskFacet`) : 422
       `VALIDATION_FAILED`, `fields` sur `/task/start/date` ou `/task/finish/date` par
       `NON_WORKING_DAY`, le jour travaillé suivant nommé ; rien n'est créé (WF-PLA-0020 ; #1345).
+      Ses début et fin se saisissent par leur seule date, comme à la modification : le serveur en
+      complète les heures sur le calendrier de la tâche, et la réponse les rend complétées
+      (`WorkInstantWrite`, `created_manual` ; #1769).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RevisionId
@@ -1181,6 +1186,7 @@
                 $ref: ../../../fixtures/api/estimate_line_created_after_subtask.json
               line_created_labelled:
                 $ref: ../../../fixtures/api/estimate_line_created_labelled.json
+              created_manual: { $ref: ../../../fixtures/api/node_created_manual.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
@@ -1208,7 +1214,10 @@
           rattachement au lotissement refusé (`TaskFacetWrite`, WF-PLA-0170), un délai de
           paiement négatif (`/estimate_line/payment_delay_days`, `VALUE_OUT_OF_RANGE`,
           `params.minimum` à `0`), un nœud après lequel se placer qui n'est pas un frère sous le
-          parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), un champ que la
+          parent visé (`/after_node_id`, `NODE_NOT_SIBLING`, `NodeCreate` ; #1183), une tâche
+          créée sous un jalon, qui ne porte pas de sous-tâches (`/parent_id`,
+          `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon, `node_id` et `label` ;
+          WF-PLA-0050, #1771), un champ que la
           ligne n'accepte pas (`FIELD_NOT_ACCEPTED`, `EstimateLineWrite` ; EP-14/L42s), une
           catégorie qui n'est pas
           celle du rôle d'une ligne de main-d'œuvre (`/estimate_line/cost_category_id`,
@@ -1223,7 +1232,10 @@
           mode manuel envoyée un jour sans aucune heure travaillée au calendrier de la tâche :
           `fields` sur `/task/start/date` ou `/task/finish/date` par `NON_WORKING_DAY`,
           `fields[].params.date` la date envoyée et `next_working_day` le jour travaillé suivant,
-          comme `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010 ; #1345).
+          comme `updateTaskFacet` (WF-PLA-0020, WF-PLA-0010 ; #1345) ; ou, avec un jour travaillé,
+          des heures envoyées hors du jour, `/task/start/hours` ou `/task/finish/hours` par
+          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ou `maximum` aux heures du jour,
+          comme à la modification (`WorkInstantWrite` ; #1769).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1237,6 +1249,7 @@
                 $ref: ../../../fixtures/api/estimate_line_category_mismatch.json
               without_hours: { $ref: ../../../fixtures/api/node_create_without_hours.json }
               field_not_accepted: { $ref: ../../../fixtures/api/node_create_field_not_accepted.json }
+              under_milestone: { $ref: ../../../fixtures/api/node_create_under_milestone.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -1937,7 +1950,9 @@
       propres et son rattachement au lotissement ; un jalon si cette durée est nulle et qu'elle
       n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040, `deleteNode`) — rendue
       ainsi dans `ancestors`, parmi les anciens ancêtres ; une feuille en mode manuel qui reçoit
-      une subordonnée devient une récapitulative, toujours en mode automatique. Un déplacement qui
+      une subordonnée devient une récapitulative, toujours en mode automatique — jamais un jalon,
+      qui ne porte pas de sous-tâches : une tâche déplacée sous lui est refusée par 422
+      `MILESTONE_HAS_NO_SUBTASK` (WF-PLA-0050, `NodeMove` ; #1771). Un déplacement qui
       sortirait la tâche d'un poste du
       sous-arbre de la tâche de son lot est refusé (WF-PLA-0170, `NodeMove`), comme un
       déplacement qui porterait la durée du projet au-delà de quinze ans (WF-PLA-0150). La
@@ -2006,7 +2021,9 @@
           `params.resource_role_ids` et `params.tasks` nommant les rôles et la tâche
           (WF-PLA-0010). Ou un nœud après lequel se placer qui n'est pas un frère sous le parent
           visé : `fields` sur `/after_node_id`, `NODE_NOT_SIBLING`, sans paramètre (`NodeMove` ;
-          #1183). Ou, sans `fields`, un déplacement qui, en
+          #1183). Ou une tâche déplacée sous un jalon, qui ne porte pas de sous-tâches : `fields`
+          sur `/parent_id`, `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon
+          (`node_id`, `label` ; WF-PLA-0050, #1771). Ou, sans `fields`, un déplacement qui, en
           changeant le calendrier d'une tâche, porterait la durée du projet au-delà de quinze ans :
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
           la ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés :
@@ -2031,6 +2048,7 @@
               cycle_refused: { $ref: ../../../fixtures/api/nodes_move_cycle_refused.json }
               provision_refused: { $ref: ../../../fixtures/api/nodes_move_provision_refused.json }
               without_hours: { $ref: ../../../fixtures/api/nodes_move_without_hours.json }
+              under_milestone: { $ref: ../../../fixtures/api/nodes_move_under_milestone.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 

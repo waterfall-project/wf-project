@@ -274,3 +274,24 @@ def test_the_rates_of_a_new_revision_are_projected_by_default() -> None:
     assert "projetés par le taux d'inflation du projet" in _flat(
         _operations()["createRevision"]["description"]
     )
+
+
+def test_a_task_is_refused_under_a_milestone_on_its_parent() -> None:
+    # F-04, #1771: a refusal of placement, a new motive, the milestone named; the import and the
+    # paste refuse the line by the same motive.
+    catalogue = (API / "components" / "common.yaml").read_text(encoding="utf-8")
+    assert "    - MILESTONE_HAS_NO_SUBTASK\n" in catalogue
+    for operation, name in (
+        ("createNode", "node_create_under_milestone"),
+        ("moveNodes", "nodes_move_under_milestone"),
+    ):
+        assert name in _cited(operation, "422"), operation
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED"), name
+        [field] = refused["fields"]
+        assert (field["pointer"], field["code"]) == ("/parent_id", "MILESTONE_HAS_NO_SUBTASK")
+        assert set(field["params"]) == {"node_id", "label"}, name
+    received = mockwitness.universe(mockreview.CREATED_UNDER_MILESTONE[1])
+    assert fixture("node_create_under_milestone")["fields"][0]["params"]["node_id"] == received
+    for schema, file in (("ImportRejection", "exchanges.yaml"), ("PasteRejection", "revisions.yaml")):
+        assert "`MILESTONE_HAS_NO_SUBTASK`" in _flat(_schemas(file)[schema]["description"]), schema

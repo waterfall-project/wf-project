@@ -1835,7 +1835,11 @@ NodeCreate:
     parent visé — un nœud d'un autre parent, ou qui n'est pas de la structure — est refusé par
     422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`,
     rien n'étant écrit : la grille désigne la place par le nœud qu'elle lit, jamais par un rang
-    qu'une lecture filtrée ne lui permet pas de compter (#1183).
+    qu'une lecture filtrée ne lui permet pas de compter (#1183). Une tâche créée sous un jalon,
+    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`, `fields[].pointer`
+    à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon
+    (`node_id`, `label`), rien n'étant écrit ; une ligne de devis sous un jalon est permise
+    (WF-PLA-0050 ; F-04, #1771).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -1851,9 +1855,12 @@ TaskFacetWrite:
   description: >-
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
-    saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la
-    tâche — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée,
+    saisissables en mode manuel, se saisissent comme à la modification (`WorkInstantWrite`) :
+    sans leurs heures, que le serveur complète sur le calendrier de la tâche — le calendrier par
+    défaut pour une tâche créée sans ligne (WF-PLA-0010) —, et que la lecture rend complétées
+    (`WorkInstant`, WF-DAT-0100 ; `node_created_manual`, #1769) ; des heures envoyées hors du
+    jour sont refusées, `/task/start/hours` ou `/task/finish/hours` par `VALUE_OUT_OF_RANGE`.
+    Une date sur un jour sans aucune heure travaillée au calendrier de la tâche est refusée,
     nommant le jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
     (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute
     tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la
@@ -1866,9 +1873,9 @@ TaskFacetWrite:
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     finish:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     work_package_id:
@@ -1881,9 +1888,9 @@ TaskFacetUpdate:
   description: >-
     Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
     exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
-    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`), à ceci près que
-    le début et la fin se saisissent sans leurs heures, que le serveur complète sur le
-    calendrier de la tâche (`WorkInstantWrite`, #1244), et qu'une date sur un jour sans heure
+    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) : le début et la
+    fin se saisissent sans leurs heures, que le serveur complète sur le calendrier de la tâche
+    (`WorkInstantWrite`, #1244, #1769), et une date sur un jour sans heure
     travaillée à ce calendrier est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`,
     WF-PLA-0020 ; #1271) ; une valeur
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030) — ainsi le
@@ -2063,7 +2070,11 @@ NodeMove:
     `NODE_NOT_SIBLING`, rien ne bougeant (#1183). Une ligne de provision parmi `node_ids` est
     refusée par 422 `VALIDATION_FAILED`, `fields[].pointer` sur elle, motif
     `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant son risque : sa tâche se
-    désigne par le formulaire du risque (WF-RIS-0010 ; #1227).
+    désigne par le formulaire du risque (WF-RIS-0010 ; #1227). Une tâche déplacée sous un jalon,
+    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`,
+    `fields[].pointer` à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
+    nommant le jalon (`node_id`, `label`), rien ne bougeant ; une ligne de devis déplacée sous
+    un jalon est permise (WF-PLA-0050 ; F-04, #1771).
   properties:
     node_ids:
       type: array
@@ -2314,7 +2325,10 @@ PasteRejection:
     rôles et la tâche comme le refus d'une saisie (`resource_role_ids`, `tasks`), et la ligne n'est
     pas écrite (WF-PLA-0010 ; #779). Un collage dont la cellule visée est sur un nœud retiré par
     le différentiel est refusé entier par `PASTE_TARGET_REMOVED`, un seul refus, à la ligne `0`,
-    sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361).
+    sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361). Une
+    ligne du bloc qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est
+    refusée par `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon (`node_id`, `label`), et
+    n'est pas écrite ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04, #1771).
   properties:
     row:
       type: integer

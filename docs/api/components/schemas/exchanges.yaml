@@ -509,7 +509,11 @@ ImportRejection:
     C-359, #1152, #1153). Une ligne d'une tâche non démarrée change de sous-projet, et le compte
     rendu le présente comme un écart (`ImportDifference`, `fields` à `subproject`).
     Une tâche que le fichier placerait hors du sous-arbre de la tâche du lot de son poste ne
-    rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s).
+    rejette pas sa ligne mais le fichier entier (`ImportReport.refusals` ; EP-14/L42s). Une ligne
+    qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est rejetée par
+    `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon par sa lignée et son libellé
+    (`lineage_id`, `label`) ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04,
+    #1771).
     D'une extraction de coûts réels, une ligne dont une autre ligne du fichier porte la même pièce
     et le même poste, nul compris : `DUPLICATE_COST_LINE`, chacune de ces lignes rejetée,
     `params.rows` nommant les rangs des autres dans l'ordre du fichier — la ligne ne s'identifie

@@ -58,7 +58,8 @@ WorkInstantWrite:
   type: object
   required: [date]
   description: >-
-    Début ou fin d'une tâche saisis (`TaskFacetUpdate`, WF-PLA-0020) : la date, et
+    Début ou fin d'une tâche saisis, à la création comme à la modification (`TaskFacetWrite`,
+    `TaskFacetUpdate`, WF-PLA-0020 ; #1769) : la date, et
     facultativement les heures de travail écoulées ce jour-là (WF-DAT-0100). Le client ne
     connaît pas le calendrier applicable (WF-PLA-0010) : sans `hours`, le serveur les
     complète sur ce calendrier, le début au début de son jour (`0`), la fin au bout des
@@ -66,11 +67,13 @@ WorkInstantWrite:
     heures. Une date sur un jour sans aucune heure travaillée au calendrier applicable est
     refusée, et le refus nomme le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ;
     #1271) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou `/finish/date` par
-    `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour
+    `NON_WORKING_DAY` — `/task/start/date` ou `/task/finish/date` à la création —,
+    `fields[].params.date` la date envoyée et `next_working_day` le jour
     travaillé suivant ; les heures envoyées avec elle ne sont pas jugées. Envoyées avec un jour
     travaillé, les heures sont prises telles quelles, jamais bornées : hors de `0` aux heures
     que le calendrier accorde ce jour-là, elles sont refusées par 422 `VALIDATION_FAILED`,
-    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`,
+    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE` —
+    `/task/start/hours` ou `/task/finish/hours` à la création —,
     `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie,
     jamais nulle. La lecture rend toujours un `WorkInstant`, ses heures complétées ; une date
     importée d'un fichier MS Project un jour chômé y est gardée, le début et la fin à `0`, et le
@@ -559,6 +562,12 @@ ErrorCode:
     # parent visé : un nœud d'un autre parent, l'un des nœuds déplacés, ou un nœud que la
     # structure n'a pas (`/after_node_id`, `createNode`, `moveNodes` ; #1183).
     - NODE_NOT_SIBLING
+    # Une tâche créée ou déplacée sous un jalon, qui ne porte pas de sous-tâches (`/parent_id`,
+    # `createNode`, `moveNodes`, WF-PLA-0050 ; F-04, #1771) : `fields[].params` nomme le jalon,
+    # `node_id` et `label` ; rien n'est écrit. Aussi le motif d'une ligne importée ou collée qui
+    # placerait une tâche sous un jalon (`ImportRejection`, `PasteRejection`), la ligne n'étant
+    # pas écrite. Une ligne de devis sous un jalon est permise.
+    - MILESTONE_HAS_NO_SUBTASK
     # Une entrée `milestone_tracking` envoyée pour une tâche qui n'est pas un jalon : le suivi
     # temps/temps est celui des jalons (`/entries/<n>/kind`, `setNodeTracking`, WF-PLA-0060 ;
     # #1159).

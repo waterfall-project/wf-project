@@ -14,7 +14,10 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   ``params.max_length`` the bound of the field, which every ``VALUE_TOO_LONG`` bears (J-02, #1796);
 - ``rate_update_category_not_proposed.json``, the rate update of the revision 101 sent with a
   category its proposal does not present, refused by the rank of that category in the list sent
-  (``RateUpdateApply``; E-03, #1755).
+  (``RateUpdateApply``; E-03, #1755);
+- ``node_create_under_milestone.json`` and ``nodes_move_under_milestone.json``, a task created
+  under the reception of the studies and one moved under the factory acceptance, two milestones,
+  which bear no subtask: refused on ``/parent_id``, the milestone named (F-04, #1771).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -23,11 +26,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from wftools import mocktext
+from wftools import mockcore, mocktext
 from wftools.mockids import universe
 from wftools.mockindicators import rate_update
 from wftools.mocklists import PROJECT_STATES, project_page
-from wftools.mockwitness import fixture
+from wftools.mockwitness import N, fixture
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
@@ -48,6 +51,16 @@ NOT_PROPOSED_CORRELATION = universe(1670)
 
 NOT_PROPOSED_CATEGORY = universe(403)
 """« Matériel électrique », a category of disbursement, which no rate update presents."""
+
+
+UNDER_MILESTONE_CORRELATIONS = (universe(1671), universe(1672))
+"""The correlations of the refusals of a task created, then moved, under a milestone."""
+
+CREATED_UNDER_MILESTONE = ("Note de calcul des protections", N.STUDIES_RECEIVED)
+"""The task created under a milestone, by its label, and the milestone, by its number."""
+
+MOVED_UNDER_MILESTONE = (N.COMMISSIONING, N.FACTORY_ACCEPTANCE)
+"""The task moved under a milestone, and the milestone, by their numbers."""
 
 
 def too_long(pointer: str, bound: int) -> JsonObject:
@@ -104,6 +117,54 @@ def _category_not_proposed() -> JsonObject:
     )
 
 
+def under_milestone(milestone: int, correlation: str) -> JsonObject:
+    """Return the refusal of a task placed under a milestone, which bears no subtask (#1771).
+
+    On ``/parent_id``, the milestone named by its node and its label (WF-PLA-0050); nothing is
+    written.
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    task = rows[milestone].node["task"]
+    if not cast("JsonObject", task)["is_milestone"]:
+        message = f"the task {milestone} is not a milestone"
+        raise ValueError(message)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/parent_id",
+                "code": "MILESTONE_HAS_NO_SUBTASK",
+                "params": {"node_id": universe(milestone), "label": rows[milestone].label},
+            }
+        ],
+        "correlation_id": correlation,
+    }
+
+
+def _under_milestone() -> dict[str, JsonObject]:
+    rows = {row.number: row for row in mockcore.current()}
+    created, received = CREATED_UNDER_MILESTONE
+    moved, acceptance = MOVED_UNDER_MILESTONE
+    first, second = UNDER_MILESTONE_CORRELATIONS
+    return {
+        "node_create_under_milestone.json": mocktext.example(
+            f"La tâche « {created} » créée sous la « {rows[received].label} », un jalon : un "
+            f"jalon ne porte pas de sous-tâches, mais il peut porter des lignes de devis. La "
+            f"création est refusée sur le parent visé, le jalon nommé ; rien n'est écrit "
+            f"(WF-PLA-0050, #1771).",
+            under_milestone(received, first),
+        ),
+        "nodes_move_under_milestone.json": mocktext.example(
+            f"La « {rows[moved].label} » déplacée sous la « {rows[acceptance].label} », un "
+            f"jalon : il ne devient pas une récapitulative, un jalon ne portant pas de "
+            f"sous-tâches. Le déplacement est refusé sur le parent visé, le jalon nommé ; rien "
+            f"ne bouge (WF-PLA-0050, #1771).",
+            under_milestone(acceptance, second),
+        ),
+    }
+
+
 def _with_created() -> JsonObject:
     projects = cast("list[JsonObject]", fixture("projects")["items"])
     created = fixture("project_created")
@@ -126,4 +187,5 @@ def examples() -> dict[str, JsonObject]:
         "projects_with_created.json": _with_created(),
         "subproject_code_too_long.json": _code_too_long(),
         "rate_update_category_not_proposed.json": _category_not_proposed(),
+        **_under_milestone(),
     }
