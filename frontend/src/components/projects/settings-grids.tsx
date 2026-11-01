@@ -191,6 +191,7 @@ export const BREAKDOWN_GRID: GridConfig<BreakdownRow, never, null> = {
     {
       key: "label",
       label: "label",
+      help: "workBreakdown.label",
       format: "text",
       width: 420,
       pinned: true,
@@ -199,6 +200,7 @@ export const BREAKDOWN_GRID: GridConfig<BreakdownRow, never, null> = {
     {
       key: "kind",
       label: "breakdownKind",
+      help: "workBreakdown.kind",
       format: "text",
       width: 130,
       value: (row) => row.kind,
@@ -224,6 +226,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
     {
       key: "code",
       label: "erpCode",
+      help: "subprojects.code",
       format: "text",
       width: 130,
       pinned: true,
@@ -233,6 +236,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
     {
       key: "label",
       label: "label",
+      help: "subprojects.label",
       format: "text",
       width: 320,
       contract: "label",
@@ -241,6 +245,7 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
     {
       key: "actual_costs",
       label: "actualCosts",
+      help: "subprojects.actualCosts",
       format: "text",
       width: 130,
       contract: "has_actual_costs",
@@ -286,6 +291,7 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, ContributorSort, null> = 
     {
       key: "name",
       label: "name",
+      help: "contributors.name",
       format: "text",
       width: 240,
       pinned: true,
@@ -296,6 +302,7 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, ContributorSort, null> = 
     {
       key: "kind",
       label: "contributorKind",
+      help: "contributors.kind",
       format: "text",
       width: 180,
       contract: "kind",
@@ -305,6 +312,7 @@ export const CONTRIBUTOR_GRID: GridConfig<Contributor, ContributorSort, null> = 
     {
       key: "account",
       label: "account",
+      help: "contributors.account",
       format: "text",
       width: 140,
       contract: "is_active",

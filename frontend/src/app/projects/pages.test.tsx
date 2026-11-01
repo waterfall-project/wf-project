@@ -709,7 +709,7 @@ describe("the indicators and the missing rates of the estimate", () => {
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
+      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).
@@ -828,8 +828,9 @@ describe("the banner of the reading context on the witness path", () => {
     });
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
+    // Its header bears the button of the help, which opens that of the projects, FBS-4 (#1439).
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Modernisation du poste de commande Code PRJ-001/,
+      /^Project Modernisation du poste de commande Modernisation du poste de commande Help Code PRJ-001/,
     );
   });
 

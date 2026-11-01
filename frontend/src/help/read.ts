@@ -22,11 +22,18 @@ import path from "node:path";
 import { accessRoleGrid, userGrid } from "@/components/admin/admin-grids";
 import { backupGrid } from "@/components/admin/backup-columns";
 import { auditGrid } from "@/components/audit/audit-columns";
+import { COST_GRID, KEPT_HEADING } from "@/components/costs/cost-grid";
 import type { GridColumn } from "@/components/grid/columns";
 import { ESTIMATE_GRID } from "@/components/grid/estimate";
 import { PLANNING_GRID } from "@/components/grid/planning";
 import { REMAINING_GRID } from "@/components/grid/remaining";
 import { PROJECT_GRID } from "@/components/portfolio/portfolio-grid";
+import { PROJECT_LIST_GRID } from "@/components/projects/project-list-grid";
+import {
+  BREAKDOWN_GRID,
+  CONTRIBUTOR_GRID,
+  SUBPROJECT_GRID,
+} from "@/components/projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
 import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
@@ -79,10 +86,16 @@ const ORG_NODES = orgNodeGrid(true).columns;
 const RESOURCE_ROLES = resourceRoleGrid(true).columns;
 const CALENDARS = calendarGrid(true).columns;
 
+/** The tables of the settings of a project. */
+const WORK_BREAKDOWN = BREAKDOWN_GRID.columns;
+const SUBPROJECTS = SUBPROJECT_GRID.columns;
+const CONTRIBUTORS = CONTRIBUTOR_GRID.columns;
+
 /**
  * The columns each screen defines: the grid of its function and the section of the grid itself;
- * the column a section of a single column is; the grids of a screen of the reference data, each
- * definition once, and the grids of its section. A table of the administration is defined with every
+ * the column a section of a single column is; the grids of a screen of the reference data or of
+ * the settings of a project, each definition once, and the grids of its section; the lines of the
+ * actual costs with a column kept from the file, every one defined alike. A table of the administration is defined with every
  * column a session may see there — those of its commands included, which only a session that may
  * exercise them sees.
  */
@@ -99,6 +112,11 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-3.2.1": defined(ORG_NODES),
   "FBS-3.2.2": defined(RESOURCE_ROLES),
   "FBS-3.2.3": defined(CALENDARS),
+  "FBS-4": defined(PROJECT_LIST_GRID.columns),
+  "FBS-4.2": distinct(WORK_BREAKDOWN, SUBPROJECTS, CONTRIBUTORS),
+  "FBS-4.2.1": defined(WORK_BREAKDOWN),
+  "FBS-4.2.3": defined(SUBPROJECTS),
+  "FBS-4.2.4": defined(CONTRIBUTORS),
   "FBS-4.3": defined(PLANNING_GRID.columns),
   "FBS-4.3.2": defined(PLANNING_GRID.columns),
   "FBS-4.3.3": defined(PLANNING_GRID.columns).filter((column) => column.label === "gantt"),
@@ -111,6 +129,7 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-4.5.2": defined(REMAINING_GRID.columns),
   "FBS-4.6": defined(RISK_GRID.columns),
   "FBS-4.6.1": defined(RISK_GRID.columns),
+  "FBS-4.7": defined([...COST_GRID.columns, KEPT_HEADING]),
 };
 
 /** A page cut at its headings: its title, what precedes its first section, and its sections. */

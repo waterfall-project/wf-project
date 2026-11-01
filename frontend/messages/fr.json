@@ -1734,6 +1734,76 @@
       "defaultCalendar": {
         "help": "Le calendrier par défaut, un seul parmi les actifs, ou la commande qui désigne celui de la ligne."
       }
+    },
+    "projects": {
+      "label": {
+        "help": "Libellé du projet ; un lien ouvre sa page."
+      },
+      "code": {
+        "help": "Code projet, celui sous lequel l’ERP connaît le projet ; vide tant que la commande n’est pas arrivée."
+      },
+      "state": {
+        "help": "État du projet dans son cycle de vie."
+      },
+      "updatedAt": {
+        "help": "Date et heure de la dernière modification du projet, à l’heure de votre poste."
+      }
+    },
+    "workBreakdown": {
+      "label": {
+        "help": "Libellé du lot, du poste ou du livrable, en retrait sous ce qui le contient."
+      },
+      "kind": {
+        "help": "Nature de l’élément du lotissement : lot, poste d’un lot, ou livrable d’un poste."
+      }
+    },
+    "subprojects": {
+      "code": {
+        "help": "Code du sous-projet, celui que lui donne l’ERP, unique dans le projet ; il nomme l’onglet du sous-projet dans le fichier de reste à engager."
+      },
+      "label": {
+        "help": "Libellé du sous-projet."
+      },
+      "actualCosts": {
+        "help": "Si des coûts réels sont imputés au sous-projet : un sous-projet imputé ne se supprime pas."
+      }
+    },
+    "contributors": {
+      "name": {
+        "help": "Nom du compte du contributeur."
+      },
+      "kind": {
+        "help": "Qualité du contributeur : chef de projet, qui paramètre le projet, ou contributeur."
+      },
+      "account": {
+        "help": "État du compte, actif ou désactivé ; un compte désactivé reste inscrit."
+      }
+    },
+    "actualCosts": {
+      "documentNumber": {
+        "help": "Numéro de la pièce de l’ERP qui porte la ligne."
+      },
+      "documentItem": {
+        "help": "Numéro du poste de la ligne dans sa pièce ; vide quand l’extraction n’en donne pas."
+      },
+      "documentDate": {
+        "help": "Date de la pièce."
+      },
+      "amount": {
+        "help": "Montant signé de la ligne, tel que l’extraction le donne."
+      },
+      "subproject": {
+        "help": "Sous-projet auquel la ligne est imputée, d’après son élément d’OTP ; « Hors sous-projet » pour une ligne imputée au seul projet, suivi du code lu quand l’élément en porte un que le projet n’a pas."
+      },
+      "trackedScope": {
+        "help": "Si la ligne entre dans le périmètre suivi ; une ligne exclue reste consultable et n’entre dans aucun indicateur."
+      },
+      "excludedReason": {
+        "help": "Motif donné à l’exclusion de la ligne du périmètre suivi."
+      },
+      "passthrough": {
+        "help": "Colonne de l’extraction que la correspondance déclare conservée, restituée telle quelle : elle n’entre dans aucun calcul."
+      }
     }
   },
   "help": {
