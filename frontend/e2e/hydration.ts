@@ -174,8 +174,87 @@ export interface HeldScripts {
  * network when the interception of the page is taken away under it, and the handler's own answer
  * then fails with this message, which no type of error tells (#1635).
  */
-function handledAlready(error: unknown): boolean {
+export function handledAlready(error: unknown): boolean {
   return error instanceof Error && error.message.includes("Route is already handled");
+}
+
+/** The route of `holdRoute`, posed: `release` lets the requests it holds go and takes it away. */
+export interface HeldRoute {
+  release(): Promise<void>;
+}
+
+/**
+ * Wait for a time, or until the route is released if that comes first: the timer is cleared, so a
+ * wait cut short leaves nothing behind.
+ */
+export function pause(ms: number, released: Promise<void>): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    void released.then(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
+/**
+ * Hold the requests of a page that a journey picks, and let each one go on to the network: `hold`
+ * is given the request's route and the promise of the release, and what it returns settles before
+ * the request goes on. A route that outlived its test found the page closed when it let the request
+ * go, with whatever message the reason of the closing gave, and the handler could only swallow
+ * every error to be quiet (#1720). So nothing outlives the test here: `release` — to call in a
+ * `finally` — lets every request held go at once, waits for every handler in flight, as
+ * `holdScripts` does (#1635), and only then takes the route away. A request asked for meanwhile
+ * goes unheld, and an error of `hold` or of the continue goes up.
+ */
+export async function holdRoute(
+  page: Page,
+  pattern: string,
+  hold: (route: Route, released: Promise<void>) => Promise<void> | void,
+): Promise<HeldRoute> {
+  const inFlight = new Set<Promise<void>>();
+  let removing = false;
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const serve = async (route: Route): Promise<void> => {
+    if (!removing) {
+      await hold(route, released);
+    }
+    try {
+      await route.continue();
+    } catch (error) {
+      // The interception taken away under a request caught as it was: the network served it.
+      if (!handledAlready(error)) {
+        throw error;
+      }
+    }
+  };
+  const handler = (route: Route): Promise<void> => {
+    const served = serve(route);
+    inFlight.add(served);
+    const settled = (): void => {
+      inFlight.delete(served);
+    };
+    served.then(settled, settled);
+    return served;
+  };
+  await page.route(pattern, handler);
+  return {
+    async release(): Promise<void> {
+      removing = true;
+      release();
+      while (inFlight.size > 0) {
+        await Promise.allSettled([...inFlight]);
+      }
+      await page.unroute(pattern, handler);
+      // A request caught in the window of the removal is waited for too.
+      while (inFlight.size > 0) {
+        await Promise.allSettled([...inFlight]);
+      }
+    },
+  };
 }
 
 /**

@@ -864,6 +864,12 @@ et ses exemples.
       charge réelle. Écartée : une cible `make`.
     - Le `compile(...)` de `projects.spec.ts` et ses semblables, vestiges du serveur de
       développement, ne sont retirés que si la cause les désigne.
+    - La charge artificielle de #1540 (six workers, `make e2e WORKERS=6 E2E_BUILT=1`, douze à dix-huit
+      boucles de shell actives, charge moyenne de 27 à 28 sur douze cœurs) n'est pas la référence de
+      la tenue des tests (décision de l'auteur, 2026-11-01, #1725). La référence est le palier complet
+      local sans charge ajoutée et la file de fusion ; cette charge reste un outil de diagnostic, et
+      un dépassement qu'elle seule provoque n'est pas un défaut à corriger : aucun lot de stabilité
+      pour ceux que #1725 relève.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
 
