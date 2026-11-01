@@ -134,6 +134,18 @@ EP-04 livré : les tâches vivent dans la structure principale d'une révision e
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1770 — `createNode` complète les heures d'une tâche datée, comme la modification (F-03 ;
+  contrat #1769).
+- #1772 — une tâche refusée sous un jalon, à la création, au déplacement, à l'import et au collage
+  (F-04 ; contrat #1771).
+- #1790 — le cycle de vie d'un import : l'état `refused`, les conditions de l'application et de
+  l'abandon, le dépôt consommé, et les conditions de l'ouverture (I-01 à I-04 ; contrat #1789,
+  #1792). EP-12 ayant été abandonné, EP-06 construit le premier ce cycle.
+
 - #1339, pour #1304, point 7 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - l'import MS Project lit la description d'une tâche dans ses notes, et l'export l'y écrit
     (WF-INTF-0040, WF-INTF-0050) ;

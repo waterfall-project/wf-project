@@ -134,6 +134,18 @@ EP-06 livré : une ligne de devis est portée par une tâche.
 
 ## Constats reçus
 
-Aucun. #624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1752 — la comparaison compte une ligne sous la clé de chaque révision ; `subproject` et
+  `cost_category` dans `changes` ; le réestimé entre années de référence (E-01, E-02 ; contrat
+  #1751, #1754).
+- #1756 — `applyRateUpdate` exige le compteur et des catégories de la proposition (E-03 ; contrat
+  #1755).
+- #1767 — les saisies du devis refusées sur la structure principale en réalisation et sous une
+  tâche terminée, permises dans un différentiel (F-01 ; contrat #1766 ; spécification #1765).
+
+#624 et #729, la comparaison de révisions en table simple et son e2e, reportés ici le
 2026-10-18, sont ramenés en EP-15 le même jour (décision de l'auteur) : la comparaison passe dans la
 grille dense, marquée comme un diff (#1060, US-0500).

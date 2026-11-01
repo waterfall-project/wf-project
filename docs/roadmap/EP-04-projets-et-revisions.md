@@ -178,6 +178,18 @@ gel, et un écart devient une « Interface contract issue » que l'auteur tranch
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1749 — `listProjects` retient tout état nommé, hors de la règle du portefeuille (D-01 ;
+  contrat #1747).
+- #1759 — `createRevision` ne reprend ni les différentiels fusionnés ni les devis des risques
+  survenus, et chiffre la révision aux taux projetés par défaut (E-04, E-05 ; contrat #1758, #1764 ;
+  spécification #1757).
+- #1797 — `createRevision` et `designateReferenceRevision` refusent par `STATE_FORBIDS_OPERATION`,
+  sans code propre (J-01 ; contrat #1795).
+
 - #1337, pour #1304, points 2 et 6 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - le client d'un projet, facultatif, saisissable à tout moment, exigé par aucune transition
     (WF-PRJ-0080) : la colonne et sa migration ;
