@@ -327,6 +327,11 @@
       "sentence": "Sur le projet dont le risque est survenu à 250 : un avenant qui ne touche pas aux risques laisse la réserve à 60 et l'écart de couverture à −190 ; un avenant qui intègre au budget de référence les lignes de ce risque porte le budget de référence à 1 250 et laisse la réserve à 60 et l'écart à −190 ; un avenant qui déclare un nouveau risque de provision 50 porte la réserve à 110 et les provisions restantes à 50, et laisse l'écart à −190."
     },
     {
+      "key": "WF-RIS-0050-A#8bab623f59d2",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Sur le projet dont le risque est survenu à 250, la réestimation à 300 des lignes qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à −190."
+    },
+    {
       "key": "WF-RIS-0060-A#474d7bce167a",
       "requirement": "WF-RIS-0060-A",
       "sentence": "Après déclaration de survenance d'un risque dont le devis propre porte deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n'acquiert aucune valeur."
