@@ -18,7 +18,7 @@ La valeur planifiée se lit sur les dates de la révision de référence, la val
 
 Toutes les valeurs sont calculées par le serveur, la zone comprise : le serveur la classe à la lecture d’après les seuils courants des [paramètres d’indicateurs](FBS-3.4.md), si bien que la zone d’un indice conservé peut changer avec les seuils, jamais sa valeur. La table des valeurs donne, pour chaque point, la **Maille**, la **Révision**, la **Date**, l’**Indice** et la **Zone** ; un point non calculable laisse un trou dans sa courbe, et sa ligne dit pourquoi.
 
-L’évolution est toujours calculée au jour courant, sur la révision en cours ; quand les indicateurs le sont sur une autre révision, l’écran le dit en tête.
+L’évolution est toujours calculée jusqu’au jour courant, son dernier point sur la révision en cours, ou, sur un projet qui n’en a pas, sur sa dernière révision marquée avec le coût réel du jour, ses points conservés inchangés ; quand les indicateurs le sont sur une autre révision, l’écran le dit en tête.
 
 ## Les gestes au clavier
 

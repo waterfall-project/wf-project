@@ -16,7 +16,7 @@ La carte n’a pas de commande : elle se lit, pour le projet ou pour le sous-pro
 
 ## Ses colonnes et ses valeurs calculées
 
-Toutes les valeurs sont calculées par le serveur. Le coût réel est celui des lignes du périmètre suivi dont la date de pièce précède la date de calcul ou l’égale ; une ligne exclue des [coûts réels](FBS-4.7.md) n’y entre pas. Une valeur non calculable le dit, avec sa raison, et ne vaut jamais zéro.
+Toutes les valeurs sont calculées par le serveur. Le coût réel est celui des lignes du périmètre suivi dont la date de pièce précède la date de calcul ou l’égale ; une ligne exclue des [coûts réels](FBS-4.7.md) n’entre pas dans le calcul du jour. Les indicateurs conservés d’une révision marquée gardent les lignes connues à son marquage, avec le montant et le périmètre qu’elles avaient alors : une ligne importée, mise à jour ou exclue ensuite ne les change pas. Une valeur non calculable le dit, avec sa raison, et ne vaut jamais zéro.
 
 ## Les gestes au clavier
 

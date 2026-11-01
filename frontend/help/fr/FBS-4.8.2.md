@@ -6,7 +6,7 @@ La deuxième carte des [indicateurs projets](FBS-4.8.md), avec sa date de calcul
 
 - **Au budget** : le reste coûtera ce qui était prévu — le coût réel plus la part du budget de référence non encore acquise.
 - **Du chef de projet** : le reste coûtera ce qu’il estime — le coût réel plus le [reste à engager](notions/reste-a-engager.md).
-- **Projection au rythme constaté** : le reste coûtera ce que le réalisé a coûté en proportion — le budget de référence divisé par l’[indice de coût](FBS-4.8.4.md). Non calculable tant que l’indice ne l’est pas, avant tout coût réel ; son écart au budget n’est alors pas montré.
+- **Projection au rythme constaté** : le reste coûtera ce que le réalisé a coûté en proportion — le budget de référence divisé par l’[indice de coût](FBS-4.8.4.md). Non calculable tant que l’indice ne l’est pas, avant tout coût réel, ou qu’il est nul, la valeur acquise l’étant — aucune tâche terminée ne porte encore de montant budgété ; son écart au budget n’est alors pas montré.
 
 Aucune n’est plus vraie que les autres : c’est leur écart qui renseigne. Une projection du chef de projet inférieure à celle du rythme constaté suppose que la dérive va s’arrêter ; c’est cette hypothèse que la revue examine.
 
