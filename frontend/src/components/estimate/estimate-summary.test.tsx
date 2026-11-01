@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { CurrencyProvider } from "@/currency/context";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { example } from "@/test/fixtures";
@@ -34,10 +35,18 @@ function renderSummary(
   rates: MissingRates,
   permissions: readonly Permission[] = all,
   locale: Locale = "fr",
+  currency?: string,
 ): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateSummary indicators={indicators} missingRates={rates} permissions={permissions} />
+      <CurrencyProvider currency={currency}>
+        <EstimateSummary
+          indicators={indicators}
+          missingRates={rates}
+          permissions={permissions}
+          currency={currency}
+        />
+      </CurrencyProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -58,32 +67,61 @@ function summary(
 }
 
 describe("the summary of the estimate", () => {
+  it("shows the currency of the installation with each amount [WF-REF-0140-A]", () => {
+    const html = renderSummary(
+      example("estimate_indicators") as EstimateIndicators,
+      example("missing_rates_none") as MissingRates,
+      all,
+      "en",
+      "EUR",
+    );
+    const shown = text(html);
+    const figures = shown.match(/\d[\d,]*\.\d{2}(?![\d%])/g) ?? [];
+    expect(figures.length).toBeGreaterThan(0);
+    expect(shown.match(/€[\d,]+\.\d{2}(?![\d%])/g)).toHaveLength(figures.length);
+  });
+
   it("shows the total, the provisions and the deviations the API gives, with the date they are computed at", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Total du devis 66 105 223,89 ` +
+        `^Indicateurs du devis Total du devis 68 923 691,06 ` +
           `Provisions identifiées 500 000,00 Écart avec la référence -349 860,00 ` +
           `Écart avec la révision marquée précédente -349 860,00 ` +
-          `Par nature de coût Main-d'œuvre 9 131 215,00 \\(13,81 %\\) ` +
-          `Débours 56 474 008,89 \\(85,43 %\\) Provision 500 000,00 \\(0,76 %\\) ` +
-          `Par sous-projet Poste de commande 22 276 516,46 \\(33,7 %\\) ` +
-          `Essais et mise en service 20 807 656,85 \\(31,48 %\\) ` +
-          `Hors sous-projet 23 021 050,58 \\(34,82 %\\) ` +
-          `Par lot Lot 1 502 434,56 \\(0,76 %\\)$`,
+          `Par nature de coût Main-d'œuvre 9 528 887,59 \\(13,83 %\\) ` +
+          `Débours 58 894 803,47 \\(85,44 %\\) Provision 500 000,00 \\(0,73 %\\) ` +
+          `Par sous-projet Poste de commande 23 314 197,53 \\(33,83 %\\) ` +
+          `Essais et mise en service 21 667 888,47 \\(31,44 %\\) ` +
+          `Hors sous-projet 23 941 605,06 \\(34,73 %\\) ` +
+          `Par lot Lot 1 502 434,56 \\(0,73 %\\)$`,
       ),
     );
     expect(html).toContain('<time dateTime="2026-06-03T14:05:00Z"');
+  });
+
+  it("presents the total of the estimate inflation included, the amount re-estimated of the structure, never its amount at the rates of the year of reference [WF-DEV-0050-A]", () => {
+    const totals = (
+      example("volume/nodes_thousand") as {
+        totals: { base_amount: string; reestimated_amount: string };
+      }
+    ).totals;
+    // The same structure, whose totals the grid shows: 66 105 223,89 at the year of reference,
+    // 68 923 691,06 re-estimated; the indicator is the second (`EstimateLineFacet.reestimated_amount`).
+    expect(totals.base_amount).toBe("66105223.89");
+    expect(totals.reestimated_amount).toBe("68923691.06");
+    const html = text(summary("estimate_indicators", "missing_rates_none"));
+    expect(html).toContain("Total du devis 68 923 691,06");
+    expect(html).not.toContain("66 105 223,89");
   });
 
   it("breaks the total down by nature of cost, in amount and in share, and by sub-project, as the API gives them", () => {
     // The estimate the offer v1.0 kept at its marking, before any risk: no provision.
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none", all, "en"));
     expect(html).toContain(
-      "By nature of cost Main-d'œuvre 8,953,673.75 (13.68%) Débours 56,474,158.89 (86.32%) By subproject",
+      "By nature of cost Main-d'œuvre 9,343,749.58 (13.69%) Débours 58,894,953.47 (86.31%) By subproject",
     );
-    expect(html).toContain("By subproject No subproject 65,427,832.64 (100%)");
-    expect(html).toContain("Estimate total 65,427,832.64 Identified provisions 0.00");
+    expect(html).toContain("By subproject No subproject 68,238,703.05 (100%)");
+    expect(html).toContain("Estimate total 68,238,703.05 Identified provisions 0.00");
   });
 
   it("says an amount the API could not compute for want of an hourly rate, with its reason, never a figure [WF-DEV-0010-A]", () => {
@@ -91,12 +129,13 @@ describe("the summary of the estimate", () => {
     expect(html).toContain(
       "Total du devis Non calculable — Taux horaire manquant pour l’année de référence.",
     );
-    // The amounts the missing rates do not touch are computed; no share without the total.
+    // The amounts the missing rates do not touch are computed; their share is not, said with its
+    // reason rather than left out, and a share is not said twice beside an amount not computed.
     expect(html).toContain(
-      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 56 474 008,89 Provision 500 000,00",
+      "Par nature de coût Main-d'œuvre Non calculable — Taux horaire manquant pour l’année de référence. Débours 58 894 803,47 (Non calculable — Taux horaire manquant pour l’année de référence.) Provision 500 000,00 (Non calculable — Taux horaire manquant pour l’année de référence.)",
     );
-    expect(html).not.toContain("%");
     expect(html).not.toContain("Total du devis 0,00");
+    expect(html).not.toContain("%");
   });
 
   it("leaves out a deviation the API does not give, rather than showing it as zero", () => {
@@ -122,23 +161,18 @@ describe("the summary of the estimate", () => {
 
   it("breaks the total down by work package as the API gives it, and presents a work package no task bears without a total, rather than nil [WF-DEV-0060-A]", () => {
     expect(text(summary("estimate_indicators", "missing_rates_none"))).toMatch(
-      /Par sous-projet .* Par lot Lot 1 502 434,56 \(0,76 %\)$/,
+      /Par sous-projet .* Par lot Lot 1 502 434,56 \(0,73 %\)$/,
     );
     // EP-14/L42s: every work package is given, its amount not computed when no task bears it.
-    const indicators = example("estimate_indicators") as EstimateIndicators;
-    const without = {
-      is_computable: false,
-      value: null,
-      reason: "work_package_without_task",
-    } as const;
-    const unborne = indicators.by_work_package.map((item) => ({
-      ...item,
-      amount: without,
-      share: without,
-    }));
-    expect(
-      text(renderSummary({ ...indicators, by_work_package: unborne }, [] satisfies MissingRates)),
-    ).toMatch(/Par lot Lot 1 Non calculable — Aucune tâche ne porte ce lot\.$/);
+    const byPackage = text(
+      renderSummary(
+        example("estimate_indicators_work_package_without_task") as EstimateIndicators,
+        [] satisfies MissingRates,
+      ),
+    );
+    expect(byPackage).toContain("Par lot");
+    expect(byPackage).toMatch(/Lot 1 502 434,56 \(0,73 %\)/);
+    expect(byPackage).toMatch(/Lot 2 Non calculable — Aucune tâche ne porte ce lot\./);
   });
 
   it("says an amount by work package the API could not compute, with its reason", () => {
@@ -171,18 +205,46 @@ describe("the summary of the estimate", () => {
   });
 
   it("never names a category or a nature by its identifier when the API gives no label", () => {
+    // Counterfactual variants: a missing rate without a label, and natures of cost whose label is
+    // null, which the contract gives to `unassigned` alone (G-03).
     const unlabelled = <T extends { label?: string }>(items: readonly T[]) =>
       items.map((item) => ({ ...item, label: undefined }));
     const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
     const html = text(
       renderSummary(
-        { ...breakdown, by_cost_type: unlabelled(breakdown.by_cost_type) },
+        {
+          ...breakdown,
+          by_cost_type: breakdown.by_cost_type.map((item) => ({ ...item, label: null })),
+        },
         unlabelled(example("missing_rates") as MissingRates),
       ),
     );
     expect(html).toContain("Sans libellé — 2026");
-    expect(html).toContain("Par nature de coût Sans libellé 8 953 673,75 (13,68 %) Sans libellé");
+    expect(html).toContain("Par nature de coût Sans libellé 9 343 749,58 (13,69 %) Sans libellé");
     expect(html).not.toMatch(/01926f3a-/);
+  });
+
+  it("says a share not computable, and why, beside the amount of its line [WF-IND-0010-A] [WF-DEV-0060-A]", () => {
+    // A variant of `estimate_indicators_breakdown`: every share of the natures of cost, not computable.
+    const breakdown = example("estimate_indicators_breakdown") as EstimateIndicators;
+    const share = { is_computable: false, value: null, reason: "no_total" as const };
+    const html = text(
+      renderSummary(
+        { ...breakdown, by_cost_type: breakdown.by_cost_type.map((item) => ({ ...item, share })) },
+        example("missing_rates_none") as MissingRates,
+        all,
+        "en",
+      ),
+    );
+    // The section of the natures of cost alone, up to the next one.
+    const from = html.indexOf("By nature of cost");
+    const to = html.indexOf("By subproject", from);
+    expect(from).toBeGreaterThanOrEqual(0);
+    expect(to).toBeGreaterThan(from);
+    const section = html.slice(from, to);
+    expect(section).toContain("By nature of cost");
+    expect(section).not.toContain("%");
+    expect(section).toContain("(Not computable — The total is zero.)");
   });
 
   it("leaves out a breakdown the API gives empty", () => {

@@ -150,17 +150,21 @@ describe("the screen of the revisions of a project", () => {
     );
   });
 
-  it("lists the revisions in the order of the server, each with the attributes the API gives", async () => {
+  // Carries the first sentence of the Vérif of WF-REV-0070-A, the list of the revisions marked,
+  // accessible from the project, its table and its links to open one; the year of reference, the
+  // rate of inflation and the probability of winning kept at the marking (WF-REV-0090) are not read
+  // in this table, and no test of the screen carries them.
+  it("lists the revisions in the order of the server, each with the attributes the API gives [WF-REV-0070-A]", async () => {
     const page = html(await RevisionsPage(at()));
     // The history is read whole, by the largest page the contract takes (#303).
     expect(Object.fromEntries(callTo("GET /projects/{project_id}/revisions")?.query ?? [])).toEqual(
       { limit: "500", offset: "0" },
     );
     expect(table(page, "Historique des révisions")).toBe(
-      "Version État Marquée le Description Consultation " +
-        "Référence Référence Marquée Ouvrir " +
-        "Révision en cours En cours d’élaboration Non marquée Ouvrir " +
-        "Offre v1.0 Marquée Offre remise au client avant la commande. Ouvrir",
+      "Version État Marquée le Copie de Taux d’inflation Probabilité de gain Description Consultation " +
+        "Révision en cours En cours d’élaboration Non marquée Référence 3 % 100 % Ouvrir " +
+        "Référence Référence Marquée Offre v1.0 3 % 100 % Ouvrir " +
+        "Offre v1.0 Marquée Aucune 3 % 100 % Offre remise au client avant la commande. Ouvrir",
     );
     // Each instant of marking, in the local time of the workstation, which the browser writes.
     expect([...page.matchAll(/<time dateTime="([^"]+)"/g)].map((match) => match[1])).toEqual([
@@ -177,10 +181,10 @@ describe("the screen of the revisions of a project", () => {
       page,
     );
     expect(links(history?.[1] ?? "")).toEqual([
-      `${REVISIONS}?revision_id=${REFERENCE}&${filter}`,
-      `${REVISIONS}/${REFERENCE}?${filter}`,
       `${REVISIONS}?revision_id=${DRAFT}&${filter}`,
       `${REVISIONS}/${DRAFT}?${filter}`,
+      `${REVISIONS}?revision_id=${REFERENCE}&${filter}`,
+      `${REVISIONS}/${REFERENCE}?${filter}`,
       `${REVISIONS}?revision_id=${OFFER}&${filter}`,
       `${REVISIONS}/${OFFER}?${filter}`,
     ]);
@@ -239,7 +243,8 @@ describe("the comparison of two revisions", () => {
     );
     const call = callTo("GET /projects/{project_id}/revisions/comparison");
     expect(call?.path).toBe(`${REVISIONS}/comparison`);
-    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then `fields`.
+    // The tree read whole, reduced to what the grid shows (#1201): the two revisions, then
+    // `fields`.
     expect([...(call?.query.keys() ?? [])]).toEqual([
       "from_revision_id",
       "to_revision_id",
@@ -285,11 +290,17 @@ describe("the comparison of two revisions", () => {
       (delta) =>
         `${DIMENSIONS[delta.dimension]} ${
           delta.key === "unassigned" ? "Hors sous-projet" : (delta.label ?? unnamed)
-        } ${formatMoney(delta.delta, "fr")}`,
+        } ${formatMoney(delta.budgeted_delta, "fr")} ${formatMoney(delta.reestimated_delta, "fr")}`,
     );
-    expect(table(page, "Écarts de montants")).toBe(text(`Axe Poste Écart ${deltas.join(" ")}`));
+    expect(table(page, "Écarts de montants")).toBe(
+      text(`Axe Poste Écart budgété Écart réestimé ${deltas.join(" ")}`),
+    );
     // Three natures of cost and two sub-projects, as the description of `comparison` lists them.
     expect(deltas).toHaveLength(5);
+    // The two deviations differ in the witness: each is shown under the header that names it.
+    expect(COMPARISON.amount_deltas[0]?.budgeted_delta).not.toBe(
+      COMPARISON.amount_deltas[0]?.reestimated_delta,
+    );
     for (const { key } of COMPARISON.amount_deltas) {
       expect(page).not.toContain(key);
     }
@@ -420,9 +431,10 @@ describe("the parts of the revision the screen reads in", () => {
     expect(text(page)).not.toContain("Taux de l’année");
   });
 
-  it("offers the application of the rates under the proposal, and the designation of the reference under the history [WF-REV-0060-A]", async () => {
+  it("offers the application of the rates as the revision lists it, and the designation of the reference under the history [WF-REV-0060-A]", async () => {
     server.answers = {
       ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_rate_update_offered",
       "GET /projects/{project_id}/revisions/{revision_id}/rate-update": "rate_update",
       "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures",
     };
@@ -430,6 +442,13 @@ describe("the parts of the revision the screen reads in", () => {
     expect(offered(page, "Appliquer la mise à jour des taux")).toBe("available");
     expect(text(page)).toContain("Désignation de la référence");
     expect(offered(page, "Désigner comme référence")).toBe("unavailable");
+  });
+
+  it("offers the application of the rates unavailable when the revision lists it lacking a condition [WF-IHM-0090-A]", async () => {
+    // `revision` lists `apply_rate_update` lacking `rate_update_available`.
+    const page = html(await RevisionsPage(at({ revision_id: DRAFT })));
+    expect(offered(page, "Appliquer la mise à jour des taux")).toBe("unavailable");
+    expect(text(page)).toContain("une mise à jour des taux disponible");
   });
 
   it("offers no application of the rates when none is proposed [WF-REV-0060-A]", async () => {
@@ -442,9 +461,10 @@ describe("the parts of the revision the screen reads in", () => {
     expect(offered(page, "Appliquer la mise à jour des taux")).toBe("absent");
   });
 
-  it("offers no application of the rates to a reader who cannot edit the estimate, though the update is proposed", async () => {
-    // The contract lists no command of its own for the update (#1351): the revision's `edit_estimate`
-    // stands for it, and a revision that does not list it leaves the proposal to be read.
+  it("offers no application of the rates when the revision does not list the command, though the update is proposed", async () => {
+    // The revision lists `apply_rate_update` for the callers who may exercise it (#1351): a
+    // reader's lists none, and the proposal is left to be read, even to an estimator
+    // (`edit_estimate` alone).
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_reader",
@@ -459,7 +479,7 @@ describe("the parts of the revision the screen reads in", () => {
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_estimator",
     };
     const estimated = html(await RevisionsPage(at({ revision_id: DRAFT })));
-    expect(offered(estimated, "Appliquer la mise à jour des taux")).toBe("available");
+    expect(offered(estimated, "Appliquer la mise à jour des taux")).toBe("absent");
   });
 
   it("reads nothing of a revision when the address carries none", async () => {
@@ -560,5 +580,48 @@ describe("the address of the screen of the revisions", () => {
     expect((await generateMetadata({ params })).title).toBe(
       "Gestion des révisions · Modernisation du poste de commande — Waterfall",
     );
+  });
+});
+
+describe("« Écarts seulement » on the comparison of two revisions [WF-REV-0080-A] [WF-REV-0100-A]", () => {
+  const ALL = "added,removed,modified";
+  const COMPARISON_ROUTE = "GET /projects/{project_id}/revisions/comparison";
+  const BUTTON =
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Écarts seulement<\/button>/;
+  const chips = (page: string) =>
+    /<ul aria-label="Filtres actifs"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+
+  it("passes the differences to the server, presses the button, says it in the banner and keeps it through the choice of the pair, the grid reading the answer", async () => {
+    server.answers = { ...server.answers, [COMPARISON_ROUTE]: "comparison_differences" };
+    const page = html(
+      await RevisionsPage(
+        at({ from_revision_id: OFFER, to_revision_id: REFERENCE, difference: ALL }),
+      ),
+    );
+    expect(callTo(COMPARISON_ROUTE)?.query.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(chips(page)).toContain("Écarts seulement");
+    expect(chips(page)).toContain("Lever le filtre");
+    expect(page).toContain(`<input type="hidden" name="difference" value="${ALL}"`);
+    const answered = example("comparison_differences") as RevisionComparison;
+    const grid = table(page, "Nœuds comparés");
+    for (const node of answered.items) {
+      expect(grid).toContain(node.task?.label ?? node.estimate_line?.label ?? "");
+    }
+  });
+
+  it("offers it unpressed, and asks the server nothing of the differences, when the address names none", async () => {
+    const page = html(
+      await RevisionsPage(at({ from_revision_id: OFFER, to_revision_id: REFERENCE })),
+    );
+    expect(callTo(COMPARISON_ROUTE)?.query.has("difference")).toBe(false);
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(chips(page)).toBe("");
+  });
+
+  it("neither offers nor says it while no pair is compared", async () => {
+    const page = html(await RevisionsPage(at({ difference: ALL })));
+    expect(callTo(COMPARISON_ROUTE)).toBeUndefined();
+    expect(page).not.toContain("Écarts seulement");
   });
 });

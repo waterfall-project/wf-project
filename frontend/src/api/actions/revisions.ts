@@ -78,11 +78,18 @@ export async function createRevision(
  * Abandon the current revision (WF-REV-0010): the project returns to its last marked revision. The
  * page is not read anew here: its address names a revision that is no more, and the screen leaves it.
  */
-export async function abandonRevision(projectId: string, revisionId: string): Promise<Settled> {
+export async function abandonRevision(
+  projectId: string,
+  revisionId: string,
+  lockVersion: number,
+): Promise<Settled> {
   return settled(
     await decode(() =>
       serverClient().DELETE("/projects/{project_id}/revisions/{revision_id}", {
-        params: { path: { project_id: projectId, revision_id: revisionId } },
+        params: {
+          path: { project_id: projectId, revision_id: revisionId },
+          query: { lock_version: lockVersion },
+        },
       }),
     ),
   );
@@ -91,17 +98,18 @@ export async function abandonRevision(projectId: string, revisionId: string): Pr
 /**
  * Designate a marked revision as the reference of the project (WF-REV-0040): the API answers the
  * project, in progress if it bears its code (WF-CYC-0030), or refuses, naming the condition that
- * is lacking (409).
+ * is lacking (409), or the project moved since the counter read (412, WF-IHM-0110).
  */
 export async function designateReferenceRevision(
   projectId: string,
   revisionId: string,
+  projectLockVersion: number,
 ): Promise<Outcome<Schemas["Project"]>> {
   return readAnew(
     await decode(() =>
       serverClient().PUT("/projects/{project_id}/reference-revision", {
         params: { path: { project_id: projectId } },
-        body: { revision_id: revisionId, confirmed: true },
+        body: { revision_id: revisionId, confirmed: true, lock_version: projectLockVersion },
       }),
     ),
   );
@@ -172,6 +180,8 @@ export async function readMergeReport(
 /** What confirming the merge of an amendment takes: its version name, and the counters the report read. */
 export interface AmendmentMerge {
   readonly versionName: string;
+  /** The description joined to the revision marked, as at the marking (WF-REV-0020); none when empty. */
+  readonly description?: string | undefined;
   readonly mainStructureLockVersion: number;
   readonly amendmentLockVersion: number;
 }
@@ -198,6 +208,9 @@ export async function mergeAmendment(
         body: {
           confirmed: true,
           version_name: merge.versionName,
+          ...(merge.description === undefined || merge.description === ""
+            ? {}
+            : { description: merge.description }),
           main_structure_lock_version: merge.mainStructureLockVersion,
           amendment_lock_version: merge.amendmentLockVersion,
         },

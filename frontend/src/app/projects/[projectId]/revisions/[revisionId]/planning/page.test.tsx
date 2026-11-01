@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import type { StructureChoiceProps } from "@/components/context/structure-choice";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import PlanningPage from "./page";
 
@@ -161,6 +161,15 @@ describe("the screen of the planning", () => {
         scheduledAt: "2026-06-03T14:05:00Z",
       },
     });
+  });
+
+  it("gives the grid the planning start date of the structure it reads, which it presents above the tasks [WF-PLA-0020-A]", async () => {
+    const page = await planning();
+    // The 2 March 2026 of the witness, as the server gives it.
+    expect(grid.given.at(-1)?.planningStart?.on).toBe("2026-03-02");
+    expect(page).toMatch(
+      /<section aria-label="Planning start date"(?:(?!<\/section>).)*dateTime="2026-03-02"/,
+    );
   });
 
   it("gives the grid what the project lists of the creation of a timeline, as the server says it [WF-IHM-0090-A]", async () => {
@@ -357,6 +366,22 @@ describe("the structure the planning reads", () => {
     expect(await planning()).not.toContain("Contractualise the amendment");
   });
 
+  it("offers the merge on the amendment of the last revision marked, the project having none in progress, as it lists the command [WF-REV-0050-A]", async () => {
+    // Conception d'EP-16, « Une fusion sans révision en cours » (#790) : le Vérif de WF-REV-0050-A
+    // ne dit pas ce cas, la fusion crée alors la révision en cours.
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked_merge_offered",
+      "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_amendments",
+    };
+    const page = await planning({ structure: "01926f3a-7c00-7000-8000-000000000213" });
+    const command = /<button(?:(?!<button).)*?Contractualise the amendment<\/button>/.exec(
+      page,
+    )?.[0];
+    expect(command).toBeDefined();
+    expect(command).not.toContain(" aria-disabled=");
+  });
+
   it("lists every differential of the revision, two coexisting in it [WF-REV-0100-A]", async () => {
     // Deux structures différentielles coexistent dans une même révision : the reference revision
     // (`structures_amendments`) bears the amendment 1, merged, and the amendment 2, not merged, and
@@ -402,4 +427,53 @@ describe("the structure the planning reads", () => {
       expect(await planning({ structure })).not.toMatch(SKELETON);
     },
   );
+});
+
+describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [WF-REV-0080-A]", () => {
+  const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
+  const RISK = "01926f3a-7c00-7000-8000-000000000204";
+  const ALL = "added,removed,modified";
+  /** The button the page offers, from its tag to its name; none when it does not. */
+  const BUTTON =
+    /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>).)*Differences only<\/button>/;
+  const chips = (page: string) =>
+    /<ul aria-label="Active filters"(?:(?!<\/ul>).)*<\/ul>/.exec(page)?.[0] ?? "";
+
+  it("is offered on a differential, unpressed by default, and asks the server nothing of the differences", async () => {
+    const page = await planning({ structure: AMENDMENT });
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+    expect(page).not.toContain("Active filters");
+  });
+
+  it("passes the differences the address names to the server, presses the button and says it in the banner, the grid reading what the server answers", async () => {
+    server.answers = { ...server.answers, [NODES]: "nodes_amendment_differences" };
+    const page = await planning({ structure: AMENDMENT, difference: ALL });
+    const [read] = callsOf(NODES);
+    expect(read?.query.get("difference")).toBe(ALL);
+    expect(BUTTON.exec(page)?.[1]).toBe("true");
+    expect(chips(page)).toContain("Differences only");
+    expect(chips(page)).toContain(`aria-label="Remove the filter “Differences only”"`);
+    // The rows are those of the answer: the front retains none of its own.
+    const answered = example("nodes_amendment_differences") as { items: unknown[] };
+    expect(grid.given.at(-1)?.nodes.items).toHaveLength(answered.items.length);
+    expect(grid.given.at(-1)?.filters.difference).toEqual(["added", "removed", "modified"]);
+  });
+
+  it("names the differences of an address that names some of them, and offers the button unpressed", async () => {
+    const page = await planning({ structure: AMENDMENT, difference: "modified,added" });
+    expect(callsOf(NODES)[0]?.query.get("difference")).toBe("added,modified");
+    expect(BUTTON.exec(page)?.[1]).toBe("false");
+    expect(chips(page)).toContain("Differences: Added and Modified");
+  });
+
+  it("neither offers, nor sends, nor says it on the main structure and on the own estimate of a risk", async () => {
+    for (const search of [{ difference: ALL }, { structure: RISK, difference: ALL }]) {
+      server.clients = [];
+      const page = await planning(search);
+      expect(callsOf(NODES)[0]?.query.has("difference")).toBe(false);
+      expect(page).not.toContain("Differences only");
+      expect(page).not.toContain("Active filters");
+    }
+  });
 });

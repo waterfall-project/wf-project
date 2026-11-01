@@ -59,6 +59,7 @@ import {
   AnonymizeCommand,
   HeldRoles,
   RolesCell,
+  ResendInvitationCommand,
   SetupLinkCommand,
   StateSwitch,
 } from "./user-cells";
@@ -172,10 +173,24 @@ function setupLinkColumn(): GridColumn<User, UserSort, UserPage> {
   return {
     key: "password_link",
     label: "passwordLink",
+    help: "users.password_link",
     format: "text",
     width: COMMAND_WIDTH,
     value: () => null,
     render: (user) => <SetupLinkCommand user={user} />,
+  };
+}
+
+/** The column of the email of the link of a local account, for a session that may modify the accounts. */
+function resendColumn(): GridColumn<User, UserSort, UserPage> {
+  return {
+    key: "resend_invitation",
+    label: "resendInvitation",
+    help: "users.resend_invitation",
+    format: "text",
+    width: COMMAND_WIDTH,
+    value: () => null,
+    render: (user) => <ResendInvitationCommand user={user} />,
   };
 }
 
@@ -184,6 +199,7 @@ function anonymizeColumn(): GridColumn<User, UserSort, UserPage> {
   return {
     key: "anonymize",
     label: "anonymize",
+    help: "users.anonymize",
     format: "text",
     width: COMMAND_WIDTH,
     value: () => null,
@@ -227,6 +243,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "last_name",
         label: "lastName",
+        help: "users.lastName",
         format: "text",
         width: 160,
         pinned: true,
@@ -238,6 +255,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "first_name",
         label: "firstName",
+        help: "users.firstName",
         format: "text",
         width: 140,
         contract: "first_name",
@@ -247,6 +265,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "email",
         label: "email",
+        help: "users.email",
         format: "text",
         width: 260,
         contract: "email",
@@ -255,6 +274,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "origin",
         label: "origin",
+        help: "users.origin",
         format: "text",
         width: 230,
         contract: "origin",
@@ -264,6 +284,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "org_node",
         label: "attachment",
+        help: "users.attachment",
         format: "text",
         width: 220,
         contract: "org_node",
@@ -273,6 +294,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "access_roles",
         label: "accessRoles",
+        help: "users.accessRoles",
         format: "text",
         width: 240,
         contract: "access_roles",
@@ -287,6 +309,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
       {
         key: "is_active",
         label: "state",
+        help: "users.state",
         format: "text",
         width: 140,
         contract: "is_active",
@@ -299,7 +322,7 @@ export function userGrid(entry?: UserEntry): GridConfig<User, UserSort, UserPage
           ),
       },
       ...auditColumns<User, UserPage>(),
-      ...(entry === undefined ? [] : [setupLinkColumn(), anonymizeColumn()]),
+      ...(entry === undefined ? [] : [setupLinkColumn(), resendColumn(), anonymizeColumn()]),
     ],
   };
 }
@@ -315,6 +338,7 @@ function commandColumns(): GridColumn<AccessRole, AccessRoleSort, null>[] {
   return (["delete"] as const).map((command) => ({
     key: command,
     label: command,
+    help: "accessRoles.delete",
     format: "text",
     width: COMMAND_WIDTH,
     value: () => null,
@@ -379,6 +403,7 @@ export function accessRoleGrid(
       {
         key: "label",
         label: "label",
+        help: "accessRoles.label",
         format: "text",
         width: 240,
         pinned: true,
@@ -389,6 +414,7 @@ export function accessRoleGrid(
       {
         key: "is_predefined",
         label: "roleKind",
+        help: "accessRoles.roleKind",
         format: "text",
         width: 130,
         contract: "is_predefined",
@@ -398,6 +424,7 @@ export function accessRoleGrid(
       {
         key: "holder_count",
         label: "holders",
+        help: "accessRoles.holders",
         format: "decimal",
         width: 150,
         contract: "holder_count",

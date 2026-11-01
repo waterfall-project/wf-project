@@ -13,9 +13,10 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { keysOf } from "@/test/grid-preferences";
 
 import { UserList } from "./account-lists";
-import type { User } from "./admin-grids";
+import { type User, userGrid } from "./admin-grids";
 import { authorsOf, readAuditFilters } from "./audit-address";
 import { USER_KEPT } from "./user-address";
 
@@ -156,7 +157,13 @@ describe("the number of rows per page of a flat table", () => {
     });
     expect(writes()[0]?.body).toEqual({
       grids: {
-        users: { hidden_columns: [], column_widths: {}, filters: {}, page_size: 25 },
+        users: {
+          hidden_columns: [],
+          column_widths: {},
+          known_columns: keysOf(userGrid().columns),
+          filters: {},
+          page_size: 25,
+        },
       },
     });
   });

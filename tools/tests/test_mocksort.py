@@ -13,10 +13,14 @@ from decimal import Decimal
 from typing import Any, cast
 
 import pytest
+import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata
 from wftools.mockids import universe
 from wftools.mocksort import LINE_COLUMNS, LineSort
+
+BOUNDS_CITED_BY = {"listNodes", "compareRevisions"}
+"""The readings that cite the bounds of a column inverted: those that filter the columns."""
 
 type Node = dict[str, Any]
 
@@ -77,7 +81,7 @@ def test_a_sort_moves_the_lines_under_each_task_and_never_a_task(
     assert amounts == sorted(amounts, reverse=True)
     assert len(set(amounts)) == len(amounts)
     siblings = [node for node in read["items"] if node["parent_id"] == universe(CONTROL_STATION)]
-    assert [_number(node) for node in siblings] == [WIRING, OCCURRED, MILESTONE]
+    assert [_number(node) for node in siblings] == [WIRING, MILESTONE, OCCURRED]
 
 
 def test_a_line_without_a_value_comes_first_in_the_descending_order_in_plan_order(
@@ -146,3 +150,33 @@ def test_the_columns_a_line_sorts_by_are_those_of_the_contract() -> None:
     block = block[block.index("  enum:") : block.index("\n\n")]
     columns = re.findall(r"^    - (\w+)$", block, re.MULTILINE)
     assert ("label", *columns[columns.index("cost_category") :]) == LINE_COLUMNS
+
+
+@pytest.mark.requirement("WF-IHM-0130-A")
+def test_an_upper_bound_below_the_lower_is_refused_naming_the_lower_bound(
+    readings: dict[str, Any],
+) -> None:
+    # « Toute table se filtre sur chacune de ses colonnes » : the bounds of a column inverted are
+    # refused on the upper one, the lower bound given in the type of the column (README).
+    refused = readings["nodes_bounds_inverted.json"]
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    [field] = refused["fields"]
+    assert field == {
+        "pointer": "/query/reestimated_amount_max",
+        "code": "VALUE_OUT_OF_RANGE",
+        "params": {"minimum": "10000.00"},
+    }
+    paths = yaml.safe_load((REPOSITORY / "docs/api/paths/revisions.yaml").read_text("utf-8"))
+    citing = {
+        operation["operationId"]
+        for item in paths.values()
+        for operation in item.values()
+        for example in operation["responses"]
+        .get("422", {})
+        .get("content", {})
+        .get("application/problem+json", {})
+        .get("examples", {})
+        .values()
+        if example.get("$ref", "").endswith("/nodes_bounds_inverted.json")
+    }
+    assert citing == BOUNDS_CITED_BY

@@ -179,11 +179,11 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state, the anonymisation of a deactivated one, and the attribution of its
-    # roles. The one active account that holds the permissions to modify the accounts and the
-    # access roles has its deactivation unavailable, the condition `last_administrator` missing
-    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
-    # available.
+    # changes its state, the anonymisation of a deactivated one, the attribution of its roles, and
+    # for a local one the link that sets its password and its invitation. The one active account
+    # that holds the permissions to modify the accounts and the access roles has its deactivation
+    # unavailable, the condition `last_administrator` missing (WF-ADM-0120); giving it more roles
+    # stays possible, and every other command listed is available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -205,6 +205,14 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             "missing_conditions": [],
         }
         anonymization = [] if user["is_active"] else [anonymize]
+        # A local account carries the link that sets its password and the invitation that bears
+        # it, unavailable while it is deactivated (WF-ADM-0140, #1737); another, never.
+        inactive = [] if user["is_active"] else ["is_active_account"]
+        links: list[dict[str, Any]] = [
+            {"command": command, "is_available": user["is_active"], "missing_conditions": inactive}
+            for command in ("create_password_link", "resend_invitation")
+            if user["origin"] == "local"
+        ]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
@@ -213,6 +221,7 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             },
             *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
+            *links,
         ], user["last_name"]
 
 
@@ -376,6 +385,14 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
         if not (isinstance(value, dict) and "import_id" in value and "task" in value):
             continue
         item = cast("Node", value)
+        # An import whose analysis runs has no expiry yet: the analysis sets it (I-14).
+        if item["status"] == "analysing":
+            assert item["expires_at"] is None, name
+            continue
+        # An import whose application was refused no longer applies: no expiry (I-01, #1789).
+        if item["status"] == "refused":
+            assert item["expires_at"] is None, name
+            continue
         expiries[item["import_id"]].add(item["expires_at"])
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
@@ -391,8 +408,10 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
 def test_each_report_names_the_lineages_of_the_core_by_their_labels(
     examples: dict[str, Any],
 ) -> None:
-    # The core, and the differential of the amendment 2, whose estimate the witness imports.
-    labels = {
+    # The core, and the differential of the amendment 2, whose estimate the witness imports; and
+    # the structure of a thousand tasks read today, whose drawn tasks a remaining to commit
+    # completes (``import_remaining_completed_tasks``, US-0703/L7).
+    labels = {cast("Node", row.node)["lineage_id"]: row.label for row in mockcore.current()} | {
         cast("Node", row.node)["lineage_id"]: row.label
         for roots in (mockwitness.CORE, mockamendment.amendment(mockwitness.CORE))
         for row in mockcore.core(roots)
@@ -440,7 +459,12 @@ def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_
         [aimed] = {found for found in identifier.findall(example["summary"]) if found in kinds}
         assert kinds[aimed] != "main", path.name
         read[path.name] = value["import_id"]
-    assert set(read) == {"import_analysed.json", "import_analysing.json"}
+    assert set(read) == {
+        "import_analysed.json",
+        "import_analysing.json",
+        "import_estimate_task_without_hours.json",
+        "import_apply_refused_permission.json",
+    }
     assert listed
     assert listed <= set(read.values())
 
@@ -725,7 +749,7 @@ def test_the_costs_on_disk_are_the_actual_cost_the_indicators_on_disk_count() ->
     )
     # The consultation holds every line retained, the drawn invoices among them, in one page.
     consulted = fixture("actual_costs")
-    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 27
+    assert consulted["meta"]["total"] == len(consulted["items"]) == len(mockcosts.lines()) == 28
 
 
 def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() -> None:
@@ -734,7 +758,7 @@ def test_the_indicators_of_the_estimate_of_the_volume_are_the_witness_s_own() ->
     volume, witness = fixture("volume/estimate_indicators_volume"), fixture("estimate_indicators")
     assert volume == witness
     totals = fixture("volume/nodes_thousand")["totals"]
-    assert volume["total"]["value"] == totals["base_amount"]
+    assert volume["total"]["value"] == totals["reestimated_amount"]
     # The reference budget is the budgeted amounts of the grid, but the provision's (WF-RIS-0050).
     provisions = sum(
         Decimal(node["estimate_line"]["budgeted_amount"])
@@ -884,9 +908,11 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "actual_costs": ("/query/to", "minimum", date),
         "audit_events": ("/query/to", "minimum", datetime),
         "backups": ("/query/to", "minimum", datetime),
+        "nodes": ("/query/start_to", "minimum", date),
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
+        "risks": ("/query/last_review_on_to", "minimum", date),
         "users": ("/query/created_at_to", "minimum", datetime),
     }
     assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
@@ -944,6 +970,9 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         if "- name: to\n" in text or re.search(r"parameters\.yaml#/\w*To\b", text)
     }
     assert sorted(taking) == [
+        "compareRevisions",
+        "getPortfolioCostCurve",
+        "getPortfolioCostStructure",
         "getPortfolioPerformance",
         "getPortfolioProjects",
         "getPortfolioRisks",
@@ -952,7 +981,9 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "listActualCosts",
         "listAuditEvents",
         "listBackups",
+        "listNodes",
         "listProjects",
+        "listRisks",
         "listUsers",
     ]
     for name, text in taking.items():

@@ -199,7 +199,7 @@ UNACCENT = Unaccent.read(Path(__file__).with_name("unaccent.rules").read_text(en
 def folded(text: str) -> str:
     """Return a text as a search compares it: transliterated as ``unaccent`` does, then lowered.
 
-    The rule of every search of the contract (docs/api/README.md, « Une recherche… »), decided by
+    The rule of every search of the contract (docs/api/README.md, « A search… »), decided by
     the author on 2026-10-09: the table PostgreSQL ships, then ``lower()``, as the service will
     search by ``lower(unaccent(…))`` (EP-03). « Études » reads « etudes », « Main-d'œuvre »
     « main-d'oeuvre », « Straße » « strasse » and « Søren » « soren ».

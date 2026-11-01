@@ -10,17 +10,23 @@
  * label in the enumeration the envelope names with it (`state_enum`, #413), the object it is the
  * state of named by the sentence, the lines that bear a sub-project (`estimate_lines`) by their
  * numbers and their labels, the roles a nature or a category keeps in labour (`resource_roles`) by
- * their labels and codes, the projects a calendar would leave a task without hours in (`projects`)
+ * their labels and codes, the categories that forbid a change of the type of their nature
+ * (`cost_categories`) by theirs, the tasks a write would leave without an hour (`tasks`) by their
+ * labels, the projects a calendar would leave a task without hours in (`projects`)
  * by their labels and codes — a project without one by its label alone (WF-PLA-0010) —, the task of a
  * lot and those of its posts a write would move out of its subtree (`work_package_task`,
  * `order_item_tasks`, WF-PLA-0170) by their labels, the lines and the projects beyond a few
- * counted, the notice listing them, the sub-project a line of a started task does not leave
- * (`subproject`, WF-PRJ-0050) by its label; a state without its enumeration,
+ * counted, the notice listing them, the characters a code of a sub-project cannot bear and the
+ * reserved name it bears (`forbidden_characters`, `reserved_name`, WF-PRJ-0050), the sub-project a line of a started task does not leave
+ * (`subproject`, WF-PRJ-0050) by its label, what a line imported is rejected for as the file bears it (`value`, `label`
+ * and `tasks`, `wbs_element`, `project_code`, `rows`); a state without its enumeration,
  * or of an enumeration the catalogue does not know, adds nothing. A parameter that names nothing a
  * reader knows — an identifier, a lock version — adds nothing, but why a task would have no
- * working hour (`resource_role_ids`): the calendar of its one role, which has no hour, or those of
- * its roles, which never overlap, named when the screen read them (`ProblemLanguage.names`), or,
- * none given, the default calendar of a task without a line of labour. The
+ * working hour: the calendar of its one role, which has no hour, or those of its roles, which never
+ * overlap, which every such refusal names itself (`resource_roles`, #768, #1684), or, none given,
+ * the default calendar of a task without a line of labour. The parameters several refusals
+ * share are typed by the contract (`ProblemParams`), read as they are; the others stay open, their
+ * shape checked before they are said. The
  * parameters of a refusal by field (`fields[].params`, convention #293) are read alike, after those
  * of the envelope: the smallest or the largest value a field admits (`minimum`, `maximum`) is said
  * with the refusal, and a form says the refusal of each field at the field, by the same sentence
@@ -43,7 +49,10 @@ import type { Locale } from "./locale";
  * by field — a refusal by field is itself a code and its parameters.
  */
 export type ProblemText = Pick<components["schemas"]["Problem"], "code" | "params"> & {
-  readonly fields?: readonly Pick<components["schemas"]["FieldProblem"], "params">[] | undefined;
+  readonly fields?:
+    | readonly (Pick<components["schemas"]["FieldProblem"], "params"> &
+        Partial<Pick<components["schemas"]["FieldProblem"], "pointer" | "code">>)[]
+    | undefined;
 };
 
 /** The language to write in, its catalogue, and the names of the objects the screen read. */
@@ -51,8 +60,8 @@ export interface ProblemLanguage {
   readonly locale: Locale;
   readonly messages: Catalogue;
   /**
-   * The names of the objects the screen read, by identifier: what names the roles a refusal gives by
-   * their identifiers alone (`resource_role_ids`); none, and they are left unnamed.
+   * The names of the objects the screen read, by identifier: what names the objects a refusal gives by
+   * their identifiers alone; none, and they are left unnamed.
    */
   readonly names?: Readonly<Record<string, string>> | undefined;
 }
@@ -69,20 +78,25 @@ type Detail = readonly [
 /** Write a sentence of `problemDetails` with its values: a part a reader names a value by. */
 export type Say = (key: Detail[0], values: Detail[1]) => string;
 
+/**
+ * The parameters of a refusal (`ProblemParams`): those several refusals share typed by the contract,
+ * the others open, which a reader checks the shape of before it says them.
+ */
+type Params = components["schemas"]["ProblemParams"];
+
 /** Read one parameter of the envelope: its sentence, or `undefined` when it has nothing to say. */
 type Reader = (
-  params: Readonly<Record<string, unknown>>,
+  params: Readonly<Params>,
   label: Label,
   locale: Locale,
   say: Say,
   names: Readonly<Record<string, string>>,
+  /** The pointer of the field the parameters belong to; none for those of the envelope. */
+  pointer?: string,
 ) => Detail | undefined;
 
 /** A line of an estimate a refusal names (`estimate_lines`): its number and its label. */
-export interface NamedLine {
-  readonly row_number: number;
-  readonly label: string;
-}
+export type NamedLine = Pick<components["schemas"]["ProblemEstimateLine"], "row_number" | "label">;
 
 /**
  * How many lines — or projects — a refusal names in its sentence; beyond, the sentence counts them,
@@ -95,25 +109,12 @@ export function lineName({ row_number, label }: NamedLine, say: Say): string {
   return say("estimateLine", { row: String(row_number), label });
 }
 
-/** Whether a value is a line a refusal names, by its number and its label. */
-function isNamedLine(value: unknown): value is NamedLine {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "row_number" in value &&
-    typeof value.row_number === "number" &&
-    "label" in value &&
-    typeof value.label === "string"
-  );
-}
-
 /**
  * The lines the parameters of a refusal name (`estimate_lines`), each by its number in its whole
- * structure and its label, in the order of the server; a malformed one is left out.
+ * structure and its label, in the order of the server.
  */
-export function namedLines(params: Readonly<Record<string, unknown>> | undefined): NamedLine[] {
-  const lines = params?.estimate_lines;
-  return (Array.isArray(lines) ? lines : []).filter(isNamedLine);
+export function namedLines(params: Readonly<Params> | undefined): readonly NamedLine[] {
+  return params?.estimate_lines ?? [];
 }
 
 /** A list of names joined as the language of the reader joins them: « a, b et c ». */
@@ -126,56 +127,30 @@ function itemsOf<T>(value: unknown, shaped: (item: unknown) => item is T): T[] {
   return (Array.isArray(value) ? value : []).filter(shaped);
 }
 
-/** Whether a value is an object whose properties named hold texts — or null, for those allowed. */
-function hasTexts(value: unknown, texts: readonly string[], nullable: readonly string[] = []) {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const record = value as Readonly<Record<string, unknown>>;
+/** A project a refusal names by its label and its code, null for one without (`projects`). */
+export type NamedProject = components["schemas"]["ProblemProject"];
+
+/**
+ * Whether a value is an object a refusal names by its label: a task of a parameter the contract
+ * leaves open (`work_package_task`, `order_item_tasks`, `cycle` ; EP-14/L42s).
+ */
+function isLabelled(value: unknown): value is { readonly label: string } {
   return (
-    texts.every((key) => typeof record[key] === "string") &&
-    nullable.every((key) => record[key] === null || typeof record[key] === "string")
+    typeof value === "object" &&
+    value !== null &&
+    "label" in value &&
+    typeof value.label === "string"
   );
 }
 
-/** A role a refusal names by its code and its label (`resource_roles`, EP-14/L42r). */
-interface NamedRole {
-  readonly code: string;
-  readonly label: string;
+/** Whether a value is an object a refusal names by its code and its label (`cost_categories`). */
+function isCoded(value: unknown): value is { readonly code: string; readonly label: string } {
+  return isLabelled(value) && "code" in value && typeof value.code === "string";
 }
 
-/** A project a refusal names by its label and its code, null for one without (`projects`). */
-export interface NamedProject {
-  readonly project_label: string;
-  readonly project_code: string | null;
-}
-
-/**
- * Whether a value is an object a refusal names by its label: a task (`work_package_task`,
- * EP-14/L42s), a sub-project (`subproject`).
- */
-function isLabelled(value: unknown): value is { readonly label: string } {
-  return hasTexts(value, ["label"]);
-}
-
-/** Whether a value is a role a refusal names, by its code and its label. */
-function isNamedRole(value: unknown): value is NamedRole {
-  return hasTexts(value, ["code", "label"]);
-}
-
-/** Whether a value is a project a refusal names, by its label and its code, if any. */
-function isNamedProject(value: unknown): value is NamedProject {
-  return hasTexts(value, ["project_label"], ["project_code"]);
-}
-
-/**
- * The projects the parameters of a refusal name (`projects`), in the order of the server; a
- * malformed one is left out.
- */
-export function namedProjects(
-  params: Readonly<Record<string, unknown>> | undefined,
-): NamedProject[] {
-  return itemsOf(params?.projects, isNamedProject);
+/** The projects the parameters of a refusal name (`projects`), in the order of the server. */
+export function namedProjects(params: Readonly<Params> | undefined): readonly NamedProject[] {
+  return params?.projects ?? [];
 }
 
 /** The name of a project a refusal names: its label and its code, its label alone without one. */
@@ -197,12 +172,27 @@ const STATES: Readonly<Record<StateEnumeration, { list: string; detail: Detail[0
   ProjectState: { list: "enums.ProjectState", detail: "projectState" },
 };
 
-/** How a refused state is told, when the envelope names an enumeration the contract has. */
-function stateIn(enumeration: unknown): (typeof STATES)[StateEnumeration] | undefined {
-  return typeof enumeration === "string" && Object.hasOwn(STATES, enumeration)
-    ? STATES[enumeration as StateEnumeration]
-    : undefined;
-}
+/**
+ * The conditions a nature or a category misses while roles keep it in labour (`resource_roles`,
+ * WF-REF-0030, WF-REF-0040), and the object the roles are to be attached away from.
+ */
+const KEPT_IN_LABOUR: Readonly<Record<string, "cost_type" | "cost_category">> = {
+  cost_type_without_role: "cost_type",
+  cost_category_without_role: "cost_category",
+};
+
+/**
+ * The conditions a refusal names for an object that no longer changes — a project terminal, a
+ * revision marked (`STATE_FORBIDS_OPERATION`, US-0702/L1) —, said as that fact rather than as a
+ * condition unmet.
+ */
+const SETTLED: Readonly<Record<string, "project_terminal" | "revision_marked">> = {
+  project_not_terminal: "project_terminal",
+  revision_draft: "revision_marked",
+};
+
+/** The field of the planning start date of a structure, judged on the default calendar. */
+const STRUCTURE_START = "/planning_start_on";
 
 /** The parameters of the envelope a reader is told about, in the order they are told. */
 const DETAILS: readonly Reader[] = [
@@ -210,7 +200,16 @@ const DETAILS: readonly Reader[] = [
     const permission = label("permissions", missing_permission);
     return permission === undefined ? undefined : ["missing_permission", { permission }];
   },
+  // A project terminal and a revision marked, which no longer change, are said as the facts they
+  // are (WF-CYC-0100, WF-DAT-0020, US-0702/L1); any other condition by its label.
   ({ missing_condition }, label) => {
+    const settled =
+      typeof missing_condition === "string" && Object.hasOwn(SETTLED, missing_condition)
+        ? SETTLED[missing_condition]
+        : undefined;
+    if (settled !== undefined) {
+      return [settled, {}];
+    }
     const condition = label("enums.CommandCondition", missing_condition);
     return condition === undefined ? undefined : ["missing_condition", { condition }];
   },
@@ -236,32 +235,50 @@ const DETAILS: readonly Reader[] = [
   },
   // The roles that keep a nature or a category in labour, to attach first to another category of
   // labour — outside the nature, for a nature — (WF-REF-0030, WF-REF-0040, WF-IHM-0090).
-  ({ resource_roles, missing_condition }, _label, locale, say) => {
-    const named = itemsOf(resource_roles, isNamedRole).map(({ code, label }) =>
-      say("codedName", { code, label }),
-    );
-    const of = missing_condition === "cost_type_without_role" ? "cost_type" : "cost_category";
-    return named.length === 0
+  ({ resource_roles = [], missing_condition }, _label, locale, say) => {
+    const of =
+      typeof missing_condition === "string" && Object.hasOwn(KEPT_IN_LABOUR, missing_condition)
+        ? KEPT_IN_LABOUR[missing_condition]
+        : undefined;
+    const named = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
+    return of === undefined || named.length === 0
       ? undefined
       : ["resource_roles", { roles: conjunction(named, locale), of }];
   },
   // Why a task would have no working hour (WF-PLA-0010): the roles whose calendars never overlap,
-  // given by their identifiers alone and named as the screen read them; none given, the default
-  // calendar of a task without a line of labour.
-  ({ resource_role_ids }, _label, locale, _say, names) => {
-    if (Array.isArray(resource_role_ids) && resource_role_ids.length === 0) {
-      return ["resource_role_ids_none", {}];
-    }
-    const ids = itemsOf(resource_role_ids, (id): id is string => typeof id === "string");
-    const named = ids.map((id) => names[id]).filter((name) => name !== undefined);
-    if (ids.length === 0) {
+  // each by its code and its label (`resource_roles`, #768, #1684); none, the default calendar of a
+  // task without a line of labour.
+  ({ resource_roles, missing_condition }, _label, locale, say) => {
+    if (resource_roles === undefined || missing_condition !== undefined) {
       return undefined;
     }
-    // One role alone: its calendar has no hour; several: their calendars never overlap.
-    const count = ids.length;
+    const roles = resource_roles.map(({ code, label }) => say("codedName", { code, label }));
+    return roles.length === 0
+      ? ["resource_roles_calendar_none", {}]
+      : ["resource_roles_calendar", { roles: conjunction(roles, locale), count: roles.length }];
+  },
+  // The categories of a nature that a change of its type is refused for — those employed, or those
+  // that bear an hourly rate —, each by its label and its code, to attach first to another nature of
+  // the same type (`cost_type_unused`, `cost_type_unrated`, WF-REF-0030, WF-IHM-0090).
+  ({ cost_categories }, _label, locale, say) => {
+    const named = itemsOf(cost_categories, isCoded).map(({ code, label }) =>
+      say("codedName", { code, label }),
+    );
     return named.length === 0
-      ? ["resource_role_ids_unnamed", { count }]
-      : ["resource_role_ids", { roles: conjunction(named, locale), count }];
+      ? undefined
+      : ["cost_categories", { categories: conjunction(named, locale), count: named.length }];
+  },
+  // The tasks a write would leave without a working hour, each by its label (`tasks`,
+  // `TASK_WITHOUT_WORKING_HOURS`, WF-PLA-0010, #779); the tasks that share a label read in a file
+  // are said with it (`ambiguous_label`).
+  ({ tasks, label }, _label, locale, say) => {
+    const named =
+      typeof label === "string"
+        ? []
+        : itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
+    return named.length === 0
+      ? undefined
+      : ["tasks", { tasks: conjunction(named, locale), count: named.length }];
   },
   // Each project by its label and its code, by its label alone without one (WF-PLA-0010); beyond a
   // few, counted, the notice listing them.
@@ -293,30 +310,138 @@ const DETAILS: readonly Reader[] = [
     const named = itemsOf(cycle, isLabelled).map(({ label }) => say("taskName", { label }));
     return named.length === 0 ? undefined : ["cycle", { tasks: conjunction(named, locale) }];
   },
+  // The subordinates a summary task takes the value sent from — its state, its dates —, named as the
+  // screen read them, counted otherwise (`subordinate_node_ids`, `SUMMARY_TASK_DERIVED`,
+  // WF-PLA-0040, WF-IHM-0030).
+  ({ subordinate_node_ids }, _label, locale, say, names) => {
+    const ids = subordinate_node_ids ?? [];
+    const named = ids.map((id) => names[id]).filter((name) => name !== undefined);
+    if (ids.length === 0) {
+      return undefined;
+    }
+    return named.length === ids.length
+      ? [
+          "subordinates",
+          {
+            tasks: conjunction(
+              named.map((name) => say("taskName", { label: name })),
+              locale,
+            ),
+            count: ids.length,
+          },
+        ]
+      : ["subordinates_unnamed", { count: ids.length }];
+  },
+  // The categories of labour without an hourly rate for the year of reference of the revision, each
+  // by its label and the year (`missing_rates`, `HOURLY_RATE_MISSING`, WF-DEV-0010).
+  ({ missing_rates = [] }, _label, locale, say) => {
+    const named = missing_rates.map(({ label, year }) =>
+      label === undefined ? say("missingRateYear", { year }) : say("missingRate", { label, year }),
+    );
+    return named.length === 0
+      ? undefined
+      : ["missing_rates", { categories: conjunction(named, locale), count: named.length }];
+  },
+  // The risks whose line of provision would have no task left to stand on, each by its label
+  // (`risks`, `at_least_one_task`, WF-RIS-0010).
+  ({ risks = [] }, _label, locale, say) => {
+    const named = risks.map(({ label }) => say("riskName", { label }));
+    return named.length === 0
+      ? undefined
+      : ["risks", { risks: conjunction(named, locale), count: named.length }];
+  },
+  // The two tasks of a link a summary cannot bear to one of its subordinates, the summary first,
+  // each by its label (`LINK_FORBIDDEN`, WF-PLA-0030, #1582).
+  ({ link }, _label, locale, say) => {
+    const named = itemsOf(link, isLabelled).map(({ label }) => say("taskName", { label }));
+    return named.length === 0 ? undefined : ["link", { tasks: conjunction(named, locale) }];
+  },
+  // The task a write or a merge that would carry the project past the fifteen years it may last is
+  // refused for, by its label (`PROJECT_HORIZON_EXCEEDED`, WF-PLA-0150, #788): the contract says
+  // only « the task concerned », which is not always the one that ends the project.
+  ({ task }, _label, _locale, say) =>
+    isLabelled(task)
+      ? ["horizon_task", { task: say("taskName", { label: task.label }) }]
+      : undefined,
   // The day a date entered falls on without an hour worked, and the working day that follows, both
   // given by the server and written in the language of the reader (`NON_WORKING_DAY`, WF-PLA-0020).
-  ({ date, next_working_day }, _label, locale) =>
+  // The planning start date of a structure (`/planning_start_on`) is judged on the default calendar,
+  // no task being concerned: its refusal says so.
+  ({ date, next_working_day }, _label, locale, _say, _names, pointer) =>
     typeof date === "string" &&
     typeof next_working_day === "string" &&
     isPlanningDate(date) &&
     isPlanningDate(next_working_day)
       ? [
-          "non_working_day",
+          pointer === STRUCTURE_START ? "non_working_day_structure" : "non_working_day",
           {
             date: formatPlanningDay(date, locale),
             next: formatPlanningDay(next_working_day, locale),
           },
         ]
       : undefined,
+  // The dates a summary task takes from its subordinates, given by the server and written in the
+  // language of the reader (`SUMMARY_TASK_DERIVED`, WF-PLA-0040): what an import corrects of the
+  // summary task a file holds in manual mode.
+  ({ start, finish }, _label, locale) =>
+    typeof start === "string" &&
+    typeof finish === "string" &&
+    isPlanningDate(start) &&
+    isPlanningDate(finish)
+      ? [
+          "summary_dates",
+          { start: formatPlanningDay(start, locale), finish: formatPlanningDay(finish, locale) },
+        ]
+      : undefined,
   // The sub-project a line of a started task does not leave, because it received actual costs, by
   // its label (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050, #1066).
   ({ subproject }) =>
-    isLabelled(subproject) ? ["subproject", { label: subproject.label }] : undefined,
+    subproject === undefined ? undefined : ["subproject", { label: subproject.label }],
+  // What a line of a file imported is rejected for, named as the file bears it: the value it holds
+  // that no object has (`UNKNOWN_TASK`, `UNKNOWN_RESOURCE_ROLE`, `UNKNOWN_SUBPROJECT`, `value`), the
+  // label that several tasks share, with those tasks (`AMBIGUOUS_TASK_LABEL`, `label`, `tasks`,
+  // WF-INTF-0120), the element of work breakdown, and the project code it bears
+  // (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`, WF-CRE-0020), and the ranks of the other
+  // lines of the same document and item (`DUPLICATE_COST_LINE`, `rows`, WF-INTF-0080).
+  ({ value }) => (typeof value === "string" ? ["unknown_value", { value }] : undefined),
+  ({ label, tasks }, _label, locale, say) => {
+    const named = itemsOf(tasks, isLabelled).map((task) => say("taskName", { label: task.label }));
+    return typeof label === "string" && named.length > 0
+      ? ["ambiguous_label", { label, tasks: conjunction(named, locale) }]
+      : undefined;
+  },
+  ({ wbs_element }) =>
+    typeof wbs_element === "string" ? ["wbs_element", { element: wbs_element }] : undefined,
+  ({ project_code }) =>
+    typeof project_code === "string" ? ["project_code", { code: project_code }] : undefined,
+  ({ rows }, _label, locale) => {
+    const ranks = itemsOf(rows, (row): row is number => typeof row === "number");
+    return ranks.length === 0
+      ? undefined
+      : ["duplicate_rows", { count: ranks.length, rows: conjunction(ranks.map(String), locale) }];
+  },
   ({ state, state_enum }, label) => {
-    const told = stateIn(state_enum);
+    const told =
+      typeof state_enum === "string" && Object.hasOwn(STATES, state_enum)
+        ? STATES[state_enum]
+        : undefined;
     const named = told === undefined ? undefined : label(told.list, state);
     return told === undefined || named === undefined ? undefined : [told.detail, { state: named }];
   },
+  // Why a code cannot name the tab of a sub-project: the characters it bears that a tab cannot, or
+  // the name it bears that is reserved, as the server gives them (`SUBPROJECT_CODE_INVALID`,
+  // WF-PRJ-0050).
+  ({ forbidden_characters }) => {
+    const characters = itemsOf(
+      forbidden_characters,
+      (item): item is string => typeof item === "string",
+    );
+    return characters.length === 0
+      ? undefined
+      : ["forbidden_characters", { characters: characters.join(" ") }];
+  },
+  ({ reserved_name }) =>
+    typeof reserved_name === "string" ? ["reserved_name", { name: reserved_name }] : undefined,
   ({ max_columns }) =>
     typeof max_columns === "number" ? ["max_columns", { max_columns }] : undefined,
   ({ minimum }, _label, locale) => bound("minimum", minimum, locale),
@@ -333,7 +458,54 @@ const DETAILS: readonly Reader[] = [
     typeof expected_version === "string"
       ? ["expected_version", { version: expected_version }]
       : undefined,
+  // The columns of an extraction of actual costs the correspondence leaves without a label
+  // (`STATE_FORBIDS_OPERATION`, `actual_cost_mapping_complete`, WF-REF-0190), each by its name.
+  ({ columns = [], missing_condition }, label) => {
+    if (missing_condition !== "actual_cost_mapping_complete") {
+      return undefined;
+    }
+    const named = columns.flatMap((column) => label("enums.ActualCostSourceColumn", column) ?? []);
+    return named.length === 0
+      ? undefined
+      : ["columns", { count: named.length, columns: named.join(", ") }];
+  },
+  // The columns required that a file of actual costs lacks, each with the labels the correspondence
+  // declares for it (`FILE_FORMAT_UNREADABLE`, WF-REF-0190, WF-INTF-0070).
+  ({ missing_columns = [] }, label, locale, say) => {
+    const named = missing_columns.flatMap(({ column, labels }) => {
+      const name = label("enums.ActualCostSourceColumn", column);
+      if (name === undefined) {
+        return [];
+      }
+      const declared = labels.map((each) => say("declaredLabel", { label: each }));
+      return declared.length === 0
+        ? [name]
+        : [
+            say("missingColumn", {
+              column: name,
+              count: declared.length,
+              labels: conjunction(declared, locale),
+            }),
+          ];
+    });
+    return named.length === 0
+      ? undefined
+      : ["missing_columns", { count: named.length, columns: conjunction(named, locale) }];
+  },
 ];
+
+/**
+ * What a refusal of a code says of its own parameters, beyond those every refusal shares: the object
+ * an undo or a redo would take back from a later change, by the label the refusal gives it
+ * (`UNDO_CONFLICT`, `conflicting_object_label`, WF-IHM-0110) — the same parameter names, under
+ * `ALREADY_EXISTS`, the holder of a value, which the form says at its field.
+ */
+const OWN: Readonly<
+  Partial<Record<ProblemText["code"], (params: Readonly<Params>) => Detail | undefined>>
+> = {
+  UNDO_CONFLICT: ({ conflicting_object_label: label }) =>
+    typeof label === "string" && label !== "" ? ["conflicting_object", { label }] : undefined,
+};
 
 /** A decimal of the contract — `Decimal`, `Money` —, which a bound may be written in. */
 const DECIMAL = /^-?\d+(\.\d+)?$/;
@@ -375,6 +547,21 @@ function labelIn(messages: Catalogue): Label {
   };
 }
 
+/**
+ * The codes of the other reasons a refusal gives for the field it was reduced to (`byField`,
+ * #1533): the fields that point where the field of its own code points, with another code, once
+ * each. None for an envelope that was not reduced to a field's code.
+ */
+function furtherReasons({ code, fields = [] }: ProblemText): readonly ProblemText["code"][] {
+  const own = fields.find((field) => field.code === code);
+  const others = fields.flatMap((field) =>
+    field.code !== undefined && field.code !== code && field.pointer === own?.pointer
+      ? [field.code]
+      : [],
+  );
+  return own === undefined ? [] : [...new Set(others)];
+}
+
 /** Render a refusal of the API as a sentence in the reader's language. */
 export function problemMessage(
   problem: ProblemText,
@@ -384,12 +571,24 @@ export function problemMessage(
   const label = labelIn(messages);
   const say: Say = (key, values) => t(`problemDetails.${key}`, values);
   const every = [
-    problem.params ?? {},
-    ...(problem.fields ?? []).map((field) => field.params ?? {}),
+    { params: problem.params ?? {}, pointer: undefined },
+    ...(problem.fields ?? []).map((field) => ({
+      params: field.params ?? {},
+      pointer: field.pointer,
+    })),
   ];
-  const details = every
-    .flatMap((params) => DETAILS.map((detail) => detail(params, label, locale, say, names)))
+  const own = OWN[problem.code]?.(problem.params ?? {});
+  const details = [
+    ...every.flatMap(({ params, pointer }) =>
+      DETAILS.map((detail) => detail(params, label, locale, say, names, pointer)),
+    ),
+    own,
+  ]
     .filter((detail) => detail !== undefined)
     .map(([key, values]) => say(key, values));
-  return [t(`errors.${problem.code}`), ...details].join(" ");
+  return [
+    t(`errors.${problem.code}`),
+    ...furtherReasons(problem).map((code) => t(`errors.${code}`)),
+    ...details,
+  ].join(" ");
 }

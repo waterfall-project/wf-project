@@ -24,26 +24,34 @@
               incomplete: { $ref: ../../../fixtures/api/reference_readiness_incomplete.json }
               without_provision: { $ref: ../../../fixtures/api/reference_readiness_without_provision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/settings:
   get:
     operationId: getReferenceSettings
     tags: [reference]
-    summary: Devise, langue par défaut, matrice de risques, seuils et délai de revue
+    summary: Devise, nom de l'entreprise, langue, matrice de risques, seuils et délai de revue
     description: >-
       Les réglages que tout projet hérite de l'installation (WF-REF-0140, WF-REF-0160,
-      WF-REF-0170, WF-REF-0180).
+      WF-REF-0170, WF-REF-0180), et le nom de l'entreprise utilisatrice, que portent les fichiers
+      exportés (WF-EXP-0020). Lus par toute session ouverte, sans permission : la devise
+      accompagne chaque montant affiché (WF-REF-0140) et la langue par défaut sert à tout écran ;
+      les bornes, les seuils et le délai qualifient ce que tout lecteur de projet voit
+      (WF-REF-0160 à WF-REF-0180). Seule l'écriture relève des permissions de ses fonctions,
+      champ par champ (`updateReferenceSettings`).
     responses:
       '200':
-        description: Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160).
+        description: >-
+          Paramètres (WF-REF-0140, WF-REF-0160, WF-REF-0170, WF-REF-0180, WF-INTF-0160,
+          WF-EXP-0020).
         content:
           application/json:
             schema: { $ref: ../components/schemas/reference.yaml#/ReferenceSettings }
             examples:
               witness: { $ref: ../../../fixtures/api/reference_settings.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateReferenceSettings
@@ -51,18 +59,23 @@
     summary: Régler les paramètres communs
     description: >-
       La devise est choisie à l'installation et n'est pas modifiable (WF-REF-0140). Chaque
-      champ relève de la permission de sa fonction (WF-ADM-0100) : la matrice de risques
-      (`risk_matrix`) de `risk_settings.write` (WF-REF-0160), les seuils des indices et le
+      champ relève de la permission de sa fonction (WF-ADM-0100) : le nom de l'entreprise
+      (`company_name`), saisi à l'installation et modifiable ensuite (WF-EXP-0020), de
+      `cost_settings.write`, la fonction des paramètres de coûts, dont l'écran le montre à côté
+      de la devise ; la matrice de risques
+      (`risk_matrix`) de `risk_settings.write` (WF-REF-0160) ; les seuils des indices et le
       délai entre deux revues (`index_thresholds`, `max_weeks_between_reviews`)
       d'`indicator_settings.write` (WF-REF-0170, WF-REF-0180). Une requête ne porte que ce
       qu'elle écrit, avec le compteur lu, commun à tous les paramètres : un champ absent reste
       tel qu'il est. Un champ dont la session ne porte pas la permission est refusé par 403,
-      même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Les six
+      même si la requête en porte un autre qu'elle pourrait écrire ; rien n'est écrit. Le nom
+      de l'entreprise est obligatoire : un nom vide, ou plus long que 200 caractères, est refusé
+      par champ (422). Les six
       bornes de la matrice sont ordonnées, strictement croissantes sur chaque axe
       (WF-REF-0160), et le seuil d'alerte de chaque indice reste strictement inférieur à son
       seuil de vigilance (WF-REF-0170) : une borne ou un seuil qui ne le sont pas sont refusés
       par champ (422). La langue par défaut de l'installation (`default_language`,
-      WF-INTF-0160) ne relève d'aucune des deux fonctions et ne s'écrit pas ici : aucun écran
+      WF-INTF-0160) ne relève d'aucune de ces fonctions et ne s'écrit pas ici : aucun écran
       du référentiel ne l'écrit, et elle s'écrira là où EP-03 le décidera.
     requestBody:
       required: true
@@ -78,14 +91,16 @@
             examples:
               thresholds_updated: { $ref: ../../../fixtures/api/reference_settings_thresholds_updated.json }
               matrix_updated: { $ref: ../../../fixtures/api/reference_settings_matrix_updated.json }
+              company_updated: { $ref: ../../../fixtures/api/reference_settings_company_updated.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403':
         description: >-
           Un champ dont la session ne porte pas la permission de la fonction :
-          `PERMISSION_MISSING`, `params.missing_permission` la nommant — `risk_settings.write`
-          pour la matrice, `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100,
-          WF-ADM-0110) ; rien n'est écrit.
+          `PERMISSION_MISSING`, `params.missing_permission` la nommant — `cost_settings.write`
+          pour le nom de l'entreprise, `risk_settings.write` pour la matrice,
+          `indicator_settings.write` pour les seuils et le délai (WF-ADM-0100, WF-ADM-0110) ;
+          rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -103,10 +118,12 @@
               stale: { $ref: ../../../fixtures/api/reference_settings_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : une borne de la
-          matrice qui n'est pas strictement supérieure à la précédente,
-          `/risk_matrix/probability_bounds/<rang>` ou `/risk_matrix/severity_bounds/<rang>` par
-          `BOUNDS_NOT_ORDERED`, le rang celui de la borne qui rompt l'ordre (WF-REF-0160) ; un
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut : un nom de l'entreprise
+          vide, `/company_name` par `VALUE_REQUIRED`, ou plus long que 200 caractères, par
+          `VALUE_TOO_LONG` (WF-EXP-0020) ; une borne de la matrice qui n'est pas strictement
+          supérieure à la précédente, `/risk_matrix/probability_bounds/<rang>` ou
+          `/risk_matrix/severity_bounds/<rang>` par `BOUNDS_NOT_ORDERED`, le rang celui de la
+          borne qui rompt l'ordre (WF-REF-0160) ; un
           seuil d'alerte qui n'est pas strictement inférieur au seuil de vigilance de son indice,
           `/index_thresholds/cost_alert` ou `/index_thresholds/schedule_alert` par
           `THRESHOLD_NOT_BELOW_WATCH` (WF-REF-0170) ; un seuil qui n'est pas un décimal (motif
@@ -123,7 +140,9 @@
             examples:
               bounds_not_ordered: { $ref: ../../../fixtures/api/reference_settings_bounds_refused.json }
               thresholds_not_below_watch: { $ref: ../../../fixtures/api/reference_settings_thresholds_refused.json }
+              company_refused: { $ref: ../../../fixtures/api/reference_settings_company_refused.json }
               out_of_range: { $ref: ../../../fixtures/api/reference_settings_out_of_range.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes:
@@ -146,7 +165,13 @@
       l'arbre se lise sans trou ; un ancêtre rendu pour cela seul peut ne pas les satisfaire.
       Chaque nœud porte la commande qui change son état, disponible ou non (`available_commands`,
       WF-IHM-0090) : la réactivation d'un nœud dont le parent est désactivé est indisponible
-      (WF-REF-0080).
+      (WF-REF-0080). Les nœuds actifs se lisent par toute session ouverte : ils servent de
+      vocabulaire aux projets — le nœud du plan de charge, le rattachement d'un rôle — (FBS-4 ;
+      décision de l'auteur du 2026-11-01, #1745). Les nœuds désactivés (`include_inactive`,
+      `is_active` faux) et toute écriture relèvent de la permission de modifier les paramètres
+      de ressources (`resource_settings.write`, WF-ADM-0100) : sans elle, l'un et l'autre sont
+      refusés par 403 `PERMISSION_MISSING`, `params.missing_permission` la nommant (WF-REF-0150 ;
+      C-01, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/IncludeInactive
       - $ref: ../components/parameters.yaml#/Search
@@ -189,7 +214,16 @@
               with_inactive: { $ref: ../../../fixtures/api/org_nodes_with_inactive.json }
               reader: { $ref: ../../../fixtures/api/org_nodes_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '403':
+        description: >-
+          Les nœuds désactivés demandés sans la permission de modifier les paramètres de
+          ressources : `PERMISSION_MISSING`, `params.missing_permission` à
+          `resource_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/org_nodes_inactive_forbidden.json }
       '422':
         description: >-
           Une borne de la profondeur mal formée, `/query/<borne>` par `NUMBER_INVALID`, ou
@@ -198,6 +232,9 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              bounds_inverted: { $ref: ../../../fixtures/api/org_nodes_bounds_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createOrgNode
@@ -248,6 +285,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               parent_inactive: { $ref: ../../../fixtures/api/org_node_creation_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes/{org_node_id}:
@@ -321,6 +359,7 @@
             examples:
               parent_inactive: { $ref: ../../../fixtures/api/org_node_move_refused.json }
               cycle: { $ref: ../../../fixtures/api/org_node_move_cycle_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/org-nodes/{org_node_id}/activation:
@@ -396,6 +435,7 @@
             examples:
               stale: { $ref: ../../../fixtures/api/org_node_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles:
@@ -405,10 +445,11 @@
     summary: Rôles de ressources
     description: >-
       Les rôles de ressources, leurs rattachements et leur capacité, désactivés compris
-      (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent sans la permission
-      du référentiel : quiconque consulte un projet nomme et choisit le rôle d'une ligne de
-      devis (WF-DEV-0020). Les rôles désactivés (`include_inactive`, `is_active` faux) et toute
-      écriture restent sous la permission des paramètres de ressources (WF-ADM-0100) : sans
+      (WF-REF-0090, WF-REF-0100, WF-REF-0150). Les rôles actifs se lisent par toute session
+      ouverte, sans la permission du référentiel : quiconque consulte un projet nomme et choisit
+      le rôle d'une ligne de devis (WF-DEV-0020 ; #1745). Les rôles désactivés
+      (`include_inactive`, `is_active` faux) et toute écriture relèvent de la permission de
+      modifier les paramètres de ressources (`resource_settings.write`, WF-ADM-0100) : sans
       elle, l'un et l'autre sont refusés par 403. Une table plate, triée, filtrée et paginée
       par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`) porte sur le libellé
       et sur le code du rôle (WF-REF-0090), comme celle des nœuds ; le code, le nœud, la
@@ -506,7 +547,6 @@
               bounded: { $ref: ../../../fixtures/api/resource_roles_bounded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
         description: >-
           Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`,
@@ -519,6 +559,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/resource_roles_bounds_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createResourceRole
@@ -580,6 +621,8 @@
             examples:
               node_inactive: { $ref: ../../../fixtures/api/resource_role_creation_refused.json }
               attachments: { $ref: ../../../fixtures/api/resource_role_attachments_refused.json }
+              calendar_unknown: { $ref: ../../../fixtures/api/resource_role_calendar_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles/{resource_role_id}:
@@ -639,27 +682,29 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code` ou
-          `/label` vides ou trop longs ; `/cost_category_id` ou `/calendar_id` absent ou nul, par
-          `VALUE_REQUIRED`, inconnu, par `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une
-          catégorie hors main-d'œuvre, par `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle
-          garde ne l'est jamais, aucune catégorie à laquelle un rôle est rattaché ne quittant la
-          main-d'œuvre (WF-REF-0040, `cost_category_without_role`) — ; une capacité négative, par
-          `VALUE_OUT_OF_RANGE`, `fields[].params.minimum` à `0` ; et, quand la modification
-          change la catégorie ou le calendrier du rôle, un objet désactivé, par
-          `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un rôle qui garde les siens, désactivés
-          depuis, se modifie. Ou bien le calendrier donné au rôle laisserait une tâche d'une
-          révision en cours sans aucune heure travaillée dans la semaine : il ne recoupe jamais
-          celui d'un autre rôle de ses lignes de main-d'œuvre, ou, sur une tâche dont ce rôle est
-          le seul, il n'a aucune heure dans la semaine (EP-14/L42s) : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` nommant les rôles en cause et `params.projects` chaque projet
-          en cause, par son libellé et son code (`project_label`, `project_code`), sans
-          identifiant ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110).
-          Rien n'est écrit.
+          `/label` vides ou trop longs ; un nœud envoyé autre que celui du rôle, `/org_node_id` par
+          `FIELD_READ_ONLY` — renvoyé inchangé, il ne l'est pas (WF-REF-0090) ; `/cost_category_id`
+          ou `/calendar_id` absent ou nul, par `VALUE_REQUIRED`, inconnu, par
+          `UNKNOWN_COST_CATEGORY` ou `UNKNOWN_CALENDAR` ; une catégorie hors main-d'œuvre, par
+          `LABOUR_CATEGORY_REQUIRED` — la catégorie qu'un rôle garde ne l'est jamais, aucune
+          catégorie à laquelle un rôle est rattaché ne quittant la main-d'œuvre (WF-REF-0040,
+          `cost_category_without_role`) — ; une capacité négative, par `VALUE_OUT_OF_RANGE`,
+          `fields[].params.minimum` à `0` ; et, quand la modification change la catégorie ou le
+          calendrier du rôle, un objet désactivé, par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0090) — un
+          rôle qui garde les siens, désactivés depuis, se modifie. Ou bien le calendrier donné au
+          rôle laisserait une tâche d'une révision en cours sans aucune heure travaillée dans la
+          semaine : il ne recoupe jamais celui d'un autre rôle de ses lignes de main-d'œuvre, ou,
+          sur une tâche dont ce rôle est le seul, il n'a aucune heure dans la semaine (EP-14/L42s) :
+          `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` nommant les rôles en cause, par leur
+          identifiant, leur code et leur libellé (#1684), et `params.projects` chaque projet en
+          cause, par son libellé et son code (`project_label`, `project_code`), sans identifiant ni
+          tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/resource_role_update_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/resource-roles/{resource_role_id}/activation:
@@ -721,6 +766,7 @@
             examples:
               stale: { $ref: ../../../fixtures/api/resource_role_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/duration-units:
@@ -743,6 +789,7 @@
             examples:
               defaults: { $ref: ../../../fixtures/api/duration_units.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setDurationUnits
@@ -793,6 +840,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               zero: { $ref: ../../../fixtures/api/duration_units_zero.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars:
@@ -810,7 +858,14 @@
       Chaque calendrier porte ses commandes, disponibles ou
       non (`available_commands`, WF-IHM-0090) : celle qui change son état, la désactivation du
       calendrier par défaut indisponible, et, sauf pour le calendrier par défaut, sa
-      désignation, indisponible pour un calendrier désactivé (WF-REF-0120).
+      désignation, indisponible pour un calendrier désactivé (WF-REF-0120). Les calendriers
+      actifs se lisent par toute session ouverte : ils servent de vocabulaire aux projets — le
+      calendrier d'un rôle, celui d'une tâche — (FBS-4 ; décision de l'auteur du 2026-11-01,
+      #1745). Les calendriers désactivés (`include_inactive`, `is_active` faux) et toute écriture
+      relèvent de la permission de modifier les paramètres de ressources
+      (`resource_settings.write`, WF-ADM-0100) : sans elle, l'un et l'autre sont refusés par 403
+      `PERMISSION_MISSING`, `params.missing_permission` la nommant (WF-REF-0150 ; C-01,
+      US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -858,8 +913,18 @@
               with_inactive: { $ref: ../../../fixtures/api/calendars_with_inactive.json }
               reader: { $ref: ../../../fixtures/api/calendars_reader.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '403':
+        description: >-
+          Les calendriers désactivés demandés sans la permission de modifier les paramètres de
+          ressources : `PERMISSION_MISSING`, `params.missing_permission` à
+          `resource_settings.write` (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/calendars_inactive_forbidden.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCalendar
@@ -907,6 +972,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}:
@@ -959,24 +1025,27 @@
               stale: { $ref: ../../../fixtures/api/calendar_update_stale.json }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label`
-          vide ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la
-          seule borne franchie (WF-REF-0110). Ou bien les heures données au calendrier
-          laisseraient une tâche d'une révision en cours sans aucune heure travaillée dans la
-          semaine : les calendriers des rôles de ses lignes de main-d'œuvre ne se recoupant plus
-          aucun jour, ou, pour le calendrier par défaut, une tâche sans ligne de main-d'œuvre qui
-          n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
-          `params.resource_role_ids` nommant les rôles en cause — vide quand seules des tâches sans
-          ligne de main-d'œuvre perdent leurs heures — et `params.projects` chaque projet en
-          cause, par son libellé et son code (`project_label`, `project_code`), sans identifiant
-          ni tâche : l'appelant peut ne pas le consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est
-          écrit.
+          `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/label` vide
+          ou trop long, les heures d'un jour hors de 0 à 24 par `VALUE_OUT_OF_RANGE`, la seule borne
+          franchie (WF-REF-0110). Ou bien les heures données au calendrier laisseraient une tâche
+          d'une révision en cours sans aucune heure travaillée dans la semaine : les calendriers des
+          rôles de ses lignes de main-d'œuvre ne se recoupant plus aucun jour, ou, sur une tâche
+          dont un rôle est le seul, le calendrier de ce rôle n'ayant plus aucune heure dans la
+          semaine — `params.resource_roles` nommant alors ce seul rôle, comme `updateResourceRole`
+          (EP-14/L42s, #795) — ; ou, pour le calendrier par défaut, une tâche sans ligne de
+          main-d'œuvre qui n'aurait plus d'heure du tout : `TASK_WITHOUT_WORKING_HOURS`,
+          `params.resource_roles` nommant les rôles en cause, par leur identifiant, leur code et
+          leur libellé (#1684) — vide quand seules des tâches sans ligne de main-d'œuvre perdent
+          leurs heures — et `params.projects` chaque projet en cause, par son libellé et son code
+          (`project_label`, `project_code`), sans identifiant ni tâche : l'appelant peut ne pas le
+          consulter (WF-PLA-0010, WF-ADM-0110). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               hours_out_of_range: { $ref: ../../../fixtures/api/calendar_hours_refused.json }
               task_without_hours: { $ref: ../../../fixtures/api/calendar_update_without_hours.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}/default:
@@ -1047,7 +1116,7 @@
         description: >-
           Le calendrier désigné n'a aucune heure dans la semaine, et des tâches sans ligne de
           main-d'œuvre d'une révision en cours, qui en relèveraient, n'auraient plus d'heure
-          travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_role_ids` vide,
+          travaillée : `TASK_WITHOUT_WORKING_HOURS`, `params.resource_roles` vide,
           `params.projects` nommant chaque projet en cause par son libellé et son code
           (`project_label`, `project_code`), sans identifiant ni tâche (WF-PLA-0010,
           WF-ADM-0110). Ou un corps refusé, un compteur absent ou d'un autre type :
@@ -1055,6 +1124,9 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              without_hours: { $ref: ../../../fixtures/api/calendar_default_without_hours.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/calendars/{calendar_id}/activation:
@@ -1112,6 +1184,7 @@
             examples:
               stale: { $ref: ../../../fixtures/api/calendar_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types:
@@ -1126,7 +1199,13 @@
       filtrent, et `meta.total` compte les natures retenues. Chaque nature porte ses commandes
       (`available_commands`, WF-IHM-0090) : celle qui change son état, et la modification de son
       type, indisponible dès qu'une de ses catégories est employée, porte un taux horaire ou est
-      rattachée à un rôle de ressource (WF-REF-0030).
+      rattachée à un rôle de ressource (WF-REF-0030). Les natures actives se lisent par toute
+      session ouverte : elles servent de vocabulaire aux projets — la nature d'une catégorie de
+      ligne de devis — (FBS-4 ; décision de l'auteur du 2026-11-01, #1745). Les natures
+      désactivées (`include_inactive`, `is_active` faux) et toute écriture relèvent de la
+      permission de modifier les paramètres de coûts (`cost_settings.write`, WF-ADM-0100) : sans
+      elle, l'un et l'autre sont refusés par 403 `PERMISSION_MISSING`,
+      `params.missing_permission` la nommant (WF-REF-0150 ; C-01, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/Limit
       - $ref: ../components/parameters.yaml#/Offset
@@ -1169,8 +1248,18 @@
               reader: { $ref: ../../../fixtures/api/cost_types_reader.json }
               with_inactive: { $ref: ../../../fixtures/api/cost_types_with_inactive.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '403':
+        description: >-
+          Les natures désactivées demandées sans la permission de modifier les paramètres de
+          coûts : `PERMISSION_MISSING`, `params.missing_permission` à `cost_settings.write`
+          (WF-REF-0150, WF-ADM-0100).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              inactive_forbidden: { $ref: ../../../fixtures/api/cost_types_inactive_forbidden.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostType
@@ -1219,6 +1308,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_type_creation_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types/{cost_type_id}:
@@ -1277,6 +1367,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               kind_frozen: { $ref: ../../../fixtures/api/cost_type_kind_refused.json }
+              code_taken: { $ref: ../../../fixtures/api/cost_type_code_taken.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -1288,6 +1379,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_type_update_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-types/{cost_type_id}/activation:
@@ -1340,7 +1432,10 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_type_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories:
@@ -1350,10 +1445,11 @@
     summary: Catégories de coût
     description: >-
       Les catégories de coût et leur nature, désactivées comprises (WF-REF-0040,
-      WF-REF-0150). Les catégories actives se lisent sans la permission du référentiel :
-      quiconque consulte un projet nomme et choisit la catégorie d'une ligne de devis
-      (WF-DEV-0020). Les catégories désactivées (`include_inactive`) et toute écriture
-      restent sous la permission des paramètres de coûts (WF-ADM-0100) : sans elle,
+      WF-REF-0150). Les catégories actives se lisent par toute session ouverte, sans la
+      permission du référentiel : quiconque consulte un projet nomme et choisit la catégorie
+      d'une ligne de devis (WF-DEV-0020 ; #1745). Les catégories désactivées
+      (`include_inactive`) et toute écriture relèvent de la permission de modifier les
+      paramètres de coûts (`cost_settings.write`, WF-ADM-0100) : sans elle,
       `include_inactive` et `is_active` faux sont refusés par 403. Une table plate, triée,
       filtrée et paginée par le serveur (WF-IHM-0060, WF-IHM-0130) : la recherche (`search`)
       porte sur le code et sur le libellé de la catégorie, comme celle de la grille des taux, et
@@ -1402,10 +1498,11 @@
               volume: { $ref: ../../../fixtures/api/volume/cost_categories.json }
               page: { $ref: ../../../fixtures/api/volume/cost_categories_page.json }
               reader: { $ref: ../../../fixtures/api/volume/cost_categories_reader.json }
+              type_deactivated: { $ref: ../../../fixtures/api/volume/cost_categories_type_deactivated.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createCostCategory
@@ -1447,7 +1544,8 @@
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus : un code, un libellé ou un code
           comptable vides, `/code`, `/label` ou `/accounting_code` par `VALUE_REQUIRED`, ou plus
-          longs que le schéma ne l'admet, par `VALUE_TOO_LONG` ; une nature absente ou nulle — une
+          longs que le schéma ne l'admet, par `VALUE_TOO_LONG`, ou faits seulement de blancs, par
+          le motif `VALIDATION_FAILED` au même pointeur ; une nature absente ou nulle — une
           catégorie sans nature (WF-REF-0040) —, `/cost_type_id` par `VALUE_REQUIRED` ; une nature
           que le référentiel n'a pas, `/cost_type_id` par `UNKNOWN_COST_TYPE` ; une nature désactivée, qui n'est plus
           proposée à la saisie, `/cost_type_id` par `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010).
@@ -1458,6 +1556,7 @@
             examples:
               refused: { $ref: ../../../fixtures/api/cost_category_creation_refused.json }
               without_type: { $ref: ../../../fixtures/api/cost_category_without_type_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}:
@@ -1521,8 +1620,9 @@
       '422':
         description: >-
           `VALIDATION_FAILED`, `fields` localisant chaque refus, comme à la création : `/code`,
-          `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, ou trop longs, par
-          `VALUE_TOO_LONG` ; `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie
+          `/label` ou `/accounting_code` vides, par `VALUE_REQUIRED`, trop longs, par
+          `VALUE_TOO_LONG`, ou faits seulement de blancs, par le motif `VALIDATION_FAILED` ;
+          `/cost_type_id` absente ou nulle, par `VALUE_REQUIRED` — une catégorie
           ne reste pas sans nature (WF-REF-0040) —, inconnue, par `UNKNOWN_COST_TYPE`, ou par
           `INACTIVE_REFERENCE_OBJECT` quand la modification change la catégorie de nature pour une
           nature désactivée (WF-REF-0010). Rien n'est écrit.
@@ -1531,6 +1631,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               refused: { $ref: ../../../fixtures/api/cost_category_update_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/activation:
@@ -1592,7 +1693,10 @@
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/cost_category_activation_stale.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/hourly-rates:
@@ -1605,12 +1709,18 @@
       une lecture (WF-REF-0050) : la grille du référentiel s'ouvre sans lire les catégories
       une à une. Une année sans taux pour une catégorie est une cellule vide ; aucune colonne
       n'est créée d'elle-même, une année s'ajoute par le premier taux qu'on y saisit
-      (WF-REF-0060). Les catégories désactivées ne sont rendues qu'avec `include_inactive`
-      (WF-REF-0150), sous la permission des paramètres de coûts : sans elle, `include_inactive`
-      est refusé par 403 (WF-ADM-0100). Une table plate, triée et paginée par le serveur
-      comme les autres listes du référentiel (WF-IHM-0060) : `search` retient les catégories
-      dont le code ou le libellé contient le texte cherché (WF-IHM-0130), l'état se filtre
-      (`is_active`), le taux d'une année se borne (`rate_year`, `rate_min`, `rate_max`),
+      (WF-REF-0060). La grille est lue sous la permission de lire les paramètres de coûts
+      (`cost_settings.read`, FBS-3.1, WF-ADM-0100), comme la correspondance de l'extraction
+      (`getActualCostMapping`) : sans elle, 404, comme une grille qui n'existerait pas
+      (WF-ADM-0110). Seul l'écran du référentiel la lit — le serveur calcule les montants des
+      lignes —, et les taux, proches de la masse salariale, ne se montrent pas à toute session
+      (décision de l'auteur du 2026-11-01, #1745). Les catégories désactivées ne sont rendues
+      qu'avec `include_inactive` (WF-REF-0150), sous la permission de modifier les paramètres de
+      coûts : sans elle, `include_inactive` est refusé par 403 (WF-ADM-0100). Une table plate,
+      triée et paginée par le serveur comme les autres listes du référentiel (WF-IHM-0060) :
+      `search` retient les catégories dont le code ou le libellé contient le texte cherché
+      (WF-IHM-0130), l'état se filtre (`is_active`), le taux d'une année se borne (`rate_year`,
+      `rate_min`, `rate_max`),
       `sort_by` les ordonne, et `meta.total` compte les catégories retenues ; les années restent
       celles de toute la grille, quels que soient la page, la recherche, les filtres et le tri.
     parameters:
@@ -1669,7 +1779,16 @@
               bounded: { $ref: ../../../fixtures/api/volume/hourly_rate_grid_bounded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Une session qui ne porte pas la permission de lire les paramètres de coûts
+          (`cost_settings.read`) : `NOT_FOUND`, comme une grille qui n'existerait pas
+          (WF-ADM-0110, #1745).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_readable: { $ref: ../../../fixtures/api/hourly_rate_grid_not_readable.json }
       '422':
         description: >-
           Une borne mal formée, qui n'est pas un nombre de son type : `VALIDATION_FAILED`,
@@ -1683,6 +1802,7 @@
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/hourly_rate_grid_bounds_inverted.json }
               rate_year_missing: { $ref: ../../../fixtures/api/hourly_rate_grid_rate_year_missing.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/hourly-rates:
@@ -1690,7 +1810,15 @@
     operationId: listHourlyRates
     tags: [reference]
     summary: Taux horaires annuels d'une catégorie
-    description: Au plus un taux par année (WF-REF-0050). Le taux de l'année en cours est exigé au chiffrage (WF-REF-0060).
+    description: >-
+      Les taux d'une catégorie, au plus un par année (WF-REF-0050) : la liste creuse que
+      `getHourlyRateGrid` présente en grille. Le chiffrage n'emploie que le taux de l'année de
+      référence du projet (WF-DEV-0010, `getMissingRates`) ; une année s'ajoute par son premier
+      taux (`setHourlyRate`, WF-REF-0060). Les taux sont lus, comme la grille, sous la permission
+      de lire les paramètres de coûts (`cost_settings.read`, FBS-3.1, WF-ADM-0100) : sans elle,
+      404, comme une catégorie qui n'existerait pas (WF-ADM-0110). Les taux, proches de la masse
+      salariale, ne se montrent pas à toute session, la catégorie elle-même restant lisible par
+      toute session (`listCostCategories`) (complément de l'auteur du 2026-11-01, #1745).
     parameters:
       - $ref: ../components/parameters.yaml#/CostCategoryId
     responses:
@@ -1704,7 +1832,17 @@
             examples:
               volume: { $ref: ../../../fixtures/api/volume/hourly_rates.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Une catégorie qui n'existe pas, ou une session qui ne porte pas la permission de lire
+          les paramètres de coûts (`cost_settings.read`) : `NOT_FOUND`, sans rien distinguer,
+          comme pour la grille (`getHourlyRateGrid`, WF-ADM-0110, #1745).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_readable: { $ref: ../../../fixtures/api/hourly_rates_not_readable.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /reference/cost-categories/{cost_category_id}/hourly-rates/{year}:
@@ -1777,4 +1915,108 @@
             examples:
               amount_out_of_range: { $ref: ../../../fixtures/api/hourly_rate_amount_refused.json }
               not_labour: { $ref: ../../../fixtures/api/hourly_rate_non_labour_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/reference/actual-cost-mapping:
+  get:
+    operationId: getActualCostMapping
+    tags: [reference]
+    summary: Correspondance de l'extraction des coûts réels
+    description: >-
+      La correspondance entre l'extraction de l'ERP et le format « Coûts réels » (WF-REF-0190) :
+      pour chacune des cinq colonnes lues, les intitulés qui la désignent dans l'extraction, et
+      les colonnes de l'extraction conservées à titre d'information (WF-CRE-0010). Un objet
+      unique de l'installation, lu par qui porte la permission de lire les paramètres de coûts
+      (`cost_settings.read`, FBS-3.1, WF-ADM-0100). Vide à l'installation : tant que l'une des
+      quatre colonnes exigées n'a aucun intitulé, la correspondance est incomplète
+      (`is_complete`, `missing_columns`), et l'import des coûts réels est refusé en le nommant
+      (`ProjectCommand.import_actual_costs`, `openImport`).
+    responses:
+      '200':
+        description: La correspondance, ses colonnes lues dans leur ordre fixe.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMapping }
+            examples:
+              witness: { $ref: ../../../fixtures/api/actual_cost_mapping.json }
+              empty: { $ref: ../../../fixtures/api/actual_cost_mapping_empty.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  put:
+    operationId: setActualCostMapping
+    tags: [reference]
+    summary: Régler la correspondance de l'extraction des coûts réels
+    description: >-
+      Remplace la correspondance entière — les intitulés des cinq colonnes lues et les colonnes
+      conservées — avec le compteur lu, sous la permission des paramètres de coûts
+      (`cost_settings.write`, FBS-3.1, WF-ADM-0100). Une correspondance incomplète
+      s'enregistre : elle se règle en plusieurs fois, et c'est l'import qui la refuse. Les
+      intitulés se comparent sans égard à la casse, aux accents ni aux espaces en bout
+      (WF-REF-0190) : un intitulé qui, ainsi comparé, en double un autre — d'une même colonne
+      lue, de deux colonnes lues, ou d'une colonne lue et d'une colonne conservée — est refusé
+      par champ, et rien n'est écrit. La modification vaut pour les imports suivants et ne
+      change aucune ligne déjà importée (WF-REF-0190) ; un import de coûts réels déjà analysé
+      s'applique tel qu'il a été analysé (`applyImport`, WF-INTF-0080).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMappingWrite }
+    responses:
+      '200':
+        description: Correspondance enregistrée, entière, à sa version suivante.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/reference.yaml#/ActualCostMapping }
+            examples:
+              updated: { $ref: ../../../fixtures/api/actual_cost_mapping_updated.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403':
+        description: >-
+          Une session qui ne porte pas la permission de modifier les paramètres de coûts :
+          `PERMISSION_MISSING`, `params.missing_permission` à `cost_settings.write` (WF-ADM-0100,
+          WF-ADM-0110) ; rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              permission_missing: { $ref: ../../../fixtures/api/actual_cost_mapping_permission_missing.json }
+      '412':
+        description: >-
+          La correspondance a été modifiée depuis sa lecture : `STALE_LOCK_VERSION`,
+          `params.expected_lock_version` sa version courante ; rien n'est écrit, l'écran propose
+          de relire (WF-IHM-0110).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/actual_cost_mapping_stale.json }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ en défaut. Un intitulé qui en double
+          un autre, comparé sans égard à la casse, aux accents ni aux espaces en bout
+          (WF-REF-0190) : `DUPLICATE_COLUMN_LABEL` au pointeur de l'intitulé en double —
+          `/columns/<rang>/labels/<rang>` ou `/kept_columns/<rang>` —, `fields[].params.duplicate_of`
+          le pointeur de l'intitulé qu'il double : de deux intitulés qui se doublent, celui qui
+          vient le second dans le corps — les colonnes lues dans leur ordre, chacune ses intitulés
+          dans le leur, puis les colonnes conservées —, et de plusieurs, chacun après le premier,
+          que tous nomment. Un intitulé vide, par `VALUE_REQUIRED` ; plus
+          long que 200 caractères, par `VALUE_TOO_LONG` ; fait seulement de blancs, comme tout
+          libellé, par `VALIDATION_FAILED`, au pointeur de l'intitulé. Plus de 20 intitulés pour
+          une colonne lue, ou plus de 50 colonnes conservées, par `VALUE_TOO_LONG` au pointeur de
+          la liste. Des colonnes lues qui ne sont pas les cinq, chacune une fois, dans l'ordre
+          d'`ActualCostSourceColumn`, par `VALIDATION_FAILED` au pointeur `/columns`. Rien n'est
+          écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              duplicate: { $ref: ../../../fixtures/api/actual_cost_mapping_duplicate.json }
+              labels_refused: { $ref: ../../../fixtures/api/actual_cost_mapping_labels_refused.json }
+              kept_columns_too_many: { $ref: ../../../fixtures/api/actual_cost_mapping_kept_columns_too_many.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

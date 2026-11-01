@@ -2,8 +2,8 @@
 
 Ce fichier est lu par chacun des agents de `.claude/agents/` avant tout travail ; aucun ne
 le recopie. Il ne dit que ce qui est propre au travail d'un agent : pour le reste, il
-renvoie au [guide](README.md), aux règles de codage ([Python](python.md),
-[TypeScript](typescript.md), [Java](java.md)) et au [README de la roadmap](../roadmap/README.md), qui font
+renvoie au [guide](README-fr.md), aux règles de codage ([Python](python.md),
+[TypeScript](typescript.md), [Java](java.md)) et au [README de la roadmap](../roadmap/README-fr.md), qui font
 foi.
 
 ## Les agents
@@ -76,6 +76,8 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   son langage, défauts déjà rencontrés compris.
 - **Le code est en anglais, la documentation en français**, comme les messages de commit :
   une ligne qui dit ce qui change, puis un corps qui dit pourquoi.
+- **Un `README-fr.md` de `docs/` ne change pas seul** : sa modification se porte, traduite,
+  dans le `README.md` voisin, dans la même pull request ; `make readmes` le vérifie.
 - **Aucune règle ne se contourne dans le code** : pas de commentaire d'exemption, jamais.
 - **Taille** : un lot vise la taille de la section « Lots » du README de la roadmap ; sa
   pull request met sa taille réelle, `make lot-size BASE=origin/epic/EP-nn`, à côté de
@@ -90,6 +92,16 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
 - **Le tableau de suivi de l'issue de l'EPIC** est tenu à jour par l'agent qui change un état
   — `epic-framer` le crée, `epic-deliverer` le tient — dans le corps de l'issue, jamais en
   commentaire.
+- **Un lot ne laisse rien derrière lui** (#1444). Après la fusion de sa pull request, l'agent
+  de livraison supprime la branche locale du lot et toute branche de travail qu'il a tirée
+  (`git branch -d`, qui refuse une branche non fusionnée), retire les worktrees du lot — le
+  sien et ceux de ses développeurs — (`git worktree remove`, puis `git worktree prune`), et
+  vérifie qu'aucun processus lancé pour le lot ne tourne encore : serveur de Next, Prism,
+  Chromium. Un agent de développement fait de même, avant de rendre la main, pour les branches
+  de travail qu'il a tirées à côté de celle du lot et les commandes qu'il a lancées en
+  arrière-plan. Une centaine de branches fusionnées et quinze worktrees de lots fusionnés
+  brouillaient `git branch` et `git worktree list`. Le nettoyage d'un dépôt déjà encombré se
+  fait à la main, une fois.
 - **Avant de rendre la main**, un agent qui a modifié le dépôt lance
   `make check BASE=origin/epic/EP-nn`, qui éprouve ce que la modification touche, fichiers
   non commités compris. Un agent de revue, lui, ne lance que des commandes qui n'écrivent

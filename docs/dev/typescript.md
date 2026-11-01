@@ -1,6 +1,6 @@
 # Règles de codage — TypeScript
 
-Pour le front (`frontend/`). Ce fichier complète le [guide](README.md) : il dit comment
+Pour le front (`frontend/`). Ce fichier complète le [guide](README-fr.md) : il dit comment
 s'écrit le TypeScript ici. Il ne recopie ni la spécification, ni le contrat, ni les jeux de
 règles des outils ; il y renvoie.
 
@@ -277,10 +277,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     d'abord les routes qu'il atteint par un clic (`compile`, `e2e/compile.ts`), et celles
     qu'atteint une redirection ou Keycloak, qui ne répondent pas une page sans session
     (`compileAnswered`). Sous la charge de quatre workers, la compilation mangeait encore les
-    cinq secondes d'une route qu'aucun parcours ne compilait d'abord (#1145) : `make e2e`
-    préchauffe désormais chaque route avant le premier parcours (`e2e/warm-up.ts`), et l'on
-    n'allonge pas une attente pour une route froide. Aucun outil ne tient `compile` : la revue
-    le cherche.
+    cinq secondes d'une route qu'aucun parcours ne compilait d'abord (#1145) : les parcours se
+    jouent désormais contre le front construit, qui ne compile rien à la demande (US-0590), et
+    `compile` ne sert plus qu'au rejeu contre `next dev` (`E2E_DEV_SERVER=1`). On n'allonge pas
+    une attente pour une route froide. Aucun outil ne tient `compile` : la revue le cherche.
 18. **Contexte de la coquille changé pendant qu'une page attend d'être révélée.** La coquille
     est au-dessus de chaque page, dont `loading.tsx` fait une frontière `Suspense`. Le serveur
     envoie la page avec le document, mais React en retient la révélation un instant (`<!--$~-->`) ;
@@ -449,3 +449,35 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     cellule saisie, un collage appliqué, un squelette engendré —, passe par `writing`
     (`StructureAccount`, `structure-version.ts`) et tient `busy` vrai jusqu'à sa réponse (#1224) :
     `structure-busy.dom.test.tsx` le prouve. La revue cherche le reste.
+25. **Réponse peinte pendant que `pending` garde encore le geste.** Dans React 19, une mise à jour
+    d'état faite après un `await`, dans `startTransition(async …)`, n'appartient pas à la
+    transition : la réponse se peint dans un commit, la fin de la transition dans un suivant. Entre
+    les deux, l'écran montre le refus ou le succès alors que ce que `pending` garde l'est encore —
+    la réentrée, un champ inactif, « Annuler » ou Échap —, et une commande dit « fait » avec
+    `aria-busy="true"` (#1484). Deux formes de correction, selon le cas (décision de l'auteur,
+    #1491, option B). Dans un dialogue modal, où l'on ne lance pas une autre action pendant la
+    requête, ce qui suit l'`await` passe dans une `startTransition(() => …)` imbriquée
+    (`restore-dialog.tsx`, `reference-form.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`,
+    `contributor-commands.tsx`). Une commande en ligne — un bouton, un formulaire ou une
+    confirmation dans la page —, qui peut tourner en même temps qu'une autre, ne prend pas de
+    transition : un état « occupé » local (`useState`), posé avant l'appel et levé dans la même
+    mise à jour que la réponse, que la réentrée, le contrôle inactif et `aria-busy` lisent. La
+    transition imbriquée n'y vaut rien : React 19 rattache toutes les actions asynchrones en cours
+    à une même voie (`currentEntangledLane`), et une transition imbriquée ne s'engage qu'une fois
+    toutes réglées ; la réponse d'une commande courte attendrait une longue — un refus de
+    désactivation, une modification de la liste en route. Sans transition, la commande en ligne ne
+    retient pas non plus l'écran quitté par « Précédent » (vercel/next.js#99612, `held.ts`) :
+    l'écran d'arrivée s'affiche aussitôt, l'écriture encore en route, et son refus est dit par la
+    barre de la coquille (#863, `shell.spec.ts`, `preferences-form.tsx`) ; la retenue, et `away`,
+    valent pour une écriture attendue dans une transition (`startTransition(async …)` avec
+    `held(…)`) : celle d'un dialogue modal, ou d'un fichier classé « sans objet » par l'audit de
+    #1491. Le refus dit à un champ qui prend le
+    focus se pose avec la réponse, et le focus passe dans un effet, après le commit qui pose le
+    refus : donné dans la foulée, il arrive avant la description du champ, et un lecteur d'écran
+    annonce le champ sans son refus (`reference-form.tsx`, `role-commands.tsx`,
+    `user-dialogs.tsx`, `breakdown-commands.tsx`). Une réponse portée par un magasin externe — la
+    tâche remise au suivi, `task-entry.tsx` — est sans objet : aucune transition ne la porte
+    (n° 18). Les tests relèvent l'état du geste au commit qui montre la réponse (`atCommit`,
+    `src/test/committed.ts`), et la description d'un champ refusé quand il prend le focus (`atFocus`) ;
+    `command.dom.test.tsx` et `cost-commands.dom.test.tsx` lancent une commande courte pendant une
+    action longue, et la courte dit sa réponse et n'est plus occupée sans l'attendre. Aucun outil ne le tient : la revue le cherche.

@@ -86,6 +86,7 @@ OrgNode:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code du nœud, unique dans l'arbre, désactivés compris : un code déjà porté est
@@ -267,6 +268,13 @@ ResourceRoleUpdate:
   properties:
     code: { type: string, minLength: 1, pattern: '\S', maxLength: 20 }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 200 }
+    org_node_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        Facultatif : le nœud du rôle, qu'un formulaire qui renvoie le rôle lu entier peut porter.
+        Renvoyé inchangé, il ne change rien ; autre que celui du rôle, la modification est
+        refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/org_node_id` par
+        `FIELD_READ_ONLY` : le nœud d'un rôle ne se modifie pas (WF-REF-0090).
     cost_category_id: { $ref: ../common.yaml#/Uuid }
     calendar_id: { $ref: ../common.yaml#/Uuid }
     capacity: { $ref: '#/RoleCapacity' }
@@ -445,6 +453,7 @@ CostType:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code de la nature, unique parmi les natures, désactivées comprises : un code déjà porté
@@ -563,6 +572,7 @@ CostCategoryImage:
     code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code de la catégorie, unique parmi les catégories, désactivées comprises, comme celui
@@ -590,11 +600,14 @@ CostCategoryImage:
     accounting_code:
       type: string
       minLength: 1
+      pattern: '\S'
       maxLength: 20
       description: >-
         Code comptable, exigé et unique parmi les catégories, désactivées comprises : un code
         comptable déjà porté est refusé par 409, `ALREADY_EXISTS` sur `/accounting_code`. Il est
-        documentaire : il n'intervient dans aucun calcul ni dans aucun import (WF-REF-0040).
+        documentaire : il n'intervient dans aucun calcul ni dans l'import des coûts réels, qui ne
+        ventile pas par nature (WF-INTF-0140) ; les fichiers de devis et de reste à engager
+        désignent par lui la catégorie d'une ligne hors main-d'œuvre (WF-REF-0040, annexe B).
     is_active: { type: boolean }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -617,7 +630,15 @@ CostCategoryWrite:
         nature d'un autre type est refusée par 409 quand la catégorie est employée, porte des
         taux ou qu'un rôle lui est rattaché, ce que sa commande `change_cost_type` dit d'avance ;
         vers une nature du même type, elle est toujours permise.
-    accounting_code: { type: string, minLength: 1, maxLength: 20 }
+    accounting_code:
+      type: string
+      minLength: 1
+      pattern: '\S'
+      maxLength: 20
+      description: >-
+        Le code comptable, d'un à vingt caractères dont au moins un n'est pas un blanc : vide,
+        refusé par 422 `VALUE_REQUIRED` sur `/accounting_code`, trop long par `VALUE_TOO_LONG`,
+        fait seulement de blancs par le motif `VALIDATION_FAILED` (WF-REF-0040, WF-ARC-0110).
 
 CostCategoryUpdate:
   description: >-
@@ -642,6 +663,18 @@ HourlyRate:
     amount: { $ref: ../common.yaml#/Money }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+HourlyRateImage:
+  type: object
+  required: [cost_category_id, year, amount]
+  description: >-
+    Taux horaire d'une catégorie de main-d'œuvre pour une année, tel qu'une révision le conserve
+    (WF-REV-0030, §4.4.1 « revision_rate ») : sa valeur seule, sans l'audit ni le compteur du taux
+    du référentiel, qui bougent après le marquage sans rien changer à la révision (WF-REF-0130).
+  properties:
+    cost_category_id: { $ref: ../common.yaml#/Uuid }
+    year: { $ref: ../common.yaml#/Year }
+    amount: { $ref: ../common.yaml#/Money }
 
 HourlyRateGrid:
   type: object
@@ -743,24 +776,40 @@ ReferenceSettings:
   type: object
   required:
     - currency_code
+    - company_name
     - default_language
     - risk_matrix
     - index_thresholds
     - max_weeks_between_reviews
+    - audit
     - lock_version
   description: >-
-    Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140),
-    langue par défaut (WF-INTF-0160), matrice de risques (WF-REF-0160), seuils
-    d'alerte (WF-REF-0170) et délai maximal entre deux revues (WF-REF-0180).
+    Paramètres d'installation et d'indicateurs : devise unique (WF-REF-0140), nom de
+    l'entreprise utilisatrice (WF-EXP-0020), langue par défaut (WF-INTF-0160), matrice de
+    risques (WF-REF-0160), seuils d'alerte (WF-REF-0170) et délai maximal entre deux revues
+    (WF-REF-0180).
   properties:
     currency_code:
       type: string
       pattern: '^[A-Z]{3}$'
       description: Devise unique, choisie à l'installation et non modifiable (WF-REF-0140).
+    company_name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+      description: >-
+        Le nom de l'entreprise utilisatrice, saisi à l'installation et modifiable ensuite, que
+        portent les fichiers exportés (WF-EXP-0020) : de 1 à 200 caractères, jamais blanc.
     default_language: { $ref: ../common.yaml#/Language }
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews: { type: integer, minimum: 1, maximum: 104 }
+    audit:
+      allOf: [{ $ref: ../common.yaml#/Audit }]
+      description: >-
+        Qui a réglé les paramètres, et quand : la plateforme à l'amorçage (WF-EXP-0020), puis
+        l'auteur de chaque écriture, quel que soit le champ qu'elle porte (WF-DAT-0070).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 ReferenceSettingsWrite:
@@ -768,14 +817,28 @@ ReferenceSettingsWrite:
   required: [lock_version]
   description: >-
     Ce qu'une écriture des paramètres communs porte : le compteur lu, et ce qu'elle écrit —
-    la matrice de risques (`risk_settings.write`), les seuils des indices et le délai entre
-    deux revues (`indicator_settings.write`), chaque champ sous la permission de sa fonction
+    le nom de l'entreprise (`cost_settings.write`), la matrice de risques
+    (`risk_settings.write`), les seuils des indices et le délai entre deux revues
+    (`indicator_settings.write`), chaque champ sous la permission de sa fonction
     (WF-ADM-0100) ; un champ absent reste tel qu'il est (WF-IHM-0110). Un écran n'envoie que
-    ce qu'il écrit : la matrice seule, ou les seuils et le délai seuls. Ni la langue par défaut
-    de l'installation (`default_language`, WF-INTF-0160), qui ne relève d'aucune des deux
-    fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise (WF-REF-0140) ne
-    s'écrivent ici : l'une et l'autre se lisent seulement (`ReferenceSettings`).
+    ce qu'il écrit : le nom seul, la matrice seule, ou les seuils et le délai seuls. Ni la
+    langue par défaut de l'installation (`default_language`, WF-INTF-0160), qui ne relève
+    d'aucune des fonctions du référentiel et s'écrira là où EP-03 le décidera, ni la devise
+    (WF-REF-0140) ne s'écrivent ici : l'une et l'autre se lisent seulement
+    (`ReferenceSettings`).
   properties:
+    company_name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+      description: >-
+        Le nom de l'entreprise utilisatrice (WF-EXP-0020), sous `cost_settings.write`, à côté de
+        la devise. Il ne peut être ni vide ni blanc ; absent, il reste tel qu'il est. Un nom vide
+        est refusé par 422 `VALIDATION_FAILED`, `fields` désignant `/company_name` par
+        `VALUE_REQUIRED`, et un nom de plus de 200 caractères par `VALUE_TOO_LONG` ; un nom fait
+        seulement de blancs, comme tout libellé, par le code de champ `VALIDATION_FAILED` au même
+        pointeur.
     risk_matrix: { $ref: '#/RiskMatrixSettings' }
     index_thresholds: { $ref: '#/IndexThresholds' }
     max_weeks_between_reviews:
@@ -794,8 +857,9 @@ RiskMatrixSettings:
   required: [probability_bounds, severity_bounds, zones]
   description: >-
     Matrice à quatre niveaux de probabilité et quatre de gravité (WF-REF-0160,
-    WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage du budget de
-    référence.
+    WF-RIS-0040). Les bornes de gravité sont exprimées en pourcentage de l'assiette du
+    projet — son budget de référence ou, tant qu'il n'en a pas, le total hors provisions du
+    devis de sa révision courante.
   properties:
     probability_bounds:
       type: array
@@ -829,7 +893,10 @@ IndexThresholds:
   type: object
   required: [cost_watch, cost_alert, schedule_watch, schedule_alert]
   description: >-
-    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Le seuil
+    Seuils de vigilance et d'alerte des deux indices, inférieurs à 1 (WF-REF-0170). Un indice
+    supérieur ou égal au seuil de vigilance est nominal ; inférieur à lui et supérieur ou égal au
+    seuil d'alerte, en vigilance ; inférieur au seuil d'alerte, en alerte : à 0,9 et 0,8, un
+    indice de 0,9 est nominal, un indice de 0,8 en vigilance (WF-REF-0170). Le seuil
     d'alerte de chaque indice est strictement inférieur à son seuil de vigilance : un seuil
     d'alerte qui ne l'est pas est refusé par 422 `VALIDATION_FAILED`, `fields` le désignant
     (`/index_thresholds/cost_alert`, `/index_thresholds/schedule_alert`) par
@@ -857,7 +924,7 @@ IndexThreshold:
 
 DurationUnits:
   type: object
-  required: [hours_per_day, hours_per_week, days_per_month, lock_version]
+  required: [hours_per_day, hours_per_week, days_per_month, audit, lock_version]
   description: >-
     Les trois constantes de l'installation par lesquelles les jours, les semaines et les
     mois de travail se convertissent en heures (WF-PLA-0160) : avec les valeurs par
@@ -873,6 +940,11 @@ DurationUnits:
     days_per_month:
       allOf: [{ $ref: ../common.yaml#/Decimal }]
       description: 20 par défaut.
+    audit:
+      allOf: [{ $ref: ../common.yaml#/Audit }]
+      description: >-
+        Qui a réglé les constantes, et quand : la plateforme à l'amorçage, puis l'auteur de
+        chaque écriture (WF-DAT-0070).
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 DurationUnitsWrite:
@@ -892,6 +964,125 @@ DurationUnitsWrite:
     days_per_month:
       allOf: [{ $ref: ../common.yaml#/Decimal }]
       pattern: '^\d+(\.\d+)?$'
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+ActualCostSourceColumn:
+  type: string
+  enum: [wbs_element, document_number, document_item, document_date, amount]
+  description: >-
+    Une colonne que l'import des coûts réels lit dans l'extraction de l'ERP (WF-REF-0190,
+    annexe B), dans l'ordre fixe de la correspondance : l'élément d'OTP, qui porte le code projet
+    suivi facultativement d'une barre oblique et du code sous-projet (WF-CRE-0020), le numéro de
+    la pièce, le numéro de son poste dans la pièce, la date de la pièce et le montant. Le poste
+    est facultatif, les quatre autres sont exigées (WF-REF-0190).
+
+ActualCostColumnLabel:
+  type: string
+  minLength: 1
+  maxLength: 200
+  pattern: '\S'
+  description: >-
+    Un intitulé de colonne de l'extraction de l'ERP, tel que l'utilisateur le déclare : de 1 à
+    200 caractères, jamais blanc. Il se compare à l'en-tête du fichier, et aux autres intitulés
+    de la correspondance, sans égard à la casse, aux accents ni aux espaces en bout
+    (WF-REF-0190) : « Elément d'OTP » désigne la colonne « Élément d'OTP ».
+
+ActualCostMappingColumn:
+  type: object
+  required: [column, required, labels]
+  description: >-
+    Une colonne lue de la correspondance, et les intitulés qui la désignent dans l'extraction
+    (WF-REF-0190).
+  properties:
+    column: { $ref: '#/ActualCostSourceColumn' }
+    required:
+      type: boolean
+      description: >-
+        Rendu par le serveur : vrai pour les quatre colonnes exigées, faux pour le poste
+        (`document_item`), facultatif (WF-REF-0190). Il ne s'écrit pas.
+    labels:
+      type: array
+      maxItems: 20
+      description: >-
+        Les intitulés qui désignent la colonne dans l'extraction, au plus 20, dans l'ordre où ils
+        ont été déclarés ; l'import lit la colonne du fichier dont l'en-tête en vaut un. Vide pour
+        une colonne sans intitulé.
+      items: { $ref: '#/ActualCostColumnLabel' }
+
+ActualCostMapping:
+  type: object
+  required: [columns, kept_columns, is_complete, missing_columns, lock_version, audit]
+  description: >-
+    La correspondance de l'extraction des coûts réels (WF-REF-0190), objet unique de
+    l'installation, lu et remplacé entier avec son compteur : pour chaque colonne lue, ses
+    intitulés, et les colonnes de l'extraction conservées à titre d'information (WF-CRE-0010).
+    Vide à l'installation. Une colonne de l'extraction ni lue ni déclarée conservée est ignorée,
+    et le compte rendu de l'import la nomme (`ImportIgnoredKind`, `columns`). Sa modification vaut
+    pour les imports suivants et ne change aucune ligne déjà importée (WF-REF-0190).
+  properties:
+    columns:
+      type: array
+      minItems: 5
+      maxItems: 5
+      description: >-
+        Les cinq colonnes lues, chacune une fois, dans l'ordre fixe d'`ActualCostSourceColumn`.
+      items: { $ref: '#/ActualCostMappingColumn' }
+    kept_columns:
+      type: array
+      maxItems: 50
+      description: >-
+        Les intitulés des colonnes de l'extraction conservées à titre d'information, au plus 50,
+        déclarées une à une, dans l'ordre où elles l'ont été (WF-REF-0190, WF-CRE-0010) : une
+        ligne importée les restitue à la consultation sous l'intitulé que porte le fichier
+        (`ActualCostLine.passthrough`). Une colonne lue ne l'est pas aussi : son intitulé
+        doublerait le sien.
+      items: { $ref: '#/ActualCostColumnLabel' }
+    is_complete:
+      type: boolean
+      description: >-
+        Calculé : vrai quand chacune des quatre colonnes exigées a au moins un intitulé. Faux, la
+        commande `import_actual_costs` d'un projet est indisponible et nomme
+        `actual_cost_mapping_complete` (WF-REF-0190).
+    missing_columns:
+      type: array
+      description: >-
+        Calculé : les colonnes exigées qui n'ont aucun intitulé, dans l'ordre de la
+        correspondance ; vide quand `is_complete` est vrai. Les quatre exigées pour une
+        correspondance vide, jamais le poste, facultatif.
+      items: { $ref: '#/ActualCostSourceColumn' }
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+    audit: { $ref: ../common.yaml#/Audit }
+
+ActualCostMappingColumnWrite:
+  type: object
+  required: [column, labels]
+  description: Une colonne lue et ses intitulés, tels qu'une écriture les déclare.
+  properties:
+    column: { $ref: '#/ActualCostSourceColumn' }
+    labels:
+      type: array
+      maxItems: 20
+      items: { $ref: '#/ActualCostColumnLabel' }
+
+ActualCostMappingWrite:
+  type: object
+  required: [columns, kept_columns, lock_version]
+  description: >-
+    La correspondance entière et le compteur lu (WF-REF-0190, WF-IHM-0110) : les cinq colonnes
+    lues, chacune une fois, dans l'ordre d'`ActualCostSourceColumn`, avec leurs intitulés, et les
+    colonnes conservées. Ce qu'elle ne porte plus est retiré. Ni le caractère exigé d'une colonne
+    ni ce que le serveur calcule ne s'écrivent. Un intitulé qui en double un autre est refusé par
+    422, `DUPLICATE_COLUMN_LABEL` (`setActualCostMapping`).
+  properties:
+    columns:
+      type: array
+      minItems: 5
+      maxItems: 5
+      items: { $ref: '#/ActualCostMappingColumnWrite' }
+    kept_columns:
+      type: array
+      maxItems: 50
+      items: { $ref: '#/ActualCostColumnLabel' }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 AlertZone:

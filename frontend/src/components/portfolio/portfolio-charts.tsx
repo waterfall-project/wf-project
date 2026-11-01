@@ -28,6 +28,8 @@ import {
   planningInstant,
   timeAxis,
 } from "@/components/chart/chart";
+import { ComputableValue } from "@/components/computable-value";
+import { useCurrency } from "@/currency/context";
 import {
   formatDecimal,
   formatLocale,
@@ -37,7 +39,6 @@ import {
 } from "@/i18n/format";
 
 import type { PortfolioScope } from "./address";
-import { ComputableValue } from "./portfolio-value";
 import { usePortfolioExport } from "./provenance";
 
 type Quarter = components["schemas"]["PortfolioPerformance"]["quarterly"][number];
@@ -72,13 +73,17 @@ function point(value: Computable): string {
  * The axis of the values of a chart — from zero for an index, from the lowest value drawn for a
  * signed amount —, its ticks in the language of the interface.
  */
-function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean) {
+function valueAxis(palette: ChartPalette, locale: string, fromZero: boolean, currency?: string) {
   const tick = new Intl.NumberFormat(locale);
   return {
     type: "value" as const,
     // An index is never negative, its axis starts at zero; an amount is signed, its axis reaches
     // down to the lowest value drawn.
     ...(fromZero ? { min: 0 } : {}),
+    // The currency of an amount is the title of its axis (WF-REF-0140), the ticks stay bare.
+    ...(currency === undefined
+      ? {}
+      : { name: currency, nameLocation: "end" as const, nameTextStyle: { color: palette.text } }),
     axisLine: { show: true, lineStyle: { color: palette.axis } },
     axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
     splitLine: { lineStyle: { color: palette.grid } },
@@ -182,6 +187,7 @@ export function PortfolioCurveChart({
 }) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   const shifted = curves.payment_delays;
   const option = useCallback(
     (palette: ChartPalette): ChartOption => ({
@@ -189,7 +195,7 @@ export function PortfolioCurveChart({
       useUTC: true,
       textStyle: { fontFamily: palette.font, color: palette.text },
       // No legend: each curve is named at its end (`curve`).
-      grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+      grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 32, bottom: 32 },
       xAxis: timeAxis(
         palette,
         formatLocale(locale),
@@ -198,7 +204,7 @@ export function PortfolioCurveChart({
         ),
         true,
       ),
-      yAxis: valueAxis(palette, formatLocale(locale), false),
+      yAxis: valueAxis(palette, formatLocale(locale), false, currency),
       series: curves.series.map((series, rank) => ({
         name: t(`enums.PortfolioCostCurve.series.name.${series.name}`),
         ...curve(
@@ -209,7 +215,7 @@ export function PortfolioCurveChart({
         ...(STEPPED.has(series.name) ? { step: "end" as const } : {}),
       })),
     }),
-    [curves, locale, t],
+    [curves, currency, locale, t],
   );
   const title = shifted
     ? t("portfolio.costCurve.chartTitleDelayed")
@@ -245,7 +251,7 @@ export function PortfolioCurveChart({
                   {t(`enums.PortfolioCostCurve.series.name.${series.name}`)}
                 </th>
                 <td>{formatPlanningDate(point.date, locale)}</td>
-                <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(point.amount, locale, currency)}</td>
               </tr>
             )),
           )}
@@ -283,6 +289,7 @@ export function CashOutChart({
 }) {
   const t = useTranslations("portfolio.cashOut");
   const locale = useLocale();
+  const currency = useCurrency();
   const last = months.at(-1);
   // The last month holds until the first of the next, as every other: its step ends there.
   const end = last === undefined ? undefined : planningInstant(monthAfter(last.month));
@@ -291,7 +298,7 @@ export function CashOutChart({
       // Its axis of time is in UTC, a month having no time zone: its ticks too (`timeAxis`).
       useUTC: true,
       textStyle: { fontFamily: palette.font, color: palette.text },
-      grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+      grid: { left: 96, right: END_LABEL_WIDTH + 16, top: 32, bottom: 32 },
       // The axis runs to the first of the month after the latest already (`monthTicks`).
       xAxis: timeAxis(
         palette,
@@ -299,7 +306,7 @@ export function CashOutChart({
         months.map((month) => planningInstant(month.month)),
         true,
       ),
-      yAxis: valueAxis(palette, formatLocale(locale), false),
+      yAxis: valueAxis(palette, formatLocale(locale), false, currency),
       series: PARTS.map((part, rank) => {
         const drawn = curve(
           palette,
@@ -319,7 +326,7 @@ export function CashOutChart({
         };
       }),
     }),
-    [months, last, end, locale, t],
+    [months, last, end, currency, locale, t],
   );
   const exported = usePortfolioExport(scope, t("exportTitle"), t("file"));
   return (
@@ -343,8 +350,8 @@ export function CashOutChart({
               <th scope="row" className="font-normal">
                 {formatMonth(month.month, locale)}
               </th>
-              <td>{formatMoney(month.past, locale)}</td>
-              <td>{formatMoney(month.forecast, locale)}</td>
+              <td>{formatMoney(month.past, locale, currency)}</td>
+              <td>{formatMoney(month.forecast, locale, currency)}</td>
             </tr>
           ))}
         </tbody>

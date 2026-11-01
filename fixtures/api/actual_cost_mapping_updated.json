@@ -1,0 +1,62 @@
+{
+  "summary": "La correspondance du témoin réglée aujourd'hui à 14 h 05 : la colonne « Document d'achat » de l'extraction est déclarée conservée après les deux autres, et la correspondance passe à sa version suivante. Elle vaut pour les imports suivants : aucune ligne déjà importée ne change, et un import déjà analysé s'applique tel qu'il l'a été (WF-REF-0190, WF-CRE-0010, WF-INTF-0080).",
+  "value": {
+    "columns": [
+      {
+        "column": "wbs_element",
+        "required": true,
+        "labels": [
+          "Elément d'OTP"
+        ]
+      },
+      {
+        "column": "document_number",
+        "required": true,
+        "labels": [
+          "Nº pièce référence"
+        ]
+      },
+      {
+        "column": "document_item",
+        "required": false,
+        "labels": [
+          "Poste"
+        ]
+      },
+      {
+        "column": "document_date",
+        "required": true,
+        "labels": [
+          "Date de la pièce"
+        ]
+      },
+      {
+        "column": "amount",
+        "required": true,
+        "labels": [
+          "Val./Devise objet"
+        ]
+      }
+    ],
+    "kept_columns": [
+      "Fournisseur",
+      "Texte de commande",
+      "Document d'achat"
+    ],
+    "is_complete": true,
+    "missing_columns": [],
+    "lock_version": 3,
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
+      },
+      "updated_at": "2026-06-03T14:05:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    }
+  }
+}

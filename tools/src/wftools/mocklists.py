@@ -26,6 +26,7 @@ screens ask them:
 - ``access_roles_composed.json``, ``listAccessRoles`` restricted to the roles composed since the
   installation; ``access_roles_unheld.json``, to those no account holds, an upper bound of none;
   ``access_roles_by_updated_by.json``, sorted by the author of their last change (#936);
+  ``access_role.json``, ``getAccessRole``: the predefined « Manager », as the list has it;
 - ``work_breakdown_search.json``, ``getWorkBreakdown`` searched: a lot, without what it holds;
   ``work_breakdown_order_items.json``, its posts alone, under their lot, which it gives for the
   context alone (#574); ``work_breakdown_entered.json`` and ``work_breakdown_saved.json``,
@@ -33,7 +34,8 @@ screens ask them:
   without identifier, and the answer that gives it one; ``work_breakdown_label_required.json``,
   ``work_breakdown_unknown_item.json`` and ``work_breakdown_duplicate_item.json``, its refusals:
   the post added without a label, with the identifier of a deliverable, with that of a post the
-  write bears already;
+  write bears already; ``work_breakdown_stale.json``, its 412: the write sent with the counter of
+  its reading once another session saved the work breakdown (#803);
 - ``backups_reader.json``, ``listBackups`` read by a session that may neither modify the backups
   nor restore the platform: no command; ``backups_during_backup.json``, read while a backup runs:
   the restoration unavailable on each; ``backups_manual.json``, the manual backups alone;
@@ -73,8 +75,8 @@ PROJECT_STATES = ("created", "pricing", "in_progress", "completed", "lost", "aba
 """The states of a project in the order of `ProjectState`, that of the life cycle (WF-CYC-0010)."""
 
 DEFAULT_STATES = ("in_progress",)
-"""The states a list of projects retains when it names none: the projects in progress, the
-default of the perimeter of the portfolio, whose parameter it shares (WF-PTF-0010)."""
+"""The states a list of projects retains when it names none: the projects in progress, by a
+parameter of its own, which retains every state it names (`ProjectStates`, #1747)."""
 
 CONTRIBUTOR_KINDS = ("project_manager", "contributor")
 """The capacities of a contributor in the order of `ContributorKind`: project managers first."""
@@ -92,6 +94,9 @@ SEARCHED_NAME = "Petit"
 
 HELD_ROLES = (universe(703), universe(702))
 """The roles of ``users_by_access_role``: the project manager and the manager, predefined."""
+
+MANAGER = universe(702)
+"""The role ``access_role`` reads: the predefined « Manager », whose settings cover FBS-3 whole."""
 
 SEARCHED_ACCOUNT = "ines roux"
 """The text of ``users_search``: the displayed name of Inès Roux, without its accent nor its case,
@@ -745,6 +750,13 @@ def administration() -> dict[str, JsonObject]:
             f"(WF-IHM-0130).",
             cast("JsonValue", unheld),
         ),
+        "access_role.json": _example(
+            f"Le rôle prédéfini « {named[MANAGER]} », tel que la liste des rôles le rend "
+            f"(getAccessRole) : le portefeuille, la consultation de tous les projets et le "
+            f"paramétrage du référentiel commun entier, risques et indicateurs compris "
+            f"(WF-INTF-0020, WF-ADM-0010, WF-ADM-0090).",
+            cast("JsonValue", next(role for role in roles if role["access_role_id"] == MANAGER)),
+        ),
         "access_roles_by_updated_by.json": _example(
             f"Les rôles d'habilitation triés par l'auteur de leur dernière modification, "
             f"croissant (sort_by=updated_by) : {_labels(changers)}, modifiés par Camille "
@@ -822,6 +834,7 @@ def breakdowns() -> dict[str, JsonObject]:
     [kept] = cast("list[JsonObject]", entered["work_packages"])
     kept["order_items"] = [*cast("list[JsonValue]", kept["order_items"]), added(SECOND_ITEM)]
     [(deliverable, label)] = WORK_BREAKDOWN[0].order_items[0].deliverables
+    saved = breakdown_reading(SAVED_BREAKDOWN, 2, CORE)
     return {
         "work_breakdown_search.json": _example(
             f"Le lotissement du projet témoin cherché par « {SEARCHED_LABEL} », quels que soient "
@@ -878,7 +891,19 @@ def breakdowns() -> dict[str, JsonObject]:
             f"« {bearer['label']} » ; le poste « {SECOND_ITEM.label} » et son livrable "
             f"portent les identifiants que le serveur leur a donnés, aucune tâche ne le porte, "
             f"et le compteur suivant, jamais nul (WF-PRJ-0020, WF-DAT-0060, WF-IHM-0110, #802).",
-            breakdown_reading(SAVED_BREAKDOWN, 2, CORE),
+            saved,
+        ),
+        "work_breakdown_stale.json": _example(
+            f"La saisie work_breakdown_entered, envoyée avec le compteur {read['lock_version']} "
+            f"de sa lecture quand une autre session a déjà enregistré le lotissement "
+            f"(work_breakdown_saved) : refusée, le compteur courant nommé, "
+            f"{saved['lock_version']} ; rien n'est écrit (WF-IHM-0110, #803).",
+            {
+                "code": "STALE_LOCK_VERSION",
+                "status": 412,
+                "params": {"expected_lock_version": saved["lock_version"]},
+                "correlation_id": universe(1554),
+            },
         ),
     }
 
@@ -902,8 +927,8 @@ def examples() -> dict[str, JsonObject]:
     start, end = PERIOD
     return {
         "projects_default_states.json": _example(
-            f"Les projets lus sans état nommé : les projets en cours seuls, le défaut du périmètre "
-            f"du portefeuille (WF-PTF-0010) : "
+            f"Les projets lus sans état nommé : les projets en cours seuls, le défaut de la liste, "
+            f"qui retient sinon tout état nommé (ProjectStates) : "
             f"{_labels(cast('list[JsonObject]', default['items']))}, les projets d'un autre état "
             f"écartés ; meta.states nomme l'état retenu, que l'écran montre sans le deviner "
             f"(WF-IHM-0130).",

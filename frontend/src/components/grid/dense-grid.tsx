@@ -66,6 +66,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/components/ui/utils";
+import { useCurrency } from "@/currency/context";
 import type { Locale } from "@/i18n/locale";
 
 import {
@@ -124,8 +125,8 @@ import {
   useRowSelection,
 } from "./row-selection";
 import {
-  endedColumns,
   type GridPreferences,
+  gridShape,
   initialSettings,
   keptPageSize,
   recordedPreferences,
@@ -247,6 +248,7 @@ function cellContent<Row extends RowData, Sort extends string, Totals>(
   column: GridColumn<Row, Sort, Totals> | undefined,
   row: Row,
   locale: Locale,
+  currency: string | undefined,
 ): ReactNode {
   if (column === undefined) {
     return config.rowNumber?.(row);
@@ -254,7 +256,7 @@ function cellContent<Row extends RowData, Sort extends string, Totals>(
   if (column.render !== undefined) {
     return column.render(row);
   }
-  const text = formatCell(column.format, column.value(row), locale);
+  const text = formatCell(column.format, column.value(row), locale, currency);
   return column === config.columns[0] ? <TreeLabel config={config} row={row} text={text} /> : text;
 }
 
@@ -316,6 +318,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
   readonly position: CellPosition;
   readonly locale: Locale;
 }) {
+  const currency = useCurrency();
   const column = configColumn(config, position.column);
   const computed = computedIn(column, row);
   const pinning = pinningOf(table, position.column, "z-10");
@@ -326,7 +329,7 @@ function BodyCell<Row extends RowData, Sort extends string, Totals>({
     (marks ? (
       <DiffMark difference={config.difference?.(row)} />
     ) : (
-      cellContent(config, column, row, locale)
+      cellContent(config, column, row, locale, currency)
     ));
   let shown = content;
   if (state.draft !== undefined && column !== undefined) {
@@ -448,6 +451,7 @@ function TotalsRow<Row extends RowData, Sort extends string, Totals>({
   readonly index: number;
   readonly locale: Locale;
 }) {
+  const currency = useCurrency();
   return (
     <TableRow aria-rowindex={index} className="h-8">
       {table.getVisibleLeafColumns().map((column) => {
@@ -466,7 +470,12 @@ function TotalsRow<Row extends RowData, Sort extends string, Totals>({
           >
             {first
               ? caption
-              : formatCell(configured?.format ?? "text", configured?.total?.(totals), locale)}
+              : formatCell(
+                  configured?.format ?? "text",
+                  configured?.total?.(totals),
+                  locale,
+                  currency,
+                )}
           </TableCell>
         );
       })}
@@ -540,6 +549,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
+  const currency = useCurrency();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   // The sort asked, shown until the server answers: a second click on the header, before the
@@ -551,7 +561,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   // The size of its pages the account keeps for the grid: the session's, then the last one chosen.
   const [keptSize, setKeptSize] = useState(keptPageSize(preferences));
   const [settings, setSettings] = useState(() => initialSettings(preferences, config.columns));
-  const ended = useMemo(() => endedColumns(config.columns), [config.columns]);
+  const shape = useMemo(() => gridShape(config.columns), [config.columns]);
   // The settings as they are now, which a preference written later reads: kept at each change.
   const currentSettings = useRef(settings);
   const writer = useSettingsWriter(config.key);
@@ -566,12 +576,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           filters,
           keptSize,
-          ended,
+          shape,
         ),
       );
       shown();
     },
-    [ended, keptSize, preferences, recordShown, shown],
+    [shape, keptSize, preferences, recordShown, shown],
   );
   const kept = useKeptFilters(config, preferences, recordFilters);
   // The size of the pages the address asks, recorded as the filters are (`kept-size.ts`).
@@ -585,12 +595,12 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           keptSort.current,
           kept.current,
           size,
-          ended,
+          shape,
         ),
       );
       shown();
     },
-    [ended, kept, preferences, recordShown, shown],
+    [shape, kept, preferences, recordShown, shown],
   );
   useKeptPageSize(config.address, keptSize, recordSize, config.paged === true);
   const scroller = useRef<HTMLDivElement>(null);
@@ -626,7 +636,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
         keptSort.current,
         kept.current,
         keptSize,
-        ended,
+        shape,
       ),
     );
   };
@@ -666,7 +676,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
       setSettings(next);
       currentSettings.current = next;
       writer.record(
-        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, ended),
+        recordedPreferences(preferences, next, keptSort.current, kept.current, keptSize, shape),
       );
     },
   });
@@ -703,6 +713,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     },
     writes,
     locale,
+    currency,
   });
   const paste = useGridPaste({
     config,
@@ -726,7 +737,9 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
     focusAt: keyboard.focusAt,
     labelOf: (row) => {
       const label = config.columns[0];
-      return label === undefined ? "" : formatCell(label.format, label.value(row), locale);
+      return label === undefined
+        ? ""
+        : formatCell(label.format, label.value(row), locale, currency);
     },
   });
   const invalid = useId();
@@ -779,6 +792,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           text={draft.text}
           typed={draft.typed}
           invalid={draft.problem === undefined ? undefined : invalid}
+          asking={draft.asking === true}
           onValidate={keyboard.validate}
           onAbandon={keyboard.abandon}
         />

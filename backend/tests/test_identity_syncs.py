@@ -34,6 +34,7 @@ from waterfall.core.users.interface import (
     SkippedAccount,
     SkippedPerson,
     SyncReport,
+    latest_report,
     record_report,
 )
 from waterfall.core.users.tables import IdentitySyncReport, UserAccount
@@ -136,6 +137,28 @@ def test_a_reading_is_asked_for_under_the_permission_to_change_the_accounts(
         403,
         {"missing_permission": "users.write"},
     )
+
+
+@pytest.mark.parametrize("descending", [False, True])
+def test_the_report_of_two_readings_ended_together_is_that_of_the_greater_task(
+    database: Database, queue: TaskQueue, descending: bool
+) -> None:
+    # No requirement: a detail of the choice. The reports are kept in the ascending order of their
+    # task, then in the descending one. Only the ascending case falls surely without
+    # desc(task_id): PostgreSQL reads the heap forward, and the top-N sort of ORDER BY ... LIMIT 1
+    # does not guarantee the order of ties, so the first stored is the smaller task. The descending
+    # case is there for the other way of reading, and may pass by chance.
+    kept = account(database, "Bernard", "Dominique", origin="directory")
+    tasks = sorted(deposit(database, queue) for _ in range(3))
+    stored = tasks[::-1] if descending else tasks
+    for count, task_id in enumerate(stored, start=1):
+        with database.transaction() as session:
+            skipped: list[Skipped] = [SkippedAccount(kept, "LAST_ADMINISTRATOR")]
+            record_report(session, SyncReport(task_id, NIGHT, count, 1, 0, 2, skipped, []))
+    with database.transaction() as session:
+        report = latest_report(session)
+    assert report is not None
+    assert report.task_id == tasks[-1]
 
 
 @pytest.mark.requirement("WF-ADM-0070-A")

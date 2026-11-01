@@ -171,7 +171,7 @@ describe("the screen of a project", () => {
 
   it("names each revision by its version name, and the draft without one the current revision, from its status", async () => {
     const page = html(await ProjectPage(at()));
-    expect(text(page)).toContain("Revisions Référence Current revision");
+    expect(text(page)).toContain("Revisions Current revision Référence");
   });
 
   it("opens each revision with the filters of its address, the revision it was read in left to the link", async () => {
@@ -278,7 +278,7 @@ describe("the settings of a project", () => {
     );
   });
 
-  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists it unavailable (EP-14/L44c)", async () => {
+  it("hands the work breakdown the command `update_work_breakdown` the project lists, and the reading whole its commands write from — none to a project that lists no command (EP-14/L44c, US-0702/L3)", async () => {
     const open = handed<ComponentProps<typeof WorkBreakdownList>>(
       await SettingsPage(at()),
       WorkBreakdownList,
@@ -294,7 +294,7 @@ describe("the settings of a project", () => {
       await SettingsPage(at()),
       WorkBreakdownList,
     );
-    expect(closed?.props.editing?.offer?.is_available).toBe(false);
+    expect(closed?.props.editing?.offer).toBeUndefined();
     expect(closed?.props.editing?.whole).toBeUndefined();
     // Read whole, the work breakdown is read once a page.
     expect(queriesOf("GET /projects/{project_id}/work-breakdown")).toHaveLength(2);
@@ -307,7 +307,7 @@ describe("the settings of a project", () => {
       /<h1[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Project settings<\/h1>/,
     );
     expect(text(page)).toContain(
-      "Label Modernisation du poste de commande Code PRJ-001 Order received on 15 Jan 2026 " +
+      "Label Modernisation du poste de commande Code PRJ-001 Client Papeteries de la Vienne Order received on 15 Jan 2026 " +
         "Description Not set Annual inflation rate 3% Probability of winning 100%",
     );
   });
@@ -613,7 +613,7 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Modify the contributors");
   });
 
-  it("says nothing of the fake back on a terminal project, whose commands it presents unavailable, those of its sub-projects' rows too", async () => {
+  it("says nothing of the fake back on a terminal project, which lists no command, nor do its sub-projects' rows (US-0702/L3)", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
@@ -621,25 +621,10 @@ describe("the settings of a project", () => {
     };
     const page = html(await SettingsPage(at()));
     expect(text(page)).not.toContain("Mock-up:");
-    const every = [...page.matchAll(/<button([^>]*)>(.*?)<\/button>/g)];
-    const named = (unavailable: boolean) =>
-      every
-        .filter(
-          ([, attributes = ""]) => attributes.includes('aria-disabled="true"') === unavailable,
-        )
-        .map(([, , content = ""]) => text(content));
-    expect(named(true)).toEqual(
-      expect.arrayContaining(["Edit the project", "New subproject", "Modify the contributors"]),
-    );
-    // Nothing is offered that writes, the commands of the sub-projects' rows neither.
-    expect(named(false).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
-    for (const code of ["SP-CMD", "SP-ESS"]) {
-      for (const command of ["Modify", "Delete"]) {
-        expect(page).toMatch(
-          new RegExp(`aria-label="${command} “${code}”"[^>]*aria-disabled="true"`),
-        );
-      }
-    }
+    // Nothing is offered that writes, the commands of the sub-projects' rows neither: the
+    // project lists none, so the screen presents none, available or not.
+    expect(buttons(page).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
+    expect(page).not.toContain('aria-disabled="true"');
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
   });
 
@@ -672,14 +657,11 @@ describe("the settings of a project", () => {
     expect(page).not.toContain('role="note"');
   });
 
-  it("presents the modification of a terminal project unavailable, naming the condition it lacks [WF-CYC-0100-A]", async () => {
-    // Toute modification d'un projet terminal est refusée : la commande le dit d'avance.
+  it("offers no modification of a terminal project, which lists no command [WF-CYC-0100-A]", async () => {
+    // Toute modification d'un projet terminal est refusée : le projet ne liste plus la commande.
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const page = html(await SettingsPage(at()));
-    expect(page).toMatch(
-      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Edit the project/,
-    );
-    expect(text(page)).toContain("Edit the project Unmet condition: project not closed.");
+    expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
     // Nothing can be written: the screen says nothing of what the fake back keeps.
     expect(page).not.toContain('role="note"');
   });
@@ -730,12 +712,8 @@ describe("the lifecycle of a project", () => {
   it("offers the exits of the lifecycle alone, in the order of the server: nothing to create or modify", async () => {
     const page = html(await LifecyclePage(at()));
     expect(page.startsWith(BANNER)).toBe(true);
-    expect(buttons(page)).toEqual([
-      "Help",
-      "Complete the project",
-      "Declare the project lost",
-      "Abandon the project",
-    ]);
+    // In progress, losing is no longer an exit the project lists (WF-CYC-0060).
+    expect(buttons(page)).toEqual(["Help", "Complete the project", "Abandon the project"]);
   });
 
   it("shows the current state of the project, and the history of its states, each transition dated as the API gives it and by whom [WF-ARC-0020-A]", async () => {
@@ -786,7 +764,7 @@ describe("the lifecycle of a project", () => {
   });
 
   it("offers no command that leads to pricing or in progress, whichever state the project is in [WF-CYC-0020-A]", async () => {
-    // Aucun écran ne propose de commande menant à Chiffrage ou En cours.
+    // Aucun écran ne propose de commande menant à Chiffrage ou En cours : seules les sorties.
     for (const [project, next] of [
       ["project_created", "next_state_created"],
       ["project_pricing", "next_state_pricing"],
@@ -798,18 +776,36 @@ describe("the lifecycle of a project", () => {
         "GET /projects/{project_id}/next-state": next,
       };
       const page = html(await LifecyclePage(at()));
+      for (const name of buttons(page).filter((each) => each !== "Help")) {
+        expect(name).toMatch(/^(Complete|Declare|Abandon) the project/);
+      }
+    }
+  });
+
+  it("lists the exits each state offers, the loss no longer offered once the project is in progress [WF-CYC-0060-A]", async () => {
+    for (const [project, next, lose] of [
+      ["project_created", "next_state_created", true],
+      ["project_pricing", "next_state_pricing", true],
+      ["project", "next_state", false],
+    ] as const) {
+      server.answers = {
+        ...server.answers,
+        "GET /projects/{project_id}": project,
+        "GET /projects/{project_id}/next-state": next,
+      };
+      const page = html(await LifecyclePage(at()));
       expect(buttons(page)).toEqual([
         "Help",
         "Complete the project",
-        "Declare the project lost",
+        ...(lose ? ["Declare the project lost"] : []),
         "Abandon the project",
       ]);
     }
   });
 
-  it("says a terminal project closed, no state following it, and refuses every exit [WF-CYC-0080-A]", async () => {
-    // Aucune transition ne part d'un état terminal : toute tentative de transition depuis Terminé
-    // est refusée, chacune des trois sorties présentée indisponible.
+  it("says a terminal project closed, no state following it, and lists no exit [WF-CYC-0080-A]", async () => {
+    // Aucune transition ne part d'un état terminal : aucune sortie ne le deviendra, donc aucune
+    // n'est listée (Vérif de WF-CYC-0060).
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
@@ -822,10 +818,7 @@ describe("the lifecycle of a project", () => {
       "Declare the project lost",
       "Abandon the project",
     ]) {
-      const button = new RegExp(
-        `<button[^>]*aria-disabled="true"[^>]*>(?:(?!</button>).)*${exit}</button>`,
-      ).exec(page);
-      expect(button, exit).not.toBeNull();
+      expect(buttons(page), exit).not.toContain(exit);
     }
   });
 

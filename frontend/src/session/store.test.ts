@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { randomUUID } from "node:crypto";
+import { connect, createServer, type Server, type Socket } from "node:net";
 import { inspect } from "node:util";
 
 import { createClient, ErrorReply, ReconnectStrategyError } from "@redis/client";
@@ -44,6 +45,71 @@ function testAddress(change: (address: URL) => void): string {
   const address = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
   change(address);
   return address.href;
+}
+
+/**
+ * A door to the Redis of the tests, on a port of its own, that the test can shut: while it is shut,
+ * a connection to come is cut off at once, whatever the time it takes — the order between the
+ * loss of a connection and its reconnection is the test's, never the load of the machine's. The
+ * listener stays bound all along, so the port cannot be taken by another process meanwhile.
+ */
+async function doorToRedis() {
+  const target = new URL(process.env.WATERFALL_TEST_REDIS_URL ?? "");
+  const sockets = new Set<Socket>();
+  let shut = false;
+  const server: Server = createServer((inbound) => {
+    inbound.on("error", () => undefined);
+    if (shut) {
+      inbound.destroy();
+      return;
+    }
+    const outbound = connect({ host: target.hostname, port: Number(target.port) || 6379 });
+    outbound.on("error", () => undefined);
+    sockets.add(inbound);
+    sockets.add(outbound);
+    inbound.pipe(outbound);
+    outbound.pipe(inbound);
+    // Redis closing the connection closes the other end too, as it would without the door.
+    outbound.on("close", () => {
+      sockets.delete(outbound);
+      inbound.destroy();
+    });
+    inbound.on("close", () => {
+      sockets.delete(inbound);
+      outbound.destroy();
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  const port = typeof address === "object" && address !== null ? address.port : 0;
+  const destroyAll = () => {
+    for (const socket of sockets) {
+      socket.destroy();
+    }
+    sockets.clear();
+  };
+  return {
+    port,
+    /** Cut off the connections to come, at once; those made are left to whoever ends them. */
+    shut: () => {
+      shut = true;
+    },
+    /** Let connections through again, at the same port. */
+    reopen: () => {
+      shut = false;
+    },
+    /** Destroy the sockets and stop listening, whatever happened before. */
+    dispose: () => {
+      destroyAll();
+      server.close();
+    },
+  };
 }
 
 /** A session of an account, its access token good for five minutes. */
@@ -144,21 +210,31 @@ describe("the store of the sessions of the front", () => {
     // The store connects as a user of its own, whose connection only is killed, never another test's.
     const [user, password] = [`store-${randomUUID()}`, randomUUID()];
     const admin = await createClient({ url: process.env.WATERFALL_TEST_REDIS_URL ?? "" }).connect();
-    await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
-    await closeStore();
-    vi.stubEnv(
-      "WATERFALL_REDIS_URL",
-      testAddress((address) => Object.assign(address, { username: user, password })),
-    );
+    let door: Awaited<ReturnType<typeof doorToRedis>> | undefined;
     try {
+      await admin.aclSetUser(user, ["on", `>${password}`, "~*", "+@all"]);
+      door = await doorToRedis();
+      const { port } = door;
+      await closeStore();
+      vi.stubEnv(
+        "WATERFALL_REDIS_URL",
+        testAddress((address) =>
+          Object.assign(address, { username: user, password, hostname: "127.0.0.1", port }),
+        ),
+      );
       expect(await readSession(randomUUID())).toBeUndefined();
+      // The door is shut before Redis kills the connection: the client that finds it lost is cut off
+      // when it reconnects, however late it comes, so the read below can only fail.
+      door.shut();
       expect(await admin.clientKill({ filter: "USER", username: user })).toBe(1);
       await expect(readSession(randomUUID())).rejects.toBeInstanceOf(StoreUnreachable);
+      door.reopen();
       await vi.waitFor(async () => {
         expect(await readSession(randomUUID())).toBeUndefined();
       });
     } finally {
       await closeStore();
+      door?.dispose();
       vi.unstubAllEnvs();
       await admin.aclDelUser(user);
       await admin.close();

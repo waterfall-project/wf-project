@@ -50,18 +50,19 @@ test("imports a file in two steps: the report lists the lines rejected with thei
   });
   await form.getByRole("button", { name: "Analyser le fichier" }).click();
 
-  // The report of the import the analysis opened, its lines rejected each with its motive.
+  // The report of the import the analysis opened, its lines rejected each with its tab and its motive.
   await expect(page).toHaveURL(`${START}&import=${IMPORT}`);
   const report = page.getByRole("region", {
     name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
   });
   const rejected = report.getByRole("table", { name: "Lignes rejetées" }).getByRole("row");
   await expect(rejected).toHaveText([
-    /Ligne\s*Motif/,
-    /3\s*Tâche inconnue\./,
-    /5\s*Rôle de ressource inconnu\./,
+    /Onglet\s*Ligne\s*Motif/,
+    /Hors lot\s*3\s*Tâche inconnue\./,
+    /Hors lot\s*5\s*Rôle de ressource inconnu\./,
   ]);
   await expect(report.getByText("5 lignes lues.")).toBeVisible();
+  await expect(report.getByText("Parmi elles, 1 est inchangée.")).toBeVisible();
 
   // Nothing is applied before the confirmation; confirmed, the application is a task followed.
   const read = page.waitForRequest((request) => request.postData()?.includes(APPLICATION) === true);

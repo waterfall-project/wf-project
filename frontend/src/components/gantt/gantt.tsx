@@ -59,6 +59,7 @@ import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { FoldToggle } from "@/components/grid/fold";
+import { useConflictNames } from "@/components/grid/link-conflicts";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { formatPlanningDate } from "@/i18n/format";
@@ -331,7 +332,9 @@ export function GanttRows({
   // scrolls aside, which a passive listener — React's — could not prevent. A gesture mostly
   // downward passes, though it drifts aside on a touchpad: the grid scrolls down.
   const wheel = useRef<(event: WheelEvent) => void>(() => undefined);
-  useEffect(() => {
+  // Set, and listened to, at the commit, not after it: a wheel given before the effects of a render
+  // zooms with that render.
+  useLayoutEffect(() => {
     wheel.current = (event) => {
       if (!(event.target instanceof Element) || event.target.closest("[data-gantt]") === null) {
         return;
@@ -348,7 +351,7 @@ export function GanttRows({
       }
     };
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = held.current;
     if (scope === undefined || element === null) {
       return undefined;
@@ -690,17 +693,21 @@ function Bar({ bar }: { readonly bar: GanttBar }) {
   );
 }
 
-/** The name of a bar: its dates, as the API gives them, and whether it is on the critical path. */
+/**
+ * The name of a bar: its dates, as the API gives them, whether it is on the critical path, and the
+ * links in conflict it bears, named (WF-PLA-0020).
+ */
 function barName(
   task: NonNullable<GanttRow["task"]>,
   locale: Locale,
   name: (start: string, finish: string) => string,
+  conflicts: string,
 ): string {
   const date = (instant: { readonly date: string } | null | undefined) =>
     instant === null || instant === undefined
       ? ""
       : formatPlanningDate(instant.date, locale, "short");
-  return name(date(task.start), date(task.finish));
+  return `${name(date(task.start), date(task.finish))}${conflicts}`;
 }
 
 /** Where the button that folds a summary stands: just before its bracket, within the cell. */
@@ -726,6 +733,7 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
   const locale = useLocale();
   const view = use(GanttContext);
   const pattern = useId();
+  const conflicts = useConflictNames(row);
   if (view === undefined) {
     return null;
   }
@@ -740,8 +748,12 @@ export function GanttCell({ row }: { readonly row: GanttRow }) {
         aria-hidden={named ? undefined : true}
         aria-label={
           named
-            ? barName(task, locale, (start, finish) =>
-                t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
+            ? barName(
+                task,
+                locale,
+                (start, finish) =>
+                  t("bar", { nature: bar.nature, start, finish, critical: String(bar.critical) }),
+                conflicts.map((conflict) => t("conflict", { conflict })).join(""),
               )
             : undefined
         }
@@ -784,7 +796,9 @@ export function GanttAxis({ width }: { readonly width: number }) {
   const locale = useLocale();
   const view = use(GanttContext);
   const framed = view?.framed;
-  useEffect(() => {
+  // Told within the commit that draws the axis, before the page can take a gesture: a zoom or an
+  // export asked at once reads the width of the column, never a column of no width (#1473, #1479).
+  useLayoutEffect(() => {
     framed?.(width);
   }, [framed, width]);
   if (view === undefined || view.layout.ticks.length < 2) {

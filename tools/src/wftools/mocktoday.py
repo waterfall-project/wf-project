@@ -10,11 +10,11 @@ the project, the evolution of the indices, the tracking of the milestones, the c
 workload); a reading of an earlier instant (the estimate the offer kept at its marking, the
 indicators the reference kept, the rate update its creation proposed); the sequel of a write made
 today (the remaining to commit after ``remaining_reestimated``); or a counterfactual variant
-declared as such (``*_missing_rates``, ``cost_curve_amendment``,
-``cost_curve_subproject_unbudgeted``, and the curves of a subproject no line relates to, read on
-the core alone, ``alone``). The
-portfolio sums the indicators of the project in memory (``project_today``), never read back from
-the file the same command writes.
+declared as such (``*_missing_rates``, ``estimate_indicators_work_package_without_task``,
+``cost_curve_amendment``, ``cost_curve_subproject_unbudgeted``,
+``project_indicators_without_current_revision``, and the curves of a subproject no line relates
+to, read on the core alone, ``alone``). The portfolio sums the indicators of the project in memory
+(``project_today``), never read back from the file the same command writes.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from wftools.mockindicators import (
     actual_costs,
     estimate,
     index_history,
+    latest_today,
     milestone_tracking,
     missing_rates,
     offer,
@@ -60,6 +61,8 @@ from wftools.mockwitness import (
     STUDIES_STARTED,
     SUBPROJECT_CONTROL,
     SUBPROJECT_TESTS,
+    WORK_BREAKDOWN,
+    WorkPackage,
     fixture,
 )
 from wftools.mockwitnesscosts import COSTS
@@ -73,6 +76,11 @@ OTHER_AMENDMENT_ON = date(2026, 3, 10)
 15,000 more on their line of subcontracting, as if contracted on 10 March 2026. Another amendment
 than the amendment 2 the current revision bears, not merged (``mockamendment``, #791): it is
 named by no number."""
+
+UNBORNE_LOT = WorkPackage(universe(718), "Lot 2")
+"""The counterfactual lot of ``estimate_indicators_work_package_without_task``: a second lot of the
+work breakdown, entered after « Lot 1 », without post, that no task bears — the witness has one lot
+alone, borne by the summary « Poste de commande » (WF-PRJ-0020, WF-DEV-0060, #1142)."""
 
 WORKSHOP = universe(472)
 """The node of organisation the filtered workload retains: the cabling workshop, under the
@@ -171,12 +179,18 @@ def values() -> dict[str, JsonValue]:
         "estimate_indicators_missing_rates": estimate(
             now, against=base, previous=base, missing=missing
         ),
+        "estimate_indicators_work_package_without_task": estimate(
+            now, against=base, previous=base, breakdown=(*WORK_BREAKDOWN, UNBORNE_LOT)
+        ),
         "missing_rates": missing_rates(now, now.lines, missing),
         "rate_update": rate_update(),
         "remaining_indicators": remaining_indicators(now, base, base, costs),
         "remaining_indicators_over_budget": remaining_indicators(reestimated, base, base, costs),
         "project_indicators": project_today(found),
         "project_indicators_marked": project_indicators(base, base, costs),
+        "project_indicators_without_current_revision": project_indicators(
+            latest_today(base), base, costs
+        ),
         "index_history": index_history(points, costs),
         "index_history_subproject": index_history(points, costs, SUBPROJECT_CONTROL),
         "milestone_tracking": milestone_tracking(points[:-1], points[-1]),
@@ -241,7 +255,7 @@ def _on(value: JsonValue) -> str:
 def _labels(parts: JsonValue, *, computed: bool) -> list[str]:
     """Return the labels of the parts of an estimate whose amount is computed, or is not."""
     return [
-        cast("str", part.get("label", "l'ensemble hors sous-projet")).lower()
+        cast("str", part.get("label") or "l'ensemble hors sous-projet").lower()
         for part in _objs(parts)
         if _obj(part["amount"])["is_computable"] is computed
     ]
@@ -259,6 +273,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     )
     offered = _get(found, "estimate_indicators_breakdown")
     [lot] = _objs(now["by_work_package"])
+    borne, unborne = _objs(
+        _get(found, "estimate_indicators_work_package_without_task")["by_work_package"]
+    )
     coverage = _obj(_get(found, "remaining_indicators")["coverage"])
     natures = ", ".join(
         f"{_of(part['amount'])} de {cast('str', part['label']).lower()}"
@@ -291,9 +308,9 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"référence, {_of(now['delta_to_reference'])}, est aussi celui avec la révision "
             f"marquée précédente, la référence elle-même : les "
             f"{_money(coverage['remaining_provisions'])} de provision et les "
-            f"{_money(coverage['occurred_cost'])} des lignes fusionnées par la survenance, face "
-            f"aux {_money(coverage['reserve'])} de provisions qu'elle portait (WF-DEV-0060, "
-            f"WF-RIS-0050)."
+            f"{_money(coverage['occurred_cost'])} de coût à la survenance des risques "
+            f"survenus, face aux {_money(coverage['reserve'])} de provisions qu'elle portait "
+            f"(WF-DEV-0060, WF-RIS-0050)."
         ),
         "estimate_indicators_breakdown": (
             f"Les indicateurs du devis de l'offre v1.0, tels que son marquage du "
@@ -311,6 +328,14 @@ def _estimate_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             f"catégorie et l'année qui manquent ; {', '.join(untouched)} se calculent, mais leur "
             f"part du total non ; le calcul est refusé plutôt que fait avec un taux à zéro "
             f"(WF-DEV-0010, WF-DEV-0060)."
+        ),
+        "estimate_indicators_work_package_without_task": (
+            f"Le devis de la révision courante au {_TODAY} si le lotissement avait, après le lot "
+            f"« {borne['label']} », un second lot, « {unborne['label']} », sans poste et "
+            f"qu'aucune tâche ne porte : ses montants sont ceux du devis du jour, le lot "
+            f"« {borne['label']} » à {_of(borne['amount'])}, que porte la récapitulative « Poste "
+            f"de commande » ; le lot « {unborne['label']} » est présenté sans total, son montant "
+            f"et sa part non calculables plutôt que nuls (WF-DEV-0060)."
         ),
         "missing_rates": (
             f"Les taux horaires qui manqueraient au devis de la révision courante au {_TODAY} "
@@ -378,8 +403,10 @@ def _remaining_summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     return {
         "remaining_indicators": (
             f"Le reste à engager de la révision courante au {_TODAY}, sur toute la structure de "
-            f"mille tâches : {_money(left['total'])} — les tâches non démarrées à leur montant "
-            f"budgété projeté sur leur année de consommation, les tâches démarrées, le câblage des "
+            f"mille tâches : {_money(left['total'])}, inflation comprise — les tâches non "
+            f"démarrées à leur montant réestimé, calculé faute de réestimation depuis les "
+            f"grandeurs de la référence, aux taux de 2026 que la révision conserve et sur leur "
+            f"année de consommation courante, les tâches démarrées, le câblage des "
             f"armoires parmi elles, à leur montant réestimé, les tâches terminées pour rien, les "
             f"lignes fusionnées par la survenance, budgétées à zéro, à leur montant réestimé et la "
             f"provision du risque identifié (WF-RAE-0010). Par sous-projet, le coût réel et le "
@@ -424,6 +451,7 @@ def _completed_drawn(reading: Reading) -> int:
 
 def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[str, str]:
     project, marked = _get(found, "project_indicators"), _get(found, "project_indicators_marked")
+    latest = _get(found, "project_indicators_without_current_revision")
     studies, acceptance = _objs(_get(found, "milestone_tracking")["milestones"])
     completed = _count(_completed_drawn(read_once.today))
     history = _get(found, "index_history")
@@ -459,6 +487,18 @@ def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[
             f"{_money(marked['remaining'])}, qui compte les provisions des risques identifiés "
             f"(WF-IND-0010, WF-DAT-0040, WF-RAE-0010)."
         ),
+        "project_indicators_without_current_revision": (
+            f"Variante contrefactuelle : les indicateurs du projet au {_TODAY} s'il n'avait pas de "
+            f"révision en cours — la révision 102 abandonnée ce matin, ses saisies défaites, les "
+            f"terminaisons comprises —, calculés à la demande sur sa dernière révision marquée, "
+            f"« Référence », avec le coût réel du jour, {_money(latest['actual_cost'])}, et non "
+            f"conservés : la valeur planifiée de {_money(latest['planned_value'])} sur les dates "
+            f"de la référence ; aucune valeur acquise, aucune tâche n'y étant terminée, d'où un "
+            f"indice de coût nul et une projection au rythme constaté non calculable ; le reste à "
+            f"engager de {_money(latest['remaining'])} qu'elle porte. Ses indicateurs conservés à "
+            f"son marquage du {_day(AMENDMENT_MERGED.on)} ne changent pas : ce sont ceux de "
+            f"project_indicators_marked (WF-IND-0010, WF-DAT-0040)."
+        ),
         "index_history": (
             f"L'évolution des indices du projet et de ses mailles : un point par révision "
             f"marquée à partir de l'état En cours — {marked_names}, sans indice calculable, rien "
@@ -475,13 +515,14 @@ def _project_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[
             f"la révision en cours : {_indices(control)} (WF-IND-0020, WF-IND-0130)."
         ),
         "milestone_tracking": (
-            f"Le diagramme temps/temps du projet au {_TODAY} : la réception des études, prévue au "
-            f"{_on(studies['completed_on'])} par l'offre et par la référence, terminée ce jour-là, "
-            f"son dernier point sur la diagonale et aucun après ; la réception usine, ajoutée par "
-            f"l'avenant 1 — l'offre ne la porte pas —, prévue au "
+            f"Le diagramme temps/temps du projet au {_TODAY} : un point par révision marquée à "
+            f"l'état En cours — la référence ; l'offre, marquée pendant le chiffrage, n'en donne "
+            f"aucun. La réception des études, prévue au {_on(studies['completed_on'])} par la "
+            f"référence, terminée ce jour-là, son dernier point sur la diagonale et aucun après ; "
+            f"la réception usine, ajoutée par l'avenant 1, prévue au "
             f"{_on(_objs(acceptance['points'])[0]['forecast_date'])} par la référence et toujours "
-            f"par la révision en cours : une horizontale. Aucune révision ne déplace un jalon "
-            f"(WF-IND-0090)."
+            f"par la révision en cours, au jour courant : une horizontale. Aucune révision ne "
+            f"déplace un jalon (WF-IND-0090)."
         ),
     }
 
@@ -503,12 +544,13 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
     cash = _objs(_get(found, "cost_curve_payment_delays")["cash_out_by_month"])
     to_come = sum((Decimal(cast("str", month["forecast"])) for month in cash), Decimal(0))
     planned_end = _series(_get(found, "earned_value_curves"), "planned_value")[-1]
+    studied = next(point for point in earned_points if Decimal(cast("str", point["amount"])) > 0)
     control = _get(found, "cost_curve_subproject")
     [control_step] = _objs(control["steps"])
     control_budget = _series(control, "reference_budget")
     control_projection = _series(control, "project_manager_projection")
     control_spent = _series(control, "actual_cost")[-1]
-    # The day the budget of the subproject starts to grow: the day after the last point at nought.
+    # The month the budget of the subproject starts to grow: after the last point at nought.
     amounts = [Decimal(cast("str", point["amount"])) for point in control_budget]
     if not amounts or amounts[0] != 0 or amounts[-1] == 0:
         message = "the budget of the control station should start at nought and grow"
@@ -519,17 +561,17 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
     unbudgeted = _get(found, "cost_curve_subproject_unbudgeted")
     return {
         "cost_curve": (
-            f"La courbe de coûts cumulés du projet au {_TODAY} : le budget de référence cumulé sur "
-            f"les dates de la référence, {_money(project['planned_value'])} à la date de calcul, "
-            f"qui atteint ses {_money(budget[-1]['amount'])} à sa fin, le "
-            f"{_on(budget[-1]['date'])} ; la marche de l'avenant 1, {_money(step['amount'])}, le "
-            f"{_on(step['date'])}, où le budget de l'offre désignée référence devient celui de la "
-            f"révision « Référence », deux points à cette date, avant et après, nuls tous deux — "
-            f"rien n'était encore prévu de dépenser — ; le coût réel par date de pièce jusqu'à la "
-            f"date de calcul, {_money(project['actual_cost'])} ; la projection du chef de projet, "
-            f"qui en part et étale le reste à engager sur les dates de la révision courante "
-            f"jusqu'au {_on(projection[-1]['date'])}, {_money(projection[-1]['amount'])} "
-            f"(WF-IND-0100)."
+            f"La courbe de coûts cumulés du projet au {_TODAY}, au pas du mois, chaque point "
+            f"portant le cumul à la fin du mois : le budget de référence cumulé sur les dates de "
+            f"la référence, qui atteint ses {_money(budget[-1]['amount'])} à la fin du mois où "
+            f"elle finit, le {_on(budget[-1]['date'])} ; la marche de l'avenant 1, "
+            f"{_money(step['amount'])}, le {_on(step['date'])}, où le budget de l'offre désignée "
+            f"référence devient celui de la révision « Référence », deux points à cette date, "
+            f"avant et après, nuls tous deux — rien n'était encore prévu de dépenser — ; le coût "
+            f"réel par date de pièce, mois par mois, et à la date de calcul, un point de plus, "
+            f"{_money(project['actual_cost'])} ; la projection du chef de projet, qui en part et "
+            f"étale le reste à engager sur les dates de la révision courante jusqu'au "
+            f"{_on(projection[-1]['date'])}, {_money(projection[-1]['amount'])} (WF-IND-0100)."
         ),
         "cost_curve_payment_delays": (
             f"La même courbe décalée des délais de paiement — {PAYMENT_DELAY} jours sur les "
@@ -557,8 +599,9 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
             f"{_money(control_step['amount'])}, le {_on(control_step['date'])} — tout le budget "
             f"du sous-projet, l'offre n'en déclarant aucun —, deux points à cette date, avant et "
             f"après, nuls tous deux, rien n'étant encore prévu de dépenser ; puis le budget de "
-            f"référence de ses seules lignes, cumulé sur les dates de la référence à partir du "
-            f"{_day(rising)}, jusqu'à {_money(control_budget[-1]['amount'])} le "
+            f"référence de ses seules lignes, cumulé au pas du mois sur les dates de la référence, "
+            f"qui croît à partir de {_month(rising.strftime('%Y-%m'))}, jusqu'à "
+            f"{_money(control_budget[-1]['amount'])} le "
             f"{_on(control_budget[-1]['date'])} ; le coût réel de ses seules pièces, "
             f"{_money(control_spent['amount'])} ; la projection du chef de projet, qui étale son "
             f"reste à engager jusqu'à {_money(control_projection[-1]['amount'])} (WF-IND-0020, "
@@ -592,14 +635,15 @@ def _curve_summaries(found: dict[str, JsonValue], read_once: Witness) -> dict[st
             f"pour lui (WF-IND-0020, WF-IND-0100)."
         ),
         "earned_value_curves": (
-            f"Les courbes de valeur acquise du projet au {_TODAY}, sur toute la structure : la "
-            f"valeur planifiée, {_money(project['planned_value'])} à la date de calcul, sur les "
-            f"dates de la référence, qui atteint le budget de référence à sa fin, le "
-            f"{_on(planned_end['date'])} ; la valeur acquise, par marches à la terminaison de "
-            f"chaque tâche — les études de détail le {_on(earned_points[1]['date'])}, puis les "
-            f"{completed} tâches tirées terminées —, {_money(project['earned_value'])} à la date "
-            f"de calcul ; le coût réel par date de pièce, {_money(project['actual_cost'])}, "
-            f"jusqu'à la date de calcul (WF-IND-0110)."
+            f"Les courbes de valeur acquise du projet au {_TODAY}, sur toute la structure, au pas "
+            f"du mois, chaque point portant le cumul à la fin du mois : la valeur planifiée, sur "
+            f"les dates de la référence, qui atteint le budget de référence à la fin du mois où "
+            f"elle finit, le {_on(planned_end['date'])} ; la valeur acquise, par marches au point "
+            f"du mois de la terminaison de chaque tâche — les études de détail au "
+            f"{_on(studied['date'])}, puis les {completed} tâches tirées terminées —, "
+            f"{_money(project['earned_value'])} à la date de calcul, un point de plus ; le coût "
+            f"réel par date de pièce, mois par mois jusqu'à la date de calcul, "
+            f"{_money(project['actual_cost'])} (WF-IND-0110)."
         ),
     }
 

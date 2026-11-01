@@ -1,15 +1,20 @@
 {
-  "summary": "Une nouvelle extraction d'avril, déposée le 2 juin 2026 à 9 h et analysée à 9 h 01, telle que son analyse la laissa, pas encore appliquée — elle a expiré ce matin à 9 h 01 sans l'être (imports) : deux lignes lues, déjà importées par leur numéro de pièce. L'avoir AV-2026-0388, dont l'élément d'OTP porte désormais WF.PRJ-001/SP-CMD, serait réimputé au sous-projet Poste de commande — un écart sur sa colonne de sous-projet (WF-CRE-0020) — ; la facture FA-2026-0412, dont l'ERP porte désormais 1 850 au lieu de 1 800, serait mise à jour sur son montant et sur son fournisseur, une colonne conservée du fichier (`passthrough.Fournisseur`, WF-CRE-0010, WF-INTF-0140, WF-INTF-0080) ; le code de sous-projet SP-CAB de la facture n'étant celui d'aucun sous-projet du projet, l'application demande une confirmation explicite (WF-CRE-0020).",
+  "summary": "Une nouvelle extraction d'avril, déposée le 2 juin 2026 à 9 h et analysée à 9 h 01, telle que son analyse la laissa, pas encore appliquée — elle a expiré ce matin à 9 h 01 sans l'être (imports) : deux lignes lues, déjà importées, chacune désignée par sa pièce et son poste (D-4). L'avoir AV-2026-0388, sans poste, dont l'élément d'OTP porte désormais PRJ-001/SP-CMD, serait réimputé au sous-projet Poste de commande — un écart sur sa colonne de sous-projet (WF-CRE-0020) — ; la facture FA-2026-0412, poste 10, dont l'ERP porte désormais 1 850 au lieu de 1 800, serait mise à jour sur son montant et sur son fournisseur, une colonne conservée du fichier (`passthrough.Fournisseur`, WF-CRE-0010, WF-INTF-0140, WF-INTF-0080) ; le code de sous-projet SP-CAB de la facture n'étant celui d'aucun sous-projet du projet, l'application demande une confirmation explicite (WF-CRE-0020).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a12",
     "kind": "actual_costs",
     "filename": "couts-reels-2026-04-correction.xlsx",
+    "structure_id": null,
+    "revision_id": null,
+    "period_from": "2026-04-01",
+    "period_to": "2026-04-30",
     "status": "analysed",
     "created_at": "2026-06-02T09:00:05Z",
     "expires_at": "2026-06-03T09:01:00Z",
     "report": {
-      "format_version": "1",
+      "format_version": null,
       "read_count": 2,
+      "unchanged_count": 0,
       "rejected": [],
       "refusals": [],
       "differences": [
@@ -18,6 +23,7 @@
           "target": "actual_cost_line",
           "lineage_id": null,
           "label": "AV-2026-0388",
+          "document_item": null,
           "predecessor_label": null,
           "fields": [
             "subproject"
@@ -28,6 +34,7 @@
           "target": "actual_cost_line",
           "lineage_id": null,
           "label": "FA-2026-0412",
+          "document_item": "10",
           "predecessor_label": null,
           "fields": [
             "amount",
@@ -52,6 +59,18 @@
       "finished_at": "2026-06-02T09:01:00Z",
       "problem": null,
       "result_url": null
-    }
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

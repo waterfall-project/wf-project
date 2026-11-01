@@ -37,10 +37,11 @@ function page(
   value: Computable,
   locale: Locale = "fr",
   context: ProjectIndicators["context"] = INDICATORS.context,
+  currency?: string,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]}>
-      <ComputedIndicator indicator={label} value={value} context={context} />
+      <ComputedIndicator indicator={label} value={value} context={context} currency={currency} />
     </NextIntlClientProvider>
   );
 }
@@ -61,7 +62,7 @@ describe("an indicator", () => {
     const { container } = render(page("indicator.names.physicalProgress", PHYSICAL_PROGRESS));
     expect(screen.getByRole("term")).toHaveTextContent("Avancement physique");
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
-      "2,22\u00a0%",
+      "2,12\u00a0%",
       "Calculé le 3 juin 2026, 07:05",
     ]);
     const time = container.querySelector("time");
@@ -81,7 +82,7 @@ describe("an indicator", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.22%"]);
+    expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual(["2.12%"]);
   });
 
   it.each([
@@ -123,7 +124,9 @@ describe("an indicator", () => {
   });
 
   it("says a value is missing rather than make one up, when the API leaves it out", () => {
-    render(page("indicator.names.financialProgress", { is_computable: true, value: null }));
+    // A variant of a `Computable`: said computable, its value left out.
+    const missing = { is_computable: true, value: null, reason: null };
+    render(page("indicator.names.financialProgress", missing));
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Non calculable",
       "Calculé le 3 juin 2026, 07:05",
@@ -145,5 +148,21 @@ describe("an indicator", () => {
         .map((item) => item.textContent)
         .filter((text) => !text.startsWith("Computed")),
     ).toEqual(["12.5%", "0.8674"]);
+  });
+
+  it("shows a projection as an amount with the currency of the installation [WF-REF-0140-A]", () => {
+    const projection = { is_computable: true, value: "66505326.8", reason: null };
+    render(
+      page("indicator.names.projectionAtObservedRate", projection, "en", INDICATORS.context, "EUR"),
+    );
+    render(
+      page("indicator.names.projectionAtObservedRate", projection, "fr", INDICATORS.context, "EUR"),
+    );
+    expect(
+      screen
+        .getAllByRole("definition")
+        .map((item) => item.textContent)
+        .filter((text) => !text.startsWith("Comput") && !text.startsWith("Calcul")),
+    ).toEqual(["€66,505,326.80", "66\u202f505\u202f326,80\u00a0€"]);
   });
 });

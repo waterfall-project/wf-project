@@ -18,6 +18,7 @@ import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
 import { NO_AUDIT } from "@/test/accounts";
 import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
+import { keysOf } from "@/test/grid-preferences";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
 import { type AuditFilters, authorsOf } from "./audit-address";
@@ -448,7 +449,7 @@ describe("the grid of the access roles", () => {
     );
   });
 
-  it("deletes a role no account holds once its deletion is confirmed, says so, and reads the page anew", async () => {
+  it("deletes a role no account holds once its deletion is confirmed, from the version read, says so, and reads the page anew", async () => {
     page.path = "/admin/access-roles";
     const client = fakeClient({ [ROLE]: { status: 204 } });
     server.client = client;
@@ -467,6 +468,8 @@ describe("the grid of the access roles", () => {
     expect(client.calls.map(({ route, path }) => [route, path])).toEqual([
       [ROLE, `/access-roles/${administrator?.access_role_id ?? ""}`],
     ]);
+    // The counter of the role as read: a role written since is not deleted (A-02).
+    expect(client.calls[0]?.query.get("lock_version")).toBe(String(administrator?.lock_version));
     expect(refresh).toHaveBeenCalledOnce();
   });
 
@@ -600,6 +603,7 @@ describe("the grid of the access roles", () => {
         access_roles: {
           hidden_columns: ["holder_count"],
           column_widths: {},
+          known_columns: keysOf(accessRoleGrid(false).columns),
           sort: { column: "label", order: "desc" },
           filters: { search: "Chef", is_predefined: "false", holder_count_max: "0" },
         },
@@ -629,7 +633,14 @@ describe("the grid of the access roles", () => {
       expect(client.calls).toHaveLength(1);
     });
     expect(client.calls[0]?.body).toEqual({
-      grids: { access_roles: { hidden_columns: [], column_widths: {}, filters: {} } },
+      grids: {
+        access_roles: {
+          hidden_columns: [],
+          column_widths: {},
+          known_columns: keysOf(accessRoleGrid(false).columns),
+          filters: {},
+        },
+      },
     });
     expect(router.replace).not.toHaveBeenCalled();
   });

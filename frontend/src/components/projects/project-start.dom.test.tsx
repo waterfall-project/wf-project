@@ -14,6 +14,7 @@ import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -455,6 +456,13 @@ describe("the drop zone", () => {
     const { group } = await zone({
       [UPLOAD]: { problem: { code: "FILE_TOO_LARGE", status: 413 } },
     });
+    // Whether the zone was still busy in the commit that told the refusal: the deposit over, never
+    // while a file dropped is told an upload under way (#1484).
+    const busyWhenTold = atCommit(
+      group,
+      () => within(group).queryByRole("alert") !== null,
+      () => group.getAttribute("aria-busy"),
+    );
     await userEvent.upload(
       within(group).getByLabelText("Fichier MS Project (.xml)"),
       new File(["x"], "planning.xml"),
@@ -464,6 +472,7 @@ describe("the drop zone", () => {
         CATALOGUES.fr.errors.FILE_TOO_LARGE,
       );
     });
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(router.push).not.toHaveBeenCalled();
   });
 });
@@ -589,15 +598,20 @@ describe("« Engendrer le planning » on a project without revision", () => {
     expect(command).toHaveFocus();
   });
 
-  it("reads the page anew after a conflict of the opening, generates nothing, and tells it", async () => {
-    // The refusal of the contract: a revision opened meanwhile (`current_revision_exists`).
+  it("reads the page anew after a conflict of the opening, generates nothing, and tells the condition it lacks [WF-REV-0010-A]", async () => {
+    // The refusal of the contract: a revision opened meanwhile (`current_revision_exists`), told by
+    // the condition `create_revision` names, as every refusal of a state (J-01).
     const refusal = example("current_revision_exists") as components["schemas"]["Problem"];
-    expect(refusal.code).toBe("CURRENT_REVISION_EXISTS");
+    expect(refusal).toMatchObject({
+      code: "STATE_FORBIDS_OPERATION",
+      params: { missing_condition: "no_current_revision" },
+    });
     const client = serve({ [CREATE]: { problem: { ...refusal, status: 409 as const } } });
     open(generate());
     await userEvent.click(screen.getByRole("button", { name: "Engendrer le planning" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.CURRENT_REVISION_EXISTS);
+    expect(alert).toHaveTextContent(CATALOGUES.fr.errors.STATE_FORBIDS_OPERATION);
+    expect(alert).toHaveTextContent(CATALOGUES.fr.enums.CommandCondition.no_current_revision);
     expect(client.calls.map((call) => call.route)).toEqual([CREATE]);
     expect(router.refresh).toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();

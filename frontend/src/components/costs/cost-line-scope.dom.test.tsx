@@ -58,7 +58,7 @@ function line(document: string): CostRow {
 }
 
 /** The offer of the exclusion a project of the contract lists, by the name of its example. */
-function offerOf(name: "project" | "project_completed"): CommandOffer {
+function offerOf(name: "project"): CommandOffer {
   const project = example(name) as Project;
   const offer = project.available_commands.find((each) => each.command === "exclude_cost_lines");
   if (offer === undefined) {
@@ -103,7 +103,7 @@ describe("the place of a line in the tracked scope", () => {
     const { container } = render(
       inFrench(<CostLineScope projectId={PROJECT} line={cables} offer={offerOf("project")} />),
     );
-    const section = screen.getByRole("region", { name: "Ligne FA-2026-0412" });
+    const section = screen.getByRole("region", { name: "Ligne FA-2026-0412, poste 10" });
     expect(section).toHaveTextContent("Suivie");
     await userEvent.type(
       screen.getByLabelText("Motif de l’exclusion"),
@@ -134,7 +134,7 @@ describe("the place of a line in the tracked scope", () => {
     await userEvent.type(screen.getByLabelText("Motif de l’exclusion"), "Hors budget");
     // The page read anew after the exclusion, then after a reinstatement.
     rerender(scope(costRow(example("actual_cost_excluded") as ActualCostLine)));
-    expect(screen.getByRole("region", { name: "Ligne FA-2026-0412" })).toHaveTextContent(
+    expect(screen.getByRole("region", { name: "Ligne FA-2026-0412, poste 10" })).toHaveTextContent(
       "Exclue du périmètre suivi : Câbles d'un autre projet, à réimputer",
     );
     rerender(scope(cables));
@@ -165,7 +165,7 @@ describe("the place of a line in the tracked scope", () => {
     render(
       inFrench(<CostLineScope projectId={PROJECT} line={reception} offer={offerOf("project")} />),
     );
-    expect(screen.getByRole("region", { name: "Ligne FA-2026-0295" })).toHaveTextContent(
+    expect(screen.getByRole("region", { name: "Ligne FA-2026-0295, poste 10" })).toHaveTextContent(
       "Exclue du périmètre suivi : Réception du client, non budgétée",
     );
     expect(screen.queryByLabelText("Motif de l’exclusion")).not.toBeInTheDocument();
@@ -176,24 +176,6 @@ describe("the place of a line in the tracked scope", () => {
       expect(refresh).toHaveBeenCalledOnce();
     });
     expect(client.calls[0]?.body).toEqual({ is_in_tracked_scope: true, reason: null });
-  });
-
-  it("offers the command unavailable with what it lacks on a project that ended, and runs nothing", async () => {
-    const client = serve({});
-    render(
-      inFrench(
-        <CostLineScope
-          projectId={PROJECT}
-          line={line("FA-2026-0412")}
-          offer={offerOf("project_completed")}
-        />,
-      ),
-    );
-    const command = screen.getByRole("button", { name: "Exclure du périmètre suivi" });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription(/projet/i);
-    await userEvent.click(command);
-    expect(client.calls).toEqual([]);
   });
 
   it("tells the refusal of the server, and renders nothing again", async () => {
@@ -240,16 +222,42 @@ describe("the number of a line in the grid", () => {
   };
   const query = { sort: undefined, search: undefined, size: undefined };
 
+  it("names two lines of one document by their item, in the link of the grid and in the title of the detail (aucune exigence : propre à l'US (US-0660, #1524))", () => {
+    // FA-2026-0301 is split into two items (US-0630): the document alone names neither of them.
+    const [first, second] = COSTS.items
+      .filter((item) => item.document_number === "FA-2026-0301")
+      .map(costRow);
+    if (first === undefined || second === undefined) {
+      throw new Error("the witness holds no document of two items");
+    }
+    const { unmount } = render(
+      inFrench(<CostsGrid costs={costs} query={query} preferences={undefined} linked />),
+    );
+    const grid = screen.getByRole("grid", { name: "Coûts réels" });
+    expect(within(grid).getByRole("link", { name: "FA-2026-0301, poste 10" })).toBeInTheDocument();
+    expect(within(grid).getByRole("link", { name: "FA-2026-0301, poste 20" })).toBeInTheDocument();
+    // A line without an item (the credit note) keeps its document for name.
+    expect(within(grid).getByRole("link", { name: "AV-2026-0388" })).toBeInTheDocument();
+    unmount();
+    render(
+      inFrench(<CostLineScope projectId={PROJECT} line={second} offer={offerOf("project")} />),
+    );
+    expect(
+      screen.getByRole("region", { name: "Ligne FA-2026-0301, poste 20" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Ligne FA-2026-0301, poste 10" })).toBeNull();
+  });
+
   it("shows the line where the user may exclude it, a link out of the tabulation, the line shown marked", () => {
     const cables = line("FA-2026-0412");
     page.search = `line=${cables.cost_line_id}`;
     render(inFrench(<CostsGrid costs={costs} query={query} preferences={undefined} linked />));
     const grid = screen.getByRole("grid", { name: "Coûts réels" });
-    const link = within(grid).getByRole("link", { name: "FA-2026-0412" });
+    const link = within(grid).getByRole("link", { name: "FA-2026-0412, poste 10" });
     expect(link).toHaveAttribute("href", `${PATHNAME}?line=${cables.cost_line_id}`);
     expect(link).toHaveAttribute("tabindex", "-1");
     expect(link).toHaveAttribute("aria-current", "true");
-    expect(within(grid).getByRole("link", { name: "FA-2026-0295" })).not.toHaveAttribute(
+    expect(within(grid).getByRole("link", { name: "FA-2026-0295, poste 10" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -258,6 +266,8 @@ describe("the number of a line in the grid", () => {
     render(inFrench(<CostsGrid costs={costs} query={query} preferences={undefined} />));
     const grid = screen.getByRole("grid", { name: "Coûts réels" });
     expect(within(grid).getByText("FA-2026-0412")).toBeInTheDocument();
-    expect(within(grid).queryByRole("link", { name: "FA-2026-0412" })).not.toBeInTheDocument();
+    expect(
+      within(grid).queryByRole("link", { name: "FA-2026-0412, poste 10" }),
+    ).not.toBeInTheDocument();
   });
 });

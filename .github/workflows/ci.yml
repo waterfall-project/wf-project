@@ -12,7 +12,8 @@
 # paths, e2e.yml for the paths, in the full tier only and spread over several runners (#492).
 # The paths against the real service, which traverse the front, the back and the platform, run
 # in the full tier only too (service.yml, US-0340), as does the production platform started on the
-# images built here (production.yml, US-0430).
+# images built here (production.yml, US-0430). Both kinds of paths play the front built for
+# production once in the run, by the job front-build (US-0590).
 name: chain
 
 on:
@@ -95,10 +96,50 @@ jobs:
     with:
       tier: ${{ needs.changes.outputs.tier }}
 
+  # The front built for production once for the whole run (US-0590): each part of the end-to-end
+  # paths, the measure and the paths against the service download this build and play it, and
+  # build nothing again (E2E_BUILT). Here, whenever either of them runs: e2e.yml and service.yml
+  # are two called workflows, whose jobs no `needs` joins. On the runner, as front.yml builds: the
+  # parts of e2e.yml start it in Playwright's image, on its Node 24 and its Ubuntu noble, amd64, at
+  # another path of the workspace, which the build should not depend on (checked by moving the
+  # build on a workstation; the proof in the chain is a run of `chain` on the branch); service.yml
+  # on the runner.
+  front-build:
+    needs: changes
+    if: >-
+      needs.changes.outputs.tier == 'full'
+      && (needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')
+    runs-on: ubuntu-24.04
+    # The installation and the build of the front, about four minutes on a hosted runner.
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # pnpm, at the version `packageManager` names, must exist before setup-node caches it.
+      - run: corepack enable pnpm
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: make build-front
+      # The build without Next's cache, which only a later build reads, for one day: each job that
+      # plays it downloads it where the build wrote it.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: front-build
+          path: |
+            frontend/.next/
+            !frontend/.next/cache/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   # The other half of the front family: skipped in the fast tier as when the front is not
   # touched, which the gate does not count as a failure.
   e2e:
-    needs: changes
+    needs: [changes, front-build]
     if: needs.changes.outputs.front == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/e2e.yml
 
@@ -121,7 +162,7 @@ jobs:
 
   # Skipped in the fast tier as when nothing it traverses is touched.
   service:
-    needs: changes
+    needs: [changes, front-build]
     if: needs.changes.outputs.service == 'true' && needs.changes.outputs.tier == 'full'
     uses: ./.github/workflows/service.yml
 
@@ -134,9 +175,22 @@ jobs:
 
   gate:
     # Every job of the chain, each part of the end-to-end paths included: the result of e2e is
-    # a failure as soon as one of its parts failed or was cancelled.
+    # a failure as soon as one of its parts failed or was cancelled. A build of the front that
+    # failed skips e2e and service, which front-build here says.
     needs:
-      [changes, repo, spec, contract, back, front, e2e, front-image, roadmap, keycloak, service, production]
+      - changes
+      - repo
+      - spec
+      - contract
+      - back
+      - front
+      - front-build
+      - e2e
+      - front-image
+      - roadmap
+      - keycloak
+      - service
+      - production
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

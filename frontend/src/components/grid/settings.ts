@@ -69,7 +69,11 @@ export function endedColumns(columns: readonly SettledColumn[]): ReadonlySet<str
  * and may hide, the widths of the columns it has. A key of another version of the grid is left
  * aside, and a width out of bounds is brought within them. An account that has kept no list of
  * hidden columns starts from the columns the grid hides (`GridColumn.hidden`); one that has kept
- * a list, empty or not, shows what it does not name: the grid records the list whole.
+ * a list, empty or not, hides what it names, and shows a column it does not name if the grid knew
+ * it then (`known_columns`): a column the grid offers since takes what the grid gives it by
+ * default — hidden if the grid hides it (EP-16/US-0650, #1260). A grid recorded before the list
+ * existed knew none, as the contract reads it: a column hidden by default is hidden there, though
+ * the account had chosen to show it (`docs/api/DECISIONS.md`).
  */
 export function initialSettings(
   preferences: GridPreferences | undefined,
@@ -78,9 +82,12 @@ export function initialSettings(
   const hideable = new Set(columns.filter((column) => column.pinned !== true).map((c) => c.key));
   const known = new Set(columns.map((column) => column.key));
   const ended = endedColumns(columns);
+  const byDefault = columns.filter((column) => column.hidden === true).map((column) => column.key);
+  const knownThen = new Set(preferences?.known_columns ?? []);
   const kept =
-    preferences?.hidden_columns ??
-    columns.filter((column) => column.hidden === true).map((column) => column.key);
+    preferences?.hidden_columns === undefined
+      ? byDefault
+      : [...preferences.hidden_columns, ...byDefault.filter((key) => !knownThen.has(key))];
   const hidden = kept.filter((key) => hideable.has(key));
   const widths = Object.entries(preferences?.column_widths ?? {}).filter(([key]) => known.has(key));
   return {
@@ -89,6 +96,21 @@ export function initialSettings(
       widths.map(([key, width]) => [key, bounded(width, ended.has(key) ? WIDEST : MAX_WIDTH)]),
     ),
   };
+}
+
+/**
+ * What the preferences of a grid record of its columns besides their settings: those pinned at its
+ * end, whose width is bounded by the room of their frame, and the keys of all it offers, which it
+ * records as the columns it knows (`known_columns`).
+ */
+export interface GridShape {
+  readonly ended: ReadonlySet<string>;
+  readonly known: readonly string[];
+}
+
+/** The shape of a grid, from its columns. */
+export function gridShape(columns: readonly SettledColumn[]): GridShape {
+  return { ended: endedColumns(columns), known: columns.map((column) => column.key) };
 }
 
 /** The number of rows per page the account keeps for a grid; none, the default of the contract. */
@@ -105,7 +127,9 @@ export type KeptGridSort = GridPreferences["sort"];
  * showed (`kept-filters.ts`), or, for a grid whose screen keeps none, those the account kept, as
  * they came —, the size of its pages, the one chosen last, and what the account kept of it besides, as
  * it came: the grid is replaced whole. Each width is bounded as the reading bounds it — the room of
- * a window for a column pinned at the end (`ended`), the widest column for the others.
+ * a window for a column pinned at the end (`GridShape.ended`), the widest column for the others —,
+ * and the columns the grid offers are recorded as those it knows (`known_columns`); no shape given,
+ * those the account kept go back as they came.
  */
 export function recordedPreferences(
   preferences: GridPreferences | undefined,
@@ -113,10 +137,12 @@ export function recordedPreferences(
   sort: KeptGridSort,
   filters?: Readonly<Record<string, string>>,
   size?: number,
-  ended: ReadonlySet<string> = new Set(),
+  shape?: GridShape,
 ): GridPreferences {
+  const ended = shape?.ended ?? new Set<string>();
   const recorded: GridPreferences = {
     ...preferences,
+    ...(shape === undefined ? {} : { known_columns: [...shape.known] }),
     hidden_columns: Object.entries(settings.visibility)
       .filter(([, visible]) => !visible)
       .map(([key]) => key),

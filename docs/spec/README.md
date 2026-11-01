@@ -1,74 +1,77 @@
-# Spécification Waterfall — sources et projection
+# Waterfall specification — sources and projection
 
-## Principe
+> This is the English version of [README-fr.md](README-fr.md); when the two differ, the French text
+> is the reference.
 
-Trois sources font foi, et trois seulement :
+## Principle
 
-| Source | Contient | Éditée avec |
+Three sources are authoritative, and three only:
+
+| Source | Holds | Edited with |
 |---|---|---|
-| `stb-waterfall.docx` | tout le texte, les tableaux, les exigences | Word |
-| `waterfall.visuels.drawio` | les diagrammes dessinés : contexte, arborescences, cycle de vie, flux de travail | draw.io |
-| `figures/*.mmd` | les diagrammes écrits : modèle conceptuel, déploiement, séquences | un éditeur de texte |
+| `stb-waterfall.docx` | all the text, the tables, the requirements | Word |
+| `waterfall.visuels.drawio` | the drawn diagrams: context, trees, life cycle, workflow | draw.io |
+| `figures/*.mmd` | the written diagrams: conceptual model, deployment, sequences | a text editor |
 
-`waterfall-spec.md` est **généré** à partir de ces sources. Il n'est jamais
-édité à la main : la prochaine génération écraserait la modification sans
-prévenir. Il existe pour qu'un agent puisse lire la spécification — pas pour
-remplacer le document Word, qui reste le livrable.
+`waterfall-spec.md` is **generated** from these sources. It is never
+edited by hand: the next generation would overwrite the change without
+warning. It exists so that an agent can read the specification — not to
+replace the Word document, which remains the deliverable.
 
-## Régénérer
+## Regenerating
 
-Depuis la racine du dépôt :
+From the root of the repository:
 
 ```bash
-make build-doc          # régénère la projection
-make build-doc-strict   # échoue au moindre avertissement, pour la CI
+make build-doc          # regenerates the projection
+make build-doc-strict   # fails on the slightest warning, for the CI
 ```
 
-Ou directement `./build.sh`, qui accepte les mêmes options.
+Or directly `./build.sh`, which accepts the same options.
 
-Le script affiche les avertissements, puis ce qui a changé depuis la génération
-précédente. Options utiles :
+The script prints the warnings, then what has changed since the previous
+generation. Useful options:
 
-- `--verbose` : ajoute les messages de traçabilité (rattachement géométrique des
-  arêtes draw.io, validation des diagrammes) ;
-- `--strict` : code de retour non nul si un avertissement est émis, pour une
-  intégration continue.
+- `--verbose`: adds the traceability messages (geometric attachment of the
+  draw.io edges, validation of the diagrams);
+- `--strict`: non-zero return code if a warning is emitted, for continuous
+  integration.
 
-Prérequis : `pandoc`, Python 3.11+, et `mmdc`
-(`npm i -g @mermaid-js/mermaid-cli`) — ce dernier est optionnel, il sert à
-vérifier que les diagrammes produits compilent réellement.
+Prerequisites: `pandoc`, Python 3.11+, and `mmdc`
+(`npm i -g @mermaid-js/mermaid-cli`) — the latter is optional, it serves to
+check that the diagrams produced really compile.
 
-## Ce que la génération ajoute au document Word
+## What the generation adds to the Word document
 
-Trois choses, qui sont ce qui rend le retour de revue possible :
+Three things, which are what makes the review feedback possible:
 
-1. **La numérotation de section sur chaque titre.** Word l'affiche mais ne la
-   stocke pas dans le texte ; sans elle, un constat de revue ne serait pas
-   localisable dans le document. `§3.4.5.1` dans un constat désigne exactement la
-   section `3.4.5.1` de Word.
-2. **Les exigences en blocs YAML**, avec leur numéro de section. Un agent peut
-   alors les citer et les filtrer (par domaine, par flexibilité) au lieu de
-   reformuler un tableau.
-3. **Les diagrammes en Mermaid**, donc lisibles. `tools/figures.toml` associe
-   chaque légende de figure à sa source, de deux origines possibles :
-   - une **page du fichier draw.io** (clé `page`), convertie en flowchart ;
-   - un **fichier `.mmd` du dépôt** (clé `source`), repris tel quel — c'est la
-     seule voie pour un diagramme de classes ou de séquence.
+1. **The section numbering on each heading.** Word displays it but does not
+   store it in the text; without it, a review finding could not be located
+   in the document. `§3.4.5.1` in a finding designates exactly section
+   `3.4.5.1` of Word.
+2. **The requirements as YAML blocks**, with their section number. An agent can
+   then cite and filter them (by domain, by flexibility) instead of
+   rewording a table.
+3. **The diagrams in Mermaid**, hence readable. `tools/figures.toml` associates
+   each figure caption with its source, from two possible origins:
+   - a **page of the draw.io file** (key `page`), converted to a flowchart;
+   - an **`.mmd` file of the repository** (key `source`), taken up as is — this is
+     the only way for a class or sequence diagram.
 
-   Le texte alternatif de l'image dans Word n'est jamais lu : Word le réécrit sur
-   une ligne, et un diagramme n'y survit pas. Une figure sans entrée est conservée
-   en image, et signalée.
+   The alternative text of the image in Word is never read: Word rewrites it on
+   one line, and a diagram does not survive it. A figure without an entry is kept
+   as an image, and flagged.
 
-L'index des exigences est reconstruit à la génération : les numéros de page de
-Word n'ont pas de sens dans un Markdown.
+The index of the requirements is rebuilt at generation: the page numbers of
+Word have no meaning in a Markdown.
 
-## Ajouter une figure
+## Adding a figure
 
-Un diagramme dessiné — boîtes et flèches — se fait dans draw.io :
+A drawn diagram — boxes and arrows — is made in draw.io:
 
-1. Dessiner la page dans `waterfall.visuels.drawio` ; lui donner un nom explicite.
-2. Insérer l'image dans Word, avec sa légende `Figure n — <titre>`.
-3. Ajouter l'association dans `tools/figures.toml` :
+1. Draw the page in `waterfall.visuels.drawio`; give it an explicit name.
+2. Insert the image in Word, with its caption `Figure n — <title>`.
+3. Add the association in `tools/figures.toml`:
 
    ```toml
    [[figure]]
@@ -77,15 +80,15 @@ Un diagramme dessiné — boîtes et flèches — se fait dans draw.io :
    direction = "LR"
    ```
 
-Un diagramme écrit — classes, séquence, ou tout diagramme que draw.io ne sait pas
-rendre — se fait en Mermaid :
+A written diagram — classes, sequence, or any diagram draw.io cannot
+render — is made in Mermaid:
 
-1. Écrire le source dans `figures/<nom>.mmd`.
-2. Engendrer l'image (`mmdc -i figures/<nom>.mmd -o figures/<nom>.png -b white -s 2`)
-   et l'insérer dans Word avec sa légende. Si l'image est plutôt dessinée dans
-   draw.io à partir du source, comme celles du modèle conceptuel, le fichier
-   `.mmd` reste la source et l'image n'a pas de `.png` dans `figures/`.
-3. Déclarer la source :
+1. Write the source in `figures/<nom>.mmd`.
+2. Generate the image (`mmdc -i figures/<nom>.mmd -o figures/<nom>.png -b white -s 2`)
+   and insert it in Word with its caption. If the image is instead drawn in
+   draw.io from the source, like those of the conceptual model, the `.mmd`
+   file remains the source and the image has no `.png` in `figures/`.
+3. Declare the source:
 
    ```toml
    [[figure]]
@@ -93,16 +96,16 @@ rendre — se fait en Mermaid :
    source = "figures/<nom>.mmd"
    ```
 
-Le texte alternatif de l'image dans Word ne porte jamais le source : il n'est pas
-lu, et Word ne le conserve pas fidèlement.
+The alternative text of the image in Word never carries the source: it is not
+read, and Word does not keep it faithfully.
 
-Dans draw.io, relier les flèches **aux formes** plutôt que de les poser librement :
-une flèche non reliée n'a pas de source ni de cible dans le fichier, et le
-convertisseur doit deviner ses extrémités par proximité géométrique. Il le fait,
-et le signale, mais c'est une approximation qui peut se tromper si deux formes
-sont proches.
+In draw.io, connect the arrows **to the shapes** rather than placing them freely:
+an unconnected arrow has neither source nor target in the file, and the
+converter has to guess its ends by geometric proximity. It does so, and
+flags it, but it is an approximation that can be wrong if two shapes
+are close.
 
-## Cycle de revue
+## Review cycle
 
 ```
 Word + draw.io  ──►  ./build.sh  ──►  waterfall-spec.md
@@ -121,43 +124,43 @@ Word + draw.io  ──►  ./build.sh  ──►  waterfall-spec.md
                                                   ce qui a effectivement changé)
 ```
 
-Lancer une revue, depuis la racine du dépôt :
+To launch a review, from the root of the repository:
 
 ```
 Lis docs/spec/revue/PROMPT.md et applique-le à docs/spec/waterfall-spec.md.
 Périmètre : <sections, ou « document complet »>.
 ```
 
-Les constats sont **appliqués dans Word**, jamais dans le Markdown. Chaque
-constat porte une section, un identifiant d'exigence et une citation exacte,
-pour être retrouvé par recherche dans le document. Après intégration, mettre à
-jour la ligne `Statut` du constat : les cinq statuts possibles sont définis dans
-`revue/constats/MODELE.md`, et c'est cette ligne qui distingue un constat traité
-d'un constat oublié.
+The findings are **applied in Word**, never in the Markdown. Each
+finding carries a section, a requirement identifier and an exact quotation,
+so that it can be found by searching the document. After integration, update
+the `Statut` line of the finding: the five possible statuses are defined in
+`revue/constats/MODELE.md`, and it is this line that distinguishes a finding dealt
+with from a finding forgotten.
 
-Relancer `./build.sh` après les corrections : le diff affiché vérifie que les
-modifications Word ont bien atterri là où on les attendait.
+Run `./build.sh` again after the corrections: the diff displayed checks that the
+Word changes did land where they were expected.
 
-Une revue peut aussi se faire dans Word même, en commentaires et en suivi des
-modifications : les corrections sont alors proposées en modifications suivies,
-avec une réponse à chaque commentaire, et l'auteur les accepte ou les refuse dans
-Word. Tant que le document porte des modifications en attente ou des fils de
-commentaires non résolus, `./build.sh` l'avertit et `make build-doc-strict`
-échoue : pandoc accepte toutes les modifications en silence et ignore les
-commentaires, et la projection présenterait comme adopté ce qui ne l'est pas
-encore. La projection ne se régénère donc que depuis un document accepté.
+A review can also be done in Word itself, in comments and tracked
+changes: the corrections are then proposed as tracked changes,
+with a reply to each comment, and the author accepts or rejects them in
+Word. As long as the document carries pending changes or unresolved comment
+threads, `./build.sh` warns about it and `make build-doc-strict`
+fails: pandoc accepts all the changes silently and ignores the
+comments, and the projection would present as adopted what is not yet
+adopted. The projection is therefore regenerated only from an accepted document.
 
-## Suivi de version
+## Versioning
 
-Le dépôt est sous Git, et c'est ce qui rend le cycle ci-dessus lisible : le diff
-entre deux générations de `waterfall-spec.md` montre exactement l'effet d'une
-session de revue sur la spécification. Les sources Word et draw.io sont
-versionnées avec elle, de sorte qu'une correction et son effet apparaissent dans
-le même commit.
+The repository is under Git, and that is what makes the cycle above readable: the diff
+between two generations of `waterfall-spec.md` shows exactly the effect of a
+review session on the specification. The Word and draw.io sources are
+versioned with it, so that a correction and its effect appear in
+the same commit.
 
-## Emplacement
+## Location
 
-Tout ce qui concerne la spécification vit dans `docs/spec/` : les deux sources,
-la projection, les figures, les outils et les revues. Les chemins des scripts
-sont relatifs à ce répertoire, et `./build.sh` peut être lancé depuis n'importe
-où.
+Everything that concerns the specification lives in `docs/spec/`: the two sources,
+the projection, the figures, the tools and the reviews. The paths of the scripts
+are relative to this directory, and `./build.sh` can be launched from
+anywhere.

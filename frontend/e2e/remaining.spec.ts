@@ -53,6 +53,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
+  // The currency now closes each amount of the cards, which wrap a line more (`FiguresGrid` sets
+  // them by the width, for every screen: a layout of the cards is a lot of its own, not this
+  // one's): the window is taller by that line, so that the totals of the grid stay in view.
+  await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",
@@ -61,10 +65,10 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The indicators in cards, dated, each figure as the server gives it, the coverage of the risks
   // in a card of its own.
   const indicators = page.getByRole("region", { name: "Indicateurs du reste à engager" });
-  await expect(indicators).toContainText(/Reste à engager\s*67\s293\s028,72/);
+  await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98\s€/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s*Provisions restantes\s*500\s000,00\s*Coût des risques survenus\s*200,00\s*Écart de couverture\s*349\s860,00/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
   // The control station, the tests and commissioning and the whole without sub-project all over
@@ -132,7 +136,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // signalled: the factory acceptance waits for the wiring.
   const notStarted = page.getByRole("region", { name: "Non démarrées" });
   await expectCards(notStarted, 925, [
-    /^18\s*Jalon\s*Réception usine\s*Fin le 30\/06\/2026$/,
+    /^13\s*Jalon\s*Réception usine\s*Fin le 30\/06\/2026$/,
     /^20\s*Montage des armoires sur site\s*Fin le 18\/12\/2026$/,
     /^23\s*Mise en service\s*Fin le 01\/01\/2027$/,
     /^27\s*Préparation 1\.1\.1\s*Fin le 14\/07\/2026$/,
@@ -151,8 +155,8 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
     /^5\s*Revue de conception\s*Terminée le 24\/04\/2026$/,
     /^6\s*Jalon\s*Réception des études\s*Terminée le 24\/04\/2026$/,
     /^7\s*Dossier de conception\s*Terminée le 15\/04\/2026$/,
-    /^14\s*Relance du fournisseur\s*Terminée le 08\/05\/2026$/,
-    /^16\s*Transport exceptionnel\s*Terminée le 15\/05\/2026$/,
+    /^15\s*Relance du fournisseur\s*Terminée le 08\/05\/2026$/,
+    /^17\s*Transport exceptionnel\s*Terminée le 15\/05\/2026$/,
     /^247\s*Préparation 1\.2\.1\s*Terminée le 01\/05\/2026$/,
   ]);
   const main = page.getByRole("main");
@@ -253,9 +257,10 @@ test("leads from the remaining to commit to the workload of the project, on the 
 }) => {
   test.slow();
   await compile(page.request, `${IN_REVISION}/workload`);
-  // The link is an icon alone for the room of the head on a window of 1280 points: the title of
-  // the screen and the totals of the grid are in view all the same.
-  await page.setViewportSize({ width: 1280, height: 720 });
+  // The link is an icon alone for the room of the head on a window of 1280 points; the cards,
+  // with the currency closing each amount, wrap a line more (see the first test): the window is
+  // 800 points high so that the title of the screen and the totals of the grid are in view.
+  await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
   await expect(

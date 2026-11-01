@@ -31,6 +31,7 @@
               witness: { $ref: ../../../fixtures/api/estimate_indicators.json }
               breakdown: { $ref: ../../../fixtures/api/estimate_indicators_breakdown.json }
               missing_rates: { $ref: ../../../fixtures/api/estimate_indicators_missing_rates.json }
+              work_package_without_task: { $ref: ../../../fixtures/api/estimate_indicators_work_package_without_task.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -43,6 +44,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/estimate-indicators/missing-rates:
@@ -73,6 +75,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/workload:
@@ -81,14 +84,17 @@
     tags: [estimate]
     summary: Plan de charge du projet
     description: >-
-      Par rôle et par mois, au choix sur les montants budgétés de la révision de
-      référence, sur les montants réestimés d'une révision marquée, nommée par
-      `revision_id`, ou sur ceux de la révision en cours, avec la capacité de chaque rôle
-      en regard (WF-DEV-0070). Sur un projet sans révision de référence, seule la
-      révision en cours est une base : les deux autres sont refusées (409,
-      `STATE_FORBIDS_OPERATION`), et `marked_remaining` l'est aussi sans `revision_id`
-      ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`). Le plan nomme le
-      nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
+      Par rôle et par mois, la charge des lignes de main-d'œuvre prise au choix dans la révision
+      de référence, dans une révision marquée pour sa charge réestimée, nommée par
+      `revision_id`, ou dans la révision en cours, avec la capacité de chaque rôle en regard
+      (WF-DEV-0070). Sur un projet sans révision de référence, la base de la référence est
+      absente : `reference_budget` est refusée (409, `STATE_FORBIDS_OPERATION`), comme
+      `current_remaining` sur un projet sans révision en cours ; une révision marquée reste une
+      base, en chiffrage comme en réalisation, et `marked_remaining` n'est refusée que sans
+      `revision_id` ou sur une révision qui n'est pas marquée (422, `VALIDATION_FAILED`) — sur
+      un projet sans aucune révision marquée, seule la révision en cours est donc une base. Sur
+      une révision marquée, la date de calcul est sa date de marquage (`context.computed_at`).
+      Le plan nomme le nœud d'organisation qu'il retient (`org_node_id`, `org_node_label`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/WorkloadBasis
@@ -117,9 +123,10 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Projet sans révision de référence : seule la révision en cours est une base
-          (WF-DEV-0070). `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet,
-          `params.state_enum` à `ProjectState`.
+          `reference_budget` sur un projet sans révision de référence, ou `current_remaining`
+          sur un projet sans révision en cours : la base est absente (WF-DEV-0070).
+          `STATE_FORBIDS_OPERATION`, `params.state` l'état du projet, `params.state_enum` à
+          `ProjectState`.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -135,6 +142,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               revision_refused: { $ref: ../../../fixtures/api/workload_revision_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators:
@@ -163,6 +171,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/remaining-indicators/startable-tasks:
@@ -208,6 +217,7 @@
               milestone: { $ref: ../../../fixtures/api/startable_tasks_milestone.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators:
@@ -218,9 +228,11 @@
     description: >-
       Budget de référence, valeur planifiée, valeur acquise, coût réel, reste à engager,
       avancements, indices avec leur zone, écarts et trois projections. Calculés à partir
-      de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). À une date passée, les
-      valeurs conservées de la dernière révision marquée antérieure ; pour une révision
-      marquée nommée, celles de son marquage (WF-DAT-0040).
+      de l'état En cours seulement (WF-IND-0010 à WF-IND-0080). Au jour courant, ceux de
+      la révision en cours, ou, sur un projet qui n'en a pas, ceux de sa dernière révision
+      marquée calculés avec le coût réel du jour, non conservés (WF-IND-0010) ; à une date
+      passée, les valeurs conservées de la dernière révision marquée antérieure ; pour une
+      révision marquée nommée, celles de son marquage (WF-DAT-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -235,6 +247,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/project_indicators.json }
               marked: { $ref: ../../../fixtures/api/project_indicators_marked.json }
+              without_current_revision: { $ref: ../../../fixtures/api/project_indicators_without_current_revision.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
@@ -260,6 +273,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/milestone-tracking:
@@ -268,10 +282,15 @@
     tags: [indicators]
     summary: Diagramme temps/temps
     description: >-
-      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée prévoyait,
-      en fonction de sa date de marquage ; la courbe s'arrête à la terminaison
-      (WF-IND-0090). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
-      sous-projet n'a pas (WF-IND-0020).
+      Pour chaque jalon inscrit au suivi, la date que chaque révision marquée à l'état En
+      cours prévoyait, en fonction de sa date de marquage — une révision marquée avant n'en
+      donne aucune — ; la courbe d'un jalon s'arrête par un point à sa date de terminaison, en
+      abscisse comme en ordonnée, et le dernier point d'un jalon non terminé est celui du jour
+      courant, par la révision en cours ou, à défaut, la dernière révision marquée
+      (WF-IND-0090, WF-IND-0010). Calculé pour le seul projet, sans `scope` : il suit des jalons, qu'un
+      sous-projet n'a pas (WF-IND-0020). Sur un projet antérieur à l'état En cours, seuls les
+      indicateurs de devis existent (WF-IND-0010) : refusé par 409, comme les trois autres
+      lectures d'indicateurs projets (décision de l'auteur du 2026-11-01, #1778).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     responses:
@@ -285,6 +304,17 @@
               none: { $ref: ../../../fixtures/api/milestone_tracking_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
+          l'état du projet et `params.state_enum` `ProjectState` ; seuls les indicateurs de
+          devis existent (WF-IND-0010 ; #1778).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/cost-curve:
@@ -294,17 +324,20 @@
     summary: Courbe de coûts cumulés
     description: >-
       Budget de référence cumulé, coût réel cumulé jusqu'à la date de calcul, puis la
-      projection du chef de projet, le reste à engager étalé sur les dates de la
-      révision courante. Les changements du budget apparaissent comme des marches
-      datées. Sur demande (`payment_delays`), chaque montant est décalé du délai de
-      paiement de sa ligne et les provisions des risques identifiés s'ajoutent à la date
-      de la tâche qui les porte : la courbe présente alors les décaissements, passés et
-      à venir, et les rend aussi par mois (`cash_out_by_month`) ; la somme des
-      décaissements à venir égale le reste à engager (WF-IND-0100). Pour une révision
-      marquée nommée, la courbe recalculée à la date de son marquage (`revision_id`), sur les
-      lignes de coût réel connues aujourd'hui dont la date de pièce lui est antérieure ou
-      égale (WF-IND-0010) : elle peut différer des indicateurs que le marquage a conservés
-      (WF-DAT-0040), et `context.is_stored`, faux, le dit. Restreinte à un sous-projet, ou à
+      projection du chef de projet, qui part de ce point : le reste à engager de chaque ligne
+      étalé, au prorata des heures travaillées, sur la part de la durée de sa tâche
+      postérieure à la date de calcul, et porté entier à la date de calcul quand la fin de la
+      tâche est dépassée (WF-RAE-0040). Les changements du budget apparaissent comme des
+      marches datées. Sur demande (`payment_delays`), chaque montant du budget et de la
+      projection est décalé du délai de paiement de sa ligne, les provisions des risques
+      identifiés, qui n'en portent pas, restant à la date de la tâche qui les porte, et le coût
+      réel n'est pas décalé : la courbe présente alors les décaissements, passés et à venir,
+      et les rend aussi par mois (`cash_out_by_month`) ; la somme des
+      décaissements à venir égale le reste à engager (WF-IND-0100). Au pas du mois, chaque
+      point portant le cumul à la fin du mois (`CurveSeries`, WF-IND-0100). Pour une révision
+      marquée nommée (`revision_id`), la courbe que son marquage a conservée avec ses
+      indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles étaient
+      alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040). Restreinte à un sous-projet, ou à
       l'ensemble « hors sous-projet » (`scope`, WF-IND-0020), chaque série ne compte que les
       lignes de la maille — budget, coût réel, reste à engager, provisions — et une marche, ce
       que l'avenant change du budget de la maille, aucune s'il n'en change rien ;
@@ -359,6 +392,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/earned-value-curves:
@@ -368,11 +402,10 @@
     summary: Courbes de valeur acquise
     description: >-
       Valeur planifiée, valeur acquise selon les dates de terminaison, et coût réel selon
-      les dates de pièce (WF-IND-0110). Pour une révision marquée nommée, les courbes
-      recalculées à la date de son marquage (`revision_id`), sur les lignes de coût réel
-      connues aujourd'hui dont la date de pièce lui est antérieure ou égale (WF-IND-0010) :
-      elles peuvent différer des indicateurs conservés (WF-DAT-0040), `context.is_stored`
-      faux.
+      les dates de pièce, jusqu'à la date de calcul, au pas du mois (WF-IND-0110). Pour une
+      révision marquée nommée (`revision_id`), les courbes que son marquage a conservées avec
+      ses indicateurs, sur les lignes de coût réel connues à son marquage telles qu'elles
+      étaient alors, `context.is_stored` vrai (WF-IND-0010, WF-DAT-0040).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/IndicatorsRevision
@@ -409,6 +442,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/indicators/index-history:
@@ -420,10 +454,15 @@
       Pour le projet et pour chaque sous-projet, l'ensemble « hors sous-projet » compris
       (WF-IND-0020), l'évolution de l'indice de coût et de l'indice de délai : un point par
       révision marquée, à sa date de marquage, tel que son marquage l'a conservé
-      (WF-DAT-0040), et le dernier point au jour courant pour la révision en cours, avec
-      les seuils de vigilance et d'alerte du référentiel (WF-IND-0130, WF-REF-0170). Un
-      indice qu'une révision n'a pas su calculer — marquée avant l'état En cours — est un
-      point non calculable, jamais omis. Sans `scope`, chaque maille ; avec lui, la seule
+      (WF-DAT-0040), et le dernier point au jour courant (WF-IND-0010) — sur la révision en
+      cours, ou, sur un projet qui n'en a pas, sur sa dernière révision marquée avec le coût
+      réel du jour —, avec les seuils de vigilance et d'alerte du référentiel (WF-IND-0130,
+      WF-REF-0170). Une révision marquée avant l'état En cours n'a conservé aucun indicateur
+      projet (WF-DAT-0040) : elle ne donne aucun point. Un indice qu'une révision marquée En
+      cours n'a pas su calculer — sans coût réel, sans valeur planifiée — est un point non
+      calculable, jamais omis (WF-IND-0010 ; #1777). Sur un projet antérieur à l'état En cours,
+      seuls les indicateurs de devis existent (WF-IND-0010) : refusé par 409, comme les trois
+      autres lectures d'indicateurs projets (#1778). Sans `scope`, chaque maille ; avec lui, la seule
       maille demandée, le projet, un sous-projet ou l'ensemble « hors sous-projet », que
       `context.scope` nomme (WF-IND-0020).
     parameters:
@@ -440,6 +479,16 @@
               subproject: { $ref: ../../../fixtures/api/index_history_subproject.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION` : projet antérieur à l'état En cours, `params.state` étant
+          l'état du projet et `params.state_enum` `ProjectState` ; seuls les indicateurs de
+          devis existent (WF-IND-0010 ; #1778).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_in_progress: { $ref: ../../../fixtures/api/project_indicators_not_in_progress.json }
       '422':
         description: >-
           `VALIDATION_FAILED` : un sous-projet que le projet n'a pas, ou un identifiant mal
@@ -450,4 +499,5 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               scope_unknown: { $ref: ../../../fixtures/api/indicators_scope_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

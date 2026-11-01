@@ -40,6 +40,11 @@ export interface RevisionSubject {
   readonly name: string;
 }
 
+/** A revision to abandon, with the counter the screen read, which the abandon carries. */
+export interface AbandonedRevision extends RevisionSubject {
+  readonly lockVersion: number;
+}
+
 /** The path of the screen of the revisions of a project, with a revision read, if one is named. */
 function revisionsPath(projectId: string, revisionId?: string): string {
   const path = `/projects/${projectId}/revisions`;
@@ -93,7 +98,7 @@ export function AbandonCommand({
   names,
 }: {
   readonly offer: CommandOffer;
-  readonly revision: RevisionSubject;
+  readonly revision: AbandonedRevision;
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("revisionCommands");
@@ -116,7 +121,7 @@ export function AbandonCommand({
       submit={t("abandon.submit")}
       names={names}
       subject={revision.name}
-      run={() => abandonRevision(revision.projectId, revision.revisionId)}
+      run={() => abandonRevision(revision.projectId, revision.revisionId, revision.lockVersion)}
       done={() => t("abandon.done")}
       onDone={() => {
         setLeft(true);
@@ -129,10 +134,13 @@ export function AbandonCommand({
 export function DesignateCommand({
   offer,
   revision,
+  projectLockVersion,
   names,
 }: {
   readonly offer: CommandOffer;
   readonly revision: RevisionSubject;
+  /** The counter of the project as the screen read it: the designation writes the project. */
+  readonly projectLockVersion: number;
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("revisionCommands");
@@ -148,7 +156,9 @@ export function DesignateCommand({
       submit={t("designate.submit")}
       names={names}
       subject={revision.name}
-      run={() => designateReferenceRevision(revision.projectId, revision.revisionId)}
+      run={() =>
+        designateReferenceRevision(revision.projectId, revision.revisionId, projectLockVersion)
+      }
       done={(project) => t("designate.done", { name: revision.name, state: state(project.state) })}
     />
   );

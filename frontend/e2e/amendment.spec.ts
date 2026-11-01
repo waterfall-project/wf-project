@@ -100,3 +100,42 @@ test("abandons at the report: nothing is merged and the command stays offered [W
   await expect(form).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Contractualiser l’avenant" })).toBeFocused();
 });
+
+// « Écarts seulement » (US-0700): written in the address, said in the banner, the grid read anew. The
+// fake back keeps no filter — it serves the same example whatever the address names — so what the
+// server retains is proven by `planning/page.test.tsx` and `estimate/page.test.tsx`, on the example
+// `nodes_amendment_differences`; this journey proves the gesture, the address, the chip and the lift.
+const DIFFERENCES = "added%2Cremoved%2Cmodified";
+
+for (const [segment, name] of [
+  ["planning", "Grille de planning"],
+  ["estimate", "Grille de devis"],
+] as const) {
+  test(`retains the differences alone in the ${segment} grid of the amendment: pressed, in the address and the banner, lifted by its chip [WF-REV-0100-A]`, async ({
+    page,
+  }) => {
+    await openHydrated(page, `${IN_REVISION}/${segment}?structure=${AMENDMENT}`);
+    const only = page.getByRole("button", { name: "Écarts seulement" });
+    await expect(only).toHaveAttribute("aria-pressed", "false");
+    await only.click();
+    await expect(page).toHaveURL(new RegExp(`difference=${DIFFERENCES}`), { timeout: WORKING });
+    await expect(only).toHaveAttribute("aria-pressed", "true");
+    const filters = page.getByRole("list", { name: "Filtres actifs" });
+    await expect(filters).toContainText("Écarts seulement");
+    await expect(page.getByRole("treegrid", { name })).toBeVisible();
+    // The structure the address names is kept, and the chip lifts the filter alone.
+    await filters.getByRole("link", { name: /Lever le filtre/ }).click();
+    await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
+    await expect(page).toHaveURL(new RegExp(`structure=${AMENDMENT}`));
+    await expect(only).toHaveAttribute("aria-pressed", "false");
+  });
+}
+
+test("offers « Écarts seulement » on no grid of the main structure [WF-REV-0100-A]", async ({
+  page,
+}) => {
+  await openHydrated(page, `${IN_REVISION}/planning?difference=${DIFFERENCES}`);
+  await expect(page.getByRole("treegrid", { name: "Grille de planning" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Écarts seulement" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Filtres actifs" })).toHaveCount(0);
+});

@@ -44,6 +44,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
+  TableProperties,
   TrendingUp,
   TriangleAlert,
   User,
@@ -89,9 +90,10 @@ export const FUNCTION_ICONS: Readonly<Record<FunctionPermission, LucideIcon>> = 
 /**
  * The icon of each leaf with a screen of its own, by its code: the timelines, the imports and
  * exports and the task tree of the planning, the workload of the project, the Kanban of the start
- * of the tasks.
+ * of the tasks, the correspondence of the extraction of the actual costs of the cost settings.
  */
 export const LEAF_ICONS = {
+  "FBS-3.1.3": TableProperties,
   "FBS-4.3.1": CalendarClock,
   "FBS-4.3.4": ArrowLeftRight,
   "FBS-4.3.5": Network,

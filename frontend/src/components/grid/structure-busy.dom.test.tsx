@@ -15,6 +15,7 @@ import { APPLY, BLOCK, cell, copied, FIRST, pasteOn, PREVIEW, renderGrid } from 
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { breakdownItems, type WorkBreakdownReading } from "./planning-attachment";
+import { PLANNING_GRID } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 
@@ -52,7 +53,7 @@ const MOUNTING = nested.items.findIndex(
   (node) => node.task?.label === "Montage des armoires sur site",
 );
 const COMMISSIONING = nested.items.findIndex((node) => node.task?.label === "Mise en service");
-// The nested tasks read anew without « Réception usine », the row just above the mounting: the
+// The nested tasks read anew without « Réception usine », a row above the mounting: the
 // mounting is one row up.
 const RECEPTION = nested.items.findIndex((node) => node.task?.label === "Réception usine");
 const withoutReception: NodeList = {
@@ -66,6 +67,17 @@ const skeleton = findOffer(
   "generate_skeleton",
 );
 
+// The columns these tests write in — the label, the attachment, the predecessors —, the others
+// hidden, the Gantt among them: each indentation renders the grid anew two or three times, and the
+// whole grid, its Gantt drawn, took twice as long, near a second for the test of a late answer on the
+// workstation, past its five seconds on a runner of the chain under coverage (#1474).
+const WRITTEN = new Set(["label", "work_breakdown", "predecessors"]);
+const PREFERENCES = {
+  hidden_columns: PLANNING_GRID.columns
+    .map((column) => column.key)
+    .filter((key) => !WRITTEN.has(key)),
+};
+
 /** Serve the fake back, the calls of a route held until `hold` settles, and give it back. */
 function serve(answers: FakeAnswers, held?: { route: string; until: Promise<unknown> }) {
   const client = fakeClient(answers, {
@@ -77,7 +89,7 @@ function serve(answers: FakeAnswers, held?: { route: string; until: Promise<unkn
 
 /**
  * The grid of the planning of tasks — the nested ones unless told — on a structure, entered, its
- * attachment too, and the skeleton when it is offered.
+ * attachment too, and the skeleton when it is offered; only the columns written are shown.
  */
 function grid(
   structure = STRUCTURE,
@@ -91,7 +103,7 @@ function grid(
         structureVersion={VERSION}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
-        preferences={undefined}
+        preferences={PREFERENCES}
         undoable
         editable
         breakdown={breakdown}
@@ -199,7 +211,7 @@ describe("a grid busy with any of its writes", () => {
     await userEvent.keyboard("{F2}");
     const field = within(screen.getByRole("treegrid")).getByRole("textbox");
     await userEvent.clear(field);
-    await userEvent.type(field, "19FD+2 j{Enter}");
+    await userEvent.type(field, "14FD+2 j{Enter}");
     const table = screen.getByRole("treegrid");
     await vi.waitFor(() => {
       expect(table).toHaveAttribute("aria-busy", "true");

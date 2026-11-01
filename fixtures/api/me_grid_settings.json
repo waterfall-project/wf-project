@@ -1,5 +1,5 @@
 {
-  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380) ; sur la table des comptes, les seuls comptes créés dans Waterfall qui sont actifs (US-0360). Elle lit aussi 25 lignes par page sur la table des comptes (WF-IHM-0060, C-351), et a disposé la chronologie « Comité de pilotage », la « Réception des études » et la « Réception usine » dans le deuxième couloir, et la « Mise en service » dans le troisième, sous les études, à côté desquelles l'empilement automatique la range (WF-PLA-0140, #1406) ; la matrice des risques de l'écran d'un projet, elle l'a dépliée (EP-15/US-0550).",
+  "summary": "Le compte de Camille Martin, qui a masqué la colonne des quantités de la grille de devis, élargi son libellé et choisi le tri par montant budgété décroissant : les réglages que la grille relit, le tri servant quand l'adresse n'en demande aucun ; réglée avant que la grille n'offre la colonne « Sous-projet », masquée par défaut, elle ne la connaît pas, et la colonne reste masquée (known_columns, EP-16/US-0650) ; et, sur la table des rôles d'habilitation, les rôles composés que porte un compte au moins : les filtres que l'écran retrouve quand l'adresse n'en dit rien (US-0380) ; sur la table des comptes, les seuls comptes créés dans Waterfall qui sont actifs (US-0360). Elle lit aussi 25 lignes par page sur la table des comptes (WF-IHM-0060, C-351), et a disposé la chronologie « Comité de pilotage », la « Réception des études » et la « Réception usine » dans le deuxième couloir, et la « Mise en service » dans le troisième, sous les études, à côté desquelles l'empilement automatique la range (WF-PLA-0140, #1406) ; la matrice des risques de l'écran d'un projet, elle l'a dépliée (EP-15/US-0550).",
   "value": {
     "user_id": "01926f3a-7c00-7000-8000-000000000301",
     "last_name": "Martin",
@@ -39,6 +39,18 @@
           "hidden_columns": [
             "quantity"
           ],
+          "known_columns": [
+            "label",
+            "cost_category",
+            "resource_role",
+            "quantity",
+            "hours",
+            "unit_disbursement",
+            "payment_delay_days",
+            "inactive_object",
+            "base_amount",
+            "reestimated_amount"
+          ],
           "column_widths": {
             "label": 400
           },
@@ -49,6 +61,16 @@
         },
         "access_roles": {
           "hidden_columns": [],
+          "known_columns": [
+            "label",
+            "is_predefined",
+            "holder_count",
+            "created_at",
+            "created_by",
+            "updated_at",
+            "updated_by",
+            "delete"
+          ],
           "column_widths": {},
           "filters": {
             "is_predefined": "false",
@@ -57,6 +79,21 @@
         },
         "users": {
           "hidden_columns": [],
+          "known_columns": [
+            "last_name",
+            "first_name",
+            "email",
+            "origin",
+            "org_node",
+            "access_roles",
+            "is_active",
+            "created_at",
+            "created_by",
+            "updated_at",
+            "updated_by",
+            "password_link",
+            "anonymize"
+          ],
           "column_widths": {},
           "filters": {
             "origins": "local",

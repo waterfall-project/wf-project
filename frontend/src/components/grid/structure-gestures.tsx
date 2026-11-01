@@ -509,10 +509,14 @@ export function useStructureGestures<Row extends GridNode>(
     }
   };
   const create = (current: Opened<Row>, entered: Entered) => {
+    // A line created without a label is named by the server, after a task or a role the front does
+    // not compose: told without a name, the label it bears being the one the grid then reads.
+    const unnamed = entered.label === "" && current.row !== undefined;
+    const named = unnamed ? labelOf(current.row) : entered.label;
     send(
       () => createNode(scope.structure, bodyOf(current.gesture, current.row, entered)),
       () => current.row,
-      { label: entered.label, done: t("created", { label: entered.label }) },
+      { label: named, done: unnamed ? t("createdUnnamed") : t("created", { label: named }) },
       current.opening,
     );
   };

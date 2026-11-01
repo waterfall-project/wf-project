@@ -6,7 +6,8 @@
  * when it was last modified. The same dense grid as the other lists, read only — the home creates
  * nothing here —: every column sorts by the column of the contract of the same name, the server
  * sorting, filtering — by state, by the period of the last modification — and searching on the
- * label and the code (`listProjects`); the totals row says how many projects the server retained
+ * label and the code (`listProjects`); the states retained are kept with the settings of the grid
+ * unless they are the default; the totals row says how many projects the server retained
  * (`meta.total`), never a count of the page.
  *
  * Neither server nor client: the page reads the sortable columns to check the address, the grid
@@ -16,6 +17,7 @@ import type { components, operations } from "@/api/generated/schema";
 import { type GridConfig, sortColumns } from "@/components/grid/columns";
 import { LocalTime } from "@/components/local-time";
 import { ProjectLabelCell } from "@/components/portfolio/portfolio-cells";
+import { DEFAULT_STATES, STATES_PARAMETER } from "@/navigation/home";
 
 import { ProjectStateBadge } from "./project-state-badge";
 
@@ -60,11 +62,17 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
     name: "projects",
     searched: true,
     paged: true,
+    // The states chosen are kept with the settings (WF-IHM-0060), as the address writes them,
+    // unless they are the default; the search is not.
+    filters: [STATES_PARAMETER],
+    defaulted: { [STATES_PARAMETER]: DEFAULT_STATES.join(",") },
+    searchKept: false,
     rowKey: (project) => project.project_id,
     columns: [
       {
         key: "label",
         label: "label",
+        help: "projects.label",
         format: "text",
         width: 320,
         pinned: true,
@@ -75,6 +83,7 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
       {
         key: "code",
         label: "code",
+        help: "projects.code",
         format: "text",
         width: 120,
         contract: "code",
@@ -83,6 +92,7 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
       {
         key: "state",
         label: "state",
+        help: "projects.state",
         format: "text",
         width: 136,
         contract: "state",
@@ -92,6 +102,7 @@ export const PROJECT_LIST_GRID: GridConfig<ListedProjectRow, ListedProjectSort, 
       {
         key: "updated_at",
         label: "updatedAt",
+        help: "projects.updatedAt",
         format: "text",
         width: 168,
         contract: "updated_at",

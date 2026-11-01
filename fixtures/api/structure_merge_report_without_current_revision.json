@@ -1,0 +1,81 @@
+{
+  "summary": "Le compte rendu préalable de la fusion de l'avenant 2 « reprise des essais » demandée sur la référence le 1er février 2026, juste après son marquage, quand le projet n'a pas de révision en cours (revision_marked_merge_offered) : la fusion créera d'abord la révision en cours par copie de la référence, chiffrée aux taux conservés, puis y fusionnera la copie de l'avenant et la marquera, dans la même tâche de fond, ce que le compte rendu dit (creates_current_revision). Ses écarts sont ceux de l'avenant avec la structure principale de la référence, que la révision courante a repris avec lui et que son compte rendu présente encore aujourd'hui (structure_merge_report) ; aucune tâche démarrée retirée, aucun motif de refus : la confirmation est offerte, avec un nom de version, celui de la révision créée, et les compteurs des deux structures de la référence, que le marquage a figés (WF-REV-0050, WF-REV-0010, WF-REV-0060, #790).",
+  "value": {
+    "main_structure_lock_version": 3,
+    "amendment_lock_version": 1,
+    "creates_current_revision": true,
+    "differences": [
+      {
+        "change": "added",
+        "target": "task",
+        "lineage_id": null,
+        "label": "Essais sur site",
+        "predecessor_label": null,
+        "fields": []
+      },
+      {
+        "change": "added",
+        "target": "task",
+        "lineage_id": null,
+        "label": "Reprise des essais de câblage",
+        "predecessor_label": null,
+        "fields": []
+      },
+      {
+        "change": "added",
+        "target": "estimate_line",
+        "lineage_id": null,
+        "label": "Assistance à la reprise des essais",
+        "predecessor_label": null,
+        "fields": []
+      },
+      {
+        "change": "added",
+        "target": "link",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+        "label": "Mise en service",
+        "predecessor_label": "Reprise des essais de câblage",
+        "fields": []
+      },
+      {
+        "change": "updated",
+        "target": "task",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+        "label": "Mise en service",
+        "predecessor_label": null,
+        "fields": [
+          "duration",
+          "parent"
+        ]
+      },
+      {
+        "change": "updated",
+        "target": "estimate_line",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000666",
+        "label": "Mise en service sur site",
+        "predecessor_label": null,
+        "fields": [
+          "hours"
+        ]
+      },
+      {
+        "change": "removed",
+        "target": "link",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+        "label": "Mise en service",
+        "predecessor_label": "Montage des armoires sur site",
+        "fields": []
+      },
+      {
+        "change": "removed",
+        "target": "estimate_line",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000664",
+        "label": "Assistance aux essais de câblage",
+        "predecessor_label": null,
+        "fields": []
+      }
+    ],
+    "completed_tasks": [],
+    "refusals": []
+  }
+}

@@ -16,9 +16,11 @@ difference between two readings of the differential, before and after the gestur
 (``wftools.mockwrites.written``), each node named by its identifier in the differential
 (``mockamendment.own_id``) and marked against the main structure; never written by hand.
 
-Their refusals on the same differential: the body of a move that mixes a line and a task, the
-line created under a task completed, and the line moved to it (WF-DEV-0050, WF-RAE-0030, #1184);
-and a line the move carried one version further, deleted at the counter read before it (#1210).
+Their refusals on the same differential: the body of a move that mixes a line and a task, and a
+line the move carried one version further, deleted at the counter read before it (#1210). A line
+of a task completed is written there as any other — the amendment rebudgets it (WF-REV-0050) —:
+the line of the detailed studies, completed, whose unit disbursement the amendment raises; on the
+main structure, the same writes are refused (``mockgestures``; F-01, #1766).
 """
 
 from __future__ import annotations
@@ -31,8 +33,19 @@ from typing import TYPE_CHECKING, Any, cast
 from wftools import mockamendment, mockcore, mocktext
 from wftools.mockgestures import added, money_said, network_task, tasks_said
 from wftools.mockids import universe
+from wftools.mockstructure import labels
 from wftools.mocktree import AT_END, LINE, TASK, placed
-from wftools.mockwitness import EQUIPMENT, SUBPROJECT_CONTROL, SUBPROJECT_TESTS, Line, N, Task
+from wftools.mockwitness import (
+    COMMISSIONING,
+    COMMISSIONING_TECHNICIAN,
+    ELECTRICAL_ENGINEERING,
+    EQUIPMENT,
+    SUBPROJECT_CONTROL,
+    SUBPROJECT_TESTS,
+    Line,
+    N,
+    Task,
+)
 from wftools.mockwrites import amended, known, node_columns, totals_said, written
 
 if TYPE_CHECKING:
@@ -104,6 +117,61 @@ def estimate_line_created() -> JsonObject:
     """Return what createNode answers to a line created under the commissioning."""
     roots = amended(mockamendment.amendment(), added(N.COMMISSIONING, line=TEST_SUPPLIES))
     return amendment_write(roots, [CREATED_LINE])
+
+
+LABELLED_LINE, LABELLED_HOURS = 587, Decimal(16)
+"""The labour line created under the commissioning without a label nor a category: the server
+composes its label and takes the category of its role (WF-DEV-0020)."""
+
+LABEL_LENGTH = 300
+"""The longest label of a line (`EstimateLineFacet.label`)."""
+
+
+def composed_label(task_label: str, role_label: str | None) -> str:
+    """Return the label the server composes for a line created without one (WF-DEV-0020).
+
+    The label of the task that bears it and, if the line has one, that of its role, joined as the
+    labels of the universe join two names — « Provision — risque de reprise du câblage » —,
+    within the length of a label.
+    """
+    label = task_label if role_label is None else f"{task_label} — {role_label}"
+    return label[:LABEL_LENGTH]
+
+
+def labelled_line() -> Line:
+    """Return the labour line created under the commissioning, as the server completes it."""
+    task = {row.number: row for row in mockamendment.rows()}[N.COMMISSIONING]
+    return Line(
+        LABELLED_LINE,
+        composed_label(task.label, labels()[COMMISSIONING_TECHNICIAN]),
+        COMMISSIONING,
+        hours=LABELLED_HOURS,
+        role=COMMISSIONING_TECHNICIAN,
+        subproject=SUBPROJECT_TESTS,
+    )
+
+
+def estimate_line_created_labelled() -> JsonObject:
+    """Return what createNode answers to a labour line sent without a label nor a category."""
+    roots = amended(mockamendment.amendment(), added(N.COMMISSIONING, line=labelled_line()))
+    return amendment_write(roots, [LABELLED_LINE])
+
+
+MISMATCH_CORRELATION = universe(1073)
+
+
+def estimate_line_category_mismatch() -> JsonObject:
+    """Return what createNode answers to a labour line sent with a category not its role's.
+
+    The category of a labour line is its role's, computed: another one sent is refused as any
+    computed value is, the grid naming what it depends on (WF-DEV-0020, WF-IHM-0030).
+    """
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [{"pointer": "/estimate_line/cost_category_id", "code": "COMPUTED_VALUE"}],
+        "correlation_id": MISMATCH_CORRELATION,
+    }
 
 
 SHARED_UNDER, SHARED_AFTER = N.CONTROL_STATION, N.FACTORY_ACCEPTANCE
@@ -229,49 +297,6 @@ def nodes_move_mixed() -> JsonObject:
     }
 
 
-COMPLETED_UNDER = N.DETAILED_STUDIES
-COMPLETED_MOVED = N.BLOCKS
-COMPLETED_CORRELATION, MOVE_COMPLETED_CORRELATION = universe(1186), universe(1195)
-
-
-def completed_refused(correlation: str) -> JsonObject:
-    """Return the refusal of a line written under the detailed studies, completed (#1184).
-
-    No line is created, modified, moved or deleted under a task completed, which is reopened from
-    the Kanban first (WF-DEV-0050, WF-RAE-0030): the state of the task refuses it, by the condition
-    a line under it misses.
-    """
-    rows = {row.number: row for row in mockamendment.rows()}
-    if cast("dict[str, Any]", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
-        message = f"the task {COMPLETED_UNDER} is not completed"
-        raise ValueError(message)
-    return {
-        "code": "STATE_FORBIDS_OPERATION",
-        "status": 409,
-        "params": {"missing_condition": "task_not_completed"},
-        "correlation_id": correlation,
-    }
-
-
-def estimate_line_completed_refused() -> JsonObject:
-    """Return what createNode answers to a line created under a task completed."""
-    return completed_refused(COMPLETED_CORRELATION)
-
-
-def nodes_move_completed_refused() -> JsonObject:
-    """Return what moveNodes answers to the blocks moved under a task completed (#1214).
-
-    « Le déplacement d'une ligne vers elle, est refusé » (Vérif of WF-DEV-0050): the blocks of the
-    wiring, a task not completed, sent under the detailed studies.
-    """
-    rows = {row.number: row for row in mockamendment.rows()}
-    bearer = rows[cast("int", rows[COMPLETED_MOVED].parent)]
-    if cast("dict[str, Any]", bearer.node["task"])["progress"] == "completed":
-        message = f"the line {COMPLETED_MOVED} is under a task completed"
-        raise ValueError(message)
-    return completed_refused(MOVE_COMPLETED_CORRELATION)
-
-
 # --- The cell entered and the block pasted (#1277) ---------------------------------------------
 
 ENTERED_LINE = N.TESTS_RESUMED_LINE
@@ -293,6 +318,54 @@ def entered_roots() -> tuple[Task, ...]:
 def estimate_line_updated_amendment() -> JsonObject:
     """Return what updateEstimateLine answers to the hours of the line added by the amendment."""
     return amendment_write(entered_roots(), [ENTERED_LINE])
+
+
+DELAYED_LINE = N.LABOUR
+DELAYED_DAYS = 30
+"""The labour line whose payment delay the grid of estimate enters on the amendment, the
+connection of the terminal blocks, which no other write of the differential renders, and the
+delay entered: a month, as the terminal blocks of the same task, instead of the nought labour has
+by default (WF-DEV-0020, #785)."""
+
+
+def estimate_line_payment_delay_amendment() -> JsonObject:
+    """Return what updateEstimateLine answers to the payment delay of a labour line (#785).
+
+    « Saisissable sur toute ligne autre qu'une ligne de provision » (WF-DEV-0020): the delay
+    changes no amount and no date, only when the curve of cash out pays the line (WF-IND-0100).
+    """
+
+    def delayed(each: Line) -> Line:
+        return (
+            replace(each, payment_delay_days=DELAYED_DAYS) if each.number == DELAYED_LINE else each
+        )
+
+    return amendment_write(amended(mockamendment.amendment(), line=delayed), [DELAYED_LINE])
+
+
+REBUDGETED_LINE = N.STUDIES_LINE
+REBUDGETED_UNIT = Decimal("112000.00")
+"""The line of the detailed studies, a task completed, whose unit disbursement the amendment
+raises: an overrun of the subcontracting the amendment brings into the budget of reference, which
+the merge draws from its quantities (WF-REV-0050; F-01, #1765, #1766)."""
+
+
+def estimate_line_rebudgeted_amendment() -> JsonObject:
+    """Return what updateEstimateLine answers to the line of a task completed, on the amendment.
+
+    On a differential, a line of a task completed is modified as any other, for the amendment to
+    rebudget it (WF-REV-0050); on the main structure it is refused (``mockgestures``, F-01).
+    """
+    rows = {row.number: row for row in mockamendment.rows()}
+    bearer = rows[cast("int", rows[REBUDGETED_LINE].parent)]
+    if cast("dict[str, Any]", bearer.node["task"])["progress"] != "completed":
+        message = f"the line {REBUDGETED_LINE} is not under a task completed"
+        raise ValueError(message)
+
+    def raised(each: Line) -> Line:
+        return replace(each, unit=REBUDGETED_UNIT) if each.number == REBUDGETED_LINE else each
+
+    return amendment_write(amended(mockamendment.amendment(), line=raised), [REBUDGETED_LINE])
 
 
 type Block = tuple[tuple[str, str, str, str], ...]
@@ -333,6 +406,11 @@ engineers instead of one; the second skips the line withdrawn, read only at its 
 the node after it, the trials on site the amendment adds, which takes its label (#1278)."""
 
 SKIPPING_PASTE = universe(995)
+
+REMOVED_ANCHOR_PASTE = universe(996)
+
+TARGET_REMOVED = "PASTE_TARGET_REMOVED"
+"""The motive of a block whose cell aimed at is on a node the differential withdraws (#1361)."""
 
 
 def paste_targets(count: int = len(AMENDMENT_BLOCK), target: int = ENTERED_LINE) -> list[int]:
@@ -407,6 +485,18 @@ def paste_applied_amendment(block: Block = AMENDMENT_BLOCK) -> JsonObject:
 def paste_plan_amendment_skipping() -> JsonObject:
     """Return what previewPaste answers to the block that skips the line the amendment withdraws."""
     return paste_plan_amendment(SKIPPING_BLOCK, SKIPPING_TARGET, SKIPPING_PASTE)
+
+
+def paste_plan_amendment_target_removed() -> JsonObject:
+    """Return what previewPaste answers to the block that skips a line, pasted on that line.
+
+    The cell aimed at is on a node the differential withdraws, which accepts no field
+    (`editable_fields` empty): the block is refused whole, said once, on its first row and the
+    column aimed at; no row is judged nor counted accepted, and nothing will be written (#1361).
+    Reporting the anchor to the next node would write elsewhere than where the user clicked.
+    """
+    rejected: list[JsonValue] = [{"row": 0, "column": "label", "code": TARGET_REMOVED}]
+    return {"paste_id": REMOVED_ANCHOR_PASTE, "accepted": 0, "rejected": rejected}
 
 
 def paste_applied_amendment_skipping() -> JsonObject:
@@ -535,22 +625,38 @@ def examples() -> dict[str, JsonObject]:
             f"(#1187, #1188).",
             nodes_move_mixed(),
         ),
-        "estimate_line_completed_refused.json": mocktext.example(
-            f"{on}, une ligne créée sous les « {rows[COMPLETED_UNDER].label} », terminées : "
-            f"aucune ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le "
-            f"Kanban. La création est refusée, la condition nommée ; rien n'est créé "
-            f"(WF-DEV-0050, WF-RAE-0030, #1184).",
-            estimate_line_completed_refused(),
-        ),
-        "nodes_move_completed_refused.json": mocktext.example(
-            f"{on}, les « {rows[COMPLETED_MOVED].label} » du "
-            f"« {_parent(rows, COMPLETED_MOVED)} » déplacés sous les "
-            f"« {rows[COMPLETED_UNDER].label} », terminées : aucune ligne ne se déplace vers une "
-            f"tâche terminée, qui se rouvre d'abord depuis le Kanban. Le déplacement est refusé, "
-            f"la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
-            nodes_move_completed_refused(),
-        ),
+        **_labelled_examples(open_),
         **edit_examples(),
+    }
+
+
+def _labelled_examples(open_: str) -> dict[str, JsonObject]:
+    """Return the examples of a labour line created without a label, and of a category refused."""
+    created = estimate_line_created_labelled()
+    [line] = _nodes(created)
+    facet = cast("Node", line["estimate_line"])
+    task = {row.number: row for row in mockamendment.rows()}[N.COMMISSIONING].label
+    role, category = labels()[COMMISSIONING_TECHNICIAN], labels()[ELECTRICAL_ENGINEERING]
+    return {
+        "estimate_line_created_labelled.json": mocktext.example(
+            f"{open_}, une ligne de main-d'œuvre créée sous la « {task} », son rôle seul envoyé, "
+            f"« {role} », avec {LABELLED_HOURS} h, sans libellé ni catégorie : le serveur compose "
+            f"son libellé de celui de la tâche et de celui du rôle, « {facet['label']} », qui "
+            f"reste modifiable (editable_fields), et lui donne la catégorie de son rôle, "
+            f"« {facet['cost_category_label']} », qu'elle ne saisit pas (computed_fields) ; "
+            f"{money_said(facet['base_amount'])}, à sa première version (201). Avec elle, ses "
+            f"ancêtres, {tasks_said(created, 'ancestors')}, {totals_said(created)}, et le "
+            f"compteur du différentiel passé à {created['structure_lock_version']} (WF-DEV-0020).",
+            created,
+        ),
+        "estimate_line_category_mismatch.json": mocktext.example(
+            f"{open_}, la même ligne de main-d'œuvre envoyée avec la catégorie « {category} », "
+            f"qui n'est pas celle de son rôle, « {role} » : la catégorie d'une ligne de "
+            f"main-d'œuvre est celle de son rôle, calculée, et la saisie est refusée sur son "
+            f"champ, la grille nommant ce dont elle dépend (getComputedValueDependencies) ; rien "
+            f"n'est créé (WF-DEV-0020, WF-IHM-0030).",
+            estimate_line_category_mismatch(),
+        ),
     }
 
 
@@ -613,8 +719,54 @@ def edit_examples() -> dict[str, JsonObject]:
             f"ligne refusée (WF-IHM-0050, WF-REV-0050, #1277).",
             applied,
         ),
+        "estimate_line_payment_delay_amendment.json": _delay_example(on),
+        "estimate_line_rebudgeted_amendment.json": _rebudgeted_example(on),
         **skipping_examples(),
     }
+
+
+def _delay_example(on: str) -> JsonObject:
+    """Return the example of the payment delay entered on a labour line of the amendment."""
+    delayed = estimate_line_payment_delay_amendment()
+    [line] = _nodes(delayed)
+    facet = cast("Node", line["estimate_line"])
+    before = cast("Node", {row.number: row for row in mockamendment.rows()}[DELAYED_LINE].node)
+    return mocktext.example(
+        f"{on}, le délai de paiement de la ligne de main-d'œuvre « {facet['label']} » saisi à "
+        f"{facet['payment_delay_days']} jours au lieu de "
+        f"{cast('Node', before['estimate_line'])['payment_delay_days']}, celui de la "
+        f"main-d'œuvre par défaut : le délai se saisit sur toute ligne autre qu'une ligne de "
+        f"provision, et la ligne le nomme parmi ses champs saisissables (editable_fields). Une "
+        f"version de plus ; aucun montant ne change, ni aucune date : seule la courbe des "
+        f"décaissements paie la ligne un mois plus tard. Avec elle, ses ancêtres, "
+        f"{tasks_said(delayed, 'ancestors')}, {totals_said(delayed)}, et le compteur du "
+        f"différentiel passé à {delayed['structure_lock_version']} (WF-DEV-0020, WF-IND-0100, "
+        f"#785).",
+        delayed,
+    )
+
+
+def _rebudgeted_example(on: str) -> JsonObject:
+    """Return the example of the line of a task completed, rebudgeted by the amendment (F-01)."""
+    rebudgeted = estimate_line_rebudgeted_amendment()
+    [line] = _nodes(rebudgeted)
+    facet = cast("Node", line["estimate_line"])
+    rows = {row.number: row for row in mockamendment.rows()}
+    before = cast("Node", rows[REBUDGETED_LINE].node["estimate_line"])
+    return mocktext.example(
+        f"{on}, la ligne « {facet['label']} » des « {_parent(rows, REBUDGETED_LINE)} », "
+        f"terminées, dont le débours unitaire passe de {money_said(before['unit_disbursement'])} "
+        f"à {money_said(facet['unit_disbursement'])} : un dépassement que l'avenant intègre au "
+        f"budget de référence. Sur un différentiel, une ligne d'une tâche terminée se modifie "
+        f"comme les autres, et nomme ses champs (editable_fields) ; sur la structure principale, "
+        f"la même écriture est refusée (estimate_line_completed_update_refused). Son montant "
+        f"recalculé, {money_said(facet['base_amount'])}, et son budgété avec lui, "
+        f"{money_said(facet['budgeted_amount'])}, d'où la fusion tirera le budget ; une version "
+        f"de plus. Avec elle, ses ancêtres, {tasks_said(rebudgeted, 'ancestors')}, dont le "
+        f"montant suit, {totals_said(rebudgeted)}, et le compteur du différentiel passé à "
+        f"{rebudgeted['structure_lock_version']} (WF-REV-0050, WF-DEV-0020, #1765, #1766).",
+        rebudgeted,
+    )
 
 
 def skipping_examples() -> dict[str, JsonObject]:
@@ -663,5 +815,15 @@ def skipping_examples() -> dict[str, JsonObject]:
             f"{applied['structure_lock_version']} ; aucune ligne refusée (WF-IHM-0050, "
             f"WF-REV-0050, #1278).",
             applied,
+        ),
+        "paste_plan_amendment_target_removed.json": mocktext.example(
+            f"{on}, le même bloc collé sur le libellé de la ligne « {removed_label} », que "
+            f"l'avenant retire, que la grille montre à sa place en lecture seule et qui n'accepte "
+            f"aucun champ : la cellule visée est sur un nœud retiré, et le collage est refusé "
+            f"entier — une seule fois, sur la première ligne du bloc et la colonne visée —, "
+            f"aucune ligne acceptée ; rien ne sera écrit. L'ancre n'est pas reportée au nœud "
+            f"suivant, qui écrirait ailleurs que là où l'utilisateur a cliqué (WF-IHM-0050, "
+            f"#1361).",
+            paste_plan_amendment_target_removed(),
         ),
     }

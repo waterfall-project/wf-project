@@ -14,13 +14,13 @@
  * is said missing, never replaced by an identifier.
  */
 import { BadgeCheck, Coins, FileDiff, Layers, type LucideIcon, ShieldAlert } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
 import { CELL, ICON, ListSection, ListTable } from "@/components/projects/project-tables";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { formatMoney } from "@/i18n/format";
+import { Amount } from "@/components/amount";
 
 import { ApplyRateUpdateCommand, type ApplyRateUpdateProps } from "./rate-update-command";
 
@@ -96,7 +96,6 @@ export function RateUpdate({
   const t = useTranslations("revisionScreen.rateUpdate");
   const source = useTranslations("enums.RateUpdateProposal.categories.source");
   const banner = useTranslations("contextBanner");
-  const locale = useLocale();
   const { categories } = proposal;
   return (
     <div className="space-y-2">
@@ -119,10 +118,10 @@ export function RateUpdate({
             <TableRow key={category.cost_category_id}>
               <TableCell className={CELL}>{category.label}</TableCell>
               <TableCell className={AMOUNT}>
-                {formatMoney(category.previous_amount, locale)}
+                <Amount value={category.previous_amount} />
               </TableCell>
               <TableCell className={AMOUNT}>
-                {formatMoney(category.proposed_amount, locale)}
+                <Amount value={category.proposed_amount} />
               </TableCell>
               <TableCell className={CELL}>{source(category.source)}</TableCell>
             </TableRow>

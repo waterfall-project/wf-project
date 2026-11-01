@@ -288,8 +288,10 @@ _STRUCTURE = (
 _KEYS = {
     "node_id": _STRUCTURE,
     "node_ids": _STRUCTURE,
+    "subordinate_node_ids": _STRUCTURE,
     "after_node_id": _STRUCTURE,
     "predecessor_node_id": _STRUCTURE,
+    "successor_node_id": _STRUCTURE,
     "provision_node_id": _STRUCTURE,
     "parent_id": (*_STRUCTURE, "nœuds d'organisation"),
     "lineage_id": (
@@ -299,6 +301,7 @@ _KEYS = {
     ),
     "project_id": ("projets", "projets du portefeuille"),
     "revision_id": ("révisions",),
+    "source_revision_id": ("révisions",),
     "current_revision_id": ("révisions",),
     "reference_revision_id": ("révisions",),
     "from_revision_id": ("révisions",),
@@ -314,6 +317,7 @@ _KEYS = {
     "access_role_ids": ("rôles d'habilitation",),
     "resource_role_ids": ("rôles de ressources",),
     "risk_id": ("risques", "risques du portefeuille"),
+    "origin_risk_id": ("risques",),
     "subproject_id": ("sous-projets",),
     "provision_cost_category_id": ("catégories de coût",),
     "provision_subproject_id": ("sous-projets",),
@@ -335,6 +339,7 @@ _KEYS = {
         "corrélations",
         "corrélations, suite",
         "corrélations, seconde suite",
+        "corrélations, troisième suite",
         "corrélations engendrées",
     ),
     "conflicting_object_id": (
@@ -343,6 +348,7 @@ _KEYS = {
         "natures de coût",
         "catégories de coût",
         "projets",
+        "révisions",
         "sous-projets",
         "calendriers",
         *_STRUCTURE,

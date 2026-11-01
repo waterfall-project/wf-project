@@ -24,14 +24,13 @@ describe("the imports a project offers", () => {
     });
   });
 
-  it("keep unavailable what the server says so, with its conditions", () => {
-    const offers = importOffers(project("project_completed"));
-    expect(offers.estimate).toEqual({
-      command: "import_estimate",
-      is_available: false,
-      missing_conditions: ["project_not_terminal"],
+  it("are none on a project that ended, which lists no command (US-0702/L3)", () => {
+    expect(importOffers(project("project_completed"))).toEqual({
+      ms_project_schedule: undefined,
+      estimate: undefined,
+      remaining: undefined,
+      actual_costs: undefined,
     });
-    expect(offers.actual_costs?.missing_conditions).toEqual(["project_not_terminal"]);
   });
 
   it("are offered without a current revision, which the import creates, and name the permission to create it when it lacks", () => {
@@ -55,7 +54,8 @@ describe("the imports a project offers", () => {
 describe("what guards the screen of the imports and exports, and leads to it (#521)", () => {
   it("is an import the project lists, available or not: the caller has its permission", () => {
     expect(listsAnImport(project())).toBe(true);
-    expect(listsAnImport(project("project_completed"))).toBe(true);
+    // A project that ended lists no command: none to lead to.
+    expect(listsAnImport(project("project_completed"))).toBe(false);
     expect(listsAnImport(project("project_pricing_estimator"))).toBe(true);
     // The project as one who may exercise none of its commands reads it: no import listed.
     expect(listsAnImport(project("project_reader"))).toBe(false);
@@ -64,8 +64,8 @@ describe("what guards the screen of the imports and exports, and leads to it (#5
   it("leads there from the screen of a function when the import of its kind is listed, available or not", () => {
     expect(listsImport(project(), "estimate")).toBe(true);
     expect(listsImport(project(), "remaining")).toBe(true);
+    expect(listsImport(project("project_completed"), "estimate")).toBe(false);
     // Listed unavailable: the screen presents it with what it lacks (WF-IHM-0090).
-    expect(listsImport(project("project_completed"), "estimate")).toBe(true);
     expect(listsImport(project("project_pricing_estimator"), "estimate")).toBe(true);
     expect(listsImport(project("project_pricing_estimator"), "remaining")).toBe(false);
     expect(listsImport(project("project_reader"), "estimate")).toBe(false);

@@ -75,6 +75,7 @@ function leafHref(segment: string): string {
 beforeEach(() => {
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",

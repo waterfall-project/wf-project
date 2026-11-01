@@ -12,7 +12,8 @@
  * of the indicators but the tracking of the milestones, which a sub-project does not have
  * (WF-IND-0020). A grid filtered by a lot or a post of the work breakdown gives its filter, which a
  * chip shows after those of the context, lifted by a link (`ChipLift`) that is the address shown
- * without it, or, by a click, the address last asked. A grid that reads the structure its address
+ * without it, or, by a click, the address last asked; so does « Écarts seulement » of a differential
+ * and of the comparison of two revisions (US-0700). A grid that reads the structure its address
  * names — the planning, the estimate (US-0500) — gives it, and the banner names it, its kind
  * besides when it is not the main one — a differential, the own estimate of a risk —, and offers
  * the other structures of the revision to read instead (`StructureChoice`); a filter of the
@@ -24,13 +25,18 @@
  * names it in its side bar and its breadcrumb (`ShowProject`).
  */
 import { Calculator, Filter, Folder, GitBranch, Layers, Lock, X } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import {
   BREAKDOWN_PARAMETERS,
   type BreakdownChip,
   type BreakdownParameter,
 } from "@/components/grid/breakdown-filter";
+import {
+  DIFFERENCE_PARAMETER,
+  type DifferenceValue,
+  isDifferencesOnly,
+} from "@/components/grid/difference-filter";
 import { ShowProject } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
 import { formatPlanningDate } from "@/i18n/format";
@@ -75,6 +81,12 @@ export interface ContextBannerProps {
    */
   readonly breakdown?: BreakdownChip | undefined;
   /**
+   * The differences the grid of a differential, or the comparison of two revisions, retains
+   * (`readDifferenceFilter`, US-0700): « Écarts seulement » when it retains all three. A filter of
+   * the grid, not of the context.
+   */
+  readonly difference?: readonly DifferenceValue[] | undefined;
+  /**
    * The structure the grid of the screen reads, and those of its revision it may read instead; none
    * for a screen that reads the main structure alone, which the banner then does not name.
    */
@@ -86,7 +98,9 @@ export type Restriction = "grid" | "exceptMilestones";
 
 /** The filters that restrict a part of a screen alone, and the part each restricts. */
 export type Restrictions = Readonly<
-  Partial<Record<ContextFilter["name"] | BreakdownParameter, Restriction>>
+  Partial<
+    Record<ContextFilter["name"] | BreakdownParameter | typeof DIFFERENCE_PARAMETER, Restriction>
+  >
 >;
 
 /**
@@ -94,7 +108,7 @@ export type Restrictions = Readonly<
  * it.
  */
 interface Chip {
-  readonly name: ContextFilter["name"] | BreakdownParameter;
+  readonly name: ContextFilter["name"] | BreakdownParameter | typeof DIFFERENCE_PARAMETER;
   readonly text: string;
   readonly lifts: readonly string[];
 }
@@ -136,8 +150,10 @@ function useChips(
   reading: ProjectReading,
   restricts: Restrictions,
   breakdown: BreakdownChip | undefined,
+  difference: readonly DifferenceValue[] | undefined,
 ): Chip[] {
   const t = useTranslations();
+  const format = useFormatter();
   const locale = useLocale();
   const subprojectName = useSubprojectName();
   const named = (filter: ContextFilter) =>
@@ -171,10 +187,33 @@ function useChips(
             lifts: Object.values(BREAKDOWN_PARAMETERS),
           },
         ]),
+    ...(difference === undefined
+      ? []
+      : [
+          {
+            name: DIFFERENCE_PARAMETER,
+            text: restricted(
+              DIFFERENCE_PARAMETER,
+              isDifferencesOnly(difference)
+                ? t("contextBanner.differencesOnly")
+                : t("contextBanner.differences", {
+                    values: format.list(
+                      difference.map((value) => t(`enums.NodeDifferenceFilter.${value}`)),
+                    ),
+                  }),
+            ),
+            lifts: [DIFFERENCE_PARAMETER],
+          },
+        ]),
   ];
 }
 
-/** The revision read: its name, its status, whether it is the reference. */
+/**
+ * The revision read: its name, its status, the revision it is a copy of when it has one
+ * (`source_version_name`, WF-IHM-0020), whether it is the reference. The source is shown whole at
+ * every width, never hidden nor cut: on a narrow window the banner wraps onto a second row, and the
+ * page scrolls when the window is too low for the floor of the grid under it (US-0560).
+ */
 function RevisionFacts({ revision }: { readonly revision: Revision }) {
   const t = useTranslations();
   return (
@@ -187,6 +226,9 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
       <dd>
         <Badge>{t(`enums.RevisionStatus.${revision.status}`)}</Badge>
       </dd>
+      {revision.source_version_name === null ? null : (
+        <dd>{t("contextBanner.sourceRevision", { name: revision.source_version_name })}</dd>
+      )}
       {revision.is_reference ? (
         <dd>
           <Badge variant="outline">{t("contextBanner.reference")}</Badge>
@@ -200,9 +242,8 @@ function RevisionFacts({ revision }: { readonly revision: Revision }) {
  * The structure read, and the others of the revision offered when it has some — each named by its
  * label and whether it is merged, under the name of its kind but for the main one. A grid opened on a
  * differential, or on the own estimate of a risk, names it and its kind in a badge (WF-IHM-0020); the
- * main structure, which the head of the grid names too, is named to a screen reader alone, so that
- * the banner keeps its one row on a narrow window, the totals of the grid in view under it — and not
- * at all when the revision has no other, nothing being offered.
+ * main structure, which the head of the grid names already, is named to a screen reader alone — and
+ * not at all when the revision has no other, nothing being offered.
  */
 function StructureFacts({ structure }: { readonly structure: StructureChoices }) {
   const t = useTranslations();
@@ -269,10 +310,11 @@ export function ContextBanner({
   computedOn,
   restricts = {},
   breakdown,
+  difference,
   structure,
 }: ContextBannerProps) {
   const t = useTranslations();
-  const chips = useChips(reading, restricts, breakdown);
+  const chips = useChips(reading, restricts, breakdown, difference);
   const { project, revision, readOnly } = reading;
   return (
     <section

@@ -1,0 +1,10 @@
+{
+  "summary": "Le résultat de l'export demandé aujourd'hui, téléchargé alors que sa tâche est encore en file (task_export_queued) : une tâche qui n'a pas abouti n'a pas de fichier ; refusé par la condition qui manque, task_succeeded ; le front suit la tâche (WF-ARC-0090, WF-IHM-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"task_succeeded"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001654"
+  }
+}

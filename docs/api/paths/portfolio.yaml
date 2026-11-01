@@ -71,6 +71,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/value:
@@ -99,6 +100,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/workload:
@@ -109,14 +111,19 @@
     description: >-
       Somme des charges par rôle et par mois : reste à engager pour les projets en cours,
       devis pondéré pour les projets en chiffrage inclus. La sous-charge est signalée
-      autant que la surcharge (WF-PTF-0060).
+      autant que la surcharge (WF-PTF-0060). Seuls ces deux états y contribuent : un autre
+      état que `states` nomme — terminé, créé, perdu ou abandonné — est sans effet, et la vue
+      ne prend pas de période (WF-PTF-0060, WF-PTF-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
       - $ref: ../components/parameters.yaml#/PortfolioOrgNode
       - name: horizon_months
         in: query
-        schema: { type: integer, minimum: 1, maximum: 240 }
+        description: >-
+          Nombre de mois du plan, le mois de la date de calcul le premier (WF-PTF-0060) ;
+          absent, six.
+        schema: { type: integer, minimum: 1, maximum: 240, default: 6 }
       - name: under_load_threshold
         in: query
         description: Seuil de sous-charge, choisi par l'utilisateur (WF-PTF-0060).
@@ -134,7 +141,16 @@
               org_node: { $ref: ../../../fixtures/api/portfolio_workload_org_node.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          `VALIDATION_FAILED` : un nœud d'organisation inconnu, `fields` désignant
+          `/query/org_node_id` ; un seuil de sous-charge ou un horizon hors de ses bornes,
+          `/query/under_load_threshold` ou `/query/horizon_months` par `VALUE_OUT_OF_RANGE`
+          (WF-PTF-0060).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/performance:
@@ -143,9 +159,12 @@
     tags: [portfolio]
     summary: Indices, projections, répartition par zone et évolution trimestrielle
     description: >-
-      Un indice de portefeuille est un rapport de sommes, jamais une moyenne d'indices
-      (WF-PTF-0020). L'évolution trimestrielle se calcule aux dates passées selon
-      WF-PTF-0010 (WF-PTF-0070).
+      Sur les seuls projets en cours du périmètre (WF-PTF-0070) : un projet en chiffrage ou
+      terminé que `states` ajoute n'y contribue pas, et `scope.states` nomme les états
+      demandés. Un indice de portefeuille est un rapport de sommes, jamais une moyenne
+      d'indices (WF-PTF-0020). L'évolution trimestrielle court sur les trimestres que la
+      période touche (`from`, `to`), chacun calculé à une date passée selon WF-PTF-0010
+      (WF-PTF-0070).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -163,6 +182,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/cost-structure:
@@ -173,9 +193,16 @@
     description: >-
       Ventilation par nature du budget de référence et du reste à engager, et
       main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par nature,
-      que l'ERP ne fournit pas (WF-PTF-0080).
+      que l'ERP ne fournit pas (WF-PTF-0080). Les projets terminés qu'ajoute `states` sont
+      ceux de la période (`from`, `to`, à défaut la période par défaut, que `scope.from` et
+      `scope.to` rendent ; WF-PTF-0010). Un projet en chiffrage inclus contribue par son
+      devis courant pondéré par sa probabilité de gain : hors lignes de provision au budget
+      de référence, dont il tient lieu, provisions comprises au reste à engager
+      (WF-PTF-0080).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
       - $ref: ../components/parameters.yaml#/AsOf
       - $ref: ../components/parameters.yaml#/PortfolioOrgNode
     responses:
@@ -188,7 +215,8 @@
               volume: { $ref: ../../../fixtures/api/volume/portfolio_cost_structure.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/risks:
@@ -198,9 +226,14 @@
     summary: Risques du portefeuille
     description: >-
       Total des provisions identifiées, risques les plus lourds tous projets confondus,
-      matrice remplie, couverture des risques agrégée — somme des réserves de référence
-      face aux provisions restantes et au coût des risques survenus (WF-RIS-0050) —, et
-      provisions survenues face aux provisions écartées sur la période (WF-PTF-0090).
+      matrice remplie, couverture des risques agrégée — somme des réserves pour risques
+      face aux provisions restantes et aux coûts à la survenance des risques survenus
+      (WF-RIS-0050) —, et
+      provisions survenues face aux provisions écartées sur la période (WF-PTF-0090). Un
+      projet en chiffrage inclus apporte ses risques identifiés et leurs provisions sans
+      pondération (WF-PTF-0020) ; la réserve et la couverture ne portent que sur les projets
+      en cours et terminés du périmètre, un projet en chiffrage n'ayant pas de référence
+      (WF-PTF-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/PortfolioFrom
@@ -217,6 +250,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/cost-curve:
@@ -227,17 +261,28 @@
     description: >-
       Somme, mois par mois, des courbes de coûts cumulés des projets du périmètre
       (WF-IND-0100) : budget de référence, coût réel jusqu'à la date de calcul, puis
-      projection du chef de projet ; un projet en chiffrage inclus contribue pondéré par sa
-      probabilité de gain. Sur demande (`payment_delays`), ce sont les décaissements que
-      chaque projet rend avec ses délais de paiement qui sont sommés, et la réponse les
-      détaille par mois (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le
-      portefeuille et les projets racontent la même histoire (WF-PTF-0100).
+      projection du chef de projet. Un projet en chiffrage inclus contribue par les courbes
+      de son devis courant, pondérées par sa probabilité de gain : hors lignes de provision
+      pour le budget de référence, provisions comprises pour la projection du chef de projet
+      (WF-PTF-0100). Les projets terminés qu'ajoute `states` sont ceux de la période
+      (`from`, `to`, à défaut la période par défaut, que `scope.from` et `scope.to` rendent ;
+      WF-PTF-0010) ; la période ne borne pas les mois de la courbe, que `horizon_months`
+      fixe. Sur demande (`payment_delays`), ce sont les décaissements que chaque projet rend
+      avec ses délais de paiement qui sont sommés, et la réponse les détaille par mois
+      (`cash_out_by_month`). Rien n'y est recalculé, de sorte que le portefeuille et les
+      projets racontent la même histoire (WF-PTF-0100).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
+      - $ref: ../components/parameters.yaml#/PortfolioFrom
+      - $ref: ../components/parameters.yaml#/PortfolioTo
       - $ref: ../components/parameters.yaml#/AsOf
       - name: horizon_months
         in: query
-        schema: { type: integer, minimum: 1, maximum: 240 }
+        description: >-
+          Nombre de mois de la courbe à partir de celui de la date de calcul, ce mois le
+          premier ; absent, six. Les douze mois qui précèdent celui de la date de calcul les
+          précèdent toujours : sans horizon, la courbe court sur dix-huit mois (WF-PTF-0100).
+        schema: { type: integer, minimum: 1, maximum: 240, default: 6 }
       - name: payment_delays
         in: query
         description: >-
@@ -247,17 +292,21 @@
         schema: { type: boolean, default: false }
     responses:
       '200':
-        description: Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est vrai.
+        description: >-
+          Séries cumulées par mois, décaissements par mois compris quand `payment_delays` est
+          vrai.
         content:
           application/json:
             schema: { $ref: ../components/schemas/portfolio.yaml#/PortfolioCostCurve }
             examples:
               witness: { $ref: ../../../fixtures/api/portfolio_cost_curve.json }
-              payment_delays: { $ref: ../../../fixtures/api/portfolio_cost_curve_payment_delays.json }
+              payment_delays:
+                $ref: ../../../fixtures/api/portfolio_cost_curve_payment_delays.json
               credit: { $ref: ../../../fixtures/api/portfolio_cost_curve_credit.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422': { $ref: ../components/responses.yaml#/PortfolioPeriodRefused }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /portfolio/pilot-health:
@@ -268,7 +317,9 @@
     description: >-
       Revues en retard, risques non réexaminés, coûts non importés, jalons contractuels
       dépassés : les quatre signaux dont l'absence rend les autres vues trompeuses
-      (WF-PTF-0110, WF-REF-0180).
+      (WF-PTF-0110, WF-REF-0180). Sur les seuls projets en cours du périmètre : un autre
+      état que `states` nomme — en chiffrage, terminé, créé, perdu ou abandonné — est sans
+      effet, et la vue ne prend pas de période (WF-PTF-0110, WF-PTF-0010).
     parameters:
       - $ref: ../components/parameters.yaml#/PortfolioStates
       - $ref: ../components/parameters.yaml#/AsOf
@@ -283,4 +334,5 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

@@ -14,6 +14,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react";
 
+import { useCurrency } from "@/currency/context";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -52,6 +53,11 @@ export interface CellEditorProps {
   readonly typed: string | undefined;
   /** The identifier of what says why the text was not validated, when it was not. */
   readonly invalid: string | undefined;
+  /**
+   * Whether the entry waits for the server to name the rows it typed: its text, validated, is read
+   * only and busy until it answers.
+   */
+  readonly asking?: boolean;
   /** Validate the text: whether the entry is done — a number misread keeps it open. */
   readonly onValidate: (text: string, move: EntryMove) => boolean;
   /** Abandon the entry: from the keyboard, the focus back on its cell; on a blur, where it went. */
@@ -81,6 +87,7 @@ export function CellEditor({
   text,
   typed,
   invalid,
+  asking = false,
   onValidate,
   onAbandon,
 }: CellEditorProps) {
@@ -187,6 +194,8 @@ export function CellEditor({
     <Input
       {...common}
       inputMode={inputModeOf(kind)}
+      readOnly={asking}
+      aria-busy={asking || undefined}
       maxLength={kind.type === "text" ? kind.maxLength : undefined}
       className={
         kind.type === "text"
@@ -213,11 +222,12 @@ export function EntryProblemNotice({
 }) {
   const t = useTranslations("grid.entry");
   const locale = useLocale();
+  const currency = useCurrency();
   const problem = draft?.problem;
   if (problem === undefined || kind === undefined) {
     return null;
   }
-  const amount = formatCell("money", "1234.56", locale);
+  const amount = formatCell("money", "1234.56", locale, currency);
   const texts: Readonly<Record<EntryProblem, () => string>> = {
     required: () => t("required"),
     tooLong: () => t("tooLong", { max: kind.type === "text" ? (kind.maxLength ?? 0) : 0 }),
@@ -225,6 +235,7 @@ export function EntryProblemNotice({
     notADate: () => t("notADate", { example: formatCell("date", "2026-12-31", locale) }),
     notPredecessors: () => t("notPredecessors"),
     unknownRow: () => t("unknownRow"),
+    unresolvedRow: () => t("unresolvedRow"),
     notANumber: () =>
       t("notANumber", {
         example:

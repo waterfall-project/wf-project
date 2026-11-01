@@ -30,6 +30,12 @@ export interface KeptReading {
   readonly sort: readonly string[];
   /** The size of its pages, which the address carries and the settings keep apart (`page_size`). */
   readonly size: readonly string[];
+  /**
+   * For a screen whose settings are restored one by one rather than all at once, the parameters it
+   * writes — empty when a change would remove them — so that none is restored behind the user's back
+   * (`spokenHref`); absent for a grid.
+   */
+  readonly settings?: readonly string[];
 }
 
 /** The parameters a grid reads, under the names of its address, its filters besides its search. */
@@ -88,11 +94,19 @@ export function restoredAddress(
 
 /**
  * An address the screen navigates to, saying a reading lifted when it would say nothing of the grid:
- * the search written empty, so that the page does not find the filters kept again.
+ * the search written empty, so that the page does not find the filters kept again — or, for a screen
+ * of settings restored one by one, each setting it does not name written empty.
  */
 export function spokenHref(href: string, reading: KeptReading): string {
   const [pathname = "", query = ""] = href.split("?");
   const next = new URLSearchParams(query);
+  if (reading.settings !== undefined) {
+    const absent = reading.settings.filter((name) => !next.has(name));
+    for (const name of absent) {
+      next.set(name, "");
+    }
+    return absent.length === 0 ? href : `${pathname}?${next.toString()}`;
+  }
   if (!silent(reading, (name) => next.has(name))) {
     return href;
   }

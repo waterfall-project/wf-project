@@ -3,10 +3,10 @@
 """The answers of the writes of the grids, generated from what each write changes (EP-02/L22).
 
 A write of a grid answers what it changed (`NodesWritten`): the nodes written; the tasks it
-redated, by their schedule (`rescheduled`); the lines and the tasks whose amount corrected for
-inflation it moved, by their amounts (`reinflated`); the summaries above all of them, whole
-(`ancestors`); the totals of the whole structure, and the version the structure moved on to
-(WF-IHM-0040, WF-PLA-0020, WF-DEV-0040). Here each answer is the difference between two
+redated, by their schedule (`rescheduled`); the lines and the tasks it moved in time, by their
+amounts inflation included (`reinflated`); the summaries above all of them, whole (`ancestors`);
+the totals of the whole structure, and the version the structure moved on to (WF-IHM-0040,
+WF-PLA-0020, WF-DEV-0040). Here each answer is the difference between two
 readings of one structure, before and after the write, never written by hand (#287).
 
 The writes of the witness are made on its core: its description (``wftools.mockwitness``) is
@@ -58,14 +58,11 @@ if TYPE_CHECKING:
 
 type Node = dict[str, Any]
 
-SCHEDULE = ("start", "finish", "total_float", "is_critical", "finish_overdue")
+SCHEDULE = ("start", "finish", "total_float", "is_critical", "link_conflicts", "finish_overdue")
 """The fields of a task a write may redate without writing it (`NodeSchedule`)."""
 
-INFLATION = ("inflated_amount", "consumption_year")
+INFLATION = ("budgeted_amount", "reestimated_amount", "consumption_year")
 """The fields of a line or a task a write may move in time without writing it (`NodeInflation`)."""
-
-_AMOUNTS = ("base_amount", "reestimated_amount", "inflated_amount")
-"""The amounts a quantity entered changes: the budget is the reference's (WF-DEV-0020)."""
 
 
 def written(
@@ -80,7 +77,7 @@ def written(
 
     The nodes written, whole, their version one further — a node created, at its first —; the
     tasks, not summaries, whose schedule changed without being written; the lines and the tasks,
-    not summaries, whose amount corrected for inflation or year of consumption changed, but those
+    not summaries, whose amounts inflation included or year of consumption changed, but those
     the ancestors render whole; the ancestors of the nodes written, those they had before a move
     with those they have after, of the node deleted — read before, as it is gone after — and of
     the tasks redated, whole, but those written. Each list in the order of the plan, each node once
@@ -104,13 +101,7 @@ def written(
             continue
         facet, old = _facet(node), _facet(was[node_id])
         if _changed(facet, old, INFLATION):
-            reinflated.append(
-                {
-                    "node_id": node_id,
-                    "inflated_amount": facet["inflated_amount"],
-                    "consumption_year": facet.get("consumption_year"),
-                }
-            )
+            reinflated.append({"node_id": node_id, **{key: facet.get(key) for key in INFLATION}})
     return {
         "nodes": [
             {
@@ -467,8 +458,14 @@ copies it, pasted on the label of the first line: the rows of the journeys and o
 UNKNOWN_CATEGORY = (BLOCK[0], ("Heures d'essais", "Essais", "", "1"), BLOCK[2])
 """The same block, its second row naming a category the reference data does not know."""
 
+REJUDGED = (BLOCK[0], ("Heures d'essais", BLOCK[0][1], BLOCK[0][2], "1"), BLOCK[2])
+"""The same block, its second row moving its line to the category and the role the first keeps:
+the category deactivated between the preview and the confirmation refuses the second row alone,
+the first naming the category its line bears already (#764, #747)."""
+
 PASTES = (universe(991), universe(992))
 TOO_WIDE_CORRELATION = universe(973)
+STALE_PASTE_CORRELATION = universe(1555)
 
 
 def known() -> tuple[dict[str, str], dict[str, str]]:
@@ -497,7 +494,9 @@ def paste_plan(block: Sequence[Sequence[str]], paste_id: str) -> JsonObject:
     return {"paste_id": paste_id, "accepted": len(block) - len(rejected), "rejected": rejected}
 
 
-def paste_applied(block: Sequence[Sequence[str]] = BLOCK) -> JsonObject:
+def paste_applied(
+    block: Sequence[Sequence[str]] = BLOCK, refused: Sequence[JsonObject] | None = None
+) -> JsonObject:
     """Return what applyPaste answers for a block: its valid rows written on the lines from LINE.
 
     Each line takes the label, the category, the role and the quantity of its row; its amount
@@ -507,29 +506,91 @@ def paste_applied(block: Sequence[Sequence[str]] = BLOCK) -> JsonObject:
     (`estimate_line_entered`): it reads the line at the version that write left, so that two
     answers never render one node at one version with two contents (#421). A row the plan refuses
     is not written, its line left as it was, and the answer says it again as the plan did
-    (`PasteApplied.rejected`, WF-IHM-0050): a partial success.
+    (`PasteApplied.rejected`, WF-IHM-0050): a partial success. The refusals are the plan's, or
+    those given, which the confirmation adds judging the rows again (`rejudged`).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
     before = copy.deepcopy(mockcore.whole(mockcore.current(entered)))
     for node in cast("list[Node]", before["items"]):
         if node["node_id"] == mockwitness.node_id(LINE):
             node["lock_version"] += 1
-    roots, targets, rejected = pasted(block)
+    roots, targets, rejected = pasted(block, refused)
     written = volume_write(roots, targets, before=before, structure_version=ENTERED_VERSION + 1)
     return {**written, "rejected": cast("list[JsonValue]", rejected)}
 
 
-def pasted(block: Sequence[Sequence[str]]) -> tuple[tuple[Task, ...], list[int], list[JsonObject]]:
+def pasted_task() -> Task:
+    """Return the task of LINE, whose lines a block pasted on LINE writes."""
+    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
+    return task
+
+
+def pasted_lines(block: Sequence[Sequence[str]]) -> list[Line]:
+    """Return the lines a block pasted on LINE writes, one per row, in the order of the plan."""
+    return list(pasted_task().lines[: len(block)])
+
+
+def rejudged(block: Sequence[Sequence[str]], deactivated: str) -> list[JsonObject]:
+    """Return the refusals the confirmation adds once a category is deactivated since the preview.
+
+    A row whose category cell changes its line to the deactivated category is refused by
+    `INACTIVE_REFERENCE_OBJECT`; one that names the category its line bears already changes
+    nothing, and is not (`PasteRejection`, EP-14/L42j, #747).
+    """
+    categories, _ = known()
+    return [
+        {"row": row, "column": "cost_category", "code": "INACTIVE_REFERENCE_OBJECT"}
+        for row, (line, (_, category, _, _)) in enumerate(
+            zip(pasted_lines(block), block, strict=True)
+        )
+        if categories[category] == deactivated != line.category
+    ]
+
+
+def paste_applied_rejudged() -> JsonObject:
+    """Return what applyPaste answers for REJUDGED, its category deactivated after the preview.
+
+    The preview accepts the three rows, as it does the block of the journeys; the confirmation
+    judges them again (`PasteApplied`): the second row, which moves its line to the deactivated
+    category, is refused and not written, the others are. The line written that keeps the
+    category says it uses an object deactivated (`EstimateLine.uses_inactive_object`, WF-REF-0010).
+    """
+    categories, _ = known()
+    deactivated = categories[REJUDGED[0][1]]
+    # The readings are cached and shared with the other answers: this one is marked on its copy.
+    applied = copy.deepcopy(paste_applied(REJUDGED, rejudged(REJUDGED, deactivated)))
+    for node in cast("list[Node]", applied["nodes"]):
+        line = node["estimate_line"]
+        line["uses_inactive_object"] = line["cost_category_id"] == deactivated
+    return applied
+
+
+def paste_stale() -> JsonObject:
+    """Return the 412 of a paste confirmed once another write moved its structure on."""
+    return {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": ENTERED_VERSION + 1},
+        "correlation_id": STALE_PASTE_CORRELATION,
+    }
+
+
+def pasted(
+    block: Sequence[Sequence[str]], refused_rows: Sequence[JsonObject] | None = None
+) -> tuple[tuple[Task, ...], list[int], list[JsonObject]]:
     """Return the structure a block leaves, the lines its valid rows write, and its refusals.
 
-    The structure follows the label entered on LINE; a row the plan refuses leaves its line as
-    that write left it (WF-IHM-0050).
+    The structure follows the label entered on LINE; a row the plan refuses, or the confirmation
+    when it is given its refusals, leaves its line as that write left it (WF-IHM-0050).
     """
     entered = amended(described(), line=on_line(LINE, label=ENTERED))
-    [task] = [each for each in mockdating.tasks_in_order(NETWORK) if LINE in _numbers(each.lines)]
-    rejected = cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
+    rejected = (
+        cast("list[JsonObject]", paste_plan(block, PASTES[0])["rejected"])
+        if refused_rows is None
+        else list(refused_rows)
+    )
     refused = {cast("int", each["row"]) for each in rejected}
-    rows = list(zip(_numbers(task.lines[: len(block)]), block, strict=True))
+    rows = list(zip(_numbers(pasted_lines(block)), block, strict=True))
     targets = [number for row, (number, _) in enumerate(rows) if row not in refused]
     categories, roles = known()
     roots = entered
@@ -706,7 +767,7 @@ def _core_writes() -> dict[str, JsonObject]:
     changed = estimate_line_subproject_changed()
     [line] = cast("list[Node]", updated["nodes"])
     [mounting] = cast("list[Node]", linked["nodes"])
-    unmoved = "" if linked["reinflated"] else " — aucun montant corrigé de l'inflation ne change —"
+    unmoved = "" if linked["reinflated"] else " — aucun montant ne change d'année —"
     whole = mockcore.whole(mockcore.current())
     later = {entry["node_id"]: entry for entry in cast("list[Node]", redated["rescheduled"])}
     priced = {entry["node_id"]: entry for entry in cast("list[Node]", redated["reinflated"])}
@@ -823,14 +884,16 @@ def _core_writes() -> dict[str, JsonObject]:
             f"{_on(later[universe(MOUNTING)]['finish'])} au lieu du "
             f"{_on(mounted['finish'])}, et la mise en service qui le suit "
             f"démarre le {_on(later[commissioning]['start'])} (rescheduled). Consommée en 2027, "
-            f"sa ligne, « {before[COMMISSIONING_LINE].label} », est corrigée de l'inflation de "
-            f"3 % du projet, {_money(priced[universe(COMMISSIONING_LINE)]['inflated_amount'])} "
-            f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.inflated)}, et la "
-            f"mise en service avec elle (reinflated) ; leur montant à l'année de référence ne "
-            f"change pas. Redatée{_plural(redated)}, {_redated(redated, before)} "
+            f"sa ligne, « {before[COMMISSIONING_LINE].label} », est réestimée inflation comprise, "
+            f"à 3 % du projet, "
+            f"{_money(priced[universe(COMMISSIONING_LINE)]['reestimated_amount'])} "
+            f"au lieu de {mocktext.amount(before[COMMISSIONING_LINE].amounts.reestimated)}, et la "
+            f"mise en service avec elle (reinflated) ; leur budgété, projeté sur l'année où la "
+            f"référence les consommait, et leur montant aux taux de l'année de référence ne "
+            f"changent pas (WF-DEV-0020). Redatée{_plural(redated)}, {_redated(redated, before)} "
             f"{'reste' if len(cast('list[Node]', redated['rescheduled'])) == 1 else 'restent'} "
             f"{_margin(redated, whole)} ; le montage et les récapitulatives "
-            f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant corrigé "
+            f"au-dessus des tâches redatées, entiers ; les totaux, dont le seul montant réestimé "
             f"change (WF-PLA-0010, WF-PLA-0020, WF-DEV-0040).",
             redated,
         ),
@@ -844,6 +907,8 @@ def _volume_writes() -> dict[str, JsonObject]:
     columns = node_columns()
     partial = paste_applied(UNKNOWN_CATEGORY)
     [first, last] = cast("list[Node]", partial["nodes"])
+    rejudged_answer = paste_applied_rejudged()
+    [rejudged_first, rejudged_last] = cast("list[Node]", rejudged_answer["nodes"])
     return {
         "estimate_line_entered.json": mocktext.example(
             f"La ligne {ROW} de la structure du témoin, « Heures d'ingénierie », première ligne "
@@ -904,5 +969,28 @@ def _volume_writes() -> dict[str, JsonObject]:
             f"leurs ancêtres, les totaux de la structure, et son compteur, passé à "
             f"{ENTERED_VERSION + 1} (WF-IHM-0050, WF-DEV-0020).",
             partial,
+        ),
+        "paste_applied_rejudged.json": mocktext.example(
+            f"Variante contrefactuelle déclarée : un bloc de trois lignes collé sur la ligne "
+            f"{ROW}, dont la deuxième passe sa ligne à la catégorie « {REJUDGED[0][1]} » que la "
+            f"première garde ; l'aperçu les accepte toutes trois, comme paste_plan, puis la "
+            f"catégorie est désactivée avant la confirmation. Le référentiel n'ayant pas de "
+            f"compteur, la confirmation juge de nouveau les lignes acceptées : la deuxième, qui "
+            f"changerait sa "
+            f"catégorie pour la catégorie désactivée, est refusée par son motif, que l'aperçu ne "
+            f"donnait pas, et n'est pas écrite ; la première, qui nomme la catégorie que sa ligne "
+            f"porte déjà, ne la change pas et est écrite, la ligne signalée comme employant un "
+            f"objet désactivé (uses_inactive_object). Un succès partiel, "
+            f"lignes {rejudged_first['row_number']} et {rejudged_last['row_number']} écrites, "
+            f"le compteur de la structure passé à {ENTERED_VERSION + 1} (WF-IHM-0050, "
+            f"WF-REF-0010).",
+            rejudged_answer,
+        ),
+        "paste_stale.json": mocktext.example(
+            f"Le bloc de paste_plan confirmé quand une autre écriture a changé la structure depuis "
+            f"l'aperçu : le plan, jugé sur la structure à la version {ENTERED_VERSION}, est "
+            f"refusé quel que soit le compteur envoyé, et la version courante, "
+            f"{ENTERED_VERSION + 1}, est nommée ; rien n'est écrit (WF-IHM-0050, WF-IHM-0110).",
+            paste_stale(),
         ),
     }

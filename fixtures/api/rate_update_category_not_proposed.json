@@ -1,0 +1,12 @@
+{
+  "summary": "La mise à jour des taux de la révision 101, le 12 janvier 2026, envoyée pour « Ingénierie électrique », que la proposition présente (rate_update), et pour le « Matériel électrique », catégorie de débours qu'elle ne présente pas : refusée, la seconde désignée par son rang dans la liste envoyée (/cost_category_ids/1) ; rien n'est écrit, et la révision garde sa version (WF-REV-0060, #1755).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/cost_category_ids/1","code":"UNKNOWN_COST_CATEGORY"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001670"
+  }
+}

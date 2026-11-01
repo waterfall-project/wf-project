@@ -5,24 +5,33 @@ RiskState:
   enum: [identified, occurred, dismissed]
   description: >-
     Identifié, survenu, écarté. Un risque écarté peut redevenir identifié ; la
-    survenance est définitive (WF-RIS-0020).
+    survenance est définitive : aucune transition ne part de l'état survenu et aucune commande
+    ne l'annule ; seul l'abandon de la révision en cours la défait, le risque y redevenant
+    identifié avec sa provision (`abandonRevision`, WF-RIS-0020, WF-RIS-0060).
 
 Risk:
   type: object
   required:
     - risk_id
     - label
+    - description
+    - mitigation_notes
     - probability
     - severity
     - provision_amount
+    - occurrence_cost
+    - occurred_reestimated_amount
     - state
     - structure_id
+    - provision_node_id
     - provision_cost_category_id
     - provision_cost_category_label
     - provision_cost_category_is_active
     - provision_subproject_id
     - provision_subproject_label
     - provision_task
+    - matrix_cell
+    - last_review_on
     - computed_fields
     - available_commands
     - audit
@@ -31,7 +40,8 @@ Risk:
     La gravité est le total de la structure propre du risque et la provision cette
     gravité pondérée par la probabilité : ni l'une ni l'autre ne sont saisies
     (WF-RIS-0010), et le risque nomme ce dont elles dépendent (`computed_fields`). Il
-    porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090).
+    porte ses commandes, disponibles ou non (`available_commands`, WF-IHM-0090). Sa
+    probabilité ne s'écrit que par le réexamen (`reviewRisk`, WF-RIS-0010).
   properties:
     risk_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
@@ -46,9 +56,30 @@ Risk:
     provision_amount:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-
-        Calculée, gravité pondérée par la probabilité ; celle que portait la révision de
-        référence compte à la réserve pour risques, jamais au budget de référence
-        (WF-RIS-0050).
+        Pour un risque identifié, sa provision courante, la gravité pondérée par la probabilité,
+        que porte sa ligne de provision. Pour un risque survenu ou écarté, qui ne porte plus de
+        ligne, la provision qu'il portait dans la révision de référence, `0.00` s'il n'y était
+        pas identifié (WF-RIS-0040, WF-RIS-0050) : la ligne du registre se somme ainsi aux
+        totaux (`ProvisionTotals`). Jamais au budget de référence (WF-RIS-0050).
+    occurrence_cost:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Le coût à la survenance d'un risque survenu : le total de son devis propre au moment où
+        il a été déclaré survenu, que ni les réestimations ni la terminaison des tâches
+        fusionnées ne changent, et que la couverture compare à la réserve (WF-RIS-0010,
+        WF-RIS-0050, WF-RIS-0060 ; `RiskCoverageTotals.occurred_cost`). Une donnée de la
+        révision, que l'abandon de la révision où le risque est survenu efface (WF-RIS-0020).
+        Nul pour un risque identifié ou écarté.
+    occurred_reestimated_amount:
+      anyOf: [{ $ref: ../common.yaml#/Money }, { type: 'null' }]
+      description: >-
+        Pour un risque survenu, la somme des montants réestimés courants, inflation comprise, des
+        lignes de la révision lue qui en sont issues (`Node.origin_risk_id`, WF-RIS-0060) : ce
+        que coûtent aujourd'hui les lignes que sa survenance a fusionnées, que le registre
+        présente en regard du coût à la survenance (`occurrence_cost`) pour en montrer la dérive.
+        Une information hors de la couverture, dont l'écart reste calculé sur le coût à la
+        survenance (`RiskCoverageTotals.occurred_reestimated`, WF-RIS-0050 ; #1761). Nul pour un
+        risque identifié ou écarté.
     state: { $ref: '#/RiskState' }
     structure_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
@@ -64,8 +95,9 @@ Risk:
         La catégorie de type provision pour risques que le risque a désignée pour sa provision —
         à sa déclaration, ou depuis, tant qu'il était identifié —, que porte sa ligne de provision
         tant qu'il est identifié (WF-RIS-0010, WF-REF-0030). Un risque écarté la garde : redevenu
-        identifié, sa ligne la reprend si elle est encore active, et sinon la catégorie est
-        demandée comme à la déclaration (`RiskReviewWrite.provision_cost_category_id`), ce que
+        identifié, sa ligne la reprend si elle est encore active et de type provision pour
+        risques, et sinon la catégorie est demandée comme à la déclaration
+        (`RiskReviewWrite.provision_cost_category_id`), ce que
         `provision_cost_category_is_active` dit d'avance.
     provision_cost_category_label:
       type: string
@@ -75,11 +107,15 @@ Risk:
     provision_cost_category_is_active:
       type: boolean
       description: >-
-        Calculé à la lecture : vrai quand cette catégorie est active — sa nature l'est alors aussi,
-        la désactivation d'une nature désactivant ses catégories (WF-REF-0010 ; EP-14/L42s,
-        C-291). Faux, le retour du risque écarté à l'état identifié demande une autre catégorie
-        (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit, sans
-        comparer la catégorie aux listes du référentiel.
+        Calculé à la lecture : vrai quand cette catégorie est active et que sa nature est de type
+        provision pour risques — sa nature est alors active aussi, la désactivation d'une nature
+        désactivant ses catégories (WF-REF-0010 ; EP-14/L42s, C-291). Faux pour une catégorie
+        désactivée, ou rattachée depuis à une nature d'un autre type : une catégorie que plus
+        aucune ligne n'emploie, celle d'un risque écarté, peut changer de nature (WF-REF-0030), et
+        elle n'est plus alors « parmi les catégories actives de type provision pour risques »
+        (WF-RIS-0010 ; #747). Faux, le retour du risque écarté à l'état identifié demande une autre
+        catégorie (`RiskReviewWrite.provision_cost_category_id`, WF-RIS-0010) : le front le lit,
+        sans comparer la catégorie aux listes du référentiel.
     provision_subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -109,15 +145,22 @@ Risk:
     matrix_cell: { $ref: '#/RiskMatrixCell' }
     last_review_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+      description: >-
+        Le jour de son dernier réexamen, que la grille présente (WF-RIS-0040) : sa déclaration,
+        un réexamen (`reviewRisk`) ou sa survenance.
     computed_fields:
       type: array
       description: >-
         Les champs du risque que le serveur calcule, chacun avec ce dont il dépend, que le
         refus d'une saisie nomme (WF-IHM-0030) : la gravité et la provision, dans cet ordre,
-        pour tout risque. Constants — les règles du calcul, pas les lignes du devis propre —,
-        ils se lisent avec le risque, sans appel au refus.
+        pour tout risque, puis le coût à la survenance d'un risque survenu. La gravité dépend du
+        devis propre (`own_estimate`) ; la provision d'un risque identifié, de sa gravité et de
+        sa probabilité (`severity_and_probability`), celle d'un risque survenu ou écarté, de la
+        révision de référence (`reference_provision`) ; le coût à la survenance, du devis propre
+        au moment de la survenance (`occurrence_estimate`). Les règles du calcul, pas les lignes
+        du devis propre : elles se lisent avec le risque, sans appel au refus.
       minItems: 2
-      maxItems: 2
+      maxItems: 3
       items: { $ref: '#/RiskComputedField' }
     available_commands:
       type: array
@@ -128,11 +171,23 @@ Risk:
         nomme que ce qui tient à lui — son état, sa citation par une révision marquée — et,
         pour la survenance, la révision qu'elle créerait ; les conditions du projet et de la
         révision sont sur leurs commandes (`ProjectCommand.declare_risk_occurrence`,
-        `RevisionCommand.edit_risks`). Un appel envoyé malgré la liste est refusé par son code
-        d'erreur.
+        `RevisionCommand.edit_risks`). Le risque d'un projet terminal n'en liste aucune
+        (US-0702/L3). Un appel envoyé malgré la liste est refusé par son code d'erreur.
       items: { $ref: '#/RiskCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
-    lock_version: { $ref: ../common.yaml#/LockVersion }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Compteur du risque, un seul pour son identité et son évaluation : il avance à chaque
+        écriture du risque — la modification de son identité (`updateRisk`) comme le changement
+        de sa provision (`updateRiskProvision`) —, et ne revient jamais en arrière : l'abandon
+        d'une révision le fait avancer, l'évaluation lue changeant (H-02, #1782). Il avance aussi
+        à toute saisie dans
+        son devis propre (`structure_id`) — une cellule, un collage, un déplacement, une
+        création, une suppression —, dont il tient sa gravité (WF-RIS-0010) : le compte rendu de
+        sa survenance, qui décrit ce devis, est ainsi périmé par elle (`RiskOccurrence`). Il
+        avance de même à la suppression du sous-projet qu'il désignait
+        (`provision_subproject_id`, #732).
 
 ProvisionTask:
   type: object
@@ -153,17 +208,19 @@ RiskCommand:
     - declare_occurrence
     - delete
   description: >-
-    Commandes portées par un risque (WF-IHM-0090) : le modifier (`updateRisk`), et parmi ses
-    attributs changer la catégorie, le sous-projet ou la tâche de sa provision (`updateRisk`,
-    `provision_cost_category_id`, `provision_subproject_id`, `provision_task_id`), le réexaminer —
+    Commandes portées par un risque (WF-IHM-0090) : modifier son identité, donnée du projet
+    (`updateRisk`), changer la catégorie, le sous-projet ou la tâche de sa provision, saisie de la
+    révision en cours (`updateRiskProvision` ; H-02, #1782), le réexaminer —
     l'écarter ou le réidentifier (`reviewRisk`, `RiskReviewWrite.state`) —, le déclarer survenu
     (`declareRiskOccurrence`), le supprimer (`deleteRisk`). `update_provision`, toujours listée
     avec `update`, dit d'avance que la catégorie, le sous-projet et la tâche de la provision ne
     changent que tant que le risque est identifié, `risk_identified` manquante sinon (WF-RIS-0010 ;
     EP-14/L42p, #786), comme `update_win_probability` le dit de la probabilité de gain d'un projet ;
     elle ne nomme que `risk_identified`, pour un risque survenu comme pour un risque écarté.
-    Les saisies relèvent de `edit_risks` et de `risks.write` ; un risque survenu les a indisponibles,
-    `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
+    Les saisies sont sous `risks.write` ; le changement de la provision, le réexamen et la
+    suppression relèvent aussi de la saisie des risques dans la révision (`edit_risks`), la
+    modification de l'identité non. Un risque survenu a indisponibles la modification, le
+    réexamen et la suppression, `risk_not_occurred` manquante, aucune transition n'en partant (WF-RIS-0020), et la
     suppression d'un risque qu'une révision marquée cite nomme `risk_not_cited`. La
     déclaration de survenance est gardée par la seule permission `risk_occurrence` — elle
     emporte la fusion qu'elle déclenche et n'exige pas `structure_merge` (WF-ADM-0100) — ;
@@ -189,7 +246,7 @@ RiskComputedField:
   properties:
     field:
       type: string
-      enum: [severity, provision_amount]
+      enum: [severity, provision_amount, occurrence_cost]
     dependencies:
       type: array
       minItems: 1
@@ -227,22 +284,15 @@ RiskWrite:
         quand il en existe plusieurs, elle est refusée par 422, `VALUE_REQUIRED` ; inconnue,
         `UNKNOWN_COST_CATEGORY` ; désactivée, ce qu'est toute catégorie d'une nature
         désactivée, `INACTIVE_REFERENCE_OBJECT` (WF-REF-0010, C-291) ; d'une nature d'un autre type,
-        `PROVISION_CATEGORY_REQUIRED`. À la modification, omise, elle reste celle du risque ;
-        `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa
-        catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la
-        catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`) ; une autre, envoyée pour un
-        risque qui n'est pas identifié, est refusée par 409, `STATE_FORBIDS_OPERATION`,
-        `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit
-        d'avance.
+        `PROVISION_CATEGORY_REQUIRED`. Elle se change ensuite par `updateRiskProvision`
+        (`RiskProvisionUpdate`), tant que le risque est identifié.
     provision_subproject_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
         Le sous-projet auquel appartient la ligne de provision, facultatif ; nul ou omis à la
         déclaration, elle compte hors sous-projet (WF-RIS-0010, WF-RAE-0020). Un sous-projet que
-        le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. À la modification, omis, il
-        reste celui du risque ; `null` retire la provision de son sous-projet ; un autre, envoyé
-        pour un risque qui n'est pas identifié, est refusé comme la catégorie, par
-        `risk_identified`.
+        le projet n'a pas est refusé par 422, `UNKNOWN_SUBPROJECT`. Il se change ensuite par
+        `updateRiskProvision`, comme la catégorie.
     provision_task_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -251,23 +301,58 @@ RiskWrite:
         de premier niveau de la structure » (WF-RIS-0010, #786). Une récapitulative la porte comme
         une feuille ; la ligne n'entre pas dans l'état de sa tâche (WF-PLA-0040). Un nœud qui
         n'est pas une tâche de cette structure — une ligne, une tâche d'une autre structure, un
-        identifiant inconnu — est refusé par 422, `UNKNOWN_TASK`. À la modification, omise, elle
-        reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre
-        déplace la ligne sur elle, le total du devis inchangé. Changée pour un risque qui n'est pas
-        identifié, elle est refusée comme la catégorie, par `risk_identified` (`update_provision`).
+        identifiant inconnu — est refusé par 422, `UNKNOWN_TASK`. Elle se change ensuite par
+        `updateRiskProvision`, comme la catégorie.
 
 RiskUpdate:
+  type: object
+  required: [label, lock_version]
   description: >-
-    Modification d'un risque : porte le compteur lu,
-    qu'une création n'a pas. La catégorie, le sous-projet et la tâche de la provision, omis,
-    restent ceux du risque ; changés, ils ne le sont que tant que le risque est identifié
-    (WF-RIS-0010, `update_provision`).
-  allOf:
-    - $ref: '#/RiskWrite'
-    - type: object
-      required: [lock_version]
-      properties:
-        lock_version: { $ref: ../common.yaml#/LockVersion }
+    Modification de l'identité d'un risque — son libellé, sa description, sa note de mitigation,
+    données du projet (WF-RIS-0020, §4.4.1) —, avec le compteur lu, qu'une création n'a pas. Elle
+    ne reçoit ni la probabilité — la modifier est un réexamen daté, que seul `reviewRisk` écrit et
+    que l'historique montre (WF-RIS-0010, WF-RIS-0040 ; décision de l'auteur du 2026-10-28, H-04)
+    —, ni la catégorie, le sous-projet et la tâche de la provision, portés par la révision, que
+    `updateRiskProvision` écrit (`RiskProvisionUpdate` ; H-02, #1782).
+  properties:
+    label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+    mitigation_notes:
+      anyOf: [{ type: string }, { type: 'null' }]
+    lock_version: { $ref: ../common.yaml#/LockVersion }
+
+RiskProvisionUpdate:
+  type: object
+  required: [lock_version]
+  description: >-
+    Changement de la provision d'un risque identifié : la catégorie, le sous-projet et la tâche de
+    sa ligne de provision, une saisie de la révision en cours (WF-RIS-0010, WF-RIS-0020 ; H-02,
+    #1782), avec le compteur lu du risque. Chaque champ omis reste celui du risque ; changés pour
+    un risque qui n'est pas identifié, ils sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+    `params.missing_condition` à `risk_identified`, ce que la commande `update_provision` dit
+    d'avance.
+  properties:
+    provision_cost_category_id:
+      allOf: [{ $ref: ../common.yaml#/Uuid }]
+      description: >-
+        La catégorie que porte la ligne de provision, refusée par les motifs de la déclaration
+        (`RiskWrite.provision_cost_category_id`). Omise, elle reste celle du risque ;
+        `INACTIVE_REFERENCE_OBJECT` ne vaut que si la valeur change la catégorie du risque : sa
+        catégorie inchangée, désactivée depuis, est acceptée, comme le parent d'un nœud ou la
+        catégorie d'un rôle (`updateOrgNode`, `updateResourceRole`).
+    provision_subproject_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        Le sous-projet de la ligne de provision (`RiskWrite.provision_subproject_id`). Omis, il
+        reste celui du risque ; `null` retire la provision de son sous-projet.
+    provision_task_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      description: >-
+        La tâche qui porte la ligne de provision (`RiskWrite.provision_task_id`). Omise, elle
+        reste celle du risque ; `null` la rend à la première tâche de premier niveau ; une autre
+        déplace la ligne sur elle, le total du devis inchangé (WF-RIS-0010, #786).
+    lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskReview:
   type: object
@@ -288,11 +373,14 @@ RiskReviewWrite:
   description: >-
     La confirmation sans modification produit un réexamen daté (WF-RIS-0010). Un risque écarté
     qui redevient identifié recrée sa ligne de provision avec la catégorie qu'il désignait si elle
-    est encore active ; sinon la catégorie est demandée, comme à la déclaration
+    est encore active et de type provision pour risques — une catégorie rattachée depuis à une
+    nature d'un autre type ne l'est plus (#747) ; sinon la catégorie est demandée, comme à la
+    déclaration
     (`provision_cost_category_id`), ce que `Risk.provision_cost_category_is_active` dit d'avance.
-    Sans aucune catégorie active de type provision pour risques, ce retour est refusé par 409,
-    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `active_provision_category`
-    (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été
+    Sur une structure principale sans tâche, ce retour est refusé par 409,
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `at_least_one_task` (WF-RIS-0010,
+    #787) ; sans aucune catégorie active de type provision pour risques, par
+    `active_provision_category` (WF-RIS-0010). Il se fait hors sous-projet quand le sous-projet que le risque désignait a été
     supprimé depuis, la désignation passée à nul (décision de l'auteur, #732). Son annulation rend
     au risque son état précédent et la catégorie qu'il désignait avant ce retour, la catégorie
     choisie au retour comprise (WF-IHM-0110, WF-RIS-0020). La tâche qui porte la ligne recréée
@@ -308,26 +396,130 @@ RiskReviewWrite:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
         La catégorie de la provision d'un risque écarté qui redevient identifié, quand celle
-        qu'il désignait n'est plus active (`Risk.provision_cost_category_is_active` faux) :
+        qu'il désignait n'est plus active, ou n'est plus de type provision pour risques
+        (`Risk.provision_cost_category_is_active` faux) :
         omise, elle est la seule catégorie active de type
         provision pour risques, et refusée par 422, `VALUE_REQUIRED`, quand il en existe
         plusieurs ; les autres refus sont ceux de la déclaration (`RiskWrite`). Ignorée quand la
-        catégorie désignée est encore active, ou quand le risque ne redevient pas identifié.
+        catégorie désignée est encore active et de type provision pour risques, ou quand le risque
+        ne redevient pas identifié.
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
 RiskOccurrence:
   type: object
-  required: [confirmed]
+  required: [confirmed, main_structure_lock_version, risk_lock_version, creates_current_revision]
   description: >-
-    Déclare le risque survenu : fusionne son devis propre dans la structure
-    principale de la révision en cours, les lignes fusionnées portant un montant
-    budgété nul et leur montant du devis propre en réestimé ; la ligne de provision
-    est retirée. Ne marque aucune révision et ne déplace pas la référence
-    (WF-RIS-0060). Définitif.
+    Déclare le risque survenu : fusionne son devis propre dans la structure principale de la
+    révision en cours, à la place que dit `declareRiskOccurrence`, chaque ligne fusionnée
+    gardant ses grandeurs, avec un montant budgété nul et pour réestimé le montant que ses
+    grandeurs et ses dates donnent ; la ligne de provision est retirée, et le risque garde son
+    coût à la survenance (`Risk.occurrence_cost`). Ne marque aucune révision et ne déplace pas
+    la référence (WF-RIS-0060). Définitif : aucune commande ne l'annule, seul l'abandon de la
+    révision en cours la défait (WF-RIS-0060). La confirmation suit le compte rendu préalable
+    (`getRiskOccurrenceReport`) et porte les deux compteurs qu'il a lus, et s'il créait la
+    révision en cours : la structure principale ou le risque changés depuis — et le risque change
+    aussi à toute saisie dans son devis propre (`Risk.lock_version`) —, ou une révision en cours
+    née depuis la lecture, ou disparue, elle est refusée par 412 et rien n'est fusionné — c'est ce
+    compte rendu que l'utilisateur a confirmé, comme pour la fusion d'un différentiel
+    (`StructureMerge`, WF-IHM-0110 ; US-0680).
   properties:
     confirmed:
       type: boolean
       const: true
+    main_structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure principale que le compte rendu a lu
+        (`RiskOccurrenceReport.main_structure_lock_version`) — celle de la révision en cours, ou,
+        sans révision en cours, celle de la dernière révision marquée.
+    risk_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du risque que le compte rendu a lu (`RiskOccurrenceReport.risk_lock_version`),
+        qui avance aussi à toute saisie dans son devis propre (`Risk.lock_version`).
+    creates_current_revision:
+      type: boolean
+      description: >-
+        Ce que le compte rendu a lu (`RiskOccurrenceReport.creates_current_revision`), renvoyé
+        tel que lu : vrai alors qu'une révision en cours est née depuis la lecture, ou faux alors
+        qu'il n'y en a plus, la confirmation est refusée par 412.
+
+RiskOccurrenceReport:
+  type: object
+  required:
+    - main_structure_lock_version
+    - risk_lock_version
+    - creates_current_revision
+    - differences
+    - provision_amount
+    - refusals
+  description: >-
+    Compte rendu de la survenance d'un risque, présenté avant sa confirmation (WF-RIS-0060 ;
+    US-0680, #1383) : ce qu'elle ferait de la structure principale de la révision en cours, et du
+    reste à engager. Il reprend les éléments du compte rendu de la fusion d'un différentiel
+    (`StructureMergeReport`), et se lit de même. Les deux tableaux sont toujours rendus, vides quand
+    il n'y a rien à dire ; la survenance ne s'applique que si `refusals` est vide. Il rend les
+    compteurs lus, et s'il crée la révision en cours, que la confirmation renvoie
+    (`RiskOccurrence`).
+  properties:
+    main_structure_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur de la structure principale lue (`CostStructure.lock_version`) — celle de la
+        révision en cours, ou, sans révision en cours, celle de la dernière révision marquée : une
+        saisie qui l'écrit depuis rend le compte rendu périmé, et la confirmation est refusée par
+        412.
+    risk_lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du risque lu (`Risk.lock_version`), de même. Il avance aussi à toute saisie
+        dans le devis propre du risque, dont le compte rendu liste les tâches et les lignes : une
+        saisie qui l'écrit depuis rend le compte rendu périmé.
+    creates_current_revision:
+      type: boolean
+      description: >-
+        Vrai quand le projet n'a pas de révision en cours : la survenance crée d'abord la révision
+        en cours par copie de la dernière révision marquée, chiffrée aux taux conservés, projetés,
+        puis y fusionne le devis propre, dans la même tâche de fond — « Lorsque le projet ne
+        comporte pas de révision en cours, elle en crée une au préalable » (WF-RIS-0060,
+        WF-REV-0010, WF-REV-0060). Ses écarts et ses motifs de refus sont alors jugés sur la
+        structure principale de la révision marquée, que la copie reprend telle quelle, et
+        `main_structure_lock_version` est le compteur de celle-ci, que le marquage a figé, comme
+        pour la fusion d'un différentiel (`StructureMergeReport.creates_current_revision`, #790)
+        et comme le risque se lit (`getRisk`, `revision_id` absent). Faux quand le projet a une
+        révision en cours. Une révision en cours née depuis la lecture fait refuser la
+        confirmation par 412.
+    differences:
+      type: array
+      description: >-
+        Les écarts que la survenance ferait dans la structure principale, comme ceux d'une fusion
+        (`ImportDifference`), dans cet ordre : les tâches et les lignes du devis propre, ajoutées
+        (`added`) dans l'ordre de son plan — ses tâches de premier niveau en dernière position sous
+        la tâche qui porte la ligne de provision, ou, quand c'est un jalon, immédiatement après
+        lui, sous sa tâche parente ou au premier niveau ; un ajout n'a pas encore de lignée, et les
+        liaisons internes du devis propre viennent avec ses tâches — ; la tâche porteuse modifiée
+        (`updated`), devenue la récapitulative de ces tâches, `fields` nommant ce qui change
+        d'elle, ses dates et sa durée couvrant désormais celles de ses subordonnées (WF-PLA-0040)
+        — un jalon, qui reste un jalon sans sous-tâche, n'est pas modifié — ; la ligne de provision
+        retirée (`removed`). Les tâches ajoutées gardent leurs subordonnées, leurs liaisons
+        internes, leurs durées et leurs modes, une tâche sans prédécesseur dans le devis propre
+        passant en mode manuel aux dates qu'elle y avait ; les lignes ajoutées portent un montant
+        budgété nul (WF-RIS-0060).
+      items: { $ref: exchanges.yaml#/ImportDifference }
+    provision_amount:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Le montant de la ligne de provision retirée, qui quitte le reste à engager — la provision
+        du risque (`Risk.provision_amount`) ; le reste à engager augmente du total du devis propre,
+        moins ce montant (WF-RIS-0060).
+    refusals:
+      type: array
+      description: >-
+        Les motifs qui refusent la survenance entière, chacun avec les paramètres qu'il porte
+        quand la tâche de fond échoue (`ReportRefusal`) — ainsi `TASK_WITHOUT_WORKING_HOURS`, une
+        tâche fusionnée dont une ligne de main-d'œuvre a un rôle sans aucune heure travaillée dans
+        la semaine (WF-PLA-0010). Vide quand la survenance s'applique.
+      items: { $ref: exchanges.yaml#/ReportRefusal }
 
 RiskMatrixCell:
   type: object
@@ -349,9 +541,10 @@ RiskMatrixLevel:
   description: >-
     Un niveau d'un axe de la matrice et ses bornes, que le référentiel fixe (WF-REF-0160) :
     la borne basse comprise, la borne haute exclue, nulle au dernier niveau, qui n'en a
-    pas. Un pourcentage : de probabilité sur l'axe des probabilités, du budget de
-    référence sur l'axe des gravités — celui de chaque projet, ce qui vaut aussi pour la
-    matrice du portefeuille.
+    pas. Un pourcentage : de probabilité sur l'axe des probabilités, de l'assiette du projet
+    sur l'axe des gravités — son budget de référence ou, avant lui, le total hors provisions
+    du devis de sa révision courante (WF-REF-0160) —, celle de chaque projet, ce qui vaut
+    aussi pour la matrice du portefeuille.
   properties:
     level: { type: integer, minimum: 1, maximum: 4 }
     lower: { $ref: ../common.yaml#/Percent }
@@ -424,8 +617,9 @@ RiskMatrix:
     Matrice remplie par les risques lus, avec les bornes de ses niveaux, pour que ses axes
     se nomment sans lire le référentiel (WF-RIS-0040, WF-REF-0160) : ceux du projet dans
     la révision lue (`revision_id`, WF-RIS-0030) pour la matrice d'un projet, ceux des
-    projets retenus pour celle du portefeuille. Elle les compte par case (`cells`) et les
-    rend un par un (`points`), les mêmes.
+    projets retenus pour celle du portefeuille. Elle compte par case les risques identifiés
+    (`cells`), et rend un par un les risques qu'elle retient (`points`), avec leur état ; ses
+    totaux de provisions portent sur les trois états (`totals`, WF-RIS-0040).
   properties:
     probability_levels:
       type: array
@@ -438,11 +632,18 @@ RiskMatrix:
       minItems: 4
       maxItems: 4
       description: >-
-        Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage du budget
-        de référence.
+        Les quatre niveaux de gravité, du plus bas au plus haut, en pourcentage de l'assiette
+        du projet — son budget de référence ou, avant lui, le total hors provisions du devis de
+        sa révision courante (WF-REF-0160).
       items: { $ref: '#/RiskMatrixLevel' }
     cells:
       type: array
+      description: >-
+        Les seize cases et leur zone, chacune avec le nombre des seuls risques identifiés qu'elle
+        porte, les mêmes que le graphique trace en bulles : un risque survenu ou écarté reste un
+        point (`points`), mais n'est compté dans aucune case. Le serveur compte, le front jamais
+        (WF-RIS-0040, WF-ARC-0020, #1395). Dans la matrice du portefeuille, dont les points ne
+        sont que des risques identifiés, chaque point est compté dans sa case.
       items:
         type: object
         required: [probability_level, severity_level, count, zone]
@@ -454,9 +655,9 @@ RiskMatrix:
     points:
       type: array
       description: >-
-        Un point par risque que la matrice retient — ceux que comptent ses cases —, avec son
-        état, que l'écran filtre comme il filtre la grille (#1053) ; vide quand aucun risque
-        n'est retenu.
+        Un point par risque que la matrice retient, avec son état, que l'écran filtre comme il
+        filtre la grille (#1053) — ses cases ne comptent que les identifiés (`cells`, #1395) — ;
+        vide quand aucun risque n'est retenu.
       items: { $ref: '#/RiskMatrixPoint' }
     totals: { $ref: '#/ProvisionTotals' }
 
@@ -466,28 +667,62 @@ ProvisionTotals:
   description: >-
     Les trois totaux de provisions, distincts — les identifiés pour leur provision
     courante, les survenus et les écartés pour celle qu'ils portaient dans la révision
-    de référence —, leur total général, et la réserve pour risques de la révision de
-    référence en regard (WF-RIS-0040, WF-RIS-0050), calculés par le serveur sur les
-    risques retenus.
+    de référence, chacun la somme des `Risk.provision_amount` de son état —, leur total
+    général, et la réserve pour risques en regard (`RiskCoverageTotals.reserve`, WF-RIS-0040,
+    WF-RIS-0050), calculés par le serveur sur les
+    risques retenus — tous ceux que les filtres retiennent, quelle que soit la page lue
+    (`listRisks`, #1367).
   properties:
     total: { $ref: ../common.yaml#/Money }
     identified: { $ref: ../common.yaml#/Money }
     occurred: { $ref: ../common.yaml#/Money }
     dismissed: { $ref: ../common.yaml#/Money }
-    reserve: { $ref: ../common.yaml#/Money }
+    reserve:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: La réserve pour risques, celle de la couverture (`RiskCoverageTotals.reserve`).
 
 RiskCoverageTotals:
   type: object
-  required: [reserve, remaining_provisions, occurred_cost, coverage_variance]
+  required: [reserve, remaining_provisions, occurred_cost, occurred_reestimated, coverage_variance]
   description: >-
-    Les quatre montants de la couverture des risques : la réserve pour risques de la
-    révision de référence, la somme des provisions des risques identifiés dans la révision
-    courante, le montant réestimé des lignes issues des risques survenus, et l'écart de
-    couverture, signé, reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050).
+    Les quatre montants de la couverture des risques : la réserve pour risques, la somme des
+    provisions des risques identifiés dans la révision courante, la somme des coûts à la
+    survenance des risques survenus, et l'écart de couverture, signé,
+    reserve − (remaining_provisions + occurred_cost) (WF-RIS-0050). La terminaison ou la
+    réestimation des tâches issues d'un risque survenu ne change ni le coût des survenus ni
+    l'écart de couverture (WF-RIS-0050). En regard du coût des survenus, le réestimé courant des
+    lignes qui en sont issues (`occurred_reestimated`), qui dit leur dérive sans entrer dans
+    l'écart (#1761).
   properties:
-    reserve: { $ref: ../common.yaml#/Money }
-    remaining_provisions: { $ref: ../common.yaml#/Money }
-    occurred_cost: { $ref: ../common.yaml#/Money }
+    reserve:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La réserve pour risques de la révision de référence (WF-RIS-0050) : la somme des
+        provisions des risques identifiés qu'elle porte, ses lignes de provision, augmentée de
+        la provision que portaient, dans la référence précédente, les risques survenus ou
+        écartés avant elle — à chaque nouvelle référence, la réserve garde ce qu'elle devait
+        aux risques sortis de l'état identifié. Un avenant ne la diminue jamais, même quand il
+        intègre au budget de référence les lignes d'un risque survenu : la provision de ce
+        risque a été consommée à sa survenance, et son coût reste compté à la couverture.
+    remaining_provisions:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La somme des provisions des risques identifiés dans la révision lue, celles que portent
+        leurs lignes de provision (`Risk.provision_amount`).
+    occurred_cost:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La somme des coûts à la survenance des risques survenus (`Risk.occurrence_cost`,
+        WF-RIS-0010) : le total de leur devis propre au moment de la survenance, que ni les
+        réestimations ni la terminaison des tâches fusionnées ne changent (WF-RIS-0050).
+    occurred_reestimated:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        La somme des réestimés courants des lignes issues des risques survenus
+        (`Risk.occurred_reestimated_amount`), présentée en regard du coût à la survenance
+        (`occurred_cost`) : une information sur la dérive des risques survenus, que l'écart de
+        couverture ne compte pas, et qui suit les réestimations et les terminaisons que le coût
+        à la survenance ignore (WF-RIS-0050, WF-RIS-0060 ; #1761). `0.00` sans risque survenu.
     coverage_variance:
       allOf: [{ $ref: ../common.yaml#/Money }]
       description: >-

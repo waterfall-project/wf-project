@@ -10,7 +10,7 @@ as the consultation of the costs and the journal present them today (WF-CRE-0040
 as the indicators count them (``tracked``). What follows from the description is computed, never
 written: the imputation of a line from its code of subproject (WF-CRE-0020), its audit from the
 imports that brought it and its exclusion, the three totals, the date of the last import, and the
-counts of lines each import created, updated and ignored.
+counts of lines each import created, updated, left unchanged and rejected.
 And the answers of the exclusion of a line from the tracked scope and of its reinstatement, written
 today (``setActualCostTrackedScope``, WF-CRE-0030), and the consultation read anew after the
 exclusion. Nothing here reads the clock, nor a file the same command writes.
@@ -65,6 +65,9 @@ _SUPPLIERS = (
 INVOICE_NUMBER_FROM = 1_000
 """Where the numbers of the invoices of the drawn tasks start, after those written by hand."""
 
+INVOICE_ITEM = "10"
+"""The item of the invoice of a drawn task in its document: the first, an invoice having one."""
+
 
 def cost_line_id(number: int) -> str:
     """Return the identifier of a line of cost: 0xc0n written by hand, generated otherwise."""
@@ -93,11 +96,11 @@ def brought_by(day: date) -> tuple[CostImport, ...]:
 def drawn() -> tuple[CostLine, ...]:
     """Return the lines of actual cost of the tasks drawn about the core, completed by today.
 
-    Each work task drawn and completed has received one invoice, dated the day it completed, for
-    the amount of the task at the reference year a few hundredths off, under the code of the
-    subproject of its lot — none for a lot of no subproject —, brought by the imports whose
-    period holds that day (WF-CRE-0010, WF-CRE-0020). A task not completed has received none
-    (EP-14/L45a, #528).
+    Each work task drawn and completed has received one invoice, dated the day it completed, for the
+    amount of the task at the reference year a few hundredths off, in the first item of its document
+    (``INVOICE_ITEM``), under the code of the subproject of its lot — none for a lot of no
+    subproject —, brought by the imports whose period holds that day (WF-CRE-0010, WF-CRE-0020). A
+    task not completed has received none (EP-14/L45a, #528).
     """
     codes = {entry["subproject_id"]: entry["code"] for entry in fixture("subprojects")}
     rows = mockcore.current()
@@ -121,6 +124,7 @@ def drawn() -> tuple[CostLine, ...]:
             CostLine(
                 GENERATED + rank,
                 f"FA-2026-{INVOICE_NUMBER_FROM + rank:04d}",
+                INVOICE_ITEM,
                 completed,
                 (Decimal(cast("str", facet["base_amount"])) * share).quantize(CENT),
                 None if subproject is None else codes[subproject],
@@ -167,11 +171,19 @@ def _project() -> tuple[str, str]:
     return project["project_id"], project["code"]
 
 
-def _passthrough(line: CostLine) -> dict[str, str]:
-    """Return the columns of the file a line keeps, in the order the imports declare them."""
+def wbs_element(line: CostLine) -> str:
+    """Return the element of the work breakdown structure the file of the ERP gives a line.
+
+    The code of the project, then, for a line with a subproject part, a slash and the code of the
+    subproject: the slash alone parts the two codes (WF-CRE-0020, C-373).
+    """
     _, code = _project()
-    element = f"WF.{code}" if line.code is None else f"WF.{code}/{line.code}"
-    values = dict(zip(PASSTHROUGH, (line.supplier, line.text, element), strict=True))
+    return code if line.code is None else f"{code}/{line.code}"
+
+
+def _passthrough(line: CostLine) -> dict[str, str]:
+    """Return the columns of the file a line keeps, in the order the mapping declares them."""
+    values = dict(zip(PASSTHROUGH, (line.supplier, line.text), strict=True))
     return {column: values[column] for column in PASSTHROUGH}
 
 
@@ -188,6 +200,7 @@ def cost_line(line: CostLine) -> JsonObject:
     return {
         "cost_line_id": cost_line_id(line.number),
         "document_number": line.document,
+        "document_item": line.item,
         "document_date": line.on.isoformat(),
         "amount": money(line.amount),
         "project_id": project_id,
@@ -289,21 +302,23 @@ def consultation(lines: Sequence[CostLine], *, limit: int = PAGE, offset: int = 
     }
 
 
-def counts(entry: CostImport) -> tuple[int, int, int]:
-    """Return the lines an import created, updated and ignored (WF-CRE-0050).
+def counts(entry: CostImport) -> tuple[int, int, int, int]:
+    """Return the lines an import created, updated, left unchanged and rejected (WF-CRE-0050).
 
-    A line whose document number was already imported is updated, its exclusion kept; an unknown
-    one is created (WF-CRE-0010); a line of another project is rejected, and ignored
-    (WF-CRE-0020).
+    A line whose document and item were already imported is updated, its exclusion kept; another
+    one is created (WF-CRE-0010, WF-INTF-0140, D-4); a line of another project is rejected
+    (WF-CRE-0020). A line an import brings again is updated, as its audit says, unless it comes back
+    as it was: the file without a period brings back the six lines already imported so, which the
+    audit does not mention.
     """
     created = sum(1 for line in lines() if line.imports[0] is entry)
     updated = sum(1 for line in lines() if entry in line.imports[1:])
-    return created, updated, entry.rejected
+    return created, updated, entry.unchanged, entry.rejected
 
 
 def journal_entry(entry: CostImport) -> JsonObject:
     """Return an import as the journal presents it (`CostImport`)."""
-    created, updated, ignored = counts(entry)
+    created, updated, unchanged, rejected = counts(entry)
     start, end = entry.period
     return {
         "cost_import_id": hex_identifier(entry.number),
@@ -313,7 +328,8 @@ def journal_entry(entry: CostImport) -> JsonObject:
         "period_to": None if end is None else end.isoformat(),
         "created_count": created,
         "updated_count": updated,
-        "ignored_count": ignored,
+        "unchanged_count": unchanged,
+        "rejected_count": rejected,
     }
 
 
@@ -351,7 +367,7 @@ def _lines(value: int) -> str:
     return "une ligne" if value == 1 else f"{mocktext.count(value)} lignes"
 
 
-def _period(entry: CostImport) -> str:
+def period_said(entry: CostImport) -> str:
     """Say the period an import extracted, from its bounds, each possibly missing."""
     start, end = entry.period
     if start is None and end is None:
@@ -375,16 +391,18 @@ def _keeps_exclusion(entry: CostImport) -> bool:
 
 def _said(entry: CostImport) -> str:
     """Say what an import did, from its counts."""
-    created, updated, ignored = counts(entry)
+    created, updated, unchanged, rejected = counts(entry)
     parts: list[str] = []
     if created:
         parts.append(f"{_lines(created)} créée{'s' if created > 1 else ''}")
     if updated:
         parts.append(f"{_lines(updated)} mise{'s' if updated > 1 else ''} à jour")
-    if ignored == 1:
+    if unchanged:
+        parts.append(f"{_lines(unchanged)} inchangée{'s' if unchanged > 1 else ''}")
+    if rejected == 1:
         parts.append("une ligne d'un autre projet rejetée et signalée")
-    elif ignored:
-        parts.append(f"{_lines(ignored)} d'autres projets rejetées et signalées")
+    elif rejected:
+        parts.append(f"{_lines(rejected)} d'autres projets rejetées et signalées")
     return ", ".join(parts) if parts else "rien"
 
 
@@ -413,6 +431,31 @@ def invoiced(invoices: Sequence[CostLine]) -> str:
     )
 
 
+def spread() -> tuple[CostLine, ...]:
+    """Return the lines written by hand whose document holds other items: one invoice, in order.
+
+    The invoice of the safety controller, spread over two elements of the work breakdown
+    structure in two items of the same document, gives two lines (WF-INTF-0140, D-4).
+    """
+    documents = [line.document for line in COSTS]
+    return tuple(line for line in COSTS if documents.count(line.document) > 1)
+
+
+def _spread_said() -> str:
+    """Say the invoice spread over two items, and the credit note that bears none."""
+    found = spread()
+    [credit] = [line for line in COSTS if line.item is None]
+    return (
+        f"La facture {found[0].document} de l'automate, ventilée sur "
+        f"{mocktext.count(len(found))} éléments d'OTP, "
+        + mocktext.listed([wbs_element(line) for line in found])
+        + f", donne {mocktext.count(len(found))} lignes, ses postes "
+        + mocktext.listed([cast("str", line.item) for line in found])
+        + ", chacune identifiée par la pièce et son poste ; l'avoir "
+        f"{credit.document} n'a pas de poste."
+    )
+
+
 def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
     today = mocktext.day(TODAY.date())
     witness = cast("JsonObject", found["actual_costs"])
@@ -432,15 +475,19 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
             + ", ".join(f"« {line.text} », exclue du périmètre suivi," for line in excluded)
             + f" reste consultable. La facture des études de détail, {studies.document}, "
             f"{_amount(studies.amount)} datés du {mocktext.day(studies.on)}, jour où elles se "
-            "terminent, n'a pas de partie sous-projet dans son OTP, comme leur ligne de devis : "
-            "elle est imputée au seul projet. Les codes de sous-projet "
+            f"terminent, n'a pas de partie sous-projet dans son élément d'OTP, "
+            f"{wbs_element(studies)}, comme leur ligne de devis : elle est imputée au seul "
+            "projet. Les codes de sous-projet "
             + ", ".join(unknown)
-            + ", lus dans l'OTP, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
+            + ", lus dans l'élément d'OTP — "
+            + ", ".join(sorted({wbs_element(line) for line in COSTS if line.code in unknown}))
+            + " —, ne sont ceux d'aucun sous-projet du projet : ces lignes sont "
             "imputées au seul projet, hors sous-projet, et présentées avec leur code ; "
-            f"{screens.document}, sous {screens.code}, est imputée au sous-projet Poste de "
-            f"commande. {invoiced(drawn())} Les colonnes conservées du fichier sont celles de "
-            "toutes les lignes retenues (WF-CRE-0010, WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, "
-            "WF-CRE-0050)."
+            f"{screens.document}, sous {wbs_element(screens)}, est imputée au sous-projet Poste "
+            f"de commande. {_spread_said()} {invoiced(drawn())} Les colonnes conservées du "
+            "fichier, celles que déclare la correspondance de l'extraction, sont celles de toutes "
+            "les lignes retenues ; l'élément d'OTP, colonne lue, n'en est pas (WF-CRE-0010, "
+            "WF-CRE-0020, WF-CRE-0030, WF-CRE-0040, WF-CRE-0050, WF-INTF-0140, WF-REF-0190)."
         ),
         "actual_costs_page": (
             "La même consultation lue une ligne par page (limit=1, offset=1) : la deuxième des "
@@ -475,13 +522,14 @@ def _summaries(found: dict[str, JsonValue]) -> dict[str, str]:
         "cost_imports": (
             f"Le journal des imports de coûts réels au {today}, ses {len(JOURNAL)} imports du plus "
             "récent au plus ancien, dont trois n'ont pas déclaré toute leur période : celle de "
-            f"mai, {_period(MAY)}, {_said(MAY)} ; une réextraction {_period(APRIL_AGAIN)}, "
+            f"mai, {period_said(MAY)}, {_said(MAY)} ; une réextraction "
+            f"{period_said(APRIL_AGAIN)}, "
             f"{_said(APRIL_AGAIN)}"
             + (", l'exclusion de la réception conservée" if _keeps_exclusion(APRIL_AGAIN) else "")
-            + f" ; un fichier {_period(UNDATED)}, {_said(UNDATED)} ; puis l'extraction d'avril, "
-            f"{_period(APRIL)}, {_said(APRIL)}, et celle de mars, {_period(MARCH)}, "
-            f"{_said(MARCH)}. Le journal compte parmi les lignes ignorées celles "
-            "qu'un import rejette (WF-CRE-0020, WF-CRE-0030, WF-CRE-0050)."
+            + f" ; un fichier {period_said(UNDATED)}, {_said(UNDATED)} ; puis l'extraction "
+            f"d'avril, {period_said(APRIL)}, {_said(APRIL)} (import_actual_costs_first), et celle "
+            f"de mars, {period_said(MARCH)}, {_said(MARCH)}. Le journal compte à part les lignes "
+            "inchangées et les lignes rejetées (WF-CRE-0020, WF-CRE-0030, WF-CRE-0050)."
         ),
     }
 

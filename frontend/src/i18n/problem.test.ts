@@ -18,6 +18,18 @@ import {
 
 type ErrorCode = components["schemas"]["ErrorCode"];
 
+/**
+ * Every column of an extraction of actual costs the contract names: typed by the enumeration, so
+ * that a column added to it fails the type check here until the catalogue is told.
+ */
+const SOURCE_COLUMNS: Record<components["schemas"]["ActualCostSourceColumn"], true> = {
+  wbs_element: true,
+  document_number: true,
+  document_item: true,
+  document_date: true,
+  amount: true,
+};
+
 /** The first projects of the portfolio of the witness, as a refusal names them (`projects`). */
 function portfolioProjects(count: number) {
   const portfolio = example("volume/portfolio_projects") as {
@@ -27,10 +39,6 @@ function portfolioProjects(count: number) {
     .slice(0, count)
     .map(({ label, code }) => ({ project_label: label, project_code: code }));
 }
-
-/** The monteur câbleur and the electrical engineer of the witness, as a refusal gives them. */
-const FITTER = "01926f3a-7c00-7000-8000-000000000454";
-const ENGINEER = "01926f3a-7c00-7000-8000-000000000451";
 
 /** The sentence of a refusal in a language. */
 function say(problem: ProblemText, locale: Locale): string {
@@ -102,14 +110,126 @@ describe("the sentence of a refusal", () => {
   it("names the missing condition by its label", () => {
     const problem: ProblemText = {
       code: "STATE_FORBIDS_OPERATION",
-      params: { missing_condition: "revision_draft" },
+      params: { missing_condition: "no_current_revision" },
     };
+    const condition = CATALOGUES.fr.enums.CommandCondition.no_current_revision;
     expect(say(problem, "fr")).toBe(
-      "L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: révision en cours d\u2019élaboration.",
+      `L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: ${condition}.`,
     );
-    expect(say(problem, "en")).toBe(
-      "The current state does not allow this operation. Unmet condition: draft revision.",
+  });
+
+  it("says a project terminal and a revision marked as facts, not as conditions unmet, from the refusals of the contract (US-0702/L1)", () => {
+    expect(say(example("timeline_create_terminal") as ProblemText, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. Le projet est clos\u00A0: il ne se modifie plus.",
     );
+    expect(say(example("node_create_marked_refused") as ProblemText, "fr")).toBe(
+      "L\u2019état actuel ne permet pas cette opération. La révision est marquée\u00A0: elle ne se modifie plus.",
+    );
+    expect(say(example("node_create_marked_refused") as ProblemText, "en")).toBe(
+      "The current state does not allow this operation. The revision is marked: it no longer changes.",
+    );
+  });
+
+  it("names the object a later change took back, which an undo or a redo would undo, by the label the refusal gives [WF-IHM-0110-A]", () => {
+    for (const refused of ["undo_later_change", "redo_later_change"]) {
+      expect(say(example(refused) as ProblemText, "fr")).toBe(
+        `${CATALOGUES.fr.errors.UNDO_CONFLICT} Objet repris depuis\u00A0: «\u00A0Raccordement des borniers\u00A0».`,
+      );
+    }
+    expect(say(example("undo_later_change") as ProblemText, "en")).toBe(
+      `${CATALOGUES.en.errors.UNDO_CONFLICT} Object changed since: “Raccordement des borniers”.`,
+    );
+  });
+
+  it("lists the categories of labour without an hourly rate for the year of reference, by their labels and the year [WF-DEV-0010-A]", () => {
+    expect(say(example("estimate_line_rate_missing") as ProblemText, "fr")).toBe(
+      `${CATALOGUES.fr.errors.HOURLY_RATE_MISSING} Sans taux horaire\u00A0: «\u00A0Ingénierie électrique\u00A0» en 2026.`,
+    );
+    expect(say(example("estimate_line_rate_missing") as ProblemText, "en")).toBe(
+      `${CATALOGUES.en.errors.HOURLY_RATE_MISSING} Without an hourly rate: “Ingénierie électrique” in 2026.`,
+    );
+  });
+
+  it("names the subordinates a summary task takes a date from, as the screen read them, and counts them otherwise [WF-IHM-0030-A]", () => {
+    // A refusal by field is said at its field, by the sentence of the field's code and parameters.
+    const [field] = (example("task_summary_date_refused") as ProblemText).fields ?? [];
+    const refused: ProblemText = {
+      code: field?.code ?? "VALIDATION_FAILED",
+      params: field?.params ?? {},
+    };
+    const ids = field?.params?.subordinate_node_ids ?? [];
+    const labels = ["Câblage des armoires", "Raccordement des borniers", "Essais"];
+    const named = problemMessage(refused, {
+      locale: "fr",
+      messages: CATALOGUES.fr,
+      names: Object.fromEntries(ids.map((id, rank) => [id, labels[rank] ?? ""])),
+    });
+    expect(named).toBe(
+      `${CATALOGUES.fr.errors.SUMMARY_TASK_DERIVED} ` +
+        "Elle tient cette valeur de ses subordonnées\u00A0: «\u00A0Câblage des armoires\u00A0», " +
+        "«\u00A0Raccordement des borniers\u00A0» et «\u00A0Essais\u00A0».",
+    );
+    expect(say(example("task_progress_summary_refused") as ProblemText, "fr")).toBe(
+      `${CATALOGUES.fr.errors.SUMMARY_TASK_DERIVED} Elle tient cette valeur de ses 5 subordonnées.`,
+    );
+  });
+
+  it("names the risks whose line of provision a deletion would leave without a task, by their labels", () => {
+    expect(say(example("node_delete_last_provision_task_refused") as ProblemText, "fr")).toBe(
+      `L\u2019état actuel ne permet pas cette opération. Condition non remplie\u00A0: ${CATALOGUES.fr.enums.CommandCondition.at_least_one_task}. ` +
+        "Risque concerné\u00A0: «\u00A0Risque de reprise du câblage\u00A0».",
+    );
+  });
+
+  it("tells the refusals US-0702/L2 gave a code by their sentence: a predecessor named twice, a timeline of another project, a confirmation absent, an unexpected error", () => {
+    for (const [refused, code] of [
+      ["predecessors_duplicate", "DUPLICATE_PREDECESSOR"],
+      ["node_tracking_timeline_unknown", "UNKNOWN_TIMELINE"],
+    ] as const) {
+      // Said at the field the refusal points at, by the sentence of the field's code.
+      const [field] = (example(refused) as ProblemText).fields ?? [];
+      expect(field?.code).toBe(code);
+      expect(say({ code, params: field?.params ?? {} }, "fr")).toBe(CATALOGUES.fr.errors[code]);
+    }
+    expect(say(example("project_exit_unconfirmed") as ProblemText, "fr")).toBe(
+      CATALOGUES.fr.errors.CONFIRMATION_REQUIRED,
+    );
+    expect(say(example("internal_error") as ProblemText, "fr")).toBe(
+      CATALOGUES.fr.errors.INTERNAL_ERROR,
+    );
+  });
+
+  it("names the columns of the correspondence without a label, and the columns a file lacks with the labels declared for them [WF-REF-0190-A]", () => {
+    const refused = example("import_actual_cost_mapping_incomplete") as ProblemText;
+    expect(say(refused, "en")).toBe(
+      "The current state does not allow this operation. Unmet condition: actual-cost extraction mapping complete. Required columns without a label: WBS element, Document no., Document date, Amount.",
+    );
+    const missing = example("import_actual_costs_column_missing") as ProblemText;
+    expect(say(missing, "en")).toContain(
+      "Required column missing from the file: Amount (declared label: \u201CVal./Devise objet\u201D).",
+    );
+    expect(say(missing, "fr")).toContain(
+      "Colonne exigée absente du fichier\u00A0: Montant (intitulé déclaré\u00A0: \u00AB\u00A0Val./Devise objet\u00A0\u00BB).",
+    );
+  });
+
+  it("labels every column of the contract in both catalogues, so that none is dropped from a refusal unheard [WF-REF-0190-A]", () => {
+    const columns = Object.keys(SOURCE_COLUMNS).sort();
+    for (const locale of ["en", "fr"] as const) {
+      const catalogue = CATALOGUES[locale] as unknown as {
+        enums: { ActualCostSourceColumn: Record<string, string> };
+      };
+      expect(Object.keys(catalogue.enums.ActualCostSourceColumn).sort()).toEqual(columns);
+    }
+  });
+
+  it("names no columns of a refusal that is not the mapping incomplete, whatever its parameters [WF-REF-0190-A]", () => {
+    const refused = example("import_actual_cost_mapping_incomplete") as ProblemText;
+    const other = {
+      ...refused,
+      params: { ...refused.params, missing_condition: "may_create_revision" },
+    } as ProblemText;
+    expect(say(other, "en")).not.toContain("without a label");
   });
 
   it("says the last administrator kept, by the condition her deactivation lacks, or by its own code for roles that would take her permissions away [WF-ADM-0120-A]", () => {
@@ -138,11 +258,15 @@ describe("the sentence of a refusal", () => {
     }
   });
 
-  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have", () => {
+  it("says no state whose enumeration the refusal does not name, nor a value its enumeration does not have, nor an enumeration named after a property every object inherits (#413)", () => {
     const { params, ...refused } = example("project_indicators_not_in_progress") as ProblemText;
     const bare = "The current state does not allow this operation.";
     expect(say({ ...refused, params: { state: params?.state } }, "en")).toBe(bare);
     expect(say({ ...refused, params: { ...params, state: "occurred" } }, "en")).toBe(bare);
+    for (const state_enum of ["toString", "__proto__"]) {
+      const forged = { ...params, state_enum } as NonNullable<ProblemText["params"]>;
+      expect(say({ ...refused, params: forged }, "en")).toBe(bare);
+    }
   });
 
   it("lists the missing prerequisites in the reader's language", () => {
@@ -193,19 +317,13 @@ describe("the sentence of a refusal", () => {
     );
   });
 
-  it("names only the well-formed lines a refusal gives, and none of an empty list", () => {
+  it("names no line of an empty list, the condition alone said", () => {
+    // The lines are typed by the contract (`ProblemParams.estimate_lines`, #768): a malformed one is
+    // a type error, no longer a case the sentence reads.
     const { params, ...refused } = example("subproject_delete_estimated") as ProblemText;
-    const given: unknown = params?.estimate_lines;
-    const first: unknown = Array.isArray(given) ? given[0] : undefined;
     const condition =
       "The current state does not allow this operation. Unmet condition: no estimate line of the " +
       "current revision bearing the subproject.";
-    // A line without its number as a number is left out, the other named.
-    const mixed = { ...params, estimate_lines: [first, { row_number: "11", label: "Borniers" }] };
-    expect(say({ ...refused, params: mixed }, "en")).toBe(
-      `${condition} Estimate lines of the current revision that bear the subproject: line 10 ` +
-        "“Raccordement des borniers”. A provision line changes subproject through its risk.",
-    );
     expect(say({ ...refused, params: { ...params, estimate_lines: [] } }, "en")).toBe(condition);
   });
 
@@ -219,6 +337,7 @@ describe("the sentence of a refusal", () => {
       .slice(0, LINES_IN_SENTENCE + 1)
       .map(({ node_id, row_number, estimate_line }) => ({
         structure_id: "01926f3a-7c00-7000-8000-000000000201",
+        structure_label: "Structure principale",
         node_id,
         row_number,
         label: estimate_line?.label ?? "",
@@ -250,9 +369,54 @@ describe("the sentence of a refusal", () => {
         "sous-projet a reçu des coûts réels. Sous-projet qui a reçu des coûts réels, que la ligne " +
         "ne quitte pas : « Poste de commande ».",
     );
-    // A sub-project without its label names nothing.
-    expect(say({ code: "VALIDATION_FAILED", params: { subproject: { label: 7 } } }, "en")).toBe(
-      "The data entered is not valid.",
+  });
+
+  it("names the cause of a line of a file rejected as the file bears it: the value no object has, the label two tasks share, the element of work breakdown, the rank of the duplicate [WF-INTF-0080-A] [WF-INTF-0120-A] [WF-CRE-0020-A]", () => {
+    /** The sentence of the nth rejection of an example of an import. */
+    const rejection = (name: string, index = 0): ProblemText => {
+      const { report } = example(name) as { report: { rejected: ProblemText[] } };
+      const rejected = report.rejected.at(index);
+      if (rejected === undefined) {
+        throw new Error(`${name} has no rejection ${String(index)}`);
+      }
+      return rejected;
+    };
+    expect(say(rejection("import_analysed", 0), "fr")).toContain(
+      "Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ».",
+    );
+    expect(say(rejection("import_analysed", 1), "en")).toContain(
+      "Value read in the file: “Soudeur (SOUD)”.",
+    );
+    expect(say(rejection("import_actual_costs_wbs_invalid"), "fr")).toContain(
+      "Élément d’OTP lu : « /SP-CAB ».",
+    );
+    expect(say(rejection("import_actual_costs_wbs_invalid"), "en")).toContain(
+      "Work breakdown element read: “/SP-CAB”.",
+    );
+    expect(say(rejection("import_remaining_ambiguous_label"), "fr")).toContain(
+      "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
+    );
+    expect(say(rejection("import_remaining_ambiguous_label"), "en")).toContain(
+      "Label read: “Mise en service”, shared by the tasks “Mise en service” and “Mise en service”.",
+    );
+    expect(say(rejection("import_actual_costs_duplicate_line", 0), "fr")).toContain(
+      "Autre ligne du fichier de même pièce et de même poste : 5.",
+    );
+    expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
+      "Other line of the file with the same document and item: 4.",
+    );
+    // The code of the project a code of work breakdown is outside of, and several other lines.
+    expect(
+      say(
+        {
+          code: "WBS_ELEMENT_OUTSIDE_PROJECT",
+          params: { wbs_element: "P9-SP", project_code: "P9" },
+        },
+        "fr",
+      ),
+    ).toContain("Élément d’OTP lu : « P9-SP ». Code projet lu : « P9 ».");
+    expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
+      "Autres lignes du fichier de même pièce et de même poste : 4, 6 et 7.",
     );
   });
 
@@ -269,6 +433,32 @@ describe("the sentence of a refusal", () => {
     } as const;
     expect(say({ code: "VALIDATION_FAILED", fields: [finish] }, "fr")).toContain(
       "Le samedi 16 janvier n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 18 janvier.",
+    );
+  });
+
+  it("says the default calendar, not the one of a task, when the planning start date of a structure is refused [WF-PLA-0020-A]", () => {
+    const refused = example("structure_start_non_working_day") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Les données saisies ne sont pas valides. Le samedi 19 décembre n’est pas travaillé sur le " +
+        "calendrier par défaut ; saisis le lundi 21 décembre.",
+    );
+    expect(say(refused, "en")).toContain("is not worked on the default calendar; enter");
+    // A task's date keeps the calendar of the task.
+    expect(say(example("task_date_non_working_day") as ProblemText, "en")).toContain(
+      "is not worked on the calendar of the task; enter",
+    );
+  });
+
+  it("tells the dates a summary task takes from its subordinates, in the language of the reader, when a file corrects its manual mode [WF-PLA-0040-A]", () => {
+    const signal = {
+      code: "SUMMARY_TASK_DERIVED",
+      params: { start: "2026-03-02", finish: "2026-04-30" },
+    } as const;
+    expect(say(signal, "en")).toBe(
+      "A summary task takes its values from its subtasks. Its dates run from Monday 2 March to Thursday 30 April, those of its subtasks.",
+    );
+    expect(say({ code: "SUMMARY_TASK_DERIVED", params: { start: "2026-03-02" } }, "en")).toBe(
+      "A summary task takes its values from its subtasks.",
     );
   });
 
@@ -326,75 +516,94 @@ describe("the sentence of a refusal", () => {
     // un projet en chiffrage sans code est nommé par son seul libellé.
     const refused = example("calendar_update_without_hours") as ProblemText;
     const hours =
-      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Le calendrier de son rôle " +
-      "n’a aucune heure.";
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
+      "n’a aucune heure\u00A0: Monteur câbleur (MONT-CAB).";
     expect(say(refused, "fr")).toBe(
       `${hours} Projets en cause\u00A0: Modernisation du poste de commande (PRJ-001).`,
     );
     // A variant of `calendar_update_without_hours`: the project without a code, the one value
     // changed — an offer in pricing, which no code names yet.
-    const [project] = namedProjects(refused.params);
-    const uncoded = { ...refused.params, projects: [{ ...project, project_code: null }] };
+    const uncoded = {
+      ...refused.params,
+      projects: namedProjects(refused.params).map((project) => ({
+        ...project,
+        project_code: null,
+      })),
+    };
     expect(say({ ...refused, params: uncoded }, "fr")).toBe(
       `${hours} Projets en cause\u00A0: Modernisation du poste de commande.`,
     );
   });
 
-  it("names the role whose calendar has no hour as the screen read it, and says the cause unnamed when it read none", () => {
+  it("names the role whose calendar has no hour from the refusal itself, by its label and its code [WF-PLA-0010-A]", () => {
     // The one role of `calendar_update_without_hours`, the fitter: its calendar has no hour.
     const refused = example("calendar_update_without_hours") as ProblemText;
-    const named = problemMessage(refused, {
-      locale: "en",
-      messages: CATALOGUES.en,
-      names: { [FITTER]: "Monteur câbleur (MONT-CAB)" },
-    });
-    expect(named).toBe(
+    expect(say(refused, "en")).toBe(
       "A task would have no working hour left in the week. Role whose calendar has no hour: " +
         "Monteur câbleur (MONT-CAB). Projects involved: Modernisation du poste de commande " +
         "(PRJ-001).",
     );
-    expect(say(refused, "en")).toBe(
-      "A task would have no working hour left in the week. The calendar of its role has no hour. " +
-        "Projects involved: Modernisation du poste de commande (PRJ-001).",
+  });
+
+  it("names the roles whose calendars never overlap, two of them, from the refusal itself [WF-PLA-0010-A]", () => {
+    // The roles of `nodes_move_without_hours`, the refusal of a move from the planning: the
+    // engineer and the commissioning technician.
+    const refused = example("nodes_move_without_hours") as ProblemText;
+    expect(say(refused, "fr")).toContain(
+      "Rôles dont les calendriers ne se recoupent aucun jour\u00A0: Ingénieur électricien " +
+        "(ING-ELEC) et Technicien de mise en service (TECH-MES).",
     );
   });
 
-  it("names the roles whose calendars never overlap, two of them, as the screen read them, and says the cause unnamed when it read none", () => {
-    // A variant of `calendar_update_without_hours`: two roles in cause, the fitter and the
-    // electrical engineer, the one value changed.
-    const refused = example("calendar_update_without_hours") as ProblemText;
-    const two = {
-      ...refused,
-      params: { ...refused.params, resource_role_ids: [FITTER, ENGINEER] },
-    };
-    const named = problemMessage(two, {
-      locale: "fr",
-      messages: CATALOGUES.fr,
-      names: {
-        [FITTER]: "Monteur câbleur (MONT-CAB)",
-        [ENGINEER]: "Ingénieur électricien (ING-ELEC)",
-      },
-    });
-    expect(named).toBe(
-      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les calendriers " +
-        "ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Ingénieur électricien " +
-        "(ING-ELEC). Projets en cause\u00A0: Modernisation du poste de commande (PRJ-001).",
-    );
-    expect(say(two, "fr")).toContain(" Les calendriers de ses rôles ne se recoupent aucun jour. ");
-  });
-
-  it("says a task without a line of labour on the default calendar when the refusal names no role, and no calendar of a role", () => {
-    // A variant of `calendar_update_without_hours`: no role in cause, the one value changed — the
-    // default calendar emptied, or another designated by default, which the tasks without a line
-    // of labour follow (WF-REF-0120).
-    const refused = example("calendar_update_without_hours") as ProblemText;
-    const told = say({ ...refused, params: { ...refused.params, resource_role_ids: [] } }, "fr");
-    expect(told).toBe(
-      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Tâches sans ligne de " +
-        "main-d’œuvre, sur le calendrier par défaut. Projets en cause\u00A0: Modernisation du " +
-        "poste de commande (PRJ-001).",
-    );
+  it("says a task without a line of labour on the default calendar when the refusal names no role, and no calendar of a role [WF-PLA-0010-A]", () => {
+    // `calendar_default_without_hours`: the default calendar emptied, or another designated by
+    // default, which the tasks without a line of labour follow (WF-REF-0120).
+    const refused = example("calendar_default_without_hours") as ProblemText;
+    expect(refused.params?.resource_roles).toEqual([]);
+    const told = say(refused, "fr");
+    expect(told).toContain("Tâches sans ligne de main-d’œuvre, sur le calendrier par défaut.");
     expect(told).not.toMatch(/rôle/);
+  });
+
+  it("names the roles of a line imported that would leave its task without hours by their labels and codes, from the rejection of the contract [WF-PLA-0010-A]", () => {
+    // The motive of a line imported names its roles itself (`resource_roles`), and its task by its
+    // label (`tasks`, #768).
+    const { report } = example("import_estimate_task_without_hours") as {
+      report: { rejected: [ProblemText] };
+    };
+    const [line] = report.rejected;
+    expect(line.code).toBe("TASK_WITHOUT_WORKING_HOURS");
+    expect(say(line, "fr")).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôles dont les " +
+        "calendriers ne se recoupent aucun jour\u00A0: Monteur câbleur (MONT-CAB) et Technicien " +
+        "de mise en service (TECH-MES). Tâche en cause\u00A0: «\u00A0Câblage des armoires\u00A0».",
+    );
+  });
+
+  it("names the task a write would leave without hours by its label, and the role by its label and its code, from the refusal of the contract [WF-PLA-0010-A]", () => {
+    const refused = example("estimate_line_without_hours") as ProblemText;
+    expect(say(refused, "fr")).toBe(
+      "Une tâche n’aurait plus aucune heure travaillée dans la semaine. Rôle dont le calendrier " +
+        "n’a aucune heure\u00A0: Monteur câbleur (MONT-CAB). Tâche en cause\u00A0: " +
+        "«\u00A0Câblage des armoires\u00A0».",
+    );
+  });
+
+  it("names the categories that forbid a change of the type of a nature by their labels and codes, from the refusal of the contract [WF-REF-0030-A]", () => {
+    const refused = example("cost_type_kind_refused") as ProblemText;
+    const told = say(refused, "fr");
+    expect(told).toContain(
+      "Catégories de la nature à rattacher d’abord à une autre nature du même type\u00A0: " +
+        "Sous-traitance (ACH-001) et Matériel électrique (ACH-002).",
+    );
+    expect(say(refused, "en")).toContain(
+      "Sous-traitance (ACH-001) and Matériel électrique (ACH-002)",
+    );
+  });
+
+  it("does not tell the hours of a task for roles that a refusal of another code names, whose condition it gives [WF-PLA-0010-A]", () => {
+    const refused = example("cost_category_role_kind_refused") as ProblemText;
+    expect(say(refused, "fr")).not.toMatch(/heure travaillée/);
   });
 
   it("names five projects in its sentence, and counts none", () => {
@@ -428,6 +637,36 @@ describe("the sentence of a refusal", () => {
     expect(say({ code: "PASTE_TOO_WIDE", params: { max_columns: 1 } }, "fr")).toBe(
       "Les données collées ont plus de colonnes que la grille. La grille accepte au plus 1 colonne à partir de cette cellule.",
     );
+  });
+
+  it("says each reason a refusal gives for the field it was reduced to, once [WF-PLA-0170-A]", () => {
+    // `task_attach_exclusive_attached`, reduced to its first field's code as `byField` does: two
+    // reasons on `/work_package_id`, a third on another field that is not this one's.
+    const refused = example("task_attach_exclusive_attached") as ProblemText;
+    const reduced = { ...refused, code: "WORK_BREAKDOWN_ITEMS_EXCLUSIVE" } as const;
+    expect(say(reduced, "fr")).toBe(
+      "Une tâche porte un lot ou un poste, jamais les deux. Ce lot ou ce poste est déjà porté par une autre tâche.",
+    );
+  });
+
+  it("says why a code cannot name the tab of a sub-project: the characters it bears, or its reserved name [WF-PRJ-0050-A]", () => {
+    // La création d'un sous-projet de code « SP/01 » ou « Synthèse » est refusée.
+    const forbidden = example("subproject_code_invalid") as {
+      fields: NonNullable<ProblemText["fields"]>;
+    };
+    expect(say({ code: "SUBPROJECT_CODE_INVALID", fields: forbidden.fields }, "fr")).toBe(
+      "Ce code ne peut pas nommer l’onglet du sous-projet dans le fichier de reste à engager. Caractères interdits dans le code\u00A0: /.",
+    );
+    const reserved = example("subproject_code_reserved") as ProblemText;
+    expect(say(reserved, "fr")).toMatch(/ «\u00A0Synthèse\u00A0» est un nom réservé/);
+    expect(say(reserved, "en")).toMatch(/ “Synthèse” is a reserved name/);
+    // Neither a list of characters that is empty, nor a name that is no text, says anything.
+    expect(
+      say(
+        { code: "SUBPROJECT_CODE_INVALID", params: { forbidden_characters: [], reserved_name: 3 } },
+        "en",
+      ),
+    ).toBe("This code cannot name the tab of the subproject in the estimate-to-complete file.");
   });
 
   it("says the minimum a value falls short of", () => {
@@ -508,6 +747,46 @@ describe("the sentence of a refusal", () => {
     );
   });
 
+  it.each([
+    {
+      example: "structure_merge_report_link_forbidden",
+      fr: "Cette liaison n’est pas permise. Liaison en cause, la récapitulative d’abord\u00A0: «\u00A0Installation sur site\u00A0» et «\u00A0Montage des armoires sur site\u00A0».",
+      en: "This link is not allowed. Link concerned, the summary first: “Installation sur site” and “Montage des armoires sur site”.",
+    },
+    {
+      example: "structure_merge_report_horizon_exceeded",
+      fr: "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Mise en service\u00A0».",
+      en: "The duration of the project would exceed fifteen years. Task concerned: “Mise en service”.",
+    },
+  ])(
+    "names the tasks a refusal of the merge report gives, in the reader's language [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",
+    ({ example: name, fr, en }) => {
+      const report = example(name) as { refusals: [ProblemText] };
+      const [refusal] = report.refusals;
+      expect(say(refusal, "fr")).toBe(fr);
+      expect(say(refusal, "en")).toBe(en);
+    },
+  );
+
+  it("names the task a refused write gives, as the contract says it, in the reader's language [WF-PLA-0150-A]", () => {
+    const refusal = example("task_horizon_exceeded") as ProblemText;
+    expect(say(refusal, "fr")).toBe(
+      "La durée du projet dépasserait quinze ans. Tâche en cause : « Pupitres opérateurs ».",
+    );
+    expect(say(refusal, "en")).toBe(
+      "The duration of the project would exceed fifteen years. Task concerned: “Pupitres opérateurs”.",
+    );
+  });
+
+  it("says nothing of a link or a task without labels", () => {
+    expect(say({ code: "LINK_FORBIDDEN", params: { link: [{ node_id: "n" }] } }, "en")).toBe(
+      "This link is not allowed.",
+    );
+    expect(
+      say({ code: "PROJECT_HORIZON_EXCEEDED", params: { task: { node_id: "n" } } }, "en"),
+    ).toBe("The duration of the project would exceed fifteen years.");
+  });
+
   it("names the format and the version a file was expected in [WF-INTF-0070-A]", () => {
     const problem = example("import_format_unreadable") as ProblemText;
     expect(say(problem, "fr")).toBe(
@@ -526,17 +805,14 @@ describe("the sentence of a refusal", () => {
         missing_permission: "planning.delete",
         missing_condition: 12,
         missing_prerequisites: "active_cost_category",
-        estimate_lines: [{ row_number: "10", label: "Borniers" }],
         max_columns: "12",
         component: "toString",
-        resource_roles: [{ resource_role_id: "01926f3a-7c00-7000-8000-000000000453" }],
-        resource_role_ids: [453],
-        projects: [{ project_code: "PRJ-001" }],
+        work_package_task: { node_id: "01926f3a-7c00-7000-8000-000000000501" },
       },
     };
     expect(say(problem, "en")).toBe("The current state does not allow this operation.");
     // A lock version, the one parameter of a refusal of a stale version, names nothing either.
-    const stale = { code: "STALE_LOCK_VERSION", params: { expected_lock_version: 4 } } as const;
+    const stale = example("paste_stale") as ProblemText;
     expect(say(stale, "en")).toBe(
       "Someone changed this data in the meantime; reload it to see its latest version.",
     );

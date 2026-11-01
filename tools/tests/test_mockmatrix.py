@@ -9,6 +9,7 @@ exigence »).
 
 import dataclasses
 import json
+from collections import Counter
 from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, cast
@@ -52,17 +53,36 @@ def _bounds(matrix: Node) -> list[str]:
     return [level["lower"] for level in matrix["severity_levels"][1:]]
 
 
-def test_each_risk_the_matrix_counts_is_a_point_at_the_values_of_the_risk(
+def test_each_risk_the_matrix_reads_is_a_point_and_its_cells_count_the_identified_alone(
     history: dict[str, Any],
 ) -> None:
-    # One point per risk the cells count, in the order of the register, at the values the
-    # register reads — whatever its state, the screen filtering the points as the grid —, its
-    # severity as a share of the budget the cells class, and the zone of its cell.
-    budget = Decimal("65430697.64")
+    # One point per risk of the register, in its order, at the values the register reads —
+    # whatever its state, the screen filtering the points as the grid —, its severity as a share
+    # of the budget the cells class, and the zone of its cell. The cells count the identified
+    # alone, as the bubbles draw them, the server counting (#1395); the totals of the provisions
+    # stay over the three states (WF-RIS-0040).
+    budget = Decimal("68241568.05")
     items = history["risks"]["items"]
     matrix = history["risk_matrix"]
     points = matrix["points"]
-    assert len(points) == sum(cell["count"] for cell in matrix["cells"])
+    identified = [point for point in points if point["state"] == "identified"]
+    assert {point["state"] for point in points} == {"identified", "occurred", "dismissed"}
+    counted = {
+        (cell["probability_level"], cell["severity_level"]): cell["count"]
+        for cell in matrix["cells"]
+        if cell["count"]
+    }
+    cells = {item["risk_id"]: item["matrix_cell"] for item in items}
+    assert identified
+    assert counted == Counter(
+        (cells[point["risk_id"]]["probability_level"], cells[point["risk_id"]]["severity_level"])
+        for point in identified
+    )
+    for state in ("occurred", "dismissed"):
+        assert Decimal(matrix["totals"][state]) == sum(
+            (Decimal(point["provision_amount"]) for point in points if point["state"] == state),
+            Decimal(0),
+        )
     assert [point["risk_id"] for point in points] == [item["risk_id"] for item in items]
     for point, item in zip(points, items, strict=True):
         assert point == {
@@ -79,12 +99,12 @@ def test_each_risk_the_matrix_counts_is_a_point_at_the_values_of_the_risk(
         ratio = Decimal(point["severity_ratio"]["value"])
         assert ratio == mockstructure.share(Decimal(item["severity"]) / budget)
         assert mockhistory.level(ratio, _bounds(matrix)) == item["matrix_cell"]["severity_level"]
-    # 1.91 %, under a hundredth of a percent given to its first digit, 18.34 % (README, « Une
+    # 1.83 %, under a hundredth of a percent given to its first digit, 17.58 % (README, « Une
     # part… »).
     assert [point["severity_ratio"]["value"] for point in points] == [
-        "0.0191",
+        "0.0183",
         "0.000003",
-        "0.1834",
+        "0.1758",
     ]
 
 
@@ -178,7 +198,10 @@ def test_on_a_basis_of_nothing_a_risk_has_no_share_and_the_lowest_level_of_sever
         if cell["count"]
     }
     assert {level for _, level in counted} == {1}
-    assert sum(counted.values()) == len(matrix["points"]) == len(witness["points"])
+    assert len(matrix["points"]) == len(witness["points"])
+    assert sum(counted.values()) == sum(
+        1 for point in matrix["points"] if point["state"] == "identified"
+    )
     assert matrix["totals"] == witness["totals"]
 
 

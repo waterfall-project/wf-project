@@ -1,0 +1,17 @@
+{
+  "summary": "Variante contrefactuelle : un calendrier sans aucune heure dans la semaine désigné par défaut, à partir de la version lue : refusé, les tâches sans ligne de main-d'œuvre du projet témoin, qui en relèveraient, n'ayant plus aucune heure travaillée. Aucun rôle en cause ; le projet nommé par son libellé et son code, « Modernisation du poste de commande », PRJ-001, sans tâche ni identifiant ; rien n'est écrit (WF-PLA-0010, WF-REF-0120).",
+  "value": {
+    "code": "TASK_WITHOUT_WORKING_HOURS",
+    "status": 422,
+    "params": {
+      "resource_roles": [],
+      "projects": [
+        {
+          "project_label": "Modernisation du poste de commande",
+          "project_code": "PRJ-001"
+        }
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001601"
+  }
+}

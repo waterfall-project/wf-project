@@ -246,6 +246,7 @@ beforeEach(() => {
   server.timing = {};
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects": "projects",
     "GET /reference/readiness": "reference_readiness",
     "GET /projects/{project_id}": "project",
@@ -319,7 +320,7 @@ describe("the witness path", () => {
   it("asks the server for the sort, the search and the filtered sub-project the address holds, by the parameters of the contract", async () => {
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const search = Promise.resolve({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
@@ -328,13 +329,13 @@ describe("the witness path", () => {
       inEnglish(await EstimatePage({ params, searchParams: search })),
     );
     expect(nodesQuery()).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "desc",
       search: "revue",
       subproject_id: "unassigned",
     });
     expect(html).toMatch(
-      /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount corrected for inflation/,
+      /<th[^>]*aria-sort="descending"[^>]*>(?:(?!<\/th>).)*Amount \(reference year\)/,
     );
     // The grid reads its totals anew by the same filters, as they were sent.
     expect(grids.estimate[0]?.filters).toEqual({ search: "revue", subproject_id: "unassigned" });
@@ -364,7 +365,7 @@ describe("the witness path", () => {
     const { html } = await estimateWith({
       [NODES_READ]: "nodes_estimate",
     });
-    // The hours, the amount at the year of reference and the one corrected for inflation.
+    // The hours, the amount at the rates of the year of reference, the amount re-estimated.
     expect(text(html)).toMatch(/Total — 6 tasks, 5 lines 12\.5 502,434\.56 502,434\.56$/);
   });
 
@@ -427,9 +428,9 @@ describe("the witness path", () => {
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
   });
 
-  it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
+  it("shows the grid without naming the roles when the API refuses them (403, the deactivated ones: any session reads the active ones, C-01)", async () => {
     const { html, grid } = await estimateWith({
-      "GET /reference/resource-roles": { problem: { code: "NOT_FOUND", status: 404 } },
+      "GET /reference/resource-roles": { problem: { code: "PERMISSION_MISSING", status: 403 } },
     });
     expect(grid?.reference.roles).toBeUndefined();
     expect(grid?.reference.categories).toHaveLength(200);
@@ -707,8 +708,9 @@ describe("the indicators and the missing rates of the estimate", () => {
     const html = renderToStaticMarkup(
       inEnglish(await EstimatePage({ params, searchParams: NO_SEARCH })),
     );
+    // « Help »: the button the address of the mock, a project's page, puts in each header (#1439).
     expect(text(html)).toMatch(
-      /Costing and estimate Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total 66,105,223.89 .*No\. Label/,
+      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).
@@ -828,7 +830,7 @@ describe("the banner of the reading context on the witness path", () => {
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Modernisation du poste de commande Code PRJ-001/,
+      /^Project Modernisation du poste de commande Modernisation du poste de commande Help Code PRJ-001/,
     );
   });
 
@@ -840,7 +842,7 @@ describe("the banner of the reading context on the witness path", () => {
     );
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Revision Current revision Draft Structure Structure principale Subproject: No subproject Costing and estimate /,
+      /^Project Modernisation du poste de commande Revision Current revision Draft Copy of “Référence” Structure Structure principale Subproject: No subproject Costing and estimate /,
     );
     expect(html).toContain('aria-label="Remove the filter “Subproject: No subproject”"');
   });

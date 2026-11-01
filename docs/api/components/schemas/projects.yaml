@@ -13,7 +13,13 @@ Project:
   required:
     - project_id
     - label
+    - description
+    - client
+    - code
     - state
+    - order_received_on
+    - reference_revision_id
+    - current_revision_id
     - inflation_rate
     - win_probability
     - available_commands
@@ -24,11 +30,16 @@ Project:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client du projet (WF-PRJ-0080) : facultatif, nul tant qu'il n'est pas saisi,
+        exigé par aucune transition. `createProject` et `updateProject` l'écrivent (EP-16/US-0610).
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
       description: >-
         Code sous lequel l'ERP connaît le projet, unique dans l'installation et
-        exigé pour le passage à En cours (WF-PRJ-0010).
+        exigé pour le passage à En cours (WF-PRJ-0010) ; nul tant qu'il n'est pas saisi.
     state: { $ref: '#/ProjectState' }
     inflation_rate:
       allOf: [{ $ref: ../common.yaml#/Percent }]
@@ -63,7 +74,20 @@ Project:
         devis ou d'un reste à engager est listé à qui a la permission de l'import mais pas
         celle de créer une révision, indisponible, `may_create_revision` manquante ; la
         génération du squelette de planning (`generate_skeleton`) l'est de même à qui a la
-        permission du planning (EP-15/US-0490/L4).
+        permission du planning (EP-15/US-0490/L4). Une commande que la permission de l'appelant
+        lui donnerait, mais que sa qualité sur le projet ne permet pas, est listée indisponible
+        en nommant cette qualité (WF-IHM-0090) : `is_contributor` à qui ouvre le projet par
+        « consulter tous les projets » sans en être contributeur, et `is_project_manager` en plus
+        pour une commande réservée aux chefs de projet ; `is_project_manager` seule à un
+        participant (`project_participant`). La qualité vient avant les conditions d'état. Une
+        seule commande s'ouvre à un non-contributeur : `manage_contributors`, quand aucun chef de
+        projet du projet n'a de compte actif, à qui porte la permission du paramétrage du projet
+        et « consulter tous les projets » (WF-PRJ-0060 ; `project_rescue`). Un projet terminal
+        — Terminé, Perdu ou Abandonné — n'en liste aucune : rien ne le modifie plus, et aucune ne
+        le redeviendra, quand WF-IHM-0090 ne présente indisponible que ce qu'un état rend
+        « momentanément » impossible (WF-CYC-0080, WF-CYC-0100 ; `project_completed`, US-0702/L3).
+        Un appel envoyé malgré la liste est refusé par 409 `STATE_FORBIDS_OPERATION`,
+        `params.missing_condition` à `project_not_terminal`.
       items: { $ref: '#/ProjectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
@@ -90,45 +114,95 @@ CommandCondition:
   description: >-
     Condition qu'une commande exige, nommée par le serveur quand elle manque, et
     rendue par le front dans la langue du lecteur (WF-IHM-0090, WF-ARC-0110).
+    `is_contributor` manque à qui ouvre le projet par « consulter tous les projets » sans en être
+    contributeur, pour toute commande que sa permission lui donnerait : elle est listée
+    indisponible, la qualité nommée (WF-IHM-0090, WF-PRJ-0060) — sauf `manage_contributors`, que
+    WF-PRJ-0060 lui ouvre quand aucun chef de projet du projet n'a de compte actif
+    (`ProjectCommand`).
     `is_project_manager` manque à qui n'est que contributeur pour une action structurante
-    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110).
+    ou le paramétrage du projet, réservés aux chefs de projet (WF-PRJ-0060, WF-ADM-0110), et,
+    avec `is_contributor`, à un non-contributeur. Une commande nomme sa qualité manquante avant
+    ses conditions d'état ; envoyée malgré elle, l'écriture est refusée par 403, `NOT_CONTRIBUTOR`
+    ou `NOT_PROJECT_MANAGER`, la qualité nommée (`Forbidden`). Toute autre condition qui manque se
+    refuse par 409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` la nommant (README,
+    « Conventions » ; US-0702/L1).
+    `project_not_terminal` manque à toute écriture d'un projet terminal — Terminé, Perdu ou
+    Abandonné —, que rien ne modifie plus (WF-CYC-0100, WF-CYC-0080) : seul le 409
+    `STATE_FORBIDS_OPERATION` d'un appel direct la nomme, dans l'ordre que l'opération dit
+    (US-0702/L3). Aucun `missing_conditions` ne la contient jamais — ni celui d'une commande
+    listée, ni celui d'une saisie (`EntryAvailability`) —, un projet terminal et ses objets ne
+    listant aucune commande qui les modifierait (`Project.available_commands`) ; elle reste dans
+    cette énumération parce que `params.missing_condition` en est une valeur (#1675) ;
+    `revision_draft` à
+    toute commande qui modifierait une révision marquée, qui ne se modifie plus (WF-DAT-0020) —
+    toute révision d'un projet terminal l'est. `project_in_progress` manque hors de l'état En cours
+    à ce qui ne se fait qu'en réalisation : la sortie vers Terminé (`complete`, WF-CYC-0060), la
+    saisie du reste à engager (plus bas). `project_in_pricing` manque à la déclaration de perte
+    (`lose`) d'un projet Créé : un projet ne se déclare perdu que depuis Chiffrage (WF-CYC-0060).
+    `no_current_revision` manque à l'ouverture d'une révision (`create_revision`) tant que le
+    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010) ; `createRevision`
+    la nomme dans son 409 (J-01, #1795).
+    `reference_revision_designated` manque, tant que le projet n'a pas de révision de référence, à
+    la déclaration d'un risque survenu (`declare_risk_occurrence`, WF-RIS-0060) ; et
+    `reference_revision_designated` et `project_code_set`, tant que le projet n'a pas de code
+    projet, sont les conditions du passage à En cours, que le prochain état nomme une par une, dans
+    l'ordre de l'énumération (`NextState.missing_conditions`, `getProjectNextState`, WF-CYC-0030,
+    WF-CYC-0050, WF-PRJ-0010 ; J-11, US-0702/L1).
+    `undo_history_not_empty` manque à l'annulation quand l'historique de l'appelant sur la révision
+    est vide, `redo_history_not_empty` au rétablissement quand aucune annulation n'est à rétablir :
+    `undoLastChange` et `redoLastUndo` les nomment dans leur 409, aucune commande ne les disant
+    d'avance — `UndoResult.remaining_depth` dit ce qui reste à annuler (WF-IHM-0110 ; E-07,
+    US-0702/L1).
     `no_background_task_running` manque tant qu'un traitement de fond court sur l'objet
     — marquage, fusion d'un différentiel, survenance d'un risque, import —, quel que
     soit l'utilisateur qui l'a lancé : les commandes qu'il rendrait caduques le nomment.
     Pendant le marquage d'une révision, ce sont toutes les commandes qui la modifient : la
     saisie du planning, du devis, du reste à engager et des risques, la déclaration d'un risque
-    (`declare_risk`), l'ouverture d'un différentiel, sa fusion, le marquage, la désignation de
-    la référence et l'abandon, et les imports du projet qui y écriraient — ses exports, qui la
-    lisent, restent disponibles.
+    (`declare_risk`), l'ouverture d'un différentiel, sa fusion, la mise à jour des taux, le
+    marquage, la désignation de la référence et l'abandon, et les imports du projet qui y
+    écriraient — ses exports, qui la lisent, restent disponibles.
     Pendant l'application d'un import de planning, de devis ou de reste à engager
     (`Import.status` à `applying`), et pendant le traitement d'une déclaration de survenance,
     qui fusionne dans la révision en cours (WF-RIS-0060), ce sont les commandes qui écriraient
     dans la révision en cours — `edit_planning`, `generate_skeleton`, `edit_estimate`,
     `edit_remaining`, `edit_risks`, `declare_risk`, `create_structure`, `merge_structure`,
-    `mark`, `abandon` —,
+    `apply_rate_update`, `mark`, `abandon` —,
     la déclaration d'une survenance et les imports du projet ; ses exports restent disponibles.
     Pendant tout traitement de fond qui écrit dans la révision en cours ou la fige — marquage,
     fusion, survenance, application d'un import —, c'est aussi la saisie du lotissement
     (`ProjectCommand.update_work_breakdown`), qui retire le rattachement des tâches de la
-    révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s).
+    révision en cours (WF-PLA-0170) ; `setWorkBreakdown` la nomme dans son 409 (EP-14/L42s) ; ce
+    sont aussi les trois sorties du cycle de vie (`complete`, `lose`, `abandon`), dont le sort
+    marquerait ou abandonnerait la révision en cours (WF-CYC-0090) — le marquage qu'une sortie a
+    lancé compris (`exitProject`, US-0701/L9).
     Un projet sans révision en cours en a une qui naît : l'application d'un import, en une seule
-    transaction (WF-INTF-0080), et le traitement d'une survenance créent la révision en cours
-    qu'ils écrivent (WF-INTF-0090, WF-RIS-0060), invisible jusqu'à leur fin. Pendant ce temps, le
+    transaction (WF-INTF-0080), le traitement d'une survenance et la fusion d'un différentiel de
+    la dernière révision marquée créent la révision en cours qu'ils écrivent (WF-INTF-0090,
+    WF-RIS-0060, WF-REV-0050 ; #790), invisible jusqu'à leur fin. Pendant ce temps, le
     projet nomme la condition aux commandes qu'il porte et qui créeraient ou ouvriraient cette
-    révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4).
+    révision — les imports, `edit_risks`, `declare_risk`, `generate_skeleton` (EP-15/US-0490/L4) —,
+    et la dernière révision marquée à sa fusion (`RevisionCommand.merge_structure`).
     L'analyse d'un import (`analysing`) ne suspend rien : elle ne modifie rien (WF-ARC-0100), et
     l'import de coûts réels n'écrit pas dans la révision (WF-INTF-0090, WF-CRE-0010,
     WF-IHM-0080, WF-IHM-0090, WF-ARC-0090). `may_create_revision` manque, quand le projet n'a pas
     de révision en cours, à qui n'a pas la permission de créer une révision (`revisions.write`)
     pour une commande qui la créerait : les imports d'un planning, d'un devis ou d'un reste à
     engager (WF-INTF-0090), la saisie des risques (`ProjectCommand.edit_risks`, WF-RIS-0020), la
-    déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s) et la déclaration d'un
-    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) ; et pour une commande qui
+    déclaration d'un risque (`ProjectCommand.declare_risk`, EP-14/L42s), la déclaration d'un
+    risque survenu (`RiskCommand.declare_occurrence`, WF-RIS-0060) et la fusion d'un
+    différentiel de la dernière révision marquée (`RevisionCommand.merge_structure`,
+    WF-REV-0050 ; #790) ; et pour une commande qui
     demande d'ouvrir la révision d'abord : la génération du squelette de planning
-    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4). Trois
-    conditions tiennent à l'état d'un risque, et le risque les nomme (`Risk.available_commands`) :
-    `risk_not_occurred` manque à la modification, au réexamen et à la suppression d'un risque
-    survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
+    (`ProjectCommand.generate_skeleton`, WF-PRJ-0030, WF-REV-0010 ; EP-15/US-0490/L4).
+    `restored_subproject_exists` manque à toute annulation et à tout rétablissement
+    (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision
+    d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une
+    ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de
+    ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
+    de l'auteur, #732).
+    Trois conditions tiennent à l'état d'un risque, et le risque les nomme
+    (`Risk.available_commands`) : `risk_not_occurred` manque à la modification, au réexamen et à
+    la suppression d'un risque survenu, dont aucune transition ne part ; `risk_identified` à la déclaration de survenance et
     au changement de la catégorie ou du sous-projet de la provision d'un risque qui n'est pas
     identifié (WF-RIS-0010, `update_provision`) ; `risk_not_cited` à la suppression d'un risque
     qu'une révision marquée cite : il ne se supprime plus, il s'écarte (WF-RIS-0020) ;
@@ -161,38 +235,63 @@ CommandCondition:
     `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
     écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
     risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature
-    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et
-    supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
+    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) change la provision,
+    réexamine et supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
     `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la
     catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet
-    l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). `at_least_one_task` manque à la déclaration d'un
+    l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à
+    tout rétablissement qui recréeraient la ligne de provision d'un risque avec une catégorie qui
+    n'est plus active et de type provision pour risques, quelles que soient les autres :
+    n'envoyant rien, ils ne peuvent pas en désigner une autre (`undoLastChange`, `redoLastUndo` ;
+    #795). `at_least_one_task` manque à la déclaration d'un
     risque sur une révision dont la structure principale ne comporte aucune tâche : « La
     déclaration d'un risque sur une structure principale sans tâche est refusée, en nommant la
     condition manquante » (WF-RIS-0010) — la ligne de provision n'aurait pas de tâche où se
     ranger ; `createRisk` la nomme dans son 409, après les conditions d'état de la saisie des
-    risques, `project_not_terminal` puis `no_background_task_running`, et avant
-    `active_provision_category`. La commande `declare_risk` de la révision, ou du projet sans
-    révision en cours, les dit d'avance, dans cet ordre, puis les autres conditions d'`edit_risks`
-    (EP-14/L42s).
-    `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
-    fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
-    offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).
+    risques, `project_not_terminal` — nommée par le seul 409, un projet terminal ne listant aucune
+    commande — puis `no_background_task_running`, et avant `active_provision_category`. La
+    commande `declare_risk` de la révision, ou du projet sans révision en cours, dit d'avance, dans
+    cet ordre sur un état non terminal, `no_background_task_running`, `at_least_one_task` et
+    `active_provision_category`, puis les autres conditions d'`edit_risks`
+    (EP-14/L42s). `at_least_one_task` manque aussi au retour d'un risque écarté à l'état identifié
+    sur une telle structure, que `reviewRisk` nomme dans son 409, avant `active_provision_category`
+    (WF-RIS-0010 ; décision de l'auteur, #787) ; et de même à toute annulation et à tout rétablissement
+    qui recréeraient la ligne de provision d'un risque sur une structure principale sans tâche
+    (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795) ; et à la suppression d'une tâche qui
+    laisserait sans tâche une structure principale qui porte une ligne de provision, refusée en
+    nommant les risques (`deleteNode`, `params.risks`, WF-RIS-0010 ; H-05, US-0702/L2).
+    Trois tiennent à l'import, et l'import les nomme (`ImportDetail.available_commands`,
+    WF-IHM-0090 ; I-01, I-02, #1789). `import_awaiting_decision` manque à l'application d'un
+    import qui n'est plus `analysed` — appliqué ou en cours d'application, abandonné, expiré,
+    échoué ou refusé : il n'y a plus rien à appliquer (WF-ARC-0100) —, et `applyImport` la nomme
+    dans son 409 avant toute autre. `import_file_accepted` manque à l'application d'un import dont
+    le compte rendu rejette le fichier entier (`ImportReport.refusals`, WF-INTF-0040,
+    WF-PLA-0150) : seul l'abandon reste offert, et `applyImport` la nomme dans son 409 ensuite
+    (EP-14/L42s). `import_not_applied` manque à l'abandon d'un import appliqué ou en cours
+    d'application (`applying`, `applied`) : ce qu'il a écrit ne se défait pas par l'abandon
+    (WF-INTF-0080) ; `abandonImport` la nomme dans son 409.
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
     `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et
-    `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
-    n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
-    du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
-    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à
+    `createPasswordSetupLink` et `resendInvitation` les nomment dans leur 409 :
+    `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un
+    fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe
+    à fixer dans Waterfall, et ne liste pas ces commandes —, et `is_active_account` à un compte
+    désactivé, que le compte nomme (`create_password_link`, `resend_invitation`) (WF-ADM-0140,
+    WF-ADM-0060). Deux tiennent à
     l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de
     `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme
     dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ;
     `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que
     le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans
     leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser`
-    nomme dans son 409. Le retrait de l'une de
-    ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    nomme dans son 409 ; elle manque aussi au lien de fixation et au renvoi de l'invitation d'un
+    compte local anonymisé, retiré du fournisseur d'identité, que `createPasswordSetupLink` et
+    `resendInvitation` nomment dans leur 409, jugée entre `is_local_account` et
+    `is_active_account` — le compte anonymisé ne liste pas ces commandes (#1737). Le retrait de
+    l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles
+    envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
     Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`,
     `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une
@@ -201,15 +300,9 @@ CommandCondition:
     production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —,
     à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running`
     manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des
-    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
-    (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
-    dans leur 409.
-    `restored_subproject_exists` manque à toute annulation et à tout rétablissement
-    (`undoLastChange`, `redoLastUndo`) qui rendrait un sous-projet supprimé depuis : à la provision
-    d'un risque — sa création, sa modification ou sa suppression défaites ou rétablies — ou à une
-    ligne de devis — toute écriture de la grille, la suppression d'une ligne ou d'une tâche et de
-    ses lignes comprise — ; refusés, ils ne défont ni ne rétablissent rien (WF-IHM-0110 ; décision
-    de l'auteur, #732).
+    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde, au marquage et au
+    réglage de la planification (WF-ADM-0160, #1742). `startBackup`, `retainBackup`,
+    `downloadBackup`, `startRestore` et `setBackupSchedule` les nomment dans leur 409.
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
@@ -239,22 +332,46 @@ CommandCondition:
     cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4).
     `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
-    et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
-    elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
-    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214).
+    et, sur la structure principale, à la création d'une ligne sous une tâche terminée, à la
+    modification et à la suppression d'une ligne d'une telle tâche, et au déplacement d'une ligne
+    vers elle ou depuis elle, la tâche se rouvrant d'abord depuis le Kanban : `createNode`,
+    `updateEstimateLine`, `deleteNode` et `moveNodes` la nomment dans leur 409, et le collage
+    dans le refus de la cellule (`PasteRejection`) ; la ligne ne nomme alors aucun champ
+    (`Node.editable_fields`). Une ligne nouvelle importée sous une telle tâche est rejetée au
+    compte rendu par la même condition, la tâche nommée (`ImportRejection`, WF-INTF-0120 ; I-05,
+    #1793). Dans un différentiel, elle ne manque jamais : les lignes d'une tâche
+    terminée s'y saisissent comme les autres, pour que l'avenant les rebudgète (WF-DEV-0050,
+    WF-RAE-0030, WF-RAE-0040, WF-REV-0050 ; #1184, #1214, #1766). `line_not_provision` manque à la
+    réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
+    que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`,
+    WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409.
+    `task_not_started` manque à la suppression d'une tâche démarrée ou terminée, ou d'une
+    récapitulative dont une subordonnée l'est : « Une tâche démarrée ou terminée ne peut pas être
+    supprimée » (WF-PLA-0070) ; on met à zéro son reste à engager. `deleteNode` la nomme dans son
+    409 ; aucune commande ne la dit d'avance, l'état de la tâche le montrant (`TaskFacet.progress` ;
+    F-04, US-0702/L2).
+    `task_succeeded` manque au téléchargement du résultat d'une tâche de fond qui n'a pas abouti —
+    en file, en cours ou en échec (`BackgroundTaskRef.status`) — : `getBackgroundTaskResult` la
+    nomme dans son 409 ; aucune commande ne la dit d'avance, l'état de la tâche le montrant
+    (WF-ARC-0090 ; A-05, US-0702/L2).
     Quatre tiennent à la nature et aux lignes d'une tâche, et la carte du Kanban les nomme
     (`KanbanTask.available_commands`, WF-RAE-0030, WF-PLA-0050) : `task_is_milestone` manque à
     la terminaison d'une tâche non démarrée qui n'est pas un jalon ; `task_without_lines` à la
     terminaison depuis le Kanban d'une tâche qui porte une ligne hors provision, que la saisie
     d'un reste à engager nul sur toutes ses lignes termine (WF-RAE-0040) ; `task_not_milestone`
-    au démarrage d'un jalon, qui ne démarre jamais, et à la réouverture d'un jalon terminé vers
+    au démarrage d'un jalon, qui ne passe pas par l'état démarré, et à la réouverture d'un jalon
+    terminé vers
     l'état démarré ; `completed_milestone` au retour à l'état non démarré d'une tâche qui n'est
     pas un jalon terminé — « Aucune commande ne fait passer une tâche démarrée à l'état non
     démarré » (WF-RAE-0030). `setTaskProgress` nomme dans son 409 la première qui manque.
     `unmerged_amendment_exists` manque à la fusion (`merge_structure`) tant qu'aucun
     différentiel de la révision n'est à fusionner, et la révision la nomme
     (`Revision.available_commands`) ; l'ouverture d'un différentiel (`create_structure`) n'en
-    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211). Deux tiennent
+    dépend pas, plusieurs coexistant (WF-REV-0100 ; décision de l'auteur, #1211).
+    `rate_update_available` manque à la mise à jour des taux (`apply_rate_update`) d'une révision
+    en cours dont la proposition ne présente aucune catégorie — son année de référence est celle
+    de la révision dont elle est la copie, ou chaque catégorie présentée a déjà été acceptée
+    (WF-REV-0060) — ; la révision la nomme, et `applyRateUpdate` dans son 409 (#1351). Deux tiennent
     à la désignation de la référence (`designate_reference`), après `revision_marked`, qui
     manque à une révision en cours :
     `revision_has_tasks_and_lines` manque à une révision dont la structure principale ne porte
@@ -263,8 +380,15 @@ CommandCondition:
     manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
     plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
-    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
-    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
+    première qui manque, dans cet ordre, `STATE_FORBIDS_OPERATION` la nommant, comme toute
+    autre (EP-15/US-0490 ; J-01, #1795) ; sur un projet terminal, il nomme d'abord
+    `project_not_terminal` (#1674).
+    `actual_cost_mapping_complete` manque à l'import des coûts réels
+    (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
+    correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont
+    la correspondance est vide (WF-REF-0190) ; la commande la nomme après les conditions de
+    l'état du projet et des traitements de fond, et `openImport` dans son 409, avec
+    `params.columns`, les colonnes exigées sans intitulé (EP-16/US-0620).
   enum:
     - is_contributor
     - is_project_manager
@@ -274,19 +398,20 @@ CommandCondition:
     - project_code_set
     - reference_revision_designated
     - at_least_one_task
-    - at_least_one_estimate_line
     - no_current_revision
     - revision_draft
     - revision_marked
     - reference_correctable
     - revision_has_tasks_and_lines
     - unmerged_amendment_exists
+    - rate_update_available
     - task_not_completed
+    - task_not_started
+    - line_not_provision
     - task_is_milestone
     - task_not_milestone
     - task_without_lines
     - completed_milestone
-    - hourly_rates_set
     - no_background_task_running
     - may_create_revision
     - restored_subproject_exists
@@ -314,11 +439,17 @@ CommandCondition:
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
     - main_structure_without_tasks
+    - import_awaiting_decision
     - import_file_accepted
+    - import_not_applied
     - is_local_account
     - is_active_account
     - is_deactivated_account
     - is_not_anonymized
+    - actual_cost_mapping_complete
+    - undo_history_not_empty
+    - redo_history_not_empty
+    - task_succeeded
 
 ProjectCommand:
   type: string
@@ -349,21 +480,38 @@ ProjectCommand:
     `update_win_probability`, toujours listée avec `update`, dit d'avance qu'elle est figée à
     partir de En cours, `project_before_in_progress` manquante (WF-PRJ-0090), et le lotissement,
     dont `update_work_breakdown`, toujours listée avec `update`, dit les conditions : celles
-    d'`update` d'abord — `project_not_terminal` sur un projet terminal —, puis
+    d'`update` d'abord — la qualité de l'appelant —, puis
     `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
     cours ou la fige — sa saisie retire le rattachement des tâches de la révision en cours
-    (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs ;
+    (`setWorkBreakdown`, WF-PLA-0170 ; EP-14/L42s) ; ses contributeurs — `manage_contributors`,
+    réservée aux chefs de projet, et listée en outre, quand aucun chef de projet du projet n'a de
+    compte actif, au non-contributeur qui porte la permission du paramétrage du projet
+    (`project_settings.write`) et « consulter tous les projets » (`all_projects_read`) : la seule
+    commande qui lui soit ouverte, pour y inscrire un chef de projet (WF-PRJ-0060), qu'il lit avec
+    son compteur par `listContributors` ;
     ses chronologies — en créer une, en supprimer une (`createTimeline`, `deleteTimeline`) :
     `manage_timelines`, gardée par `planning.write`, la permission du planning dont elles sont
-    une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et indisponible sur
-    un projet terminal, `project_not_terminal` manquante (WF-CYC-0100) — ;
-    ouvrir une révision, les trois sorties du cycle de vie (WF-CYC-0060) ; déclarer un risque
+    une vue (FBS-4.3.1, WF-PLA-0140), sans être réservée aux chefs de projet, et absente d'un
+    projet terminal comme toute commande (WF-CYC-0100) — ;
+    ouvrir une révision ; les trois sorties du cycle de vie (`exitProject`, WF-CYC-0060), chacune
+    listée tant qu'elle peut le devenir et absente dès qu'elle ne le deviendra jamais — « une
+    sortie qui ne le deviendra jamais — Déclarer perdu depuis En cours — n'y figure pas » (Vérif
+    de WF-CYC-0060) : `complete` listée à tout état non terminal, indisponible avant En cours,
+    `project_in_progress` manquante ; `lose` listée aux états Créé, indisponible,
+    `project_in_pricing` manquante, et Chiffrage, absente dès En cours, d'où aucun retour ne mène
+    à Chiffrage (WF-CYC-0080) ; `abandon` listée à tout état non terminal. Un projet terminal
+    n'en liste aucune : aucune transition n'en part (WF-CYC-0080). Chacune nomme ensuite
+    `no_background_task_running` pendant un traitement de fond qui écrit dans la révision en
+    cours ou la fige, comme `update_work_breakdown` ; déclarer un risque
     survenu (WF-RIS-0060) — gardé par `risk_occurrence` seule : la survenance emporte la
     fusion qu'elle déclenche et n'exige pas la permission de fusionner, `structure_merge`
-    (WF-ADM-0100) ; les conditions du projet s'y nomment (`project_not_terminal`,
-    `reference_revision_designated`, `no_background_task_running`), celles du risque sur le
+    (WF-ADM-0100) ; les conditions du projet s'y nomment (`reference_revision_designated`,
+    `no_background_task_running`), celles du risque sur le
     risque (`RiskCommand.declare_occurrence`) ; importer les
-    coûts réels, exclure une ligne du périmètre suivi (WF-CRE-0030) ; importer un
+    coûts réels — `import_actual_costs` nomme `actual_cost_mapping_complete` tant que la
+    correspondance de l'extraction de l'installation est incomplète, après les conditions de
+    l'état du projet (WF-REF-0190) —, exclure une ligne du périmètre suivi (WF-CRE-0030) ;
+    importer un
     planning MS Project, un devis, un reste à engager — une commande par nature, chacune
     gardée par sa permission —, que l'import applique à la révision en cours et crée au
     besoin (WF-INTF-0090) : portés par le projet, ils se disent aussi quand il n'a pas de
@@ -376,13 +524,16 @@ ProjectCommand:
     WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
     marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
-    et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
+    et nomme `may_create_revision` à qui n'a pas la permission de la créer. La modification de
+    l'identité d'un risque n'en relève pas : donnée du projet, elle ne crée pas de révision
+    (`updateRisk`, `RiskCommand.update` ; H-02, #1782). Dès qu'une révision
     est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
     suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
-    même ordre : celles de l'état d'abord, `project_not_terminal` puis
-    `no_background_task_running`, puis `at_least_one_task` et `active_provision_category`, puis
-    `may_create_revision`. La révision que la déclaration créerait copie la dernière révision
-    marquée, et n'a aucune tâche si le projet n'a aucune révision marquée, `at_least_one_task`
+    même ordre : celles de l'état d'abord, `project_not_terminal` — que seul le 409 nomme, un
+    projet terminal ne listant aucune commande — puis `no_background_task_running`, puis
+    `at_least_one_task` et `active_provision_category`, puis `may_create_revision`. La révision
+    que la déclaration créerait copie la dernière révision marquée, et n'a aucune tâche si le
+    projet n'a aucune révision marquée, `at_least_one_task`
     manquant alors (WF-REV-0010, WF-RIS-0010 ; EP-14/L42s).
     `generate_skeleton` dit d'avance, tant que le projet n'a pas de révision en cours, si le
     squelette de planning s'engendrerait sur la révision que l'on ouvrirait (WF-PRJ-0030,
@@ -393,9 +544,11 @@ ProjectCommand:
     la révision : l'écran l'ouvre d'abord (`createRevision`), puis engendre le squelette sur la
     révision que la création rend (`generatePlanningSkeleton`), qui liste à son tour
     `generate_skeleton`. Ses conditions, dans l'ordre de `declare_risk` : celles de l'état
-    d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre (WF-CYC-0100), puis
-    `no_background_task_running` pendant l'application d'un import ou le traitement d'une
-    survenance, qui créent la révision en cours ; puis `main_structure_without_tasks`, jugée sur
+    d'abord, `project_not_terminal`, sur lequel aucune révision ne s'ouvre et que seul le 409 de
+    `createRevision` nomme (WF-CYC-0100), puis
+    `no_background_task_running` pendant l'application d'un import, le traitement d'une
+    survenance ou la fusion d'un différentiel de la dernière révision marquée, qui créent la
+    révision en cours ; puis `main_structure_without_tasks`, jugée sur
     la révision que l'ouverture créerait — une copie de la dernière révision marquée, sans tâche
     si le projet n'en a aucune — ; puis `may_create_revision` à qui n'a pas la permission de
     l'ouvrir (`revisions.write`). Sur la révision, la condition propre vient d'abord
@@ -420,8 +573,39 @@ ProjectSummary:
     project_id: { $ref: ../common.yaml#/Uuid }
     label: { type: string }
     code:
-      anyOf: [{ type: string }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
     state: { $ref: '#/ProjectState' }
+
+ProjectCode:
+  type: string
+  minLength: 1
+  maxLength: 50
+  pattern: '^[^/]*[^/\s][^/]*$'
+  description: >-
+    Le code sous lequel l'ERP connaît le projet (WF-PRJ-0010) : de 1 à 50 caractères, jamais
+    blanc, sans barre oblique — seul séparateur de l'élément d'OTP qui le porte, suivi
+    facultativement d'une barre oblique et du code sous-projet, le code projet pouvant contenir des
+    points (WF-CRE-0020). Partagé par la lecture et l'écriture (`Project`, `ProjectSummary`,
+    `ProjectCreate`, `ProjectUpdate`). Une écriture qui ne le respecte pas est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement
+    de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par
+    `PROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` à `["/"]` ; trop long, par
+    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`, la borne que tout `VALUE_TOO_LONG`
+    porte (J-02, #1796). Un code à la fois
+    blanc et porteur d'une barre oblique (« / », « /  ») ne reçoit qu'un refus,
+    `PROJECT_CODE_INVALID`, la barre oblique d'abord (D-07, US-0701/L9).
+
+ProjectClient:
+  type: string
+  minLength: 1
+  pattern: '\S'
+  maxLength: 300
+  description: >-
+    Le nom du client d'un projet, que porte la présentation d'un devis exporté (WF-PRJ-0080) : de
+    1 à 300 caractères comme le libellé, jamais blanc. Une écriture qui ne le respecte pas est
+    refusée par 422 `VALIDATION_FAILED`, `fields` désignant `/client` : vide, par
+    `VALUE_REQUIRED` ; trop long, par `VALUE_TOO_LONG` ; fait seulement de blancs, comme tout
+    libellé, par `VALIDATION_FAILED` (EP-16/US-0610).
 
 ProjectCreate:
   type: object
@@ -430,8 +614,12 @@ ProjectCreate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client (WF-PRJ-0080), facultatif : nul, ou absent, le projet n'en a pas.
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
 
 ProjectUpdate:
   type: object
@@ -440,8 +628,13 @@ ProjectUpdate:
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+    client:
+      anyOf: [{ $ref: '#/ProjectClient' }, { type: 'null' }]
+      description: >-
+        Le nom du client (WF-PRJ-0080), saisissable à tout moment tant que le projet n'est pas
+        terminal : nul, il s'efface ; absent, il ne change pas.
     code:
-      anyOf: [{ type: string, maxLength: 50 }, { type: 'null' }]
+      anyOf: [{ $ref: '#/ProjectCode' }, { type: 'null' }]
     inflation_rate:
       allOf: [{ $ref: ../common.yaml#/Percent }]
       description: De `0` à `1` inclus, un rapport (WF-PRJ-0040).
@@ -507,22 +700,84 @@ NextState:
 
 ProjectExit:
   type: object
-  required: [to_state, confirmed]
+  required: [to_state, lock_version]
   description: >-
     Sortie manuelle : Terminé depuis En cours, Perdu depuis Chiffrage, Abandonné
     depuis tout état non terminal (WF-CYC-0060). Irréversible (WF-CYC-0080), et
-    appliquée après confirmation explicite (WF-CYC-0090).
+    appliquée après confirmation explicite (WF-CYC-0090). « Lorsque le projet porte une
+    révision en cours, la confirmation demande de la marquer, avec un nom de version
+    (WF-REV-0020), ou de l'abandonner (WF-REV-0010) ; la sortie n'est appliquée qu'avec ce
+    choix, dans la même opération. Un projet terminal ne porte donc aucune révision en cours »
+    (WF-CYC-0090) : le corps porte ce choix (`current_revision`).
   properties:
     to_state:
       type: string
       enum: [completed, lost, abandoned]
     confirmed:
       type: boolean
-      const: true
-      description: 'Faux ou absent, la sortie est refusée : la confirmation est la garde de WF-CYC-0090.'
+      description: >-
+        Faux ou absent, la sortie est refusée par 400 `CONFIRMATION_REQUIRED`, et rien n'est
+        écrit : la confirmation est la garde de WF-CYC-0090 (`project_exit_unconfirmed`). Le
+        schéma ne l'exige pas et ne fixe pas sa valeur, pour que ce soit la garde qui refuse,
+        et non la validation du corps par 422 (US-0702/L3).
     reason:
       anyOf: [{ type: string }, { type: 'null' }]
       description: Motif facultatif, que la transition conserve (WF-CYC-0090, WF-CYC-0130).
+    current_revision:
+      anyOf: [{ $ref: '#/CurrentRevisionFate' }, { type: 'null' }]
+      description: >-
+        Le sort de la révision en cours, exigé quand le projet en porte une
+        (`Project.current_revision_id`) : absent ou nul, la sortie est refusée par 422
+        `VALIDATION_FAILED`, `fields` désignant `/current_revision` par `VALUE_REQUIRED`, et rien
+        n'est écrit (`project_exit_revision_required`). Absent ou nul quand le projet n'en porte
+        pas (D-01, US-0701/L9).
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur du projet lu (`Project.lock_version`) : périmé, la sortie est refusée par 412
+        et rien n'est écrit (WF-IHM-0110 ; décision de l'auteur du 2026-10-28, US-0702/L2).
+
+CurrentRevisionFate:
+  description: >-
+    Ce que la sortie fait de la révision en cours (WF-CYC-0090) : l'une des deux variantes, que
+    `action` distingue. `mark` la marque comme `markRevision` (WF-REV-0020), et `abandon`
+    l'abandonne comme `abandonRevision` (WF-REV-0010).
+  oneOf:
+    - { $ref: '#/CurrentRevisionMark' }
+    - { $ref: '#/CurrentRevisionAbandon' }
+  discriminator:
+    propertyName: action
+    mapping:
+      mark: '#/CurrentRevisionMark'
+      abandon: '#/CurrentRevisionAbandon'
+
+CurrentRevisionMark:
+  type: object
+  required: [action, version_name]
+  description: >-
+    Marquer la révision en cours à la sortie (WF-CYC-0090, WF-REV-0020), sous `version_name`,
+    exigé et borné comme celui de `markRevision` — absent, refusé par 422 `VALIDATION_FAILED`,
+    `fields` désignant `/current_revision/version_name` par `VALUE_REQUIRED` —, unique parmi les
+    révisions marquées du projet — pris, refusé par 409 `ALREADY_EXISTS`, `fields` désignant
+    `/current_revision/version_name` par `ALREADY_EXISTS`,
+    `fields[].params.conflicting_object_id` la révision qui le porte —, avec sa description
+    facultative : le marquage calcule les indicateurs et se confie au worker (WF-ARC-0090), et la
+    sortie rend 202 et la tâche, la transition s'appliquant quand elle réussit.
+  properties:
+    action: { type: string, const: mark }
+    version_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
+    description:
+      anyOf: [{ type: string }, { type: 'null' }]
+
+CurrentRevisionAbandon:
+  type: object
+  required: [action]
+  description: >-
+    Abandonner la révision en cours à la sortie (WF-CYC-0090, WF-REV-0010), comme
+    `abandonRevision`, dans la requête : la sortie rend 200 et le projet. Aucun nom de version ni
+    description, que seul un marquage fige.
+  properties:
+    action: { type: string, const: abandon }
 
 WorkBreakdown:
   type: object
@@ -538,10 +793,15 @@ WorkBreakdown:
     supprimé (WF-DAT-0080) — est refusé (`UNKNOWN_WORK_BREAKDOWN_ITEM`) : le client ne forge
     aucun identifiant (EP-14/L42k). Un élément ne s'écrit qu'une fois : un identifiant envoyé
     deux fois est refusé à chaque occurrence après la première (`DUPLICATE_WORK_BREAKDOWN_ITEM`,
-    sur `/…/<nature>_id`).
+    sur `/…/<nature>_id`). Une saisie porte au moins un lot : sans lot, elle est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/work_packages` par `VALUE_REQUIRED` — un lotissement
+    vaut toujours au moins un lot (WF-PRJ-0020). Tant qu'aucune saisie ne l'a écrit, le lot et le
+    poste par défaut portent le libellé du projet, et le suivent quand il change (D-11,
+    US-0701/L9).
   properties:
     work_packages:
       type: array
+      minItems: 1
       items: { $ref: '#/WorkPackage' }
     lock_version:
       allOf: [{ $ref: ../common.yaml#/LockVersion }]
@@ -690,7 +950,7 @@ Subproject:
     le disent d'avance.
   properties:
     subproject_id: { $ref: ../common.yaml#/Uuid }
-    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    code: { $ref: '#/DeclaredSubprojectCode' }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
     has_actual_costs:
       type: boolean
@@ -705,13 +965,33 @@ Subproject:
         Commandes du sous-projet que l'appelant a la permission d'exercer, chacune disponible ou
         non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
         `SubprojectCommand`. Elles suivent la commande `update` du projet : la liste est vide pour
-        qui ne la porte pas, et toutes deux nomment `project_not_terminal` sur un projet clos
-        (WF-CYC-0100), après les conditions propres au sous-projet, comme le projet liste les
-        siennes (`project_completed`). Un appel envoyé malgré la liste est refusé par son code
-        d'erreur.
+        qui ne la porte pas, et sur un projet clos, qui n'en liste aucune (WF-CYC-0100 ;
+        `subprojects_completed`, US-0702/L3). Un appel envoyé malgré la liste est refusé par son
+        code d'erreur.
       items: { $ref: '#/SubprojectCommandAvailability' }
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
+
+DeclaredSubprojectCode:
+  type: string
+  minLength: 1
+  maxLength: 31
+  pattern: '^(?![Ss][Yy][Nn][Tt][Hh][Èè][Ss][Ee]$|[Hh][Oo][Rr][Ss] [Ss][Oo][Uu][Ss]-[Pp][Rr][Oo][Jj][Ee][Tt]$)[^:\\/?*\[\]]*[^:\\/?*\[\]\s][^:\\/?*\[\]]*$'
+  description: >-
+    Le code d'un sous-projet déclaré, sous lequel l'ERP le connaît, qui nomme son onglet dans le
+    fichier de reste à engager (ANNEXE B, WF-PRJ-0050) : de 1 à 31 caractères, jamais blanc, sans
+    aucun des caractères `:`, `\`, `/`, `?`, `*`, `[` ni `]`, et ni « Synthèse » ni « Hors
+    sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse — ce que
+    dit le motif (D-7, EP-16/US-0610). Une écriture qui ne le respecte pas est refusée par 422
+    `VALIDATION_FAILED`, `fields` désignant `/code` : trop long, par `VALUE_TOO_LONG`,
+    `fields[].params.max_length` à `31`, la borne que tout `VALUE_TOO_LONG` porte ; portant un
+    caractère interdit, par `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les
+    caractères interdits
+    qu'il porte, chacun une fois, dans l'ordre où le code les porte ; valant un nom réservé, par
+    `SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name` ce nom tel que Waterfall l'écrit.
+    Le code lu dans l'élément d'OTP d'une ligne de coût réel (`ActualCostLine.subproject_code`)
+    n'est pas celui-ci et garde sa borne de 50 : une ligne au code inconnu se conserve telle
+    quelle (WF-CRE-0020).
 
 SubprojectCommand:
   type: string
@@ -724,14 +1004,15 @@ SubprojectCommand:
     (WF-PRJ-0050), tant que des lignes de devis de la révision en cours le portent, dans quelque
     structure que ce soit — une ligne de provision comprise, dont le risque l'a désigné
     (WF-RIS-0010) —,
-    `subproject_without_estimate_lines` manquante (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273),
-    et sur un projet clos, `project_not_terminal` manquante (WF-CYC-0100). Quand plusieurs
-    manquent, la commande les liste dans cet ordre : `subproject_not_cited`, puis
+    `subproject_without_estimate_lines` manquante (WF-DAT-0080, WF-PRJ-0050 ; EP-14/L42q, C-273).
+    Sur un projet clos, aucune n'est listée (US-0702/L3), et `deleteSubproject` nomme aussi
+    `project_not_terminal` (WF-CYC-0100). Quand plusieurs manquent, la commande les liste dans cet
+    ordre, que le 409 suit : `subproject_not_cited`, puis
     `subproject_without_actual_costs`, puis `subproject_without_estimate_lines` — de la condition
     qui ne se lève jamais, une révision marquée étant immuable (WF-DAT-0020), à celle que lève le
-    passage de ces lignes hors sous-projet ou à un autre —, puis `project_not_terminal` — les
-    conditions propres au sous-projet avant celle du projet, comme le projet liste les siennes. Un
-    sous-projet se crée par la commande `update` du projet.
+    passage de ces lignes hors sous-projet ou à un autre —, puis `project_not_terminal`, que seul
+    le 409 nomme — les conditions propres au sous-projet avant celle du projet. Un sous-projet se
+    crée par la commande `update` du projet.
 
 SubprojectCommandAvailability:
   type: object
@@ -748,7 +1029,7 @@ SubprojectWrite:
   type: object
   required: [code, label]
   properties:
-    code: { type: string, minLength: 1, pattern: '\S', maxLength: 50 }
+    code: { $ref: '#/DeclaredSubprojectCode' }
     label: { type: string, minLength: 1, pattern: '\S', maxLength: 300 }
 
 SubprojectUpdate:
@@ -780,7 +1061,14 @@ Contributor:
     n'est pas contributeur (WF-PRJ-0060).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    display_name: { type: string }
+    display_name:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le nom affiché du compte, conservé après sa désactivation (WF-ADM-0060) ; nul pour un
+        compte anonymisé, que le front présente sous le libellé neutre de son catalogue, l'API ne
+        rendant ni son nom (WF-ADM-0060) ni une phrase (WF-ARC-0110), comme `ActorRef.display_name`
+        (#870). Le tri le range après les noms dans l'ordre croissant (`listContributors`), et
+        la recherche sur le nom ne le retient jamais.
     kind: { $ref: '#/ContributorKind' }
     is_active:
       type: boolean
@@ -819,7 +1107,8 @@ ContributorsWrite:
   required: [contributors, lock_version]
   description: >-
     La liste entière, chacun avec sa qualité ; un projet garde au moins un chef de projet
-    (WF-PRJ-0060).
+    (WF-PRJ-0060). Écrite par un non-contributeur, quand aucun chef de projet n'a de compte actif
+    (`setContributors`), elle porte un chef de projet au compte actif.
   properties:
     contributors:
       type: array
@@ -849,7 +1138,12 @@ ContributorSuggestion:
     dise pourquoi il est proposé sans relire le référentiel (WF-ARC-0020).
   properties:
     user_id: { $ref: ../common.yaml#/Uuid }
-    display_name: { type: string }
+    display_name:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le nom affiché du compte, nullable comme `Contributor.display_name`, pour que la
+        proposition confirmée prenne place dans la liste telle quelle : un compte anonymisé est
+        désactivé, et n'est donc jamais proposé (WF-ADM-0060, #870).
     is_active:
       type: boolean
       description: >-

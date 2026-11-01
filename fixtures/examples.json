@@ -282,9 +282,9 @@
       "sentence": "Après un avenant qui porte de 100 à 150 heures une ligne non réestimée d'une tâche non démarrée, le reste à engager compte 150 heures ; une ligne réestimée à 140 avant l'avenant garde 140."
     },
     {
-      "key": "WF-RAE-0020-A#71b655664115",
+      "key": "WF-RAE-0020-A#05bb86431330",
       "requirement": "WF-RAE-0020-A",
-      "sentence": "Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, l'écart au budget vaut + 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de − 50."
+      "sentence": "Sur un projet de budget 1 000, de coût réel 500 et de reste à engager 550, la marge sur le budget vaut − 50 ; un reste à engager passé de 600 à 550 depuis la revue précédente donne un écart de − 50."
     },
     {
       "key": "WF-RAE-0040-A#a27e44651c10",
@@ -325,6 +325,11 @@
       "key": "WF-RIS-0050-A#f3002ed87630",
       "requirement": "WF-RIS-0050-A",
       "sentence": "Sur le projet dont le risque est survenu à 250 : un avenant qui ne touche pas aux risques laisse la réserve à 60 et l'écart de couverture à −190 ; un avenant qui intègre au budget de référence les lignes de ce risque porte le budget de référence à 1 250 et laisse la réserve à 60 et l'écart à −190 ; un avenant qui déclare un nouveau risque de provision 50 porte la réserve à 110 et les provisions restantes à 50, et laisse l'écart à −190."
+    },
+    {
+      "key": "WF-RIS-0050-A#8bab623f59d2",
+      "requirement": "WF-RIS-0050-A",
+      "sentence": "Sur le projet dont le risque est survenu à 250, la réestimation à 300 des lignes qui en sont issues présente 300 en regard de 250, et laisse l'écart de couverture à −190."
     },
     {
       "key": "WF-RIS-0060-A#474d7bce167a",

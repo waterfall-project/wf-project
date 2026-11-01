@@ -88,10 +88,13 @@ function cell(label: string, position: number): HTMLElement {
   return found;
 }
 
-// The places of the columns in a row: label, probability, severity, provision, state, review, cell.
+// The places of the columns in a row: label, probability, severity, provision, cost at the
+// occurrence, state, review, cell.
 const SEVERITY = 2;
 const PROVISION = 3;
-const ZONE = 6;
+const OCCURRENCE = 4;
+const STATE = 5;
+const ZONE = 7;
 
 beforeEach(() => {
   router.push.mockReset();
@@ -106,25 +109,35 @@ afterEach(() => {
 });
 
 describe("the grid of the risks", () => {
-  it("presents the six columns of the register and the cell of the matrix, each risk as the API gives it [WF-RIS-0040-A]", async () => {
+  it("presents the six columns of the register, the cost at the occurrence and the cell of the matrix, each risk as the API gives it [WF-RIS-0040-A]", async () => {
     const { container } = renderRisks();
     expect(
       within(grid())
         .getAllByRole("columnheader")
         .map((header) => header.textContent),
-    ).toEqual(["Libellé", "Probabilité", "Gravité", "Provision", "État", "Dernier réexamen", ""]);
+    ).toEqual([
+      "Libellé",
+      "Probabilité",
+      "Gravité",
+      "Provision",
+      "Coût à la survenance",
+      "État",
+      "Dernier réexamen",
+      "",
+    ]);
     expect(within(grid()).getByRole("columnheader", { name: /Case de la matrice/ })).toBeVisible();
     expect(cellsOf("Risque de reprise du câblage").map((each) => each.textContent)).toEqual([
       "Risque de reprise du câblage",
       `40${NBSP}%`,
       `1${NARROW}250${NARROW}000,00`,
       `500${NARROW}000,00`,
+      "",
       "Identifié",
       "02/03/2026",
       "",
     ]);
-    expect(cell("Retard de livraison des armoires", 4)).toHaveTextContent("Survenu");
-    expect(cell("Indisponibilité de l'automaticien", 4)).toHaveTextContent("Écarté");
+    expect(cell("Retard de livraison des armoires", STATE)).toHaveTextContent("Survenu");
+    expect(cell("Indisponibilité de l'automaticien", STATE)).toHaveTextContent("Écarté");
     await expectAccessible(container);
   });
 
@@ -197,9 +210,41 @@ describe("the grid of the risks", () => {
     expect((server.client as FakeClient).calls).toEqual([]);
   });
 
+  it("presents the cost at the occurrence of a risk occurred alone, computed, and the provision of the reference for a risk occurred or dismissed", async () => {
+    renderRisks();
+    expect(
+      within(grid()).getByRole("columnheader", { name: /^Calculé\s*Coût à la survenance/ }),
+    ).toBeVisible();
+    const occurred = cell("Retard de livraison des armoires", OCCURRENCE);
+    expect(occurred).toHaveTextContent("200,00");
+    expect(occurred).toHaveAccessibleName(/^Calculé/);
+    expect(cell("Retard de livraison des armoires", PROVISION)).toHaveTextContent("60,00");
+    expect(cell("Indisponibilité de l'automaticien", PROVISION).textContent).toBe(
+      `600${NARROW}000,00`,
+    );
+    for (const label of ["Risque de reprise du câblage", "Indisponibilité de l'automaticien"]) {
+      expect(cell(label, OCCURRENCE).textContent).toBe("");
+      expect(cell(label, OCCURRENCE)).not.toHaveAccessibleName(/^Calculé/);
+    }
+
+    // Typed into: refused, naming the rules the risk says, nothing asked of the server.
+    occurred.focus();
+    await userEvent.keyboard("9");
+    expect(screen.getByRole("dialog", { name: "Valeur calculée" })).toHaveTextContent(
+      "Coût à la survenance ne se saisit pas : Waterfall calcule cette valeur." +
+        "Le coût à la survenance d’un risque est le total de son devis propre quand il a été déclaré survenu.",
+    );
+    await userEvent.keyboard("{Escape}");
+    await userEvent.dblClick(cell("Retard de livraison des armoires", PROVISION));
+    expect(screen.getByRole("dialog", { name: "Valeur calculée" })).toHaveTextContent(
+      "La provision d’un risque survenu ou écarté est celle qu’il portait dans la révision de référence.",
+    );
+    expect((server.client as FakeClient).calls).toEqual([]);
+  });
+
   it("presents no cell of the grid for entry: a risk is entered by the epic of the risks", async () => {
     renderRisks();
-    for (const position of [0, 1, 4, 5]) {
+    for (const position of [0, 1, OCCURRENCE, STATE, STATE + 1]) {
       cell("Risque de reprise du câblage", position).focus();
       await userEvent.keyboard("{F2}");
       expect(screen.queryByRole("textbox")).toBeNull();
@@ -212,7 +257,7 @@ describe("the grid of the risks", () => {
       within(cell(label, ZONE)).getByRole("img").getAttribute("aria-label");
     expect(zone("Risque de reprise du câblage")).toBe("Vigilance");
     expect(zone("Retard de livraison des armoires")).toBe("Nominal");
-    // 12 000 000 is over a tenth of the reference budget of the whole structure, 65 430 697,64:
+    // 12 000 000 is over a tenth of the reference budget of the whole structure, 68 241 568,05:
     // its cell is of vigilance at a probability of 5 %, as the server classes it.
     expect(zone("Indisponibilité de l'automaticien")).toBe("Vigilance");
   });
@@ -435,13 +480,14 @@ describe("the changes the screen makes to its address, before the server has ans
     );
   });
 
-  it("keeps no number of rows per page, a flat table the server does not page: a limit in the address is not recorded [WF-IHM-0060-A]", async () => {
+  it("records the number of rows per page the address shows, under the key of the registry, as for every flat table the server pages [WF-IHM-0060-A]", async () => {
     page.search = "limit=25";
     renderRisks();
-    await new Promise((done) => setTimeout(done, 50));
-    const writes = (server.client as FakeClient).calls.filter(
-      ({ route }) => route === "PATCH /me/preferences",
-    );
-    expect(writes).toEqual([]);
+    const writes = () =>
+      (server.client as FakeClient).calls.filter(({ route }) => route === "PATCH /me/preferences");
+    await waitFor(() => {
+      expect(writes()).toHaveLength(1);
+    });
+    expect(writes()[0]?.body).toMatchObject({ grids: { risks: { page_size: 25 } } });
   });
 });

@@ -4,9 +4,12 @@
 # The end-to-end paths against the real service (US-0340), in the full tier only: the service
 # platform started — the API, Keycloak behind its front end in HTTPS, its realm applied —, Prism
 # as a proxy between the front and the API, which fails a path on an answer outside the contract,
-# and the Playwright project `service` (make e2e-service). On the runner itself, not in the image
-# of Playwright: the paths reach the platform on the ports Docker publishes on the runner, which a
-# job container does not see; the browser is installed with its system packages.
+# and the Playwright project `service` (make e2e-service), against the front built for production
+# once in the run of the chain, by its job front-build, which every part of e2e.yml plays too
+# (ci.yml, US-0590): called by ci.yml alone, which uploads the build before, this workflow builds
+# nothing. On the runner itself, not in the image of Playwright: the paths reach the platform on
+# the ports Docker publishes on the runner, which a job container does not see; the browser is
+# installed with its system packages.
 name: service
 
 on:
@@ -60,9 +63,15 @@ jobs:
       # Keycloak's image built from the cache first: the build of the platform by Compose, on the same
       # builder, finds it there, where it would otherwise compile its extension again.
       - run: make build-keycloak
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: front-build
+          path: frontend/.next/
+      # The front ci.yml built: the harness starts it, and builds nothing (playwright.config.ts).
       - run: make check-service
         env:
           TIER: full
+          E2E_BUILT: "1"
       # What the platform said, when a path failed or the platform did not start.
       - if: failure()
         run: make service-logs SERVICES="api keycloak keycloak-front-end contract-proxy"

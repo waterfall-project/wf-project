@@ -299,10 +299,10 @@ function rescheduled<
  * The fields of a line a write may move in time without writing it (`NodesWritten.reinflated`),
  * under their names on the line.
  */
-const INFLATION = ["inflated_amount", "consumption_year"] as const;
+const INFLATION = ["budgeted_amount", "reestimated_amount", "consumption_year"] as const;
 
 /** The field of a task, not a summary, a write may move in time without writing it. */
-const TASK_INFLATION = ["inflated_amount"] as const;
+const TASK_INFLATION = ["budgeted_amount", "reestimated_amount"] as const;
 
 /**
  * A row a write moved in time — a line, or a task its lines moved —: the fields of its amounts the
@@ -345,7 +345,7 @@ function composed<Row>(parts: readonly RowPart<Row>[]): RowPart<Row>[] {
  * What a write of a grid answered, as the grid reads it (#218): the nodes written, each ancestor
  * recalculated whole, each task rescheduled by the part of its schedule the grid reads — none for
  * a grid that reads no date —, each line or task moved in time by the part of its amounts the grid reads —
- * none for a grid that reads none (#235) —, the totals of the structure when the grid reads it
+ * none for a grid that reads none —, the totals of the structure when the grid reads it
  * whole — a filtered grid reads its own anew (`GridConfig.retotal`) —, in the order of the version
  * the structure moved on to, which each write moves on.
  */
@@ -396,10 +396,11 @@ export const NODE_COLUMNS = [
   "duration",
   "start",
   "finish",
-  "progress",
   "physical_progress",
   "total_float",
   "is_critical",
+  "started_on",
+  "completed_on",
   "predecessors",
   "work_breakdown",
   "cost_category",
@@ -413,7 +414,6 @@ export const NODE_COLUMNS = [
   "base_amount",
   "budgeted_amount",
   "reestimated_amount",
-  "inflated_amount",
   "previous_quantity",
   "previous_hours",
   "previous_unit_disbursement",

@@ -9,6 +9,10 @@
     "marked_at": null,
     "is_reference": false,
     "reference_year": 2026,
+    "inflation_rate": "0.03",
+    "win_probability": "1",
+    "source_revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "source_version_name": "Référence",
     "available_commands": [
       {
         "command": "edit_planning",
@@ -51,6 +55,13 @@
         "command": "merge_structure",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "apply_rate_update",
+        "is_available": false,
+        "missing_conditions": [
+          "rate_update_available"
+        ]
       },
       {
         "command": "mark",

@@ -6,7 +6,9 @@
  * contract, `is_contributor` —, a filter the user sees and lifts, never a restriction of what
  * they may read (WF-PRJ-0060). The address says whether it is lifted, under the name of the
  * contract: `is_contributor=false`; and the states it retains, `states`, its values separated by
- * commas (`explode: false`), none naming every state.
+ * commas (`explode: false`). An address that names none asks the states by default, pricing and in
+ * progress, unless the account kept others (WF-IHM-0060); every state has its own expression,
+ * `states=all`, which the server reads without filter.
  */
 import type { components } from "@/api/generated/schema";
 import type { ProjectState } from "@/api/project-state";
@@ -59,4 +61,35 @@ export function mayLiftContributorFilter(permissions: readonly PermissionCode[])
 /** Whether the home is filtered on the projects the user contributes to: unless lifted. */
 export function isContributorFiltered(search: SearchParameters): boolean {
   return search.get(CONTRIBUTOR_PARAMETER) !== "false";
+}
+
+/** The states the home retains when neither its address nor the account's preferences name any. */
+export const DEFAULT_STATES: readonly ProjectState[] = ["pricing", "in_progress"];
+
+/** The value of `states` that asks every state: the server reads the list without a filter. */
+export const EVERY_STATE_VALUE = "all";
+
+/**
+ * The states the home retains: those its address names — `all`, or any text that names none, every
+ * state, so an empty list —; an address that says nothing of them, those the account kept
+ * (`kept`, written as the address writes them), else the states by default. Contract order, each
+ * once.
+ */
+export function readHomeStates(
+  search: SearchParameters,
+  kept: string | null | undefined,
+): readonly ProjectState[] {
+  const text = search.get(STATES_PARAMETER) ?? kept ?? null;
+  if (text === null) {
+    return DEFAULT_STATES;
+  }
+  const named = new Set(text.split(","));
+  return PROJECT_STATES.filter((state) => named.has(state));
+}
+
+/** Whether the states retained are the states by default, which the home says while they apply. */
+export function isDefaultStates(states: readonly ProjectState[]): boolean {
+  return (
+    states.length === DEFAULT_STATES.length && DEFAULT_STATES.every((one) => states.includes(one))
+  );
 }

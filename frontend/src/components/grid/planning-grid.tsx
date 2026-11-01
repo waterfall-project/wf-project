@@ -16,7 +16,8 @@
  * Where the planning may be entered, the cells of a task are written by `updateTaskFacet`, each
  * alone (US-0470): its label, its description, its mode, its duration with its unit, the dates of a
  * manual task, its attachment — and its predecessors, the whole list at once, by `setPredecessors`,
- * the tasks it redates taking their place with it —; a refusal is said at its cell by the reason of
+ * the tasks it redates taking their place with it, a row number the rows read do not name asked of
+ * the server first (`resolveRowNumber`, US-0650) —; a refusal is said at its cell by the reason of
  * its field — a loop of links, naming its tasks, the task
  * that bears the item already, those the write would move out of the subtree of its lot
  * (WF-PLA-0170, EP-14/L44d), a date the server computes. In the empty grid, the skeleton
@@ -30,9 +31,15 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { generatePlanningSkeleton, setPredecessors, updateTaskFacet } from "@/api/actions/nodes";
+import {
+  generatePlanningSkeleton,
+  resolveRowNumber,
+  setPredecessors,
+  updateTaskFacet,
+} from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { Command } from "@/components/commands/command";
+import { rejected } from "@/components/commands/rejection";
 import { commandIcon, REVISION_COMMAND_ICONS } from "@/components/commands/icons";
 import type { CommandOffer } from "@/components/commands/offer";
 import {
@@ -45,6 +52,7 @@ import { useNoteMessage } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 
 import { DenseGrid } from "./dense-grid";
+import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeFilters,
@@ -64,6 +72,7 @@ import {
   type PlanningWrites,
 } from "./planning";
 import type { BreakdownItem } from "./planning-attachment";
+import { PlanningStart } from "./planning-start";
 import type { GridQuery } from "./query";
 import type { ChoiceOption, RowChoices } from "./row-choices";
 import type { GridPreferences } from "./settings";
@@ -106,6 +115,12 @@ export interface PlanningGridProps {
    * among, given where the planning may be entered; none, and the attachment is read only.
    */
   readonly breakdown?: readonly BreakdownItem[] | undefined;
+  /**
+   * The planning start date of the structure read (`CostStructure.planning_start_on`) and how the
+   * screen names the structure: shown above the grid, and entered where the structure lists
+   * `edit_planning` (`updateCostStructure`, WF-PLA-0020). None, and the grid shows none.
+   */
+  readonly planningStart?: { readonly on: string; readonly label: string } | undefined;
   /** What the revision offers of the skeleton (`generate_skeleton`); none, it does not list it. */
   readonly skeleton?: CommandOffer | undefined;
   /**
@@ -210,17 +225,60 @@ function taskOfRow(rows: readonly PlanningNode[], number: number): string | unde
   return undefined;
 }
 
+/** The task a row number names, among the rows read or those the server was asked, and the asking. */
+interface RowNames {
+  readonly resolve: (number: number) => string | null | undefined;
+  readonly ask: (numbers: readonly number[]) => Promise<void>;
+}
+
 /**
- * The task a row number names among the rows the grid reads (`taskOfRow`): one function for the life
- * of the grid, reading the rows of the reading committed last — the entry asks it in an event
+ * The task a row number names among the rows the grid reads (`taskOfRow`), or, for a number they do
+ * not name, among those the server was asked (`resolveRowNumber`, US-0650): a node that is no task
+ * — a line of the estimate — or a number no node bears (404) names none. Functions for the life of
+ * the grid, reading the rows of the reading committed last — the entry asks them in an event
  * handler, never while rendering — so that a reading anew does not build the configuration anew.
+ * The numbers asked are forgotten with the reading and the version they were asked on, which a
+ * write may have renumbered; an answer to a number asked before is dropped, and asked once more.
  */
-function useTaskOfRow(rows: readonly PlanningNode[]): (number: number) => string | undefined {
+function useRowNames(
+  rows: readonly PlanningNode[],
+  structure: StructurePath,
+  version: number,
+): RowNames {
   const read = useRef(rows);
+  const asked = useRef(new Map<number, string | null>());
   useLayoutEffect(() => {
     read.current = rows;
-  }, [rows]);
-  return useCallback((number) => taskOfRow(read.current, number), []);
+    asked.current = new Map();
+  }, [rows, version]);
+  const resolve = useCallback(
+    (number: number) => taskOfRow(read.current, number) ?? asked.current.get(number),
+    [],
+  );
+  const ask = useCallback(
+    async (numbers: readonly number[]) => {
+      // Asked once more if the reading or the version changed meanwhile: the numbering may have,
+      // and the answer then no longer holds.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const into = asked.current;
+        await Promise.all(
+          numbers.map(async (number) => {
+            const outcome = await resolveRowNumber(structure, number).catch(rejected);
+            if (outcome.kind === "done") {
+              into.set(number, outcome.data.kind === "task" ? outcome.data.node_id : null);
+            } else if (outcome.kind !== "unreachable" && outcome.problem.status === 404) {
+              into.set(number, null);
+            }
+          }),
+        );
+        if (into === asked.current) {
+          return;
+        }
+      }
+    },
+    [structure],
+  );
+  return useMemo(() => ({ resolve, ask }), [resolve, ask]);
 }
 
 /** Render the grid of the planning, its totals counting the tasks the answer retained. */
@@ -235,6 +293,7 @@ export function PlanningGrid({
   editable,
   breakdown,
   skeleton,
+  planningStart,
   timelines,
   timelineCreation,
   differential,
@@ -255,7 +314,7 @@ export function PlanningGrid({
   const { version, reach } = account;
   const filled = ours !== undefined && ours.version > structureVersion ? ours.rows : undefined;
   const shown = filled ?? nodes;
-  const taskOf = useTaskOfRow(shown.items);
+  const names = useRowNames(shown.items, structure, version);
   // A reader for each reading: an answer names rows a new reading may have renumbered.
   const dependencies = useMemo(
     () => nodeDependencies(structure, shown.items),
@@ -304,7 +363,8 @@ export function PlanningGrid({
       predecessors: {
         code: (link) => t("linkCode", { link }),
         suffix: (unit) => lagUnits(unit),
-        resolve: taskOf,
+        resolve: names.resolve,
+        ask: names.ask,
         write: async (node, predecessors) =>
           answered(
             await setPredecessors(structure, node.node_id, {
@@ -331,7 +391,7 @@ export function PlanningGrid({
     whole,
     reach,
     timelines,
-    taskOf,
+    names,
   ]);
   const config = useMemo(() => withDifference(read, differential), [read, differential]);
   // The skeleton moves the structure on as any write of the grid does: counted in the account, the
@@ -404,35 +464,52 @@ export function PlanningGrid({
           ),
         };
   const offered = nodes.items.length === 0 || ours !== undefined;
+  // The row of a task of the rows read, by its node, which a link in conflict is named by.
+  const rowNumbers = useMemo(() => {
+    const numbers = new Map(shown.items.map((node) => [node.node_id, node.row_number]));
+    return (nodeId: string) => numbers.get(nodeId);
+  }, [shown.items]);
   return (
     <>
+      {planningStart === undefined ? null : (
+        <PlanningStart
+          structure={structure}
+          planningStart={planningStart.on}
+          read={structureVersion}
+          label={planningStart.label}
+          account={account}
+          editable={editable === true}
+        />
+      )}
       {offered && (skeleton !== undefined || ours !== undefined) ? (
         <SkeletonOffer offer={skeleton} generate={generate} generated={ours} />
       ) : null}
-      <DenseGrid
-        config={config}
-        rows={shown.items}
-        totals={shown.totals}
-        totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
-        query={query}
-        preferences={preferences}
-        dependencies={dependencies}
-        foldScope={structure.revision_id}
-        narrowing={nodeNarrowing(filters)}
-        undoable={undoable}
-        commands={zoomed}
-        around={(rows, table) => (
-          <GanttRows
-            rows={rows}
-            scope={`${config.key}:${structure.revision_id}`}
-            hoursPerDay={gantt?.hoursPerDay}
-            exported={gantt?.exported}
-          >
-            {table}
-            <GanttLegend />
-          </GanttRows>
-        )}
-      />
+      <RowNumbers value={rowNumbers}>
+        <DenseGrid
+          config={config}
+          rows={shown.items}
+          totals={shown.totals}
+          totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
+          query={query}
+          preferences={preferences}
+          dependencies={dependencies}
+          foldScope={structure.revision_id}
+          narrowing={nodeNarrowing(filters)}
+          undoable={undoable}
+          commands={zoomed}
+          around={(rows, table) => (
+            <GanttRows
+              rows={rows}
+              scope={`${config.key}:${structure.revision_id}`}
+              hoursPerDay={gantt?.hoursPerDay}
+              exported={gantt?.exported}
+            >
+              {table}
+              <GanttLegend />
+            </GanttRows>
+          )}
+        />
+      </RowNumbers>
     </>
   );
 }

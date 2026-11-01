@@ -21,6 +21,9 @@ Examples of the contract, written under ``fixtures/api/volume/`` and cited by it
   pushes a successor into the next year — its schedule, the amounts corrected of its lines and
   of itself, the summaries above and the totals, recalculated from the same lines
   (``wftools.mockwrites``);
+- ``structure_planning_start_advanced.json``, ``updateCostStructure``: the planning start of that
+  structure advanced a week, in a declared variant read before any task started — the tasks in
+  automatic mode it redates (``wftools.mockplanning``, WF-PLA-0020);
 - ``portfolio_projects.json``, ``getPortfolioProjects``: the projects of the portfolio, the
   witness project and the offer of the other examples first, and ``portfolio_projects_page.json``,
   its second page of fifty;
@@ -41,7 +44,9 @@ And the named examples of ``listNodes`` and of ``getComputedValueDependencies``,
 ``nodes_estimate``, ``nodes_estimate_sorted`` and ``nodes_estimate_hours`` (sorted by
 ``wftools.mocksort``), ``nodes_installation``, ``nodes_milestone``, ``nodes_risk_occurred``,
 ``dependencies_summary``, ``dependencies_summary_moved``, ``dependencies_labour``,
-``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float`` —:
+``dependencies_labour_category``,
+``dependencies_task_amount``, ``dependencies_provision``, ``dependencies_manual_float``,
+``dependencies_provision_subproject`` —:
 readings of the readable core of the witness, described once in ``wftools.mockwitness`` and
 dated in ``wftools.mockcore``, so that every example names each node by one identifier, one
 lineage and one figure (EP-02/L21, #287); and the answers of the writes of the grids, made on
@@ -52,7 +57,12 @@ that core or on the structure of a thousand tasks, written beside them by ``wfto
 ``wftools.mockexchanges`` (EP-15/US-0460), and those of a date on a day without hours of work,
 refused entered and kept imported, by ``wftools.mocknonworking`` (#1271); and the answers of
 the entries of a risk, by ``wftools.mockriskwrites`` (EP-15/US-0520); and the revisions of the
-witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2).
+witness while the designation of its reference is open, by ``wftools.mockcycle`` (US-0490/L2);
+and its exit, its code refused and its readings by the quality of its reader, by
+``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
+``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
+a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
+majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -79,11 +89,14 @@ from wftools import (
     REPOSITORY,
     mockamendment,
     mockamendmentwrites,
+    mockanonymized,
     mockaudit,
+    mockcategories,
     mockcomparisons,
     mockcore,
     mockcosts,
     mockcycle,
+    mockdeclared,
     mockexchanges,
     mockgestures,
     mockhistory,
@@ -91,9 +104,14 @@ from wftools import (
     mockkanban,
     mocklists,
     mocknonworking,
+    mockplanning,
     mockportfoliotime,
+    mockproject,
     mockreference,
+    mockrefusals,
+    mockreview,
     mockriskwrites,
+    mocksnapshot,
     mocksort,
     mocktext,
     mocktoday,
@@ -101,10 +119,12 @@ from wftools import (
     mockwrites,
     paths,
 )
-from wftools.mockids import CATEGORIES, identifier, universe
+from wftools.mockids import universe
 from wftools.mockportfolio import (
     ALERT_THRESHOLD,
+    PERIOD_FROM,
     PROJECT_COUNT,
+    QUARTERS,
     UNOPENABLE_EVERY,
     WATCH_THRESHOLD,
     portfolio,
@@ -115,13 +135,10 @@ from wftools.mockportfolio import (
     portfolio_value,
 )
 from wftools.mockstructure import (
-    CATEGORY_LABELS,
     COMMISSIONING_RATE,
     ELECTRICAL_RATE,
     LABOR,
     LINES_PER_TASK,
-    NON_LABOR,
-    PROVISION,
     JsonObject,
     JsonValue,
     described,
@@ -138,21 +155,17 @@ from wftools.mockwitness import (
     CREATED_TIMELINE,
     DEFAULT_BREAKDOWN,
     ELECTRICAL_ENGINEERING,
-    EQUIPMENT,
     FIRST_ITEM,
     FIRST_LOT,
     FIXTURES,
     INSTALLATION,
     INSTALLED,
-    PROVISIONS,
     STEERING,
     STUDIES,
-    SUBCONTRACTING,
     TIMELINES,
     TODAY,
     WORK_BREAKDOWN,
     N,
-    fixture,
 )
 
 if TYPE_CHECKING:
@@ -168,8 +181,6 @@ VOLUME = "volume"
 """Where the volumes are written, under the fixtures: a directory the generator owns, entry by
 entry. The named examples of the witness are written beside it, file by file."""
 
-LABOR_CATEGORY_COUNT = 150
-CATEGORY_COUNT = 200
 RATE_YEARS = range(2012, 2027)
 """Fifteen years of rates, up to the reference year of the witness estimate."""
 
@@ -187,59 +198,13 @@ _AUDIT: JsonObject = {
 
 # --- The grid of hourly rates -------------------------------------------------------------
 
-_TRADES = (
-    "Ingénierie mécanique",
-    "Automatisme",
-    "Électricité",
-    "Instrumentation",
-    "Génie civil",
-    "Tuyauterie",
-    "Chaudronnerie",
-    "Informatique industrielle",
-    "Qualité",
-    "Méthodes",
-)
-_PURCHASES = (
-    "Matériel mécanique",
-    "Câbles",
-    "Instruments",
-    "Location d'engins",
-    "Transport",
-    "Essais en laboratoire",
-    "Études externes",
-)
-
 
 def categories() -> list[JsonValue]:
     """Return the answer of listCostCategories: the labour categories first, then the others."""
-    labor = [
-        (ELECTRICAL_ENGINEERING, CATEGORY_LABELS[ELECTRICAL_ENGINEERING]),
-        (COMMISSIONING, CATEGORY_LABELS[COMMISSIONING]),
-    ]
-    labor.extend(
-        (identifier(CATEGORIES, n), f"{_TRADES[n % len(_TRADES)]} — niveau {n // len(_TRADES) + 1}")
-        for n in range(LABOR_CATEGORY_COUNT - len(labor))
-    )
-    non_labor = [
-        (SUBCONTRACTING, CATEGORY_LABELS[SUBCONTRACTING]),
-        (EQUIPMENT, CATEGORY_LABELS[EQUIPMENT]),
-    ]
-    others = CATEGORY_COUNT - LABOR_CATEGORY_COUNT - 1
-    non_labor.extend(
-        (
-            identifier(CATEGORIES, LABOR_CATEGORY_COUNT + n),
-            f"{_PURCHASES[n % len(_PURCHASES)]} — lot {n // len(_PURCHASES) + 1}",
-        )
-        for n in range(others - len(non_labor))
-    )
-    # Each category names its nature, and its kind, as the natures of the universe do.
-    natures = {nature["cost_type_id"]: nature for nature in fixture("cost_types")["items"]}
     return [
-        *categories_of(labor, "MO", "641", natures[LABOR]),
-        *categories_of(non_labor, "ACH", "604", natures[NON_LABOR]),
-        *categories_of(
-            [(PROVISIONS, CATEGORY_LABELS[PROVISIONS])], "PRV", "681", natures[PROVISION]
-        ),
+        category
+        for entries, code, account, nature in mockcategories.groups()
+        for category in categories_of(entries, code, account, nature)
     ]
 
 
@@ -342,8 +307,13 @@ def named() -> dict[str, JsonObject]:
     portfolio over time that sum it with the other projects (``mockportfoliotime``); the
     journal of audit of the universe (``mockaudit``); the readings of the lists of the
     reference written by hand (``mockreference``), and those of the projects, the subprojects
-    and the contributors (``mocklists``).
+    and the contributors (``mocklists``), the contributors once an account is anonymised
+    (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
+    (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
+    declared without a code, a condition nor an example (``mockdeclared``); the examples of the
+    majors of the review of the 2026-10-31 (``mockreview``).
     """
+    marked = mocksnapshot.revisions(categories())
     return {
         **readings(),
         **mockwrites.writes(),
@@ -352,7 +322,8 @@ def named() -> dict[str, JsonObject]:
         **mockamendmentwrites.examples(),
         **mockexchanges.examples(),
         **mocknonworking.examples(),
-        **mockamendment.examples(),
+        **mockamendment.examples(marked["revision_marked"]),
+        **mocksnapshot.examples(marked),
         **mockhistory.examples(),
         **mockcycle.examples(),
         **mockcomparisons.examples(),
@@ -363,6 +334,11 @@ def named() -> dict[str, JsonObject]:
         **mockaudit.examples(),
         **mockreference.named(),
         **mocklists.examples(),
+        **mockanonymized.examples(),
+        **mockproject.examples(),
+        **mockrefusals.examples(),
+        **mockdeclared.examples(),
+        **mockreview.examples(),
     }
 
 
@@ -545,10 +521,15 @@ def readings() -> dict[str, JsonObject]:
         "nodes_risk_occurred.json": _example(
             f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
             f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
-            f"seul (subtree_of) le {day} : ses deux tâches, terminées en mai, et leurs lignes de "
-            f"120 et 80, aux montants budgétés nuls — la survenance ne déplace pas la référence — "
-            f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
-            f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
+            f"seul (subtree_of) le {day} : la racine unique de son devis propre, « Retard de "
+            f"livraison des armoires » (nodes_risk_estimate_occurred), placée avec ses "
+            f"subordonnées en dernière position sous le « Poste de commande », qui portait la "
+            f"provision ; ses deux tâches, terminées en mai — la relance, sans prédécesseur dans "
+            f"le devis propre, en mode manuel aux dates qu'elle y avait, le transport à sa suite "
+            f"—, et leurs lignes de 120 et 80, aux montants budgétés nuls — la survenance ne "
+            f"déplace pas la référence — et réestimés de 120 et 80 ; chaque nœud porte le risque "
+            f"(origin_risk_id) ; la ligne de provision a disparu, et la récapitulative somme ses "
+            f"lignes (WF-RIS-0060, WF-RIS-0050, #1788, #1761).",
             mockcore.subtree(rows, _RISK_OCCURRED),
         ),
         "timelines.json": _example(
@@ -628,6 +609,11 @@ def readings() -> dict[str, JsonObject]:
             "(WF-IHM-0030, WF-DEV-0030, WF-DEV-0050).",
             mockcore.dependencies(rows, _LABOUR, "estimate_line.base_amount"),
         ),
+        "dependencies_labour_category.json": _example(
+            "Ce dont dépend la catégorie de la ligne de main-d'œuvre du devis : son rôle de "
+            "ressource, dont elle tient sa catégorie ; aucune ligne (WF-IHM-0030, WF-DEV-0020).",
+            mockcore.dependencies(rows, _LABOUR, "estimate_line.cost_category_id"),
+        ),
         "dependencies_task_amount.json": _example(
             "Ce dont dépend le montant à l'année de référence de la tâche « Câblage des "
             "armoires » : les trois lignes qu'elle porte (WF-IHM-0030, WF-DEV-0050).",
@@ -642,6 +628,12 @@ def readings() -> dict[str, JsonObject]:
             "Ce dont dépend la marge de la tâche en mode manuel du planning : son mode, qui ne "
             "lui en donne aucune (WF-IHM-0030, WF-PLA-0100).",
             mockcore.dependencies(rows, _DESKS, "task.total_float"),
+        ),
+        "dependencies_provision_subproject.json": _example(
+            "Ce dont dépend le sous-projet de la ligne de provision du devis : son risque, qui le "
+            "désigne ; la ligne en change par son risque (updateRisk), jamais par la grille "
+            "(WF-IHM-0030, WF-RIS-0010, WF-PRJ-0050).",
+            mockcore.dependencies(rows, _PROVISION, mockcore.PROVISION_SUBPROJECT),
         ),
     }
 
@@ -673,13 +665,14 @@ def volumes() -> dict[str, JsonObject]:
             f"{mocktext.count(mockwrites.LENGTHENED_BY)} jours ouvrés dans la structure du témoin "
             "aux volumes du §4.6.2 : la tâche finit le 31 décembre 2026, dans sa marge, et "
             "« Reprise 2.1.30 », qui la suit, glisse au premier jour ouvré de 2027 ; ses lignes "
-            "sont consommées un an plus tard, leur montant corrigé de l'inflation et le sien "
-            "changent (reinflated), sa marge et celle des tâches de sa chaîne diminuent "
-            "(rescheduled), les récapitulatives au-dessus et les "
-            "totaux sont recalculés, le montant à l'année de référence inchangé (WF-PLA-0020, "
-            "WF-DEV-0040, WF-DEV-0050).",
+            "sont consommées un an plus tard, leur montant réestimé, inflation comprise, et le "
+            "sien changent (reinflated), sa marge et celle des tâches de sa chaîne diminuent "
+            "(rescheduled), les récapitulatives au-dessus et les totaux sont recalculés ; le "
+            "budgété, projeté sur l'année où la référence consommait les lignes, et le montant "
+            "aux taux de l'année de référence inchangés (WF-PLA-0020, WF-DEV-0020, WF-DEV-0040).",
             mockwrites.task_lengthened(),
         ),
+        "structure_planning_start_advanced.json": mockplanning.example(),
         "estimate_indicators_volume.json": _example(
             f"Les indicateurs du devis de la structure aux volumes du §4.6.2, sommés sur les "
             f"mêmes lignes que la grille : {_amount(Decimal(cast('str', total['value'])))} au "
@@ -722,15 +715,18 @@ def volumes() -> dict[str, JsonObject]:
             f"{_day(TODAY.date())} : chaque indice est le rapport des sommes de leurs "
             f"valeurs acquises, coûts réels et valeurs planifiées, la répartition compte "
             f"chaque projet dans la zone de chacun de ses indices, et l'évolution court sur "
-            f"quatre trimestres, le premier non calculable, rien n'ayant encore été dépensé "
-            f"ni planifié (WF-PTF-0070).",
+            f"les {_count(len(QUARTERS))} trimestres que touche la période par défaut, du "
+            f"{_day(PERIOD_FROM)} au {_day(TODAY.date())}, chacun lu à sa fin — le dernier au "
+            f"jour —, les deux premiers non calculables, rien n'ayant encore été dépensé ni "
+            f"planifié (WF-PTF-0070).",
             portfolio_performance(rows, mockportfoliotime.quarterly(rows)),
         ),
         "portfolio_cost_structure.json": _example(
             f"La structure des coûts des projets en cours du portefeuille du §4.6.2 au "
-            f"{_day(TODAY.date())} : leur budget de référence et leur reste à engager par "
-            "nature, en montant et en part, et leur main-d'œuvre par nœud d'organisation de ses "
-            "rôles ; aucune ventilation du coût réel (WF-PTF-0080).",
+            f"{_day(TODAY.date())} : leur budget de référence, hors lignes de provision, et leur "
+            "reste à engager, provisions comprises, par nature, en montant et en part, et leur "
+            "main-d'œuvre par nœud d'organisation de ses rôles ; aucune ventilation du coût réel "
+            "(WF-PTF-0080, WF-IND-0020). Aucun projet terminé n'est dans la période par défaut.",
             portfolio_cost_structure(rows),
         ),
         "portfolio_risks.json": _example(

@@ -16,6 +16,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { BackupDeposit } from "./backup-commands";
@@ -139,10 +140,21 @@ describe("the deposit of a backup of another installation", () => {
     const dialog = screen.getByRole("dialog", { name: "Restaurer la plateforme" });
     await userEvent.click(within(dialog).getByRole("textbox"));
     await userEvent.paste(UPLOAD);
+    // Whether the dialog was still busy in the commit that told the refusal: the request over, never
+    // while it holds Escape (#1474).
+    const busyWhenTold: (string | null)[] = [];
+    const observer = new MutationObserver(() => {
+      if (busyWhenTold.length === 0 && within(dialog).queryByRole("alert") !== null) {
+        busyWhenTold.push(dialog.getAttribute("aria-busy"));
+      }
+    });
+    observer.observe(dialog, { subtree: true, childList: true, attributes: true });
     await userEvent.click(within(dialog).getByRole("button", { name: "Restaurer" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Cette opération demande une confirmation explicite.",
     );
+    observer.disconnect();
+    expect(busyWhenTold).toEqual(["false"]);
     expect(
       screen.queryByRole("status", { name: "Restauration de la plateforme en cours" }),
     ).toBeNull();
@@ -162,10 +174,19 @@ describe("the deposit of a backup of another installation", () => {
       within(region).getByLabelText("Archive de la sauvegarde"),
       new File(["x"], "notes.txt"),
     );
+    // Whether the choice of a file was still held in the commit that told the refusal: the deposit
+    // over, never while another file cannot be chosen (#1484).
+    const field = within(region).getByLabelText("Archive de la sauvegarde");
+    const heldWhenTold = atCommit(
+      region,
+      () => within(region).queryByRole("alert") !== null,
+      () => (field.hasAttribute("disabled") ? "held" : "free"),
+    );
     await userEvent.click(within(region).getByRole("button", { name: "Déposer" }));
     expect(await within(region).findByRole("alert")).toHaveTextContent(
       "Le format du fichier est illisible.",
     );
+    expect(heldWhenTold.stop()).toEqual(["free"]);
     expect(within(region).queryByRole("button", { name: "Restaurer cette sauvegarde" })).toBeNull();
   });
 

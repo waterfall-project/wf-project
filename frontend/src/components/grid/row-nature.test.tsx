@@ -34,12 +34,12 @@ describe("the nature of a row", () => {
       "labour",
       "disbursement",
       "provision",
+      "milestone",
       "summary",
       "task",
       "disbursement",
       "task",
       "disbursement",
-      "milestone",
     ]);
   });
 

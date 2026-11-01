@@ -636,6 +636,13 @@ def test_every_category_bears_an_accounting_code_of_its_own() -> None:
 # --- The refusals by field of a nature or a category -------------------------------------------
 
 
+def _bound(pointer: str, name: str) -> int:
+    """Return the `maxLength` of the field a refusal of a nature or of a category points to."""
+    schema = "CostTypeWrite" if name.startswith("cost_type") else "CostCategoryWrite"
+    text = (API / "components" / "schemas" / "reference.yaml").read_text(encoding="utf-8")
+    return max_length(text, schema, pointer.removeprefix("/"))
+
+
 @pytest.mark.parametrize(
     "name",
     [
@@ -653,7 +660,11 @@ def test_a_write_of_the_cost_settings_is_refused_field_by_field(name: str) -> No
     assert fields
     for field in fields:
         assert field["code"] in REFUSALS[field["pointer"]], name
-        assert "params" not in field, name
+        # A value too long names the bound of its field (J-02, #1796); no other motive a param.
+        if field["code"] == "VALUE_TOO_LONG":
+            assert field["params"] == {"max_length": _bound(field["pointer"], name)}, name
+        else:
+            assert "params" not in field, name
     if name.startswith("cost_type"):
         assert all(field["pointer"] in TEXTS - {"/accounting_code"} for field in fields), name
 

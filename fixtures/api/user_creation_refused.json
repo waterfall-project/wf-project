@@ -1,13 +1,9 @@
 {
-  "summary": "Un compte créé avec un rôle d'habilitation que l'installation n'a pas, en second rang, et un nœud d'organisation qu'elle n'a pas : chaque champ en défaut est désigné, et rien n'est écrit (WF-ADM-0050, WF-ADM-0030).",
+  "summary": "Un compte créé avec un rattachement à un nœud d'organisation que l'installation n'a pas : le champ en défaut est désigné, et rien n'est écrit (WF-ADM-0050, WF-ADM-0030).",
   "value": {
     "code": "VALIDATION_FAILED",
     "status": 422,
     "fields": [
-      {
-        "pointer": "/access_role_ids/1",
-        "code": "UNKNOWN_ACCESS_ROLE"
-      },
       {
         "pointer": "/org_node_id",
         "code": "UNKNOWN_ORG_NODE"

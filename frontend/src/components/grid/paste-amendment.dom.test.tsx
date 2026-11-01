@@ -10,6 +10,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { APPLY, bodies, copied, PREVIEW, STRUCTURE } from "@/test/paste-grid";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList } from "./nodes";
@@ -61,7 +62,7 @@ function renderDifferential(nodes: NodeList, search?: string) {
         editable
         tasksEditable
         query={{ sort: undefined, search, size: undefined }}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
         differential
       />
     </NextIntlClientProvider>,

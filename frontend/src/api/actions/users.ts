@@ -17,7 +17,14 @@
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
-import { type BackgroundTask, decode, decodeTask, type Outcome } from "@/api/problem";
+import {
+  type BackgroundTask,
+  decode,
+  decodeTask,
+  type Outcome,
+  type Settled,
+  settled,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 
 type Schemas = components["schemas"];
@@ -121,6 +128,34 @@ export async function createPasswordSetupLink(
  */
 export async function startIdentitySync(): Promise<Outcome<BackgroundTask>> {
   return decodeTask(() => serverClient().POST("/identity-syncs"));
+}
+
+/**
+ * Set the periodicity of the reading of the accounts whole, from the version read (WF-ADM-0070): the
+ * schedule as it now is is answered, which the screen shows in place of what it read, and the page is
+ * read anew. The reading in course is not interrupted; the setting holds from the next one.
+ */
+export async function setIdentitySyncSchedule(
+  schedule: Schemas["IdentitySyncSchedule"],
+): Promise<Outcome<Schemas["IdentitySyncSchedule"]>> {
+  return readAnew(
+    await decode(() => serverClient().PUT("/identity-sync-schedule", { body: schedule })),
+  );
+}
+
+/**
+ * Ask the identity provider to send again the email by which the holder of a local account sets its
+ * password (WF-ADM-0140): nothing is answered but that it went (204), and nothing of the page changes.
+ * A provider that sends none (503) is a refusal the screen tells, never a sent email.
+ */
+export async function resendInvitation(userId: string): Promise<Settled> {
+  return settled(
+    await decode(() =>
+      serverClient().POST("/users/{user_id}/invitation", {
+        params: { path: { user_id: userId } },
+      }),
+    ),
+  );
 }
 
 /** The most accounts a search of an author offers to choose: a search narrows, it does not list. */

@@ -3,7 +3,8 @@
 /**
  * The request of an export (WF-INTF-0050, WF-INTF-0110, WF-INTF-0130, WF-PLA-0120): the kind of
  * file chosen among those the revision read offers to export (WF-IHM-0090) — and, for the image
- * of the tree of tasks, the level it stops at, if the user gives one —, asked by a server action.
+ * of the tree of tasks, the level it stops at, and, for the remaining to commit, the date of the
+ * review the file bears (WF-INTF-0130), if the user gives them —, asked by a server action.
  * An export is present or absent — the permission to read its kind guards it, and it lacks no
  * condition, a terminal project included (WF-CYC-0110) —: a kind the revision does not list is
  * not offered; one it would list unavailable would stay, the request naming what it lacks. The
@@ -16,7 +17,7 @@
 
 import { FileDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 
 import { type ExportRequest, requestFileExport } from "@/api/actions/exchanges";
 import type { Outcome } from "@/api/problem";
@@ -27,6 +28,8 @@ import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useTrackTask } from "@/components/tasks/task-tracker";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
+
+import { isPlanningDate } from "@/i18n/format";
 
 import { EXPORT_KINDS, type ExportOffers } from "./offers";
 
@@ -81,13 +84,16 @@ function OfferedExports({
   const offer = offers[kind];
   const unmet = offer === undefined ? undefined : unmetId(offer, field);
   const [depth, setDepth] = useState("");
+  const [reviewDate, setReviewDate] = useState("");
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
-  const [pending, startTransition] = useTransition();
+  // Busy from the request to the answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   // A link clicked while the export is asked waits for it, and is not followed when refused.
   const held = useHeldCommand();
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (pending || offer?.is_available !== true) {
+    if (busy || offer?.is_available !== true) {
       return;
     }
     // The level of the image of the tree, when the user gives one; the server's otherwise.
@@ -95,26 +101,29 @@ function OfferedExports({
       kind === "task_tree_image" && /^[1-9]\d*$/.test(depth) && Number.isSafeInteger(Number(depth))
         ? Number(depth)
         : null;
+    // The date of the review of a remaining to commit, when the user gives one: the day of the
+    // request otherwise, which the server chooses (WF-INTF-0130).
+    const review = kind === "remaining" && isPlanningDate(reviewDate) ? reviewDate : null;
     const request: ExportRequest = {
       kind,
       revision_id: revisionId,
       ...(kind === "task_tree_image" ? { depth: level } : {}),
+      ...(kind === "remaining" ? { review_date: review } : {}),
     };
     const command = () => requestFileExport(projectId, request);
-    startTransition(async () => {
-      const result = await held(command());
+    setBusy(true);
+    void held(command()).then((result) => {
+      setBusy(false);
       if (result.kind === "done") {
-        setOutcome(undefined);
-        track(result.data, { command, subject: t(`enums.ExportRequest.kind.${kind}`) });
-      } else {
-        setOutcome(result);
+        track(result.data, { command, subject: t(`enums.ExportKind.${kind}`) });
       }
+      setOutcome(result.kind === "done" ? undefined : result);
     });
   };
   return (
     <form
       aria-label={t("exchanges.export.title")}
-      aria-busy={pending}
+      aria-busy={busy}
       onSubmit={submit}
       className="space-y-2"
     >
@@ -134,7 +143,7 @@ function OfferedExports({
           >
             {offered.map((value) => (
               <option key={value} value={value}>
-                {t(`enums.ExportRequest.kind.${value}`)}
+                {t(`enums.ExportKind.${value}`)}
               </option>
             ))}
           </NativeSelect>
@@ -152,6 +161,19 @@ function OfferedExports({
                 setDepth(event.target.value);
               }}
               className="h-8 w-20 rounded-md border border-input bg-background px-2 text-foreground"
+            />
+          </label>
+        ) : null}
+        {kind === "remaining" ? (
+          <label className="flex items-center gap-2 text-sm">
+            {t("exchanges.export.reviewDate")}
+            <input
+              type="date"
+              value={reviewDate}
+              onChange={(event) => {
+                setReviewDate(event.target.value);
+              }}
+              className="h-8 rounded-md border border-input bg-background px-2 text-foreground"
             />
           </label>
         ) : null}

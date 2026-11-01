@@ -1,0 +1,12 @@
+{
+  "summary": "La sortie du projet témoin vers Terminé, confirmée, qui marque sa révision en cours sous « Référence », le nom que la révision marquée 101 porte déjà : refusée, le champ désigné et la révision qui le porte nommée, comme `markRevision` ; rien n'est écrit (WF-CYC-0090, WF-REV-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "ALREADY_EXISTS",
+    "status": 409,
+    "fields": [
+      {"pointer":"/current_revision/version_name","code":"ALREADY_EXISTS","params":{"conflicting_object_id":"01926f3a-7c00-7000-8000-000000000101"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001609"
+  }
+}

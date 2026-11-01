@@ -36,7 +36,15 @@
           (README, « Une recherche… » ; WF-IHM-0130) : « ines roux » trouve Inès Roux par le
           prénom suivi du nom, qu'aucune colonne ne porte entier.
         schema: { type: string, minLength: 1, maxLength: 200 }
-      - $ref: ../components/parameters.yaml#/IncludeInactive
+      - name: include_inactive
+        in: query
+        description: >-
+          Inclut les comptes désactivés, lisibles sous la même permission que les actifs
+          (`users.read`) : un compte désactivé reste affiché partout où il a agi (WF-ADM-0060).
+          Propre aux comptes : la règle du référentiel, qui réserve les désactivés à la
+          permission de modification (`IncludeInactive`, WF-REF-0150), ne vaut pas ici
+          (décision de l'auteur du 2026-11-01, #1736).
+        schema: { type: boolean, default: false }
       - name: is_active
         in: query
         description: >-
@@ -152,6 +160,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               period_inverted: { $ref: ../../../fixtures/api/users_period_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createUser
@@ -163,7 +172,11 @@
       (WF-ADM-0050, WF-ADM-0070, WF-ADM-0180). Un compte local naît sans mot de passe et ne
       peut pas se connecter avant que son porteur n'en ait fixé un par le lien envoyé à son
       adresse — ou remis par un utilisateur habilité, qui l'obtient de
-      `createPasswordSetupLink` (WF-ADM-0140).
+      `createPasswordSetupLink` (WF-ADM-0140). Il naît aussi sans rôle, comme un compte lu de
+      l'annuaire (WF-ADM-0070) : ses rôles lui sont attribués ensuite par `setUserAccessRoles`,
+      qui exige de plus la permission de modifier les rôles d'habilitation (WF-ADM-0090,
+      WF-ADM-0100) ; la création et l'attribution s'inscrivent chacune au journal sous leur
+      propre requête.
     requestBody:
       required: true
       content:
@@ -198,10 +211,8 @@
       '422':
         description: >-
           Une écriture refusée par champ, `VALIDATION_FAILED`, `fields` désignant chaque champ
-          en défaut (WF-ADM-0050) : un rôle
-          d'habilitation que l'installation n'a pas, ou supprimé (`/access_role_ids/<rang>`,
-          `UNKNOWN_ACCESS_ROLE`) ; un nœud d'organisation qu'elle n'a pas (`/org_node_id`,
-          `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
+          en défaut (WF-ADM-0050) : un nœud d'organisation que l'installation n'a pas
+          (`/org_node_id`, `UNKNOWN_ORG_NODE`), ou que le référentiel a désactivé
           (`INACTIVE_REFERENCE_OBJECT`) ; une adresse, un nom ou un prénom que le fournisseur
           d'identité refuse alors que la règle des adresses et des noms du contrat les admet — des
           points qui se suivent, une partie locale de plus de 64 caractères, un caractère qu'il
@@ -212,6 +223,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unknown_references: { $ref: ../../../fixtures/api/user_creation_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}:
@@ -234,6 +246,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateUser
@@ -290,6 +303,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               external_account: { $ref: ../../../fixtures/api/user_external_update_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/activation:
@@ -340,6 +354,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_reactivation_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/anonymization:
@@ -398,6 +413,7 @@
               anonymized: { $ref: ../../../fixtures/api/user_anonymization_repeated.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/access-roles:
@@ -463,6 +479,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unknown_access_role: { $ref: ../../../fixtures/api/user_access_roles_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/password-link:
@@ -472,17 +489,16 @@
     summary: Obtenir le lien de fixation du mot de passe d'un compte
     description: >-
       Engendre, pour un compte local, le lien par lequel son porteur fixe ou réinitialise son
-      mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal
-      (WF-ADM-0140) : c'est ainsi que le premier administrateur fixe son mot de passe à
-      l'installation (WF-EXP-0020) et que la réinitialisation se fait sur une installation
-      sans messagerie (WF-CMP-0030). Le lien est celui que le courriel du fournisseur d'identité
-      porterait — à usage unique, valable une heure, vers la page de ce fournisseur qui fixe le
-      mot de passe, et non vers un écran de Waterfall —, créé par lui, et rendu une seule fois :
-      un lien précédent du même compte cesse de valoir. Sous la permission de modifier les
-      comptes (`users.write`, WF-ADM-0100) ;
-      chaque demande est inscrite au journal d'audit, sans le jeton (WF-SEC-0030). Aucun écran
-      ne présente, ne demande ni ne saisit de mot de passe : ce lien est le seul élément
-      d'authentification que Waterfall montre (WF-ADM-0140).
+      mot de passe, et le rend à l'appelant pour qu'il le remette par un autre canal (WF-ADM-0140) —
+      le renvoi du courriel qui le porte est `resendInvitation` — : c'est ainsi que le premier
+      administrateur fixe son mot de passe à l'installation (WF-EXP-0020) et que la réinitialisation
+      se fait sur une installation sans messagerie (WF-CMP-0030). Le lien est celui que le courriel
+      du fournisseur d'identité porterait — à usage unique, valable une heure, vers la page de ce
+      fournisseur qui fixe le mot de passe, et non vers un écran de Waterfall —, créé par lui, et
+      rendu une seule fois : un lien précédent du même compte cesse de valoir. Sous la permission de
+      modifier les comptes (`users.write`, WF-ADM-0100) ; chaque demande est inscrite au journal
+      d'audit, sans le jeton (WF-SEC-0030). Aucun écran ne présente, ne demande ni ne saisit de mot
+      de passe : ce lien est le seul élément d'authentification que Waterfall montre (WF-ADM-0140).
     parameters:
       - $ref: ../components/parameters.yaml#/UserId
     responses:
@@ -499,16 +515,66 @@
       '409':
         description: >-
           `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque
-          (`CommandCondition`) : `is_local_account` quand le compte n'est pas local — un compte de
-          l'annuaire ou d'un fournisseur externe s'authentifie auprès du fournisseur d'identité
-          et n'a pas de mot de passe à fixer ici —, `is_active_account` quand il est désactivé
-          (WF-ADM-0140, WF-ADM-0060). Un compte qui manque aux deux est refusé par la première.
+          (`CommandCondition`), celle que le compte dit d'avance de sa commande
+          (`create_password_link`), jugées dans cet ordre : `is_local_account` quand le compte
+          n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie
+          auprès du fournisseur d'identité et n'a pas de mot de passe à fixer ici —,
+          `is_not_anonymized` quand il est anonymisé — retiré du fournisseur d'identité, de façon
+          irréversible, ce que sa réactivation ne lèverait pas —, `is_active_account` quand il est
+          désactivé (WF-ADM-0140, WF-ADM-0060). Le refus nomme la première qui manque.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               not_local: { $ref: ../../../fixtures/api/password_link_not_local.json }
+              anonymized: { $ref: ../../../fixtures/api/password_link_anonymized.json }
               deactivated: { $ref: ../../../fixtures/api/password_link_deactivated.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/users/{user_id}/invitation:
+  post:
+    operationId: resendInvitation
+    tags: [users]
+    summary: Renvoyer le courriel de fixation du mot de passe d'un compte
+    description: >-
+      Fait renvoyer par le fournisseur d'identité, à l'adresse d'un compte local, le courriel qui
+      porte le lien par lequel son porteur fixe ou réinitialise son mot de passe (WF-ADM-0140) :
+      celui que `createUser` envoie à la création (`UserCreated.invitation_sent`), pour un
+      porteur qui ne l'a pas reçu, l'a perdu ou l'a laissé expirer. Le lien est celui que
+      `createPasswordSetupLink` rendrait — à usage unique, valable une heure, vers la page du
+      fournisseur d'identité —, et un lien précédent du même compte cesse de valoir ; Waterfall
+      ne le voit pas. Sous la permission de modifier les comptes (`users.write`, WF-ADM-0100) ;
+      chaque renvoi est inscrit au journal d'audit comme la demande d'un lien,
+      `password_link_create`, sans le jeton (WF-SEC-0030). Un courriel que le fournisseur
+      n'envoie pas — installation sans messagerie (WF-CMP-0030), serveur de courriel en échec,
+      fournisseur injoignable — rend 503 `COMPONENT_UNAVAILABLE`, `params.component` à
+      `identity_provider`, et n'est jamais présenté comme parti (WF-EXP-0040) : l'écran propose
+      alors le lien à remettre par un autre canal (`createPasswordSetupLink`).
+    parameters:
+      - $ref: ../components/parameters.yaml#/UserId
+    responses:
+      '204':
+        description: Courriel envoyé par le fournisseur d'identité.
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque
+          (`CommandCondition`), celle que le compte dit d'avance de sa commande
+          (`resend_invitation`), jugées comme pour le lien, dans cet ordre : `is_local_account`
+          quand le compte n'est pas local, `is_not_anonymized` quand il est anonymisé,
+          `is_active_account` quand il est désactivé (WF-ADM-0140, WF-ADM-0060). Le refus nomme
+          la première qui manque. Aucun courriel ne part.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_local: { $ref: ../../../fixtures/api/invitation_not_local.json }
+              anonymized: { $ref: ../../../fixtures/api/invitation_anonymized.json }
+              deactivated: { $ref: ../../../fixtures/api/invitation_deactivated.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /users/{user_id}/avatar:
@@ -530,6 +596,7 @@
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /identity-syncs:
@@ -551,7 +618,9 @@
       qu'il fédère. Une personne de l'annuaire dont l'adresse est déjà portée par un compte est
       rattachée à ce compte ; un compte anonymisé n'est ni modifié ni recréé ; les comptes
       locaux du fournisseur que Waterfall ne connaît pas et qui n'ont jamais eu de mot de passe
-      en sont retirés (#707, #811). Sous la permission de modifier les comptes (`users.write`).
+      en sont retirés (#707, #811). La lecture planifiée suit la périodicité choisie
+      (`getIdentitySyncSchedule`, WF-ADM-0070). Sous la permission de modifier les comptes
+      (`users.write`).
       Réussie, la tâche donne pour résultat le compte rendu de `getLatestIdentitySync`.
     responses:
       '202':
@@ -563,6 +632,7 @@
               queued: { $ref: ../../../fixtures/api/identity_sync_queued.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /identity-syncs/latest:
@@ -591,6 +661,75 @@
               anonymized: { $ref: ../../../fixtures/api/identity_sync_report_anonymized.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/identity-sync-schedule:
+  get:
+    operationId: getIdentitySyncSchedule
+    tags: [users]
+    summary: Périodicité de la lecture des comptes
+    description: >-
+      La fréquence et l'heure auxquelles la plateforme lit d'elle-même les comptes du
+      fournisseur d'identité, choisies par un utilisateur habilité, quotidiennes par défaut,
+      comme celles des sauvegardes (WF-ADM-0070, WF-ADM-0170). Une installation neuve lit la
+      périodicité livrée (`IdentitySyncSchedule`) : le 404 ne dit que la lecture refusée. Lisible
+      sous la permission de consulter les comptes (`users.read`, WF-ADM-0100).
+    responses:
+      '200':
+        description: Périodicité courante (WF-ADM-0070).
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/IdentitySyncSchedule }
+            examples:
+              witness: { $ref: ../../../fixtures/api/identity_sync_schedule.json }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+  put:
+    operationId: setIdentitySyncSchedule
+    tags: [users]
+    summary: Régler la périodicité de la lecture des comptes
+    description: >-
+      La fréquence et l'heure de la lecture planifiée, toutes deux exigées, le jour pour une
+      lecture hebdomadaire seulement, et son activation (WF-ADM-0070) : une personne ajoutée à
+      l'annuaire a un compte au terme de la périodicité choisie, sans intervention. Le réglage
+      vaut dès la lecture planifiée suivante ; une lecture en cours n'est pas interrompue. Sous
+      la permission de modifier les comptes (`users.write`, WF-ADM-0100), celle qui lance la
+      lecture à la demande (`startIdentitySync`).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform.yaml#/IdentitySyncSchedule }
+    responses:
+      '200':
+        description: Périodicité enregistrée, avec son compteur suivant.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/platform.yaml#/IdentitySyncSchedule }
+            examples:
+              set: { $ref: ../../../fixtures/api/identity_sync_schedule_set.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          Une périodicité refusée, `VALIDATION_FAILED`, `fields` désignant chaque champ en
+          défaut, comme celle des sauvegardes : une fréquence ou une heure absentes, par
+          `VALUE_REQUIRED` ; un jour hors de 1 à 7 (`/weekday`), `VALUE_OUT_OF_RANGE`,
+          `params.minimum` ou `maximum` la seule borne franchie ; un jour nul pour une lecture
+          hebdomadaire, `/weekday` par `VALUE_REQUIRED`, ou donné à une quotidienne, `/weekday`
+          par le motif `VALIDATION_FAILED` (WF-ADM-0070). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              weekday_out_of_range: { $ref: ../../../fixtures/api/identity_sync_schedule_weekday_out_of_range.json }
+              weekday_missing: { $ref: ../../../fixtures/api/identity_sync_schedule_weekday_missing.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /permissions:
@@ -613,6 +752,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/permissions.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles:
@@ -636,7 +776,9 @@
       compris. Les rôles supprimés (`deleteAccessRole`) n'y figurent plus. Un tri à égalité se
       départage par l'ordre de la liste sans tri — le libellé —, puis par l'identifiant du rôle,
       dans l'ordre croissant, pour que deux lectures successives rendent le même ordre
-      (WF-IHM-0060, #741).
+      (WF-IHM-0060, #741). Sans pagination : une installation compte quelques dizaines de rôles
+      au plus — les trois prédéfinis et ceux qu'elle compose —, que l'écran pagine lui-même, la
+      réponse étant la liste entière.
     parameters:
       - $ref: ../components/parameters.yaml#/Search
       - name: is_predefined
@@ -727,6 +869,9 @@
             examples:
               bounds_inverted: { $ref: ../../../fixtures/api/access_roles_bounds_inverted.json }
               period_inverted: { $ref: ../../../fixtures/api/access_roles_period_inverted.json }
+              number_invalid: { $ref: ../../../fixtures/api/access_roles_number_invalid.json }
+              date_invalid: { $ref: ../../../fixtures/api/access_roles_date_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: createAccessRole
@@ -752,6 +897,7 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /access-roles/{access_role_id}:
@@ -770,8 +916,11 @@
         content:
           application/json:
             schema: { $ref: ../components/schemas/access.yaml#/AccessRole }
+            examples:
+              witness: { $ref: ../../../fixtures/api/access_role.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: updateAccessRole
@@ -812,6 +961,7 @@
               last_administrator: { $ref: ../../../fixtures/api/access_role_update_refused.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   delete:
     operationId: deleteAccessRole
@@ -824,6 +974,14 @@
       n'a jamais existé. Refusé tant qu'un compte le porte (WF-ADM-0090, WF-ADM-0120).
     parameters:
       - $ref: ../components/parameters.yaml#/AccessRoleId
+      - name: lock_version
+        in: query
+        required: true
+        description: >-
+          Le compteur du rôle supprimé, tel que l'écran l'a lu (`AccessRole.lock_version`) :
+          périmé, la suppression est refusée par 412 et rien n'est supprimé (WF-IHM-0110 ;
+          décision de l'auteur du 2026-11-01, #1733).
+        schema: { $ref: ../components/common.yaml#/LockVersion }
     responses:
       '204':
         description: Rôle supprimé.
@@ -832,9 +990,22 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Rôle encore porté par un compte, `ACCESS_ROLE_IN_USE` (WF-ADM-0090) ; rien n'est
-          supprimé.
+          Rôle encore porté par un compte, désactivé compris, `ACCESS_ROLE_IN_USE`
+          (WF-ADM-0090) ; rien n'est supprimé.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              in_use: { $ref: ../../../fixtures/api/access_role_delete_refused.json }
+      '412':
+        description: >-
+          `STALE_LOCK_VERSION` : le rôle a été écrit depuis sa lecture, et rien n'est supprimé ;
+          `params.expected_lock_version` est son compteur courant (WF-IHM-0110, #1733).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              stale: { $ref: ../../../fixtures/api/access_role_delete_stale.json }
+      '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

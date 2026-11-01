@@ -12,7 +12,8 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { LocalTime } from "@/components/local-time";
 import type { Catalogue } from "@/i18n/catalogues";
-import { formatDecimal, formatShare } from "@/i18n/format";
+import { formatDecimal, formatMoney, formatShare } from "@/i18n/format";
+import type { Locale } from "@/i18n/locale";
 
 /** A value that may not be computable (WF-IND-0010). */
 export type Computable = components["schemas"]["Computable"];
@@ -45,16 +46,28 @@ export type IndicatorLabel = `indicator.names.${IndicatorName}`;
 
 /**
  * How each indicator shows its value: a progress or a consumption is a share, a percentage to
- * the hundredth; an index or a projection, as the decimal the API gave. Every name of the
- * catalogue is classified: one added there fails the type check until it is here.
+ * the hundredth; an index, as the decimal the API gave; a projection, an amount with the currency
+ * of the installation (WF-REF-0140). Every name of the catalogue is classified: one added there
+ * fails the type check until it is here.
  */
-const FORMATS: Readonly<Record<IndicatorLabel, typeof formatShare>> = {
+const FORMATS: Readonly<
+  Record<
+    IndicatorLabel,
+    (
+      value: string,
+      locale: Locale,
+      words: Parameters<typeof formatShare>[2],
+      currency: string | undefined,
+    ) => string
+  >
+> = {
   "indicator.names.financialProgress": formatShare,
   "indicator.names.budgetConsumption": formatShare,
   "indicator.names.physicalProgress": formatShare,
   "indicator.names.costIndex": formatDecimal,
   "indicator.names.scheduleIndex": formatDecimal,
-  "indicator.names.projectionAtObservedRate": formatDecimal,
+  "indicator.names.projectionAtObservedRate": (value, locale, _words, currency) =>
+    formatMoney(value, locale, currency),
 };
 
 /** An indicator: the key of its name in the catalogues; its value; its context. */
@@ -68,6 +81,8 @@ export interface ComputedIndicatorProps {
    * (`held`) — once for all its indicators, never left out.
    */
   readonly date?: "own" | "held";
+  /** The currency of the installation, which an amount carries; none when it is unknown. */
+  readonly currency?: string | undefined;
 }
 
 /** Render an indicator, its value or why it has none, and the date it is computed at. */
@@ -76,6 +91,7 @@ export function ComputedIndicator({
   value,
   context,
   date = "own",
+  currency,
 }: ComputedIndicatorProps) {
   const t = useTranslations();
   const bounds = useTranslations("share");
@@ -89,7 +105,7 @@ export function ComputedIndicator({
       <dd className="text-lg font-semibold tabular-nums">
         {computed === null
           ? t("indicator.notComputable")
-          : FORMATS[indicator](computed, locale, bounds)}
+          : FORMATS[indicator](computed, locale, bounds, currency)}
       </dd>
       {reason === null ? null : (
         <dd className="text-sm text-muted-foreground">

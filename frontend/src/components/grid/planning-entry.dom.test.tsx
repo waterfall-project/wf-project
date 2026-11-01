@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { forgetMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
@@ -20,6 +21,7 @@ import {
 
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { breakdownItems, type WorkBreakdownReading } from "./planning-attachment";
+import { PLANNING_GRID } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
 
@@ -36,11 +38,21 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+type RowNumberResolution = components["schemas"]["RowNumberResolution"];
+
 const NO_QUERY: GridQuery<NodeSortColumn> = { sort: undefined, search: undefined, size: undefined };
 const TASK =
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task";
 const PREDECESSORS =
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/predecessors";
+const ROW =
+  "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}";
+// No node bears the number asked: refused as an object that does not exist (WF-ADM-0110).
+const NO_ROW = { problem: example("row_number_unknown") as Problem & { readonly status: 404 } };
+// The server out of reach (WF-ARC-0110): the problem of an example of the contract that bears 503.
+const UNAVAILABLE = (
+  example("system_status_backup_failed") as components["schemas"]["SystemStatus"]
+).last_backup?.problem as Problem & { readonly status: 503 };
 const STRUCTURE = {
   project_id: "01926f3a-7c00-7000-8000-000000000001",
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
@@ -52,6 +64,16 @@ const STRUCTURE = {
 const planning = example("nodes_planning") as NodeList;
 const nested = example("nodes_nested") as NodeList;
 const breakdown = breakdownItems(example("work_breakdown") as WorkBreakdownReading);
+
+// The columns the grid shows by itself but the Gantt, which no test here enters: drawn at each of
+// the renders an entry makes, it doubled the time of the slowest test, past a second under the
+// coverage (#1474).
+const PREFERENCES = {
+  hidden_columns: [
+    ...PLANNING_GRID.columns.filter((column) => column.hidden === true).map((column) => column.key),
+    "gantt",
+  ],
+};
 
 /** The index of a row of a list, by the label of its task. */
 function rowOf(list: NodeList, label: string): number {
@@ -81,7 +103,7 @@ function grid(
         structureVersion={1}
         filters={{ kinds: ["task"] }}
         query={NO_QUERY}
-        preferences={undefined}
+        preferences={PREFERENCES}
         undoable={editable}
         editable={editable}
         breakdown={editable ? breakdown : undefined}
@@ -426,7 +448,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
   );
 
   it("writes the links typed in place of the task's, the four types and a lead among them, and takes the row answered and the successor the server redated in place of those read [WF-PLA-0030-A] [WF-PLA-0020-A]", async () => {
-    // « 19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50% »: the four types, a lag, none, a lead, a share. The
+    // « 14FD+2 j ; 10DD ; 16FF-1 sem ; 18DF+50% »: the four types, a lag, none, a lead, a share. The
     // fake back answers by its first example: the mounting 2 d after « Réception usine », and
     // « Mise en service », which it redates without writing it, moved from 21/12/2026 to
     // 23/12/2026 — the successor shown as the server dated it, the front dating nothing.
@@ -437,7 +459,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     expect(cellAt(commissioning, "start")).toHaveTextContent("21/12/2026");
     await retype(
       await entered(mounting, "predecessors"),
-      "19FD+2 j ; 10DD ; 15FF-1 sem ; 17DF+50%",
+      "14FD+2 j ; 10DD ; 16FF-1 sem ; 18DF+50%",
     );
     await vi.waitFor(() => {
       expect(linksSent(client)).toHaveLength(1);
@@ -474,7 +496,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     // The row answered, and the successor the server redated, in place of the rows read.
     expect(await within(cellAt(commissioning, "start")).findByText("23/12/2026")).toBeVisible();
     expect(cellAt(commissioning, "finish")).toHaveTextContent("05/01/2027");
-    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^18FD\+2\s*j$/);
+    expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^13FD\+2\s*j$/);
     expect(cellAt(mounting, "start")).toHaveTextContent("03/07/2026");
   });
 
@@ -482,7 +504,7 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
     const client = serve({ [PREDECESSORS]: "predecessor_set" });
     render(grid(nested, { locale: "en" }));
     const mounting = rowOf(nested, "Montage des armoires sur site");
-    await retype(await entered(mounting, "predecessors"), "19FS+2 d; 10SF");
+    await retype(await entered(mounting, "predecessors"), "14FS+2 d; 10SF");
     await vi.waitFor(() => {
       expect(linksSent(client)).toHaveLength(1);
     });
@@ -546,18 +568,18 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
       }
       expect(cellAt(mounting, "predecessors")).toHaveAttribute("aria-invalid", "true");
       // Nothing is written: the row keeps the links it had.
-      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^19$/);
+      expect(cellAt(mounting, "predecessors")).toHaveTextContent(/^14$/);
     },
   );
 
   it.each([
-    { text: "99", problem: "Aucune ligne de la grille n’a l’un de ces numéros." },
-    { text: "19 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
-    { text: "19FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "99", problem: "Aucune tâche de la structure ne porte l’un de ces numéros." },
+    { text: "14 quand", problem: /^Ce ne sont pas des prédécesseurs/ },
+    { text: "14FD+2 parsecs", problem: /^Ce ne sont pas des prédécesseurs/ },
   ])(
     "keeps the entry open, saying why, for « $text », a row unknown or a text that is no link, and sends nothing [WF-PLA-0030-A]",
     async ({ text, problem }) => {
-      const client = serve({ [PREDECESSORS]: "predecessor_set" });
+      const client = serve({ [PREDECESSORS]: "predecessor_set", [ROW]: NO_ROW });
       render(grid(nested));
       const mounting = rowOf(nested, "Montage des armoires sur site");
       await retype(await entered(mounting, "predecessors"), text);
@@ -578,5 +600,169 @@ describe("the predecessors of a task entered in the grid of the planning", () =>
       "aria-readonly",
       "true",
     );
+  });
+});
+
+// aucune exigence : propre à l'US (US-0650, un numéro de ligne absent des lignes lues).
+describe("a predecessor whose number no row read bears, resolved by the server", () => {
+  // The mounting is the row the example `predecessor_set` answers: the grid reads it, and nothing
+  // else is said of it than what the server answered (no alert, #1528).
+  const reception = rowOf(nested, "Montage des armoires sur site");
+  const node = nested.items[reception];
+  // The number 3, a task of the main structure the grid does not read, which the example answers
+  // for; the same number as a line of the estimate, the other.
+  const task = example("row_number_task") as RowNumberResolution;
+
+  /** The links the grid sent, and the row numbers it asked the server. */
+  function sentOf(client: FakeClient) {
+    return {
+      asked: client.calls.filter((call) => call.route === ROW).map((c) => c.path.split("/").at(-1)),
+      links: client.calls.filter((call) => call.route === PREDECESSORS).map((call) => call.body),
+    };
+  }
+
+  it("asks the server the task of a number no row read bears, the entry waiting, and writes it in predecessor_node_id", async () => {
+    const { until, release } = held();
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "10; 3DD");
+    // The entry waits for the answer, its text read only.
+    const field = screen.getByRole("textbox", { name: "Prédécesseurs" });
+    expect(field).toHaveAttribute("aria-busy", "true");
+    expect(field).toHaveAttribute("readonly");
+    expect(sentOf(client)).toEqual({ asked: ["3"], links: [] });
+    await act(async () => {
+      release();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(sentOf(client).links[0]).toEqual({
+      predecessors: [
+        {
+          predecessor_node_id: nested.items[rowOf(nested, "Câblage des armoires")]?.node_id,
+          link_type: "finish_to_start",
+          lag: { value: "0", unit: "d" },
+        },
+        {
+          predecessor_node_id: task.node_id,
+          link_type: "start_to_start",
+          lag: { value: "0", unit: "d" },
+        },
+      ],
+      lock_version: node?.lock_version,
+    });
+    expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it.each([
+    { name: "a line of the estimate", answer: "row_number_estimate_line" as const },
+    { name: "a number no node bears", answer: NO_ROW },
+  ])("refuses as unknown $name, and sends nothing", async ({ answer }) => {
+    const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Aucune tâche de la structure ne porte l’un de ces numéros.",
+    );
+    expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(sentOf(client)).toEqual({ asked: ["3"], links: [] });
+  });
+
+  it.each([
+    { name: "validates where it is", answer: "row_number_task" as const, links: 1 },
+    { name: "abandons, no task bearing its number,", answer: NO_ROW, links: 0 },
+  ])("$name an entry left before the server named its rows", async ({ answer, links }) => {
+    const client = serve({ [ROW]: answer, [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const field = await entered(reception, "predecessors");
+    await userEvent.clear(field);
+    await userEvent.type(field, "3");
+    // Left by a click elsewhere: the entry waits for the server, a blur being no key to keep it.
+    act(() => {
+      cellAt(rowOf(nested, "Poste de commande"), "label").focus();
+    });
+    expect(screen.getByRole("textbox", { name: "Prédécesseurs" })).toHaveAttribute("aria-busy");
+    await waitFor(() => {
+      expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+      expect(sentOf(client).links).toHaveLength(links);
+    });
+    expect(sentOf(client).asked).toEqual(["3"]);
+  });
+
+  // aucune exigence : propre à l'US (US-0650). Garde l'état final seul — aucun champ en attente
+  // ne reste une fois la saisie quittée dans un act asynchrone —, sans prouver la garde de
+  // `askFirst` (grid-keyboard.ts), dont la course ne se reproduit pas par la grille entière.
+  it("keeps no field busy once the entry is left inside an asynchronous act", async () => {
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" });
+    render(grid(nested));
+    const field = await entered(reception, "predecessors");
+    await userEvent.clear(field);
+    await userEvent.type(field, "3");
+    // Left by a blur inside one asynchronous act.
+    await act(async () => {
+      cellAt(rowOf(nested, "Poste de commande"), "label").focus();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(screen.queryByRole("textbox", { name: "Prédécesseurs" })).toBeNull();
+    expect(document.querySelector("[aria-busy='true']")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("asks again a number when the rows were read anew while the server was answering", async () => {
+    const { until, release } = held();
+    const client = serve({ [ROW]: "row_number_task", [PREDECESSORS]: "predecessor_set" }, until);
+    const { rerender } = render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
+    expect(sentOf(client).asked).toEqual(["3"]);
+    // A reading anew between the question and the answer: the numbering may have changed.
+    rerender(grid({ ...nested, items: [...nested.items] }));
+    await act(async () => {
+      release();
+      await vi.waitFor(() => {
+        expect(sentOf(client).links).toHaveLength(1);
+      });
+    });
+    expect(sentOf(client).asked).toEqual(["3", "3"]);
+    expect(screen.queryByText(/n’a pu être vérifié/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says a number the server could not be asked, and asks again when validated anew", async () => {
+    const client = serve({
+      [ROW]: [{ problem: UNAVAILABLE }, "row_number_task"],
+      [PREDECESSORS]: "predecessor_set",
+    });
+    render(grid(nested));
+    await retype(await entered(reception, "predecessors"), "3");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "L’un de ces numéros n’a pu être vérifié : validez à nouveau dans un instant.",
+    );
+    expect(sentOf(client).links).toEqual([]);
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => {
+      expect(sentOf(client).links).toHaveLength(1);
+    });
+    expect(sentOf(client)).toEqual({
+      asked: ["3", "3"],
+      links: [
+        {
+          predecessors: [
+            {
+              predecessor_node_id: task.node_id,
+              link_type: "finish_to_start",
+              lag: { value: "0", unit: "d" },
+            },
+          ],
+          lock_version: node?.lock_version,
+        },
+      ],
+    });
   });
 });

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { CurrencyProvider } from "@/currency/context";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
@@ -20,21 +21,42 @@ function text(markup: string): string {
 }
 
 /** The summary of the remaining to commit on an answer of the API, in English by default. */
-function renderSummary(indicators: RemainingIndicators, locale: "en" | "fr" = "en"): string {
+function renderSummary(
+  indicators: RemainingIndicators,
+  locale: "en" | "fr" = "en",
+  currency?: string,
+): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <RemainingSummary indicators={indicators} />
+      <CurrencyProvider currency={currency}>
+        <RemainingSummary indicators={indicators} currency={currency} />
+      </CurrencyProvider>
     </NextIntlClientProvider>,
   );
 }
 
+/** A share the server computed. */
+function computed(value: string): RemainingIndicators["by_cost_type"][number]["share"] {
+  return { is_computable: true, value, reason: null };
+}
+
 describe("the summary of the remaining to commit", () => {
+  it("shows the currency of the installation with each amount, in each language [WF-REF-0140-A]", () => {
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    expect(text(renderSummary(indicators, "en", "EUR"))).toContain(
+      "Remaining to commit €67,470,132.98 Margin on the reference budget -€641,535.13",
+    );
+    expect(text(renderSummary(indicators, "fr", "EUR"))).toMatch(
+      /Marge sur le budget de référence -641\s535,13\s€/,
+    );
+  });
+
   it("leaves out the deviation from a previous review that never was, rather than nil [WF-RAE-0020-A]", () => {
     // Sur un projet sans revue précédente, l'écart correspondant est absent plutôt que nul.
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary({ ...indicators, delta_to_previous_revision: null }));
     expect(html).toContain(
-      "Remaining to commit 67,293,028.72 Margin on the reference budget -3,275,301.28 By nature of cost",
+      "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 By nature of cost",
     );
     expect(html).not.toContain("previous review");
   });
@@ -43,8 +65,8 @@ describe("the summary of the remaining to commit", () => {
     // Les écarts sont présents et signés : le reste à engager parle de marge (#466).
     const indicators = example("remaining_indicators") as RemainingIndicators;
     const html = text(renderSummary(indicators, "fr"));
-    expect(html).toMatch(/Marge sur le budget de référence -3\s275\s301,28/);
-    expect(html).toMatch(/Poste de commande\s: 23\s251\s897,56, marge -1\s037\s316,10/);
+    expect(html).toMatch(/Marge sur le budget de référence -641\s535,13/);
+    expect(html).toMatch(/Poste de commande\s: 23\s314\s197,53, marge -64\s699,97/);
     expect(html).not.toContain("Écart au budget");
   });
 
@@ -55,13 +77,30 @@ describe("the summary of the remaining to commit", () => {
     const tiny = {
       ...indicators,
       by_cost_type: indicators.by_cost_type.map((item) =>
-        item.label === "Provision" ? { ...item, share: "0.00004" } : item,
+        item.label === "Provision" ? { ...item, share: computed("0.00004") } : item,
       ),
     };
     expect(text(renderSummary(tiny))).toContain("Provision: 500,000.00 (<0.01%)");
     // The spaces of French, no-break ones, are read as plain ones.
     expect(text(renderSummary(tiny, "fr"))).toContain("Provision : 500 000,00 (< 0,01 %)");
     expect(text(renderSummary(indicators))).toContain("Provision: 500,000.00 (0.74%)");
+  });
+
+  it("says a share of a nil total not computable, with its reason, rather than leaving it out [WF-IND-0010-A] [WF-RAE-0020-A]", () => {
+    // A variant of `remaining_indicators`: the share of the provision, not computable on a nil total.
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    const nil = {
+      ...indicators,
+      by_cost_type: indicators.by_cost_type.map((item) =>
+        item.label === "Provision"
+          ? { ...item, share: { is_computable: false, value: null, reason: "no_total" as const } }
+          : item,
+      ),
+    };
+    expect(text(renderSummary(nil))).toContain(
+      "Provision: 500,000.00 (Not computable — The total is zero.)",
+    );
+    expect(text(renderSummary(nil, "fr"))).toContain("Le total est nul.");
   });
 
   it("dates the coverage of the risks as every card, each region reading alone [WF-IHM-0020-A]", () => {
@@ -78,7 +117,7 @@ describe("the summary of the remaining to commit", () => {
     const empty = text(renderSummary({ ...indicators, by_cost_type: [], by_subproject: [] }));
     expect(empty).not.toContain("By nature of cost");
     expect(empty).not.toContain("by sub-project");
-    expect(empty).toContain("Remaining to commit 67,293,028.72");
+    expect(empty).toContain("Remaining to commit 67,470,132.98");
     expect(empty).toContain("Risk coverage");
     const some = text(renderSummary({ ...indicators, by_cost_type: [] }));
     expect(some).not.toContain("By nature of cost");

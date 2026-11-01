@@ -1,0 +1,16 @@
+{
+  "summary": "L'autre issue de l'analyse de l'import du devis de l'avenant 2 « reprise des essais » ouvert aujourd'hui à 8 h 40 (import_analysing, …0a11) : sa tâche échouée à 8 h 41, à 40 %, sur une défaillance du service ; aucun compte rendu n'est produit, rien n'est écrit, et le fichier se redépose. Une variante contrefactuelle : l'analyse du témoin aboutit (import_analysed) (WF-ARC-0090, WF-ARC-0100, WF-IHM-0080, #1379).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000934",
+    "kind": "import_analysis",
+    "status": "failed",
+    "progress": 40,
+    "submitted_at": "2026-06-03T08:40:05Z",
+    "finished_at": "2026-06-03T08:41:00Z",
+    "problem": {
+      "code": "INTERNAL_ERROR",
+      "status": 500
+    },
+    "result_url": null
+  }
+}

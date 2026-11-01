@@ -22,6 +22,7 @@ import {
   HardDrive,
   History,
   Server,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -44,7 +45,7 @@ import { BoundsRefused, ReferenceSection } from "@/components/reference/section"
 import { Signal } from "@/components/signal/signal";
 import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import type { ResultRefusal } from "@/components/tasks/result-refusal";
-import { formatBytes } from "@/i18n/format";
+import { formatBytes, formatPercent } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 import type { ListPage } from "@/navigation/pages";
 
@@ -135,6 +136,41 @@ export function StorageFacts({ storage }: { readonly storage: SystemStatus["stor
           <div key={key} className="contents">
             <dt className="text-muted-foreground">{t(key)}</dt>
             <dd className="text-right tabular-nums">{formatBytes(value, locale)}</dd>
+          </div>
+        ))}
+      </dl>
+    </ReferenceSection>
+  );
+}
+
+/**
+ * The operating parameters in force (§4.5.1, WF-ADM-0130): set by the operator at the deployment and
+ * written by no operation, each as the API gives it — a duration in seconds or days, a size in bytes
+ * said in its unit, a rate as a percentage —, the front computing none.
+ */
+export function OperatingParametersFacts({
+  parameters,
+}: {
+  readonly parameters: SystemStatus["operating_parameters"];
+}) {
+  const t = useTranslations("admin.status.parameters");
+  const locale = useLocale();
+  const facts = [
+    ["cacheValidity", t("seconds", { count: parameters.cache_validity_seconds })],
+    ["taskRetention", t("days", { count: parameters.background_task_retention_days })],
+    ["avatarMax", formatBytes(parameters.avatar_max_bytes, locale)],
+    ["queueAge", t("seconds", { count: parameters.task_queue_age_threshold_seconds })],
+    ["storageUsage", formatPercent(parameters.storage_usage_threshold, locale)],
+    ["errorRate", formatPercent(parameters.error_rate_threshold, locale)],
+    ["errorWindow", t("seconds", { count: parameters.error_rate_window_seconds })],
+  ] as const;
+  return (
+    <ReferenceSection title={t("title")} icon={SlidersHorizontal}>
+      <dl className="grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1 text-sm">
+        {facts.map(([key, value]) => (
+          <div key={key} className="contents">
+            <dt className="text-muted-foreground">{t(key)}</dt>
+            <dd className="text-right tabular-nums">{value}</dd>
           </div>
         ))}
       </dl>

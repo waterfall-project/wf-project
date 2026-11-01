@@ -14,7 +14,7 @@
 import { refresh } from "next/cache";
 
 import type { components } from "@/api/generated/schema";
-import { decode, type Outcome, type Settled, settled } from "@/api/problem";
+import { type BackgroundTask, decode, type Outcome, type Settled, settled } from "@/api/problem";
 import { serverClient } from "@/api/server";
 import type { ProjectState } from "@/api/project-state";
 
@@ -92,14 +92,21 @@ export async function writeSubproject(
 /**
  * Delete a sub-project (WF-PRJ-0050): refused (409) while a marked revision cites it or actual costs
  * are charged to it, or its project is terminal, the first condition it lacks named
- * (`params.missing_condition`).
+ * (`params.missing_condition`), or when it moved since the counter read (412, WF-IHM-0110).
  */
-export async function deleteSubproject(projectId: string, subprojectId: string): Promise<Settled> {
+export async function deleteSubproject(
+  projectId: string,
+  subprojectId: string,
+  lockVersion: number,
+): Promise<Settled> {
   return readAnew(
     settled(
       await decode(() =>
         serverClient().DELETE("/projects/{project_id}/subprojects/{subproject_id}", {
-          params: { path: { project_id: projectId, subproject_id: subprojectId } },
+          params: {
+            path: { project_id: projectId, subproject_id: subprojectId },
+            query: { lock_version: lockVersion },
+          },
         }),
       ),
     ),
@@ -177,25 +184,39 @@ export async function deleteTimeline(projectId: string, timelineId: string): Pro
 }
 
 /**
- * Take a project out of its lifecycle, once the user has confirmed it (WF-CYC-0060, WF-CYC-0090):
- * the state the API answers it is in, and the page rendered again, which reads the project anew,
- * read only. An exit the state of the project forbids is a refusal of the API, told as such —
- * and the page rendered again too, so that it no longer offers what the server refused.
+ * What an exit answers: the state the project is in (200), or — when it marks the current revision
+ * — the background task that marks it, the exit applying only when the task succeeds (202).
+ */
+export type ExitResult = { readonly exited: ProjectState } | { readonly marking: BackgroundTask };
+
+/**
+ * Take a project out of its lifecycle, once the user has confirmed it (WF-CYC-0060, WF-CYC-0090),
+ * with the fate of its current revision, if it carries one: abandoned or exited without one, the
+ * API answers the state the project is in, and the page is rendered again, which reads the project
+ * anew, read only; marked, it answers the task that marks the revision (WF-ARC-0090), and nothing
+ * is read again until the task succeeds — the screen follows it. An exit the state of the project
+ * forbids is a refusal of the API, told as such — and the page rendered again too, so that it no
+ * longer offers what the server refused.
  */
 export async function exitProject(
   projectId: string,
   exit: ProjectExit,
-): Promise<Outcome<ProjectState>> {
+): Promise<Outcome<ExitResult>> {
   const outcome = await decode(() =>
     serverClient().POST("/projects/{project_id}/exit", {
       params: { path: { project_id: projectId } },
       body: exit,
     }),
   );
-  // Applied, or refused for the state of the project (409): the page reads the project anew,
-  // and offers what the server offers now.
-  if (outcome.kind === "done" || outcome.kind === "conflict") {
+  if (outcome.kind === "conflict") {
     refresh();
   }
-  return outcome.kind === "done" ? { kind: "done", data: outcome.data.state } : outcome;
+  if (outcome.kind !== "done") {
+    return outcome;
+  }
+  if ("state" in outcome.data) {
+    refresh();
+    return { kind: "done", data: { exited: outcome.data.state } };
+  }
+  return { kind: "done", data: { marking: outcome.data } };
 }

@@ -29,7 +29,7 @@
  */
 "use client";
 
-import { ChevronDown, KeyRound, UserRoundX } from "lucide-react";
+import { ChevronDown, KeyRound, Mail, UserRoundX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 
@@ -299,6 +299,50 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
     >
       <KeyRound aria-hidden="true" />
       {t("link")}
+    </CellCommand>
+  );
+}
+
+/**
+ * The command that has the email of the link sent again to a local account, named after it —
+ * unavailable while the account is deactivated, as the server would refuse it (`is_active_account`) —;
+ * none for another account, nor for an anonymised one (WF-ADM-0140). Marked busy while a write of its
+ * row is under way or the email is asked, and unavailable the while: a press asks nothing.
+ */
+export function ResendInvitationCommand({ user }: { readonly user: User }) {
+  const t = useTranslations("admin.users");
+  const told = useTranslations("admin.commands");
+  const said = useTranslations("commands");
+  const writes = useUserWrites();
+  const unmet = useUnmet();
+  const name = useAccountNaming().person(user);
+  if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
+    return null;
+  }
+  const command = t("resend_invitation.command", { name });
+  const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
+  const busy = writes.busy.has(user.user_id) || writes.resending.has(user.user_id);
+  const held = busy || writes.asked.get(user.user_id)?.is_active === false;
+  return (
+    <CellCommand
+      label={command}
+      help={said("resend_invitation.help")}
+      unavailable={lacking}
+      waiting={held}
+      aria-busy={busy}
+      className={UNAVAILABLE}
+      onClick={(event) => {
+        if (lacking !== undefined) {
+          writes.say(told("unmet", { command, condition: lacking }), { noted: false });
+          return;
+        }
+        if (!held) {
+          writes.resend(user, name, event.currentTarget);
+        }
+      }}
+    >
+      <Mail aria-hidden="true" />
+      {t("resend")}
     </CellCommand>
   );
 }

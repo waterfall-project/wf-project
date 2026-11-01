@@ -740,7 +740,7 @@ saisisse ce qu'il doit, et qu'un projet garde toujours un chef.
 - écart : `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l'annuaire, reste actif
   et la synchronisation le signale. » : constaté par EP-03 ;
 - écart : `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur
-  d'identité. » : constaté par EP-03 ;
+  d'identité, sans rôle. » : constaté par EP-03 ;
 - écart : `WF-ADM-0070-A` — « Une personne ajoutée à l'annuaire a un compte dans Waterfall au terme
   de la périodicité choisie, sans intervention. » : constaté par EP-03 ;
 - écart : `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l'annuaire
@@ -898,11 +898,12 @@ version du projet soit une révision, et une seule à la fois.
 - `WF-REV-0010-A` — « L'abandon de l'unique révision d'un projet en chiffrage le laisse sans
   révision, à l'état Chiffrage, et la création d'une révision y est de nouveau proposée. »
 - écart : `WF-REV-0010-A` — « Une révision créée à partir d'une révision marquée porte les mêmes
-  tâches et les mêmes lignes ; à année de référence égale, elle porte aussi les mêmes valeurs de
-  référentiel ; sinon, elle porte les mêmes rôles, calendriers et catégories, et, pour chaque
-  catégorie dont la mise à jour de WF-REV-0060 n'a pas été acceptée, le taux précédent projeté par
-  le taux d'inflation du projet jusqu'à la nouvelle année de référence. » : les tâches sont
-  d'EP-06, les lignes et les valeurs d'EP-07, qui clôt ; ici, la copie reprend les structures ;
+  tâches et les mêmes lignes, hors celles des structures qu'elle ne reprend pas (WF-REV-0100) ; à
+  année de référence égale, elle porte aussi les mêmes valeurs de référentiel ; sinon, elle porte
+  les mêmes rôles, calendriers et catégories, et, pour chaque catégorie dont la mise à jour de
+  WF-REV-0060 n'a pas été acceptée, le taux précédent projeté par le taux d'inflation du projet
+  jusqu'à la nouvelle année de référence. » : les tâches sont d'EP-06, les lignes et les valeurs
+  d'EP-07, qui clôt ; ici, la copie reprend les structures ;
 - `WF-REV-0070-A` — « La liste des révisions marquées est accessible depuis le projet, et
   l'ouverture de l'une d'elles affiche son planning, son devis et ses montants tels qu'ils étaient
   au marquage. » : la liste, par `listRevisions`, filtrée par `status` et cherchée ; le planning
@@ -918,18 +919,20 @@ version du projet soit une révision, et une seule à la fois.
   d'une révision marquée ne redevient jamais « en cours ». » : aucune opération ne l'écrit, et une
   contrainte de la base refuse le retour (US-0970) ;
 - `WF-REV-0100-A` — « La première révision d'un projet comporte, à sa création, une structure
-  principale et aucune autre ; une révision créée à partir d'une révision marquée en reprend
-  toutes les structures, différentielles et propres des risques comprises (WF-REV-0010). » : la
-  principale, `kind` `main`, créée avec la révision ; les différentiels et les devis propres sont
-  d'EP-08, qui clôt ;
+  principale et aucune autre ; une révision créée à partir d'une révision marquée en reprend toutes
+  les structures, différentielles et propres des risques comprises, hors les structures
+  différentielles déjà fusionnées et les structures propres des risques survenus (WF-REV-0010,
+  WF-REV-0050, WF-RIS-0060). » : la principale, `kind` `main`, créée avec la révision ; les
+  différentiels et les devis propres sont d'EP-08, qui clôt ;
 - écart : `WF-REV-0100-A` — « Deux structures différentielles coexistent dans une même révision,
   et la fusion de l'une laisse l'autre intacte. » : EP-08 ;
 - écart : `WF-REV-0100-A` — « Un risque déclaré ajoute une structure propre, présente dans chaque
-  révision marquée postérieure. » : EP-08 ;
+  révision marquée postérieure tant qu'il n'est pas survenu. » : EP-08 ;
 - `WF-DAT-0010-A` — « Après marquage d'une révision puis création de la suivante, le nombre de
   lignes de chaque table portant l'identifiant de la nouvelle révision égale celui de la révision
-  marquée. » : pour `cost_structure` ici, par la copie ; chaque EPIC suivant ajoute ses tables à
-  la même copie, et EP-07 clôt ;
+  marquée, hors les lignes des structures différentielles fusionnées et des structures propres des
+  risques survenus. » : pour `cost_structure` ici, par la copie ; chaque EPIC suivant ajoute ses
+  tables à la même copie, et EP-07 clôt ;
 - `WF-DAT-0010-A` — « Une modification dans la révision en cours ne change aucune ligne portant
   l'identifiant d'une révision marquée. »
 - `WF-DAT-0010-A` — « L'abandon d'une révision en cours ne laisse aucune ligne portant son
@@ -1038,10 +1041,11 @@ quel que soit le chemin, **afin que** l'histoire du projet soit sûre.
 - écart : `WF-ADM-0060-A` — « Un compte réactivé se connecte de nouveau avec ses rôles d'avant. » :
   constaté par EP-03 ;
 - `WF-ADM-0160-A` — « Après restauration d'une sauvegarde, la plateforme présente exactement les
-  projets, révisions et comptes qu'elle contenait à la date de la sauvegarde, et rien de
-  postérieur, hors le journal d'audit et la liste des sauvegardes, qui gardent leurs inscriptions
-  et leurs sauvegardes ; le journal nomme la restauration. » : le parcours de restauration d'EP-03
-  crée un projet et marque une révision après la sauvegarde, et ne les retrouve plus ;
+  projets, révisions et comptes qu'elle contenait à la date de la sauvegarde, et rien de postérieur,
+  hors le journal d'audit, la liste des sauvegardes et leur planification, qui gardent leurs
+  inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : le
+  parcours de restauration d'EP-03 crée un projet et marque une révision après la sauvegarde, et ne
+  les retrouve plus ;
 - écart : `WF-ADM-0160-A` — « Une tâche de fond en file ou en cours dans la sauvegarde est en échec
   après la restauration. » : constaté par EP-03 ;
 - écart : `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. » : constaté par

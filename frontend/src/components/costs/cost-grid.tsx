@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The configuration of the grid of the actual costs (WF-CRE-0040): for each line of a page of the
- * list, its document — number, date —, its amount, signed, the sub-project it is charged to, or
- * none (WF-CRE-0020), whether it is in the tracked scope, why it is excluded, and the columns of
+ * list, its document — number, item, date —, its amount, signed, the sub-project it is charged to,
+ * or none (WF-CRE-0020), whether it is in the tracked scope, why it is excluded, and the columns of
  * the file kept for information (WF-CRE-0010). The same dense grid as the planning and the risks:
  * another configuration, read only — the actual costs are imported and excluded by the epic of the
  * actual costs (EP-09). Every value is entered by the ERP, none computed here.
@@ -18,7 +18,12 @@
  * gives, never a sum of the page.
  */
 import type { components, operations } from "@/api/generated/schema";
-import { type GridConfig, sortColumns } from "@/components/grid/columns";
+import {
+  type ColumnHelp,
+  type ColumnLabel,
+  type GridConfig,
+  sortColumns,
+} from "@/components/grid/columns";
 
 import { CostLineCell, ScopeCell, SubprojectCell } from "./cost-cells";
 
@@ -40,6 +45,7 @@ export type CostSortColumn = NonNullable<
 export const COST_FIELDS = [
   "cost_line_id",
   "document_number",
+  "document_item",
   "document_date",
   "amount",
   "subproject_code",
@@ -67,17 +73,25 @@ export interface CostRows {
  * sub-project, its audit do not cross to the browser with the rows.
  */
 export function costRow(line: ActualCostLine): CostRow {
-  const { cost_line_id, document_number, document_date, amount, is_in_tracked_scope } = line;
+  const {
+    cost_line_id,
+    document_number,
+    document_item,
+    document_date,
+    amount,
+    is_in_tracked_scope,
+  } = line;
   return {
     cost_line_id,
     document_number,
+    document_item,
     document_date,
     amount,
     subproject_code: line.subproject_code,
     subproject_label: line.subproject_label,
     is_in_tracked_scope,
-    ...(line.excluded_reason === undefined ? {} : { excluded_reason: line.excluded_reason }),
-    ...(line.passthrough === undefined ? {} : { passthrough: line.passthrough }),
+    excluded_reason: line.excluded_reason,
+    passthrough: line.passthrough,
   };
 }
 
@@ -92,6 +106,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
     {
       key: "document_number",
       label: "documentNumber",
+      help: "actualCosts.documentNumber",
       format: "text",
       width: 128,
       pinned: true,
@@ -99,8 +114,19 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
       value: (line) => line.document_number,
     },
     {
+      key: "document_item",
+      label: "documentItem",
+      help: "actualCosts.documentItem",
+      format: "text",
+      width: 80,
+      contract: "document_item",
+      // Nullable: a line the extraction gave no item shows an empty cell.
+      value: (line) => line.document_item,
+    },
+    {
       key: "document_date",
       label: "documentDate",
+      help: "actualCosts.documentDate",
       format: "date",
       width: 104,
       contract: "document_date",
@@ -109,6 +135,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
     {
       key: "amount",
       label: "amount",
+      help: "actualCosts.amount",
       format: "money",
       width: 120,
       contract: "amount",
@@ -118,6 +145,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
     {
       key: "subproject",
       label: "subproject",
+      help: "actualCosts.subproject",
       format: "text",
       width: 200,
       contract: "subproject",
@@ -128,6 +156,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
     {
       key: "tracked_scope",
       label: "trackedScope",
+      help: "actualCosts.trackedScope",
       format: "text",
       width: 112,
       contract: "in_tracked_scope",
@@ -137,6 +166,7 @@ export const COST_GRID: GridConfig<CostRow, CostSortColumn, ActualCostTotals> = 
     {
       key: "excluded_reason",
       label: "excludedReason",
+      help: "actualCosts.excludedReason",
       format: "text",
       width: 200,
       contract: "excluded_reason",
@@ -150,6 +180,15 @@ export const COST_SORT_COLUMNS = sortColumns(COST_GRID);
 
 /** How the contract names the sort by a column kept from the file: `passthrough.<its name>`. */
 const KEPT = "passthrough.";
+
+/**
+ * The heading and the definition of every column kept from the file, each alike under the name the
+ * file gives it — which the grid and the help of its screen both read (US-0670/L4, #1434).
+ */
+export const KEPT_HEADING = {
+  label: "passthrough",
+  help: "actualCosts.passthrough",
+} as const satisfies { readonly label: ColumnLabel; readonly help: ColumnHelp };
 
 /** Whether a sort names a column kept from the file, as the contract names it. */
 export function isKeptSort(column: string | null | undefined): column is CostSortColumn {
@@ -176,12 +215,12 @@ export function costGrid(
       ),
       ...kept.map((name) => ({
         key: `${KEPT}${name}`,
-        label: "passthrough" as const,
+        ...KEPT_HEADING,
         heading: name,
         format: "text" as const,
         width: 160,
         contract: `${KEPT}${name}`,
-        value: (line: CostRow) => line.passthrough?.[name],
+        value: (line: CostRow) => line.passthrough[name],
       })),
     ],
   };

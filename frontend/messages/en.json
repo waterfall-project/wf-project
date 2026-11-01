@@ -125,7 +125,6 @@
       "unitDisbursement": "Unit disbursement",
       "paymentDelay": "Payment delay (days)",
       "referenceAmount": "Amount (reference year)",
-      "inflatedAmount": "Amount corrected for inflation",
       "inactiveObject": "Deactivated object",
       "startDate": "Start",
       "finishDate": "Finish",
@@ -133,14 +132,18 @@
       "duration": "Duration",
       "progress": "Progress",
       "totalFloat": "Float",
+      "startedOn": "Started on",
+      "completedOn": "Completed on",
       "predecessors": "Predecessors",
       "probability": "Probability",
       "severity": "Severity",
       "provisionAmount": "Provision",
+      "occurrenceCost": "Cost at occurrence",
       "state": "State",
       "lastReview": "Last review",
       "matrixCell": "Matrix cell",
       "documentNumber": "Document no.",
+      "documentItem": "Item",
       "documentDate": "Document date",
       "amount": "Amount",
       "subproject": "Subproject",
@@ -221,6 +224,7 @@
       "retention": "Retention",
       "download": "Download",
       "restore": "Restoration",
+      "resendInvitation": "Resend email",
       "passwordLink": "Setup link"
     },
     "computed": "Computed",
@@ -234,7 +238,8 @@
       "notADuration": "This is not a duration: enter a number followed by its unit, as “2 d”, “1 wk”, “1 mo” or “30 min”.",
       "notADate": "This is not a date: enter it as {example}.",
       "notPredecessors": "These are not predecessors: enter row numbers, each with its link type and its lag if any, separated by semicolons, as “3FS+2 d ; 5SS”.",
-      "unknownRow": "No row of the grid has one of these numbers."
+      "unknownRow": "No task of the structure has one of these numbers.",
+      "unresolvedRow": "One of these numbers could not be checked: validate again in a moment."
     },
     "resize": "Width of the column {column}",
     "empty": "No row matches the request.",
@@ -242,6 +247,9 @@
       "label": "Search a label",
       "labelIn": "Search in “{grid}”",
       "placeholder": "Search a label"
+    },
+    "differenceFilter": {
+      "label": "Differences only"
     },
     "breakdownFilter": {
       "label": "Work package or order item",
@@ -286,6 +294,7 @@
       "deleting": "Deleting…",
       "deleted": "“{label}” deleted.",
       "created": "“{label}” created.",
+      "createdUnnamed": "Line created.",
       "refusedAt": "Refused at row {number}, “{label}”:",
       "refusedCreating": "Creation of “{label}” refused:",
       "onRow": "Row {number}, “{label}”",
@@ -303,7 +312,8 @@
       "categoryField": "Category",
       "quantityField": "Quantity",
       "taskHint": "Name the task. It is created as a leaf, automatic, of one day, without predecessor.",
-      "lineHint": "Name the line, choose its category and its quantity. The other fields are entered in the grid.",
+      "lineHint": "Choose the category and the quantity of the line. The other fields are entered in the grid.",
+      "composedLabel": "Optional: by default, the label of the task that bears the line, followed by that of its role.",
       "busy": "Waits for the write under way to end."
     },
     "columnsMenu": {
@@ -383,10 +393,20 @@
     "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
-    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid."
+    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
+    "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}",
+    "planningStart": {
+      "shown": "<label>Planning start date</label>: <time>{date}</time>",
+      "label": "Planning start date",
+      "change": "Change the planning start date",
+      "statement": "Automatic tasks without a predecessor start on this date, on the first working day of the default calendar; the server redates those that depend on them.",
+      "submit": "Confirm the date",
+      "done": "The planning start date is {date}."
+    }
   },
   "gantt": {
     "bar": "{nature, select, milestone {Milestone on {finish}} other {From {start} to {finish}}}{critical, select, true { — critical} other {}}",
+    "conflict": " — {conflict}",
     "zoom": "Gantt zoom",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
@@ -447,6 +467,12 @@
   "risks": {
     "summary": "{risks, plural, =0 {no risk retained} one {# risk retained} other {# risks retained}}",
     "generalTotal": "General total",
+    "pages": {
+      "label": "Pages of the risks",
+      "beyond": "The page asked is beyond the end of the list.",
+      "previous": "Previous risks",
+      "next": "Next risks"
+    },
     "filter": "Filter by state",
     "everyState": "Every state",
     "provisions": {
@@ -480,6 +506,7 @@
         "probability": "Probability",
         "severity": "Severity",
         "provision": "Provision",
+        "referenceProvision": "Reference provision",
         "state": "State",
         "zone": "Zone",
         "closed": "Project cannot be opened"
@@ -491,14 +518,16 @@
       "mitigation": "Mitigation actions",
       "notSet": "Not set",
       "neverReviewed": "Never reviewed",
+      "referenceProvision": "Reference provision",
       "provisionLine": {
         "title": "Provision line",
         "present": "In the main structure: the provision weighs on the estimate.",
-        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear the provision.",
+        "withdrawn": "Withdrawn from the main structure at the occurrence: the lines merged from its own estimate bear its cost.",
         "absent": "Not in the main structure: the risk does not weigh on the estimate.",
         "category": "Category",
         "subproject": "Subproject",
-        "outOfSubproject": "Out of any subproject"
+        "outOfSubproject": "Out of any subproject",
+        "notAdmitted": "{choice} (no longer admitted)"
       },
       "reviews": {
         "title": "History of the reviews",
@@ -576,7 +605,8 @@
       "period": "Period extracted",
       "created": "Created",
       "updated": "Updated",
-      "ignored": "Ignored",
+      "unchanged": "Unchanged",
+      "rejected": "Rejected",
       "periodRange": "from {from} to {to}",
       "periodFrom": "from {from}",
       "periodTo": "until {to}",
@@ -584,6 +614,8 @@
     },
     "line": {
       "title": "Line {document}",
+      "titleItem": "Line {document}, item {item}",
+      "open": "{document}, item {item}",
       "close": "Close the line",
       "reason": "Reason for the exclusion",
       "excludedWithoutReason": "Excluded from the tracked scope, without a reason.",
@@ -606,7 +638,11 @@
       "byDefault": "Default",
       "horizon": "Horizon",
       "months": "{months} months",
-      "threshold": "Under-load threshold"
+      "threshold": "Under-load threshold",
+      "completedWithoutEffect": {
+        "workload": "Completed projects have no effect on the aggregated workload.",
+        "pilotHealth": "Completed projects have no effect on the project control health."
+      }
     },
     "scope": {
       "noPeriod": "{states} · {count, plural, =0 {no project} one {# project} other {# projects}} · calculated on {asOf}",
@@ -751,7 +787,7 @@
     "byCostType": "By nature of cost",
     "bySubproject": "By subproject",
     "byWorkPackage": "By work package",
-    "shareOf": " ({share})",
+    "shareOf": " (<share></share>)",
     "notComputable": "Not computable — {reason}",
     "unavailable": "The estimate indicators are unavailable.",
     "unnamed": "No label",
@@ -772,8 +808,7 @@
     "deltaToPrevious": "Deviation from the previous review",
     "byCostType": "By nature of cost",
     "bySubproject": "Remaining to commit by sub-project, and margin on the budget",
-    "amount": "{name}: {amount}",
-    "amountShare": "{name}: {amount} ({share})",
+    "amountShare": "{name}: {amount} (<share></share>)",
     "balance": "{name}: {remaining}, margin {variance}"
   },
   "kanban": {
@@ -800,13 +835,15 @@
     "cancel": "Cancel",
     "noGesture": "No gesture leads this task to the column “{column}”.",
     "gestureUnavailable": "“{command}” is unavailable. {conditions}",
-    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture."
+    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture.",
+    "busy": "Waits for the gesture under way to end."
   },
   "contextBanner": {
     "label": "Reading context",
     "project": "Project",
     "revision": "Revision",
     "currentRevision": "Current revision",
+    "sourceRevision": "Copy of “{name}”",
     "reference": "Reference revision",
     "readOnly": "Read only: no entry is offered on this revision.",
     "filters": "Active filters",
@@ -814,6 +851,8 @@
     "subprojectName": "{code} — {label}",
     "asOf": "Calculation date: {date}",
     "breakdown": "{kind, select, work_package {Work package} other {Order item}}: {label}",
+    "differencesOnly": "Differences only",
+    "differences": "Differences: {values}",
     "computedOn": "Revision of the calculation",
     "structure": "Structure",
     "chooseStructure": "Change the structure, “{structure}” read",
@@ -1115,6 +1154,15 @@
     "workload": {
       "help": "Opens the workload of the revision, by role."
     },
+    "addMappingLabel": {
+      "help": "Adds a label to the list; it is saved only with the mapping."
+    },
+    "removeMappingLabel": {
+      "help": "Removes the label from the list; it is erased only when the mapping is saved."
+    },
+    "openActualCostMapping": {
+      "help": "Opens the mapping of the columns of the actual cost extraction."
+    },
     "kanban": {
       "help": "Opens the kanban of the tasks to do, in progress and done."
     },
@@ -1144,6 +1192,9 @@
     },
     "deleteSubproject": {
       "help": "Deletes the sub-project, after confirmation."
+    },
+    "resend_invitation": {
+      "help": "Has the identity provider send again the email that carries the password setup link of a local account."
     },
     "password_link": {
       "help": "Gives the link by which the account holder sets a password."
@@ -1227,6 +1278,9 @@
     "reviewRisk": {
       "help": "Opens the review of the risk."
     },
+    "planningStart": {
+      "help": "Changes the planning start date of the structure, after confirmation: the server redates the automatic tasks that depend on it."
+    },
     "updateRates": {
       "help": "Replaces the rates of the revision in progress by the rates proposed, for the categories retained, after confirmation."
     },
@@ -1250,6 +1304,18 @@
     },
     "cardGestures": {
       "help": "Opens the menu of the gestures of this task."
+    },
+    "startTask": {
+      "help": "Starts the task, at the date of the event asked on the card: the grid of the remaining to commit then shows its lines by default, for their re-estimation."
+    },
+    "completeTask": {
+      "help": "Completes the task, which carries no line outside provisions — a milestone, even not started, or a started task —, at the date of the event asked on the card."
+    },
+    "reopenTask": {
+      "help": "Reopens the completed task: it is started again; a milestone is not started again, its dates erased."
+    },
+    "enterRemaining": {
+      "help": "Leads to the grid of the remaining to commit, on the lines of this task, where they are re-estimated."
     },
     "retryReading": {
       "help": "Reads the tasks of this card again."
@@ -1310,11 +1376,11 @@
       "referenceAmount": {
         "help": "Amount of the line at the reference year of the revision, before any correction for inflation."
       },
-      "inflatedAmount": {
-        "help": "Amount corrected for inflation from the reference year ({year}) to the year the line is consumed, at the inflation rate of the project ({rate} a year)."
+      "reestimatedAmount": {
+        "help": "Re-estimated amount of the line, inflation included: the amount at the reference year ({year}) projected on the year the line is consumed, at the inflation rate of the revision ({rate} a year)."
       },
-      "inflatedAmountStatic": {
-        "help": "Amount corrected for inflation from the reference year of the revision to the year the line is consumed, at the inflation rate of the project."
+      "reestimatedAmountStatic": {
+        "help": "Re-estimated amount of the line, inflation included: the amount at the reference year of the revision projected on the year the line is consumed, at the inflation rate of the revision."
       }
     },
     "planning": {
@@ -1340,7 +1406,13 @@
         "help": "Share of the work done, as a percentage of the task."
       },
       "totalFloat": {
-        "help": "Total float: the delay the task can take without pushing the end of the project."
+        "help": "Total float: the delay the task can take without pushing the end of the project. A summary bears the smallest float of its subordinates."
+      },
+      "startedOn": {
+        "help": "The date the task started on, set by the server when its state changes; a summary bears the first of its started subordinates."
+      },
+      "completedOn": {
+        "help": "The date the task was completed on, set by the server when its state changes."
       },
       "predecessors": {
         "help": "Tasks this one depends on, named by their row number."
@@ -1395,6 +1467,367 @@
       "reestimatedAmount": {
         "help": "Re-estimated amount of the line or task: the updated estimate at completion."
       }
+    },
+    "risks": {
+      "label": {
+        "help": "Label of the risk, as it was identified."
+      },
+      "probability": {
+        "help": "Probability that the risk occurs, as a percentage."
+      },
+      "severity": {
+        "help": "Severity: what the risk would cost if it occurred, the total of its own estimate, computed by the server."
+      },
+      "provisionAmount": {
+        "help": "Provision: for an identified risk, the severity weighted by the probability; for a risk that occurred or was dismissed, the provision it bore in the reference revision. Computed by the server."
+      },
+      "occurrenceCost": {
+        "help": "Cost at occurrence of a risk that occurred: the total of its own estimate when it was declared occurred, which neither reestimates nor the completion of its tasks change. Computed by the server."
+      },
+      "state": {
+        "help": "State of the risk: identified, occurred or dismissed."
+      },
+      "lastReview": {
+        "help": "Date of the last review of the risk."
+      },
+      "matrixCell": {
+        "help": "Cell of the risk matrix its probability and severity fall in, and the zone that colours it."
+      }
+    },
+    "users": {
+      "lastName": {
+        "help": "Last name of the holder of the account; an anonymised account has none any more."
+      },
+      "firstName": {
+        "help": "First name of the holder of the account."
+      },
+      "email": {
+        "help": "Email address of the account, at which it receives its invitation."
+      },
+      "origin": {
+        "help": "Where the account comes from: created in Waterfall, imported from the directory or created by the identity provider."
+      },
+      "attachment": {
+        "help": "Node of the organisation the account is attached to."
+      },
+      "accessRoles": {
+        "help": "Access roles the account holds: they give it its permissions."
+      },
+      "state": {
+        "help": "State of the account: a deactivated account stays listed, but can no longer sign in."
+      },
+      "resend_invitation": {
+        "help": "Email of the link by which the holder of a local account sets its password, sent again by the identity provider."
+      },
+      "password_link": {
+        "help": "Link by which the holder of a local account sets their password."
+      },
+      "anonymize": {
+        "help": "Anonymisation of a deactivated account: its last name, first name and address are erased, for good."
+      }
+    },
+    "accessRoles": {
+      "label": {
+        "help": "Label of the access role."
+      },
+      "roleKind": {
+        "help": "Kind of the role: predefined at installation, or composed by an administrator."
+      },
+      "holders": {
+        "help": "Number of accounts that hold the role."
+      },
+      "delete": {
+        "help": "Deletion of the role, possible as long as no account holds it."
+      }
+    },
+    "audit": {
+      "createdAt": {
+        "help": "Date and time the row was created, in the time of this workstation."
+      },
+      "createdBy": {
+        "help": "Account that created the row, or the platform for an automatic process."
+      },
+      "updatedAt": {
+        "help": "Date and time the row was last modified, in the time of this workstation."
+      },
+      "updatedBy": {
+        "help": "Account that last modified the row, or the platform for an automatic process."
+      }
+    },
+    "auditLog": {
+      "occurredAt": {
+        "help": "Date and time of the action recorded, in the time of this workstation."
+      },
+      "author": {
+        "help": "Account that acted, under the name it bore then, or the platform."
+      },
+      "action": {
+        "help": "Action recorded in the journal, and under it what it did to its object."
+      },
+      "objectKind": {
+        "help": "Kind of the object the action concerns."
+      },
+      "object": {
+        "help": "Object the action concerns, under the name it bore then."
+      },
+      "objectHistory": {
+        "help": "Every entry that concerns the same object."
+      },
+      "project": {
+        "help": "Project of the object, or « No project »."
+      },
+      "correlation": {
+        "help": "Identifier of the request that produced the entry: it links the entries of one request."
+      }
+    },
+    "backups": {
+      "takenAt": {
+        "help": "Date and time of the backup, in the time of this workstation."
+      },
+      "size": {
+        "help": "Size of the backup."
+      },
+      "verification": {
+        "help": "Verification of the backup: pending, passed or failed. Only a verified backup downloads and restores."
+      },
+      "origin": {
+        "help": "What started the backup: manual or scheduled."
+      },
+      "retention": {
+        "help": "Mark of retention: a backup marked to be kept escapes the rotation."
+      },
+      "download": {
+        "help": "Download of the archive of the backup."
+      },
+      "restore": {
+        "help": "Restoration of the whole platform from the backup."
+      }
+    },
+    "portfolioProjects": {
+      "label": {
+        "help": "Label of the project; a link opens it when you may consult it."
+      },
+      "code": {
+        "help": "Code of the project."
+      },
+      "state": {
+        "help": "State of the project in its life cycle."
+      },
+      "referenceBudget": {
+        "help": "Reference budget of the project."
+      },
+      "currentEstimate": {
+        "help": "Current estimate of a project in pricing."
+      },
+      "winProbability": {
+        "help": "Probability of winning a project in pricing."
+      },
+      "projectManagerProjection": {
+        "help": "Projection at completion of the project manager, for a project in progress."
+      },
+      "deltaToReference": {
+        "help": "Variance of the project manager's projection to the reference budget."
+      },
+      "costIndex": {
+        "help": "Cost index of the project, and its zone."
+      },
+      "scheduleIndex": {
+        "help": "Schedule index of the project, and its zone."
+      },
+      "lastMarkedAt": {
+        "help": "Date of the last marked revision of the project."
+      }
+    },
+    "referenceCommands": {
+      "state": {
+        "help": "State of the object, active or deactivated, and the command that changes it."
+      },
+      "modify": {
+        "help": "Modification of the object, in its form."
+      }
+    },
+    "costTypes": {
+      "code": {
+        "help": "Code of the cost type, unique."
+      },
+      "label": {
+        "help": "Label of the cost type."
+      },
+      "kind": {
+        "help": "Kind of the cost type: labour, non-labour or risk provision; it no longer changes once one of its categories is used, bears a rate or is attached to a role."
+      }
+    },
+    "costCategories": {
+      "code": {
+        "help": "Code of the category, unique."
+      },
+      "label": {
+        "help": "Label of the cost category."
+      },
+      "costType": {
+        "help": "Cost type the category is attached to, active or not."
+      },
+      "accountingCode": {
+        "help": "Accounting code of the category, unique and documentary: it enters no calculation; the files of the estimate and of the remaining to commit name the category of a non-labour line by it."
+      }
+    },
+    "hourlyRates": {
+      "code": {
+        "help": "Code of the labour category."
+      },
+      "label": {
+        "help": "Label of the labour category."
+      },
+      "state": {
+        "help": "State of the category, active or deactivated; it is reactivated in the list of the categories."
+      },
+      "year": {
+        "help": "Hourly rate of the category for the year of the column, in the currency of the installation; empty until it is entered."
+      }
+    },
+    "orgNodes": {
+      "label": {
+        "help": "Label of the node, indented under the node it is attached to."
+      },
+      "code": {
+        "help": "Code of the node, unique."
+      },
+      "level": {
+        "help": "Depth of the node in the tree: 1 for a root."
+      }
+    },
+    "resourceRoles": {
+      "label": {
+        "help": "Label of the resource role."
+      },
+      "code": {
+        "help": "Code of the role, unique."
+      },
+      "orgNode": {
+        "help": "Organisation node of the role, set at its creation."
+      },
+      "costCategory": {
+        "help": "Labour category of the role, whose hourly rate prices its hours."
+      },
+      "calendar": {
+        "help": "Calendar of the role, which gives its working hours of each day."
+      },
+      "monthlyHours": {
+        "help": "Hours available a month, alone compared with the workload plan."
+      },
+      "headcount": {
+        "help": "Headcount the hours a month stand for."
+      }
+    },
+    "calendars": {
+      "label": {
+        "help": "Label of the calendar, unique."
+      },
+      "monday": {
+        "help": "Hours worked on Monday."
+      },
+      "tuesday": {
+        "help": "Hours worked on Tuesday."
+      },
+      "wednesday": {
+        "help": "Hours worked on Wednesday."
+      },
+      "thursday": {
+        "help": "Hours worked on Thursday."
+      },
+      "friday": {
+        "help": "Hours worked on Friday."
+      },
+      "saturday": {
+        "help": "Hours worked on Saturday."
+      },
+      "sunday": {
+        "help": "Hours worked on Sunday."
+      },
+      "defaultCalendar": {
+        "help": "The default calendar, a single one among the active ones, or the command that designates the one of the row."
+      }
+    },
+    "projects": {
+      "label": {
+        "help": "Label of the project; a link opens its page."
+      },
+      "code": {
+        "help": "Project code, the one the ERP knows the project by; empty until the order has arrived."
+      },
+      "state": {
+        "help": "State of the project in its life cycle."
+      },
+      "updatedAt": {
+        "help": "Date and time of the last modification of the project, in the time of your workstation."
+      }
+    },
+    "workBreakdown": {
+      "label": {
+        "help": "Label of the work package, the order item or the deliverable, indented under what holds it."
+      },
+      "kind": {
+        "help": "Kind of the element of the work breakdown: work package, order item of a package, or deliverable of an item."
+      }
+    },
+    "subprojects": {
+      "code": {
+        "help": "Code of the sub-project, the one the ERP gives it, unique in the project; it names the sheet of the sub-project in the file of the remaining to commit."
+      },
+      "label": {
+        "help": "Label of the sub-project."
+      },
+      "actualCosts": {
+        "help": "Whether actual costs are charged to the sub-project: a sub-project charged is not deleted."
+      },
+      "modify": {
+        "help": "Modification of the sub-project, in its form; offered to the project managers as long as the project is not terminal."
+      },
+      "delete": {
+        "help": "Deletion of the sub-project, once confirmed; unavailable for a sub-project charged with actual costs, cited by a marked revision or borne by estimate lines of the current revision."
+      }
+    },
+    "contributors": {
+      "name": {
+        "help": "Name of the account of the contributor."
+      },
+      "kind": {
+        "help": "Capacity of the contributor: project manager, who sets the project up, or contributor."
+      },
+      "account": {
+        "help": "State of the account, active or deactivated; a deactivated account stays inscribed."
+      }
+    },
+    "actualCosts": {
+      "documentNumber": {
+        "help": "Number of the document of the ERP the line belongs to."
+      },
+      "documentItem": {
+        "help": "Number of the item of the line in its document; empty when the extraction gives none."
+      },
+      "documentDate": {
+        "help": "Date of the document."
+      },
+      "amount": {
+        "help": "Signed amount of the line, as the extraction gives it."
+      },
+      "subproject": {
+        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone, followed by the code read when the element bears one the project does not have."
+      },
+      "trackedScope": {
+        "help": "Whether the line is in the tracked scope; a line excluded stays consultable and enters no indicator."
+      },
+      "excludedReason": {
+        "help": "Reason given for the exclusion of the line from the tracked scope."
+      },
+      "passthrough": {
+        "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
+      }
+    },
+    "comparison": {
+      "changes": {
+        "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
+      }
     }
   },
   "help": {
@@ -1403,10 +1836,13 @@
     "close": "Close the help",
     "back": "Back to the previous page of the help",
     "screen": "Back to the help of the screen",
+    "search": "Search the help",
+    "results": "{count, plural, =0 {No page of the help holds these words.} one {# page found} other {# pages found}}",
     "loading": "Reading the help…",
     "failed": "The help could not be read. Try again in a moment.",
     "pending": "The help of this page is to come.",
-    "sections": "The parts of the screen"
+    "sections": "The parts of the screen",
+    "computed": "(value computed by the server)"
   },
   "outcome": {
     "unreachable": "The service cannot be reached; try again in a moment.",
@@ -1458,7 +1894,9 @@
     "submit": "Confirm the merge",
     "title": "Report of the merge",
     "reading": "Reading the report…",
+    "description": "Description of the revision produced (optional)",
     "counts": "Differences by object",
+    "createsRevision": "The project has no revision in progress: the merge first creates it by copying the last marked revision, merges the differential into it and marks it, in the same background task. If it fails, no revision is created.",
     "targets": {
       "task": "Tasks",
       "estimate_line": "Estimate lines",
@@ -1518,6 +1956,8 @@
       "apply": "Show only my projects",
       "states": "Filter by state",
       "everyState": "Every state",
+      "defaultLabel": "Default filter of the list by state",
+      "defaultStates": "By default:",
       "period": "Modification period"
     },
     "periodRefused": "The list is not read: the server refuses the period asked."
@@ -1542,6 +1982,7 @@
     "settings": "Project settings",
     "projectLabel": "Label",
     "code": "Code",
+    "client": "Client",
     "state": "State",
     "orderReceivedOn": "Order received on",
     "description": "Description",
@@ -1556,7 +1997,7 @@
     "identified": "Risk “{name}” identified.",
     "modify": "Modify",
     "modifyTitle": "Modify “{name}”",
-    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered.",
+    "modifyHint": "The severity and the provision are computed from the own estimate and the probability: they are not entered. The probability changes by a review alone.",
     "probability": "Probability (%)",
     "task": "Task of the provision",
     "firstTask": "First task of the first level",
@@ -1581,6 +2022,14 @@
     "queued": "The occurrence of “{name}” is handed to the background processing; it is followed in “Background tasks”.",
     "succeeded": "The occurrence of “{name}” is done: its own estimate is merged into the main structure."
   },
+  "riskOccurrenceReport": {
+    "title": "Report of the occurrence",
+    "reading": "Reading the report…",
+    "createsRevision": "The project has no revision in progress: the occurrence first creates it by copying the last marked revision, and merges the own estimate of the risk into it, in the same background task. If it fails, no revision is created.",
+    "provision": "The line of provision of the risk is withdrawn from the remaining to commit: {amount} of provision less.",
+    "refusals": "{count, plural, one {# reason refuses the occurrence} other {# reasons refuse the occurrence}}",
+    "reread": "Read the report again"
+  },
   "projectForm": {
     "create": "Create a project",
     "createHint": "The project is born in the Created state, and you are its project manager. The project code may wait for the order.",
@@ -1588,6 +2037,7 @@
     "modifyHint": "The inflation rate affects no marked revision.",
     "label": "Label",
     "code": "Project code",
+    "client": "Client",
     "description": "Description",
     "orderReceivedOn": "Order received on",
     "inflationRate": "Annual inflation rate (%)",
@@ -1686,6 +2136,10 @@
       "version": "Version",
       "status": "Status",
       "markedAt": "Marked on",
+      "source": "Copy of",
+      "noSource": "None",
+      "inflationRate": "Inflation rate",
+      "winProbability": "Win probability",
       "description": "Description",
       "consult": "Consultation",
       "reference": "Reference",
@@ -1706,7 +2160,8 @@
       "noDeltas": "No amount deviation.",
       "dimension": "Axis",
       "key": "Item",
-      "delta": "Deviation",
+      "budgetedDelta": "Budgeted deviation",
+      "reestimatedDelta": "Re-estimated deviation",
       "unnamed": "Unnamed"
     },
     "structures": {
@@ -1730,6 +2185,11 @@
   },
   "exitProject": {
     "statement": "This exit is final: the project will go to the state “{state}”, and it and all its data — plannings, estimates, remaining commitments, actual costs — will become read only. No transition leaves a terminal state.",
+    "fate": "Fate of the current revision",
+    "mark": "Mark the current revision: it becomes a marked revision, under the version name given.",
+    "abandon": "Abandon the current revision: it will be deleted, and this cannot be undone.",
+    "versionName": "Version name",
+    "description": "Description (optional)",
     "reason": "Motive (optional)",
     "submit": "Confirm the exit",
     "cancel": "Cancel",
@@ -1980,6 +2440,36 @@
       "saved": "Units of duration saved.",
       "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
+    "actualCostMapping": {
+      "form": "Mapping of the actual cost extraction",
+      "summary": "The labels under which the ERP extraction names the columns Waterfall reads, and the columns it keeps for information. A label is compared with the header of the file, and with the other labels, regardless of case, accents and spaces at the ends.",
+      "complete": "The mapping is complete: an actual cost extraction can be imported.",
+      "missing": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}. The import of actual costs is refused while the mapping is incomplete.",
+      "required": "(required)",
+      "optional": "(optional)",
+      "noLabel": "No label.",
+      "kept": "Kept columns",
+      "keptHint": "The columns of the extraction that Waterfall keeps for information, given back when the imported lines are consulted. A column read is not also declared kept.",
+      "noKept": "No kept column.",
+      "label": "Label {n} of “{column}”",
+      "keptLabel": "Label of kept column {n}",
+      "remove": "Remove label {n} of “{column}”",
+      "removeKept": "Remove kept column {n}",
+      "add": "Add a label to “{column}”",
+      "addShort": "Add a label",
+      "addKept": "Declare a kept column",
+      "doubles": "It doubles the label “{label}” of column “{column}”.",
+      "doublesKept": "It doubles the label “{label}” of a kept column.",
+      "save": "Save the mapping",
+      "saving": "Saving…",
+      "saved": "Mapping saved."
+    },
+    "companyForm": {
+      "modify": "Modify the company name",
+      "hint": "The company name appears on the exported files; it is required, of 200 characters at most.",
+      "name": "Company name",
+      "saved": "Company name saved."
+    },
     "indicatorForm": {
       "modify": "Modify the thresholds and the delay",
       "hint": "Each threshold is a value of the index between 0 and 1, both excluded, the alert threshold below the watch threshold; the delay counts whole weeks.",
@@ -2026,6 +2516,12 @@
       "rolesOf": "Roles of “{name}”",
       "rolesAttributed": "Roles of “{name}” attributed.",
       "link": "Link",
+      "resend": "Email",
+      "resent": "Password setup email sent again to “{name}”.",
+      "resendUnsent": "No email could be sent to “{name}”: hand over the setup link by another channel, with the “Link” command.",
+      "resend_invitation": {
+        "command": "Resend the password setup email of “{name}”"
+      },
       "password_link": {
         "command": "Link to set the password of “{name}”",
         "title": "Link to set the password of “{name}”",
@@ -2047,6 +2543,13 @@
     },
     "identitySync": {
       "title": "Reading of the identity provider accounts",
+      "schedule": {
+        "title": "Reading schedule",
+        "modify": "Modify the schedule",
+        "hint": "The schedule is saved whole. The time and the day are in universal time (UTC). A reading under way is not interrupted: the setting holds from the next one.",
+        "weekdayNote": "For a weekly reading only.",
+        "saved": "Schedule saved."
+      },
       "start": "Read the accounts",
       "none": "No reading of the accounts has ended yet.",
       "finished": "Last reading ended on <time></time>.",
@@ -2114,6 +2617,18 @@
       "unavailable": "Unavailable",
       "checkedAt": "Last checked",
       "componentVersion": "Version",
+      "parameters": {
+        "title": "Operating parameters",
+        "cacheValidity": "Cache validity",
+        "taskRetention": "Retention of a background task result",
+        "avatarMax": "Largest avatar",
+        "queueAge": "Queued task age that raises the alert",
+        "storageUsage": "Storage usage that raises the alert",
+        "errorRate": "Error rate that raises the alert",
+        "errorWindow": "Window the error rate is measured on",
+        "seconds": "{count, plural, one {# second} other {# seconds}}",
+        "days": "{count, plural, one {# day} other {# days}}"
+      },
       "storage": "Storage",
       "used": "Used",
       "free": "Available",
@@ -2260,6 +2775,11 @@
         "renamed": "Formerly “{label}”",
         "rolesGranted": "{count, plural, one {Role granted} other {Roles granted}}: {roles}",
         "rolesWithdrawn": "{count, plural, one {Role withdrawn} other {Roles withdrawn}}: {roles}",
+        "toState": "Exit to: {state}",
+        "reason": "Reason: {reason}",
+        "backupTakenAt": "Restored backup of <time></time>",
+        "backupTakenAfter": "{first}; Restored backup of <time></time>",
+        "importKind": "Import: {kind}",
         "then": "{first}; {second}"
       },
       "filters": {
@@ -2306,6 +2826,7 @@
     "portfolioRisks": "Portfolio risks",
     "portfolioCostCurve": "Portfolio S-curve",
     "portfolioPilotHealth": "Project control health",
+    "actualCostMapping": "Actual cost mapping",
     "costSettings": "Cost settings",
     "resourceSettings": "Resource settings",
     "riskSettings": "Risk settings",
@@ -2334,19 +2855,13 @@
     "PERMISSION_MISSING": "You do not have the required permission.",
     "NOT_CONTRIBUTOR": "Only the project’s contributors can do this.",
     "NOT_PROJECT_MANAGER": "Only the project’s managers can do this.",
-    "PROJECT_TERMINAL": "The project is closed and can no longer be changed.",
-    "REVISION_MARKED": "The revision is marked and can no longer be changed.",
     "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
     "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
     "ALREADY_EXISTS": "This item already exists.",
-    "CURRENT_REVISION_EXISTS": "The project already has a draft revision.",
-    "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
     "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
     "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
     "ACCESS_ROLE_IN_USE": "This access role is still assigned to accounts.",
-    "TASK_ALREADY_STARTED": "The task has already started.",
-    "TASK_COMPLETED": "The task is completed.",
     "REFERENCE_INCOMPLETE": "The minimum reference data is incomplete.",
     "STALE_LOCK_VERSION": "Someone changed this data in the meantime; reload it to see its latest version.",
     "FILE_TOO_LARGE": "The file is larger than allowed.",
@@ -2358,7 +2873,6 @@
     "RESOURCE_ROLE_REQUIRED": "A resource role is required.",
     "LABOUR_CATEGORY_REQUIRED": "A labour cost category is required.",
     "HOURLY_RATE_MISSING": "No hourly rate is set for this role and year.",
-    "PROJECT_CODE_REQUIRED": "The project code must be filled in.",
     "PASTE_TOO_WIDE": "The pasted data has more columns than the grid.",
     "FILE_FORMAT_UNREADABLE": "The file format cannot be read.",
     "TASK_WITHOUT_WORKING_HOURS": "A task would have no working hour left in the week.",
@@ -2375,9 +2889,13 @@
     "UNKNOWN_USER": "Unknown account.",
     "USER_INACTIVE": "This account is deactivated.",
     "UNKNOWN_TASK": "Unknown task.",
+    "DUPLICATE_PREDECESSOR": "This predecessor already appears earlier in the list entered: each is written once.",
+    "UNKNOWN_TIMELINE": "Unknown timeline of the project.",
+    "UNKNOWN_RISK": "Unknown risk.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: the grid is read again.",
+    "MILESTONE_HAS_NO_SUBTASK": "A milestone bears no subtasks.",
     "MILESTONE_REQUIRED": "Only a milestone can be tracked on the time/time diagram.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
@@ -2400,6 +2918,10 @@
     "PROJECT_HORIZON_EXCEEDED": "The duration of the project would exceed fifteen years.",
     "FIELD_NOT_ACCEPTED": "This field is not entered on this line.",
     "SUBPROJECT_HAS_ACTUAL_COSTS": "This line cannot leave this subproject: its task has started, and the subproject has received actual costs.",
+    "SUBPROJECT_CODE_INVALID": "This code cannot name the tab of the subproject in the estimate-to-complete file.",
+    "PROJECT_CODE_INVALID": "The project code cannot contain a slash.",
+    "DUPLICATE_COLUMN_LABEL": "This column label is already in the mapping, regardless of case, accents or surrounding spaces: each one names a single column.",
+    "DUPLICATE_COST_LINE": "This line shares its document and item, blank item included, with other lines of the file: all of them are rejected, none is preferred. Correct or remove the duplicates in the file.",
     "COMPONENT_UNAVAILABLE": "A component of the service is unavailable.",
     "INTERNAL_ERROR": "Unexpected service error.",
     "ACCOUNT_DEACTIVATED": "This account is deactivated; contact an administrator.",
@@ -2409,7 +2931,11 @@
     "UNKNOWN_ORG_NODE": "This organisation node does not exist.",
     "FIELD_READ_ONLY": "This field comes from the identity provider: it cannot be changed in Waterfall.",
     "BACKUP_FROM_NEWER_VERSION": "This backup comes from a newer version than the one installed: it cannot be restored.",
-    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume."
+    "TASK_INTERRUPTED_BY_RESTORE": "The restoration interrupted this task, under way when the restored backup was taken: it does not resume.",
+    "PASTE_TARGET_REMOVED": "The target of the paste disappeared in the meantime: nothing was pasted.",
+    "WBS_ELEMENT_INVALID": "The WBS element of the line does not have the expected form: a project code, a slash, then a sub-project code.",
+    "WBS_ELEMENT_OUTSIDE_PROJECT": "The WBS element of the line belongs to another project.",
+    "AMBIGUOUS_TASK_LABEL": "This label is carried by several tasks: the report does not say which one it targets."
   },
   "problemDetails": {
     "missing_permission": "Required permission: {permission}.",
@@ -2419,25 +2945,51 @@
     "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
     "estimateLine": "line {row} “{label}”",
     "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another nature} other {to another labour category}}: {roles}.",
-    "resource_role_ids": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
-    "resource_role_ids_unnamed": "{count, plural, one {The calendar of its role has no hour.} other {The calendars of its roles never overlap.}}",
-    "resource_role_ids_none": "Tasks without a labour line, on the default calendar.",
+    "resource_roles_calendar": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
+    "resource_roles_calendar_none": "Tasks without a labour line, on the default calendar.",
+    "cost_categories": "{count, plural, one {Category of the nature to attach first to another nature of the same type} other {Categories of the nature to attach first to another nature of the same type}}: {categories}.",
+    "tasks": "{count, plural, one {Task at issue} other {Tasks at issue}}: {tasks}.",
     "projects": "Projects involved: {projects}.",
     "projects_listed": "{count, number} projects involved, listed below.",
     "codedName": "{label} ({code})",
     "projectState": "State of the project: {state}.",
+    "forbidden_characters": "Characters the code cannot hold: {characters}.",
+    "reserved_name": "“{name}” is a reserved name, which the code cannot bear.",
     "max_columns": "The grid accepts at most {max_columns, plural, one {# column} other {# columns}} from this cell.",
     "minimum": "Minimum value: {minimum}.",
     "maximum": "Maximum value: {maximum}.",
     "component": "Unavailable component: {component}.",
     "expected_format": "Expected format: {format}.",
     "expected_version": "Expected version: {version}.",
+    "columns": "{count, plural, one {Required column without a label} other {Required columns without a label}}: {columns}.",
+    "missing_columns": "{count, plural, one {Required column missing from the file} other {Required columns missing from the file}}: {columns}.",
+    "missingColumn": "{column} ({count, plural, one {declared label} other {declared labels}}: {labels})",
+    "declaredLabel": "“{label}”",
     "work_package_task": "Task of the work package: {task}.",
     "order_item_tasks": "{count, plural, one {Task of the order item at issue} other {Tasks of the order items at issue}}: {tasks}.",
     "subproject": "Subproject that has received actual costs, which the line does not leave: “{label}”.",
     "non_working_day": "{date} is not worked on the calendar of the task; enter {next}.",
+    "non_working_day_structure": "{date} is not worked on the default calendar; enter {next}.",
+    "summary_dates": "Its dates run from {start} to {finish}, those of its subtasks.",
     "cycle": "Loop of links, in order: {tasks}.",
-    "taskName": "“{label}”"
+    "link": "Link concerned, the summary first: {tasks}.",
+    "horizon_task": "Task concerned: {task}.",
+    "taskName": "“{label}”",
+    "unknown_value": "Value read in the file: “{value}”.",
+    "ambiguous_label": "Label read: “{label}”, shared by the tasks {tasks}.",
+    "wbs_element": "Work breakdown element read: “{element}”.",
+    "project_code": "Project code read: “{code}”.",
+    "duplicate_rows": "{count, plural, one {Other line} other {Other lines}} of the file with the same document and item: {rows}.",
+    "project_terminal": "The project is closed: it no longer changes.",
+    "revision_marked": "The revision is marked: it no longer changes.",
+    "subordinates": "{count, plural, one {It takes this value from its subordinate} other {It takes this value from its subordinates}}: {tasks}.",
+    "subordinates_unnamed": "{count, plural, one {It takes this value from its subordinate.} other {It takes this value from its # subordinates.}}",
+    "missing_rates": "Without an hourly rate: {categories}.",
+    "missingRate": "“{label}” in {year}",
+    "missingRateYear": "a category in {year}",
+    "risks": "{count, plural, one {Risk at issue} other {Risks at issue}}: {risks}.",
+    "riskName": "“{label}”",
+    "conflicting_object": "Object changed since: “{label}”."
   },
   "permissions": {
     "users": {
@@ -2670,10 +3222,25 @@
       "storage_full": "No space left",
       "timed_out": "Timed out"
     },
+    "AuditParams": {
+      "to_state": {
+        "completed": "Completed",
+        "lost": "Lost",
+        "abandoned": "Abandoned"
+      }
+    },
+    "IdentitySyncSchedule": {
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly"
+      }
+    },
     "AuditAction": {
+      "project_create": "Project created",
       "revision_mark": "Revision marked",
+      "revision_abandon": "Revision in progress abandoned",
       "reference_designate": "Reference designated",
-      "amendment_merge": "Amendment contracted",
+      "structure_merge": "Differential merged",
       "risk_occurrence": "Risk occurred",
       "project_exit": "Exit from the lifecycle",
       "cost_line_exclude": "Cost line excluded",
@@ -2711,7 +3278,8 @@
     "AuditUserField": {
       "last_name": "Last name",
       "first_name": "First name",
-      "email": "Email address"
+      "email": "Email address",
+      "org_node_id": "Organisation node"
     },
     "ReferenceReadiness": {
       "missing": {
@@ -2766,22 +3334,26 @@
       "project_code_set": "project code filled in",
       "reference_revision_designated": "reference revision designated",
       "at_least_one_task": "at least one task",
-      "at_least_one_estimate_line": "at least one estimate line",
       "no_current_revision": "no draft revision",
       "revision_draft": "draft revision",
       "revision_marked": "marked revision",
+      "rate_update_available": "a rate update available",
       "reference_correctable": "reference still correctable",
       "revision_has_tasks_and_lines": "revision bearing at least one task and one estimate line",
       "unmerged_amendment_exists": "an unmerged amendment",
       "task_not_completed": "task not completed",
+      "task_not_started": "task not started",
+      "task_succeeded": "background task succeeded",
       "task_is_milestone": "the task is a milestone",
       "task_not_milestone": "the task is not a milestone",
       "task_without_lines": "task without any line but provisions",
+      "line_not_provision": "line other than a provision",
       "completed_milestone": "completed milestone",
-      "hourly_rates_set": "hourly rates set",
       "no_background_task_running": "no background task running on the object",
+      "undo_history_not_empty": "undo history not empty",
+      "redo_history_not_empty": "redo history not empty",
       "may_create_revision": "holding the permission to create a revision",
-      "restored_subproject_exists": "subproject the undo would restore still existing",
+      "restored_subproject_exists": "subproject restored by the undo or redo not deleted since",
       "risk_not_cited": "risk cited by no marked revision",
       "risk_not_occurred": "risk not occurred",
       "risk_identified": "risk identified",
@@ -2806,11 +3378,14 @@
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
       "main_structure_without_tasks": "main structure without any task",
+      "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
+      "import_not_applied": "import not applied",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
-      "is_not_anonymized": "account not anonymised"
+      "is_not_anonymized": "account not anonymised",
+      "actual_cost_mapping_complete": "actual-cost extraction mapping complete"
     },
     "ProjectExit": {
       "to_state": {
@@ -2847,6 +3422,7 @@
       "edit_remaining": "Update the estimate to complete",
       "edit_risks": "Edit the risks",
       "declare_risk": "Declare a risk",
+      "apply_rate_update": "Apply the rate update",
       "create_structure": "Prepare an amendment",
       "merge_structure": "Contractualise the amendment",
       "mark": "Mark the revision",
@@ -2875,13 +3451,21 @@
       "progress": "Progress",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
-      "parent": "Parent"
+      "payment_delay_days": "Payment delay",
+      "parent": "Parent",
+      "subproject": "Subproject",
+      "cost_category": "Cost category"
     },
     "NodeDifference": {
       "added": "Added",
       "removed": "Removed",
       "modified": "Modified",
       "unchanged": "Unchanged"
+    },
+    "NodeDifferenceFilter": {
+      "added": "Added",
+      "removed": "Removed",
+      "modified": "Modified"
     },
     "RevisionComparison": {
       "amount_deltas": {
@@ -2909,9 +3493,24 @@
     },
     "StructureCreate": {
       "kind": {
-        "amendment": "Amendment",
-        "risk": "Risk estimate"
+        "amendment": "Amendment"
       }
+    },
+    "UndoneKind": {
+      "cell": "Cell edit",
+      "node_create": "Node creation",
+      "node_delete": "Node deletion",
+      "node_move": "Node move",
+      "paste": "Paste",
+      "link": "Link",
+      "progress": "Progress",
+      "remaining": "Remaining work",
+      "tracking": "Tracking",
+      "structure_update": "Structure update",
+      "risk_create": "Risk creation",
+      "risk_update": "Risk update",
+      "risk_review": "Risk review",
+      "risk_delete": "Risk deletion"
     },
     "TaskProgress": {
       "not_started": "Not started",
@@ -2964,13 +3563,15 @@
         "duration": "Duration",
         "start": "Start",
         "finish": "Finish",
-        "progress": "Progress"
+        "progress": "Progress",
+        "scheduling_mode": "Scheduling mode"
       },
       "estimate_line": {
         "quantity": "Quantity",
         "hours": "Hours",
         "unit_disbursement": "Unit disbursement",
-        "subproject_id": "Subproject"
+        "subproject_id": "Subproject",
+        "cost_category_id": "Cost category"
       }
     },
     "EditableField": {
@@ -3005,10 +3606,11 @@
       "duration": "Duration",
       "start": "Start",
       "finish": "Finish",
-      "progress": "Progress",
       "physical_progress": "Physical progress",
       "total_float": "Total float",
       "is_critical": "Critical path",
+      "started_on": "Started on",
+      "completed_on": "Completed on",
       "predecessors": "Predecessors",
       "work_breakdown": "Work package or order item",
       "cost_category": "Cost category",
@@ -3022,7 +3624,6 @@
       "base_amount": "Amount at the reference year",
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
-      "inflated_amount": "Inflation-corrected amount",
       "previous_quantity": "Previous quantity",
       "previous_hours": "Previous hours",
       "previous_unit_disbursement": "Previous unit disbursement",
@@ -3033,24 +3634,24 @@
         "duration": "Duration of the task",
         "start": "Start of the task",
         "finish": "Finish of the task",
+        "scheduling_mode": "Scheduling mode of the task",
         "progress": "Progress of the task",
         "physical_progress": "Physical progress of the task",
         "total_float": "Total float of the task",
         "base_amount": "Amount at the reference year of the task",
         "budgeted_amount": "Budgeted amount of the task",
-        "reestimated_amount": "Re-estimated amount of the task",
-        "inflated_amount": "Inflation-corrected amount of the task"
+        "reestimated_amount": "Re-estimated amount of the task"
       },
       "estimate_line": {
         "quantity": "Quantity of the line",
         "hours": "Effort of the line",
         "unit_disbursement": "Unit disbursement of the line",
+        "cost_category_id": "Cost category of the line",
         "subproject_id": "Subproject of the line",
         "base_amount": "Amount at the reference year of the line",
         "budgeted_amount": "Budgeted amount of the line",
         "reestimated_amount": "Re-estimated amount of the line",
-        "previous_reestimated_amount": "Previous re-estimated amount of the line",
-        "inflated_amount": "Inflation-corrected amount of the line"
+        "previous_reestimated_amount": "Previous re-estimated amount of the line"
       }
     },
     "ComputedDependency": {
@@ -3061,12 +3662,15 @@
       "manual_mode": "A task in manual mode bears no float.",
       "hourly_rate": "The amount of a labour line is the product of its quantity, its effort and the hourly rate of its category for the reference year.",
       "unit_disbursement": "The amount of a non-labour line is the product of its quantity and its unit disbursement.",
+      "resource_role": "The role of a labour line determines its cost category.",
       "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
       "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
-      "inflation": "The inflation-corrected amount is the line’s amount projected on its year of consumption at the project’s inflation rate.",
+      "inflation": "The re-estimated amount, inflation included, is the line’s amount projected on its year of consumption at the inflation rate of the revision.",
       "own_estimate": "The severity of a risk is the total of its own estimate.",
-      "severity_and_probability": "The provision of a risk is its severity weighted by its probability."
+      "severity_and_probability": "The provision of a risk is its severity weighted by its probability.",
+      "reference_provision": "The provision of a risk that occurred or was dismissed is the one it bore in the reference revision.",
+      "occurrence_estimate": "The cost at occurrence of a risk is the total of its own estimate when it was declared occurred."
     },
     "WorkloadPlan": {
       "basis": {
@@ -3089,7 +3693,8 @@
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
-      "work_package_without_task": "No task bears this work package."
+      "work_package_without_task": "No task bears this work package.",
+      "no_total": "The total is zero."
     },
     "CurveSeries": {
       "series": {
@@ -3151,12 +3756,15 @@
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
       "anonymize": "Anonymise the account",
-      "set_access_roles": "Assign the roles of the account"
+      "set_access_roles": "Assign the roles of the account",
+      "create_password_link": "Give the password setup link",
+      "resend_invitation": "Resend the password setup email"
     },
     "RiskComputedField": {
       "field": {
         "severity": "Severity",
-        "provision_amount": "Provision"
+        "provision_amount": "Provision",
+        "occurrence_cost": "Cost at occurrence"
       }
     },
     "RiskReviewWrite": {
@@ -3186,11 +3794,13 @@
         "task": "Task",
         "estimate_line": "Estimate line",
         "link": "Link",
-        "actual_cost_line": "Actual cost line"
+        "actual_cost_line": "Actual cost line",
+        "cost_structure": "Cost structure"
       }
     },
     "ImportDifferenceField": {
-      "parent": "Parent"
+      "parent": "Parent",
+      "planning_start_on": "Planning start date"
     },
     "ImportIgnoredKind": {
       "resources": "Resources",
@@ -3198,11 +3808,27 @@
       "progress": "Progress",
       "costs": "Costs",
       "custom_fields": "Custom fields",
-      "date_constraints": "Date constraints, tasks imported in manual mode"
+      "date_constraints": "Date constraints, tasks imported in manual mode",
+      "columns": "Extraction columns neither read nor kept",
+      "provision_lines": "Risk provision lines, left as they are"
+    },
+    "ImportSignal": {
+      "code": {
+        "NON_WORKING_DAY": "Non-working day",
+        "SUMMARY_TASK_DERIVED": "Summary task derived from its tasks"
+      }
+    },
+    "ActualCostSourceColumn": {
+      "wbs_element": "WBS element",
+      "document_number": "Document no.",
+      "document_item": "Document item",
+      "document_date": "Document date",
+      "amount": "Amount"
     },
     "ActualCostColumn": {
       "document_date": "Document date",
       "document_number": "Document no.",
+      "document_item": "Item",
       "amount": "Amount",
       "subproject": "Subproject"
     },
@@ -3220,16 +3846,19 @@
         "applied": "Applied",
         "abandoned": "Abandoned",
         "expired": "Expired",
-        "failed": "Failed"
+        "failed": "Failed",
+        "refused": "Refused"
       }
     },
-    "ExportRequest": {
-      "kind": {
-        "ms_project_schedule": "MS Project schedule",
-        "estimate": "Estimate",
-        "remaining": "Estimate to complete",
-        "task_tree_image": "Task tree image"
-      }
+    "ImportCommand": {
+      "apply": "Apply the import",
+      "abandon": "Abandon the import"
+    },
+    "ExportKind": {
+      "ms_project_schedule": "MS Project schedule",
+      "estimate": "Estimate",
+      "remaining": "Estimate to complete",
+      "task_tree_image": "Task tree image"
     },
     "PortfolioPerformance": {
       "zone_distribution": {
@@ -3280,7 +3909,9 @@
       "period": "Period extracted",
       "periodFrom": "From",
       "periodTo": "To",
-      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes."
+      "fileTooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
+      "mappingMissing": "{count, plural, one {Required column without a label in the mapping} other {Required columns without a label in the mapping}}: {columns}.",
+      "mappingLink": "Set the mapping of the extraction"
     },
     "drop": {
       "title": "Drop zone for the MS Project file",
@@ -3305,9 +3936,22 @@
       "read": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}.",
       "reasons": "Explicit confirmation required",
       "rejected": "{count, plural, =0 {No line rejected} one {# line rejected} other {# lines rejected}}",
+      "refusals": "{count, plural, one {# reason rejects the whole file: nothing is applied} other {# reasons reject the whole file: nothing is applied}}",
       "rejectedTable": "Rejected lines",
       "row": "Line",
       "motive": "Reason",
+      "sheet": "Tab",
+      "dateMismatches": "{count, plural, one {# task the file dates otherwise: what Waterfall computes prevails} other {# tasks the file dates otherwise: what Waterfall computes prevails}}",
+      "dateMismatchesTable": "Tasks the file dates otherwise",
+      "unchanged": "Of these, {count, plural, =0 {none is unchanged} one {# is unchanged} other {# are unchanged}}.",
+      "signals": "{count, plural, one {# value of the file kept and signalled} other {# values of the file kept and signalled}}",
+      "signalsTable": "Values of the file kept and signalled",
+      "task": "Task",
+      "column": "Column",
+      "signal": "Signal",
+      "completed": "{count, plural, one {# task completed by the import} other {# tasks completed by the import}}",
+      "completedTable": "Tasks completed by the import",
+      "completedOn": "Completed on",
       "differences": "{count, plural, =0 {No difference with the existing data} one {# difference with the existing data} other {# differences with the existing data}}",
       "differencesTable": "Differences with the existing data",
       "change": "Change",
@@ -3315,6 +3959,10 @@
       "label": "Label",
       "fields": "Fields",
       "unnamed": "No label",
+      "labelItem": "{label}, item {item}",
+      "ignored": "Items the import ignores",
+      "ignoredItem": "{kind} ({count}): {names}",
+      "ignoredCount": "{kind} ({count})",
       "apply": "Apply the import",
       "abandon": "Abandon the import",
       "confirmTitle": "Confirmation of the application",
@@ -3334,6 +3982,7 @@
       "title": "Request an export",
       "kind": "File to export",
       "request": "Request the export",
+      "reviewDate": "Review date",
       "depth": "Level of the tree",
       "none": "No export is offered to you on this revision."
     }

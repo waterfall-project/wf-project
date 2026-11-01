@@ -244,7 +244,7 @@ describe("the schedule of the backups", () => {
     },
   );
 
-  it("requires the frequency and the time of a schedule on alone, and says so: a suspended one is sent without them", async () => {
+  it("requires the frequency and the time of a schedule, suspended or not, and says so [WF-ADM-0170-A]", async () => {
     const client = serve();
     const form = await openForm();
     const frequency = within(form).getByLabelText("Fréquence");
@@ -260,16 +260,22 @@ describe("the schedule of the backups", () => {
       expect(field).toHaveAccessibleDescription(/Une valeur est requise\.$/);
     }
     expect(client.calls).toEqual([]);
+    // A suspended schedule keeps them: the contract gives both whatever the state.
     await userEvent.selectOptions(within(form).getByLabelText("État"), "Suspendue");
-    expect(frequency).not.toHaveAttribute("aria-required");
-    expect(time).not.toHaveAttribute("aria-required");
+    expect(frequency).toHaveAttribute("aria-required", "true");
+    expect(time).toHaveAttribute("aria-required", "true");
+    await save(form);
+    expect(client.calls).toEqual([]);
+    await userEvent.selectOptions(frequency, "Quotidienne");
+    fireEvent.change(time, { target: { value: "03:15" } });
     await save(form);
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    expect(client.calls[0]?.body).not.toHaveProperty("frequency");
     expect(client.calls[0]?.body).toEqual({
       is_enabled: false,
+      frequency: "daily",
+      at_time: "03:15",
       weekday: null,
       retained_count: 7,
       external_copy: witness.external_copy,

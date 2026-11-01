@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The settings of the costs (FBS-3.1, US-0250), outside any project: the currency of the
- * installation, every amount expressed in it (WF-REF-0140); then, stacked one under the other in a
+ * installation, every amount expressed in it (WF-REF-0140), and beside it the name of the company the
+ * exported files bear (WF-EXP-0020), modified where the session may modify the cost settings; then, stacked one under the other in a
  * page that scrolls, as the settings of the resources are (US-0570, #1044), the natures and the
  * categories of cost (FBS-3.1.1), two dense grids searched, filtered, sorted and paged by the
  * server, as the address asks under the names of each grid (#510), and the grid of the hourly rates
@@ -27,12 +28,15 @@
  */
 import { Coins } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { components } from "@/api/generated/schema";
 import { readEveryPage } from "@/api/every-page";
 import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
+import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { platformOffer } from "@/components/commands/offer";
 import {
   bounded,
@@ -85,10 +89,13 @@ import {
 } from "@/components/reference/rate-columns";
 import { type HourlyRateGrid, RateGrid } from "@/components/reference/rate-grid";
 import { InactiveSwitch } from "@/components/reference/reference-filters";
+import { CompanyName, CompanySettings } from "@/components/reference/settings-forms";
 import { BoundsRefused, ReferenceSection } from "@/components/reference/section";
-import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
+import { leafOf } from "@/navigation/functions";
 import { type PageSearchParams, pageSearch, type SearchParameters } from "@/navigation/context";
 import { offsetOf } from "@/navigation/pages";
 import { type Permission, requestSession } from "@/session/request";
@@ -96,10 +103,16 @@ import { type Permission, requestSession } from "@/session/request";
 import { screenMetadata } from "../../title";
 import { readReferenceSettings } from "../settings";
 
+type ReferenceSettings = components["schemas"]["ReferenceSettings"];
+
 /** Title the tab with the function. */
 export async function generateMetadata(): Promise<Metadata> {
   return screenMetadata("functions.costSettings");
 }
+
+/** The leaf of the correspondence of the actual costs, which the screen leads to (`make screens`). */
+const MAPPING = leafOf("FBS-3.1.3");
+const MappingIcon = LEAF_ICONS["FBS-3.1.3"];
 
 /** The pages of the lists the server pages, which the switch of the deactivated objects resets. */
 const PAGES = [
@@ -265,11 +278,11 @@ async function readCosts(
  * nothing of what is written.
  */
 function CostsHeader({
-  currency,
+  settings,
   inactive,
   writes,
 }: {
-  readonly currency: string;
+  readonly settings: ReferenceSettings;
   readonly inactive: boolean | undefined;
   /** Whether the session may modify the cost settings, and its commands write. */
   readonly writes: boolean;
@@ -281,11 +294,30 @@ function CostsHeader({
         title={t("functions.costSettings")}
         icon={FUNCTION_ICONS.cost_settings}
         density={FUNCTION_DENSITY.cost_settings}
-        subtitle={t("reference.currency", { currency })}
+        subtitle={t("reference.currency", { currency: settings.currency_code })}
         actions={
-          inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
+          <div className="flex flex-wrap items-center gap-2">
+            {inactive === undefined ? null : <InactiveSwitch shown={inactive} pages={PAGES} />}
+            <CommandTooltip
+              label={t(MAPPING.label)}
+              help={t("commands.openActualCostMapping.help")}
+            >
+              <Link
+                href={MAPPING.route}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                <MappingIcon aria-hidden="true" />
+                {t(MAPPING.label)}
+              </Link>
+            </CommandTooltip>
+          </div>
         }
       />
+      {writes ? (
+        <CompanySettings settings={settings} />
+      ) : (
+        <CompanyName name={settings.company_name} />
+      )}
       {writes ? <MockupNotice /> : null}
     </>
   );
@@ -354,7 +386,7 @@ export default async function CostSettingsPage({
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
         <CostsHeader
-          currency={settings.currency_code}
+          settings={settings}
           inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
           writes={editable}
         />

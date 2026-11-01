@@ -57,6 +57,7 @@ import {
   LAST_YEAR,
   RATE_COLUMN,
   RATE_GRID_KEY,
+  RATE_HEADINGS,
   RATE_STATE,
   RATE_YEAR,
   type RateSort,
@@ -94,7 +95,7 @@ function yearColumn(
   const rate = (row: RateRow) => row.cells[index]?.amount;
   return {
     key: `year_${year.toString()}`,
-    label: "hourlyRate",
+    ...RATE_HEADINGS.year,
     heading: year.toString(),
     format: "money",
     width: 76,
@@ -175,7 +176,7 @@ export function gridYears(answered: readonly number[], added: readonly AddedYear
 const STATE_WIDTH = 100;
 
 /** The grid of the rates, a column for each year of the answer and each the grid added. */
-function rateGrid(
+export function rateGrid(
   years: readonly YearCell[],
   editable: boolean,
   answered: () => number,
@@ -190,7 +191,7 @@ function rateGrid(
     columns: [
       {
         key: "code",
-        label: "code",
+        ...RATE_HEADINGS.code,
         format: "text",
         width: 80,
         pinned: true,
@@ -199,7 +200,7 @@ function rateGrid(
       },
       {
         key: "label",
-        label: "label",
+        ...RATE_HEADINGS.label,
         format: "text",
         width: 240,
         pinned: true,
@@ -208,7 +209,7 @@ function rateGrid(
       },
       {
         key: "state",
-        label: "state",
+        ...RATE_HEADINGS.state,
         format: "text",
         width: STATE_WIDTH,
         contract: "is_active",

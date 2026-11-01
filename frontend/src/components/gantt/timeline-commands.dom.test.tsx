@@ -13,6 +13,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import {
   example,
+  type FakeAnswers,
   type FakeClient,
   fakeClient,
   type FakeTiming,
@@ -38,6 +39,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 type Timeline = components["schemas"]["Timeline"];
+type Problem = components["schemas"]["Problem"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SCREEN = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102/timelines`;
@@ -55,11 +57,12 @@ const quoted = (label: string) => `«\u00a0${label}\u00a0»`;
 const read = (label: string) => `« ${label} »`;
 
 /** Serve the fake back, answering when the timing says, and give it back to read its calls. */
-function serve(timing?: FakeTiming): FakeClient {
+function serve(timing?: FakeTiming, answers: FakeAnswers = {}): FakeClient {
   const client = fakeClient(
     {
       "POST /projects/{project_id}/timelines": { example: "timeline_created", status: 201 },
       "DELETE /projects/{project_id}/timelines/{timeline_id}": { status: 204 },
+      ...answers,
     },
     timing,
   );
@@ -179,6 +182,41 @@ describe("the commands of the timelines of a project", () => {
     expect(name).toHaveAccessibleDescription("Une valeur est requise.");
     expect(name).toHaveFocus();
     expect(client.calls).toEqual([]);
+  });
+
+  it("says at its field the empty name the server refuses, and keeps the dialog open [WF-PLA-0140-A]", async () => {
+    // A name of blanks passes the form and is refused by the server (`timeline_label_required`).
+    serve(undefined, {
+      "POST /projects/{project_id}/timelines": {
+        problem: example("timeline_label_required") as Problem & { status: 422 },
+      },
+    });
+    render(choice(AVAILABLE));
+    await userEvent.click(screen.getByRole("button", { name: "Nouvelle chronologie" }));
+    const dialog = screen.getByRole("dialog", { name: "Nouvelle chronologie" });
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Nom" }), " ");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(within(dialog).getByRole("textbox", { name: "Nom" })).toHaveAccessibleDescription(
+        "Une valeur est requise.",
+      );
+    });
+    expect(screen.getByRole("dialog", { name: "Nouvelle chronologie" })).toBe(dialog);
+  });
+
+  it("tells a deletion refused for a terminal project, and keeps the link [WF-CYC-0100-A]", async () => {
+    serve(undefined, {
+      "DELETE /projects/{project_id}/timelines/{timeline_id}": {
+        problem: example("timeline_delete_terminal") as Problem & { status: 409 },
+      },
+    });
+    render(choice(AVAILABLE));
+    await deleteShown();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Le projet est clos : il ne se modifie plus.",
+    );
+    expect(offered()).toEqual(["Comité de pilotage", "Revue client"]);
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("deletes the timeline shown once confirmed, takes its link away and its tasks, and leads to the one left", async () => {

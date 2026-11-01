@@ -1,0 +1,10 @@
+{
+  "summary": "La ligne de provision de « Risque de reprise du câblage », « Provision — risque de reprise du câblage », réestimée dans la grille de reste à engager : son montant est celui que son risque calcule, et le reste à engager le compte pour ce montant ; la ligne le disait (remaining_entry), et la saisie est refusée, la condition nommée ; rien n'est écrit (WF-RIS-0010, WF-RAE-0010).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"line_not_provision"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001074"
+  }
+}

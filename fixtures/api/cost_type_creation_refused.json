@@ -6,7 +6,10 @@
     "fields": [
       {
         "pointer": "/code",
-        "code": "VALUE_TOO_LONG"
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 20
+        }
       },
       {
         "pointer": "/label",

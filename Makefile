@@ -59,7 +59,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
-	requirements-release screens reuse lint-workflows \
+	requirements-release screens readmes reuse lint-workflows \
 	lint-shell check \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
@@ -83,8 +83,9 @@ TESTS ?=
 # The part of the end-to-end paths `make e2e` plays, as i/N: the chain spreads them over N
 # runners, and plays the measure of §4.6.2 on one more (e2e.yml). Empty, it plays them all.
 SHARD ?=
-# How many workers `make e2e` plays the paths on (playwright test --workers): fewer than Playwright
-# takes by itself on a loaded workstation, where paths fail by a timeout (#736). Empty, its own.
+# How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
+# against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
+# paths fail by a timeout (#736). Empty, its own: half the processors.
 WORKERS ?=
 # One heavy run at a time on the workstation: the whole tests of a side, their coverage, the
 # production build of the front, the end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
@@ -139,8 +140,12 @@ dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
 dev-down: ## Stop the development platform
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) down
 
+# The tests of the tools compute more than they wait: one process per core (pytest-xdist). Work
+# stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
+# worker's queue: on four cores, eleven minutes become under five. A heavy run always, behind the
+# lock (HEAVY_LOCK): it takes every core, and selects no single file (TESTS).
 test-tools: ## Run the tests of the repository tools
-	@cd $(TOOLS) && uv run --frozen pytest
+	@cd $(TOOLS) && flock $(HEAVY_LOCK) uv run --frozen pytest -n auto --dist worksteal
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
@@ -166,6 +171,9 @@ requirements-release: ## Same, and fail on an F0 requirement no test covers
 
 screens: ## Each leaf of the FBS has its route in the table of the front, answered by a page (EP-02/L3)
 	@$(WFTOOLS).screens
+
+readmes: ## Each README-fr.md of docs/ has its English README.md, their headings one for one (#1711)
+	@$(WFTOOLS).readmes
 
 reuse: ## Check that every file declares its copyright and licence
 	@uv run --frozen --project $(TOOLS) reuse lint
@@ -307,7 +315,7 @@ check: ## Run the checks of what the change touches (BASE=origin/main by default
 check-all: check-repo check-spec check-contract check-back check-front check-front-image check-roadmap check-keycloak check-service check-production ## Run every family of checks
 
 check-repo: reuse lint-workflows lint-shell lint-docker lint-compose sources check-fixtures \
-	requirements screens lint-tools typecheck-tools test-tools ## Checks that run on any change
+	requirements screens readmes lint-tools typecheck-tools test-tools ## Checks that run on any change
 
 check-spec: build-doc-strict ## The projection builds without warning and is up to date
 	@git diff --exit-code --stat -- $(SPEC)/waterfall-spec.md \
@@ -355,9 +363,8 @@ check-front-static: client-up-to-date lint-front typecheck-front catalogs $(call
 
 check-front-tests: $(call full-else,coverage-front,test-front) ## The tests of the front, SHARD=lint or i/N one part of them; in the full tier, measured
 
-# The whole harness builds the front for production for its measure, whose manifest
-# prerendered-front then reads; a part of the paths alone (SHARD) builds nothing to hold.
-check-front-e2e: $(call full-only,e2e-browsers e2e $(if $(SHARD),,prerendered-front)) ## The end-to-end paths of the front, which build it for production, and what that build prerendered, in the full tier only
+# The paths build the front for production, whose manifest prerendered-front then reads.
+check-front-e2e: $(call full-only,e2e-browsers e2e prerendered-front) ## The end-to-end paths of the front, which build it for production, and what that build prerendered, in the full tier only
 
 install-front: ## Install the dependencies of the front, as the lock file says
 	@$(PNPM) install --frozen-lockfile --silent
@@ -412,16 +419,18 @@ build-front: install-front ## Build the front for production with no API to reac
 	@$(PNPM_HEAVY) build
 
 # What the last production build of the front prerendered, read from the manifest it wrote, without
-# Docker: build-front's in the fast tier, that of the measure of the paths in the full one, which
-# prerender as the image does (wftools.frontimage, US-0430).
+# Docker: build-front's, in the fast tier as for the end-to-end paths in the full one, which
+# prerenders as the image does (wftools.frontimage, US-0430).
 prerendered-front: ## The production build of the front prerendered no page that reads the environment, as its image would not (US-0430)
 	@$(WFTOOLS).frontimage --manifest $(FRONT)/.next/prerender-manifest.json
 
 # With SHARD, one part of the tests measured alone, its report written for coverage-front-merge
-# (frontend/.vitest/blob/), the thresholds held on the parts gathered alone.
+# (frontend/.vitest/blob/), the thresholds held on the parts gathered alone. Beside the blob, which
+# says nothing of a test that fails, the dot reporter names it and its error in the log of the part:
+# a part of the chain that failed silent cost a run to diagnose (US-0590b).
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
 ifdef SHARD
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob
+	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
 else
 	@$(PNPM_HEAVY) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
@@ -452,14 +461,26 @@ roadmap: ## Confront the stories of docs/roadmap with the requirements of the do
 e2e-browsers: install-front ## Install the browser the end-to-end tests run in
 	@$(PNPM) exec playwright install $(PLAYWRIGHT_INSTALL) chromium
 
+# The paths play against the front built for production (US-0590): built first by build-front, which
+# Next's cache (.next/cache) shortens after the first time, then started by the harness, told it is
+# built (E2E_BUILT). E2E_BUILT=1 set already says the front is built — the chain builds it once for
+# all its parts (front-build, ci.yml) —, and E2E_DEV_SERVER=1, on a workstation, plays the paths against next
+# dev, which needs no build; the measure never follows it (frontend/playwright.config.ts).
+E2E_BUILT ?=
+E2E_DEV_SERVER ?=
+e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
+
 # With SHARD, the paths alone (E2E_PART, frontend/playwright.config.ts): the measure, which
 # waits for all of them, would bring every path into each part; e2e-measure plays it apart.
 e2e: export E2E_PART = $(if $(SHARD),paths)
-e2e: install-front ## End-to-end paths, against the fake back that Playwright starts (US-0080); SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file
-	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(if $(WORKERS),--workers=$(WORKERS)) $(TESTS)
+e2e: export E2E_BUILT = 1
+e2e: export E2E_WORKERS = $(WORKERS)
+e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
-e2e-measure: install-front ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
+e2e-measure: export E2E_BUILT = 1
+e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4.6.2 alone, against the front built for production (US-0110)
 	@$(PNPM_HEAVY) exec playwright test
 
 # The paths of the Playwright project `service` (frontend/e2e/service/), against the real service:
@@ -489,7 +510,8 @@ e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
 e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
-e2e-service: install-front ## End-to-end paths of the project `service` against the real service, through Prism as a proxy (needs the secrets of service-up and a browser, make e2e-browsers)
+e2e-service: export E2E_BUILT = 1
+e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths of the project `service` against the real service, through Prism as a proxy, on the front built for production (needs the secrets of service-up and a browser, make e2e-browsers)
 	@$(MAKE) --no-print-directory mock-spec MOCK_SPEC=$(PROXY_SPEC)
 	@$(MAKE) --no-print-directory service-up
 	@$(COMPOSE_SERVICE) up --detach --wait contract-proxy

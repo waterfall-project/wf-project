@@ -4,7 +4,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
-import { rowAt, scroller, withinBox } from "./scroll";
+import { edgesBetween, rowAt, scroller, withinBox } from "./scroll";
 
 // The fake back serves the first example of `listNodes`, the structure of the volumes of §4.6.2
 // (EP-02/L2), which the journeys read by marks the generator writes
@@ -24,7 +24,7 @@ const COLUMNS = {
   hours: "Charge (h)",
   disbursement: "Débours unit.",
   reference: "Montant (année de réf.)",
-  inflated: "Montant corrigé de l’inflation",
+  reestimated: "Montant réestimé",
 } as const;
 
 /** A cell of the row at a position among the rows of the answer, by the position of its column. */
@@ -145,18 +145,14 @@ test("keeps the active cell in the window, clear of the header and the totals, f
     expect(await withinBox(grid, active)).toBe(true);
     await expect(header).toBeInViewport();
     await expect(totals).toBeInViewport();
-    // Neither under the header nor under the totals.
-    const [cell, top, foot] = await Promise.all([
-      active.boundingBox(),
-      header.boundingBox(),
-      totals.boundingBox(),
-    ]);
-    expect(cell?.y ?? 0).toBeGreaterThanOrEqual((top?.y ?? 0) + (top?.height ?? 0) - 1);
+    // Neither under the header nor under the totals, the three boxes read at one moment (#1522).
+    const cell = await edgesBetween(active, header, totals);
+    expect(cell.top).toBeGreaterThanOrEqual(cell.headerBottom - 1);
     // The border the last row and the totals share aside.
-    expect((cell?.y ?? 0) + (cell?.height ?? 0)).toBeLessThanOrEqual((foot?.y ?? 0) + 2);
+    expect(cell.bottom).toBeLessThanOrEqual(cell.totalsTop + 2);
   }
   await press(page, "Control+End");
-  await expect(cellAt(grid, 6000, at.inflated)).toBeFocused();
+  await expect(cellAt(grid, 6000, at.reestimated)).toBeFocused();
 });
 
 test.describe("on a narrow window", () => {
@@ -168,8 +164,8 @@ test.describe("on a narrow window", () => {
     const { grid, at } = await tabIntoGrid(page);
     const label = grid.getByRole("columnheader", { name: "Libellé" });
     await page.keyboard.press("End");
-    await expect(cellAt(grid, 1, at.inflated)).toBeFocused();
-    for (let column = at.inflated - 1; column >= at.quantity; column -= 1) {
+    await expect(cellAt(grid, 1, at.reestimated)).toBeFocused();
+    for (let column = at.reestimated - 1; column >= at.quantity; column -= 1) {
       await page.keyboard.press("ArrowLeft");
       const active = cellAt(grid, 1, column);
       await expect(active).toBeFocused();
@@ -188,15 +184,15 @@ test.describe("on a narrow window", () => {
     const headers = grid.getByRole("columnheader");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("End");
-    await expect(headers.nth(at.inflated)).toBeFocused();
-    await expect(headers.nth(at.inflated)).toBeInViewport({ ratio: 1 });
+    await expect(headers.nth(at.reestimated)).toBeFocused();
+    await expect(headers.nth(at.reestimated)).toBeInViewport({ ratio: 1 });
     // The rows scrolled down, as the wheel does: moving along the header scrolls them no more.
     const top = await scroller(grid).evaluate((element) => {
       element.scrollTop = 560;
       return element.scrollTop;
     });
     expect(top).toBeGreaterThan(0);
-    for (let column = at.inflated - 1; column >= at.quantity; column -= 1) {
+    for (let column = at.reestimated - 1; column >= at.quantity; column -= 1) {
       await page.keyboard.press("ArrowLeft");
       const active = headers.nth(column);
       await expect(active).toBeFocused();

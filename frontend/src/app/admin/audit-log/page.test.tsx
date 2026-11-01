@@ -137,7 +137,6 @@ beforeEach(() => {
     "GET /me": "me",
     [EVENTS]: "audit_events",
     [FACETS]: "audit_facets",
-    "GET /projects": "projects",
   };
 });
 
@@ -151,14 +150,14 @@ describe("the journal of audit", () => {
     const shown = rows(page);
     expect(shown[0]).toBe("Date Auteur Action Nature de l’objet Objet Projet Corrélation");
     expect(shown[1]).toBe(
-      "Camille Martin Application d’un import Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000034",
+      "Camille Martin Application d’un import Import : Coûts réels Import couts-reels-2026-05.xlsx PRJ-001 · Modernisation du poste de commande 01926f3a-7c00-7000-8000-000800000035",
     );
     // A backup of the platform: no label, named by its nature, never by its identifier; no project.
     expect(shown[2]).toBe(
-      "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000033",
+      "La plateforme Sauvegarde Sauvegarde Sauvegarde Hors projet 01926f3a-7c00-7000-8000-000800000034",
     );
-    expect(shown.at(-1)).toBe("36 inscriptions");
-    expect(text(page)).toContain("Journal d’audit Aide 36 inscriptions");
+    expect(shown.at(-1)).toBe("37 inscriptions");
+    expect(text(page)).toContain("Journal d’audit Aide 37 inscriptions");
     // Each date, an instant the browser writes in its local time; the history, an icon named.
     expect(page).toContain('<time dateTime="2026-06-03T08:30:00Z">');
     expect(page).toContain('aria-label="Histoire de l’objet"');
@@ -217,7 +216,6 @@ describe("the journal of audit", () => {
     server.answers = {
       ...server.answers,
       "GET /me": "me_auditor",
-      "GET /projects": "projects_empty",
     };
     const page = await journal();
     expect(sorted(page)[0]).toBe("Date ascending");
@@ -235,10 +233,9 @@ describe("the journal of audit", () => {
     server.answers = {
       ...server.answers,
       "GET /me": "me_auditor",
-      "GET /projects": "projects_empty",
     };
     const page = await journal();
-    expect(rows(page).at(-1)).toBe("36 inscriptions");
+    expect(rows(page).at(-1)).toBe("37 inscriptions");
     expect(queriesOf(FACETS)).toEqual([{}]);
     expect(queriesOf("GET /users")).toEqual([]);
     expect(text(page)).toContain("Auteur Tous les comptes Camille Martin");
@@ -299,20 +296,13 @@ describe("the journal of audit", () => {
     expect(queriesOf(EVENTS)).toEqual([NEWEST]);
   });
 
-  it("offers the authors and the projects the whole journal names, and reads the projects the session may open in every state for its links", async () => {
+  it("offers the authors and the projects the whole journal names, and reads no list of projects for its links: the server says which it may open", async () => {
     const page = text(await journal());
     expect(page).toContain("Auteur Tous les comptes Camille Martin Toutes les actions");
     expect(page).toContain("Projet Tous les projets PRJ-001 · Modernisation du poste de commande");
     expect(queriesOf(FACETS)).toEqual([{}]);
     expect(queriesOf("GET /users")).toEqual([]);
-    expect(queriesOf("GET /projects")).toEqual([
-      {
-        limit: "500",
-        offset: "0",
-        states: "created,pricing,in_progress,completed,lost,abandoned",
-        sort_by: "code",
-      },
-    ]);
+    expect(queriesOf("GET /projects")).toEqual([]);
   });
 
   it("names the object and the project with a link where the session may open the project, its revision and the revision an object lives in too", async () => {
@@ -328,14 +318,8 @@ describe("the journal of audit", () => {
     expect(links.filter((link) => link.startsWith("couts-reels"))).toEqual([]);
   });
 
-  it.each([
-    ["the session may not open the project", "projects_empty"],
-    [
-      "the API finds no list of projects, a service that serves none yet",
-      { problem: { code: "NOT_FOUND", status: 404 } },
-    ],
-  ] as const)("names the project and its objects without a link where %s", async (_, projects) => {
-    server.answers = { ...server.answers, "GET /projects": projects };
+  it("names the project and its objects without a link where the server says the session may not open the project [WF-ADM-0190-A]", async () => {
+    server.answers = { ...server.answers, [EVENTS]: "audit_events_auditor" };
     const page = await journal();
     // Only the links of the journal itself remain: the correlations.
     expect(
@@ -348,9 +332,9 @@ describe("the journal of audit", () => {
     server.answers = { ...server.answers, [EVENTS]: "audit_events_exited" };
     const page = await journal({ project_id: PROJECT });
     expect(rows(page)[1]).toContain(
-      "Camille Martin Sortie du cycle de vie Projet Modernisation du poste de commande",
+      "Camille Martin Sortie du cycle de vie Sortie vers : Terminé Projet Modernisation du poste de commande",
     );
-    expect(rows(page).at(-1)).toBe("13 inscriptions");
+    expect(rows(page).at(-1)).toBe("15 inscriptions");
     expect(queriesOf(EVENTS)).toEqual([{ project_id: PROJECT, ...NEWEST }]);
   });
 
@@ -475,7 +459,6 @@ describe("the journal of audit", () => {
   });
 
   it("offers a project the address asks that the session may not open, and names an object by what the inscriptions say", async () => {
-    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const page = await journal({
       project_id: PROJECT,
       object_id: "01926f3a-7c00-7000-8000-000000000a14",

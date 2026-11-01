@@ -23,7 +23,13 @@ import { expectAccessible } from "@/test/axe";
 import { roomForCharts } from "@/test/chart-room";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { type Perimeter, PROJECTS_LIST, readPerimeter, type Takes } from "./address";
+import {
+  type Perimeter,
+  PROJECTS_LIST,
+  type ProjectState,
+  readPerimeter,
+  type Takes,
+} from "./address";
 
 import { type NodeChoice, PerimeterBar, type ViewParameters } from "./perimeter";
 import { CashOutChart, monthAfter, PortfolioCurveChart, QuarterlyChart } from "./portfolio-charts";
@@ -430,6 +436,71 @@ describe("the perimeter of a view of the portfolio", () => {
     expect(within(period).getByDisplayValue("2026-03-31")).not.toHaveAttribute("aria-invalid");
   });
 
+  describe("the notice that a project completed has no effect", () => {
+    const NOTE = {
+      workload: "Les projets terminés sont sans effet sur le plan de charge.",
+      pilotHealth: "Les projets terminés sont sans effet sur la santé du pilotage.",
+    } as const;
+
+    function bar(
+      retained: readonly ProjectState[] | undefined,
+      view: "workload" | "pilotHealth" | undefined,
+    ) {
+      page.search = "";
+      return render(
+        inLanguage(
+          <PerimeterBar
+            perimeter={readPerimeter(new URLSearchParams(page.search))}
+            retained={retained}
+            {...(view === undefined ? {} : { completedWithoutEffect: view })}
+          />,
+        ),
+      );
+    }
+
+    it.each(["workload", "pilotHealth"] as const)(
+      "is said on the %s, accessibly, when the server retains completed alone or among other states [WF-PTF-0010-A] [WF-PTF-0060-A] [WF-PTF-0110-A]",
+      async (view) => {
+        for (const retained of [["completed"], ["in_progress", "completed"]] as const) {
+          const { container, unmount } = bar(retained, view);
+          expect(screen.getByRole("note")).toHaveTextContent(NOTE[view]);
+          await expectAccessible(container);
+          unmount();
+        }
+      },
+    );
+
+    it.each(["workload", "pilotHealth"] as const)(
+      "is not said on the %s when the server retains no completed project, or none is known [WF-PTF-0010-A]",
+      (view) => {
+        for (const retained of [["in_progress", "pricing"], undefined] as const) {
+          const { unmount } = bar(retained, view);
+          expect(screen.queryByRole("note")).toBeNull();
+          unmount();
+        }
+      },
+    );
+
+    it("is not said by a view that does not ask it, whatever it retains [WF-PTF-0010-A]", () => {
+      bar(["completed"], undefined);
+      expect(screen.queryByRole("note")).toBeNull();
+    });
+
+    it("is read from the states the server retained, not from the address [WF-PTF-0010-A]", () => {
+      page.search = "states=completed";
+      render(
+        inLanguage(
+          <PerimeterBar
+            perimeter={readPerimeter(new URLSearchParams(page.search))}
+            retained={["in_progress"]}
+            completedWithoutEffect="workload"
+          />,
+        ),
+      );
+      expect(screen.queryByRole("note")).toBeNull();
+    });
+  });
+
   it("shows the states the server retained when the address asks none, and adds one to them", async () => {
     const { container } = render(perimeterBar("", { period: true, node: true }));
     await expectAccessible(container);
@@ -576,10 +647,11 @@ describe("the charts of the portfolio", () => {
     const rows = within(figure).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
       "QuarterCost indexSchedule index",
+      "Q2 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
       "Q3 2025Not computable — No actual cost at the calculation date.Not computable — No planned value at the calculation date.",
-      "Q4 20250.940.93",
-      expect.stringMatching(/^Q1 2026/),
-      "Q2 20260.940.91",
+      "Q4 20250.93920.9272",
+      "Q1 20260.93860.9426",
+      "Q2 20260.9410.9088",
     ]);
   });
 
@@ -590,12 +662,11 @@ describe("the charts of the portfolio", () => {
     const figure = screen.getByRole("figure", { name: "Coûts cumulés du portefeuille" });
     const rows = within(figure).getAllByRole("row");
     expect(rows[0]).toHaveTextContent("CourbeDateMontant");
-    expect(rows[1]).toHaveTextContent(
-      `Budget de référence31 déc. 2025210${NARROW}664${NARROW}042,15`,
-    );
-    expect(rows).toHaveLength(1 + 12 + 7 + 7);
+    expect(rows[1]).toHaveTextContent("Budget de référence30 juin 20250,00");
+    // One row of heading, then every point of the three curves: the past year and the horizon.
+    expect(rows).toHaveLength(1 + curves.series.reduce((sum, each) => sum + each.points.length, 0));
     expect(rows.at(-1)).toHaveTextContent(
-      `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}593${NARROW}192,97`,
+      `Projection du chef de projet30 nov. 20262${NARROW}143${NARROW}620${NARROW}318,36`,
     );
     // Three curves in the order of the API, the actual cost by steps, the others by lines; an axis
     // of amounts that reaches down to the lowest value drawn.
@@ -625,7 +696,7 @@ describe("the charts of the portfolio", () => {
     const figure = screen.getByRole("figure", { name: "Décaissements par mois" });
     // The month of the calculation bears both: what was spent up to it, what is to come after.
     expect(within(figure).getByRole("row", { name: /juin 2026/ })).toHaveTextContent(
-      `juin 202619${NARROW}713${NARROW}579,4231${NARROW}415${NARROW}024,64`,
+      `juin 202619${NARROW}713${NARROW}579,4231${NARROW}417${NARROW}246,57`,
     );
   });
 
@@ -702,7 +773,8 @@ describe("the charts of the portfolio", () => {
       },
       {
         title: "Cash-out of the portfolio by month",
-        subtitle: "In progress and Pricing · 300 projects · calculated on 3 Jun 2026",
+        subtitle:
+          "In progress and Pricing · 300 projects · period from 4 Jun 2025 to 3 Jun 2026 · calculated on 3 Jun 2026",
         fileName: "cash-out-by-month-portfolio-2026-06-03.png",
       },
     ]);

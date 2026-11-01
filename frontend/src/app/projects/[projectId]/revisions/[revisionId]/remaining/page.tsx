@@ -25,7 +25,8 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
-import { readUnlessRefused } from "@/api/problem";
+import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
+import { requestCurrency } from "@/currency/request";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -79,9 +80,6 @@ async function readIndicators({ revision }: GridAddress) {
     }),
   );
 }
-
-/** The refusals of the optional reads (categories, sub-projects) the screen does without. */
-const OPTIONAL_READ_REFUSALS = [{ status: 404 }, { status: 403 }] as const;
 
 /**
  * The categories of cost a line is created from, the active ones — a line created takes an active
@@ -238,9 +236,10 @@ export default async function RemainingPage({
     ]);
     return { screen: read, categories, subprojects };
   });
-  const [{ screen, categories, subprojects }, indicators] = await Promise.all([
+  const [{ screen, categories, subprojects }, indicators, currency] = await Promise.all([
     grid,
     readIndicators(at),
+    requestCurrency(),
   ]);
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
@@ -263,7 +262,7 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <RemainingSummary indicators={indicators} />
+        <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
           {screen.breakdown === undefined ? null : (
             <BreakdownFilterChoice choices={screen.breakdown} />

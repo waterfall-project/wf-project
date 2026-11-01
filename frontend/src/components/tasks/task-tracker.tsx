@@ -245,21 +245,26 @@ export function useTrackTask(): TrackTask {
 
 /**
  * Run `then` once the task named has ended in the way asked (`succeeded`, or `unsuccessful`: failed,
- * or its follow-up interrupted). `task_id` is none until a task was started.
+ * or its follow-up interrupted), whether it is the task as it was handed over or the one a relaunch
+ * put in its place. `task_id` is none until a task was started.
  */
 function useWhenTaskEnded(
   taskId: string | undefined,
   way: "succeeded" | "unsuccessful",
   then: () => void,
 ): void {
-  const { log } = useTracker();
+  const { log, tasks } = useTracker();
   const done = useRef<string>(undefined);
+  // A relaunch puts a new task in the place of the one handed over, which keeps its key: the end
+  // of the task named is the end of the one now in its place too.
+  const current = tasks.find((tracked) => tracked.key === taskId)?.task.task_id;
   const ended =
     taskId !== undefined &&
     log.some(
       // Any end but a success — a failure, an interrupted follow-up — is the unsuccessful way.
       (line) =>
-        line.task.task_id === taskId && (line.end === "succeeded") === (way === "succeeded"),
+        (line.task.task_id === taskId || line.task.task_id === current) &&
+        (line.end === "succeeded") === (way === "succeeded"),
     );
   useEffect(() => {
     if (ended && done.current !== taskId) {
@@ -270,9 +275,10 @@ function useWhenTaskEnded(
 }
 
 /**
- * Run `then` once, when the task named has succeeded — never when it failed or its follow-up was
- * interrupted —, for the screen that started it and still shows: a task that ends while the user
- * is elsewhere leads nowhere. `task_id` is none until a task was started.
+ * Run `then` once, when the task named has succeeded — a relaunch of it included, never when it
+ * failed or its follow-up was interrupted —, for the screen that started it and still shows: a
+ * task that ends while the user is elsewhere leads nowhere. `task_id` is none until a task was
+ * started.
  */
 export function useWhenTaskSucceeds(taskId: string | undefined, then: () => void): void {
   useWhenTaskEnded(taskId, "succeeded", then);

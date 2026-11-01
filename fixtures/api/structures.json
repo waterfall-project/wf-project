@@ -1,11 +1,12 @@
 {
-  "summary": "Les structures de la révision courante : la principale ; l'avenant 2 « reprise des essais », différentiel que la révision a repris de la révision de référence, où il coexistait avec l'avenant 1 sans être fusionné, et qui ne l'est toujours pas (WF-REV-0100, #791) ; et le devis propre de chacun des trois risques de `risks`. Chacune a ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030). Chacune dit ses commandes de saisie : le projet étant En cours, la principale se saisit au planning et au reste à engager, son devis lisible en lecture seule (`project_before_in_progress`) ; l'avenant et le devis propre d'un risque se saisissent au planning et au devis, quel que soit l'état du projet, et n'ont pas de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).",
+  "summary": "Les structures de la révision courante : la principale ; l'avenant 2 « reprise des essais », différentiel que la révision a repris de la révision de référence, où il coexistait avec l'avenant 1 sans être fusionné, et qui ne l'est toujours pas (WF-REV-0100, #791) — l'avenant 1, fusionné dans la référence, n'est pas repris, consommé par sa fusion (#1758) ; et le devis propre de chacun des trois risques de `risks`. Chacune a ses identifiants à elle, distincts de ceux des structures de la révision de référence qu'elle copie (WF-DAT-0030) — la reprise du câblage, le retard de livraison des armoires, dont la survenance a fusionné le devis propre dans la structure principale (WF-RIS-0060), et l'indisponibilité de l'automaticien (WF-RIS-0030). Chacune dit ses commandes de saisie : le projet étant En cours, la principale se saisit au planning et au reste à engager, son devis lisible en lecture seule (`project_before_in_progress`) ; l'avenant et le devis propre d'un risque se saisissent au planning et au devis, quel que soit l'état du projet, et n'ont pas de reste à engager (WF-DEV-0050, WF-RAE-0040, WF-IHM-0090).",
   "value": [
     {
       "structure_id": "01926f3a-7c00-7000-8000-000000000201",
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "main",
       "label": "Structure principale",
+      "planning_start_on": "2026-03-02",
       "is_merged": false,
       "available_commands": [
         {
@@ -33,6 +34,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "amendment",
       "label": "Avenant 2 — reprise des essais",
+      "planning_start_on": "2026-03-02",
       "is_merged": false,
       "available_commands": [
         {
@@ -53,6 +55,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "risk",
       "label": "Risque de reprise du câblage",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
       "is_merged": false,
       "available_commands": [
@@ -74,6 +77,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "risk",
       "label": "Retard de livraison des armoires",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000752",
       "is_merged": true,
       "available_commands": [
@@ -95,6 +99,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000102",
       "kind": "risk",
       "label": "Indisponibilité de l'automaticien",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
       "available_commands": [

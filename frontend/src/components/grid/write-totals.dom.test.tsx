@@ -10,6 +10,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeFilters, NodeList, NodeSortColumn, NodesWritten } from "./nodes";
@@ -95,7 +96,7 @@ function grid(
         tasksEditable
         query={query}
         filters={filters}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );
@@ -147,13 +148,11 @@ describe("what a write answers besides the row written", () => {
     cell(CORE_LABOUR, "hours").focus();
     await userEvent.keyboard("14{Enter}");
     // The amounts of each summary follow those of its subordinates, as the server answers them,
-    // at the year of reference and corrected for inflation.
+    // at the year of reference.
     await vi.waitFor(() => {
       expect(cell(CORE_LOT, "base_amount")).toHaveTextContent(/502\s554,56$/);
     });
     expect(cell(CORE_TASK, "base_amount")).toHaveTextContent(/502\s354,56$/);
-    expect(cell(CORE_LOT, "inflated_amount")).toHaveTextContent(/502\s554,56$/);
-    expect(cell(CORE_TASK, "inflated_amount")).toHaveTextContent(/502\s354,56$/);
     expect(totals().slice(1)).toEqual([
       "Total — 1\u202f000 tâches, 5\u202f000 lignes",
       "",

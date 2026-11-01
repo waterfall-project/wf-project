@@ -2,11 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The panel of the online help (US-0580): opened from the header of a screen by its button or by F1,
- * it shows the page of the code of the screen, read from the files of the help by the server action
- * as it reads them in production; a link shows another page in the panel, Escape closes it and gives
- * the focus back. The action is spied, so that a page with raw HTML, a failure and a late answer can
- * be served.
+ * it shows the page of the code of the screen, in the language of the interface (US-0670b), read from the files of the help by the server action
+ * as it reads them in production; a link shows another page in the panel, a search finds the pages
+ * by their titles; Escape closes it and gives the focus back. The action is spied, so that a page
+ * with raw HTML, a failure and a late answer can be served.
+ *
+ * The renderer of the Markdown, which the panel loads lazily, is loaded with this file, before any
+ * test: its first loading compiles `react-markdown` and its plugins, which took more than the
+ * second a query waits on a loaded workstation, and failed the first test to open the panel
+ * (#1537). Its loading is made twice as slow as that second here, so that a test that paid it would
+ * fail every time.
  */
+import "./help-markdown";
+
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -29,6 +37,13 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("@/api/actions/help", async (original) => {
   const actual = await original<typeof import("@/api/actions/help")>();
   return { readHelp: vi.fn(actual.readHelp) };
+});
+
+vi.mock("./help-markdown", async (original) => {
+  const { getConfig } = await import("@testing-library/react");
+  // Twice the wait of a query: a test that paid it fails whatever the margin of the workstation.
+  await new Promise((resolve) => setTimeout(resolve, 2 * getConfig().asyncUtilTimeout));
+  return original<typeof import("./help-markdown")>();
 });
 
 const real = vi.mocked(readHelp).getMockImplementation();
@@ -72,13 +87,13 @@ async function panel(title: string) {
 }
 
 describe("the panel of the help", () => {
-  it("opens from the button of the header on the page of the screen, in its fixed sections [WF-IHM-0140-A]", async () => {
+  it("opens from the button of the header on the page of the screen, in its fixed sections, its columns from the catalogues [WF-IHM-0140-A]", async () => {
     const user = userEvent.setup();
     renderHeader();
     expect(helpButton()).toHaveAttribute("aria-keyshortcuts", "F1");
     await user.click(helpButton());
     const dialog = await panel("Planification");
-    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.3" });
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.3" }, "fr");
     expect(
       (await within(dialog).findAllByRole("heading", { level: 3 })).map((h) => h.textContent),
     ).toEqual([
@@ -88,6 +103,15 @@ describe("the panel of the help", () => {
       "Les gestes au clavier",
       "Voir aussi",
     ]);
+    // The French page of the French interface says it is French.
+    expect(within(dialog).getByRole("heading", { level: 2 })).toHaveAttribute("lang", "fr");
+    // The definitions of the columns, as the tooltips of the headers say them.
+    const columns = within(dialog)
+      .getByRole("heading", { name: "Ses colonnes et ses valeurs calculées" })
+      .closest("section");
+    expect(columns).toHaveTextContent(CATALOGUES.fr.columns.planning.predecessors.help);
+    expect(columns).toHaveTextContent(CATALOGUES.fr.grid.columns.totalFloat);
+    expect(columns).toHaveTextContent("(valeur calculée par le serveur)");
     // The parts of the screen lead to their own pages.
     expect(
       within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
@@ -147,26 +171,78 @@ describe("the panel of the help", () => {
     expect(readHelp).not.toHaveBeenCalled();
   });
 
-  it("says its French pages are French in an interface in English, title and body [WF-IHM-0140-A]", async () => {
+  it("opens the English help in an interface in English, in its fixed sections said in English, the page said English [WF-IHM-0140-A]", async () => {
     const user = userEvent.setup();
     renderHeader("en");
     await user.click(screen.getByRole("button", { name: "Help" }));
-    const dialog = await panel("Planification");
-    await within(dialog).findAllByRole("heading", { level: 3 });
-    const title = within(dialog).getByRole("heading", { name: "Planification" });
-    expect(title).toHaveAttribute("lang", "fr");
-    // The body, named by that French title, is French as a whole.
-    expect(within(dialog).getByRole("region", { name: "Planification" })).toHaveAttribute(
-      "lang",
-      "fr",
-    );
-    expect(dialog.querySelectorAll('[lang="fr"]').length).toBeGreaterThan(1);
-    expect(dialog.querySelector('[lang="fr"] h3')).not.toBeNull();
-    // What is the interface's own — the name of the list of parts — is not said French.
+    const dialog = await panel("Planning");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.3" }, "en");
     expect(
-      within(dialog).getByRole("navigation", { name: "The parts of the screen" }).closest("[lang]"),
-    ).toHaveAttribute("lang", "en");
+      (await within(dialog).findAllByRole("heading", { level: 3 })).map((h) => h.textContent),
+    ).toEqual([
+      "What the screen shows",
+      "Its commands",
+      "Its columns and computed values",
+      "Keyboard gestures",
+      "See also",
+    ]);
+    const title = within(dialog).getByRole("heading", { level: 2, name: "Planning" });
+    expect(title).toHaveAttribute("lang", "en");
+    // The region of the body holds the messages of the interface too: only the page says its
+    // language (#1442), and no French is left in the English help (US-0670b).
+    expect(within(dialog).getByRole("region", { name: "Planning" })).not.toHaveAttribute("lang");
+    expect(dialog.querySelector('[lang="en"] h3')).not.toBeNull();
+    expect(dialog.querySelector('[lang="fr"]')).toBeNull();
+    expect(dialog).toHaveTextContent("The grid is a single tab stop");
     await expectAccessible(dialog);
+  });
+
+  it("says the title of the list of parts in the language of the interface, and the English titles of its links English [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planning");
+    const parts = await within(dialog).findByRole("navigation", {
+      name: "The parts of the screen",
+    });
+    // The name of the list is the interface's own; the titles of its links are the help's (#1480).
+    expect(within(parts).getByRole("heading", { level: 4 })).toHaveAttribute("lang", "en");
+    expect(parts).toHaveTextContent("Planning gridGantt");
+    const links = within(parts).getAllByRole("link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.closest("[lang]")).toHaveAttribute("lang", "en");
+    }
+  });
+
+  it("defines the columns of the grid in the language of the interface, from its catalogue [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planning");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    const definition = within(dialog).getByText(CATALOGUES.en.columns.planning.predecessors.help);
+    expect(definition.closest("[lang]")).toHaveAttribute("lang", "en");
+    expect(
+      within(dialog).getAllByText("(value computed by the server)")[0]?.closest("[lang]"),
+    ).toHaveAttribute("lang", "en");
+    // Under no other language than the interface's, no grid definition, status nor alert.
+    for (const own of dialog.querySelectorAll("dl, [role='status'], [role='alert']")) {
+      expect(own.closest("[lang]")?.getAttribute("lang") ?? "en").toBe("en");
+    }
+  });
+
+  it("follows, in English, a link to a notion, the English notion with its translated quotation of the glossary [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planning");
+    await user.click(first(await within(dialog).findAllByRole("link", { name: "planned value" })));
+    const notion = await panel("Planned value");
+    expect(readHelp).toHaveBeenLastCalledWith({ kind: "notion", name: "valeur-planifiee" }, "en");
+    expect(within(notion).getByRole("heading", { level: 3, name: "What the glossary says" }));
+    expect(notion).toHaveTextContent("Designates the share of the reference budget");
+    expect(within(notion).getByRole("heading", { level: 2 })).toHaveAttribute("lang", "en");
   });
 
   it("puts the body, which scrolls, in the order of the keyboard, named by the title [WF-IHM-0140-A]", async () => {
@@ -177,8 +253,10 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     const body = within(dialog).getByRole("region", { name: "Planification" });
     expect(body).toHaveAttribute("tabindex", "0");
-    // Tab goes from the title's neighbours — the close button — to the body.
+    // Tab goes from the title's neighbours — the close button — to the search, then to the body.
     within(dialog).getByRole("button", { name: "Fermer l’aide" }).focus();
+    await user.tab();
+    expect(within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" })).toHaveFocus();
     await user.tab();
     expect(body).toHaveFocus();
   });
@@ -218,6 +296,7 @@ describe("the panel of the help", () => {
     // The link is to a page the real files have: the action answers it as a page to come.
     const target = { kind: "screen", code: "FBS-4.4" } as const;
     vi.mocked(readHelp).mockResolvedValueOnce({
+      language: "fr",
       page: { kind: "pending", target },
       index: [],
     } satisfies HelpReading);
@@ -225,11 +304,118 @@ describe("the panel of the help", () => {
     await waitFor(() => {
       expect(within(dialog).getByText("L’aide de cette page est à venir.")).toBeInTheDocument();
     });
-    expect(readHelp).toHaveBeenLastCalledWith(target);
+    expect(readHelp).toHaveBeenLastCalledWith(target, "fr");
+  });
+
+  it("searches the titles of the pages and the notions [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Planification");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
+      "la valeur acquise",
+    );
+    // « Courbes de valeur acquise », FBS-4.8.8, has no « la ».
+    expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
+    await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
+    await panel("La valeur acquise");
+  });
+
+  it.each([
+    [
+      "fr",
+      "Chercher dans l’aide",
+      "Aide",
+      "Planification",
+      "Aucune page de l’aide ne porte ces mots.",
+      "acquise",
+      "La valeur acquise",
+    ],
+    [
+      "en",
+      "Search the help",
+      "Help",
+      "Planning",
+      "No page of the help holds these words.",
+      "planned",
+      "Planned value",
+    ],
+  ] as const)(
+    "says no page holds the words searched, in %s, and clears the query on a followed link [WF-IHM-0140-A]",
+    async (locale, label, button, screenTitle, none, word, notionTitle) => {
+      const user = userEvent.setup();
+      renderHeader(locale);
+      await user.click(screen.getByRole("button", { name: button }));
+      const dialog = await panel(screenTitle);
+      await within(dialog).findAllByRole("heading", { level: 3 });
+      const box = within(dialog).getByRole("searchbox", { name: label });
+      await user.type(box, "zzzz");
+      expect(within(dialog).getByRole("status")).toHaveTextContent(none);
+      await user.clear(box);
+      await user.type(box, word);
+      await user.click(within(dialog).getByRole("link", { name: notionTitle }));
+      await panel(notionTitle);
+      expect(within(dialog).getByRole("searchbox", { name: label })).toHaveValue("");
+    },
+  );
+
+  it("keeps the alert of a failed reading when a word is typed, with no index to search [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    vi.mocked(readHelp).mockRejectedValueOnce(new Error("out of reach"));
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
+      "acquise",
+    );
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("L’aide n’a pas pu être lue");
+    expect(within(dialog).queryByText(/Aucune page/)).toBeNull();
+  });
+
+  it("searches the English titles in an interface in English, the messages of a search and of a failed reading the catalogue's own [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    const dialog = await panel("Planning");
+    await within(dialog).findAllByRole("heading", { level: 3 });
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search the help" }),
+      "planned value",
+    );
+    expect(within(dialog).getByRole("status")).toHaveTextContent("1 page found");
+    expect(within(dialog).getByRole("status").closest("[lang]")).toBeNull();
+    expect(
+      within(dialog).getByRole("link", { name: "Planned value" }).closest("[lang]"),
+    ).toHaveAttribute("lang", "en");
+    // No French title is found in the English index.
+    await user.clear(within(dialog).getByRole("searchbox", { name: "Search the help" }));
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search the help" }),
+      "planifiée",
+    );
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "No page of the help holds these words.",
+    );
+    await user.clear(within(dialog).getByRole("searchbox", { name: "Search the help" }));
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search the help" }),
+      "planned value",
+    );
+    vi.mocked(readHelp).mockRejectedValueOnce(new Error("out of reach"));
+    await user.click(within(dialog).getByRole("link", { name: "Planned value" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "The help could not be read.",
+    );
+    expect(within(dialog).getByRole("alert").closest("[lang]")).toBeNull();
   });
 
   it("renders no raw HTML a page would hold, nor an image, nor a link out of the help [WF-IHM-0140-A]", async () => {
     vi.mocked(readHelp).mockResolvedValue({
+      language: "fr",
       page: {
         kind: "written",
         target: { kind: "screen", code: "FBS-4.3" },
@@ -241,6 +427,7 @@ describe("the panel of the help", () => {
             body: 'Avant <b>gras</b> <script>alert(1)</script> ![image](x.png) [dehors](https://example.org) et [le devis](FBS-4.4.md).\n\n<div onclick="x">bloc</div>',
           },
         ],
+        columns: [],
       },
       index: [],
     } satisfies HelpReading);
@@ -260,7 +447,7 @@ describe("the panel of the help", () => {
     expect(within(dialog).getByRole("link", { name: "le devis" })).toBeInTheDocument();
   });
 
-  it("drops the answer of a page asked before the one shown, and says a failed reading", async () => {
+  it("drops the answer of a page asked before the one shown, and says a failed reading [WF-IHM-0140-A]", async () => {
     let release: (reading: HelpReading | undefined) => void = () => undefined;
     const user = userEvent.setup();
     renderHeader();
@@ -281,17 +468,66 @@ describe("the panel of the help", () => {
       expect(within(dialog).getByRole("alert")).toHaveTextContent("L’aide n’a pas pu être lue.");
     });
     await act(async () => {
-      release(await (real ?? readHelp)({ kind: "screen", code: "FBS-4.4" }));
+      release(await (real ?? readHelp)({ kind: "screen", code: "FBS-4.4" }, "fr"));
     });
     expect(within(dialog).getByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Chiffrage et devis" })).toBeNull();
   });
 
-  it("offers no help where the table of the functions knows no screen", () => {
-    at.pathname = "/account";
-    renderHeader();
-    expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+  it("reads the open page again in the new language when the language of the interface changes [WF-IHM-0140-A]", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderHeader("en");
+    await user.click(screen.getByRole("button", { name: "Help" }));
+    await panel("Planning");
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
+        <PageHeader title="Planification" />
+        <input aria-label="Ailleurs" />
+      </NextIntlClientProvider>,
+    );
+    const dialog = await panel("Planification");
+    expect(readHelp).toHaveBeenLastCalledWith({ kind: "screen", code: "FBS-4.3" }, "fr");
+    expect(within(dialog).getByRole("heading", { level: 2 })).toHaveAttribute("lang", "fr");
+    expect(
+      await within(dialog).findByRole("heading", { level: 3, name: "Ses commandes" }),
+    ).toBeInTheDocument();
   });
+
+  it("opens, on the page of a project, the help of the projects, FBS-4 [WF-IHM-0140-A]", async () => {
+    // #1439: the page of a project, which no function of the table routes to, opens the help of
+    // the block of the projects, whose page describes it.
+    at.pathname = "/projects/01926f3a-7c00-7000-8000-000000000001";
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4" }, "fr");
+    expect(dialog).toHaveTextContent("La page d’un projet");
+  });
+
+  it("opens, on the indicators of a project, their help, its parts leading to the page of each card and chart [WF-IHM-0140-A]", async () => {
+    // US-0670/L5 (#1452): the last screen of the table to receive its help.
+    at.pathname = "/projects/p/revisions/r/indicators";
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Indicateurs projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.8" }, "fr");
+    expect(
+      within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
+    ).toHaveTextContent(
+      "Avancement financierProjection à terminaisonAvancement physiqueIndicateur de coûts (CPI)Indicateur de délais (SPI)Suivi des jalonsCoûts cumulésCourbes de valeur acquise",
+    );
+  });
+
+  it.each([["/account"], ["/account/avatar"], ["/login/unavailable"]])(
+    "offers no help at %s, outside the table of the functions",
+    (pathname) => {
+      at.pathname = pathname;
+      renderHeader();
+      expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+    },
+  );
 });
 
 /** The button of the panel that comes back to the page of the screen. */

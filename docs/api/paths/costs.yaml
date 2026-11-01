@@ -18,30 +18,40 @@
       - $ref: ../components/parameters.yaml#/SubprojectFilter
       - name: from
         in: query
+        description: >-
+          Le début de la période, sur la date de pièce (`document_date`), inclus (WF-CRE-0040).
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: to
         in: query
+        description: >-
+          La fin de la période, sur la date de pièce, incluse ; une fin qui précède le début est
+          refusée par 422, `/query/to` par `VALUE_OUT_OF_RANGE`.
         schema: { $ref: ../components/common.yaml#/PlanningDate }
       - name: in_tracked_scope
         in: query
+        description: >-
+          Vrai, les lignes suivies seules ; faux, les lignes exclues seules ; absent, toutes
+          (WF-CRE-0030, WF-CRE-0040).
         schema: { type: boolean }
       - name: sort_by
         in: query
         description: >-
           Colonne du tri ; absente, les pièces les plus récentes d'abord. Chaque colonne de la
           grille se trie (WF-IHM-0060). `in_tracked_scope` range dans l'ordre croissant les
-          lignes exclues avant les lignes suivies. `excluded_reason` range par motif, et
-          `passthrough.<colonne>` par la valeur d'une colonne conservée du fichier, nommée
-          comme `passthrough` la nomme : l'un et l'autre comparés en texte, caractère par
-          caractère dans l'ordre des points de code Unicode, sans lire un nombre ni une date
-          qu'ils écriraient ; une ligne sans valeur — suivie, donc sans motif, ou sans cette
-          colonne — vient après les autres dans l'ordre croissant, avant dans le décroissant.
+          lignes exclues avant les lignes suivies. `document_item` range par numéro de poste,
+          `excluded_reason` par motif, et `passthrough.<colonne>` par la valeur d'une colonne
+          conservée du fichier, nommée comme `passthrough` la nomme : chacun comparé en texte,
+          caractère par caractère dans l'ordre des points de code Unicode, sans lire un nombre
+          ni une date qu'il écrirait ; une ligne sans valeur — sans poste, suivie donc sans
+          motif, ou sans cette colonne — vient après les autres dans l'ordre croissant, avant
+          dans le décroissant.
         schema:
           anyOf:
             - type: string
               enum:
                 - document_date
                 - document_number
+                - document_item
                 - amount
                 - subproject
                 - in_tracked_scope
@@ -90,6 +100,7 @@
             examples:
               period_inverted: { $ref: ../../../fixtures/api/actual_costs_period_inverted.json }
               subproject_unknown: { $ref: ../../../fixtures/api/actual_costs_subproject_unknown.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/actual-costs/{cost_line_id}/tracked-scope:
@@ -101,7 +112,12 @@
       Une ligne exclue reste consultable et n'entre dans aucun indicateur ; l'exclusion
       est conservée lors des imports ultérieurs, même quand les périodes se recouvrent
       (WF-CRE-0030). L'exclusion est une action irréversible au sens du journal d'audit
-      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100).
+      (WF-SEC-0030) et demande sa propre permission (WF-ADM-0100). Une écriture sans compteur,
+      par exception à la règle de `lock_version` (README, « Conventions ») : le `PUT` idempotent
+      pose l'état visé, exclue ou suivie, sans dépendre d'aucune autre valeur de la ligne, si
+      bien que deux requêtes concurrentes ne peuvent que donner le même état ou le dernier
+      demandé, et le rejouer ne change rien ; il n'a ni `lock_version` ni 412 (« Un état est une
+      ressource », DECISIONS.md ; décision de l'auteur du 2026-10-28, US-0702/L2).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/CostLineId
@@ -123,7 +139,20 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          La commande `exclude_cost_lines` du projet est indisponible : `STATE_FORBIDS_OPERATION`,
+          `params.missing_condition` la première condition qui lui manque, dans l'ordre où elle les
+          nomme — `project_not_terminal` sur un projet terminal, dont les coûts réels sont en
+          lecture seule et qui ne la liste plus (WF-CYC-0100), `project_in_progress` avant En
+          cours (WF-CRE-0030) ; I-06, US-0702/L2. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              project_terminal: { $ref: ../../../fixtures/api/actual_cost_scope_terminal.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /projects/{project_id}/cost-imports:
@@ -132,8 +161,8 @@
     tags: [actual-costs]
     summary: Journal des imports de coûts réels
     description: >-
-      Date, auteur, période extraite et nombre de lignes créées, mises à jour et
-      ignorées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
+      Date, auteur, période extraite et nombre de lignes créées, mises à jour, inchangées et
+      rejetées : de quand datent les chiffres qu'on lit (WF-CRE-0050).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/Limit
@@ -158,4 +187,5 @@
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

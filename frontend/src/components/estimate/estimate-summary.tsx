@@ -26,6 +26,7 @@ import { FUNCTION_ICONS } from "@/components/shell/function-display";
 
 import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
+import { ComputableValue } from "@/components/computable-value";
 import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -57,6 +58,8 @@ export interface EstimateSummaryProps {
   readonly missingRates: MissingRates;
   /** The permissions of the session: the reference is offered to one that may read it. */
   readonly permissions: readonly Permission[];
+  /** The currency of the installation, which every amount carries; none when it is unknown. */
+  readonly currency: string | undefined;
 }
 
 /**
@@ -133,14 +136,22 @@ function Figured({
  * A figure of the estimate: its name, and its amount — one the API always computes, as a
  * `Money`, or one it may not have, under `Computable`.
  */
-function Figure({ name, amount }: { readonly name: string; readonly amount: Computable | string }) {
+function Figure({
+  name,
+  amount,
+  currency,
+}: {
+  readonly name: string;
+  readonly amount: Computable | string;
+  readonly currency: string | undefined;
+}) {
   const locale = useLocale();
   return (
     <FigureTerm name={name}>
       {typeof amount === "string" ? (
-        formatMoney(amount, locale)
+        formatMoney(amount, locale, currency)
       ) : (
-        <Figured value={amount} format={(value) => formatMoney(value, locale)} />
+        <Figured value={amount} format={(value) => formatMoney(value, locale, currency)} />
       )}
     </FigureTerm>
   );
@@ -151,7 +162,9 @@ function Breakdown({
   name,
   items,
   context,
+  currency,
 }: {
+  readonly currency: string | undefined;
   readonly name: string;
   readonly items: readonly AmountByKey[];
   readonly context: EstimateIndicators["context"];
@@ -174,10 +187,18 @@ function Breakdown({
             <li key={item.key} className="flex flex-wrap gap-x-1">
               <span>{label}</span>
               <span className="tabular-nums">
-                <Figured value={item.amount} format={(value) => formatMoney(value, locale)} />
-                {share?.is_computable === true && share.value !== null && share.value !== undefined
-                  ? t("estimateSummary.shareOf", {
-                      share: formatShare(share.value, locale, bounds),
+                <Figured
+                  value={item.amount}
+                  format={(value) => formatMoney(value, locale, currency)}
+                />
+                {item.amount.is_computable
+                  ? t.rich("estimateSummary.shareOf", {
+                      share: () => (
+                        <ComputableValue
+                          value={share}
+                          format={(value) => formatShare(value, locale, bounds)}
+                        />
+                      ),
                     })
                   : null}
               </span>
@@ -190,7 +211,13 @@ function Breakdown({
 }
 
 /** The cards of the indicators: the total, the provisions and the deviations, then the breakdowns. */
-function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
+function Figures({
+  indicators,
+  currency,
+}: {
+  readonly indicators: EstimateIndicators;
+  readonly currency: string | undefined;
+}) {
   const t = useTranslations("estimateSummary");
   const reference = indicators.delta_to_reference;
   const delta = indicators.delta_to_previous_revision;
@@ -200,23 +227,43 @@ function Figures({ indicators }: { readonly indicators: EstimateIndicators }) {
     <FiguresGrid>
       <FiguresCard title={t("title")} context={context}>
         <FiguresList>
-          <Figure name={t("total")} amount={indicators.total} />
-          {provisions === undefined ? null : <Figure name={t("provisions")} amount={provisions} />}
-          {reference === null ? null : <Figure name={t("deltaToReference")} amount={reference} />}
-          {delta === null || delta === undefined ? null : (
-            <Figure name={t("delta")} amount={delta} />
+          <Figure name={t("total")} amount={indicators.total} currency={currency} />
+          <Figure name={t("provisions")} amount={provisions} currency={currency} />
+          {reference === null ? null : (
+            <Figure name={t("deltaToReference")} amount={reference} currency={currency} />
           )}
+          {delta === null ? null : <Figure name={t("delta")} amount={delta} currency={currency} />}
         </FiguresList>
       </FiguresCard>
-      <Breakdown name={t("byCostType")} items={indicators.by_cost_type} context={context} />
-      <Breakdown name={t("bySubproject")} items={indicators.by_subproject} context={context} />
-      <Breakdown name={t("byWorkPackage")} items={indicators.by_work_package} context={context} />
+      <Breakdown
+        name={t("byCostType")}
+        items={indicators.by_cost_type}
+        context={context}
+        currency={currency}
+      />
+      <Breakdown
+        name={t("bySubproject")}
+        items={indicators.by_subproject}
+        context={context}
+        currency={currency}
+      />
+      <Breakdown
+        name={t("byWorkPackage")}
+        items={indicators.by_work_package}
+        context={context}
+        currency={currency}
+      />
     </FiguresGrid>
   );
 }
 
 /** Render what the screen of the estimate says above its grid. */
-export function EstimateSummary({ indicators, missingRates, permissions }: EstimateSummaryProps) {
+export function EstimateSummary({
+  indicators,
+  missingRates,
+  permissions,
+  currency,
+}: EstimateSummaryProps) {
   const t = useTranslations("estimateSummary");
   return (
     <div className="space-y-3">
@@ -228,7 +275,7 @@ export function EstimateSummary({ indicators, missingRates, permissions }: Estim
           </FiguresCard>
         </FiguresGrid>
       ) : (
-        <Figures indicators={indicators} />
+        <Figures indicators={indicators} currency={currency} />
       )}
     </div>
   );

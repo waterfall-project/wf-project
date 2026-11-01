@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import functools
 import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -35,13 +35,14 @@ from wftools.mockcalendar import (
 from wftools.mocklinks import refuse_through_summaries
 from wftools.mockstructure import (
     LABOUR_RATES,
+    WITNESS,
     JsonObject,
-    inflated,
+    Projection,
     money,
 )
 from wftools.mockwitness import (
     CORE,
-    STUDIES_STARTED,
+    PLANNING_START,
     Line,
     Task,
     default_calendar,
@@ -53,12 +54,25 @@ if TYPE_CHECKING:
     from datetime import date
 
 
+@dataclass(frozen=True, slots=True)
+class Conflict:
+    """A link a predecessor in automatic mode cannot satisfy with a task in manual mode.
+
+    Named by both its tasks and its type, as the grid and the Gantt name it (WF-PLA-0020).
+    """
+
+    predecessor: int
+    successor: int
+    link_type: str
+
+
 @dataclass(slots=True)
 class Dated:
     """A task of the core placed in time: its calendar, its dates, the latest it may finish.
 
     A summary and a task in manual mode have no latest finish: the first is not scheduled, the
-    second is a date imposed, with no float and never critical (WF-PLA-0100).
+    second is a date imposed, with no float and never critical (WF-PLA-0100). The links a task
+    cannot satisfy, or that are not satisfied for it, are its conflicts (WF-PLA-0020).
     """
 
     task: Task
@@ -66,6 +80,7 @@ class Dated:
     start: Instant
     finish: Instant
     late_finish: Instant | None = None
+    conflicts: list[Conflict] = field(default_factory=list[Conflict])
 
     @property
     def hours(self) -> Decimal:
@@ -84,6 +99,19 @@ class Dated:
         return self.calendar.work_between(self.finish, self.late_finish) / HOURS_PER_DAY
 
 
+def float_of(dated: Mapping[int, Dated], number: int) -> Decimal | None:
+    """Return the total float of a task in days of work, a summary's from its subordinates.
+
+    A summary bears the smallest float of those of its subordinates that bear one, and none when
+    none does (WF-PLA-0100): it is critical as soon as one of them is, its float nil or negative.
+    """
+    placed = dated[number]
+    if not placed.task.children:
+        return placed.total_float
+    floats = [float_of(dated, child.number) for child in placed.task.children]
+    return min((each for each in floats if each is not None), default=None)
+
+
 def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
     """Return the tasks of the core depth first, in the order of the plan."""
     found: list[Task] = []
@@ -93,26 +121,27 @@ def tasks_in_order(roots: Iterable[Task] = CORE) -> list[Task]:
     return found
 
 
-def schedule(roots: Iterable[Task] = CORE) -> Mapping[int, Dated]:
+def schedule(roots: Iterable[Task] = CORE, start: date = PLANNING_START) -> Mapping[int, Dated]:
     """Date the core from its links, by number of task, and find the latest finish of each.
 
-    Forward: each task in automatic mode starts where its links allow, at the start of the
-    studies without any, on the calendar of the roles of its labour lines (WF-PLA-0010,
-    WF-PLA-0030); a task in manual mode keeps its dates; a summary spans its subordinates, on the
-    calendar of its own lines (WF-PLA-0040). The tasks are dated in the order of their links,
-    each after its predecessors, whatever their order in the plan. Backward: a task may finish
-    as late as its successors allow, at the finish of the core without any. A structure is dated
-    once: the readings of the indicators and of the curves date it again and again. A structure
-    whose links close a loop, or bind a summary to one of its subordinates, is not dated: the
-    server refuses it (``in_link_order``, ``wftools.mocklinks``).
+    Forward: each task in automatic mode starts where its links allow, at the planning start of
+    the structure without any — ``start``, the witness's by default —, on the calendar of the
+    roles of its labour lines (WF-PLA-0010, WF-PLA-0020, WF-PLA-0030); a task in manual mode keeps
+    its dates; a summary spans its subordinates, on the calendar of its own lines (WF-PLA-0040).
+    The tasks are dated in the order of their links, each after its predecessors, whatever their
+    order in the plan. Backward: a task may finish as late as its successors allow, at the finish
+    of the core without any. A structure is dated once: the readings of the indicators and of the
+    curves date it again and again. A structure whose links close a loop, or bind a summary to
+    one of its subordinates, is not dated: the server refuses it (``in_link_order``,
+    ``wftools.mocklinks``).
     """
-    return _schedule(tuple(roots))
+    return _schedule(tuple(roots), start)
 
 
 @functools.cache
-def _schedule(roots: tuple[Task, ...]) -> Mapping[int, Dated]:
+def _schedule(roots: tuple[Task, ...], planning_start: date) -> Mapping[int, Dated]:
     roles, default = role_calendars(), default_calendar()
-    origin = Instant(STUDIES_STARTED.on)
+    origin = Instant(planning_start)
     tasks = tasks_in_order(roots)
     linked = in_link_order(tasks)
     refuse_through_summaries(tasks)
@@ -200,7 +229,7 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
     task's start, its own duration after. The lag is placed on the successor's calendar, as the
     forward pass places it. A successor in manual mode bounds its predecessors by the dates
     entered, its latest start being its start (WF-PLA-0100, #402): a predecessor that cannot
-    finish in time has a negative float.
+    finish in time has a negative float, and the link is a conflict both tasks bear (WF-PLA-0020).
     """
     activities = [each for each in dated.values() if not each.task.children]
     core_finish = max(each.finish for each in activities)
@@ -229,7 +258,42 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
                 start = calendar.instant(latest_start, finish=False)
                 bound = each.calendar.finish_after(start, each.hours)
             latest = min(latest, bound)
+            manual = successor.task.manual is not None
+            if manual and each.calendar.work_between(each.finish, bound) < 0:
+                conflict = Conflict(task.number, successor.task.number, link_type)
+                each.conflicts.append(conflict)
+                successor.conflicts.append(conflict)
         each.late_finish = latest
+
+
+def open_own_lines(task: Task) -> bool:
+    """Return whether a task bears a line of its own, not a provision, with a remaining to commit.
+
+    The remaining of a line is what its current quantities give: a line re-estimated to nought
+    keeps none (WF-RAE-0040). It is open while that remaining is not nought, of either sign — the
+    contract signs the quantity, the hours and the disbursement, and a credit keeps a negative
+    remaining: « tant que ce reste n'est pas nul, elle reste démarrée » (WF-PLA-0040, #1807).
+    """
+    return any(
+        not line.is_provision
+        and line.quantity * (line.hours if line.hours is not None else line.unit or 0) != 0
+        for line in task.lines
+    )
+
+
+def awaiting_own_lines(dated: Mapping[int, Dated], number: int, today: date) -> bool:
+    """Return whether a summary awaits its own lines alone (`TaskFacet.awaiting_own_lines`).
+
+    Started, every subordinate completed, a line of its own outside the provisions keeping a
+    remaining to commit: its own lines are the only open lines of the phase (WF-PLA-0040, #1774).
+    """
+    task = dated[number].task
+    return (
+        bool(task.children)
+        and all(progress_at(dated, child.number, today) == "completed" for child in task.children)
+        and open_own_lines(task)
+        and progress_at(dated, number, today) == "started"
+    )
 
 
 def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
@@ -237,12 +301,15 @@ def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
 
     A task in manual mode carries the progress its user declared; a summary is completed after
     the last of its subordinates, not started before the first, started otherwise — one
-    completed and one not started, none started, still make it started (WF-PLA-0040).
+    completed and one not started, none started, still make it started —, and started still
+    after the last while a line of its own keeps a remaining to commit (WF-PLA-0040).
     """
     placed = dated[number]
     if placed.task.children:
         states = {progress_at(dated, child.number, today) for child in placed.task.children}
-        return states.pop() if len(states) == 1 else "started"
+        # « Tant que ce reste n'est pas nul, elle reste démarrée » (WF-PLA-0040, #1774).
+        held = states == {"completed"} and open_own_lines(placed.task)
+        return states.pop() if len(states) == 1 and not held else "started"
     declared, on = placed.task.progress, placed.task.declared_on or placed.finish.day
     # A completion declared is a gesture made on the day the task completed: before it, the
     # task reads as its dates say (WF-PLA-0130).
@@ -264,19 +331,21 @@ def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Amounts:
-    """The four amounts of a line or of a task (WF-DEV-0020, WF-DEV-0040)."""
+    """The three amounts of a line or of a task (WF-DEV-0020, WF-DEV-0050).
+
+    The amount at the rates of the reference year, before inflation, a value read; the budgeted
+    and the re-estimated amounts, inflation included, at the year of consumption.
+    """
 
     base: Decimal = Decimal(0)
     budgeted: Decimal = Decimal(0)
     reestimated: Decimal = Decimal(0)
-    inflated: Decimal = Decimal(0)
 
     def __add__(self, other: Amounts) -> Amounts:
         return Amounts(
             self.base + other.base,
             self.budgeted + other.budgeted,
             self.reestimated + other.reestimated,
-            self.inflated + other.inflated,
         )
 
     def rendered(self) -> JsonObject:
@@ -285,7 +354,6 @@ class Amounts:
             "base_amount": money(self.base),
             "budgeted_amount": money(self.budgeted),
             "reestimated_amount": money(self.reestimated),
-            "inflated_amount": money(self.inflated),
         }
 
 
@@ -300,16 +368,26 @@ def payment_delay(line: Line) -> int | None:
     return None if line.is_provision else line.payment_delay_days
 
 
-def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) -> Amounts:
+def price(
+    line: Line,
+    year: int,
+    rates: Mapping[str, Decimal] = LABOUR_RATES,
+    *,
+    budget_year: int | None = None,
+    projection: Projection = WITNESS,
+) -> Amounts:
     """Return the amounts of a line: hours at the rate of its category, or its disbursement.
 
-    The amount at the year of reference is the product of the quantity, one, and of the hours
-    by the hourly rate for a labour line, of the quantity and the unit disbursement otherwise
-    (WF-DEV-0030); the budget is what the reference revision gives it, the amount unless the
-    line says otherwise; the re-estimate is the amount; the amount corrected for inflation is
-    the amount projected on the year of consumption (WF-DEV-0040). The hourly rates are those
-    of the reference year of the revision priced, one for each category: by default, the core's,
-    of 2026 (WF-DEV-0020, WF-REV-0060).
+    The amount at the rates of the reference year, before inflation, is the product of the
+    quantity and of the hours by the hourly rate for a labour line, of the quantity and the unit
+    disbursement otherwise (WF-DEV-0030). The re-estimate is that amount projected on the year of
+    consumption, ``year``, compounded once a year elapsed since the reference year; the budget,
+    what the reference revision gives the line — the amount unless the line says otherwise —,
+    projected on the year the reference consumed it, ``budget_year``, that of the line by
+    default (WF-DEV-0020, WF-RAE-0010). A line of provision is not projected: its amount is the
+    one its risk computes, the own estimate of the risk bearing its projection already
+    (WF-DEV-0030, WF-PRJ-0040). The hourly rates are those of the reference year of the revision
+    priced, one for each category: by default, the core's, of 2026 (WF-DEV-0020, WF-REV-0060).
     """
     if line.hours is not None:
         amount = line.quantity * line.hours * rates[line.category]
@@ -319,4 +397,7 @@ def price(line: Line, year: int, rates: Mapping[str, Decimal] = LABOUR_RATES) ->
         message = f"the line {line.number} has neither hours nor a unit disbursement"
         raise ValueError(message)
     budgeted = amount if line.budgeted is None else line.budgeted
-    return Amounts(amount, budgeted, amount, inflated(amount, year))
+    if line.is_provision:
+        return Amounts(amount, budgeted, amount)
+    on = year if budget_year is None else budget_year
+    return Amounts(amount, projection(budgeted, on), projection(amount, year))

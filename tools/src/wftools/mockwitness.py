@@ -123,6 +123,10 @@ RISK_752_OCCURRED = Event(
     time(16, 0),
 )
 STUDIES_STARTED = Event(date(2026, 3, 2), "Réexamen de 751 à 40 % ; début des études", time(9, 15))
+PLANNING_START = STUDIES_STARTED.on
+"""The planning start of the main structure and of the differentials of the witness, which
+`structures` lists (`CostStructure.planning_start_on`): a task in automatic mode without a
+predecessor starts on it (WF-PLA-0020), the studies first."""
 COST_IMPORTS = tuple(
     Event(day, "Import de coûts réels", at)
     for day, at in (
@@ -240,6 +244,10 @@ def role_calendars() -> dict[str, Calendar]:
 
 # --- The readable core of the structure -------------------------------------------------------
 
+DELIVERY_DELAY_RISK = 752
+"""The risk of the delay of the cabinets, occurred on 20 February, whose own estimate the core bears
+merged (``mockwitnessrisks.DELIVERY_DELAY``): its nodes bear it (`Node.origin_risk_id`, #1761)."""
+
 RISK_SCALE = 1000
 """The scale of the risks 751 and 753 to the structure of a thousand tasks: their figures of the
 core, a thousand times (decision 4 of the frame of #287, option (a) of the author of 2026-10-07,
@@ -289,6 +297,7 @@ class Line:
     (WF-RIS-0060) or added after the reference (WF-DEV-0020); for a provision, the one the reference
     knew, counted to the reserve, never to the budget (WF-RIS-0050); the offer's for a line the
     amendment 1 did not designate (#467). Its payment delay, nought unless said (WF-IND-0100).
+    ``origin_risk``, the risk whose occurrence merged it (`Node.origin_risk_id`, #1761).
     """
 
     number: int
@@ -302,6 +311,7 @@ class Line:
     is_provision: bool = False
     payment_delay_days: int = 0
     quantity: Decimal = Decimal(1)
+    origin_risk: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,7 +327,9 @@ class Task:
     day ``declared_on`` says, or on its dates' day without it. A task may bear a lot or a post
     of the work breakdown, never both (WF-PLA-0130, WF-PLA-0170). A write may give it a
     description, and its inscriptions — the timelines, and ``MILESTONE_TRACKING`` for the
-    time/time tracking —, which are otherwise those ``INSCRIBED`` and ``TRACKED`` say.
+    time/time tracking —, which are otherwise those ``INSCRIBED`` and ``TRACKED`` say. The
+    occurrence of a risk sets ``origin_risk`` on each task and line it merges, which a copy, a move
+    and an import keep, and a creation leaves none (`Node.origin_risk_id`, WF-RIS-0060, #1761).
     """
 
     number: int
@@ -334,6 +346,7 @@ class Task:
     bears: WorkPackage | OrderItem | None = None
     description: str | None = None
     inscriptions: tuple[str, ...] | None = None
+    origin_risk: int | None = None
 
 
 MILESTONE_TRACKING = "milestone_tracking"
@@ -362,7 +375,11 @@ class N:
     """The numbers of the nodes of the core, said once — the node 5nn, its lineage 6nn.
 
     Every module names the core by this table, never by its digits, so that it is renumbered in
-    one place alone (#376, revue d'EP-02/L24). From 591, the nodes the amendment 2 adds, which the
+    one place alone (#376, revue d'EP-02/L24). From 531 to 534, the nodes of the own estimate of
+    the risk 751, its structure 204, which no other structure bears (``REWORK_ESTIMATE``, US-0680);
+    from 535 to 539, those of the own estimate of the risk 752, its structure 205 as the reference
+    101 froze it, which its occurrence merged as the nodes 541 to 545 (``mockreview``, #1788).
+    From 591, the nodes the amendment 2 adds, which the
     main structure does not bear (``mockamendment``, #791); the differential renders the node of
     number 5nn as 12nn, its identifier of its own (``mockamendment.own_id``, #421).
     """
@@ -374,6 +391,10 @@ class N:
     STUDIES_RECEIVED = 525
     DESIGN_FILE = 526
     STUDIES_LINE = 527
+    REWORK_DIAGNOSIS = 531
+    REWORK_DIAGNOSIS_LINE = 532
+    REWIRING = 533
+    REWIRING_LINE = 534
     MERGED = 541
     REMINDER = 542
     REMINDER_LINE = 543
@@ -547,15 +568,17 @@ CONTROL_STATION = Task(
                 ),
             ),
         ),
+        Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
         Task(
             N.MERGED,
-            "Risque survenu — Retard de livraison des armoires",
+            "Retard de livraison des armoires",
+            origin_risk=DELIVERY_DELAY_RISK,
             children=(
                 Task(
                     N.REMINDER,
                     "Relance du fournisseur",
                     days=5,
-                    links=(Link(N.WIRING, START_TO_START),),
+                    manual=(date(2026, 5, 4), date(2026, 5, 8)),
                     lines=(
                         Line(
                             N.REMINDER_LINE,
@@ -563,8 +586,10 @@ CONTROL_STATION = Task(
                             EQUIPMENT,
                             unit=Decimal("120.00"),
                             budgeted=Decimal(0),
+                            origin_risk=DELIVERY_DELAY_RISK,
                         ),
                     ),
+                    origin_risk=DELIVERY_DELAY_RISK,
                 ),
                 Task(
                     N.TRANSPORT,
@@ -578,20 +603,24 @@ CONTROL_STATION = Task(
                             EQUIPMENT,
                             unit=Decimal("80.00"),
                             budgeted=Decimal(0),
+                            origin_risk=DELIVERY_DELAY_RISK,
                         ),
                     ),
+                    origin_risk=DELIVERY_DELAY_RISK,
                 ),
             ),
         ),
-        Task(N.FACTORY_ACCEPTANCE, "Réception usine", is_milestone=True, links=(Link(N.WIRING),)),
     ),
 )
 """The summary of the control station, which bears the lot 1: the wiring of the cabinets a week
 after the reception of the studies, 12.5 hours at 80.00 — 1,000.00 —, terminal blocks at 1,234.56
 and the provision of 500,000 of the risk 751, at the scale of the structure, budgeted at the
-250,000 the reference knew; the subtree merged into the current revision by the occurrence of the
-risk 752, its lines of 120 and 80 budgeted nothing (WF-RIS-0060); and the factory acceptance at
-the end of the wiring."""
+250,000 the reference knew; the own estimate of the risk 752, whose provision the control station
+bore, merged into the current revision by its occurrence: its one root, the delay of the cabinets,
+placed with its subordinates last under the task that bore the provision, after the factory
+acceptance, which stands at the end of the wiring — its lines of 120 and 80 budgeted nothing, the
+reminder, without a predecessor in the own estimate, in manual mode at the dates it had there —,
+each of its nodes bearing the risk it comes from (WF-RIS-0060; H-03, #1788, #1761)."""
 
 OFFER_BUDGETS = {N.WIRING_ON_SITE: Decimal("9420.00"), N.COMMISSIONING_LINE: Decimal("5880.00")}
 """The budgets the offer fixed to the lines the amendment 1 did not designate, at the rates of 2025
@@ -656,6 +685,45 @@ commissioning starts and is consumed there (EP-02/L22)."""
 
 CORE = (STUDIES, CONTROL_STATION, INSTALLATION)
 """The readable core, the first roots of the structure, its rows its first rows (#376)."""
+
+REWORK_ESTIMATE = (
+    Task(
+        N.REWORK_DIAGNOSIS,
+        "Diagnostic des défauts de câblage",
+        days=5,
+        manual=(date(2026, 7, 1), date(2026, 7, 7)),
+        lines=(
+            Line(
+                N.REWORK_DIAGNOSIS_LINE,
+                "Recherche des défauts par le câbleur",
+                SUBCONTRACTING,
+                unit=Decimal("250.00") * RISK_SCALE,
+                payment_delay_days=PAYMENT_DELAY,
+            ),
+        ),
+    ),
+    Task(
+        N.REWIRING,
+        "Reprise du câblage des armoires",
+        days=15,
+        links=(Link(N.REWORK_DIAGNOSIS),),
+        lines=(
+            Line(
+                N.REWIRING_LINE,
+                "Recâblage des armoires",
+                SUBCONTRACTING,
+                unit=Decimal("1000.00") * RISK_SCALE,
+                payment_delay_days=PAYMENT_DELAY,
+            ),
+        ),
+    ),
+)
+"""The own estimate of the risk 751, the rework of the wiring, its structure 204 in the current
+revision (WF-RIS-0030, US-0680): the diagnosis of the faults, entered in manual mode from 1 to
+7 July 2026, after the wiring of the cabinets is due to finish, and the rework of the wiring after
+it, both subcontracted, 250,000 and 1,000,000 at the scale of the structure — 1,250,000, the
+severity its review of 2 February retained (``mockwitnessrisks``, WF-RIS-0010). Its tasks bear no
+lot, no post and no inscription: those are the main structure's alone (WF-PLA-0170)."""
 
 STUDIES_RECEIVED, STUDIES_LINE = N.STUDIES_RECEIVED, N.STUDIES_LINE
 WIRING, LABOUR, FACTORY_ACCEPTANCE = N.WIRING, N.LABOUR, N.FACTORY_ACCEPTANCE

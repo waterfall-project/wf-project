@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, une ligne créée sous les « Études de détail », terminées : aucune ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le Kanban. La création est refusée, la condition nommée ; rien n'est créé (WF-DEV-0050, WF-RAE-0030, #1184).",
+  "summary": "Sur la structure principale de la révision courante, le projet En cours, sous les « Études de détail », terminées : une ligne créée sous elles. Aucune ligne de la structure principale ne se crée sous une tâche terminée : la tâche se rouvre d'abord depuis le Kanban ; la phase du projet ne refuse rien (C-358), et un différentiel l'accepterait, son avenant rebudgétant la ligne (WF-REV-0050). La création est refusée, la condition nommée ; rien n'est créé (WF-DEV-0050, WF-RAE-0030, #1184, #1766).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",

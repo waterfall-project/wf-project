@@ -112,7 +112,7 @@ describe("the screen of the timelines", () => {
     // The reading as a table of the frieze: each task, its dates and its lane.
     expect(text(table)).toContain(
       "1 Études 02/03/2026 24/04/2026 1 6 Réception des études 24/04/2026 24/04/2026 Milestone " +
-        "18 Réception usine 30/06/2026 30/06/2026 Milestone 23 Mise en service 21/12/2026 01/01/2027 1",
+        "13 Réception usine 30/06/2026 30/06/2026 Milestone 23 Mise en service 21/12/2026 01/01/2027 1",
     );
     // The frieze: a rectangle for each task, a line for each milestone, each named.
     expect(page).toContain('aria-label="Études, from 02/03/2026 to 24/04/2026, lane 1"');
@@ -140,7 +140,7 @@ describe("the screen of the timelines", () => {
     // The reading as a table of the frieze, which names every task inscribed.
     const table = text(page.slice(page.indexOf("<table")));
     expect(table).toContain("6 Réception des études");
-    expect(table).toContain("18 Réception usine");
+    expect(table).toContain("13 Réception usine");
     expect(table).not.toContain("Études 02/03/2026");
     expect(table).not.toContain("Mise en service");
   });
@@ -171,16 +171,16 @@ describe("the screen of the timelines", () => {
     expect(page).toContain(COMMISSIONING.replace("LANE", "2"));
   });
 
-  it("offers the commands of the timelines as the project lists `manage_timelines`, and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
+  it("offers the commands of the timelines as the project lists `manage_timelines`, none on a project that ended (US-0702/L3), and says then that the fake back keeps none of what they write (EP-14/L44c)", async () => {
     const page = await timelinesAt();
     expect(page).toMatch(/<button[^>]*>.*?New timeline<\/button>/);
     expect(page).toContain('aria-label="Delete the timeline “Comité de pilotage”"');
     expect(page).toContain('role="note"');
-    // A terminal project lists the command unavailable: presented, it writes nothing to warn of.
+    // A terminal project lists no command: none presented, it writes nothing to warn of.
     server.clients = [];
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const closed = await timelinesAt();
-    expect(closed).toMatch(/<button[^>]*aria-disabled="true"[^>]*>.*?New timeline<\/button>/);
+    expect(closed).not.toContain("New timeline");
     expect(closed).not.toContain('role="note"');
   });
 

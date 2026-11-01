@@ -117,7 +117,16 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     # The core is linked to the tasks drawn about it (#376): the lots of the control station
     # follow its factory acceptance, on the critical path of the whole structure, which ends in
     # August 2029; the installation on site leads to the commissioning of the control station.
-    assert critical == [DETAILED_STUDIES, REVIEW, ACCEPTANCE, WIRING, MILESTONE]
+    # A summary is critical as soon as one of its subordinates is (WF-PLA-0100, F-01).
+    assert critical == [
+        STUDIES,
+        DETAILED_STUDIES,
+        REVIEW,
+        ACCEPTANCE,
+        CONTROL_STATION,
+        WIRING,
+        MILESTONE,
+    ]
     assert all(facet(tasks[n])["total_float"] == {"value": "0", "unit": "d"} for n in critical)
     assert facet(installation[MOUNTING])["total_float"] == {"value": "597.5", "unit": "d"}
     assert facet(installation[COMMISSIONING])["total_float"] == {"value": "597.5", "unit": "d"}
@@ -132,8 +141,9 @@ def test_the_critical_path_and_the_float_follow_the_links_of_the_core(
     )
     assert planning[DESKS]["computed_fields"] == []
     assert {"task.start", "task.finish"} <= set(planning[DESKS]["editable_fields"])
-    # The two tasks of the occurrence, in parallel with the wiring, may wait for the end too.
-    assert facet(estimate[REMINDER])["total_float"] == {"value": "858.5", "unit": "d"}
+    # The two tasks of the occurrence: the reminder, without a predecessor in the own estimate, in
+    # manual mode (WF-RIS-0060), shows no float; the transport after it may wait for the end.
+    assert facet(estimate[REMINDER])["total_float"] is None
     assert facet(estimate[TRANSPORT])["total_float"] == {"value": "858.5", "unit": "d"}
 
 
@@ -207,8 +217,9 @@ def test_a_task_in_manual_mode_bounds_its_predecessors_whose_float_may_be_negati
     assert (tasks[2]["total_float"], tasks[2]["is_critical"]) == (None, False)
 
 
-def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
-    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount.
+def test_a_task_of_another_year_is_reestimated_inflation_included() -> None:
+    # A line consumed two years after the reference year, at 3 %: 1.03 x 1.03 its amount, its
+    # budget and its re-estimate alike (WF-DEV-0020).
     later = Task(
         591,
         "Plus tard",
@@ -219,12 +230,12 @@ def test_a_task_of_another_year_is_corrected_for_inflation() -> None:
     )
     [task, line] = mockcore.core((later,))
     assert facet(line.node)["consumption_year"] == 2028
-    assert (facet(line.node)["base_amount"], facet(line.node)["inflated_amount"]) == (
-        "100.00",
-        "106.09",
-    )
-    assert facet(task.node)["inflated_amount"] == "106.09"
-    assert mockdating.price(later.lines[0], 2028).inflated == Decimal("106.09")
+    amounts = ("base_amount", "budgeted_amount", "reestimated_amount")
+    assert [facet(line.node)[key] for key in amounts] == ["100.00", "106.09", "106.09"]
+    assert facet(task.node)["reestimated_amount"] == "106.09"
+    assert mockdating.price(later.lines[0], 2028).reestimated == Decimal("106.09")
+    # The budget stays on the year the reference consumed the line, wherever its task goes.
+    assert mockdating.price(later.lines[0], 2028, budget_year=2026).budgeted == Decimal(100)
 
 
 def test_a_quantity_is_an_exact_decimal_in_the_amount_of_a_line() -> None:
@@ -261,3 +272,33 @@ def test_a_summary_is_dated_on_the_calendar_of_its_own_lines_not_on_its_subordin
     standard = {**dict.fromkeys(("monday", "tuesday", "wednesday", "thursday", "friday"), "8")}
     standard |= {"saturday": "0", "sunday": "0"}
     assert (tasks[3]["calendar_hours"], tasks[1]["calendar_hours"]) == (four_days, standard)
+
+
+def _awaiting(own: Line) -> tuple[str, bool]:
+    """Return the progress of a summary whose one subordinate is completed, and its signal."""
+    done = Task(
+        1,
+        "Pose",
+        days=1,
+        manual=(date(2026, 3, 2), date(2026, 3, 2)),
+        progress="completed",
+    )
+    lot = Task(3, "Lot", children=(done,), lines=(own,))
+    summary = next(facet(row.node) for row in mockcore.core([lot]) if row.number == lot.number)
+    return summary["progress"], summary["awaiting_own_lines"]
+
+
+def test_a_summary_whose_own_line_keeps_a_negative_remaining_stays_started() -> None:
+    # #1807, WF-PLA-0040: « tant que ce reste n'est pas nul, elle reste démarrée » — not nought,
+    # of either sign. Its subordinates completed, a summary whose one own line is a credit of
+    # 500, a quantity of -1, stays started and says it awaits its own lines (F-05, #1774).
+    credit = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(-1))
+    assert mockdating.price(credit, 2026).base == Decimal(-500)
+    assert _awaiting(credit) == ("started", True)
+
+
+def test_a_summary_whose_own_line_keeps_no_remaining_completes() -> None:
+    # #1807, WF-PLA-0040: the same summary, its own line re-estimated to nought, completes with
+    # its last subordinate and says nothing (WF-RAE-0040).
+    nought = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(0))
+    assert _awaiting(nought) == ("completed", False)

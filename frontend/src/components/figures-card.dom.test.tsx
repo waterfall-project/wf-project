@@ -52,6 +52,8 @@ describe("a card of figures", () => {
       revision_id: "01926f3a-7c00-7000-8000-000000000102",
       computed_at: "2026-06-03T14:05:00Z",
       scope: "project",
+      revision_status: "draft",
+      is_stored: false,
     };
     const { container } = renderIn(
       "fr",

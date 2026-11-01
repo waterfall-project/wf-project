@@ -19,7 +19,7 @@
 
 import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type SubmitEvent, useId, useRef, useState, useTransition } from "react";
+import { type SubmitEvent, useId, useState } from "react";
 
 import { findAccounts } from "@/api/actions/users";
 import type { Outcome } from "@/api/problem";
@@ -112,9 +112,9 @@ type Found = readonly NamedAuthor[];
 
 /**
  * The search of the accounts that may be chosen as the author of a column: a text sent to the server,
- * which finds the accounts on their names and address; the last search sent alone answers, an older
- * one arriving after it said nothing (défaut n° 1 de `typescript.md`). How many it found is said, a
- * refusal told by the catalogue of the codes of error.
+ * which finds the accounts on their names and address; one search at a time, the button busy till its
+ * answer (défaut n° 1 de `typescript.md`). How many it found is said, a refusal told by the
+ * catalogue of the codes of error.
  */
 function AuthorSearch({
   column,
@@ -128,31 +128,29 @@ function AuthorSearch({
   const [text, setText] = useState("");
   const [told, setTold] = useState<number | undefined>(undefined);
   const [failure, setFailure] = useState<Outcome<unknown> | undefined>(undefined);
-  const [pending, startTransition] = useTransition();
-  // The search last sent: an answer to another is not shown.
-  const sent = useRef(0);
+  // Busy from the search sent last to its answer, and lifted in the very update that tells it — not a
+  // transition, whose end would wait for every other async action of the page (#1484).
+  const [busy, setBusy] = useState(false);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const search = text.trim();
     if (search === "") {
       return;
     }
-    sent.current += 1;
-    const mine = sent.current;
-    startTransition(async () => {
-      const outcome = await findAccounts(search).catch(rejected);
-      if (mine !== sent.current) {
-        return;
-      }
-      if (outcome.kind === "done") {
-        setFailure(undefined);
-        setTold(outcome.data.length);
-        onFound(outcome.data);
-      } else {
-        setTold(undefined);
-        setFailure(outcome);
-      }
-    });
+    setBusy(true);
+    void findAccounts(search)
+      .catch(rejected)
+      .then((outcome) => {
+        setBusy(false);
+        if (outcome.kind === "done") {
+          setFailure(undefined);
+          setTold(outcome.data.length);
+          onFound(outcome.data);
+        } else {
+          setTold(undefined);
+          setFailure(outcome);
+        }
+      });
   };
   return (
     <form
@@ -173,7 +171,7 @@ function AuthorSearch({
         }}
         className="h-8 w-44"
       />
-      <Button type="submit" size="sm" variant="outline" disabled={pending}>
+      <Button type="submit" size="sm" variant="outline" disabled={busy}>
         <Search aria-hidden="true" className="size-4" />
         {t("findButton")}
       </Button>

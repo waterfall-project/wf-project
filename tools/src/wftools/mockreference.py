@@ -14,6 +14,10 @@ module makes their examples, under ``volume/``:
   (EP-14/L42r);
   ``cost_categories_page.json``, their second page; ``cost_categories_reader.json``, the same read
   by a session that may not modify the cost settings — no command;
+  ``cost_categories_type_deactivated.json``, a counterfactual variant declared: the categories of
+  the disbursements read again once their nature is deactivated (``cost_type_deactivated``), each
+  deactivated with it, its reactivation unavailable while the nature is (EP-14/L42s, C-291;
+  US-0660/L1, #1142);
 - ``hourly_rate_grid.json``, ``getHourlyRateGrid``: the grid read whole, by the largest page;
   ``hourly_rate_grid_by_rate.json``, its first page sorted by the rate of the reference year, the
   highest first; ``hourly_rate_grid_bounded.json``, the categories whose rate that year reaches a
@@ -70,6 +74,10 @@ WITHOUT_ROLE = "cost_category_without_role"
 
 TYPE_ACTIVE = "cost_type_active"
 """The condition the reactivation of a category misses under a deactivated nature (C-291)."""
+
+DISBURSEMENTS = universe(462)
+"""The nature of the disbursements, which ``cost_type_deactivated`` deactivates: the universe has
+no deactivated nature, and that answer, written by hand, is the one variant that has one."""
 
 _count, _amount, _example = mocktext.count, mocktext.amount, mocktext.example
 
@@ -157,6 +165,27 @@ def commanded(entry: JsonObject, available: list[JsonValue]) -> JsonObject:
         if key == "audit":
             written["available_commands"] = available
         written[key] = value
+    return written
+
+
+def deactivated_with(category: JsonObject, nature: JsonObject) -> JsonObject:
+    """Return a category of a nature as the deactivation of that nature leaves it (C-291).
+
+    Its nature reads deactivated; an active category is deactivated with it, its version moves on
+    and its audit names the author of the deactivation, at its instant — the cascade does not send
+    the version of what it deactivates (`setCostTypeActivation`). One already deactivated is left
+    as it was, its nature aside (WF-REF-0010).
+    """
+    written: JsonObject = {**category, "cost_type_is_active": False}
+    if category["is_active"] is True:
+        audit = cast("JsonObject", nature["audit"])
+        written["is_active"] = False
+        written["audit"] = {
+            **cast("JsonObject", category["audit"]),
+            "updated_at": audit["updated_at"],
+            "updated_by": audit["updated_by"],
+        }
+        written["lock_version"] = cast("int", category["lock_version"]) + 1
     return written
 
 
@@ -260,6 +289,16 @@ def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObj
         raise ValueError(message)
     kept = bounded(grid, year, bound)
     readable = read_by_a_reader(listed)
+    nature = cast("JsonObject", fixture("cost_type_deactivated"))
+    if nature["cost_type_id"] != DISBURSEMENTS or nature["is_active"] is not False:
+        message = "cost_type_deactivated does not deactivate the disbursements"
+        raise ValueError(message)
+    cascaded: list[JsonValue] = []
+    for entry in by_code(categories):
+        if entry["cost_type_id"] == DISBURSEMENTS:
+            category = deactivated_with(entry, nature)
+            cascaded.append(commanded(category, category_commands(category, lines, bearing, roles)))
+    cascaded_ids = {cast("str", cast("JsonObject", each)["cost_category_id"]) for each in cascaded}
     return {
         "cost_categories.json": _example(
             f"Les {_count(len(listed))} catégories de coût du §4.6.2, par code, dont "
@@ -282,9 +321,25 @@ def examples(categories: list[JsonValue], grid: JsonObject) -> dict[str, JsonObj
         "cost_categories_reader.json": _example(
             f"Les {_count(len(readable))} catégories de coût actives du §4.6.2, par code, lues "
             f"par une session qui ne peut pas modifier les paramètres de coûts — un estimateur "
-            f"qui choisit la catégorie d'une ligne de devis : aucune commande (WF-DEV-0020, "
-            f"WF-IHM-0090).",
+            f"qui choisit la catégorie d'une ligne de devis —, sans permission du référentiel "
+            f"au besoin, toute session ouverte lisant les actifs (#1745) : aucune commande "
+            f"(WF-DEV-0020, WF-IHM-0090).",
             page(readable, MAX_LIMIT, 0),
+        ),
+        "cost_categories_type_deactivated.json": _example(
+            f"Variante contrefactuelle déclarée : les {_count(len(cascaded))} catégories des "
+            f"débours, lues avec les désactivées et restreintes à leur nature (include_inactive, "
+            f"cost_type_id), par code, en une page de {_count(PAGE)}, une fois la nature "
+            f"désactivée (cost_type_deactivated) : chacune désactivée avec elle, son compteur "
+            f"avancé et son audit nommant l'auteur de la désactivation ; sa nature désactivée "
+            f"(cost_type_is_active), sa réactivation indisponible tant que la nature l'est, "
+            f"cost_type_active manquante — la nature se réactive d'abord ; son rattachement à une "
+            f"nature d'un autre type indisponible pour les "
+            f"{_count(len(cascaded_ids & lines))} que le devis du projet témoin emploie. "
+            f"L'univers témoin n'a aucune nature désactivée : l'exemple ne vaut que pour cette "
+            f"lecture, celle que la table des catégories fait après la désactivation d'une nature "
+            f"(WF-REF-0010, WF-REF-0040, WF-IHM-0090 ; EP-14/L42s, C-291).",
+            page(cascaded, PAGE, 0),
         ),
         "hourly_rate_grid.json": _example(
             f"La grille des taux horaires du §4.6.2 : les {_count(len(rows))} catégories de "
@@ -337,15 +392,17 @@ def named() -> dict[str, JsonObject]:
     return {
         "org_nodes_reader.json": _example(
             "L'arbre d'organisation lu par une session qui ne peut pas modifier les paramètres de "
-            "ressources : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une "
+            "ressources, sans permission du référentiel au besoin, toute session ouverte lisant "
+            "les actifs (#1745) : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une "
             "commande (WF-REF-0070, WF-IHM-0090).",
             cast("JsonValue", read_by_a_reader(fixture("org_nodes"))),
         ),
         "resource_roles_reader.json": _example(
             f"Les {_count(len(readable_roles))} rôles de ressources actifs, lus par une session "
             f"qui ne peut pas modifier les paramètres de ressources — un estimateur qui choisit "
-            f"le rôle d'une ligne de devis, sans pouvoir demander les désactivés : aucune "
-            f"commande (WF-DEV-0020, WF-REF-0150, WF-IHM-0090).",
+            f"le rôle d'une ligne de devis, sans pouvoir demander les désactivés —, sans "
+            f"permission du référentiel au besoin, toute session ouverte lisant les actifs "
+            f"(#1745) : aucune commande (WF-DEV-0020, WF-REF-0150, WF-IHM-0090).",
             page(readable_roles, PAGE, 0),
         ),
         "resource_roles_bounded.json": _example(
@@ -358,14 +415,16 @@ def named() -> dict[str, JsonObject]:
         ),
         "calendars_reader.json": _example(
             f"Les {_count(len(readable_calendars))} calendriers actifs, lus par une session qui ne "
-            f"peut pas modifier les paramètres de ressources : aucune commande, pas même la "
-            f"désactivation indisponible du calendrier par défaut (WF-REF-0110, WF-IHM-0090).",
+            f"peut pas modifier les paramètres de ressources, sans permission du référentiel au "
+            f"besoin, toute session ouverte lisant les actifs (#1745) : aucune commande, pas même "
+            f"la désactivation indisponible du calendrier par défaut (WF-REF-0110, WF-IHM-0090).",
             page(readable_calendars, PAGE, 0),
         ),
         "cost_types_reader.json": _example(
             f"Les {_count(len(readable_natures))} natures de coût actives, lues par une session "
-            f"qui ne peut pas modifier les paramètres de coûts : aucune commande (WF-REF-0030, "
-            f"WF-IHM-0090).",
+            f"qui ne peut pas modifier les paramètres de coûts, sans permission du référentiel au "
+            f"besoin, toute session ouverte lisant les actifs (#1745) : aucune commande "
+            f"(WF-REF-0030, WF-IHM-0090).",
             page(readable_natures, PAGE, 0),
         ),
         "org_node_reactivated.json": _example(

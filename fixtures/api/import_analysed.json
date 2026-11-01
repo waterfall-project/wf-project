@@ -1,27 +1,36 @@
 {
-  "summary": "L'import du devis de l'avenant 2 « reprise des essais », différentiel non fusionné de la révision courante (structure_id 01926f3a-7c00-7000-8000-000000000203, `structures`), analysé aujourd'hui à 8 h 41 et applicable vingt-quatre heures, jusqu'à demain 8 h 41 : le projet étant En cours, le devis s'importe sur un différentiel, non sur la structure principale (import_estimate_main_in_progress). Cinq lignes lues, toutes de l'onglet « Hors lot », aucune tâche d'un différentiel ne portant de lot, dont deux rejetées — une tâche et un rôle inconnus —, une ajoutée, une modifiée et une inchangée, et une ligne du différentiel que le fichier ne porte plus, retirée ; lignes de nodes_amendment (WF-INTF-0080, WF-INTF-0100, WF-REV-0100, C-358).",
+  "summary": "L'import du devis de l'avenant 2 « reprise des essais », différentiel non fusionné de la révision courante (structure_id 01926f3a-7c00-7000-8000-000000000203, `structures`), analysé aujourd'hui à 8 h 41 et applicable vingt-quatre heures, jusqu'à demain 8 h 41 : le projet étant En cours, le devis s'importe sur un différentiel, non sur la structure principale (import_estimate_main_in_progress). Cinq lignes lues, toutes de l'onglet « Hors lot », aucune tâche d'un différentiel ne portant de lot, dont deux rejetées — une tâche et un rôle inconnus, chacun nommé par la valeur que le fichier porte, « Essais de compatibilité électromagnétique » et « Soudeur (SOUD) » —, une ajoutée, une modifiée et une inchangée, et une ligne du différentiel que le fichier ne porte plus, retirée ; lignes de nodes_amendment (WF-INTF-0080, WF-INTF-0100, WF-REV-0100, C-358).",
   "value": {
     "import_id": "01926f3a-7c00-7000-8000-000000000a11",
     "kind": "estimate",
     "filename": "devis-avenant-2-reprise-des-essais.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000203",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
     "status": "analysed",
     "created_at": "2026-06-03T08:40:05Z",
     "expires_at": "2026-06-04T08:41:00Z",
     "report": {
       "format_version": "1",
       "read_count": 5,
+      "unchanged_count": 1,
       "rejected": [
         {
           "sheet": "Hors lot",
           "row": 3,
           "code": "UNKNOWN_TASK",
-          "params": {}
+          "params": {
+            "value": "Essais de compatibilité électromagnétique"
+          }
         },
         {
           "sheet": "Hors lot",
           "row": 5,
           "code": "UNKNOWN_RESOURCE_ROLE",
-          "params": {}
+          "params": {
+            "value": "Soudeur (SOUD)"
+          }
         }
       ],
       "refusals": [],
@@ -65,6 +74,18 @@
       "finished_at": "2026-06-03T08:41:00Z",
       "problem": null,
       "result_url": null
-    }
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

@@ -19,9 +19,7 @@
  * settings of the resources creates and modifies the nodes, the roles and the calendars, and
  * deactivates them as each lists it (EP-02/L43b): a role is attached to a category of labour alone
  * (WF-REF-0090), which each category says (`cost_type_kind`, EP-14/L43g); the screen then says that
- * the fake back keeps none of what is written (`MockupNotice`), and reads every role, deactivated
- * ones too as far as it may, to name those a refusal of a calendar or of a role gives by their
- * identifiers alone (`resource_role_ids`, WF-PLA-0010, EP-14/L42r). Bounds the API refuses (422,
+ * the fake back keeps none of what is written (`MockupNotice`). Bounds the API refuses (422,
  * an upper bound below the lower one) leave their list unread, the bound said at its field; any other
  * read the API refuses, or cannot answer, is thrown for the pages of the shell to say.
  */
@@ -30,7 +28,13 @@ import { useTranslations } from "next-intl";
 
 import type { ApiClient } from "@/api/client";
 import { readEveryPage, readEveryPageUnlessRefused } from "@/api/every-page";
-import { type ExpectedRefusal, readOrFail, type ReadOrRefused, readOrRefused } from "@/api/problem";
+import {
+  type ExpectedRefusal,
+  OPTIONAL_READ_REFUSALS,
+  readOrFail,
+  type ReadOrRefused,
+  readOrRefused,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { platformOffer } from "@/components/commands/offer";
 import {
@@ -87,7 +91,6 @@ import {
   OrgNodeList,
   ResourceRoleList,
   type RoleFilters,
-  RoleNames,
 } from "@/components/reference/resource-lists";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
@@ -105,9 +108,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** The pages of the lists the server pages, which the switch of the deactivated objects resets. */
 const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
-
-/** The refusals a list of choices is done without on: not found, or refused. */
-const REFUSED = [{ status: 404 }, { status: 403 }] as const;
 
 /** The refusal of the bounds of a list: an upper bound below the lower one (#545). */
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
@@ -152,8 +152,6 @@ interface ResourceQueries {
   /** Whether the session may modify the settings of the resources, and its forms are offered. */
   readonly editable: boolean;
   readonly inactive: { readonly include_inactive?: true };
-  /** What every role is read with, deactivated ones too as far as the session may read them. */
-  readonly everyRole: { readonly include_inactive?: true };
   /** What the categories of cost offered to the filter of the roles ask of the deactivated ones. */
   readonly inactiveCategories: { readonly include_inactive?: true };
   readonly nodes: GridQuery<never>;
@@ -264,7 +262,7 @@ function readCalendars(
  */
 function readChoices(client: ApiClient, { inactive, inactiveCategories }: ResourceQueries) {
   return Promise.all([
-    readEveryPageUnlessRefused("listCostCategories", REFUSED, (page) =>
+    readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/cost-categories", {
         params: { query: { ...inactiveCategories, ...page } },
       }),
@@ -273,19 +271,6 @@ function readChoices(client: ApiClient, { inactive, inactiveCategories }: Resour
       client.GET("/reference/calendars", { params: { query: { ...inactive, ...page } } }),
     ),
   ]);
-}
-
-/**
- * Every role, for a session that may modify the settings of the resources, whose writes a refusal
- * may answer naming roles by their identifiers alone (`resource_role_ids`); none for another, nor
- * when the API refuses them — the screen does without the names.
- */
-function readEveryRole(client: ApiClient, { editable, everyRole }: ResourceQueries) {
-  return editable
-    ? readEveryPageUnlessRefused("listResourceRoles", REFUSED, (page) =>
-        client.GET("/reference/resource-roles", { params: { query: { ...everyRole, ...page } } }),
-      )
-    : undefined;
 }
 
 /** Read the lists of the settings of the resources, as the address asks them. */
@@ -300,7 +285,6 @@ async function readLists(queries: ResourceQueries) {
     readCalendars(client, queries),
     readOrFail("getDurationUnits", () => client.GET("/reference/duration-units")),
     readChoices(client, queries),
-    readEveryRole(client, queries),
   ]);
 }
 
@@ -319,7 +303,6 @@ function readQueries(
   return {
     editable: platformOffer(permissions, "resource_settings") !== undefined,
     inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.read"),
-    everyRole: inactiveQuery(true, permissions, "resource_settings.read"),
     inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
     nodes: readGridQuery<never>(search, [], undefined, ORG_NODE_ADDRESS),
     nodeFilters: {
@@ -370,7 +353,7 @@ export default async function ResourceSettingsPage({
   const permissions = session?.permissions ?? [];
   const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
-  const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead], everyRole] =
+  const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
   const readsInactive = permissions.includes("resource_settings.read");
@@ -398,33 +381,31 @@ export default async function ResourceSettingsPage({
           levels={Array.from({ length: deepest }, (_, at) => at + 1)}
           nodes={nodes}
         />
-        <RoleNames roles={everyRole}>
-          <ResourceRoleList
-            {...shownPage(roles)}
-            query={queries.roles}
-            preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
-            readsInactive={readsInactive}
-            editable={editable}
-            nodes={nodes}
-            categories={categoryRead?.map(categoryChoice)}
-            labour={labourOf(categoryRead)}
-            calendars={calendarRead.map((calendar) => ({
-              id: calendar.calendar_id,
-              label: calendar.label,
-              active: calendar.is_active,
-            }))}
-            filters={queries.roleFilters}
-          />
-          <CalendarList
-            rows={calendars.items}
-            page={calendars.meta}
-            query={queries.calendars}
-            preferences={keptBy(grids, CALENDAR_GRID_KEY)}
-            readsInactive={readsInactive}
-            editable={editable}
-            state={queries.calendarState}
-          />
-        </RoleNames>
+        <ResourceRoleList
+          {...shownPage(roles)}
+          query={queries.roles}
+          preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
+          readsInactive={readsInactive}
+          editable={editable}
+          nodes={nodes}
+          categories={categoryRead?.map(categoryChoice)}
+          labour={labourOf(categoryRead)}
+          calendars={calendarRead.map((calendar) => ({
+            id: calendar.calendar_id,
+            label: calendar.label,
+            active: calendar.is_active,
+          }))}
+          filters={queries.roleFilters}
+        />
+        <CalendarList
+          rows={calendars.items}
+          page={calendars.meta}
+          query={queries.calendars}
+          preferences={keptBy(grids, CALENDAR_GRID_KEY)}
+          readsInactive={readsInactive}
+          editable={editable}
+          state={queries.calendarState}
+        />
         <DurationUnitFacts units={units} editable={editable} />
       </PendingAddress>
     </Screen>

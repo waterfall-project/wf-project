@@ -21,6 +21,7 @@ import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata, mockdating, mocknonworking, mockwitness
 from wftools.mockcalendar import Calendar
+from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mockwitness import N
 from wftools.mockwrites import amended, on_task
@@ -54,9 +55,16 @@ def test_the_contract_cites_the_refusal_and_the_import_under_their_answers() -> 
         _answers("exchanges.yaml", "getImport"), "200"
     )
     examples = mocknonworking.examples()
+    assert "node_create_non_working_day" in _cited(_answers("revisions.yaml", "createNode"), "422")
+    assert "structure_start_non_working_day" in _cited(
+        _answers("revisions.yaml", "updateCostStructure"), "422"
+    )
     assert set(examples) == {
         "task_date_non_working_day.json",
+        "node_create_non_working_day.json",
+        "structure_start_non_working_day.json",
         "import_planning_non_working_day.json",
+        "node_created_manual.json",
     }
     assert set(examples) <= set(mockdata.named())
 
@@ -91,6 +99,21 @@ def test_a_start_entered_on_a_saturday_is_refused_naming_the_next_monday() -> No
     summary = str(mocknonworking.examples()["task_date_non_working_day.json"]["summary"])
     assert "le samedi 19 décembre 2026" in summary
     assert "le lundi 21 décembre 2026" in summary
+
+
+def test_a_planning_start_on_a_saturday_is_refused_on_the_default_calendar() -> None:
+    # The structure has no calendar of its own: its planning start is judged on the default one,
+    # as the start of a task without a labour line is, and the refusal names the next Monday.
+    refused = _json(mocknonworking.structure_start_non_working_day())
+    assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
+    assert refused["fields"] == [
+        {
+            "pointer": "/planning_start_on",
+            "code": "NON_WORKING_DAY",
+            "params": {"date": SATURDAY.isoformat(), "next_working_day": MONDAY.isoformat()},
+        }
+    ]
+    assert mockwitness.default_calendar().hours_on(SATURDAY) == 0
 
 
 def test_a_day_of_work_is_not_judged_and_any_day_without_names_the_next_with() -> None:
@@ -158,10 +181,11 @@ def test_a_milestone_on_a_day_without_hours_is_signalled_once_per_column() -> No
     assert mocknonworking.signals(lineage, "Jalon", (MONDAY, MONDAY)) == []
 
 
-def test_the_contract_holds_the_code_of_a_signal_to_the_one_signal_there_is() -> None:
+def test_the_contract_holds_the_code_of_a_signal_to_the_signals_there_are() -> None:
+    # The day without hours of work, and the summary manual in the file (I-04, US-0701/L7).
     text = (REPOSITORY / "docs/api/components/schemas/exchanges.yaml").read_text(encoding="utf-8")
     code = yaml.safe_load(text)["ImportSignal"]["properties"]["code"]
-    assert {"const": mocknonworking.CODE} in code["allOf"]
+    assert {"enum": [mocknonworking.CODE, "SUMMARY_TASK_DERIVED"]} in code["allOf"]
     assert {"$ref": "../common.yaml#/ErrorCode"} in code["allOf"]
 
 
@@ -183,3 +207,36 @@ def test_no_hours_refused_on_the_entry_of_a_date_name_a_bound_of_none() -> None:
         for field in value.get("fields", []):
             if field["code"] == "VALUE_OUT_OF_RANGE":
                 assert field["params"] != {"maximum": "0"}, name
+
+
+def test_a_task_created_by_its_dates_alone_is_answered_with_its_hours_completed() -> None:
+    # #1769 (F-03): the creation takes `WorkInstantWrite`, as the modification does; the task
+    # created on the Monday that the refusal names, without hours, is answered with them completed
+    # on the default calendar — the start at the first hour of its day, the finish at the last.
+    schemas = yaml.safe_load(
+        (REPOSITORY / "docs" / "api" / "components" / "schemas" / "revisions.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    facet = schemas["TaskFacetWrite"]["properties"]
+    for key in ("start", "finish"):
+        assert {"$ref": "../common.yaml#/WorkInstantWrite"} in facet[key]["anyOf"], key
+    assert "node_created_manual.json" in _answers("revisions.yaml", "createNode")
+    start, finish = mocknonworking.created_manual_dates()
+    assert start == MONDAY
+    written = cast("dict[str, Any]", _json(mocknonworking.node_created_manual()))
+    [node] = [
+        each
+        for each in cast("list[dict[str, Any]]", written["nodes"])
+        if each["node_id"] == universe(mocknonworking.CREATED_MANUAL)
+    ]
+    task = node["task"]
+    default = mockwitness.default_calendar()
+    assert (task["scheduling_mode"], task["progress"]) == ("manual", "not_started")
+    assert task["start"] == {"date": start.isoformat(), "hours": "0"}
+    assert task["finish"] == {
+        "date": finish.isoformat(),
+        "hours": str(default.hours_on(finish).normalize()),
+    }
+    assert mocknonworking.judged(start, default) is None
+    assert mocknonworking.judged(finish, default) is None

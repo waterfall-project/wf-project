@@ -6,7 +6,8 @@
  * what the grid renders and leaves the totals as they are —, each task numbered, indented and
  * marked by the icon of its nature; its label, its description, its scheduling mode, its duration,
  * its dates, its progress, the physical progress of a summary, its total float with the mark of the
- * critical path, and its predecessors — the columns WF-PLA-0080 names, in the order of the contract
+ * critical path, the dates it was started and completed on, and its predecessors, with the link in
+ * conflict named — the columns WF-PLA-0080 names, in the order of the contract
  * (`NodeColumn`) —, and the post or the lot of the work breakdown the task bears, by the label the
  * server resolves (WF-PLA-0170); then the Gantt, row for row (`GanttCell`). The same component as the
  * grid of the estimate (`estimate.ts`): another configuration.
@@ -104,6 +105,9 @@ export const PLANNING_FIELDS = {
     "physical_progress",
     "total_float",
     "is_critical",
+    "link_conflicts",
+    "started_on",
+    "completed_on",
     "order_item_id",
     "work_package_id",
     "work_breakdown_label",
@@ -203,7 +207,6 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       width: 44,
       icon: Contrast,
       computed: computedWhereNamed("task.progress"),
-      contract: "progress",
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,
     },
@@ -229,6 +232,26 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       value: (node) => node.task?.total_float?.value,
       render: (node) => <FloatCell node={node} />,
     },
+    // The dates a task changed state on, read only: the server sets them with its progress
+    // (WF-PLA-0130), and a summary bears the first start of its subordinates (WF-PLA-0080).
+    {
+      key: "started_on",
+      label: "startedOn",
+      help: "planning.startedOn",
+      format: "date",
+      width: 100,
+      contract: "started_on",
+      value: (node) => node.task?.started_on,
+    },
+    {
+      key: "completed_on",
+      label: "completedOn",
+      help: "planning.completedOn",
+      format: "date",
+      width: 100,
+      contract: "completed_on",
+      value: (node) => node.task?.completed_on,
+    },
     {
       key: "predecessors",
       label: "predecessors",
@@ -236,7 +259,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
       format: "text",
       width: 104,
       contract: "predecessors",
-      // Never shown: the cell renders the links, named by row number.
+      // Never shown: the cell renders the links, named by row number, and the link in conflict.
       value: () => undefined,
       render: (node) => <PredecessorsCell node={node} />,
     },
@@ -357,10 +380,12 @@ export interface PlanningWrites {
 /**
  * How the grid of the planning writes the predecessors of a task (US-0470/L2): the names of the
  * types of link and of the units of a lag in the language, the task a row number names among the
- * rows the grid read, and the write — the links to send in place of the task's, with the rows the
+ * rows the grid read or those the server was asked, the numbers the rows read do not name asked of
+ * the server (US-0650), and the write — the links to send in place of the task's, with the rows the
  * server answers, the tasks it redated among them.
  */
 export interface PlanningPredecessors extends PredecessorNames {
+  readonly ask: (rows: readonly number[]) => Promise<void>;
   readonly write: (
     node: PlanningNode,
     links: readonly PredecessorWrite[],
@@ -505,6 +530,7 @@ function predecessorsColumn(
         type: "predecessors",
         parse: (text, locale) => parsePredecessors(text, locale, predecessors),
         text: (value, locale) => predecessorsText(value, locale, predecessors),
+        ask: predecessors.ask,
       },
       in: (node) => node.task != null && node.editable_fields.includes("task.predecessors"),
       value: (node) => predecessorsValue(node.predecessors),

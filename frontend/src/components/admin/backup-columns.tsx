@@ -73,6 +73,7 @@ const COMMAND_WIDTH = 130;
 const DOWNLOAD_COLUMN: BackupColumn = {
   key: "download",
   label: "download",
+  help: "backups.download",
   format: "text",
   width: COMMAND_WIDTH,
   value: () => null,
@@ -83,6 +84,7 @@ const DOWNLOAD_COLUMN: BackupColumn = {
 const RESTORE_COLUMN: BackupColumn = {
   key: "restore",
   label: "restore",
+  help: "backups.restore",
   format: "text",
   width: COMMAND_WIDTH,
   value: () => null,
@@ -105,6 +107,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
       {
         key: "taken_at",
         label: "takenAt",
+        help: "backups.takenAt",
         format: "text",
         width: 180,
         pinned: true,
@@ -116,6 +119,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
       {
         key: "size_bytes",
         label: "size",
+        help: "backups.size",
         format: "text",
         align: "end",
         width: 130,
@@ -126,6 +130,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
       {
         key: "verification",
         label: "verification",
+        help: "backups.verification",
         format: "text",
         width: 190,
         contract: "verification",
@@ -135,6 +140,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
       {
         key: "origin",
         label: "backupOrigin",
+        help: "backups.origin",
         format: "text",
         width: 140,
         contract: "origin",
@@ -144,6 +150,7 @@ export function backupGrid(listed: ListedCommands): GridConfig<Backup, BackupSor
       {
         key: "is_retained",
         label: "retention",
+        help: "backups.retention",
         format: "text",
         width: listed.marks ? 300 : 190,
         contract: "is_retained",

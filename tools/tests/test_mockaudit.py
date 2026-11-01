@@ -80,7 +80,7 @@ def test_a_merge_inscribes_the_amendment_then_the_marking_and_the_designation_it
     merged = mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)
     at_merge = [e for e in _events(journal["audit_events"])[::-1] if e["occurred_at"] == merged]
     assert [(e["action"], e["object"]["kind"]) for e in at_merge] == [
-        ("amendment_merge", "cost_structure"),
+        ("structure_merge", "cost_structure"),
         ("revision_mark", "revision"),
         ("reference_designate", "revision"),
     ]
@@ -114,7 +114,7 @@ def test_each_action_on_the_witness_is_one_the_chronology_says(journal: dict[str
     )
     assert ("revision_mark", offer["marked_at"]) in said
     assert ("reference_designate", mockhistory.stamp(mockwitness.ORDER_RECEIVED.instant)) in said
-    assert ("amendment_merge", mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)) in said
+    assert ("structure_merge", mockhistory.stamp(mockwitness.AMENDMENT_MERGED.instant)) in said
     assert ("risk_occurrence", mockhistory.stamp(mockwitness.RISK_752_OCCURRED.instant)) in said
     # Each import of actual costs applied is an inscription, at the instant its journal says.
     applied = {mockhistory.stamp(each.event.instant) for each in mockwitnesscosts.JOURNAL}
@@ -189,12 +189,16 @@ def test_each_inscription_says_what_its_action_did_in_codes_and_identifiers(
     journal: dict[str, Node],
 ) -> None:
     # The origin of an account created, the permissions of a role created, the roles given to an
-    # account by their identifiers and labels; nothing for any other action of the universe (#706).
+    # account by their identifiers and labels, the nature of an import applied (B-02); nothing for
+    # any other action of the universe (#706).
     users = {user["user_id"]: user for user in fixture("users")["items"]}
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
+    imports = {each["import_id"]: each for each in fixture("imports")["items"]}
     for event in _events(journal["audit_events"]):
         named = event["object"]["object_id"]
-        if event["action"] == "user_create":
+        if event["action"] == "import_apply":
+            assert event["params"] == {"import_kind": imports[named]["kind"]}
+        elif event["action"] == "user_create":
             assert event["params"] == {"origin": users[named]["origin"]}
         elif event["action"] == "access_role_create":
             assert event["params"] == {"permissions": roles[named]["permissions"]}
@@ -222,13 +226,18 @@ def test_the_other_readings_are_pages_and_filters_of_the_one_journal(
         "items": [],
         "meta": {"limit": 50, "offset": 0, "total": 0},
     }
-    # The exit confirmed today heads the journal of the witness, which is otherwise the same.
+    # The exit confirmed today heads the journal of the witness, which is otherwise the same; the
+    # abandon of the revision in progress it orders follows it, under its correlation (US-0701/L9).
     exited = _events(journal["audit_events_exited"])
     completed = fixture("project_completed")
     assert exited[0]["action"] == "project_exit"
     assert exited[0]["occurred_at"] == completed["audit"]["updated_at"] == mockhistory.stamp(TODAY)
     assert exited[0]["object"]["object_id"] == completed["project_id"]
-    assert exited[1:] == _events(journal["audit_events_project"])
+    assert exited[1]["action"] == "revision_abandon"
+    assert exited[1]["object"]["object_id"] == fixture("project")["current_revision_id"]
+    assert exited[1]["occurred_at"] == exited[0]["occurred_at"]
+    assert exited[1]["correlation_id"] == exited[0]["correlation_id"]
+    assert exited[2:] == _events(journal["audit_events_project"])
 
 
 def test_each_actor_is_the_one_who_did_the_action(journal: dict[str, Node]) -> None:
@@ -398,12 +407,12 @@ def test_an_object_that_lives_in_a_revision_names_it_as_it_was(journal: dict[str
     [occurrence] = [e for e in _events(journal["audit_events"]) if e["action"] == "risk_occurrence"]
     assert revisions[current]["audit"]["created_at"] <= occurrence["occurred_at"]
     lived = revisions[amendment["revision_id"]]
-    assert named["amendment_merge"] == [
+    assert named["structure_merge"] == [
         {"revision_id": lived["revision_id"], "label": lived["version_name"]}
     ]
     for action in ("import_apply", "cost_line_exclude", "revision_mark", "reference_designate"):
         assert named[action], action
-    others = set(named) - {"risk_occurrence", "amendment_merge"}
+    others = set(named) - {"risk_occurrence", "structure_merge"}
     assert all(revision is None for action in others for revision in named[action])
 
 
@@ -498,7 +507,7 @@ def test_a_correlation_retains_the_inscriptions_of_one_request(journal: dict[str
     assert [event["action"] for event in retained] == [
         "reference_designate",
         "revision_mark",
-        "amendment_merge",
+        "structure_merge",
     ]
     assert len({event["correlation_id"] for event in retained}) == 1
     others = [
@@ -590,7 +599,12 @@ def test_the_facets_name_each_author_and_project_of_the_journal_once(
     assert codes == sorted(codes)
     witness = fixture("project")
     assert facets["projects"] == [
-        {"project_id": witness["project_id"], "code": witness["code"], "label": witness["label"]}
+        {
+            "project_id": witness["project_id"],
+            "code": witness["code"],
+            "label": witness["label"],
+            "can_open": True,
+        }
     ]
 
 
@@ -677,6 +691,8 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
             "Léa Garnier",
             {"access_roles_granted": [chiffreur], "access_roles_withdrawn": []},
         ),
+        # Attached to a node alone, the modification names the attachment (#1739).
+        (camille, "user_update", user, "Léa Garnier", {"fields": ["org_node_id"]}),
         (camille, "user_update", universe(305), "Lucas Petit-Laurent", {"fields": ["last_name"]}),
         (
             platform,
@@ -714,12 +730,12 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
 def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
     journal: dict[str, Node],
 ) -> None:
-    # One request a write, save the first role of an account created, inscribed by the request that
-    # creates it; and no identifier nor correlation another example of the contract gives.
+    # One request a write — the first role of an account created too, given by setUserAccessRoles
+    # after the creation (#1731) —; and no identifier nor correlation another example of the
+    # contract gives.
     administration = _events(journal["audit_events_administration"])[::-1]
     requests = [event["correlation_id"] for event in administration]
-    assert requests[3] == requests[4]
-    assert len(set(requests)) == len(requests) - 1
+    assert len(set(requests)) == len(requests)
     written = {
         path.name: path.read_text(encoding="utf-8")
         for path in mockwitness.FIXTURES.glob("*.json")
@@ -758,9 +774,10 @@ def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
 def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     journal: dict[str, Node],
 ) -> None:
-    # Each example of createUser creates its account without any role, and none of
-    # setUserAccessRoles answers the account created: the first role the administration gives it,
-    # under the correlation of its creation, is a liberty of the variant, not read from them (#961).
+    # Each example of createUser creates its account without any role, as every account is born
+    # (#1731), and none of setUserAccessRoles answers the account created: the first role the
+    # administration gives it, by an attribution of its own after its creation, under a
+    # correlation of its own, is a liberty of the variant, not read from them (#961).
     created = _answered("createUser", "201")
     assert all(answer["access_role_ids"] == [] for answer in created)
     account = fixture("user_created")["user_id"]
@@ -771,7 +788,7 @@ def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     first = administration[creation + 1]
     assert first["action"] == "user_access_roles_set"
     assert first["object"]["object_id"] == account
-    assert first["correlation_id"] == administration[creation]["correlation_id"]
+    assert first["correlation_id"] != administration[creation]["correlation_id"]
     [granted] = first["params"]["access_roles_granted"]
     assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)
 
@@ -780,22 +797,23 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     journal: dict[str, Node],
 ) -> None:
     # An inscription derived from an example is of its object and by the author of its last
-    # update; the others — the unchanged save, the first role, the attachment — are declared
-    # liberties of the variant, and the attachment, by the platform, is read from no example of an
-    # account, none of which the platform last updated (#961).
+    # update; the others — the unchanged save, the first role, the node of the account created
+    # (#1739), the attachment — are declared liberties of the variant, and the attachment, by the
+    # platform, is read from no example of an account, none of which the platform last updated
+    # (#961).
     administration = _events(journal["audit_events_administration"])[::-1]
     derived = {
         0: ("access_role_created", "access_role_id"),
         2: ("access_role_renamed", "access_role_id"),
         3: ("user_created", "user_id"),
-        5: ("user_renamed", "user_id"),
-        7: ("user_access_roles_cleared", "user_id"),
+        6: ("user_renamed", "user_id"),
+        8: ("user_access_roles_cleared", "user_id"),
     }
     for index, (name, key) in derived.items():
         example, event = fixture(name), administration[index]
         assert event["object"]["object_id"] == example[key], name
         assert event["actor"] == example["audit"]["updated_by"], name
-    attached = administration[6]
+    attached = administration[7]
     assert attached["params"]["attached"] is True
     assert attached["actor"] == mockaudit.PLATFORM
     written = [

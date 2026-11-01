@@ -4,7 +4,7 @@
  * The value of the portfolio (WF-PTF-0050) as the server computes it on the perimeter retained —
  * the order book, the pipeline raw and weighted, the delivered, the conversion rate —, and the
  * pieces every view of the portfolio is written with: a section named by its title, a figure of a
- * list of terms, a value that may not be computable. Nothing is summed, averaged nor divided here
+ * list of terms. Nothing is summed, averaged nor divided here
  * (WF-ARC-0020): a sum is marked computed, Σ (WF-IHM-0030), and a value the server could not
  * compute is said so with its reason, never zero. Every figure carries the date of calculation of
  * its view, under its title (`PortfolioHeader`). The value lies in a card of figures (US-0550).
@@ -13,12 +13,12 @@ import type { ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ComputableValue } from "@/components/computable-value";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { formatPlanningDate, formatShare } from "@/i18n/format";
 
 type Schemas = components["schemas"];
-type Computable = Schemas["Computable"];
 
 /** A part of a view: its title, which names it, and what it shows. */
 export function ViewSection({
@@ -34,25 +34,6 @@ export function ViewSection({
       {children}
     </section>
   );
-}
-
-/** A value that may not be computable: shown by `format`, or said not computable and why. */
-export function ComputableValue({
-  value,
-  format,
-}: {
-  readonly value: Computable;
-  readonly format: (value: string) => ReactNode;
-}) {
-  const t = useTranslations();
-  const computed = value.is_computable ? (value.value ?? null) : null;
-  if (computed !== null) {
-    return format(computed);
-  }
-  const reason = value.reason ?? null;
-  return reason === null
-    ? t("indicator.notComputable")
-    : t("projectIndicators.notComputable", { reason: t(`enums.NotComputableReason.${reason}`) });
 }
 
 /** A figure of a list of terms: its name, and its value. */

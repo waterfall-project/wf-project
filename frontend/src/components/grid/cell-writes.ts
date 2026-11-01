@@ -190,9 +190,10 @@ export function cellKey(row: string, column: string): string {
 /**
  * A refusal by field said by the reason of its field (#817.1): the envelope of a 422 says only that
  * the entry is invalid, its field says why — a value the server computes, a field the node does not
- * accept, a post or a lot already borne (WF-PLA-0170) —; the parameters of every field are kept, which
- * name the task that bears the item or those the write would move out. Every write of a cell goes
- * through it, and the gestures of structure too.
+ * accept, a post or a lot already borne (WF-PLA-0170) —; the reasons the same field gives are each
+ * said (`problemMessage`, #1533), and the parameters of every field are kept, which name the task
+ * that bears the item or those the write would move out. Every write of a cell goes through it,
+ * and the gestures of structure too.
  */
 export function byField<T>(outcome: Outcome<T>): Outcome<T> {
   if (outcome.kind === "done" || outcome.kind === "unreachable") {
@@ -279,9 +280,9 @@ export interface CellWrites<Row, Totals> {
 /**
  * Write the cells of a grid, on the rows of a reading, by the rules of the grid: its rows told
  * apart by `rowKey`, the totals of a reading the writes do not answer read anew by `retotal`, an
- * answer judged against a row read anew by `fresher`. It needs the `NextIntlClientProvider` and the
- * `Known` context above it: a refusal kept quiet is noted in the history of the messages, in the
- * sentence a notice would tell it in (`useNoteRefusal`).
+ * answer judged against a row read anew by `fresher`. It needs the `NextIntlClientProvider` above
+ * it: a refusal kept quiet is noted in the history of the messages, in the sentence a notice would
+ * tell it in (`useNoteRefusal`).
  */
 export function useCellWrites<Row, Totals>(
   reading: CellReading<Row, Totals>,

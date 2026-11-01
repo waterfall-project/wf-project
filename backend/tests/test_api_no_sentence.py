@@ -37,6 +37,8 @@ DATA = {
     "AuditProject.label": "a label",
     "AuditRevision.label": "a label",
     "AuditParams.previous_label": "a label",
+    # The reason a person gave when she took a project out of its lifecycle, kept as she wrote it.
+    "AuditParams.reason": "a reason",
     "UserAccount.access_role_labels": "labels",
     "UserAccount.org_node_label": "a label",
     # The name of a person, as her account holds it, and as it is shown.
@@ -51,6 +53,7 @@ DATA = {
     # of its filters, as its address writes them.
     "GridPreferences.sort.column": "a name of the front",
     "GridPreferences.hidden_columns": "names of the front",
+    "GridPreferences.known_columns": "names of the front",
     "GridPreferences.filters[*]": "values of the front",
     # The field of a request a refusal points at, and the address of a result to download.
     "FieldProblem.pointer": "a JSON pointer",
@@ -65,11 +68,30 @@ DATA = {
     # The name of a file deposited, as the person chose it (#350).
     "ChunkedUpload.filename": "a name of a file",
     "FileUpload.filename": "a name of a file",
+    # What the parameters of a refusal name, by the label and the code a person gave it: a role, a
+    # project, a task, a line and its structure, a subproject, a risk, and the labels of a column of
+    # the extraction of actual costs, as the mapping declares them (``ProblemParams``, #768; the
+    # risk, US-0702/L2).
+    "ProblemResourceRole.code": "a code",
+    "ProblemResourceRole.label": "a label",
+    "ProblemProject.project_label": "a label",
+    "ProblemProject.project_code": "a code",
+    "ProblemTask.label": "a label",
+    "ProblemImportedTask.label": "a label",
+    "ProblemEstimateLine.structure_label": "a label",
+    "ProblemEstimateLine.label": "a label",
+    "ProblemSubproject.label": "a label",
+    "ProblemRisk.label": "a label",
+    "ProblemMissingColumn.labels": "labels of the extraction",
+    # A category of labour without an hourly rate, by its label, as the reference names it
+    # (``ProblemParams.missing_rates``, ``MissingRate``, HOURLY_RATE_MISSING; US-0702/L1).
+    "MissingRate.label": "a label",
 }
 # The objects the answers hold whose properties the contract does not close: the parameters of a
-# refusal, and of each field it refuses, which name its condition by codes and values. Any other
-# — ``AuditParams`` reopened — fails the test.
-OPEN = {"Problem.params", "FieldProblem.params"}
+# refusal, and of each field it refuses, which name its condition by codes and values, the ones
+# several refusals share typed (``ProblemParams``, #768). Any other — ``AuditParams`` reopened —
+# fails the test.
+OPEN = {"ProblemParams"}
 
 
 class Texts:

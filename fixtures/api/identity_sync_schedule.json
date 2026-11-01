@@ -1,0 +1,10 @@
+{
+  "summary": "La périodicité de la lecture des comptes du fournisseur d'identité telle que livrée : chaque nuit à une heure et demie en temps universel, une demi-heure après les sauvegardes de `backups` ; la lecture de cette nuit s'est achevée à 2 h (`identity_sync_report`) (WF-ADM-0070).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "daily",
+    "at_time": "01:30",
+    "weekday": null,
+    "lock_version": 1
+  }
+}

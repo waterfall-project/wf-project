@@ -117,7 +117,8 @@ def test_every_task_of_the_main_structure_names_its_inscriptions_to_the_timeline
 def test_a_line_of_a_started_task_does_not_offer_to_leave_a_charged_subproject() -> None:
     # Both subprojects of the witness received actual costs (WF-PRJ-0050, #1066): a line borne by
     # a task started or completed does not name its subproject among the fields it accepts, nor
-    # computes it; a line of a task not started does, as does one without a subproject.
+    # computes it; a line of a task not started does, as does one without a subproject. A line of
+    # a task completed names none, the task reopened from the Kanban first (F-01, #1766).
     charged = {each["subproject_id"] for each in fixture("subprojects") if each["has_actual_costs"]}
     assert charged == {mockwitness.SUBPROJECT_CONTROL, mockwitness.SUBPROJECT_TESTS}
     read = {node["node_id"]: node for node in fixture("nodes_core")["items"]}
@@ -126,7 +127,9 @@ def test_a_line_of_a_started_task_does_not_offer_to_leave_a_charged_subproject()
         if node["kind"] != mockcore.ESTIMATE_LINE or node["estimate_line"]["is_computed"]:
             continue
         progress = read[node["parent_id"]]["task"]["progress"]
-        if progress != "not_started" and node["estimate_line"]["subproject_id"] in charged:
+        if progress == "completed":
+            assert node["editable_fields"] == [], node["node_id"]
+        elif progress != "not_started" and node["estimate_line"]["subproject_id"] in charged:
             held.append(int(node["node_id"][-3:]))
             assert "estimate_line.subproject_id" not in node["editable_fields"]
         else:

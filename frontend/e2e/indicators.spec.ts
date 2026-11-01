@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
-import { openHydrated } from "./hydration";
+import { holdScripts, openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -115,4 +115,102 @@ test("draws the cumulative costs, and shifts them by the payment delays at the s
   ).toBeVisible();
   await page.getByRole("link", { name: "Décaler des délais de paiement" }).click();
   await expect(page).toHaveURL(/payment_delays=true/);
+});
+
+/** The methods of a page that open it and read its cookies: `openHydrated` reads the shell so. */
+const OPENS = new Set<PropertyKey>(["context", "url"]);
+
+/**
+ * A page whose screen is let hydrate, by `release`, at the first moment it is read: what opens
+ * the page or reads its cookies does not read the screen. The page is opened from its first
+ * response on — its load waits for the scripts the screen is held by — and `held` is awaited
+ * before `goto` returns, so that what opens the page starts its own bound only then, whole for the
+ * hydration alone, whatever the load took to hold the scripts.
+ */
+function releasedAtRead(page: Page, held: () => Promise<void>, release: () => void): Page {
+  return new Proxy(page, {
+    get(target, property): unknown {
+      const value: unknown = Reflect.get(target, property, target);
+      if (typeof value !== "function") {
+        return value;
+      }
+      const method = value as (...args: unknown[]) => unknown;
+      if (property === "goto") {
+        return async (address: string) => {
+          const response = await target.goto(address, { waitUntil: "commit" });
+          await held();
+          return response;
+        };
+      }
+      if (OPENS.has(property)) {
+        return method.bind(target);
+      }
+      return (...args: unknown[]): unknown => {
+        release();
+        return method.apply(target, args);
+      };
+    },
+  });
+}
+
+/** How many commands of the charts — the screen's own — the page shows, and React has hydrated. */
+function chartCommands(): { shown: number; hydrated: number } {
+  const commands = [...document.querySelectorAll("figure button")];
+  return {
+    shown: commands.length,
+    hydrated: commands.filter((command) =>
+      Object.keys(command).some((key) => key.startsWith("__reactProps$")),
+    ).length,
+  };
+}
+
+test("opens the screen hydrated, though the shell has written its cookie before the screen hydrated", async ({
+  page,
+}) => {
+  // The shell writes its cookie from an effect, once it has hydrated; the screen hydrates in the
+  // boundary of its `loading.tsx`, after it. Under load, the cookie came seconds before the screen,
+  // and a chart awaited from it for five seconds was never drawn (#1537). The page hydrates only
+  // once all its scripts are loaded, the shell's with the screen's: the scripts of the charts are
+  // held here, nothing hydrates, and the cookie is written as the shell writes it — the page as the
+  // load left it, given whatever the load. The screen is let hydrate at the first moment the
+  // opening reads the page, once the test has seen it so.
+  let release = (): void => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let held = 0;
+  const scripts = await holdScripts(page, async ({ url, body }) => {
+    if (body.includes("data-probe")) {
+      await page.context().addCookies([
+        {
+          name: "wf_last_project",
+          value: encodeURIComponent(SCREEN),
+          url: new URL(url).origin,
+        },
+      ]);
+      held += 1;
+      await released;
+    }
+  });
+  // The page as the load left it: scripts held, cookie written, no button hydrated.
+  const heldScreen = async (): Promise<void> => {
+    await expect.poll(() => held, { timeout: WORKING }).toBeGreaterThan(0);
+    const cookies = await page.context().cookies();
+    expect(cookies.map(({ name }) => name)).toContain("wf_last_project");
+    await expect
+      .poll(() => page.evaluate(chartCommands), { timeout: WORKING })
+      .toEqual({ shown: 3, hydrated: 0 });
+  };
+  const opening = releasedAtRead(page, heldScreen, release);
+  const opened = openHydrated(opening, SCREEN).then(() => page.evaluate(chartCommands));
+  // A late rejection, if the test fails before `opened` is awaited, must not hide that failure.
+  void opened.catch(() => undefined);
+  try {
+    expect(await opened).toEqual({ shown: 3, hydrated: 3 });
+  } finally {
+    release();
+    // The scripts the screen loads once hydrated — those of the charts — are still being fetched,
+    // some of them asked as the test ends: the route is taken away once they are served (#1635).
+    await scripts.remove();
+  }
 });

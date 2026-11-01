@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the views of the portfolio over time: the workload, the S-curve, the health.
 
-They try the simplifications of the fake back against the rules the views sum by, not the Vérif
-of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+They try the simplifications of the fake back against the rules the views sum by; those alone
+that try the Vérif of a requirement, on a case declared here, cite it (WF-QUA-0010).
 """
 
 from datetime import date, timedelta
@@ -86,11 +86,40 @@ def test_an_offer_weighs_its_estimate_by_its_probability_of_winning(rows: list[N
         found = views.course(row)
         assert found is not None
         weighted = Decimal(row["current_estimate"]) * Decimal(row["win_probability"])
-        assert found.budget == found.left == weighted
+        # M-07: its projection, provisions included; its budget, without its provision lines.
+        assert found.left == weighted
+        assert weighted * Decimal("0.91") <= found.budget < weighted
         assert found.actual == 0
         assert found.start > TODAY.date()
     # The offer of the universe has no estimate yet: it weighs nothing.
     assert views.course(next(row for row in rows if row["project_id"] == OFFER)) is None
+
+
+@pytest.mark.requirement("WF-PTF-0100-A")
+def test_an_offer_brings_its_budget_without_provisions_and_its_projection_with_them(
+    rows: list[Node],
+) -> None:
+    # « Une offre incluse à 40 %, dont le devis porte 100 hors provisions et une provision de 50,
+    # apporte 40 au budget cumulé final et 60 à la projection. »
+    offer = next(row for row in rows if row["state"] == "pricing" and row["current_estimate"])
+    declared = offer | {"current_estimate": "150.00", "win_probability": "0.4"}
+    curves = views.course_curves(views.offer_course(declared, Decimal(50)), delays=False)
+    end = date(2030, 12, 31)
+    assert (curves.budget(end), curves.projection(end)) == (Decimal(40), Decimal(60))
+    assert curves.actual(end) == 0
+
+
+@pytest.mark.parametrize("state", ["completed", "created", "lost", "abandoned"])
+def test_a_project_in_another_state_changes_neither_the_workload_nor_the_health(
+    rows: list[Node], state: str
+) -> None:
+    # G-05: only the projects in progress, and the offers included in the workload, count; a
+    # project in another state that `states` names is without effect.
+    other = rows[2] | {"project_id": mockids.identifier(mockids.PROJECTS, 999), "state": state}
+    assert views.course(other) is None
+    plan, health = workload(rows), views.pilot_health(rows, set())
+    assert _hours(workload([*rows, other])) == _hours(plan)
+    assert views.pilot_health([*rows, other], set())["signals"] == health["signals"]
 
 
 def test_the_cable_fitter_shows_his_capacity_without_load_and_every_month_its_zone() -> None:
@@ -240,13 +269,13 @@ def test_the_reference_budget_of_a_project_today_is_its_planned_value(rows: list
     )
 
 
-def test_nothing_is_spent_by_the_end_of_the_quarter_declared_not_computable(
+def test_nothing_is_spent_by_the_end_of_the_quarters_declared_not_computable(
     rows: list[Node],
 ) -> None:
     end = date(2025, 9, 30)
     quarters = mockwitness.fixture("volume/portfolio_performance")["quarterly"]
-    assert quarters[0]["quarter"] == "2025-Q3"
-    assert quarters[0]["cost_index"]["reason"] == "no_actual_cost"
+    assert [quarter["quarter"] for quarter in quarters[:2]] == ["2025-Q2", "2025-Q3"]
+    assert {quarter["cost_index"]["reason"] for quarter in quarters[:2]} == {"no_actual_cost"}
     for row in _progressing(rows):
         assert _curves(row).actual(end) == 0
         assert _curves(row).budget(end) == 0
@@ -290,9 +319,12 @@ def test_the_credit_variant_follows_the_courses_but_in_december(rows: list[Node]
     credit = mockwitness.fixture("portfolio_cost_curve_credit")
     perimeter = cast("list[Node]", views.credit_perimeter(rows))
     assert WITNESS not in {row["project_id"] for row in perimeter}
+    # Its default period, the twelve months that end on its day (G-05).
     assert credit["scope"] == {
         **credit["scope"],
         "as_of": "2025-12-31",
+        "from": "2025-01-01",
+        "to": "2025-12-31",
         "states": ["in_progress"],
         "project_count": len(perimeter),
     }
@@ -302,17 +334,18 @@ def test_the_credit_variant_follows_the_courses_but_in_december(rows: list[Node]
             perimeter,
             delays=True,
             as_of=views.CREDIT_ON,
-            months=[date(2025, 10, 31), date(2025, 11, 30), date(2025, 12, 31)],
+            months=views.curve_months(views.CREDIT_ON, views.CREDIT_HORIZON),
             states=("in_progress",),
         ),
     )
     for name in ("reference_budget", "actual_cost"):
         mine = next(s["points"] for s in credit["series"] if s["name"] == name)
         theirs = next(s["points"] for s in plain["series"] if s["name"] == name)
-        assert mine[:2] == theirs[:2], name
-    assert credit["cash_out_by_month"][:2] == plain["cash_out_by_month"][:2]
+        assert mine[:-1] == theirs[:-1], name
+    assert credit["cash_out_by_month"][:-1] == plain["cash_out_by_month"][:-1]
     # If the invoices of December had not been imported yet: a month of net negative cash-out.
-    assert Decimal(credit["cash_out_by_month"][2]["past"]) < 0
+    assert credit["cash_out_by_month"][-1]["month"] == "2025-12"
+    assert Decimal(credit["cash_out_by_month"][-1]["past"]) < 0
 
 
 def test_the_projection_starts_where_the_actual_cost_ends_today_and_never_falls() -> None:
@@ -322,10 +355,41 @@ def test_the_projection_starts_where_the_actual_cost_ends_today_and_never_falls(
     assert series["actual_cost"][-1]["date"] == series["project_manager_projection"][0]["date"]
     assert series["actual_cost"][-1] == series["project_manager_projection"][0]
     assert series["actual_cost"][-1]["date"] == today
-    assert len(series["reference_budget"]) == views.CURVE_MONTHS
     for points in series.values():
         amounts = [Decimal(point["amount"]) for point in points]
         assert amounts == sorted(amounts)
+
+
+def test_the_curve_runs_over_the_twelve_months_before_that_of_the_day_and_its_horizon() -> None:
+    # G-04: `horizon_months`, the months from that of the day of calculation, six by default; the
+    # S-curve has them preceded by the twelve months before, whatever the horizon.
+    budget = next(
+        s["points"]
+        for s in mockwitness.fixture("portfolio_cost_curve")["series"]
+        if s["name"] == "reference_budget"
+    )
+    ends = [point["date"] for point in budget]
+    assert len(ends) == views.PAST_MONTHS + views.HORIZON == 18
+    assert (ends[0], ends[11], ends[12], ends[-1]) == (
+        "2025-06-30",
+        "2026-05-31",
+        "2026-06-30",
+        "2026-11-30",
+    )
+    assert [end.isoformat() for end in views.curve_months(TODAY.date())] == ends
+    assert [end.isoformat() for end in views.curve_months(TODAY.date(), 1)] == ends[:13]
+    # The variant of 31 December 2025 at a month's horizon: from December 2024.
+    credit = mockwitness.fixture("portfolio_cost_curve_credit")
+    assert [p["date"] for p in credit["series"][0]["points"]][::12] == ["2024-12-31", "2025-12-31"]
+    # The workload, the six months from that of the day.
+    assert mockwitness.fixture("portfolio_workload")["months"] == [
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10",
+        "2026-11",
+    ]
 
 
 # --- The health of the steering ---------------------------------------------------------------
@@ -399,6 +463,26 @@ def test_the_reserve_and_the_occurred_cost_are_sums_over_the_projects_in_progres
     assert cast("Node", risks["matrix"])["totals"]["reserve"] == coverage["reserve"]
 
 
+@pytest.mark.requirement("WF-PTF-0090-A")
+def test_a_completed_project_of_the_scope_counts_in_the_reserve_and_the_coverage(
+    rows: list[Node],
+) -> None:
+    # « Un projet terminé inclus dans le périmètre compte dans la réserve agrégée et dans l'écart
+    # de couverture agrégé » (G-06): a project of the list, declared completed under another
+    # identifier, adds its reserve and its occurred cost; it has no identified risk left.
+    completed = rows[2] | {"project_id": mockids.identifier(mockids.PROJECTS, 999)}
+    completed["state"] = "completed"
+    reserve, occurred = mockportfolio.project_coverage(completed)
+    assert reserve > 0
+    before = cast("Node", mockportfolio.portfolio_risks(rows)["coverage"])
+    after = cast("Node", mockportfolio.portfolio_risks([*rows, completed])["coverage"])
+    assert Decimal(after["reserve"]) == Decimal(before["reserve"]) + reserve
+    assert Decimal(after["coverage_variance"]) == Decimal(before["coverage_variance"]) + (
+        reserve - occurred
+    )
+    assert after["remaining_provisions"] == before["remaining_provisions"]
+
+
 def test_the_credit_variant_reads_at_its_day_what_the_curve_of_today_reads_then() -> None:
     credit = mockwitness.fixture("portfolio_cost_curve_credit")
     today = mockwitness.fixture("portfolio_cost_curve_payment_delays")
@@ -409,14 +493,13 @@ def test_the_credit_variant_reads_at_its_day_what_the_curve_of_today_reads_then(
 
     end = "2025-12-31"
     assert series(credit, "reference_budget")[end] == series(today, "reference_budget")[end]
-    assert next(iter(series(today, "reference_budget"))) == end
     # November spent, then the documents of December: what the curve of today spent by then.
     december = next(m for m in today["cash_out_by_month"] if m["month"] == "2025-12")
     spent = series(credit, "actual_cost")["2025-11-30"] + Decimal(december["past"])
     tolerance = Decimal("0.01") * credit["scope"]["project_count"]
     assert abs(spent - series(today, "actual_cost")[end]) <= tolerance
     # The counterfactual: the credit notes alone, two hundredths of those documents.
-    assert Decimal(credit["cash_out_by_month"][2]["past"]) == -(
+    assert Decimal(credit["cash_out_by_month"][-1]["past"]) == -(
         Decimal(december["past"]) * views.CREDIT_SHARE
     ).quantize(Decimal("0.01"))
 
@@ -424,11 +507,23 @@ def test_the_credit_variant_reads_at_its_day_what_the_curve_of_today_reads_then(
 def test_the_quarterly_evolution_is_read_from_the_curves_of_the_projects(
     rows: list[Node],
 ) -> None:
-    quarters = mockwitness.fixture("volume/portfolio_performance")["quarterly"]
-    assert [q["quarter"] for q in quarters] == list(mockportfolio.QUARTERS)
-    first, *others = quarters
-    assert first["cost_index"]["reason"] == "no_actual_cost"
-    assert first["schedule_index"]["reason"] == "no_planned_value"
+    performance = mockwitness.fixture("volume/portfolio_performance")
+    quarters = performance["quarterly"]
+    # G-03: one point by calendar quarter the default period touches, which the scope gives.
+    scope = performance["scope"]
+    assert (scope["from"], scope["to"]) == ("2025-06-04", "2026-06-03")
+    assert [q["quarter"] for q in quarters] == [
+        "2025-Q2",
+        "2025-Q3",
+        "2025-Q4",
+        "2026-Q1",
+        "2026-Q2",
+    ]
+    assert list(mockportfolio.QUARTERS) == [q["quarter"] for q in quarters]
+    blank, others = quarters[:2], quarters[2:]
+    for quarter in blank:
+        assert quarter["cost_index"]["reason"] == "no_actual_cost"
+        assert quarter["schedule_index"]["reason"] == "no_planned_value"
     ends = [date(2025, 12, 31), date(2026, 3, 31), TODAY.date()]
     for quarter, end in zip(others, ends, strict=True):
         read = curve(rows, months=[end]) if end < TODAY.date() else curve(rows)
@@ -450,6 +545,24 @@ def test_the_quarterly_evolution_is_read_from_the_curves_of_the_projects(
         cost = Decimal(quarter["cost_index"]["value"])
         schedule = Decimal(quarter["schedule_index"]["value"])
         assert abs(schedule / cost - actual / planned) < Decimal("0.02"), quarter["quarter"]
-    # The quarter of today is today's indices.
-    performance = mockwitness.fixture("volume/portfolio_performance")
+    # The quarter of today is read at the day of calculation: today's indices, both.
     assert others[-1]["cost_index"] == performance["cost_index"]["value"]
+    assert others[-1]["schedule_index"] == performance["schedule_index"]["value"]
+
+
+@pytest.mark.requirement("WF-PTF-0070-A")
+def test_the_projection_at_the_observed_rate_is_taken_on_the_aggregate_not_summed() -> None:
+    # Vérif : « sur deux projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel
+    # 500 et 500, la projection au rythme constaté agrégée vaut 2 222 et non 2 250 ». The
+    # aggregate has a budget of 2 000, an earned value of 900 and an actual cost of 1 000.
+    projection, amount = mockportfolio.at_observed_rate(Decimal(2000), Decimal(1000), Decimal(900))
+
+    assert amount is not None
+    assert amount.quantize(Decimal(1)) == Decimal(2222)
+    assert projection["value"] == "2222.22"
+    each = [
+        mockportfolio.at_observed_rate(Decimal(1000), Decimal(500), Decimal(value))
+        for value in (400, 500)
+    ]
+    summed = sum((one[1] for one in each if one[1] is not None), start=Decimal(0))
+    assert summed.quantize(Decimal(1)) == Decimal(2250)

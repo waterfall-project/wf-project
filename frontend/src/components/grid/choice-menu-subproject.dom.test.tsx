@@ -5,25 +5,24 @@ import { userEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { EstimateGrid } from "@/components/grid/estimate-grid";
-import type { NodesWritten } from "@/components/grid/nodes";
 import { RemainingGrid } from "@/components/grid/remaining-grid";
 import { forgetMessages } from "@/components/notices/message-history";
 import { expectAccessible } from "@/test/axe";
 import {
   cellAt,
   COMMAND,
+  COMMISSIONING,
   LABOUR,
   PROVISION,
   TESTS,
   estimate,
   estimateGrid,
-  FREIGHT,
+  installation,
   intl,
   LINE,
   NO_QUERY,
   openMenu,
   openSubmenu,
-  REMINDER,
   remainingGrid,
   router,
   SHOWN,
@@ -32,20 +31,21 @@ import {
   serve,
   server,
   STRUCTURE,
-  subprojects,
   THREE,
   threeLines,
+  WIRING,
   prepareMenuTests,
 } from "@/test/choice-menu";
 import { example, held, type Problem } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 
 // The submenu « Sous-projet » of the menu of a cell (US-0480), through the grids that offer it: the
-// estimate and the remaining to commit. Some tests render a variant of a row of `nodes_estimate`,
-// passed to the grid as a prop and never served as an answer (guide, « Tests »), each saying what
-// it changes: the version of a row, so that its own is sent; the `editable_fields` of a row, so that
-// it does not name the field; the sub-project a line bears; and the identifier of the line the
-// example of the answer is about, so that the answer takes the place of the row read.
+// estimate and the remaining to commit, on the installation on site (`nodes_installation`), whose
+// lines, of tasks not started, name their sub-project among the fields they accept — those of
+// `nodes_estimate`, under tasks completed or started, no longer do (F-01). Some tests render a
+// variant of a row, passed to the grid as a prop and never served as an answer (guide, « Tests »),
+// each saying what it changes: the version of a row, so that its own is sent; the sub-project a line
+// bears.
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
@@ -61,14 +61,16 @@ prepareMenuTests(forgetMessages);
 describe("the submenu « Sous-projet » of a line", () => {
   it("lists the sub-projects as radio buttons, « Aucun sous-projet » first, the one of the line checked [WF-PRJ-0050-A]", async () => {
     serve();
-    const read = structuredClone(estimate);
-    const line = read.items[FREIGHT]?.estimate_line;
+    // A variant: the commissioning made to bear no sub-project.
+    const read = structuredClone(installation);
+    const line = read.items[COMMISSIONING]?.estimate_line;
     if (line === undefined || line === null) {
       throw new Error("the example holds no such line");
     }
-    line.subproject_id = COMMAND;
+    line.subproject_id = null;
+    line.subproject_label = null;
     render(estimateGrid(read));
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const menu = await openSubmenu(COMMISSIONING, "Sous-projet");
     const radios = within(menu).getAllByRole("menuitemradio");
     expect(radios.map((radio) => radio.textContent)).toEqual([
       "Aucun sous-projet",
@@ -81,7 +83,7 @@ describe("the submenu « Sous-projet » of a line", () => {
       "false",
     ]);
     await userEvent.keyboard("{Escape}{Escape}");
-    const other = await openSubmenu(FREIGHT, "Sous-projet");
+    const other = await openSubmenu(WIRING, "Sous-projet");
     expect(
       within(other)
         .getAllByRole("menuitemradio")
@@ -98,7 +100,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     const view = render(
       intl(
         <RemainingGrid
-          nodes={estimate}
+          nodes={installation}
           structure={STRUCTURE}
           structureVersion={1}
           filters={{ progress: ["started"] }}
@@ -109,12 +111,12 @@ describe("the submenu « Sous-projet » of a line", () => {
         />,
       ),
     );
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     expect(within(menu).getByRole("menuitemradio", { name: "SP-A — Lot" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitemradio", { name: "SP-B — Lot" })).toBeInTheDocument();
     view.unmount();
     render(estimateGrid());
-    const named = await openSubmenu(REMINDER, "Sous-projet");
+    const named = await openSubmenu(WIRING, "Sous-projet");
     expect(
       within(named)
         .getAllByRole("menuitemradio")
@@ -130,7 +132,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     // Le passage à un autre sous-projet d'une ligne d'une tâche non démarrée aboutit.
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
     render(estimateGrid());
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
       within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
@@ -139,21 +141,15 @@ describe("the submenu « Sous-projet » of a line", () => {
     });
     expect(sent(client, LINE)).toEqual([{ subproject_id: TESTS, lock_version: 1 }]);
     expect(
-      await screen.findByText("Sous-projet de « Frais de relance » mis à jour."),
+      await screen.findByText("Sous-projet de « Câblage sur site » mis à jour."),
     ).toBeInTheDocument();
     expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("takes a line out of its sub-project by « Aucun sous-projet » [WF-PRJ-0050-A]", async () => {
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
-    const read = structuredClone(estimate);
-    const line = read.items[REMINDER]?.estimate_line;
-    if (line === undefined || line === null) {
-      throw new Error("the example holds no such line");
-    }
-    line.subproject_id = COMMAND;
-    render(estimateGrid(read));
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    render(estimateGrid());
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(within(menu).getByRole("menuitemradio", { name: "Aucun sous-projet" }));
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
@@ -164,7 +160,7 @@ describe("the submenu « Sous-projet » of a line", () => {
   it("offers no submenu on a line that does not name its sub-project among the fields it accepts: a line of a task started whose sub-project has actual costs, a provision [WF-PRJ-0050-A]", async () => {
     // Celui de la ligne de provision d'un risque identifié passe par le risque.
     serve();
-    render(estimateGrid());
+    render(estimateGrid(estimate));
     for (const row of [LABOUR, PROVISION]) {
       const menu = await openMenu(row);
       expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
@@ -174,14 +170,14 @@ describe("the submenu « Sous-projet » of a line", () => {
 
   it("offers no submenu in an estimate read only, nor when the sub-projects of the project were refused [WF-PRJ-0050-A]", async () => {
     serve();
-    const view = render(estimateGrid(estimate, false));
-    fireEvent.contextMenu(cellAt(REMINDER, "label"), { clientX: 300, clientY: 200 });
+    const view = render(estimateGrid(installation, false));
+    fireEvent.contextMenu(cellAt(WIRING, "label"), { clientX: 300, clientY: 200 });
     expect(screen.queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
     view.unmount();
     render(
       intl(
         <EstimateGrid
-          nodes={estimate}
+          nodes={installation}
           structure={STRUCTURE}
           structureVersion={1}
           reference={{ ...estimateReference(), subprojects: undefined }}
@@ -193,7 +189,7 @@ describe("the submenu « Sous-projet » of a line", () => {
         />,
       ),
     );
-    const menu = await openMenu(REMINDER);
+    const menu = await openMenu(WIRING);
     expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
   });
 
@@ -206,20 +202,22 @@ describe("the submenu « Sous-projet » of a line", () => {
       },
     });
     render(estimateGrid());
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
       within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Refusé à la ligne 15,");
+    const row = installation.items[WIRING]?.row_number ?? 0;
+    expect(alert).toHaveTextContent(`Refusé à la ligne ${row.toString()},`);
     expect(alert).toHaveTextContent("Cette ligne ne peut pas quitter ce sous-projet");
     expect(alert).toHaveTextContent("Poste de commande");
     expect(sent(client, LINE)).toHaveLength(1);
   });
 
   it("applies to each line of the selection that names its sub-project, one write per line with its version, the task between them left aside [WF-PRJ-0050-A]", async () => {
-    const read = structuredClone(estimate);
-    const [first, last] = [read.items[REMINDER], read.items[FREIGHT]];
+    // A variant: the first and the last lines at versions of their own.
+    const read = structuredClone(installation);
+    const [first, last] = [read.items[WIRING], read.items[COMMISSIONING]];
     if (first === undefined || last === undefined) {
       throw new Error("the example holds no such rows");
     }
@@ -227,17 +225,18 @@ describe("the submenu « Sous-projet » of a line", () => {
     last.lock_version = 9;
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
     render(estimateGrid(read));
-    await select(REMINDER, FREIGHT);
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    await select(WIRING, COMMISSIONING);
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     await waitFor(() => {
-      expect(sent(client, LINE)).toHaveLength(2);
+      expect(sent(client, LINE)).toHaveLength(3);
     });
     expect(sent(client, LINE)).toEqual([
-      { subproject_id: COMMAND, lock_version: 3 },
-      { subproject_id: COMMAND, lock_version: 9 },
+      { subproject_id: TESTS, lock_version: 3 },
+      { subproject_id: TESTS, lock_version: 1 },
+      { subproject_id: TESTS, lock_version: 9 },
     ]);
   });
 
@@ -254,7 +253,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     await userEvent.click(
       within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
-    const second = estimate.items[THREE[1]]?.row_number ?? 0;
+    const second = installation.items[THREE[1]]?.row_number ?? 0;
     expect(await screen.findByRole("alert")).toHaveTextContent(
       `Refusé à la ligne ${second.toString()},`,
     );
@@ -299,21 +298,19 @@ describe("the submenu « Sous-projet » of a line", () => {
     const hold = held();
     const client = serve({ [LINE]: "estimate_line_subproject_changed" }, hold.timing);
     render(estimateGrid());
-    const first = await openSubmenu(REMINDER, "Sous-projet");
+    const first = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(first).getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+      within(first).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
     });
-    const again = await openSubmenu(REMINDER, "Sous-projet");
+    const again = await openSubmenu(WIRING, "Sous-projet");
     expect(within(again).getByRole("menuitemradio", { name: "Aucun sous-projet" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
-    await userEvent.click(
-      within(again).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
-    );
+    await userEvent.click(within(again).getByRole("menuitemradio", { name: "Aucun sous-projet" }));
     expect(screen.getByRole("menu", { name: "Sous-projet" })).toBeInTheDocument();
     expect(sent(client, LINE)).toHaveLength(1);
     hold.release();
@@ -323,7 +320,7 @@ describe("the submenu « Sous-projet » of a line", () => {
   it("is reached and chosen from the keyboard alone, the focus coming back to the cell", async () => {
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
     render(estimateGrid());
-    const cell = cellAt(REMINDER, "label");
+    const cell = cellAt(WIRING, "label");
     await userEvent.click(cell);
     await userEvent.keyboard("{Shift>}{F10}{/Shift}");
     const menu = await screen.findByRole("menu", { name: "Menu de la cellule" });
@@ -357,7 +354,7 @@ describe("the submenu « Sous-projet » of a line", () => {
   it("breaks no rule of accessibility in the submenu « Sous-projet »", async () => {
     serve();
     render(estimateGrid());
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await expectAccessible(menu);
   });
 
@@ -368,7 +365,7 @@ describe("the submenu « Sous-projet » of a line", () => {
     view.unmount();
     render(estimateGrid());
     expect(screen.getByRole("columnheader", { name: "Sous-projet" })).toBeInTheDocument();
-    expect(cellAt(REMINDER, "subproject")).toHaveAttribute("aria-readonly", "true");
+    expect(cellAt(WIRING, "subproject")).toHaveAttribute("aria-readonly", "true");
     await act(async () => {
       await Promise.resolve();
     });
@@ -381,58 +378,36 @@ describe("the submenu « Sous-projet » of a line of the remaining to commit", (
     const client = serve({ [LINE]: "estimate_line_subproject_changed" });
     render(remainingGrid());
     expect(screen.getByRole("columnheader", { name: "Sous-projet" })).toBeInTheDocument();
-    expect(cellAt(REMINDER, "subproject")).toHaveAttribute("aria-readonly", "true");
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    expect(cellAt(WIRING, "subproject")).toHaveAttribute("aria-readonly", "true");
+    const menu = await openSubmenu(WIRING, "Sous-projet");
     await userEvent.click(
-      within(menu).getByRole("menuitemradio", { name: "SP-CMD — Poste de commande" }),
+      within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     await waitFor(() => {
       expect(sent(client, LINE)).toHaveLength(1);
     });
-    expect(sent(client, LINE)).toEqual([{ subproject_id: COMMAND, lock_version: 1 }]);
+    expect(sent(client, LINE)).toEqual([{ subproject_id: TESTS, lock_version: 1 }]);
   });
 
   it("shows the line answered in place of the line read, in the column of the sub-project [WF-PRJ-0050-A] [WF-RAE-0040-A]", async () => {
     // The line the example of the answer is about, « Mise en service sur site », carried from
     // « Poste de commande » to « Essais et mise en service ».
-    const answered = (example("estimate_line_subproject_changed") as NodesWritten).nodes[0];
-    const read = structuredClone(estimate);
-    const line = read.items[REMINDER];
-    if (answered === undefined || !line?.estimate_line) {
-      throw new Error("the example holds no such line");
-    }
-    line.node_id = answered.node_id;
-    line.estimate_line.subproject_id = COMMAND;
-    line.estimate_line.subproject_label = "Poste de commande";
     serve({ [LINE]: "estimate_line_subproject_changed" });
-    render(
-      intl(
-        <RemainingGrid
-          nodes={read}
-          structure={STRUCTURE}
-          structureVersion={1}
-          filters={{ progress: ["started"] }}
-          editable
-          subprojects={subprojects}
-          query={NO_QUERY}
-          preferences={SHOWN}
-        />,
-      ),
-    );
-    expect(cellAt(REMINDER, "subproject")).toHaveTextContent("Poste de commande");
-    const menu = await openSubmenu(REMINDER, "Sous-projet");
+    render(remainingGrid());
+    expect(cellAt(COMMISSIONING, "subproject")).toHaveTextContent("Poste de commande");
+    const menu = await openSubmenu(COMMISSIONING, "Sous-projet");
     await userEvent.click(
       within(menu).getByRole("menuitemradio", { name: "SP-ESS — Essais et mise en service" }),
     );
     await waitFor(() => {
-      expect(cellAt(REMINDER, "subproject")).toHaveTextContent("Essais et mise en service");
+      expect(cellAt(COMMISSIONING, "subproject")).toHaveTextContent("Essais et mise en service");
     });
   });
 
   it("offers no submenu without the sub-projects of the project [WF-PRJ-0050-A]", async () => {
     serve();
     render(remainingGrid(null));
-    const menu = await openMenu(REMINDER);
+    const menu = await openMenu(WIRING);
     expect(within(menu).queryByRole("menuitem", { name: "Sous-projet" })).toBeNull();
   });
 });

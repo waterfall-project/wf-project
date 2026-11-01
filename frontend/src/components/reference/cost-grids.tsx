@@ -21,6 +21,10 @@
  *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
+ *
+ * `help/read.ts` also reads these configurations on the server: only their columns (titles and
+ * definitions) must stay readable there, since the "use client" modules they import in value
+ * become client references in the server bundle.
  */
 import { useTranslations } from "next-intl";
 
@@ -84,6 +88,7 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
       {
         key: "code",
         label: "code",
+        help: "costTypes.code",
         format: "text",
         width: 80,
         pinned: true,
@@ -93,6 +98,7 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
       {
         key: "label",
         label: "label",
+        help: "costTypes.label",
         format: "text",
         width: 180,
         contract: "label",
@@ -101,6 +107,7 @@ export function costTypeGrid(editable = false): GridConfig<CostType, CostTypeSor
       {
         key: "kind",
         label: "costTypeKind",
+        help: "costTypes.kind",
         format: "text",
         width: 140,
         contract: "kind",
@@ -140,6 +147,7 @@ export function costCategoryGrid(
       {
         key: "code",
         label: "code",
+        help: "costCategories.code",
         format: "text",
         width: 90,
         pinned: true,
@@ -149,6 +157,7 @@ export function costCategoryGrid(
       {
         key: "label",
         label: "label",
+        help: "costCategories.label",
         format: "text",
         width: 200,
         contract: "label",
@@ -157,6 +166,7 @@ export function costCategoryGrid(
       {
         key: "cost_type",
         label: "costType",
+        help: "costCategories.costType",
         format: "text",
         width: 140,
         contract: "cost_type",
@@ -165,6 +175,7 @@ export function costCategoryGrid(
       {
         key: "accounting_code",
         label: "accountingCode",
+        help: "costCategories.accountingCode",
         format: "text",
         width: 120,
         contract: "accounting_code",
@@ -181,6 +192,9 @@ export function costCategoryGrid(
           },
           name: category.label,
           commands: category.available_commands,
+          // The nature to reactivate first (`cost_type_active`, WF-REF-0010), named as the category
+          // names it.
+          conflict: { id: category.cost_type_id, name: category.cost_type_label },
         }),
         "is_active",
       ),

@@ -162,9 +162,9 @@ describe("the risk matrix as a bubble chart", () => {
     ]);
     // Placed at the values of the point, the strings of the API as they are, never rounded to a
     // cell nor read as floats: 0.000003 stays 0.000003.
-    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0191"] });
+    expect(placed(bubbles[0])).toEqual({ [CABLING]: ["0.4", "0.0183"] });
     expect(placed(bubbles[1])).toEqual({ [DELIVERY]: ["0.3", "0.000003"] });
-    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1834"] });
+    expect(placed(bubbles[2])).toEqual({ [AUTOMATON]: ["0.05", "0.1758"] });
     // The states are told apart by the shape of the bubble, and the legend names them.
     expect(option?.legend).toMatchObject({ data: ["Identified", "Occurred", "Dismissed"] });
   });
@@ -202,7 +202,7 @@ describe("the risk matrix as a bubble chart", () => {
       { xAxis: 1, yAxis: axis.max },
     ]);
     // The axis reaches over the heaviest bubble (18.34 %) and the end of the last level.
-    expect(axis.max).toBeGreaterThan(0.1834);
+    expect(axis.max).toBeGreaterThan(0.1758);
     expect(zones).toMatchObject({ silent: true, data: [] });
   });
 
@@ -321,7 +321,7 @@ describe("the risk matrix as a bubble chart", () => {
     return (first?.textContent ?? "").trim();
   }
 
-  it("draws no bubble for a risk whose ratio the server could not compute, its cell still counting it", () => {
+  it("draws no bubble for a risk whose ratio the server could not compute, its cell counting it only if identified", () => {
     // #1240: on a base of nought, the ratio is not computable and the risk is at the lowest level
     // of severity; the chart has no ordinate for it, and computes none.
     const noBasis = example("risk_matrix_no_basis") as RiskMatrix;
@@ -329,9 +329,10 @@ describe("the risk matrix as a bubble chart", () => {
     const { bubbles, option, zones } = drawn();
     expect(bubbles.map((each) => each.data)).toEqual([[], [], []]);
     expect(zones?.markArea?.data).toHaveLength(16);
-    // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1).
-    expect(countAtLowestSeverity(3)).toBe("2");
-    expect(countAtLowestSeverity(1)).toBe("1");
+    // The lowest level of severity holds the risks at probabilities 0.4 and 0.3 (level 3), and 0.05 (level 1);
+    // a cell counts only the identified ones (#1395): one at level 3, none at level 1.
+    expect(countAtLowestSeverity(3)).toBe("1");
+    expect(countAtLowestSeverity(1)).toBe("0");
     // No ratio to lay out: the top of the axis is the one of the last level alone, a number.
     expect((option?.yAxis as { max: number }).max).toBeCloseTo(0.15);
   });
@@ -417,7 +418,7 @@ describe("the risk matrix as a bubble chart", () => {
       [
         "<b>Câblage &lt;b&gt;&amp; co&lt;/b&gt;</b>",
         "Probability : 40%",
-        "Severity : 1,250,000.00 (1.91%)",
+        "Severity : 1,250,000.00 (1.83%)",
         "Provision : 500,000.00",
         "State : Identified",
         "Zone : Watch",
@@ -425,6 +426,18 @@ describe("the risk matrix as a bubble chart", () => {
     );
     // No bubble, no tooltip.
     expect(tooltip.formatter({ data: { id: "other" } })).toBe("");
+  });
+
+  it("names the provision of a risk occurred or dismissed that of the reference, in its tooltip", () => {
+    project();
+    const { option } = drawn();
+    const tooltip = option?.tooltip as { formatter: (params: unknown) => string };
+    for (const [id, amount] of [
+      [DELIVERY, "60.00"],
+      [AUTOMATON, "600,000.00"],
+    ] as const) {
+      expect(tooltip.formatter({ data: { id } })).toContain(`Reference provision : ${amount}`);
+    }
   });
 
   it("leads a click on a bubble to the detail of its risk, from the address asked", () => {

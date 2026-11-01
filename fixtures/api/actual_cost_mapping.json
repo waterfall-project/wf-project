@@ -1,0 +1,61 @@
+{
+  "summary": "La correspondance de l'installation du témoin, déclarée par Camille Martin le 3 avril 2026 avant le premier import de coûts réels : les intitulés de l'extraction de l'ERP, « Elément d'OTP », « Nº pièce référence », « Date de la pièce » et « Val./Devise objet », et « Poste » pour le poste de la pièce, facultatif, et deux colonnes conservées, « Fournisseur » et « Texte de commande », celles que restituent les lignes importées. Elle est complète ; une extraction dont l'en-tête est « Élément d'OTP » s'importe, l'intitulé se comparant sans égard aux accents. L'élément d'OTP, colonne lue, n'est pas conservé (WF-REF-0190, WF-CRE-0010).",
+  "value": {
+    "columns": [
+      {
+        "column": "wbs_element",
+        "required": true,
+        "labels": [
+          "Elément d'OTP"
+        ]
+      },
+      {
+        "column": "document_number",
+        "required": true,
+        "labels": [
+          "Nº pièce référence"
+        ]
+      },
+      {
+        "column": "document_item",
+        "required": false,
+        "labels": [
+          "Poste"
+        ]
+      },
+      {
+        "column": "document_date",
+        "required": true,
+        "labels": [
+          "Date de la pièce"
+        ]
+      },
+      {
+        "column": "amount",
+        "required": true,
+        "labels": [
+          "Val./Devise objet"
+        ]
+      }
+    ],
+    "kept_columns": [
+      "Fournisseur",
+      "Texte de commande"
+    ],
+    "is_complete": true,
+    "missing_columns": [],
+    "lock_version": 2,
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
+      },
+      "updated_at": "2026-04-03T08:15:00Z",
+      "updated_by": {
+        "kind": "user",
+        "user_id": "01926f3a-7c00-7000-8000-000000000301",
+        "display_name": "Camille Martin"
+      }
+    }
+  }
+}

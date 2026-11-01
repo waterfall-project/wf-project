@@ -1,0 +1,76 @@
+{
+  "summary": "Une variante déclarée, qu'imports ne reprend pas : l'import du devis de l'avenant 2 « reprise des essais » (import_analysed), sur le différentiel non fusionné (structure_id 01926f3a-7c00-7000-8000-000000000203, `structures`), analysé aujourd'hui à 7 h 51, dont une seule ligne, la quatrième de l'onglet « Hors lot », est rejetée (`TASK_WITHOUT_WORKING_HOURS`) : une ligne de main-d'œuvre qui laisserait le « Câblage des armoires » sans heure travaillée, le monteur câbleur et le technicien de mise en service qu'elle emploie n'ayant avec le calendrier de la tâche aucun jour en commun. Le motif nomme les deux rôles par leur identifiant, leur code et leur libellé (`resource_roles`), et la tâche par sa lignée et son libellé (`tasks`), sans nœud : la révision importée n'en a pas encore (WF-PLA-0010, WF-INTF-0080, WF-INTF-0090 ; #768). Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi au jeudi : les calendriers sont supposés ici autres, et rien d'autre n'est lu ni écrit.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a1a",
+    "kind": "estimate",
+    "filename": "devis-avenant-2-cablage.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000203",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T07:50:05Z",
+    "expires_at": "2026-06-04T07:51:00Z",
+    "report": {
+      "format_version": "1",
+      "read_count": 3,
+      "unchanged_count": 2,
+      "rejected": [
+        {
+          "sheet": "Hors lot",
+          "row": 4,
+          "code": "TASK_WITHOUT_WORKING_HOURS",
+          "params": {
+            "resource_roles": [
+              {
+                "resource_role_id": "01926f3a-7c00-7000-8000-000000000454",
+                "code": "MONT-CAB",
+                "label": "Monteur câbleur"
+              },
+              {
+                "resource_role_id": "01926f3a-7c00-7000-8000-000000000452",
+                "code": "TECH-MES",
+                "label": "Technicien de mise en service"
+              }
+            ],
+            "tasks": [
+              {
+                "lineage_id": "01926f3a-7c00-7000-8000-000000000652",
+                "label": "Câblage des armoires"
+              }
+            ]
+          }
+        }
+      ],
+      "refusals": [],
+      "differences": [],
+      "ignored": [],
+      "completed_tasks": [],
+      "date_mismatches": [],
+      "signals": [],
+      "requires_confirmation_reasons": []
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000951",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T07:50:05Z",
+      "finished_at": "2026-06-03T07:51:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
+  }
+}

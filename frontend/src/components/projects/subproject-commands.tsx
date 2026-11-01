@@ -3,42 +3,42 @@
 /**
  * The commands of the sub-projects of a project (FBS-4.2.3, EP-02/L44b): create one, modify one,
  * delete one (WF-PRJ-0050). They follow the command `update` the project lists — the settings of a
- * project are its project managers' (WF-PRJ-0060), and a terminal project lists it unavailable,
- * `project_not_terminal` lacking —: absent, nothing is offered; listed, available or not, the list
- * offers the creation in its head — unavailable, « New sub-project » presented `aria-disabled`,
- * described by the conditions it lacks — and each row its modification and its deletion as the row
- * lists them (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
+ * project are its project managers' (WF-PRJ-0060), and a terminal project lists no command at all
+ * (US-0702/L3): absent, nothing is offered; listed, available or not, the list offers the creation
+ * in its head — unavailable, « New sub-project » presented `aria-disabled`, described by the
+ * conditions it lacks — and each row its modification and its deletion as the row lists them
+ * (`Subproject.available_commands`, EP-14/L42i): absent, nothing; unavailable, presented
  * `aria-disabled`, described by the conditions it lacks — a sub-project a marked revision cites
  * deletes not, `subproject_not_cited` lacking (§4.4.1), nor one charged with actual costs,
  * `subproject_without_actual_costs` lacking (WF-PRJ-0050), nor one estimate lines of the current
- * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), nor any of a terminal
- * project, `project_not_terminal` lacking —, a press saying them in the region of the list without
- * asking anything (`UnavailableCellCommand`); a deletion that lacks the passing of the estimate lines
- * that bear the sub-project alone, `project_not_terminal` aside, leads besides to the estimate of the
- * revision in progress, filtered on it, where those of its main structure show (`subproject_id`) —
- * those of another structure it does not reach —, a citation or actual costs, which no line passed
- * lifts, leading nowhere (`leadsToEstimate`). A deletion is confirmed first, and a refusal of the
- * server — the first condition it lacks named (409), and the lines that bear the sub-project, one by
- * one, when they are what it lacks (`params.estimate_lines`, WF-DAT-0080) — is told above the list.
+ * revision bear, `subproject_without_estimate_lines` lacking (EP-14/L42q), a press saying them in
+ * the region of the list without asking anything (`UnavailableCellCommand`); a deletion that lacks
+ * the passing of the estimate lines that bear the sub-project alone leads besides to the estimate
+ * of the revision in progress, filtered on it, where those of its main structure show
+ * (`subproject_id`) — those of another structure it does not reach —, a citation or actual costs,
+ * which no line passed lifts, leading nowhere (`leadsToEstimate`). A deletion is confirmed first,
+ * and a refusal of the server — the first condition it lacks named (409), and the lines that bear
+ * the sub-project, one by one, when they are what it lacks (`params.estimate_lines`, WF-DAT-0080) —
+ * is told above the list.
  *
  * The creation and the modification open the form of the reference data (`ReferenceForm`): the code
  * and the label, required, no longer than the contract takes; a code another sub-project bears (409
  * `ALREADY_EXISTS`) is said at its field, its holder named by the label the refusal gives it
- * (`conflicting_object_label`), the form not knowing the rows the list shows — generically, « another
- * sub-project », without it (EP-02/L42g). A modification answered takes the
- * place of its row while it is newer than the row read (`lock_version`) — answered for another
- * sub-project, it is a failure of the service (`ANOTHER_OBJECT`), told under the form, and nothing
- * takes the place of any row —, a deletion answered takes its row away, for as long as the screen
- * stays — against the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the
- * page read anew lists the sub-project where the server retains it. What a write did is said in the
- * region of the list; a refusal of a deletion is told above the list (`Reactivations`). An answer
- * closes only the form or the confirmation it was sent from, never one opened since (#660, #672). A
- * modification writes from the version its row had when it opened: the command that opens it waits,
- * inactive and saying why, while a modification of that sub-project is under way — the dialog
- * closed —, for the form to open on the version its answer brings (#661, #734).
+ * (`conflicting_object_label`), the form not knowing the rows the list shows — generically, «
+ * another sub-project », without it (EP-02/L42g). A modification answered takes the place of its
+ * row while it is newer than the row read (`lock_version`) — answered for another sub-project, it
+ * is a failure of the service (`ANOTHER_OBJECT`), told under the form, and nothing takes the place
+ * of any row —, a deletion answered takes its row away, for as long as the screen stays — against
+ * the fake back, which keeps nothing (`MockupNotice`) —; a creation adds no row: the page read anew
+ * lists the sub-project where the server retains it. What a write did is said in the region of the
+ * list; a refusal of a deletion is told above the list (`Reactivations`). An answer closes only the
+ * form or the confirmation it was sent from, never one opened since (#660, #672). A modification
+ * writes from the version its row had when it opened: the command that opens it waits, inactive and
+ * saying why, while a modification of that sub-project is under way — the dialog closed —, for the
+ * form to open on the version its answer brings (#661, #734).
  *
- * The commands of the reference data (`CommandedList`) are bound to its kinds of object: this list has
- * its own, on the same pieces — the form, the command of a cell, the region of the refusals.
+ * The commands of the reference data (`CommandedList`) are bound to its kinds of object: this list
+ * has its own, on the same pieces — the form, the command of a cell, the region of the refusals.
  */
 "use client";
 
@@ -81,8 +81,8 @@ import { functionHref, functionOf } from "@/navigation/functions";
 import { leadsToEstimate } from "./estimate-lead";
 import type { Subproject } from "./settings-grids";
 
-/** The longest code and label of a sub-project the contract takes. */
-const CODE_LENGTH = 50;
+/** The longest code and label of a sub-project the contract takes: a code names a tab (WF-PRJ-0050). */
+const CODE_LENGTH = 31;
 const LABEL_LENGTH = 300;
 
 /** A command of a row pressed — its form or its confirmation —, and what opened it. */
@@ -464,7 +464,9 @@ function DeleteConfirmation({
     // The reading the deletion is confirmed on: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     startTransition(async () => {
-      const outcome = await held(deleteSubproject(commands.project, row.subproject_id));
+      const outcome = await held(
+        deleteSubproject(commands.project, row.subproject_id, row.lock_version),
+      );
       if (outcome.kind === "done") {
         commands.remove(row.subproject_id);
         commands.say(t("deleted", { code: row.code }), { object: row.code });

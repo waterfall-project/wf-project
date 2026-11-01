@@ -24,7 +24,7 @@ marked revision show none.
 from __future__ import annotations
 
 import functools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -37,12 +37,15 @@ from wftools.mockcalendar import (
 from wftools.mockdating import (
     Amounts,
     Dated,
+    awaiting_own_lines,
+    float_of,
     payment_delay,
     price,
     progress_at,
     schedule,
     tasks_in_order,
 )
+from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
@@ -61,6 +64,7 @@ from wftools.mockwitness import (
     CORE,
     INSCRIBED,
     MILESTONE_TRACKING,
+    PLANNING_START,
     SCHEDULED_AT,
     TODAY,
     TRACKED,
@@ -74,7 +78,7 @@ from wftools.mockwitness import (
 from wftools.mockwitnessrisks import reference
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
     from datetime import date, datetime
 
     from wftools.mocksort import LineSort
@@ -117,6 +121,8 @@ class Row:
     node: JsonObject
     hours: Decimal = Decimal(0)
     amounts: Amounts = field(default_factory=Amounts)
+    opened: list[JsonValue] | None = None
+    """The fields a line closed on the main structure accepts on a differential (``opened``)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,6 +156,7 @@ class _Emitter:
     today: date
     rates: Mapping[str, Decimal] = field(default_factory=lambda: dict(LABOUR_RATES))
     previous: Mapping[int, Line] = field(default_factory=dict[int, Line])
+    previous_years: Mapping[int, int] = field(default_factory=dict[int, int])
     rows: list[Row] = field(default_factory=list[Row])
     row_of: dict[int, int] = field(default_factory=dict[int, int])
     charged: frozenset[str] = field(default_factory=charged_subprojects)
@@ -158,7 +165,7 @@ class _Emitter:
         """Append a task, its lines and its subordinates; return the amounts it sums."""
         place = Place(parent, position, self._number(task.number), level)
         facet = self._task_facet(self.dated[task.number])
-        node = self._node(task.number, place, TASK, facet)
+        node = self._node(task.number, place, TASK, facet, task.origin_risk)
         if task.links:
             node["predecessors"] = [
                 {
@@ -193,13 +200,16 @@ class _Emitter:
         """Append a line of a task, consumed in the year its task starts; return its amounts.
 
         A line of a task started or completed does not leave a subproject charged with actual
-        costs (WF-PRJ-0050): it does not name it among the fields it accepts.
+        costs (WF-PRJ-0050): it does not name it among the fields it accepts. A line of a task
+        completed accepts none, read as the main structure reads it: it is not modified until the
+        task is reopened from the Kanban (WF-RAE-0040); the fields a differential opens to it,
+        for the amendment to rebudget it, are kept aside (``opened``; WF-REV-0050, F-01, #1766).
         """
         task = place.bearing
         completed = progress == "completed"
         held = progress != "not_started" and line.subproject in self.charged
         year = self.dated[task.number].start.day.year
-        amounts = price(line, year, self.rates)
+        amounts = price(line, year, self.rates, budget_year=self.previous_years.get(line.number))
         facet: JsonObject = {
             "label": line.label,
             "cost_category_id": line.category,
@@ -217,21 +227,30 @@ class _Emitter:
             "consumption_year": year,
             "is_computed": line.is_provision,
             "uses_inactive_object": False,
-            "remaining_entry": {
-                "is_available": not completed,
-                "missing_conditions": ["task_not_completed"] if completed else [],
-            },
+            "remaining_entry": _remaining_entry(completed=completed, provision=line.is_provision),
         }
-        node = self._node(line.number, place, ESTIMATE_LINE, facet)
+        node = self._node(line.number, place, ESTIMATE_LINE, facet, line.origin_risk)
+        is_labour, is_provision = line.hours is not None, line.is_provision
         fields = line_fields(
-            is_labour=line.hours is not None, is_provision=line.is_provision, is_held=held
+            is_labour=is_labour, is_provision=is_provision, is_held=held, is_closed=completed
         )
         node["computed_fields"] = fields.computed
         node["editable_fields"] = fields.editable
+        opened = None
+        if completed:
+            opened = line_fields(is_labour=is_labour, is_provision=is_provision, is_held=held)
         hours = Decimal(0) if line.hours is None else line.hours
         self.rows.append(
             Row(
-                line.number, task.number, place.row, ESTIMATE_LINE, line.label, node, hours, amounts
+                line.number,
+                task.number,
+                place.row,
+                ESTIMATE_LINE,
+                line.label,
+                node,
+                hours,
+                amounts,
+                None if opened is None else opened.editable,
             )
         )
         return amounts
@@ -240,16 +259,19 @@ class _Emitter:
         """Return the quantities of a line at the previous review and its amount re-estimated.
 
         Null before the first review, and for a line added since, as the merged ones; the hours
-        null for a line without, the unit disbursement null for a labour line (WF-RAE-0040).
+        null for a line without, the unit disbursement null for a labour line (WF-RAE-0040). The
+        amount, inflation included, on the year the review consumed the line (WF-DEV-0020).
         """
         before = self.previous.get(number)
         if before is None:
             return dict.fromkeys(PREVIOUS)
+        on = self.previous_years.get(number, year)
+        amounts = price(before, on, self.rates)
         return {
             "previous_quantity": decimal(before.quantity),
             "previous_hours": None if before.hours is None else decimal(before.hours),
             "previous_unit_disbursement": None if before.unit is None else money(before.unit),
-            "previous_reestimated_amount": money(price(before, year, self.rates).reestimated),
+            "previous_reestimated_amount": money(amounts.reestimated),
         }
 
     def _number(self, number: int) -> int:
@@ -273,6 +295,7 @@ class _Emitter:
             "progress": state,
             # Overdue: started, and past its finish at the day the examples are read.
             "finish_overdue": state == "started" and placed.finish.day < self.today,
+            "awaiting_own_lines": awaiting_own_lines(self.dated, task.number, self.today),
         }
         started_on, completed_on = self._dates_of(task, state)
         if started_on is not None:
@@ -292,22 +315,43 @@ class _Emitter:
         tracking = _tracking(task)
         if tracking:
             facet["tracking"] = tracking
-        if not task.children:
-            total_float = placed.total_float
-            facet["total_float"] = (
-                None if total_float is None else {"value": decimal(total_float), "unit": "d"}
-            )
-            # The critical path counts the floats nil or negative (WF-PLA-0100, #402).
-            facet["is_critical"] = total_float is not None and total_float <= 0
+        # A summary bears the smallest float of its subordinates, none when none bears one; the
+        # critical path counts the floats nil or negative (WF-PLA-0100, #402).
+        total_float = float_of(self.dated, task.number)
+        facet["total_float"] = (
+            None if total_float is None else {"value": decimal(total_float), "unit": "d"}
+        )
+        facet["is_critical"] = total_float is not None and total_float <= 0
+        facet["link_conflicts"] = self._conflicts(placed)
         return facet
+
+    def _conflicts(self, placed: Dated) -> list[JsonValue]:
+        """Return the links a task cannot satisfy, or that are not satisfied for it (WF-PLA-0020).
+
+        Each by its two tasks and its type, in the order of the plan of their predecessor, then of
+        their successor: a summary, never linked to a task in manual mode, bears none.
+        """
+        found = sorted(
+            placed.conflicts,
+            key=lambda each: (self.row_of[each.predecessor], self.row_of[each.successor]),
+        )
+        return [
+            {
+                "predecessor_node_id": node_id(each.predecessor),
+                "successor_node_id": node_id(each.successor),
+                "link_type": each.link_type,
+            }
+            for each in found
+        ]
 
     def _dates_of(self, task: Task, state: str) -> tuple[date | None, date | None]:
         """Return when a task started and when it completed, as far as it has (WF-PLA-0130).
 
         A task starts on its first day and completes on its last, or on the day of the gesture
-        that declared it (``Task.declared_on``); a milestone goes from not
-        started to completed and never starts (WF-PLA-0050); a summary starts with the first of
-        its subordinates and completes with the last.
+        that declared it (``Task.declared_on``); a milestone goes from not started to completed
+        without passing through started (WF-PLA-0050), and takes the day it completes as the day
+        it started (WF-PLA-0130); a summary starts with the first of its subordinates and completes
+        with the last.
         """
         if task.children:
             starts: list[date] = []
@@ -324,20 +368,25 @@ class _Emitter:
         placed, on = self.dated[task.number], task.declared_on
         completed = (on or placed.finish.day) if state == "completed" else None
         if task.is_milestone or state == "not_started":
-            return None, completed
+            # A task completed without having started — a milestone — starts on the day it
+            # completes, and reopened, it loses both (WF-PLA-0130).
+            return completed, completed
         return on if on is not None and state == "started" else placed.start.day, completed
 
     def _physical_progress(self, summary: Task) -> JsonObject:
         """Return the physical progress of a summary (WF-IND-0060).
 
         The budget of the lines of its completed tasks over the budget of the lines of its
-        subtree; not computable without any budget (WF-IND-0010).
+        subtree, its own lines included — earned when it is completed —, the lines of provision
+        out of both (WF-IND-0060, WF-IND-0030); not computable without any budget (WF-IND-0010).
         """
-        below = {task.number for task in tasks_in_order(summary.children)}
+        below = {summary.number, *(task.number for task in tasks_in_order(summary.children))}
         budgeted = Decimal(0)
         completed = Decimal(0)
         for row in self.rows:
             if row.kind != ESTIMATE_LINE or row.parent not in below:
+                continue
+            if cast("JsonObject", row.node[ESTIMATE_LINE])["is_computed"] is True:
                 continue
             budgeted += row.amounts.budgeted
             if progress_at(self.dated, row.parent, self.today) == "completed":
@@ -347,7 +396,10 @@ class _Emitter:
         return computable(decimal(share(completed / budgeted)))
 
     @staticmethod
-    def _node(number: int, place: Place, kind: str, facet: JsonObject) -> JsonObject:
+    def _node(
+        number: int, place: Place, kind: str, facet: JsonObject, origin: int | None
+    ) -> JsonObject:
+        """Return a node; ``origin`` the risk whose occurrence merged it, if any (#1761)."""
         return {
             "node_id": node_id(number),
             "lineage_id": lineage_id(number),
@@ -356,9 +408,25 @@ class _Emitter:
             "position": place.position,
             "row_number": place.row,
             "level": place.level,
+            "origin_risk_id": None if origin is None else universe(origin),
             "lock_version": 1,
             kind: facet,
         }
+
+
+def _remaining_entry(*, completed: bool, provision: bool) -> JsonObject:
+    """Return whether a line takes a re-estimate, and else the conditions it lacks.
+
+    The lines of a completed task are not modified (WF-RAE-0040); a line of provision is computed
+    from its risk and never re-estimated (WF-RIS-0010, WF-RAE-0010): in the order of
+    `CommandCondition`.
+    """
+    missing: list[JsonValue] = []
+    if completed:
+        missing.append("task_not_completed")
+    if provision:
+        missing.append("line_not_provision")
+    return {"is_available": not missing, "missing_conditions": missing}
 
 
 def _tracking(task: Task) -> list[JsonValue]:
@@ -423,16 +491,22 @@ def core(
     today: date = READ_ON,
     rates: Mapping[str, Decimal] = LABOUR_RATES,
     previous: Iterable[Task] = (),
+    start: date = PLANNING_START,
 ) -> list[Row]:
     """Date, price and emit the core: its nodes in the order of the plan, rows numbered from one.
 
     Its labour lines at the hourly rates given, those of the reference year of the revision; each
-    with its quantities in the previous review described, if any, and the amount they gave. A
-    structure is read once at a day, at some rates, after a previous review: the readings, the
-    writes and the indicators read the same one again and again. Its nodes are shared by every
-    reading of it: a caller that changes one copies it first.
+    with its quantities in the previous review described, if any, and the amount they gave. The
+    previous review of the witness is its reference 101: a line it bore keeps its budget projected
+    on the year the reference consumed it, wherever a write moves its task (WF-DEV-0020,
+    WF-RAE-0010). Every revision is projected from 2026, the offer of 2025 included: a
+    simplification, which keeps in the reference the budget the offer fixed (#467). A structure
+    is read once at a day, at some rates, after a previous review, from a planning start — the
+    witness's unless a write moves it (WF-PLA-0020) —: the readings, the writes and the indicators
+    read the same one again and again. Its nodes are shared by every reading of it: a caller that
+    changes one copies it first.
     """
-    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous)))
+    return list(_core(tuple(roots), today, tuple(sorted(rates.items())), tuple(previous), start))
 
 
 @functools.cache
@@ -441,9 +515,26 @@ def _core(
     today: date,
     rates: tuple[tuple[str, Decimal], ...],
     previous: tuple[Task, ...],
+    start: date,
 ) -> tuple[Row, ...]:
     before = {line.number: line for task in tasks_in_order(previous) for line in task.lines}
-    emitter = _Emitter(schedule(roots), labels(), today, dict(rates), before, row_of=rows_of(roots))
+    years: dict[int, int] = {}
+    if previous:
+        dated = schedule(previous)
+        years = {
+            line.number: dated[task.number].start.day.year
+            for task in tasks_in_order(previous)
+            for line in task.lines
+        }
+    emitter = _Emitter(
+        schedule(roots, start),
+        labels(),
+        today,
+        dict(rates),
+        before,
+        years,
+        row_of=rows_of(roots),
+    )
     for rank, root in enumerate(roots, start=1):
         emitter.task(root, None, rank, 1)
     return tuple(emitter.rows)
@@ -461,6 +552,22 @@ def current(roots: Iterable[Task] | None = None) -> list[Row]:
     write entered: a line a write adds has none.
     """
     return core(described() if roots is None else roots, previous=REFERENCE)
+
+
+def opened(rows: Iterable[Row]) -> list[Row]:
+    """Return a structure read as a differential or the own estimate of a risk reads it.
+
+    The emitter reads every structure as the main one, whose lines of a task completed accept no
+    field (WF-RAE-0040); a differential, or an own estimate, opens them, for the amendment to
+    rebudget them (WF-REV-0050; F-01, #1766). A line opened is a copy: the nodes of a reading are
+    shared by every reading of it.
+    """
+    return [
+        row
+        if row.opened is None
+        else replace(row, node={**row.node, "editable_fields": row.opened}, opened=None)
+        for row in rows
+    ]
 
 
 REFERENCE = reference(described())
@@ -541,8 +648,18 @@ def search(rows: list[Row], text: str) -> JsonObject:
 
     An ancestor rendered for the readability of the tree alone is not counted in the totals.
     """
+    return filtered(rows, lambda row: mocktext.holds(row.label, text))
+
+
+def filtered(rows: list[Row], keep: Callable[[Row], bool]) -> JsonObject:
+    """Return the reading of a filter: the nodes it retains, and their ancestors (WF-IHM-0060).
+
+    A filter on a line — a bound of one of its columns, ``<column>_min`` — retains the lines that
+    satisfy it, their tasks rendered for the readability of the tree alone and counted in no total;
+    the totals are those of the lines retained (WF-IHM-0130).
+    """
     by_number = {row.number: row for row in rows}
-    found = {row.number for row in rows if mocktext.holds(row.label, text)}
+    found = {row.number for row in rows if keep(row)}
     ancestors: set[int] = set()
     for number in found:
         parent = by_number[number].parent
@@ -701,15 +818,20 @@ def summary_depth(rows: Iterable[Row]) -> int:
 # --- What a computed value depends on ---------------------------------------------------------
 
 
+PROVISION_SUBPROJECT = "estimate_line.subproject_id"
+"""The subproject of a line of provision, computed from its risk since EP-14/L42p (#764)."""
+
+
 def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 0) -> JsonObject:
     """Return what a computed value of a node of the core depends on (WF-IHM-0030).
 
     The finish of a summary, its direct subordinates (WF-PLA-0040); the amount of a task, its
     lines and its direct subordinates (WF-DEV-0050); the amount of a labour line, the hourly
-    rate (WF-DEV-0020); the quantity of a provision, its risk (WF-RIS-0010); the float of a
-    task in manual mode, its mode (WF-PLA-0100). The rows are named by their number in the
-    whole structure and their label; read again after rows were inserted above them, they
-    bear their new numbers (WF-PLA-0080).
+    rate (WF-DEV-0020); the quantity and the subproject of a provision, its risk (WF-RIS-0010,
+    EP-14/L42p); the float of a summary, its direct subordinates, that of a task in manual mode,
+    its mode (WF-PLA-0100); the category of a labour line, its role (WF-DEV-0020). The rows are
+    named by their number in the whole structure and their label; read again after rows were
+    inserted above them, they bear their new numbers (WF-PLA-0080).
     """
     row = next(each for each in rows if each.number == number)
     children = [each for each in rows if each.parent == number]
@@ -720,11 +842,14 @@ def dependencies(rows: list[Row], number: int, name: str, inserted_above: int = 
     elif row.kind == TASK and name == "task.base_amount":
         rules, named = ["lines_and_subordinates"], children
     elif row.kind == TASK and name == "task.total_float":
-        rules = ["manual_mode"]
+        subordinates = [each for each in children if each.kind == TASK]
+        rules, named = (["subordinates"], subordinates) if subordinates else (["manual_mode"], [])
     elif row.kind == ESTIMATE_LINE and name == "estimate_line.base_amount":
         rules = ["hourly_rate" if row.hours else "unit_disbursement"]
-    elif row.kind == ESTIMATE_LINE and name == "estimate_line.quantity":
+    elif row.kind == ESTIMATE_LINE and name in {"estimate_line.quantity", PROVISION_SUBPROJECT}:
         rules = ["risk"]
+    elif row.kind == ESTIMATE_LINE and name == "estimate_line.cost_category_id":
+        rules = ["resource_role"]
     else:
         message = f"{name} of {row.label} is not a computed value the core explains"
         raise ValueError(message)

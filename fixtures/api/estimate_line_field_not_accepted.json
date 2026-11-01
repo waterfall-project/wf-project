@@ -1,0 +1,12 @@
+{
+  "summary": "Un débours unitaire envoyé pour le « Raccordement des borniers », ligne de main-d'œuvre, qui n'en porte pas : refusé sur son champ, que la ligne n'accepte pas (editable_fields) ; rien n'est écrit (WF-DEV-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/unit_disbursement","code":"FIELD_NOT_ACCEPTED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001626"
+  }
+}

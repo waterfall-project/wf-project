@@ -116,7 +116,7 @@ describe("the Kanban of the start of the tasks", () => {
       [
         "Not started",
         TASKS.not_started,
-        "Not started 18 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
+        "Not started 13 Milestone Réception usine Finish on 30/06/2026 20 Montage des armoires sur site Finish on 18/12/2026 23 Mise en service Finish on 01/01/2027 " +
           "27 Préparation 1.1.1 Finish on 14/07/2026 ",
       ],
       [
@@ -130,7 +130,7 @@ describe("the Kanban of the start of the tasks", () => {
         TASKS.completed,
         "Completed 2 Études de détail Completed on 10/04/2026 5 Revue de conception Completed on 24/04/2026 " +
           "6 Milestone Réception des études Completed on 24/04/2026 7 Dossier de conception Completed on 15/04/2026 " +
-          "14 Relance du fournisseur Completed on 08/05/2026 16 Transport exceptionnel Completed on 15/05/2026 " +
+          "15 Relance du fournisseur Completed on 08/05/2026 17 Transport exceptionnel Completed on 15/05/2026 " +
           "247 Préparation 1.2.1 Completed on 01/05/2026 ",
       ],
     ] as const;
@@ -151,7 +151,7 @@ describe("the Kanban of the start of the tasks", () => {
     server.answers = { ...server.answers, [STARTABLE]: "startable_tasks_milestone" };
     const page = await kanbanAt();
     expect(text(page)).toContain(
-      "Not started 18 Milestone Réception usine Finish on 30/06/2026 Its predecessors are completed: milestone to complete. 20 Montage des armoires sur site",
+      "Not started 13 Milestone Réception usine Finish on 30/06/2026 Its predecessors are completed: milestone to complete. 20 Montage des armoires sur site",
     );
     // The milestone alone is signalled, not the tasks whose predecessors are not completed.
     expect(text(page).match(/milestone to complete/g)).toHaveLength(1);

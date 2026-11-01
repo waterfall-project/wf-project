@@ -1,0 +1,11 @@
+{
+  "summary": "La correspondance envoyée avec la version lue avant son réglage d'aujourd'hui (actual_cost_mapping_updated), qui l'a portée à la version 3 : refusée, la version courante rendue ; rien n'est écrit, l'écran propose de relire (WF-IHM-0110).",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {
+      "expected_lock_version": 3
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001547"
+  }
+}

@@ -4,6 +4,7 @@
 
 import json
 import re
+import shutil
 from collections import Counter
 from decimal import Decimal
 from pathlib import Path
@@ -20,6 +21,7 @@ from wftools import (
     mockwitness,
     paths,
 )
+from wftools.mockstructure import JsonObject
 
 MONEY = re.compile(r"^\d+\.\d{2}$")
 CONTRACT = REPOSITORY / "docs" / "api" / "paths"
@@ -35,6 +37,106 @@ def volumes() -> dict[str, Any]:
     }
 
 
+def _written(directory: Path) -> dict[str, str]:
+    """Return the text of every example under a directory, by its path."""
+    return {
+        path.relative_to(directory).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(directory.rglob("*.json"))
+    }
+
+
+def test_two_runs_in_a_row_write_the_same_examples(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #792: the generator reads nothing it wrote itself — a run may not read the state the previous
+    # run left. The fixtures are copied without what ``make mock-data`` writes, the generator runs
+    # on the copy, then again on what it has just written: the two runs write the same text.
+    fixtures = tmp_path / "api"
+    shutil.copytree(mockwitness.FIXTURES, fixtures)
+    shutil.rmtree(fixtures / mockdata.VOLUME)
+    generated = mockdata.named().keys()
+    for name in generated:
+        (fixtures / name).unlink()
+    monkeypatch.setattr(mockwitness, "FIXTURES", fixtures)
+    mockdata.write(fixtures)
+    first = _written(fixtures)
+    assert {*generated} <= first.keys()
+    assert f"{mockdata.VOLUME}/cost_categories.json" in first
+    mockdata.write(fixtures)
+    assert _written(fixtures) == first
+
+
+@pytest.mark.parametrize("which", ["no_project", "none_in_progress"])
+def test_the_indices_of_a_portfolio_without_a_project_in_progress_are_not_computable(
+    which: str,
+) -> None:
+    # #777, WF-IND-0010: an indicator whose denominator is null is presented as not computable,
+    # never as zero nor as infinity — and never as an error. The reasons are the ones the contract
+    # names for the indices and the projection at the observed rate.
+    rows = (
+        []
+        if which == "no_project"
+        else [
+            row
+            for row in cast("list[Any]", mockportfolio.portfolio()["items"])
+            if row["state"] != "in_progress"
+        ]
+    )
+    assert which == "no_project" or rows
+    performance = cast("dict[str, Any]", mockportfolio.portfolio_performance(rows, []))
+    for index, reason in (("cost_index", "no_actual_cost"), ("schedule_index", "no_planned_value")):
+        assert performance[index] == {
+            "value": {"is_computable": False, "value": None, "reason": reason},
+            "zone": None,
+        }
+    projections = performance["projections"]
+    assert projections["at_observed_rate"] == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_actual_cost",
+    }
+    assert projections["variance_at_observed_rate"] is None
+    assert performance["reference_budget"] == "0.00"
+    assert all(entry["project_count"] == 0 for entry in performance["zone_distribution"])
+
+
+@pytest.mark.requirement("WF-IND-0010-A")
+@pytest.mark.requirement("WF-IND-0050-A")
+def test_a_portfolio_that_spent_without_earning_has_no_projection_at_the_observed_rate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # WF-IND-0010, WF-IND-0050: with an actual cost and no earned value, the cost index is
+    # computable (0, as the indices are written), the projection at the observed rate is not —
+    # its reason is the earned value — and its variance is absent, never zero nor infinite.
+    rows: list[JsonObject] = [
+        {"state": "in_progress", "project_id": "p", "cost_index": None, "schedule_index": None}
+    ]
+
+    def spent_without_earning(_row: JsonObject) -> mockportfolio.Earned:
+        return mockportfolio.Earned(
+            budget=Decimal("1000.00"),
+            planned=Decimal("100.00"),
+            earned=Decimal(0),
+            actual=Decimal("200.00"),
+            projection=Decimal("1200.00"),
+        )
+
+    monkeypatch.setattr(mockportfolio, "earned", spent_without_earning)
+    performance = cast("dict[str, Any]", mockportfolio.portfolio_performance(rows, []))
+    assert performance["cost_index"]["value"] == {
+        "is_computable": True,
+        "value": "0",
+        "reason": None,
+    }
+    projections = performance["projections"]
+    assert projections["at_observed_rate"] == {
+        "is_computable": False,
+        "value": None,
+        "reason": "no_earned_value",
+    }
+    assert projections["variance_at_observed_rate"] is None
+
+
 def first_example(path: str, operation: str) -> str:
     """Return the line of the first example of an operation, in a file of the contract."""
     text = (CONTRACT / path).read_text(encoding="utf-8")
@@ -48,6 +150,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "cost_categories.json",
         "cost_categories_page.json",
         "cost_categories_reader.json",
+        "cost_categories_type_deactivated.json",
         "estimate_indicators_volume.json",
         "hourly_rate_grid.json",
         "hourly_rate_grid_bounded.json",
@@ -60,6 +163,7 @@ def test_every_volume_is_an_example_of_the_contract(volumes: dict[str, Any]) -> 
         "portfolio_projects_page.json",
         "portfolio_risks.json",
         "portfolio_value.json",
+        "structure_planning_start_advanced.json",
         "summary_dependencies.json",
         "task_lengthened.json",
     ]
@@ -75,8 +179,8 @@ def test_a_summary_counts_what_its_volume_holds(volumes: dict[str, Any]) -> None
     assert "27 jalons" in nodes
     assert "5 000 lignes de devis" in nodes
     total = volumes["estimate_indicators_volume.json"]["value"]["total"]
-    assert total == mockstructure.computable("66105223.89")
-    assert "66 105 223,89 au total" in volumes["estimate_indicators_volume.json"]["summary"]
+    assert total == mockstructure.computable("68923691.06")
+    assert "68 923 691,06 au total" in volumes["estimate_indicators_volume.json"]["summary"]
     assert "Les 300 projets" in volumes["portfolio_projects.json"]["summary"]
     assert "seuils de 0,9 et 0,8" in volumes["portfolio_projects.json"]["summary"]
     assert "15 ans" in volumes["hourly_rates.json"]["summary"]
@@ -134,7 +238,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     lines = [node["estimate_line"] for node in nodes["items"] if node["kind"] == "estimate_line"]
     # Every rate of the universe is set: every amount is computable (WF-DEV-0010).
     total = indicators["total"]
-    assert total == mockstructure.computable(nodes["totals"]["base_amount"])
+    assert total == mockstructure.computable(nodes["totals"]["reestimated_amount"])
     # The one provision is the core's, of the risk identified: none is drawn (WF-RIS-0010).
     provisions = [Decimal(line["base_amount"]) for line in lines if line["is_computed"]]
     assert provisions == [Decimal(indicators["provisions_identified"])] == [Decimal(500_000)]
@@ -150,11 +254,12 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
         mockstructure.computable("502434.56"),
     )
     unassigned = sum(
-        (Decimal(line["base_amount"]) for line in lines if not line["subproject_id"]),
+        (Decimal(line["reestimated_amount"]) for line in lines if not line["subproject_id"]),
         Decimal(0),
     )
     assert indicators["by_subproject"][-1] == {
         "key": "unassigned",
+        "label": None,
         "amount": mockstructure.computable(mockstructure.money(unassigned)),
         "share": indicators["by_subproject"][-1]["share"],
     }
@@ -291,7 +396,8 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
     sums = [mockportfolio.earned(row) for row in progressing]
     value, actual = total(e.earned for e in sums), total(e.actual for e in sums)
     cost = performance["cost_index"]
-    assert Decimal(cost["value"]["value"]) == (value / actual).quantize(Decimal("0.01"))
+    # To four places, as every ratio (README, « Une part… », G-08).
+    assert Decimal(cost["value"]["value"]) == mockstructure.share(value / actual)
     assert cost["zone"] == mockportfolio.zone(Decimal(cost["value"]["value"]))
     assert performance["reference_budget"] == volumes["portfolio_value.json"]["value"]["order_book"]
     assert performance["scope"]["project_count"] == len(progressing)
@@ -305,6 +411,9 @@ def test_the_performance_is_a_ratio_of_sums_and_counts_each_project_once(
             if entry["index"] == index
         } == {zone: counted[zone] for zone in ("nominal", "watch", "alert")}
     assert performance["quarterly"][-1]["cost_index"]["value"] == cost["value"]["value"]
+    # G-03: the period of the evolution, the default one, is given by the scope.
+    period = (performance["scope"]["from"], performance["scope"]["to"])
+    assert period == (mockportfolio.PERIOD_FROM.isoformat(), "2026-06-03")
     first = performance["quarterly"][0]
     assert first["cost_index"]["is_computable"] is False
     assert first["cost_index"]["reason"] == "no_actual_cost"
@@ -316,9 +425,15 @@ def test_the_parts_of_the_cost_structure_sum_to_their_totals(volumes: dict[str, 
     budget = Decimal(volumes["portfolio_performance.json"]["value"]["reference_budget"])
     assert total(part["amount"] for part in structure["budget_by_cost_type"]) == budget
     for parts in ("budget_by_cost_type", "remaining_by_cost_type"):
-        assert total(part["share"] for part in structure[parts]) == 1
+        assert total(part["share"]["value"] for part in structure[parts]) == 1
     labor = structure["budget_by_cost_type"][0]
     assert labor["label"] == "Main-d'œuvre"
+    # G-15: the reference budget is without the provision lines (WF-IND-0020); the remaining to
+    # commit bears them.
+    budgets = [part["label"] for part in structure["budget_by_cost_type"]]
+    assert budgets == ["Main-d'œuvre", "Débours"]
+    assert "Provision" in [part["label"] for part in structure["remaining_by_cost_type"]]
+    assert structure["scope"]["from"] == mockportfolio.PERIOD_FROM.isoformat()
     nodes = {node["org_node_id"]: node["label"] for node in mockwitness.fixture("org_nodes")}
     assert all(nodes[part["key"]] == part["label"] for part in structure["labor_by_org_node"])
     assert total(part["amount"] for part in structure["labor_by_org_node"]) == Decimal(

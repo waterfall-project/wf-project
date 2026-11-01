@@ -1,0 +1,23 @@
+{
+  "summary": "Les préférences enregistrées après le choix des états Chiffrage, En cours et Terminé sur la liste des projets de l'accueil, différent du défaut, Chiffrage et En cours : la grille de cette liste, « projects », garde les états choisis dans ses filtres, sous le nom que l'adresse leur donne, states, et leurs valeurs telles qu'elle les écrit, séparées par des virgules ; le serveur les garde tels qu'ils sont écrits, et l'écran les reprend quand l'adresse n'en dit rien. Un compte qui n'a rien écrit prend le défaut de l'écran (WF-PTF-0030, WF-IHM-0060, WF-ADM-0040, #1401).",
+  "value": {
+    "language": "default",
+    "theme": "default",
+    "highlight_tasks_added_after_reference": false,
+    "grids": {
+      "projects": {
+        "hidden_columns": [],
+        "known_columns": [
+          "label",
+          "code",
+          "state",
+          "updated_at"
+        ],
+        "column_widths": {},
+        "filters": {
+          "states": "pricing,in_progress,completed"
+        }
+      }
+    }
+  }
+}

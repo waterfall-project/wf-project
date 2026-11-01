@@ -163,35 +163,6 @@ def test_the_mixed_selection_of_the_contract_is_placed_by_the_rule(read: dict[st
     assert body["lock_version"] == mockamendment.structure("amendment")["lock_version"]
 
 
-REFUSED = ("estimate_line_completed_refused", "nodes_move_completed_refused")
-
-
-@pytest.mark.parametrize("name", REFUSED)
-def test_a_line_written_under_a_completed_task_is_refused_naming_the_condition(
-    read: dict[str, Node], name: str
-) -> None:
-    # WF-DEV-0050, WF-RAE-0030: « La création d'une ligne sous une tâche terminée, ou le
-    # déplacement d'une ligne vers elle, est refusé » — a task completed is reopened from the
-    # Kanban first (#1184, #1214).
-    refused = gesture(name)
-    assert (refused["code"], refused["status"]) == ("STATE_FORBIDS_OPERATION", 409)
-    assert refused["params"] == {"missing_condition": "task_not_completed"}
-    task = read[own(mockamendmentwrites.COMPLETED_UNDER)]["task"]
-    assert task["progress"] == "completed"
-    assert str(task["label"]) in _summary(name)
-
-
-def test_the_line_moved_to_a_completed_task_comes_from_a_task_that_is_not(
-    read: dict[str, Node],
-) -> None:
-    # The refusal is the target's: the blocks are under the wiring, not completed.
-    line = read[own(mockamendmentwrites.COMPLETED_MOVED)]
-    assert line["kind"] == "estimate_line"
-    assert read[line["parent_id"]]["task"]["progress"] != "completed"
-    correlations = {gesture(name)["correlation_id"] for name in REFUSED}
-    assert len(correlations) == len(REFUSED)
-
-
 def test_a_deletion_sent_with_a_stale_counter_names_the_counter_the_move_left(
     read: dict[str, Node],
 ) -> None:
@@ -233,6 +204,76 @@ def test_the_hours_entered_on_the_amendment_rewrite_its_line_and_climb_to_its_an
     assert Decimal(updated["totals"]["base_amount"]) == Decimal(totals["base_amount"]) + grown
     amendment = _json(mockamendment.structure("amendment"))
     assert updated["structure_lock_version"] == amendment["lock_version"] + 1
+
+
+def test_a_line_of_a_completed_task_is_rebudgeted_on_the_amendment(
+    read: dict[str, Node], totals: dict[str, Any]
+) -> None:
+    # F-01, #1766: on a differential, a line of a task completed names its fields and is modified
+    # as any other, for the amendment to rebudget it (WF-REV-0050, #1765); the main structure
+    # names none for the same line, and refuses the same write (``mockgestures``).
+    rebudgeted = gesture("estimate_line_rebudgeted_amendment")
+    [line] = rebudgeted["nodes"]
+    was = read[own(mockamendmentwrites.REBUDGETED_LINE)]
+    assert read[was["parent_id"]]["task"]["progress"] == "completed"
+    assert "estimate_line.unit_disbursement" in was["editable_fields"]
+    main = {row.number: row.node for row in mockcore.current()}
+    assert main[mockamendmentwrites.REBUDGETED_LINE]["editable_fields"] == []
+    assert (line["node_id"], line["lock_version"]) == (was["node_id"], was["lock_version"] + 1)
+    facet = line["estimate_line"]
+    assert Decimal(facet["unit_disbursement"]) == mockamendmentwrites.REBUDGETED_UNIT
+    grown = Decimal(facet["base_amount"]) - Decimal(was["estimate_line"]["base_amount"])
+    assert grown > 0
+    assert facet["budgeted_amount"] == facet["base_amount"]
+    assert [node["node_id"] for node in rebudgeted["ancestors"]] == [
+        own(N.STUDIES),
+        own(N.DETAILED_STUDIES),
+    ]
+    assert Decimal(rebudgeted["totals"]["base_amount"]) == Decimal(totals["base_amount"]) + grown
+    assert "estimate_line_completed_update_refused" in _summary(
+        "estimate_line_rebudgeted_amendment"
+    )
+
+
+def test_every_line_of_the_amendment_names_its_fields_whatever_its_task() -> None:
+    # F-01, #1766: `task_not_completed` holds on the main structure alone; the lines of the
+    # differential read under a task completed accept their fields as the others do.
+    nodes = _json(mockamendment.marked())
+    tasks = {node["node_id"]: node for node in nodes if node["kind"] == "task"}
+    closed = [
+        node
+        for node in nodes
+        if node["kind"] == "estimate_line"
+        and node["difference"] != "removed"
+        and tasks[node["parent_id"]]["task"]["progress"] == "completed"
+    ]
+    assert closed
+    assert all(node["editable_fields"] for node in closed)
+
+
+def test_the_payment_delay_entered_on_a_labour_line_changes_neither_amount_nor_date(
+    read: dict[str, Node], totals: dict[str, Any]
+) -> None:
+    # #785: the payment delay is « saisissable sur toute ligne autre qu'une ligne de provision »
+    # (WF-DEV-0020), labour included: the line names it among the fields it accepts, and the
+    # entry rewrites the delay alone, one version further, no amount and no date moving.
+    delayed = gesture("estimate_line_payment_delay_amendment")
+    [line] = delayed["nodes"]
+    was = read[own(mockamendmentwrites.DELAYED_LINE)]
+    assert was["estimate_line"]["resource_role_id"] is not None
+    assert "estimate_line.payment_delay_days" in was["editable_fields"]
+    assert (line["node_id"], line["lock_version"]) == (was["node_id"], was["lock_version"] + 1)
+    facet, before = line["estimate_line"], was["estimate_line"]
+    assert (before["payment_delay_days"], facet["payment_delay_days"]) == (
+        0,
+        mockamendmentwrites.DELAYED_DAYS,
+    )
+    assert {key for key in facet if facet[key] != before[key]} == {"payment_delay_days"}
+    assert (delayed["rescheduled"], delayed["reinflated"]) == ([], [])
+    assert delayed["totals"] == totals
+    for name in ("estimate_line_updated_amendment", "paste_applied_amendment"):
+        written = {node["node_id"] for node in gesture(name)["nodes"]}
+        assert line["node_id"] not in written, name
 
 
 def test_the_block_pasted_on_the_amendment_writes_the_rows_under_its_line_in_the_grid() -> None:
@@ -344,3 +385,16 @@ def test_every_task_read_on_the_amendment_accepts_its_predecessors_but_one_remov
     for node in _json(mockamendment.nodes_amendment())["items"]:
         accepts = "task.predecessors" in node["editable_fields"]
         assert accepts == (node["kind"] == "task" and node["difference"] != "removed"), node
+
+
+@pytest.mark.requirement("WF-DEV-0020-A")
+def test_the_label_composed_for_a_line_is_cut_at_the_length_of_a_label() -> None:
+    # « À la création d'une ligne, Waterfall compose son libellé à partir de celui de la tâche qui
+    # la porte et, s'il existe, de celui de son rôle de ressource » : within 300 characters.
+    assert mockamendmentwrites.composed_label("Mise en service", "Technicien") == (
+        "Mise en service — Technicien"
+    )
+    assert mockamendmentwrites.composed_label("Mise en service", None) == "Mise en service"
+    long = mockamendmentwrites.composed_label("T" * 250, "R" * 100)
+    assert len(long) == mockamendmentwrites.LABEL_LENGTH == 300
+    assert long == "T" * 250 + " — " + "R" * 47
