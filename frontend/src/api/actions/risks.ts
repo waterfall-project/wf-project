@@ -1,18 +1,20 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * The server actions of the risks of a project — one declared (`createRisk`) or modified
- * (`updateRisk`, from the version read), reviewed (`reviewRisk`), deleted (`deleteRisk`) or
- * declared occurred (`readRiskOccurrenceReport`, `declareRiskOccurrence`): the browser asks the
- * server of Next, which calls the API (§4.3.1), and gets back the outcome the one decoder makes of
- * its answer (`src/api/problem.ts`). A write answered reads the page anew, which lists what the
- * server now retains — but for the deletion, which the screen leaves for the address without the
- * risk, and the occurrence, handed to the worker, which the tracker of the shell follows.
+ * The server actions of the risks of a project — one declared (`createRisk`) or modified from the
+ * version read — its identity (`updateRisk`), its provision (`updateRiskProvision`) —, reviewed
+ * (`reviewRisk`), deleted (`deleteRisk`) or declared occurred (`readRiskOccurrenceReport`,
+ * `declareRiskOccurrence`): the browser asks the server of Next, which calls the API (§4.3.1), and
+ * gets back the outcome the one decoder makes of its answer (`src/api/problem.ts`). A write
+ * answered reads the page anew, which lists what the server now retains — but for the deletion,
+ * which the screen leaves for the address without the risk, and the occurrence, handed to the
+ * worker, which the tracker of the shell follows.
  */
 "use server";
 
 import { refresh } from "next/cache";
 
+import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
 import {
   type BackgroundTask,
@@ -26,34 +28,92 @@ import { serverClient } from "@/api/server";
 
 type Schemas = components["schemas"];
 
+/** The identity of a risk, data of the project (`updateRisk`), without the counter it is sent with. */
+export type RiskIdentity = Omit<Schemas["RiskUpdate"], "lock_version">;
+
+/** The provision of a risk, an entry of the revision in progress (`updateRiskProvision`). */
+export type RiskProvision = Omit<Schemas["RiskProvisionUpdate"], "lock_version">;
+
+/**
+ * A modification of a risk from the version read: its identity, its provision, or both — never
+ * neither. The two are written by two operations (H-02, #1782): the identity, data of the project,
+ * writes no revision and enters no history of undoing; the provision is an entry of the revision in
+ * progress, which it creates when there is none.
+ */
+export type RiskModification = { readonly id: string; readonly lockVersion: number } & (
+  | { readonly identity: RiskIdentity; readonly provision: RiskProvision | undefined }
+  | { readonly identity: undefined; readonly provision: RiskProvision }
+);
+
 /**
  * Declare a risk (WF-RIS-0010), or modify one from the version read: the API answers it as it now
  * is — a declaration with the structure of its own estimate, which the screen leads to —, or refuses
- * it: the commands that lack (409, `active_provision_category`, `at_least_one_task`), a field (422).
+ * it: the commands that lack (409, `active_provision_category`, `at_least_one_task`,
+ * `risk_identified` for the provision of a risk no longer identified), a field (422).
+ *
+ * A modification of both writes the identity first, then the provision from the version the first
+ * answer brought, the one counter of the risk (`Risk.lock_version`) having moved: the answer is the
+ * risk as the second leaves it. The second refused, the first stays written; the page is read anew
+ * all the same, for the form, still open, to write again from the version the server now holds.
  */
 export async function writeRisk(
   projectId: string,
-  write:
-    | { readonly id: undefined; readonly body: Schemas["RiskWrite"] }
-    | { readonly id: string; readonly body: Schemas["RiskUpdate"] },
+  write: { readonly id: undefined; readonly body: Schemas["RiskWrite"] } | RiskModification,
 ): Promise<Outcome<Schemas["Risk"]>> {
   const client = serverClient();
-  const project = { project_id: projectId };
-  const outcome = await decode(() =>
+  const { outcome, identityWritten } =
     write.id === undefined
-      ? client.POST("/projects/{project_id}/risks", {
-          params: { path: project },
-          body: write.body,
-        })
-      : client.PATCH("/projects/{project_id}/risks/{risk_id}", {
-          params: { path: { ...project, risk_id: write.id } },
-          body: write.body,
-        }),
-  );
-  if (outcome.kind === "done") {
+      ? {
+          outcome: await decode(() =>
+            client.POST("/projects/{project_id}/risks", {
+              params: { path: { project_id: projectId } },
+              body: write.body,
+            }),
+          ),
+          identityWritten: false,
+        }
+      : await modifyRisk(client, projectId, write);
+  if (outcome.kind === "done" || identityWritten) {
     refresh();
   }
   return outcome;
+}
+
+/**
+ * Write a modification of a risk: its identity, then its provision from the version the identity
+ * answered; and whether the identity was written while the provision was refused.
+ */
+async function modifyRisk(
+  client: ApiClient,
+  projectId: string,
+  modification: RiskModification,
+): Promise<{ readonly outcome: Outcome<Schemas["Risk"]>; readonly identityWritten: boolean }> {
+  const path = { project_id: projectId, risk_id: modification.id };
+  const provide = (provision: RiskProvision, lockVersion: number) =>
+    decode(() =>
+      client.PUT("/projects/{project_id}/risks/{risk_id}/provision", {
+        params: { path },
+        body: { ...provision, lock_version: lockVersion },
+      }),
+    );
+  if (modification.identity === undefined) {
+    return {
+      outcome: await provide(modification.provision, modification.lockVersion),
+      identityWritten: false,
+    };
+  }
+  const { identity, provision } = modification;
+  const named = await decode(() =>
+    client.PATCH("/projects/{project_id}/risks/{risk_id}", {
+      params: { path },
+      body: { ...identity, lock_version: modification.lockVersion },
+    }),
+  );
+  if (named.kind !== "done" || provision === undefined) {
+    return { outcome: named, identityWritten: false };
+  }
+  const provided = await provide(provision, named.data.lock_version);
+  return { outcome: provided, identityWritten: provided.kind !== "done" };
 }
 
 /**

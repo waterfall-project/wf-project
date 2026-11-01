@@ -62,6 +62,7 @@ const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const ESTIMATE = `/projects/${PROJECT}/revisions/${REVISION}/estimate?as_of=2026-03-01`;
 const CREATE = "POST /projects/{project_id}/risks";
 const UPDATE = "PATCH /projects/{project_id}/risks/{risk_id}";
+const MOVE = "PUT /projects/{project_id}/risks/{risk_id}/provision";
 const AVAILABLE: CommandOffer = { is_available: true, missing_conditions: [] };
 
 type Choices = ProvisionOptions["categories"];
@@ -88,10 +89,15 @@ const TASKS = (
   kind === "task" && task ? [{ id, label: task.label }] : [],
 );
 const OPTIONS: ProvisionOptions = { categories: TWO, subprojects: SUBPROJECTS, tasks: TASKS };
+// A task of the main structure other than the one the risk declared bears its provision on.
+const ANOTHER_TASK = TASKS.at(-1)?.id ?? "";
+// A sub-project of the project, which the risk declared does not designate.
+const A_SUBPROJECT = SUBPROJECTS[0]?.id ?? "";
 const ONLY_ONE: ProvisionOptions = { ...OPTIONS, categories: ONE };
 
 const CREATED = example("risk_created") as Risk;
 const UPDATED = example("risk_updated") as Risk;
+const MOVED = example("risk_provision_moved") as Risk;
 // The risk dismissed of the contract: `update` available, `update_provision` unavailable (the risk is no
 // longer identified), and no task for its provision.
 const FROZEN: Risk = (() => {
@@ -110,6 +116,7 @@ function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
     {
       [CREATE]: { example: "risk_created", status: 201 },
       [UPDATE]: "risk_updated",
+      [MOVE]: "risk_provision_moved",
       ...answers,
     },
     timing,
@@ -530,7 +537,7 @@ describe("« Identifier un risque »", () => {
 });
 
 describe("« Modifier » a risk", () => {
-  it("opens the form on the risk as the detail shows it, and writes from its version, the provision as the form asks it, never the probability, which a review alone changes", async () => {
+  it("opens the form on the risk as the detail shows it, and writes the provision changed alone by its own operation, from its version, as the form asks it, never the identity unchanged nor the probability, which a review alone changes (H-02)", async () => {
     const client = serve();
     render(modify());
     await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
@@ -552,12 +559,13 @@ describe("« Modifier » a risk", () => {
     await vi.waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
-    expect(client.calls[0]?.route).toBe(UPDATE);
-    expect(client.calls[0]?.path).toBe(`/projects/${PROJECT}/risks/${CREATED.risk_id}`);
-    // `RiskUpdate` does not take the probability (H-04): the body sends none.
+    // The identity unchanged is not written: the provision alone, an entry of the revision (H-02).
+    expect(client.calls.map(({ route }) => route)).toEqual([MOVE]);
+    expect(client.calls[0]?.path).toBe(`/projects/${PROJECT}/risks/${CREATED.risk_id}/provision`);
+    // `RiskProvisionUpdate` takes neither the probability (H-04) nor the identity.
     expect(written(client)).not.toHaveProperty("probability");
+    expect(written(client)).not.toHaveProperty("label");
     expect(written(client)).toMatchObject({
-      label: "Indisponibilité de la grue de levage",
       provision_cost_category_id: CONTRACTUAL.id,
       provision_subproject_id: null,
       provision_task_id: CREATED.provision_task?.node_id,
@@ -565,6 +573,59 @@ describe("« Modifier » a risk", () => {
     });
     expect(announced()).toContain("Risque « Indisponibilité de la grue de levage » modifié.");
     expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("writes the identity changed by its own operation, then moves the provision line to another task of the main structure from the version the first answer brought [WF-RIS-0010-A]", async () => {
+    const client = serve();
+    render(modify());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+    const form = screen.getByRole("dialog");
+    const label = within(form).getByRole("textbox", { name: "Libellé" });
+    await userEvent.clear(label);
+    await userEvent.type(label, "Grue");
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "Tâche de la provision" }),
+      [ANOTHER_TASK],
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(client.calls.map(({ route }) => route)).toEqual([UPDATE, MOVE]);
+    const [identity, provision] = client.calls.map(({ body }) => body);
+    expect(identity).toEqual({
+      label: "Grue",
+      description: CREATED.description,
+      mitigation_notes: null,
+      lock_version: CREATED.lock_version,
+    });
+    expect(provision).toMatchObject({
+      provision_task_id: ANOTHER_TASK,
+      lock_version: UPDATED.lock_version,
+    });
+    expect(provision).not.toHaveProperty("label");
+    expect(announced()).toContain("Risque « Indisponibilité de la grue de levage » modifié.");
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("tells the refusal of the provision under the form once the identity is written, and reads the page anew for the form to write from the version the server holds (H-02)", async () => {
+    const client = serve({
+      [MOVE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } },
+    });
+    render(modify());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+    const form = screen.getByRole("dialog");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), " (louée)");
+    await userEvent.selectOptions(within(form).getByRole("combobox", { name: "Catégorie" }), [
+      CONTRACTUAL.id,
+    ]);
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      /Condition non remplie\s: risque identifié\./,
+    );
+    expect(client.calls.map(({ route }) => route)).toEqual([UPDATE, MOVE]);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(announced()).not.toContain("Risque « Indisponibilité de la grue de levage » modifié.");
   });
 
   it("writes the next modification from the version the answer brought, while the page read has not caught up", async () => {
@@ -607,13 +668,14 @@ describe("« Modifier » a risk", () => {
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
+    expect(client.calls[0]?.route).toBe(UPDATE);
     const body = written(client) as Record<string, unknown>;
     expect(Object.keys(body).filter((key) => key.startsWith("provision_"))).toEqual([]);
     expect(body).toMatchObject({ lock_version: FROZEN.lock_version });
     expect(body).not.toHaveProperty("probability");
   });
 
-  it("keeps the category deactivated since the risk was declared among the choices, said so, and asks another only when the user chooses it", async () => {
+  it("keeps the category deactivated since the risk was declared among the choices, said so, and writes no provision while the user keeps it (H-02)", async () => {
     const client = serve();
     const deactivated: Risk = { ...CREATED, provision_cost_category_is_active: false };
     render(modify(deactivated, { ...OPTIONS, categories: [CONTRACTUAL] }));
@@ -626,14 +688,12 @@ describe("« Modifier » a risk", () => {
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    // Unchanged, the category is sent as it is: the server accepts it (`INACTIVE_REFERENCE_OBJECT`
-    // only vaut quand la valeur change la catégorie).
-    expect(written(client)).toMatchObject({
-      provision_cost_category_id: CREATED.provision_cost_category_id,
-    });
+    // Unchanged, the provision is not written: the identity alone is (H-02).
+    expect(client.calls[0]?.route).toBe(UPDATE);
+    expect(written(client)).not.toHaveProperty("provision_cost_category_id");
   });
 
-  it("keeps the task the risk holds among the choices when the main structure no longer lists it, rather than moving the line", async () => {
+  it("keeps the task the risk holds among the choices when the main structure no longer lists it, and writes no provision rather than moving the line (H-02)", async () => {
     const client = serve();
     render(
       modify(CREATED, {
@@ -650,7 +710,8 @@ describe("« Modifier » a risk", () => {
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
-    expect(written(client)).toMatchObject({ provision_task_id: CREATED.provision_task?.node_id });
+    expect(client.calls[0]?.route).toBe(UPDATE);
+    expect(written(client)).not.toHaveProperty("provision_task_id");
   });
 
   it("offers nothing to modify a risk occurred, and says why when it lists the modification unavailable", () => {
@@ -722,25 +783,30 @@ describe("« Modifier » a risk", () => {
       "Tâche de la provision",
     ],
   ] satisfies [string, (options: ProvisionOptions) => ProvisionOptions, string, string, string][])(
-    "opens the form without the field of the %s the session may not read, and sends it without that field",
+    "opens the form without the field of the %s the session may not read, and writes the provision without that field",
     async (_name, refuse, absent, key, present) => {
       const client = serve();
       render(modify(CREATED, refuse(OPTIONS)));
       await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
       const form = screen.getByRole("dialog");
       expect(within(form).queryByRole("combobox", { name: absent })).toBeNull();
-      expect(within(form).getByRole("combobox", { name: present })).toBeInTheDocument();
+      // Another choice of the field present, for the provision to be written.
+      const chosen = present === "Sous-projet" ? A_SUBPROJECT : ANOTHER_TASK;
+      await userEvent.selectOptions(within(form).getByRole("combobox", { name: present }), [
+        chosen,
+      ]);
       await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
       await vi.waitFor(() => {
         expect(client.calls).toHaveLength(1);
       });
+      expect(client.calls[0]?.route).toBe(MOVE);
       expect(written(client)).not.toHaveProperty(key);
     },
   );
 
   it("tells the refusal of the server to the provision of a risk it finds frozen under the form, which stays open with its entry", async () => {
     const client = serve({
-      [UPDATE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } },
+      [MOVE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } },
     });
     render(modify());
     await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
@@ -782,7 +848,7 @@ describe("« Modifier » a risk", () => {
       }
       const client = serve(
         kind === "refused"
-          ? { [UPDATE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } } }
+          ? { [MOVE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } } }
           : {},
         timing,
       );
@@ -790,6 +856,10 @@ describe("« Modifier » a risk", () => {
       const command = () => screen.getByRole("button", { name: "Modifier" });
       await userEvent.click(command());
       const form = screen.getByRole("dialog");
+      // The provision changed: written by `updateRiskProvision`, which a frozen risk refuses.
+      await userEvent.selectOptions(within(form).getByRole("combobox", { name: "Catégorie" }), [
+        CONTRACTUAL.id,
+      ]);
       await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
       if (kind !== "rejected") {
         await vi.waitFor(() => {
@@ -818,7 +888,7 @@ describe("« Modifier » a risk", () => {
         expect(client.calls).toHaveLength(kind === "rejected" ? 1 : 2);
       });
       // Written from the version the answer brought; from the version read when none came.
-      const version = kind === "success" ? UPDATED.lock_version : CREATED.lock_version;
+      const version = kind === "success" ? MOVED.lock_version : CREATED.lock_version;
       expect(client.calls.at(-1)?.body).toMatchObject({ lock_version: version });
     },
   );
@@ -874,12 +944,17 @@ describe("« Modifier » a risk", () => {
       }
       const client = serve(
         kind === "refused"
-          ? { [UPDATE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } } }
+          ? { [MOVE]: { problem: example("risk_provision_frozen") as Problem & { status: 409 } } }
           : {},
         timing,
       );
       const { rerender } = render(detail(CREATED));
       await userEvent.click(screen.getByRole("button", { name: "Modifier" }));
+      // The provision changed: written by `updateRiskProvision`, which a frozen risk refuses.
+      await userEvent.selectOptions(
+        within(screen.getByRole("dialog")).getByRole("combobox", { name: "Catégorie" }),
+        [CONTRACTUAL.id],
+      );
       await userEvent.click(
         within(screen.getByRole("dialog")).getByRole("button", { name: "Enregistrer" }),
       );
