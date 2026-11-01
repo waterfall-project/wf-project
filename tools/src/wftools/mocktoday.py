@@ -255,7 +255,7 @@ def _on(value: JsonValue) -> str:
 def _labels(parts: JsonValue, *, computed: bool) -> list[str]:
     """Return the labels of the parts of an estimate whose amount is computed, or is not."""
     return [
-        cast("str", part.get("label", "l'ensemble hors sous-projet")).lower()
+        cast("str", part.get("label") or "l'ensemble hors sous-projet").lower()
         for part in _objs(parts)
         if _obj(part["amount"])["is_computable"] is computed
     ]

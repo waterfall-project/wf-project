@@ -60,6 +60,18 @@
       "finished_at": "2026-06-03T09:31:00Z",
       "problem": null,
       "result_url": null
-    }
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

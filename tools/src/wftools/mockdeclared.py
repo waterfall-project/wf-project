@@ -36,6 +36,8 @@ Nothing here reads the clock or draws at random, nor a file the same command wri
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import date
+from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mocktext
@@ -149,9 +151,13 @@ def provision_readings() -> tuple[JsonObject, JsonObject]:
     """Return the structure read before and after the deletion of a task bearing a provision.
 
     A counterfactual variant of the core: the mounting on site, not started, bears the line of
-    provision of the risk 751 alone, instead of its own lines (the witness bears it on a task
-    that is started). Deleted, the mounting leaves the line, which passes on its parent task, the
-    installation; the commissioning, which followed it, loses its link (WF-PLA-0070, WF-RIS-0010).
+    provision of the risk 751 besides its own lines (the witness bears it on a task that is
+    started). Deleted, the mounting takes its own lines with it and leaves the line of
+    provision, which passes on its parent task, the installation; the commissioning, which
+    followed it, loses its link and is placed by its mode at the start of the planning, in the
+    past, without changing its progress: nothing completes by itself, and no write generated
+    changes the progress of a task, started or not (WF-PLA-0070, WF-RIS-0010, WF-PLA-0020,
+    WF-RAE-0030; F-02, #1768).
     """
     [provision] = [
         each
@@ -164,7 +170,7 @@ def provision_readings() -> tuple[JsonObject, JsonObject]:
         if each.number == N.WIRING:
             return replace(each, lines=tuple(kept for kept in each.lines if kept != provision))
         if each.number == N.MOUNTING:
-            return replace(each, lines=(provision,))
+            return replace(each, lines=(*each.lines, provision))
         return each
 
     def deleting(each: Task) -> Task:
@@ -172,12 +178,21 @@ def provision_readings() -> tuple[JsonObject, JsonObject]:
             kept = tuple(child for child in each.children if child.number != N.MOUNTING)
             return replace(each, children=kept, lines=(provision,))
         if each.number == N.COMMISSIONING:
-            return replace(each, links=())
+            # Its progress kept, a fact (WF-PLA-0130): the start of the planning, past, is no
+            # gesture made on it (WF-RAE-0030).
+            return replace(each, links=(), progress=commissioning)
         return each
 
     bearing_core = amended(CORE, task=bearing)
+    before = mockcore.current(described(bearing_core))
+    [commissioning] = [
+        cast("str", cast("JsonObject", row.node["task"])["progress"])
+        for row in before
+        if row.number == N.COMMISSIONING
+    ]
+
     return (
-        mockcore.whole(mockcore.current(described(bearing_core))),
+        mockcore.whole(before),
         mockcore.whole(mockcore.current(described(amended(bearing_core, task=deleting)))),
     )
 
@@ -342,18 +357,41 @@ def _tree_examples() -> dict[str, JsonObject]:
 def _moved_examples() -> dict[str, JsonObject]:
     labels = _labels()
     moved = node_deleted_provision_moved()
+    before = cast("dict[str, str]", provision_readings()[0]["totals"])
+    after = cast("dict[str, str]", moved["totals"])
+    lost = Decimal(before["base_amount"]) - Decimal(after["base_amount"])
+    hours = Decimal(before["hours"]) - Decimal(after["hours"])
+    [ancestor] = cast("list[JsonObject]", moved["ancestors"])
+    [placed] = [
+        entry
+        for entry in cast("list[JsonObject]", moved["rescheduled"])
+        if entry["node_id"] == universe(N.COMMISSIONING)
+    ]
+    start = date.fromisoformat(cast("str", cast("JsonObject", placed["start"])["date"]))
+    state = cast("JsonObject", ancestor["task"])["progress"]
     return {
         "node_deleted_provision_moved.json": mocktext.example(
             f"La suppression du « {labels[N.MOUNTING]} », non démarré, variante contrefactuelle "
-            f"du témoin où il porte seul la ligne de provision « {labels[N.PROVISION]} » du "
-            f"risque 751 : la ligne n'est pas emportée, elle passe sous sa tâche parente, "
+            f"du témoin où il porte, outre ses deux lignes, la ligne de provision "
+            f"« {labels[N.PROVISION]} » du risque 751 : ses lignes sont supprimées avec lui ; la "
+            f"ligne de provision n'est pas emportée, elle passe sous sa tâche parente, "
             f"« {labels[N.INSTALLATION]} », et est rendue écrite dans nodes, une version de "
             f"plus ; le risque voit sa tâche de provision changer, et son compteur avec elle, "
-            f"que lit getRisk. {totals_said(moved)}, inchangés, et le compteur de la "
-            f"structure, passé à 2 (WF-PLA-0070, WF-RIS-0010, WF-IHM-0110).",
+            f"que lit getRisk. La « {labels[N.COMMISSIONING]} », qui le suivait, perd sa liaison "
+            f"et se replace selon son mode au début du planning, le {mocktext.day(start)}, sans "
+            f"changer d'état : une date passée ne la démarre ni ne la termine, et "
+            f"l'« {labels[N.INSTALLATION]} » reste {_STATES[cast('str', state)]} (WF-PLA-0020, "
+            f"WF-RAE-0030). Les totaux de la structure diminuent des deux lignes du montage, "
+            f"{mocktext.amount(lost)} ({mocktext.amount(hours, 0)} h) ; le budget de la "
+            f"provision ne bouge pas. Avec elle, {totals_said(moved)}, et le compteur de la "
+            f"structure, passé à 2 (WF-PLA-0070, WF-RIS-0010, WF-IHM-0110, #1768).",
             moved,
         ),
     }
+
+
+_STATES = {"not_started": "non démarrée", "started": "démarrée", "completed": "terminée"}
+"""The progress of a task, as a summary says it of a feminine task."""
 
 
 def _other_examples() -> dict[str, JsonObject]:

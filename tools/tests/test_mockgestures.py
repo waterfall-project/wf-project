@@ -101,7 +101,11 @@ OPERATIONS = {
     "setNodeTracking": ("200", ["node_tracked"]),
     "updateEstimateLine": (
         "200",
-        ["estimate_line_updated_amendment", "estimate_line_payment_delay_amendment"],
+        [
+            "estimate_line_updated_amendment",
+            "estimate_line_payment_delay_amendment",
+            "estimate_line_rebudgeted_amendment",
+        ],
     ),
     "previewPaste": (
         "200",
@@ -115,7 +119,6 @@ OPERATIONS = {
 }
 REFUSALS = {
     "createNode": [
-        "estimate_line_completed_refused",
         "node_create_horizon_exceeded",
         "node_create_after_not_sibling",
         "estimate_line_category_mismatch",
@@ -135,7 +138,6 @@ REFUSALS = {
         "nodes_move_after_not_sibling",
         "nodes_indent_forbidden",
         "nodes_move_cycle_refused",
-        "nodes_move_completed_refused",
     ],
     "setNodeTracking": ["node_tracking_milestone_refused"],
     "deleteNode": ["node_delete_stale"],

@@ -199,7 +199,8 @@ LABEL_BOUND = 200
 def _refused(body: Entry) -> list[Entry]:
     """Return the refusals by field of the labels of a body, in its order (`setActualCostMapping`).
 
-    A label empty, by `VALUE_REQUIRED`; longer than 200 characters, by `VALUE_TOO_LONG`; one that
+    A label empty, by `VALUE_REQUIRED`; longer than 200 characters, by `VALUE_TOO_LONG`, which
+    names the bound (`max_length`, #1796); one that
     doubles another, by `DUPLICATE_COLUMN_LABEL`, naming the one it doubles.
     """
     doubles = dict(_doubles(body))
@@ -213,7 +214,8 @@ def _refused(body: Entry) -> list[Entry]:
         if not label:
             found.append({"pointer": pointer, "code": "VALUE_REQUIRED"})
         elif len(label) > LABEL_BOUND:
-            found.append({"pointer": pointer, "code": "VALUE_TOO_LONG"})
+            bound = {"max_length": LABEL_BOUND}
+            found.append({"pointer": pointer, "code": "VALUE_TOO_LONG", "params": bound})
         elif pointer in doubles:
             found.append(
                 {
@@ -245,7 +247,7 @@ def test_several_labels_refused_at_once_are_each_named_in_the_order_of_the_body(
         "VALUE_TOO_LONG",
         "DUPLICATE_COLUMN_LABEL",
     ]
-    [double] = [field for field in refused["fields"] if "params" in field]
+    [double] = [field for field in refused["fields"] if "duplicate_of" in field.get("params", {})]
     assert double["params"]["duplicate_of"].startswith("/kept_columns/")
 
 
@@ -257,7 +259,13 @@ def test_too_many_kept_columns_are_refused_on_the_list_and_not_on_one_of_them() 
     assert len(fixture("actual_cost_mapping")["kept_columns"]) < bound["maxItems"]
     refused = fixture("actual_cost_mapping_kept_columns_too_many")
     assert (refused["code"], refused["status"]) == ("VALIDATION_FAILED", 422)
-    assert refused["fields"] == [{"pointer": "/kept_columns", "code": "VALUE_TOO_LONG"}]
+    assert refused["fields"] == [
+        {
+            "pointer": "/kept_columns",
+            "code": "VALUE_TOO_LONG",
+            "params": {"max_length": bound["maxItems"]},
+        }
+    ]
 
 
 @pytest.mark.requirement("WF-REF-0190-A")

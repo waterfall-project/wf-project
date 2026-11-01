@@ -21,6 +21,7 @@ import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata, mockdating, mocknonworking, mockwitness
 from wftools.mockcalendar import Calendar
+from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mockwitness import N
 from wftools.mockwrites import amended, on_task
@@ -63,6 +64,7 @@ def test_the_contract_cites_the_refusal_and_the_import_under_their_answers() -> 
         "node_create_non_working_day.json",
         "structure_start_non_working_day.json",
         "import_planning_non_working_day.json",
+        "node_created_manual.json",
     }
     assert set(examples) <= set(mockdata.named())
 
@@ -205,3 +207,36 @@ def test_no_hours_refused_on_the_entry_of_a_date_name_a_bound_of_none() -> None:
         for field in value.get("fields", []):
             if field["code"] == "VALUE_OUT_OF_RANGE":
                 assert field["params"] != {"maximum": "0"}, name
+
+
+def test_a_task_created_by_its_dates_alone_is_answered_with_its_hours_completed() -> None:
+    # #1769 (F-03): the creation takes `WorkInstantWrite`, as the modification does; the task
+    # created on the Monday that the refusal names, without hours, is answered with them completed
+    # on the default calendar — the start at the first hour of its day, the finish at the last.
+    schemas = yaml.safe_load(
+        (REPOSITORY / "docs" / "api" / "components" / "schemas" / "revisions.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    facet = schemas["TaskFacetWrite"]["properties"]
+    for key in ("start", "finish"):
+        assert {"$ref": "../common.yaml#/WorkInstantWrite"} in facet[key]["anyOf"], key
+    assert "node_created_manual.json" in _answers("revisions.yaml", "createNode")
+    start, finish = mocknonworking.created_manual_dates()
+    assert start == MONDAY
+    written = cast("dict[str, Any]", _json(mocknonworking.node_created_manual()))
+    [node] = [
+        each
+        for each in cast("list[dict[str, Any]]", written["nodes"])
+        if each["node_id"] == universe(mocknonworking.CREATED_MANUAL)
+    ]
+    task = node["task"]
+    default = mockwitness.default_calendar()
+    assert (task["scheduling_mode"], task["progress"]) == ("manual", "not_started")
+    assert task["start"] == {"date": start.isoformat(), "hours": "0"}
+    assert task["finish"] == {
+        "date": finish.isoformat(),
+        "hours": str(default.hours_on(finish).normalize()),
+    }
+    assert mocknonworking.judged(start, default) is None
+    assert mocknonworking.judged(finish, default) is None

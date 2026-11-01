@@ -266,17 +266,50 @@ def _backward(dated: dict[int, Dated], tasks: list[Task]) -> None:
         each.late_finish = latest
 
 
+def open_own_lines(task: Task) -> bool:
+    """Return whether a task bears a line of its own, not a provision, with a remaining to commit.
+
+    The remaining of a line is what its current quantities give: a line re-estimated to nought
+    keeps none (WF-RAE-0040). It is open while that remaining is not nought, of either sign — the
+    contract signs the quantity, the hours and the disbursement, and a credit keeps a negative
+    remaining: « tant que ce reste n'est pas nul, elle reste démarrée » (WF-PLA-0040, #1807).
+    """
+    return any(
+        not line.is_provision
+        and line.quantity * (line.hours if line.hours is not None else line.unit or 0) != 0
+        for line in task.lines
+    )
+
+
+def awaiting_own_lines(dated: Mapping[int, Dated], number: int, today: date) -> bool:
+    """Return whether a summary awaits its own lines alone (`TaskFacet.awaiting_own_lines`).
+
+    Started, every subordinate completed, a line of its own outside the provisions keeping a
+    remaining to commit: its own lines are the only open lines of the phase (WF-PLA-0040, #1774).
+    """
+    task = dated[number].task
+    return (
+        bool(task.children)
+        and all(progress_at(dated, child.number, today) == "completed" for child in task.children)
+        and open_own_lines(task)
+        and progress_at(dated, number, today) == "started"
+    )
+
+
 def progress_at(dated: Mapping[int, Dated], number: int, today: date) -> str:
     """Return the progress of a task at a day: read from its dates in automatic mode.
 
     A task in manual mode carries the progress its user declared; a summary is completed after
     the last of its subordinates, not started before the first, started otherwise — one
-    completed and one not started, none started, still make it started (WF-PLA-0040).
+    completed and one not started, none started, still make it started —, and started still
+    after the last while a line of its own keeps a remaining to commit (WF-PLA-0040).
     """
     placed = dated[number]
     if placed.task.children:
         states = {progress_at(dated, child.number, today) for child in placed.task.children}
-        return states.pop() if len(states) == 1 else "started"
+        # « Tant que ce reste n'est pas nul, elle reste démarrée » (WF-PLA-0040, #1774).
+        held = states == {"completed"} and open_own_lines(placed.task)
+        return states.pop() if len(states) == 1 and not held else "started"
     declared, on = placed.task.progress, placed.task.declared_on or placed.finish.day
     # A completion declared is a gesture made on the day the task completed: before it, the
     # task reads as its dates say (WF-PLA-0130).

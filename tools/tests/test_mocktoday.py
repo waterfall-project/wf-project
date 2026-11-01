@@ -321,7 +321,7 @@ def test_a_rate_missing_leaves_out_what_its_lines_touch(today: dict[str, Any]) -
     ]
     assert estimate["total"]["params"]["missing_rates"] == missing
     computed = {
-        part.get("label", "unassigned"): part["amount"]["is_computable"]
+        part["label"] or "unassigned": part["amount"]["is_computable"]
         for key in ("by_cost_type", "by_subproject", "by_work_package")
         for part in estimate[key]
     }

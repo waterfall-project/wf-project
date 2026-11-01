@@ -177,9 +177,9 @@ test("indents a summary under the task above it and outdents a task from the key
   test.slow();
   // L'indentation d'un groupe de tâches déplace le groupe entier sous la tâche précédente : the
   // summary « Poste de commande » follows the summary « Études » among the subordinates of the
-  // project — « Risque survenu », which stands after the factory acceptance, a milestone, has no
-  // task to go under; the fake back serves the first example of `moveNodes` whatever was sent, and
-  // what the gesture sends is proven by `structure-move.dom.test.tsx`.
+  // project — « Retard de livraison des armoires », which stands after the factory acceptance, a
+  // milestone, has no task to go under; the fake back serves the first example of `moveNodes`
+  // whatever was sent, and what the gesture sends is proven by `structure-move.dom.test.tsx`.
   const { table, cell } = await focusRow(
     page,
     "planning",

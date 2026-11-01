@@ -9,11 +9,13 @@ import { TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import {
+  behindTheContract,
   example,
   type FakeAnswers,
   type FakeClient,
   fakeClient,
   type Problem,
+  type Route,
 } from "@/test/fixtures";
 import { buttons, instants, links, rows, sortable, text } from "@/test/markup";
 import { queryOfCall } from "@/test/queries";
@@ -22,16 +24,26 @@ import SystemStatusPage, { generateMetadata as statusMetadata } from "../system/
 import AccessRolesPage, { generateMetadata as rolesMetadata } from "./access-roles/page";
 import UsersPage, { generateMetadata as usersMetadata } from "./users/page";
 
-const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
-  answers: {},
-  clients: [],
-}));
+const server = vi.hoisted(
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    behind: { readonly route: Route; readonly problem: Problem } | undefined;
+  } => ({
+    answers: {},
+    clients: [],
+    behind: undefined,
+  }),
+);
 
 vi.mock("@/api/server", () => ({
   serverClient: () => {
     const client = fakeClient(server.answers);
     server.clients.push(client);
-    return client;
+    // A read the service, behind the contract, does not serve yet: answered what the contract no
+    // longer declares for it.
+    const behind = server.behind;
+    return behind === undefined ? client : behindTheContract(client, behind.route, behind.problem);
   },
 }));
 // The path of the screen rendered, which the links of the client components keep.
@@ -103,6 +115,7 @@ beforeEach(() => {
   withdrawn.permissions = [];
   shown.path = "/admin/users";
   server.clients = [];
+  server.behind = undefined;
   server.answers = {
     "GET /me": "me",
     "GET /users": "users",
@@ -232,8 +245,9 @@ describe("the accounts", () => {
     expect(queriesOf("GET /users")).toEqual([{ include_inactive: "true" }]);
   });
 
-  it("stand without a node to choose when the tree of the organisation is not found", async () => {
-    server.answers = { ...server.answers, "GET /reference/org-nodes": NOT_FOUND };
+  it("stand without a node to choose where the service does not serve the tree of the organisation yet (404, EP-05)", async () => {
+    // The contract declares no 404 for the active nodes (C-01); the service, behind it, answers one.
+    server.behind = { route: "GET /reference/org-nodes", problem: NOT_FOUND.problem };
     const page = text(rendered(await UsersPage(searched())));
     expect(page).toContain("Nœud d’organisation Tous les nœuds Tous les rôles Administrateur");
     expect(page).toContain("Comptes actifs Comptes désactivés Du Au Filtrer Créé par");

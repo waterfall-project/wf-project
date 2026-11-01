@@ -61,7 +61,8 @@ witness while the designation of its reference is open, by ``wftools.mockcycle``
 and its exit, its code refused and its readings by the quality of its reader, by
 ``wftools.mockproject`` (US-0701/L9); and the refusals of one form each, by
 ``wftools.mockrefusals`` (US-0702/L1); and the refusals the contract declared without a code,
-a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2).
+a condition nor an example, by ``wftools.mockdeclared`` (US-0702/L2); and the examples of the
+majors of the review of the 2026-10-31, by ``wftools.mockreview`` (US-0704).
 
 They live in the universe of the other examples: identifiers are kept, and what the
 witness project, the offer and the labels of the universe say is read from their fixtures,
@@ -108,6 +109,7 @@ from wftools import (
     mockproject,
     mockreference,
     mockrefusals,
+    mockreview,
     mockriskwrites,
     mocksnapshot,
     mocksort,
@@ -308,7 +310,8 @@ def named() -> dict[str, JsonObject]:
     and the contributors (``mocklists``), the contributors once an account is anonymised
     (``mockanonymized``); the exit of the witness, its code refused and its readings by quality
     (``mockproject``); the refusals of one form each (``mockrefusals``), and those the contract
-    declared without a code, a condition nor an example (``mockdeclared``).
+    declared without a code, a condition nor an example (``mockdeclared``); the examples of the
+    majors of the review of the 2026-10-31 (``mockreview``).
     """
     marked = mocksnapshot.revisions(categories())
     return {
@@ -335,6 +338,7 @@ def named() -> dict[str, JsonObject]:
         **mockproject.examples(),
         **mockrefusals.examples(),
         **mockdeclared.examples(),
+        **mockreview.examples(),
     }
 
 
@@ -517,12 +521,15 @@ def readings() -> dict[str, JsonObject]:
         "nodes_risk_occurred.json": _example(
             f"Le sous-arbre fusionné dans la structure principale de la révision en cours par la "
             f"survenance du risque « Retard de livraison des armoires », de gravité 200 à 30 %, lu "
-            f"seul (subtree_of) le {day} : ses deux tâches, terminées en mai — la relance, sans "
-            f"prédécesseur dans le devis propre, en mode manuel aux dates qu'elle y avait, le "
-            f"transport à sa suite —, et leurs lignes de "
-            f"120 et 80, aux montants budgétés nuls — la survenance ne déplace pas la référence — "
-            f"et réestimés de 120 et 80 ; la ligne de provision a disparu, et la récapitulative "
-            f"somme ses lignes (WF-RIS-0060, WF-RIS-0050).",
+            f"seul (subtree_of) le {day} : la racine unique de son devis propre, « Retard de "
+            f"livraison des armoires » (nodes_risk_estimate_occurred), placée avec ses "
+            f"subordonnées en dernière position sous le « Poste de commande », qui portait la "
+            f"provision ; ses deux tâches, terminées en mai — la relance, sans prédécesseur dans "
+            f"le devis propre, en mode manuel aux dates qu'elle y avait, le transport à sa suite "
+            f"—, et leurs lignes de 120 et 80, aux montants budgétés nuls — la survenance ne "
+            f"déplace pas la référence — et réestimés de 120 et 80 ; chaque nœud porte le risque "
+            f"(origin_risk_id) ; la ligne de provision a disparu, et la récapitulative somme ses "
+            f"lignes (WF-RIS-0060, WF-RIS-0050, #1788, #1761).",
             mockcore.subtree(rows, _RISK_OCCURRED),
         ),
         "timelines.json": _example(

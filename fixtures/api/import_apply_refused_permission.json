@@ -1,0 +1,22 @@
+{
+  "summary": "Variante contrefactuelle : l'import de « devis-avenant-2-reprise-des-essais.xlsx » (import_analysed), sur le différentiel de l'avenant 2 (structure_id 01926f3a-7c00-7000-8000-000000000203), confirmé par un compte dont la permission de saisir le devis a été retirée depuis l'analyse ; l'application refusée, son fichier est supprimé et l'import se lit refusé (refused), sans échéance : il ne s'applique plus, la condition manquante nommée à sa commande apply, et son abandon rendrait 204 sans effet ; son compte rendu et la tâche de son analyse demeurent (WF-ARC-0100, WF-IHM-0090, #1789).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a11",
+    "kind": "estimate",
+    "filename": "devis-avenant-2-reprise-des-essais.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000203",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "refused",
+    "created_at": "2026-06-03T08:40:05Z",
+    "expires_at": null,
+    "report": {"format_version":"1","read_count":5,"unchanged_count":1,"rejected":[{"sheet":"Hors lot","row":3,"code":"UNKNOWN_TASK","params":{"value":"Essais de compatibilité électromagnétique"}},{"sheet":"Hors lot","row":5,"code":"UNKNOWN_RESOURCE_ROLE","params":{"value":"Soudeur (SOUD)"}}],"refusals":[],"differences":[{"change":"added","target":"estimate_line","lineage_id":null,"label":"Essais de continuité","fields":[]},{"change":"updated","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000693","label":"Assistance à la reprise des essais","fields":["hours"]},{"change":"removed","target":"estimate_line","lineage_id":"01926f3a-7c00-7000-8000-000000000663","label":"Câblage sur site","fields":[]}],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[]},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000934","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T08:40:05Z","finished_at":"2026-06-03T08:41:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":false,"missing_conditions":["import_awaiting_decision"]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
+  }
+}

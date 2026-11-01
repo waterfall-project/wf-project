@@ -61,7 +61,7 @@ function rowOf(list: NodeList, label: string): number {
   return list.items.findIndex((each) => (each.task?.label ?? each.estimate_line?.label) === label);
 }
 const LEAF = rowOf(estimate, "Câblage des armoires");
-const RISK = rowOf(estimate, "Risque survenu — Retard de livraison des armoires");
+const RISK = rowOf(estimate, "Retard de livraison des armoires");
 const RELANCE = rowOf(estimate, "Relance du fournisseur");
 const TRANSPORT = rowOf(estimate, "Transport exceptionnel");
 const REVIEW = rowOf(planning, "Revue de conception");

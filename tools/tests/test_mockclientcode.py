@@ -207,8 +207,9 @@ def test_the_client_is_nullable_and_bounded_as_the_label_in_the_reading_and_the_
     nullable = [{"$ref": "#/ProjectClient"}, {"type": "null"}]
     for schema in ("Project", "ProjectCreate", "ProjectUpdate"):
         assert schemas[schema]["properties"]["client"]["anyOf"] == nullable, schema
-        # Optional: no transition requires it (WF-PRJ-0080).
-        assert "client" not in schemas[schema].get("required", []), schema
+        # Optional to write: no transition requires it (WF-PRJ-0080); always rendered by the
+        # reading, null when not entered, and so required there (D-11, #1780).
+        assert ("client" in schemas[schema].get("required", [])) == (schema == "Project"), schema
     for operation in ("createProject", "updateProject"):
         assert "`/client`" in _answer(operation, "422"), operation
 

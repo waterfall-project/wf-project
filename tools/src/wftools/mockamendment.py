@@ -141,7 +141,7 @@ def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
     named by its identifier in the differential (``own_id``). The differential as described, or
     as a write leaves it (``roots``).
     """
-    before, after = mockcore.current(_copied(described())), rows(roots)
+    before, after = mockcore.opened(mockcore.current(_copied(described()))), rows(roots)
     nodes = mockdiff.marked(before, after)
     own = {node_id(row.number): own_id(row.number) for row in (*before, *after)}
     for node in nodes:
@@ -175,9 +175,10 @@ def marked(roots: Iterable[Task] | None = None) -> list[JsonObject]:
 def rows(roots: Iterable[Task] | None = None) -> list[mockcore.Row]:
     """Return the differential read today, its lines after the review of the reference.
 
-    As described, or as a write leaves it (``roots``).
+    As described, or as a write leaves it (``roots``); its lines of a task completed accept their
+    fields, the amendment rebudgeting them (WF-REV-0050; F-01, #1766).
     """
-    return mockcore.current(amendment() if roots is None else roots)
+    return mockcore.opened(mockcore.current(amendment() if roots is None else roots))
 
 
 def nodes_amendment() -> JsonObject:

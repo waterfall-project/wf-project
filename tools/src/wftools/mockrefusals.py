@@ -116,6 +116,9 @@ DESIGNATE_STALE_CORRELATION, RISK_STALE_CORRELATION = universe(1661), universe(1
 SUBPROJECT_STALE_CORRELATION = universe(1663)
 """The correlations of the five writes that carry their counter since US-0702/L2 (US-0703/L8)."""
 
+ACCESS_ROLE_STALE_CORRELATION = universe(1664)
+"""The correlation of the deletion of an access role, which carries its counter since #1733."""
+
 WITHOUT_HOURS_BLOCK = (
     mockwrites.BLOCK[0],
     (mockwrites.ENTERED, mockwrites.BLOCK[0][1], "Monteur câbleur", "1"),
@@ -448,12 +451,17 @@ def stale(current: JsonValue, correlation: str) -> JsonObject:
 
 
 def _stale_examples() -> dict[str, JsonObject]:
-    """Return the 412 of the five writes that carry their counter since US-0702/L2 (E-13, E-24).
+    """Return the 412 of the writes that carry their counter since US-0702/L2 (E-13, E-24).
 
     Each is sent with the counter before the one its object bears in the witness — another session
-    wrote it since the screen read it —, and is refused with the counter the object bears now.
+    wrote it since the screen read it —, and is refused with the counter the object bears now. The
+    deletion of an access role carries its counter since #1733: « Contrôle de gestion », created
+    today (`access_role_created`), bears the counter of its save of today, which changes nothing
+    of it but writes it (``mockaudit``), the one after that of its creation.
     """
     revision, project = fixture("revision"), fixture("project")
+    role = fixture("access_role_created")
+    saved = cast("int", role["lock_version"]) + 1
     # The risk read (`risk`), as its generator writes it: its example comes after these.
     rows = mockhistory.reference_rows()
     risk = mockhistory.risk_item(REGISTER[0], mockhistory.reference_budget(rows))
@@ -516,6 +524,15 @@ def _stale_examples() -> dict[str, JsonObject]:
                 feminine=True,
             ),
             stale(subproject["lock_version"], SUBPROJECT_STALE_CORRELATION),
+        ),
+        "access_role_delete_stale.json": mocktext.example(
+            told(
+                f"La suppression du rôle d'habilitation « {role['label']} »",
+                "le rôle",
+                saved,
+                feminine=True,
+            ),
+            stale(saved, ACCESS_ROLE_STALE_CORRELATION),
         ),
     }
 

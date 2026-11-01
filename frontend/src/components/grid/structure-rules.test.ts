@@ -29,7 +29,7 @@ function row(label: string) {
 const SUMMARY = row("Poste de commande");
 const LEAF = row("Câblage des armoires");
 const LINE = row("Raccordement des borniers");
-const RISK = row("Risque survenu — Retard de livraison des armoires");
+const RISK = row("Retard de livraison des armoires");
 const RELANCE = row("Relance du fournisseur");
 const TRANSPORT = row("Transport exceptionnel");
 const MILESTONE = row("Réception usine");

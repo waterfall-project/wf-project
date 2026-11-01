@@ -2858,8 +2858,6 @@
     "NOT_FOUND": "Introuvable : cet élément n’existe pas, ou vous n’y avez pas accès.",
     "STATE_FORBIDS_OPERATION": "L’état actuel ne permet pas cette opération.",
     "ALREADY_EXISTS": "Cet élément existe déjà.",
-    "CURRENT_REVISION_EXISTS": "Le projet a déjà une révision en cours d’élaboration.",
-    "REFERENCE_NOT_CORRECTABLE": "La révision de référence ne peut plus être corrigée.",
     "UNDO_CONFLICT": "Impossible d’annuler : la donnée a été modifiée depuis.",
     "LAST_ADMINISTRATOR": "Au moins un compte actif doit garder les permissions d’administration.",
     "LAST_PROJECT_MANAGER": "Un projet garde au moins un chef de projet.",
@@ -2893,9 +2891,11 @@
     "UNKNOWN_TASK": "Tâche inconnue.",
     "DUPLICATE_PREDECESSOR": "Ce prédécesseur figure déjà plus haut dans la liste saisie : chacun ne s’écrit qu’une fois.",
     "UNKNOWN_TIMELINE": "Chronologie inconnue du projet.",
+    "UNKNOWN_RISK": "Risque inconnu.",
     "INACTIVE_REFERENCE_OBJECT": "Cet élément du référentiel est désactivé.",
     "ORG_NODE_CYCLE": "Un nœud ne se place ni sous lui-même ni sous l’un de ses descendants.",
     "NODE_NOT_SIBLING": "Le nœud après lequel se placer n’est pas parmi les frères de la nouvelle place : la grille est relue.",
+    "MILESTONE_HAS_NO_SUBTASK": "Un jalon ne porte pas de sous-tâches.",
     "MILESTONE_REQUIRED": "Seul un jalon s’inscrit au suivi temps/temps.",
     "UPLOAD_PURPOSE_MISMATCH": "Ce fichier n’a pas été déposé pour cet usage.",
     "PROVISION_CATEGORY_RESERVED": "Une ligne de provision n’est créée que par la déclaration d’un risque : cette catégorie ne se saisit pas.",
@@ -3279,7 +3279,8 @@
     "AuditUserField": {
       "last_name": "Nom",
       "first_name": "Prénom",
-      "email": "Adresse électronique"
+      "email": "Adresse électronique",
+      "org_node_id": "Nœud d’organisation"
     },
     "ReferenceReadiness": {
       "missing": {
@@ -3378,7 +3379,9 @@
       "subproject_without_actual_costs": "aucun coût réel imputé au sous-projet",
       "subproject_without_estimate_lines": "aucune ligne de devis de la révision en cours portant le sous-projet",
       "main_structure_without_tasks": "structure principale sans aucune tâche",
+      "import_awaiting_decision": "import en attente de décision",
       "import_file_accepted": "fichier accepté par le compte rendu",
+      "import_not_applied": "import non appliqué",
       "is_local_account": "compte créé dans Waterfall",
       "is_active_account": "compte actif",
       "is_deactivated_account": "compte désactivé",
@@ -3450,7 +3453,9 @@
       "budgeted_amount": "Montant budgété",
       "reestimated_amount": "Montant réestimé",
       "payment_delay_days": "Délai de paiement",
-      "parent": "Rattachement"
+      "parent": "Rattachement",
+      "subproject": "Sous-projet",
+      "cost_category": "Catégorie de coût"
     },
     "NodeDifference": {
       "added": "Ajouté",
@@ -3752,7 +3757,9 @@
       "deactivate": "Désactiver le compte",
       "reactivate": "Réactiver le compte",
       "anonymize": "Anonymiser le compte",
-      "set_access_roles": "Attribuer les rôles du compte"
+      "set_access_roles": "Attribuer les rôles du compte",
+      "create_password_link": "Donner le lien de fixation du mot de passe",
+      "resend_invitation": "Renvoyer le courriel de fixation du mot de passe"
     },
     "RiskComputedField": {
       "field": {
@@ -3840,8 +3847,13 @@
         "applied": "Appliqué",
         "abandoned": "Abandonné",
         "expired": "Expiré",
-        "failed": "Échoué"
+        "failed": "Échoué",
+        "refused": "Refusé"
       }
+    },
+    "ImportCommand": {
+      "apply": "Appliquer l’import",
+      "abandon": "Abandonner l’import"
     },
     "ExportKind": {
       "ms_project_schedule": "Planning MS Project",

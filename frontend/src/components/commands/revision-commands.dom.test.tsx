@@ -348,7 +348,7 @@ describe("the designation of the reference", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("is refused by the server once the reference cannot be corrected [WF-REV-0040-A]", async () => {
+  it("is refused by the server once the reference cannot be corrected, the condition it lacks named [WF-REV-0040-A]", async () => {
     serve({ [DESIGNATE]: refused("reference_not_correctable") });
     show(
       <ReferenceDesignation
@@ -361,8 +361,9 @@ describe("the designation of the reference", () => {
       within(screen.getByRole("listitem", { name: "Offre v1.0" })).getByRole("button"),
     );
     await userEvent.click(screen.getByRole("button", { name: "Confirmer la désignation" }));
+    // Every refusal of a state names the condition the command lacks (J-01).
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "La révision de référence ne peut plus être corrigée.",
+      /Condition non remplie\s: référence encore corrigeable\./,
     );
   });
 

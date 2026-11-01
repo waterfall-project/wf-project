@@ -124,7 +124,9 @@ describe("an indicator", () => {
   });
 
   it("says a value is missing rather than make one up, when the API leaves it out", () => {
-    render(page("indicator.names.financialProgress", { is_computable: true, value: null }));
+    // A variant of a `Computable`: said computable, its value left out.
+    const missing = { is_computable: true, value: null, reason: null };
+    render(page("indicator.names.financialProgress", missing));
     expect(screen.getAllByRole("definition").map((item) => item.textContent)).toEqual([
       "Non calculable",
       "Calculé le 3 juin 2026, 07:05",

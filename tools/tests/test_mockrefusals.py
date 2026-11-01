@@ -392,10 +392,12 @@ def test_a_line_of_a_completed_task_re_estimated_is_refused_by_the_condition_it_
 
 
 @pytest.mark.requirement("WF-IHM-0110-A")
-def test_the_five_writes_that_carry_their_counter_say_a_stale_one_by_the_counter_current() -> None:
-    # US-0702/L2 (E-13, E-24) gave them their counter; US-0703/L8 their 412 example: each names the
-    # counter its object bears in the witness, sent with the one before.
+def test_the_writes_that_carry_their_counter_say_a_stale_one_by_the_counter_current() -> None:
+    # US-0702/L2 (E-13, E-24) gave them their counter; US-0703/L8 their 412 example; #1733 gave its
+    # counter to the deletion of an access role. Each names the counter its object bears in the
+    # witness, sent with the one before: the role created today, saved since (`mockaudit`).
     subproject = cast("list[Entry]", fixture("subprojects"))[0]
+    saved = fixture("access_role_created")["lock_version"] + 1
     for operation, name, current in (
         ("abandonRevision", "revision_abandon_stale", fixture("revision")["lock_version"]),
         ("exitProject", "project_exit_stale", fixture("project")["lock_version"]),
@@ -406,6 +408,7 @@ def test_the_five_writes_that_carry_their_counter_say_a_stale_one_by_the_counter
         ),
         ("deleteRisk", "risk_delete_stale", fixture("risk")["lock_version"]),
         ("deleteSubproject", "subproject_delete_stale", subproject["lock_version"]),
+        ("deleteAccessRole", "access_role_delete_stale", saved),
     ):
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == (412, "STALE_LOCK_VERSION"), name

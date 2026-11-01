@@ -691,6 +691,8 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
             "Léa Garnier",
             {"access_roles_granted": [chiffreur], "access_roles_withdrawn": []},
         ),
+        # Attached to a node alone, the modification names the attachment (#1739).
+        (camille, "user_update", user, "Léa Garnier", {"fields": ["org_node_id"]}),
         (camille, "user_update", universe(305), "Lucas Petit-Laurent", {"fields": ["last_name"]}),
         (
             platform,
@@ -728,12 +730,12 @@ def test_the_administration_of_today_says_what_each_write_on_an_account_or_a_rol
 def test_the_administration_of_today_is_numbered_apart_from_every_other_example(
     journal: dict[str, Node],
 ) -> None:
-    # One request a write, save the first role of an account created, inscribed by the request that
-    # creates it; and no identifier nor correlation another example of the contract gives.
+    # One request a write — the first role of an account created too, given by setUserAccessRoles
+    # after the creation (#1731) —; and no identifier nor correlation another example of the
+    # contract gives.
     administration = _events(journal["audit_events_administration"])[::-1]
     requests = [event["correlation_id"] for event in administration]
-    assert requests[3] == requests[4]
-    assert len(set(requests)) == len(requests) - 1
+    assert len(set(requests)) == len(requests)
     written = {
         path.name: path.read_text(encoding="utf-8")
         for path in mockwitness.FIXTURES.glob("*.json")
@@ -772,9 +774,10 @@ def test_the_combined_modification_of_manager_is_a_variant_whose_changes_add_up(
 def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     journal: dict[str, Node],
 ) -> None:
-    # Each example of createUser creates its account without any role, and none of
-    # setUserAccessRoles answers the account created: the first role the administration gives it,
-    # under the correlation of its creation, is a liberty of the variant, not read from them (#961).
+    # Each example of createUser creates its account without any role, as every account is born
+    # (#1731), and none of setUserAccessRoles answers the account created: the first role the
+    # administration gives it, by an attribution of its own after its creation, under a
+    # correlation of its own, is a liberty of the variant, not read from them (#961).
     created = _answered("createUser", "201")
     assert all(answer["access_role_ids"] == [] for answer in created)
     account = fixture("user_created")["user_id"]
@@ -785,7 +788,7 @@ def test_the_first_role_of_the_account_created_is_a_liberty_no_example_answers(
     first = administration[creation + 1]
     assert first["action"] == "user_access_roles_set"
     assert first["object"]["object_id"] == account
-    assert first["correlation_id"] == administration[creation]["correlation_id"]
+    assert first["correlation_id"] != administration[creation]["correlation_id"]
     [granted] = first["params"]["access_roles_granted"]
     assert all(granted["access_role_id"] not in answer["access_role_ids"] for answer in created)
 
@@ -794,22 +797,23 @@ def test_each_inscription_read_from_an_example_is_by_the_one_who_last_updated_it
     journal: dict[str, Node],
 ) -> None:
     # An inscription derived from an example is of its object and by the author of its last
-    # update; the others — the unchanged save, the first role, the attachment — are declared
-    # liberties of the variant, and the attachment, by the platform, is read from no example of an
-    # account, none of which the platform last updated (#961).
+    # update; the others — the unchanged save, the first role, the node of the account created
+    # (#1739), the attachment — are declared liberties of the variant, and the attachment, by the
+    # platform, is read from no example of an account, none of which the platform last updated
+    # (#961).
     administration = _events(journal["audit_events_administration"])[::-1]
     derived = {
         0: ("access_role_created", "access_role_id"),
         2: ("access_role_renamed", "access_role_id"),
         3: ("user_created", "user_id"),
-        5: ("user_renamed", "user_id"),
-        7: ("user_access_roles_cleared", "user_id"),
+        6: ("user_renamed", "user_id"),
+        8: ("user_access_roles_cleared", "user_id"),
     }
     for index, (name, key) in derived.items():
         example, event = fixture(name), administration[index]
         assert event["object"]["object_id"] == example[key], name
         assert event["actor"] == example["audit"]["updated_by"], name
-    attached = administration[6]
+    attached = administration[7]
     assert attached["params"]["attached"] is True
     assert attached["actor"] == mockaudit.PLATFORM
     written = [

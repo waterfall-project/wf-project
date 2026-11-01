@@ -1,5 +1,5 @@
 {
-  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation et l'anonymisation d'Alix Moreau disponibles (WF-ADM-0120, WF-IHM-0090).",
+  "summary": "La seconde page des comptes de l'installation, lus deux par deux : Camille Martin et Alix Moreau, chacun avec ses commandes : la désactivation de Camille Martin, dernière administratrice, indisponible, last_administrator manquante, l'attribution de ses rôles disponible, la réactivation et l'anonymisation d'Alix Moreau disponibles ; leur lien de fixation et le renvoi de leur invitation, comptes locaux, disponibles pour Camille Martin, indisponibles pour Alix Moreau, désactivée, is_active_account manquante (WF-ADM-0120, WF-ADM-0140, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -29,6 +29,16 @@
           },
           {
             "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "resend_invitation",
             "is_available": true,
             "missing_conditions": []
           }
@@ -79,6 +89,20 @@
             "command": "set_access_roles",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": false,
+            "missing_conditions": [
+              "is_active_account"
+            ]
+          },
+          {
+            "command": "resend_invitation",
+            "is_available": false,
+            "missing_conditions": [
+              "is_active_account"
+            ]
           }
         ],
         "audit": {

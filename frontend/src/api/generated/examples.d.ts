@@ -78,7 +78,7 @@ export interface Examples {
     200: "portfolio_workload" | "portfolio_workload_org_node";
   };
   "GET /projects": {
-    200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code";
+    200: "projects" | "projects_default_states" | "projects_empty" | "projects_period" | "projects_search_code" | "projects_with_created";
   };
   "GET /projects/{project_id}": {
     200: "project" | "project_actual_cost_mapping_incomplete" | "project_background_task_running" | "project_completed" | "project_created" | "project_participant" | "project_pricing" | "project_pricing_estimator" | "project_reader" | "project_rescue" | "project_revision_opened" | "project_without_current_revision";
@@ -105,7 +105,7 @@ export interface Examples {
     200: "imports" | "imports_empty" | "imports_page";
   };
   "GET /projects/{project_id}/imports/{import_id}": {
-    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
+    200: "import_actual_costs_analysed" | "import_actual_costs_column_ignored" | "import_actual_costs_duplicate_line" | "import_actual_costs_first" | "import_actual_costs_wbs_invalid" | "import_analysed" | "import_analysing" | "import_apply_refused_permission" | "import_estimate_task_without_hours" | "import_planning_mismatch" | "import_planning_non_working_day" | "import_planning_provision_moved" | "import_planning_rejected" | "import_remaining_ambiguous_label" | "import_remaining_analysed" | "import_remaining_completed_task" | "import_remaining_completed_tasks" | "import_remaining_subproject_held";
   };
   "GET /projects/{project_id}/indicators": {
     200: "project_indicators" | "project_indicators_marked" | "project_indicators_without_current_revision";
@@ -150,7 +150,7 @@ export interface Examples {
     200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_awaiting_own_lines" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_from_risk" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_estimate_occurred" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -159,7 +159,7 @@ export interface Examples {
     200: "row_number_estimate_line" | "row_number_task";
   };
   "GET /projects/{project_id}/risks": {
-    200: "risks" | "risks_empty" | "risks_page";
+    200: "risks" | "risks_empty" | "risks_filtered" | "risks_page";
   };
   "GET /projects/{project_id}/risks/coverage": {
     200: "risk_coverage";
@@ -255,13 +255,13 @@ export interface Examples {
     200: "volume/structure_planning_start_advanced";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
+    200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_rebudgeted_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_attached" | "task_dates_conflicting" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
   };
   "PATCH /projects/{project_id}/risks/{risk_id}": {
-    200: "risk_updated";
+    200: "risk_updated" | "risk_updated_without_current_revision";
   };
   "PATCH /projects/{project_id}/subprojects/{subproject_id}": {
     200: "subproject_updated";
@@ -343,7 +343,7 @@ export interface Examples {
     202: "task_merge_queued";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "estimate_line_created_labelled" | "node_created" | "node_created_child";
+    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "estimate_line_created_labelled" | "node_created" | "node_created_child" | "node_created_manual";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move": {
     200: "nodes_indented" | "nodes_moved";
@@ -425,6 +425,9 @@ export interface Examples {
   };
   "PUT /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking": {
     200: "node_tracked";
+  };
+  "PUT /projects/{project_id}/risks/{risk_id}/provision": {
+    200: "risk_provision_moved";
   };
   "PUT /projects/{project_id}/work-breakdown": {
     200: "work_breakdown_saved";

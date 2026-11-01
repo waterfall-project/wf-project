@@ -10,6 +10,7 @@
         "position": 1,
         "row_number": 1,
         "level": 1,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -28,6 +29,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -81,6 +83,7 @@
         "position": 1,
         "row_number": 2,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -99,6 +102,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -152,6 +156,7 @@
         "position": 1,
         "row_number": 3,
         "level": 3,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",
@@ -170,6 +175,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {
@@ -215,6 +221,7 @@
         "position": 2,
         "row_number": 4,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",
@@ -233,6 +240,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {

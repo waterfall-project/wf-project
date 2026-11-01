@@ -708,6 +708,9 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
     reserve = sum(reserves, Decimal(0))
     remaining = total
     occurred_cost = sum(occurred_costs, Decimal(0))
+    # The lines of the occurred risks of the other projects are re-estimated at their cost at
+    # occurrence: only the witness's drift (#1761).
+    drifted = occurred_cost - occurred_costs[0] + Decimal(coverage["occurred_reestimated"])
     return {
         "scope": _scope(rows, ["in_progress"], period=True),
         "identified_total": money(total),
@@ -757,6 +760,7 @@ def portfolio_risks(rows: list[JsonObject]) -> JsonObject:
             "reserve": money(reserve),
             "remaining_provisions": money(remaining),
             "occurred_cost": money(occurred_cost),
+            "occurred_reestimated": money(drifted),
             "coverage_variance": money(reserve - remaining - occurred_cost),
         },
         "period_outcome": {

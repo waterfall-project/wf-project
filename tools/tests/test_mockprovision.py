@@ -232,7 +232,7 @@ def test_the_provision_of_a_dismissed_risk_is_refused_by_the_condition_its_comma
     assert commands["update_provision"]["missing_conditions"] == [
         refused["params"]["missing_condition"]
     ]
-    assert "fixtures/api/risk_provision_frozen.json" in _block("updateRisk", "409")
+    assert "fixtures/api/risk_provision_frozen.json" in _block("updateRiskProvision", "409")
 
 
 def test_the_change_of_a_provision_is_a_command_listed_after_the_update() -> None:
@@ -307,8 +307,10 @@ def test_with_c291_a_nature_deactivates_its_categories_and_the_provisional_defin
 
 def test_an_unchanged_category_deactivated_since_is_kept_at_the_modification() -> None:
     said = "ne vaut que si la valeur change la catégorie du risque"
-    assert said in _schema("risks.yaml", "RiskWrite")
-    assert "que si la valeur change la catégorie du risque" in _flat(_block("updateRisk", "422"))
+    assert said in _schema("risks.yaml", "RiskProvisionUpdate")
+    assert "que si la valeur change la catégorie du risque" in _flat(
+        _block("updateRiskProvision", "422")
+    )
 
 
 def test_a_deleted_subproject_leaves_the_risks_not_identified_without_designation() -> None:
@@ -560,8 +562,8 @@ def test_the_undo_that_would_restore_a_deleted_subproject_is_refused_by_its_cond
         (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
     )
     assert "restored_subproject_exists" in conditions
-    assert "`restored_subproject_exists`" in _description("updateRisk")
-    assert "#732" in _description("updateRisk")
+    assert "`restored_subproject_exists`" in _description("updateRiskProvision")
+    assert "#732" in _description("updateRiskProvision")
     assert "`restored_subproject_exists`" in _description("deleteRisk")
     # Every undo and every redo that would restore it, deleteRisk and the writes of the grid
     # included (revue 3).
@@ -676,8 +678,8 @@ def test_the_undo_or_redo_that_would_recreate_a_provision_names_the_conditions_o
 def test_the_change_of_a_provision_refused_by_its_state_precedes_the_refusal_of_its_value() -> None:
     # Which refusal wins when a dismissed risk is sent another category that is itself refused:
     # the 409, as at the declaration (#747, point 5).
-    said = _flat(_block("updateRisk", "409"))
-    assert "Ce 409 précède le 422, comme à la déclaration (`createRisk`)" in said
+    said = _flat(_block("updateRiskProvision", "409"))
+    assert "Ce 409 précède le 422" in said
     assert "qu'elle soit désactivée, inconnue ou d'une nature d'un autre type" in said
     assert "Ce 409 précède le 422" in _flat(_block("createRisk", "409"))
 

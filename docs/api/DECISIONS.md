@@ -7293,6 +7293,8 @@ révision en cours ; `CommandCondition` le dit désormais pour les quatre. Aucun
 montre : le témoin abandonné n'a ni import ni survenance qui court. Écarté : retirer la condition,
 ce qui aurait fait de `generate_skeleton` la seule commande du projet sans révision qui ne la
 nomme pas.
+*Note du 2026-11-01 : `createRevision` refuse ce cas par `STATE_FORBIDS_OPERATION` à
+`no_current_revision`, `CURRENT_REVISION_EXISTS` sortant du catalogue (US-0704, J-01, #1795).*
 
 **Le refus de `createRevision`** (relecture 1 du lot). Son 409 n'avait pas d'exemple, et le test
 de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est
@@ -10258,6 +10260,12 @@ de consultation ne gardaient plus rien de nommé.
   `cost_settings.read` ouvre la grille et la correspondance ; `resource_settings.read`,
   `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
   fonction (WF-IHM-0090). Le catalogue les garde toutes (WF-ADM-0100).
+- **Les taux d'une catégorie suivent la grille** (complément de l'auteur du 2026-11-01, à la
+  revue du lot) : `listHourlyRates` est lue sous `cost_settings.read`, avec un 404 sans elle,
+  comme une catégorie qui n'existerait pas (WF-ADM-0110) ; l'exemple
+  `hourly_rates_not_readable` le montre. La raison est la même : les taux, proches de la masse
+  salariale, ne se montrent pas à toute session. `PermissionCode` le dit :
+  `cost_settings.read` ouvre la grille, les taux d'une catégorie et la correspondance.
 - **Écarté : les actifs des nœuds, des calendriers et des natures sous une permission de
   consultation.** Les formulaires des projets ne pourraient plus nommer ce qu'ils citent pour qui
   ne consulte pas le référentiel.
@@ -10333,6 +10341,10 @@ vide, chaque catégorie prise parmi celles que la proposition présente, sinon 4
 `VALIDATION_FAILED` sur `/cost_category_ids/<n>` (exemple `rate_update_category_not_proposed`). Le
 front envoyait déjà les deux. Le service le suit par #1756 (EP-07).
 
+*Note de réalisation du 2026-11-01 (US-0704) : une catégorie que la proposition ne présente pas est
+refusée par `UNKNOWN_COST_CATEGORY`, dont le sens est élargi dans le catalogue des codes
+(`ErrorCode`) ; un code nouveau a été écarté.*
+
 ### La révision suivante ne reprend pas une structure fusionnée (US-0704, #1735, E-04, #1758, #1757)
 
 Décision de l'auteur du 2026-11-01. `createRevision` disait copier « les structures » de la
@@ -10357,6 +10369,12 @@ toutes les structures. Le témoin, lui, ne reprenait pas l'avenant 1 fusionné d
 La spécification est à corriger (#1757, WF-REV-0100 et WF-DAT-0010). Le service, qui servira la
 création d'une révision avec EP-04, le suit par #1759. La trace des lignes issues d'un risque
 survenu est l'objet de la décision suivante.
+
+*Note de réalisation du 2026-11-01 (US-0704) : la phrase « `is_merged` vrai ne se lit donc jamais
+dans une révision en cours » vaut pour une structure reprise. Le devis propre d'un risque survenu
+depuis l'ouverture de la révision en cours y est fusionné, la survenance ne marquant aucune
+révision, et se lit `is_merged` vrai : la structure 205, devis propre du risque 752, dans la
+révision 102 du témoin (`structures`). Le contrat le dit (`CostStructure.is_merged`).*
 
 ### Les lignes issues d'un risque survenu gardent sa trace (US-0704, #1735, #1761, #1760)
 
@@ -10383,6 +10401,11 @@ sur le réestimé.
 La spécification est à compléter (#1760, WF-RIS-0060, WF-RIS-0050, WF-RIS-0040). Le service le suit
 par #1762 (EP-08), les écrans par #1763 (EP-17).
 
+*Note de réalisation du 2026-11-01 (US-0704) : un identifiant nommé dans `origin_risk_ids` qui n'est
+pas celui d'un risque survenu du projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur
+`/query/origin_risk_ids/<n>`, motif nouveau `UNKNOWN_RISK` (`NodeOriginRiskFilter`, exemple
+`nodes_origin_risk_unknown`) ; le témoin n'a que 752 de survenu.*
+
 ### Les taux d'une révision nouvelle, projetés par défaut (US-0704, #1735, E-05, #1764)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-REV-0060. `apply_rate_update` disait que
@@ -10403,16 +10426,42 @@ champs de ces lignes. Le front, qui suit la commande, n'en souffrait pas ; un cl
 publiée ne trouvait aucun refus déclaré. À l'inverse, `createNode` et `moveNodes` refusaient
 `task_not_completed` jusque dans un différentiel.
 
-- **Structure principale** : les saisies d'une ligne (création, modification, déplacement,
-  suppression) déclarent leur 409, `project_before_in_progress` dès En cours, puis
-  `task_not_completed` sous une tâche terminée, qui se rouvre d'abord depuis le Kanban
-  (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). `editable_fields` n'y nomme alors aucun champ du devis,
-  et le collage refuse la cellule par la même condition.
-- **Différentiel** : les lignes d'une tâche terminée s'y saisissent comme les autres, pour que
-  l'avenant les rebudgète (WF-REV-0050) ; c'est le moyen d'intégrer un dépassement au budget de
-  référence. La spécification est à préciser (#1765, WF-DEV-0050).
+- **La phase du projet ne refuse aucune écriture de ligne.** C-358 tient : le serveur accepte les
+  mêmes écritures depuis les trois grilles, et la lecture seule du devis principal dès En cours
+  est une règle de présentation, que dit `edit_estimate` et qu'il dit seul. En En cours, la grille
+  de reste à engager crée, modifie, déplace et supprime des lignes par les mêmes opérations
+  (WF-RAE-0040).
+- **Structure principale : l'état de la tâche refuse.** La création d'une ligne sous une tâche
+  terminée, la modification et la suppression d'une ligne d'une tâche terminée, et le déplacement
+  d'une ligne vers ou depuis une tâche terminée sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+  `params.missing_condition` à `task_not_completed` : la tâche se rouvre d'abord depuis le Kanban
+  (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). `createNode`, `updateEstimateLine`, `deleteNode` d'une
+  ligne et `moveNodes` le déclarent, dans cet ordre de conditions : `project_not_terminal`, puis
+  les conditions d'état de la révision, `revision_draft` et `no_background_task_running`, puis
+  `task_not_completed` — pour `deleteNode`, à la place des conditions propres à une tâche,
+  `task_not_started` et `at_least_one_task`, qu'une ligne ne connaît pas. Une telle ligne ne
+  nomme aucun champ dans `editable_fields`, son libellé compris ; `remaining_entry` est inchangé.
+  Le collage refuse une cellule non vide sur une telle ligne par la même condition, la ligne
+  n'étant pas écrite ; une cellule vide n'écrit rien et n'est pas refusée.
+- **Différentiel : rien n'est refusé.** Les lignes d'une tâche terminée s'y créent, se modifient,
+  se déplacent et se suppriment comme les autres, pour que l'avenant les rebudgète
+  (WF-REV-0050) ; c'est le moyen d'intégrer un dépassement au budget de référence. `createNode` et
+  `moveNodes` disent que `task_not_completed` ne vaut que sur la principale. La spécification est
+  à préciser (#1765, WF-DEV-0050).
+- **Le témoin** : les refus sont posés sur la structure principale du projet En cours, sous les
+  « Études de détail », terminées — `estimate_line_completed_refused`,
+  `estimate_line_completed_update_refused`, `node_delete_line_completed_refused`,
+  `nodes_move_completed_refused` —, et l'avenant 2 rebudgète la ligne de la même tâche
+  (`estimate_line_rebudgeted_amendment`). Les lectures de la principale rendent ses lignes sous
+  une tâche terminée sans champ saisissable ; celles d'un différentiel les leur laissent.
 - **Écarté : le libellé seul modifiable** sous une tâche terminée. La spécification n'en fait pas
   d'exception, et rouvrir la tâche suffit.
+- **Écarté : `project_before_in_progress` sur les écritures de ligne.** La première rédaction de
+  cette décision faisait refuser les saisies d'une ligne de la structure principale dès En cours.
+  Elle a été corrigée par l'auteur le 2026-11-01, à la réalisation du lot : elle contredisait
+  WF-RAE-0040, dont la grille de reste à engager saisit les lignes en En cours par ces mêmes
+  opérations, et C-358, qui ne fait refuser au serveur aucune écriture selon la grille qui
+  l'envoie.
 - **Écarté : la règle dans les différentiels aussi**, qui interdirait de rebudgéter par avenant ce
   qui est fait.
 
@@ -10452,6 +10501,10 @@ jalon ; l'import et le collage refusent la ligne par le même motif. Une ligne d
 jalon reste permise. Écarté : un 409 `parent_not_milestone`. Être un jalon est une propriété de la
 tâche visée, comme les autres refus de placement (`NODE_NOT_SIBLING`), et non un état que l'objet
 annonce dans ses commandes. Le service le suit par #1772 (EP-06), la grille par #1773 (EP-17).
+
+*Note de réalisation du 2026-11-01 (US-0704) : `params` nomme le jalon par `node_id` et `label` au
+refus de `createNode` et de `moveNodes`, et dans le compte rendu d'un import par `lineage_id` et
+`label` (`ImportRejection`).*
 
 ### La récapitulative qui n'attend plus que ses lignes propres (US-0704, #1735, F-05, #1774)
 
@@ -10516,6 +10569,13 @@ L'histoire d'un risque — sa première révision, ses états, ses réexamens da
 son coût à la survenance — reste lisible révision par révision ; seuls ses trois textes ne sont pas
 versionnés. Le service le suit par #1783 (EP-08), le détail du risque par #1784 (EP-17).
 
+*Note de réalisation du 2026-11-01 (US-0704) : le 409 d'`updateRisk` nomme `project_not_terminal`
+puis `risk_not_occurred`, et plus `no_background_task_running`, la modification n'écrivant pas dans
+la révision ; celui d'`updateRiskProvision` nomme `project_not_terminal`,
+`no_background_task_running`, `risk_identified`, puis `may_create_revision`. L'exemple
+`risk_updated_without_current_revision` modifie l'identité d'un risque sur le projet sans révision
+en cours (`project_without_current_revision`) : aucune révision n'est créée.*
+
 ### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six
@@ -10559,6 +10619,10 @@ déjà employé était tantôt un 409, tantôt un 404.
   `analysed` sans échéance, qui cacherait le refus.
 
 Le service le suit par #1790 (EP-06), l'écran du compte rendu par #1791 (EP-17).
+
+*Note de réalisation du 2026-11-01 (US-0704) : un refus d'application par 403, une permission ou une
+qualité de contributeur retirée depuis l'analyse, fait aussi passer l'import `refused`, comme
+l'issue #1789 le dit (`applyImport`, exemple `import_apply_refused_permission`).*
 
 ### Les refus manquants de l'import : l'ouverture et la ligne sous une tâche terminée (US-0704, #1735, I-04, I-05, #1792, #1793)
 

@@ -272,7 +272,9 @@ by = "make fixtures"
 # its readings by the quality of its reader and during a marking (wftools.mockproject, held by
 # tools/tests/test_mockexit.py), the refusals of one form each (wftools.mockrefusals, held by
 # tools/tests/test_mockrefusals.py), and those the contract declared without a code, a condition
-# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py).
+# nor an example (wftools.mockdeclared, held by tools/tests/test_mockdeclared.py), and the examples
+# of the majors of the review of the 2026-10-31 (wftools.mockreview, held by
+# tools/tests/test_mockreview.py).
 paths = [
     "fixtures/api/volume/**",
     "fixtures/api/nodes.json",
@@ -344,6 +346,7 @@ paths = [
     "fixtures/api/task_horizon_exceeded.json",
     "fixtures/api/task_date_non_working_day.json",
     "fixtures/api/node_create_non_working_day.json",
+    "fixtures/api/node_created_manual.json",
     "fixtures/api/structure_start_non_working_day.json",
     "fixtures/api/task_hours_beyond_day.json",
     "fixtures/api/task_hours_below_zero.json",
@@ -358,6 +361,9 @@ paths = [
     "fixtures/api/nodes_move_mixed.json",
     "fixtures/api/estimate_line_completed_refused.json",
     "fixtures/api/nodes_move_completed_refused.json",
+    "fixtures/api/estimate_line_completed_update_refused.json",
+    "fixtures/api/node_delete_line_completed_refused.json",
+    "fixtures/api/estimate_line_rebudgeted_amendment.json",
     "fixtures/api/estimate_line_updated_amendment.json",
     "fixtures/api/estimate_line_payment_delay_amendment.json",
     "fixtures/api/paste_plan_amendment.json",
@@ -410,6 +416,8 @@ paths = [
     "fixtures/api/risk_coverage.json",
     "fixtures/api/risk_created.json",
     "fixtures/api/risk_updated.json",
+    "fixtures/api/risk_updated_without_current_revision.json",
+    "fixtures/api/risk_provision_moved.json",
     "fixtures/api/risk_reviewed.json",
     "fixtures/api/risk_reviews_reviewed.json",
     "fixtures/api/risk_dismissed.json",
@@ -565,6 +573,25 @@ paths = [
     "fixtures/api/reference_designate_stale.json",
     "fixtures/api/risk_delete_stale.json",
     "fixtures/api/subproject_delete_stale.json",
+    "fixtures/api/access_role_delete_stale.json",
+    "fixtures/api/projects_with_created.json",
+    "fixtures/api/subproject_code_too_long.json",
+    "fixtures/api/rate_update_category_not_proposed.json",
+    "fixtures/api/node_create_under_milestone.json",
+    "fixtures/api/nodes_move_under_milestone.json",
+    "fixtures/api/nodes_awaiting_own_lines.json",
+    "fixtures/api/nodes_risk_estimate_occurred.json",
+    "fixtures/api/nodes_from_risk.json",
+    "fixtures/api/nodes_origin_risk_unknown.json",
+    "fixtures/api/risks_filtered.json",
+    "fixtures/api/risks_period_inverted.json",
+    "fixtures/api/import_open_terminal.json",
+    "fixtures/api/import_open_background_running.json",
+    "fixtures/api/import_open_may_create_revision.json",
+    "fixtures/api/import_apply_expired.json",
+    "fixtures/api/import_abandon_applied.json",
+    "fixtures/api/import_apply_refused_permission.json",
+    "fixtures/api/import_remaining_completed_task.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

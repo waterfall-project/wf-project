@@ -77,6 +77,30 @@
       "date_mismatches": [],
       "signals": [],
       "requires_confirmation_reasons": []
-    }
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000923",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T13:50:00Z",
+      "finished_at": "2026-06-03T13:51:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": false,
+        "missing_conditions": [
+          "import_file_accepted"
+        ]
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

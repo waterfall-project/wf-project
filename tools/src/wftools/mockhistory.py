@@ -303,6 +303,27 @@ def occurrence_cost(risk: Risk) -> Decimal | None:
     return risk.last.severity if risk.last.state == OCCURRED else None
 
 
+def occurred_reestimated(risk: Risk, rows: Iterable[mockcore.Row] | None = None) -> Decimal | None:
+    """Return the re-estimate of today of the lines a risk's occurrence merged, none if it did not.
+
+    The re-estimated amounts, inflation included, of the lines of the current revision that bear
+    the risk (`Node.origin_risk_id`), which the register shows beside the cost at occurrence,
+    outside the coverage (`Risk.occurred_reestimated_amount`, WF-RIS-0050; #1761).
+    """
+    if risk.last.state != OCCURRED:
+        return None
+    origin = universe(risk.number)
+    read = mockcore.current() if rows is None else rows
+    return sum(
+        (
+            row.amounts.reestimated
+            for row in read
+            if row.kind == mockcore.ESTIMATE_LINE and row.node["origin_risk_id"] == origin
+        ),
+        Decimal(0),
+    )
+
+
 def is_cited(risk: Risk) -> bool:
     """Whether a marked revision cites the risk: one marked after it was identified."""
     identified = risk.reviews[0].at
@@ -432,6 +453,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
     actor = _actor()
     named = labels()
     cost = occurrence_cost(risk)
+    reestimated = occurred_reestimated(risk)
     return {
         "risk_id": universe(risk.number),
         "label": risk.label,
@@ -441,6 +463,7 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
         "severity": money(last.severity),
         "provision_amount": money(provision_amount(risk)),
         "occurrence_cost": None if cost is None else money(cost),
+        "occurred_reestimated_amount": None if reestimated is None else money(reestimated),
         "state": last.state,
         "structure_id": universe(risk.own_structure),
         "provision_node_id": None
@@ -468,14 +491,15 @@ def risk_item(risk: Risk, budget: Decimal, bearer: int | None = None) -> JsonObj
     }
 
 
-def totals(rows: list[mockcore.Row]) -> JsonObject:
+def totals(rows: list[mockcore.Row], retained: Iterable[Risk] | None = None) -> JsonObject:
     """Return the totals of the provisions (`ProvisionTotals`, WF-RIS-0040).
 
     The identified risks for their provision today; those that occurred and those dismissed for
-    the provision the reference bore; their sum; and the reserve for risks of the reference.
+    the provision the reference bore; their sum; and the reserve for risks of the reference. Of
+    the risks retained, those the filters of the register retain (WF-IHM-0130).
     """
     by_state = {IDENTIFIED: Decimal(0), OCCURRED: Decimal(0), DISMISSED: Decimal(0)}
-    for risk in REGISTER:
+    for risk in REGISTER if retained is None else retained:
         by_state[risk.last.state] += provision_amount(risk)
     return {
         **{state: money(amount) for state, amount in by_state.items()},
@@ -580,6 +604,10 @@ def coverage(today: list[mockcore.Row], rows: list[mockcore.Row]) -> JsonObject:
     occurred = sum(
         (cost for risk in REGISTER if (cost := occurrence_cost(risk)) is not None), Decimal(0)
     )
+    drifted = sum(
+        (each for risk in REGISTER if (each := occurred_reestimated(risk, today)) is not None),
+        Decimal(0),
+    )
     kept = reserve(rows)
     return {
         "context": {
@@ -592,6 +620,7 @@ def coverage(today: list[mockcore.Row], rows: list[mockcore.Row]) -> JsonObject:
         "reserve": money(kept),
         "remaining_provisions": money(remaining),
         "occurred_cost": money(occurred),
+        "occurred_reestimated": money(drifted),
         "coverage_variance": money(kept - remaining - occurred),
     }
 

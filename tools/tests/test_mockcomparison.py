@@ -17,7 +17,7 @@ from wftools import mockcomparisons, mockcore, mockdata, mockdiff, mockhistory
 from wftools.mockdating import Amounts
 from wftools.mockids import universe
 from wftools.mockstructure import LABOUR_RATES, money
-from wftools.mockwitness import SCHEDULED_AT, N
+from wftools.mockwitness import SCHEDULED_AT, N, fixture
 
 type Node = dict[str, Any]
 
@@ -55,6 +55,15 @@ def _lines_by_id(rows: list[mockcore.Row]) -> dict[str, Node]:
         for row in rows
         if row.kind == mockcore.ESTIMATE_LINE
     }
+
+
+KEYS = ("subproject", "cost_category")
+"""What changes of a line the key it counts under, and none of its amounts (#1751)."""
+
+
+def _amounts(node: Node) -> list[str]:
+    """Return what changed of a node besides its key: its amounts, its delay, its parent."""
+    return [change for change in cast("list[str]", node.get("changes") or []) if change not in KEYS]
 
 
 def _summed(compared: Node) -> set[Decimal]:
@@ -122,6 +131,68 @@ def test_the_subtree_of_a_removed_task_is_the_one_it_had_with_its_removed_nodes(
 
 
 @pytest.mark.requirement("WF-REV-0080-A")
+def test_a_line_that_changes_its_subproject_alone_moves_its_whole_amount_from_key_to_key() -> None:
+    # #1751 (E-01): a line counts under the key it bears in each revision. The reference, and the
+    # same revision where the laying of the terminal blocks passes from the control station to
+    # the trials, its amounts kept: it is modified by its subproject, which « Écarts seulement »
+    # retains, and counts its whole amount less under the one and more under the other; no nature
+    # moves, and the deltas by subproject sum to those by nature, nil.
+    rows = mockhistory.reference_rows()
+    [first, other] = [entry["subproject_id"] for entry in fixture("subprojects")]
+
+    def moved(row: mockcore.Row) -> mockcore.Row:
+        facet = {**cast("Node", row.node["estimate_line"]), "subproject_id": other}
+        return replace(row, node={**row.node, "estimate_line": facet})
+
+    [line] = [row for row in rows if row.number == N.LABOUR]
+    assert mockhistory.estimate_line(line)["subproject_id"] == first
+    after = [moved(row) if row.number == N.LABOUR else row for row in rows]
+    compared = cast(
+        "Node",
+        mockcomparisons.comparison(rows, after, mockhistory.REFERENCE, mockhistory.REFERENCE),
+    )
+    [node] = [node for node in compared["items"] if node["node_id"] == universe(N.LABOUR)]
+    assert (node["difference"], node["changes"]) == ("modified", ["subproject"])
+    kept = cast("Node", mockcomparisons.by_differences(compared, rows, after, mockdiff.DIFFERENCES))
+    assert universe(N.LABOUR) in [node["node_id"] for node in kept["items"]]
+    amount = money(line.amounts.budgeted)
+    assert compared["amount_deltas"] == [
+        {
+            "dimension": "subproject",
+            "key": key,
+            "label": label,
+            "budgeted_delta": delta,
+            "reestimated_delta": delta,
+        }
+        for key, label, delta in (
+            (first, "Poste de commande", f"-{amount}"),
+            (other, "Essais et mise en service", amount),
+        )
+    ]
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
+def test_the_deltas_of_the_witness_by_subproject_sum_to_those_by_nature() -> None:
+    # #1751 (E-01): the offer bore no subproject, the reference puts its lines of the installation
+    # under the control station; « Câblage sur site », its budget unchanged, counts its whole
+    # amount out of what bears no subproject and into the control station, modified by its
+    # subproject. Each key's delta is the difference of its totals, and the deltas by subproject
+    # sum to those by nature: 602 650,00 budgeted in `comparison`.
+    compared = cast("Node", mockcomparisons.comparison_example(mockhistory.reference_rows()))
+    value = cast("Node", compared["value"])
+    [wiring] = [node for node in value["items"] if _label(node) == "Câblage sur site"]
+    assert wiring["changes"] == ["reestimated_amount", "subproject"]
+    by: dict[str, Decimal] = {}
+    for entry in value["amount_deltas"]:
+        by[entry["dimension"]] = by.get(entry["dimension"], Decimal(0)) + Decimal(
+            entry["budgeted_delta"]
+        )
+    assert by == {"cost_type": Decimal("602650.00"), "subproject": Decimal("602650.00")}
+    assert _summed(value) == {Decimal("602650.00"), Decimal("602950.00")}
+    assert "la somme des écarts par sous-projet égale celle par nature" in str(compared["summary"])
+
+
+@pytest.mark.requirement("WF-REV-0080-A")
 def test_a_line_whose_budget_alone_changes_presents_no_delta_of_its_reestimate() -> None:
     # Vérif : « une ligne existante dont le différentiel ne modifie que le montant budgété ne
     # présente aucun écart de montant réestimé ». The reference, and the same revision where a
@@ -163,11 +234,13 @@ def test_the_witness_comparison_moves_the_reestimates_only_of_the_lines_the_amen
     # year of consumption changes or, for labour, because the revision keeps the rates of 2026.
     offered = _lines_by_id(mockhistory.offer_rows())
     marked = _lines_by_id(mockhistory.reference_rows())
+    # A line that changes its key alone — its subproject, its cost category — changes no amount
+    # (#1751): what is tried here is what moves of its amounts.
     lines = [node for node in whole["items"] if node["kind"] == "estimate_line"]
-    budget_changed = [node for node in lines if "budgeted_amount" in (node.get("changes") or [])]
+    budget_changed = [node for node in lines if "budgeted_amount" in _amounts(node)]
     assert [node["node_id"] for node in budget_changed] == [universe(N.LABOUR)]
-    assert budget_changed[0]["changes"] == ["budgeted_amount", "reestimated_amount"]
-    alone = [node for node in lines if node.get("changes") == ["reestimated_amount"]]
+    assert _amounts(budget_changed[0]) == ["budgeted_amount", "reestimated_amount"]
+    alone = [node for node in lines if _amounts(node) == ["reestimated_amount"]]
     assert len(alone) == LINES_REESTIMATED_ALONE
     # A line of disbursement would move by its year of consumption alone: none does, the offer
     # and the reference dating their lines alike from 2026 (#1628). Every one is a labour line.
@@ -232,7 +305,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     read = cast("Node", volume["value"])
     assert len(read["items"]) == 5_999
     modified = (node for node in read["items"] if node["difference"] == "modified")
-    assert sum(1 for node in modified if node["changes"]) == 2_770
+    assert sum(1 for node in modified if node["changes"]) == 4_251
     kept = {*mockdiff.ALWAYS, "kind", "task", "estimate_line"}
     for node, entire in zip(read["items"], whole["items"], strict=True):
         assert set(node) <= kept
@@ -245,7 +318,7 @@ def test_the_volume_of_the_comparison_is_the_whole_comparison_read_with_the_fiel
     assert {key: read[key] for key in rest} == {key: whole[key] for key in rest}
     summary = str(volume["summary"])
     assert "5 999 nœuds" in summary
-    assert "2 770 modifiés par leurs propres valeurs" in summary
+    assert "4 251 modifiés par leurs propres valeurs" in summary
     assert "852 925,00 et 1 034 848,01 en tout" in summary
 
 

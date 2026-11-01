@@ -21,6 +21,20 @@
       "finished_at": null,
       "problem": null,
       "result_url": null
-    }
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": false,
+        "missing_conditions": [
+          "import_awaiting_decision"
+        ]
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

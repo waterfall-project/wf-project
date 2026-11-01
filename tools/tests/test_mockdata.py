@@ -259,6 +259,7 @@ def test_the_indicators_are_summed_from_the_lines_of_the_grid(volumes: dict[str,
     )
     assert indicators["by_subproject"][-1] == {
         "key": "unassigned",
+        "label": None,
         "amount": mockstructure.computable(mockstructure.money(unassigned)),
         "share": indicators["by_subproject"][-1]["share"],
     }

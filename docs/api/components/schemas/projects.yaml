@@ -13,7 +13,13 @@ Project:
   required:
     - project_id
     - label
+    - description
+    - client
+    - code
     - state
+    - order_received_on
+    - reference_revision_id
+    - current_revision_id
     - inflation_rate
     - win_probability
     - available_commands
@@ -131,7 +137,8 @@ CommandCondition:
     saisie du reste à engager (plus bas). `project_in_pricing` manque à la déclaration de perte
     (`lose`) d'un projet Créé : un projet ne se déclare perdu que depuis Chiffrage (WF-CYC-0060).
     `no_current_revision` manque à l'ouverture d'une révision (`create_revision`) tant que le
-    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010).
+    projet en porte une en cours, seule à recevoir les saisies (WF-REV-0010) ; `createRevision`
+    la nomme dans son 409 (J-01, #1795).
     `reference_revision_designated` manque, tant que le projet n'a pas de révision de référence, à
     la déclaration d'un risque survenu (`declare_risk_occurrence`, WF-RIS-0060) ; et
     `reference_revision_designated` et `project_code_set`, tant que le projet n'a pas de code
@@ -225,8 +232,8 @@ CommandCondition:
     `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
     écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
     risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature
-    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et
-    supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
+    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) change la provision,
+    réexamine et supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
     `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la
     catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet
     l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à
@@ -250,25 +257,38 @@ CommandCondition:
     (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795) ; et à la suppression d'une tâche qui
     laisserait sans tâche une structure principale qui porte une ligne de provision, refusée en
     nommant les risques (`deleteNode`, `params.risks`, WF-RIS-0010 ; H-05, US-0702/L2).
-    `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
-    fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
-    offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).
+    Trois tiennent à l'import, et l'import les nomme (`ImportDetail.available_commands`,
+    WF-IHM-0090 ; I-01, I-02, #1789). `import_awaiting_decision` manque à l'application d'un
+    import qui n'est plus `analysed` — appliqué ou en cours d'application, abandonné, expiré,
+    échoué ou refusé : il n'y a plus rien à appliquer (WF-ARC-0100) —, et `applyImport` la nomme
+    dans son 409 avant toute autre. `import_file_accepted` manque à l'application d'un import dont
+    le compte rendu rejette le fichier entier (`ImportReport.refusals`, WF-INTF-0040,
+    WF-PLA-0150) : seul l'abandon reste offert, et `applyImport` la nomme dans son 409 ensuite
+    (EP-14/L42s). `import_not_applied` manque à l'abandon d'un import appliqué ou en cours
+    d'application (`applying`, `applied`) : ce qu'il a écrit ne se défait pas par l'abandon
+    (WF-INTF-0080) ; `abandonImport` la nomme dans son 409.
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
     `setUserActivation` la nomme dans son 409. Deux tiennent à la nature du compte, et
-    `createPasswordSetupLink` les nomme dans son 409 : `is_local_account` manque à un compte qui
-    n'est pas local — un compte de l'annuaire ou d'un fournisseur externe s'authentifie auprès
-    du fournisseur d'identité et n'a pas de mot de passe à fixer dans Waterfall —, et
-    `is_active_account` à un compte désactivé (WF-ADM-0140, WF-ADM-0060). Deux tiennent à
+    `createPasswordSetupLink` et `resendInvitation` les nomment dans leur 409 :
+    `is_local_account` manque à un compte qui n'est pas local — un compte de l'annuaire ou d'un
+    fournisseur externe s'authentifie auprès du fournisseur d'identité et n'a pas de mot de passe
+    à fixer dans Waterfall, et ne liste pas ces commandes —, et `is_active_account` à un compte
+    désactivé, que le compte nomme (`create_password_link`, `resend_invitation`) (WF-ADM-0140,
+    WF-ADM-0060). Deux tiennent à
     l'anonymisation d'un compte, irréversible (WF-ADM-0060) : `is_deactivated_account`, miroir de
     `is_active_account`, manque à l'anonymisation d'un compte actif, que `anonymizeUser` nomme
     dans son 409 — la commande `anonymize` ne se liste que pour un compte désactivé — ;
     `is_not_anonymized` manque à la réactivation et à l'anonymisation d'un compte anonymisé, que
     le compte nomme (`User.available_commands`) et `setUserActivation` et `anonymizeUser` dans
     leur 409, et à la modification de son nom, de son prénom ou de son adresse, que `updateUser`
-    nomme dans son 409. Le retrait de l'une de
-    ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles envoyés, qu'aucune commande ne
+    nomme dans son 409 ; elle manque aussi au lien de fixation et au renvoi de l'invitation d'un
+    compte local anonymisé, retiré du fournisseur d'identité, que `createPasswordSetupLink` et
+    `resendInvitation` nomment dans leur 409, jugée entre `is_local_account` et
+    `is_active_account` — le compte anonymisé ne liste pas ces commandes (#1737). Le retrait de
+    l'une de ces permissions par `setUserAccessRoles` ou `updateAccessRole` dépend des rôles
+    envoyés, qu'aucune commande ne
     dit d'avance : il est refusé par `LAST_ADMINISTRATOR`, sans condition.
     Trois tiennent aux sauvegardes, et la sauvegarde les nomme (`Backup.available_commands`,
     `BackupCommand`) : `backup_verified` manque au téléchargement et à la restauration d'une
@@ -277,9 +297,9 @@ CommandCondition:
     production de la sauvegarde, la vérification qui suit n'empêchant rien (`backup_pending`) —,
     à la restauration et au déclenchement d'une seconde sauvegarde ; `no_restore_running`
     manque, pendant qu'une restauration s'exécute — de sa mise en file à la déconnexion des
-    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde et au marquage
-    (WF-ADM-0160). `startBackup`, `retainBackup`, `downloadBackup` et `startRestore` les nomment
-    dans leur 409.
+    utilisateurs —, à la restauration, au déclenchement d'une sauvegarde, au marquage et au
+    réglage de la planification (WF-ADM-0160, #1742). `startBackup`, `retainBackup`,
+    `downloadBackup`, `startRestore` et `setBackupSchedule` les nomment dans leur 409.
     `project_before_in_progress` manque à la modification de la probabilité de gain
     (`ProjectCommand.update_win_probability`) d'un projet qui a atteint En cours, ou un état
     terminal : elle n'est modifiable qu'aux états Créé et Chiffrage (WF-PRJ-0090) ; envoyée malgré
@@ -309,9 +329,16 @@ CommandCondition:
     cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4).
     `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
-    et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
-    elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
-    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214). `line_not_provision` manque à la
+    et, sur la structure principale, à la création d'une ligne sous une tâche terminée, à la
+    modification et à la suppression d'une ligne d'une telle tâche, et au déplacement d'une ligne
+    vers elle ou depuis elle, la tâche se rouvrant d'abord depuis le Kanban : `createNode`,
+    `updateEstimateLine`, `deleteNode` et `moveNodes` la nomment dans leur 409, et le collage
+    dans le refus de la cellule (`PasteRejection`) ; la ligne ne nomme alors aucun champ
+    (`Node.editable_fields`). Une ligne nouvelle importée sous une telle tâche est rejetée au
+    compte rendu par la même condition, la tâche nommée (`ImportRejection`, WF-INTF-0120 ; I-05,
+    #1793). Dans un différentiel, elle ne manque jamais : les lignes d'une tâche
+    terminée s'y saisissent comme les autres, pour que l'avenant les rebudgète (WF-DEV-0050,
+    WF-RAE-0030, WF-RAE-0040, WF-REV-0050 ; #1184, #1214, #1766). `line_not_provision` manque à la
     réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
     que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`,
     WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409.
@@ -350,8 +377,8 @@ CommandCondition:
     manquante » (WF-CYC-0030) — ; `reference_correctable` quand la désignation ne se corrige
     plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
-    première qui manque, dans cet ordre — `reference_correctable` par son code propre,
-    `REFERENCE_NOT_CORRECTABLE` (EP-15/US-0490).
+    première qui manque, dans cet ordre, `STATE_FORBIDS_OPERATION` la nommant, comme toute
+    autre (EP-15/US-0490 ; J-01, #1795).
     `actual_cost_mapping_complete` manque à l'import des coûts réels
     (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
     correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont
@@ -408,7 +435,9 @@ CommandCondition:
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
     - main_structure_without_tasks
+    - import_awaiting_decision
     - import_file_accepted
+    - import_not_applied
     - is_local_account
     - is_active_account
     - is_deactivated_account
@@ -491,7 +520,9 @@ ProjectCommand:
     WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
     marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
-    et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
+    et nomme `may_create_revision` à qui n'a pas la permission de la créer. La modification de
+    l'identité d'un risque n'en relève pas : donnée du projet, elle ne crée pas de révision
+    (`updateRisk`, `RiskCommand.update` ; H-02, #1782). Dès qu'une révision
     est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
     suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
     même ordre : celles de l'état d'abord, `project_not_terminal` — que seul le 409 nomme, un
@@ -555,7 +586,8 @@ ProjectCode:
     `VALIDATION_FAILED`, `fields` désignant `/code` : vide, par `VALUE_REQUIRED` ; fait seulement
     de blancs, comme tout libellé, par `VALIDATION_FAILED` ; portant une barre oblique, par
     `PROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` à `["/"]` ; trop long, par
-    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`. Un code à la fois
+    `VALUE_TOO_LONG`, `fields[].params.max_length` à `50`, la borne que tout `VALUE_TOO_LONG`
+    porte (J-02, #1796). Un code à la fois
     blanc et porteur d'une barre oblique (« / », « /  ») ne reçoit qu'un refus,
     `PROJECT_CODE_INVALID`, la barre oblique d'abord (D-07, US-0701/L9).
 
@@ -948,8 +980,9 @@ DeclaredSubprojectCode:
     sous-projet », les deux onglets que Waterfall nomme, comparés sans égard à la casse — ce que
     dit le motif (D-7, EP-16/US-0610). Une écriture qui ne le respecte pas est refusée par 422
     `VALIDATION_FAILED`, `fields` désignant `/code` : trop long, par `VALUE_TOO_LONG`,
-    `fields[].params.max_length` à `31` ; portant un caractère interdit, par
-    `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les caractères interdits
+    `fields[].params.max_length` à `31`, la borne que tout `VALUE_TOO_LONG` porte ; portant un
+    caractère interdit, par `SUBPROJECT_CODE_INVALID`, `fields[].params.forbidden_characters` les
+    caractères interdits
     qu'il porte, chacun une fois, dans l'ordre où le code les porte ; valant un nom réservé, par
     `SUBPROJECT_CODE_INVALID`, `fields[].params.reserved_name` ce nom tel que Waterfall l'écrit.
     Le code lu dans l'élément d'OTP d'une ligne de coût réel (`ActualCostLine.subproject_code`)

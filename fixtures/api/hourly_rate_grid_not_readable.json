@@ -1,0 +1,8 @@
+{
+  "summary": "La grille des taux horaires lue par Noé Vidal, auditeur (me_auditor), qui consulte le journal d'audit et rien d'autre : sans la permission de lire les paramètres de coûts (cost_settings.read), la grille est refusée comme si elle n'existait pas, sans rien nommer ; les catégories actives restent lisibles par toute session (listCostCategories), les taux non (WF-ADM-0110, WF-ADM-0100).",
+  "value": {
+    "code": "NOT_FOUND",
+    "status": 404,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001668"
+  }
+}

@@ -449,7 +449,7 @@ describe("the grid of the access roles", () => {
     );
   });
 
-  it("deletes a role no account holds once its deletion is confirmed, says so, and reads the page anew", async () => {
+  it("deletes a role no account holds once its deletion is confirmed, from the version read, says so, and reads the page anew", async () => {
     page.path = "/admin/access-roles";
     const client = fakeClient({ [ROLE]: { status: 204 } });
     server.client = client;
@@ -468,6 +468,8 @@ describe("the grid of the access roles", () => {
     expect(client.calls.map(({ route, path }) => [route, path])).toEqual([
       [ROLE, `/access-roles/${administrator?.access_role_id ?? ""}`],
     ]);
+    // The counter of the role as read: a role written since is not deleted (A-02).
+    expect(client.calls[0]?.query.get("lock_version")).toBe(String(administrator?.lock_version));
     expect(refresh).toHaveBeenCalledOnce();
   });
 

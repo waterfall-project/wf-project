@@ -439,7 +439,7 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   const at = await columnsOf(grid, { label: "Libellé", gantt: "Gantt" });
   // A summary of the core at the second level, over the task of row 15, the last of its siblings:
   // the row after it is the installation on site, row 19, of the first level.
-  const summary = grid.getByRole("row", { name: /^14 .*Risque survenu — Retard de livraison/ });
+  const summary = grid.getByRole("row", { name: /^14 .*Retard de livraison des armoires/ });
   const task = grid.getByRole("row", { name: /^15 .*Relance du fournisseur/ });
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(summary).toHaveAttribute("aria-level", "2");

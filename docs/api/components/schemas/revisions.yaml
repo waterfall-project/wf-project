@@ -20,6 +20,9 @@ Revision:
     - reference_year
     - inflation_rate
     - win_probability
+    - version_name
+    - description
+    - marked_at
     - source_revision_id
     - source_version_name
     - available_commands
@@ -35,9 +38,15 @@ Revision:
         projet (WF-REV-0020). Nul tant que la révision est en cours.
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        La description saisie au marquage, facultative (WF-REV-0090) ; nulle tant que la révision
+        n'est pas marquée, ou quand le marquage n'en a pas reçu (E-10, #1780).
     status: { $ref: '#/RevisionStatus' }
     marked_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        L'instant du marquage (WF-REV-0090) ; nul tant que la révision n'est pas marquée (E-10,
+        #1780).
     is_reference:
       type: boolean
       description: Caractère de révision de référence (WF-REV-0040, WF-REV-0090).
@@ -143,10 +152,13 @@ RevisionCommand:
     manque d'aucune condition : sur une révision marquée, pendant un marquage, sur un
     projet terminal, il reste disponible. Un export est présent ou absent.
 
-    `edit_risks` est la saisie des risques — déclarer, modifier, réexaminer, supprimer un
-    risque (`createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`), sous `risks.write` —,
-    une saisie de la révision en cours comme les trois autres, annulable par le même
-    historique (WF-RIS-0020, WF-IHM-0110). Seule la révision en cours la porte : une révision
+    `edit_risks` est la saisie des risques — déclarer un risque, changer sa provision, le
+    réexaminer, le supprimer (`createRisk`, `updateRiskProvision`, `reviewRisk`, `deleteRisk`),
+    sous `risks.write` —, une saisie de la révision en cours comme les trois autres, annulable par
+    le même historique (WF-RIS-0020, WF-IHM-0110). La modification de l'identité d'un risque — son
+    libellé, sa description, sa note de mitigation — n'en relève pas : donnée du projet, elle
+    n'écrit pas dans la révision, et sa commande est celle du risque (`RiskCommand.update`,
+    `updateRisk` ; H-02, #1782). Seule la révision en cours la porte : une révision
     marquée ne la liste jamais, pas même indisponible comme les trois autres saisies — elle est
     immuable (WF-DAT-0020), et l'écran ne doit pas montrer deux commandes de saisie des risques
     quand le projet la porte. Tant que le projet n'a pas
@@ -176,8 +188,8 @@ RevisionCommand:
     en cours ou la fige —, comme `ProjectCommand.update_work_breakdown` ; puis ses conditions
     propres — `at_least_one_task`, une structure principale sans tâche, puis
     `active_provision_category`, aucune catégorie active de type provision pour risques
-    (WF-RIS-0010) — ; puis les autres conditions d'`edit_risks`. La modification, le réexamen
-    et la suppression, qui n'en dépendent pas, restent sous `edit_risks`.
+    (WF-RIS-0010) — ; puis les autres conditions d'`edit_risks`. Le changement de la provision,
+    le réexamen et la suppression, qui n'en dépendent pas, restent sous `edit_risks`.
 
     `generate_skeleton` engendre le squelette de planning depuis le lotissement
     (`generatePlanningSkeleton`, WF-PRJ-0030), une saisie du planning gardée par la même
@@ -275,8 +287,13 @@ RevisionCreate:
       type: boolean
       default: false
       description: >-
-        Applique la mise à jour des taux proposée par WF-REV-0060. Jamais imposée :
-        la valeur par défaut conserve les taux de la révision source.
+        Applique la mise à jour des taux proposée par WF-REV-0060. Faux ou absent, la révision
+        est chiffrée aux taux de la révision source projetés par le taux d'inflation du projet
+        jusqu'à son année de référence (WF-REV-0060, WF-REV-0010, WF-DEV-0030), la mise à jour
+        restant proposée (`getRateUpdateProposal`). Vrai, chaque catégorie que la proposition
+        présenterait au taux du référentiel de l'année (`reference_rate`) est chiffrée à ce taux,
+        comme `applyRateUpdate` sur toutes ; les autres gardent leur taux projeté. Jamais
+        imposée (#1764).
 
 RevisionMark:
   type: object
@@ -349,6 +366,30 @@ RateUpdateProposal:
             type: string
             enum: [reference_rate, inflated_previous]
 
+RateUpdateApply:
+  type: object
+  required: [cost_category_ids, lock_version]
+  description: >-
+    Accepte la mise à jour des taux pour les catégories retenues (`applyRateUpdate`,
+    WF-REV-0060), le compteur lu de la révision avec elles, comme toute écriture de la famille
+    (WF-IHM-0110 ; E-03, #1755).
+  properties:
+    cost_category_ids:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: >-
+        Les catégories acceptées parmi celles que la proposition présente
+        (`getRateUpdateProposal`) ; une catégorie qu'elle ne présente pas est refusée par 422
+        `VALIDATION_FAILED`, `fields` sur `/cost_category_ids/<n>`, et une liste vide de même, sur
+        `/cost_category_ids` ; rien n'est écrit.
+      items: { $ref: ../common.yaml#/Uuid }
+    lock_version:
+      allOf: [{ $ref: ../common.yaml#/LockVersion }]
+      description: >-
+        Le compteur lu de la révision (`Revision.lock_version`) ; périmé, 412 et rien n'est
+        écrit.
+
 StructureKind:
   type: string
   enum: [main, amendment, risk]
@@ -389,7 +430,12 @@ CostStructure:
       type: boolean
       description: >-
         Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou
-        lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060).
+        lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060). Une
+        structure fusionnée est consommée : elle n'est que dans la révision où elle a été
+        fusionnée, que son marquage fige, et la révision suivante ne la reprend pas
+        (`createRevision`). Une révision en cours ne porte donc jamais une structure fusionnée
+        qu'elle a reprise ; vrai ne s'y lit que pour le devis propre d'un risque survenu depuis
+        son ouverture, la survenance ne marquant aucune révision (WF-RIS-0060 ; #1758).
     available_commands:
       type: array
       description: >-
@@ -425,7 +471,9 @@ StructureCommand:
     accepte les mêmes écritures depuis les trois grilles — une tâche ou une ligne créée sur la
     structure principale d'un projet En cours est la même écriture depuis le planning et depuis
     le reste à engager — : c'est la commande de la structure qui dit quelle grille la saisit,
-    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090).
+    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090). L'état d'une tâche, lui,
+    refuse sur la structure principale les saisies d'une ligne d'une tâche terminée, depuis toute
+    grille (`task_not_completed`, `Node.editable_fields` ; F-01, #1766).
 
     Sur la structure principale, en chiffrage le devis, en réalisation le reste à engager :
     `edit_estimate` est indisponible dès que le projet a atteint En cours, ou un état terminal,
@@ -603,7 +651,7 @@ NodeKind:
 
 Node:
   type: object
-  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, computed_fields, editable_fields, lock_version]
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, origin_risk_id, computed_fields, editable_fields, lock_version]
   description: >-
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps, les
@@ -636,6 +684,18 @@ Node:
         sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne
         (`NodeDifference`).
     level: { type: integer, minimum: 1 }
+    origin_risk_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      readOnly: true
+      description: >-
+        Le risque dont la survenance a fusionné ce nœud, tâche ou ligne, dans la structure
+        principale (WF-RIS-0060) ; nul pour tout autre. En lecture seule : la survenance le pose
+        sur chaque tâche et chaque ligne qu'elle fusionne, et aucune écriture ne le change. La
+        copie d'une révision, les déplacements, les imports qui rapprochent le nœud par sa lignée
+        (`lineage_id`) et la fusion d'un avenant le conservent ; une création le laisse nul, même
+        sous une tâche issue d'un risque. Il retrouve les lignes issues d'un risque survenu, que
+        les filtres `is_from_risk` et `origin_risk_ids` retiennent, et dont le réestimé se compare
+        au coût à la survenance (`Risk.occurred_reestimated_amount` ; #1761).
     task:
       anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
     estimate_line:
@@ -669,7 +729,12 @@ Node:
         son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
         (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou
         terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle
-        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ;
+        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une
+        ligne de la structure principale dont la tâche est terminée n'en nomme aucun, son libellé
+        compris : elle ne se modifie pas tant que la tâche n'est pas rouverte depuis le Kanban
+        (`task_not_completed`, WF-RAE-0040, WF-DEV-0050), son reste à engager relevant de
+        `remaining_entry` — une ligne d'un différentiel les nomme quel que soit l'état de sa
+        tâche, l'avenant la rebudgétant (WF-REV-0050 ; F-01, #1766) — ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni mode, ni durée, ni dates, ni avancement (WF-PLA-0040,
         WF-PLA-0130). Un champ
@@ -716,19 +781,33 @@ NodeDifference:
 NodeChange:
   type: string
   enum:
-    [dates, duration, progress, budgeted_amount, reestimated_amount, payment_delay_days, parent]
+    - dates
+    - duration
+    - progress
+    - budgeted_amount
+    - reestimated_amount
+    - payment_delay_days
+    - subproject
+    - cost_category
+    - parent
   description: >-
     Ce qui change d'un nœud présent des deux côtés (WF-REV-0080) : pour une tâche, ses dates, sa
     durée, son état d'avancement et son parent — « Une tâche déplacée sous une autre
     récapitulative est présentée modifiée » — ; pour une ligne de devis, ses montants budgété et
     réestimé, qui disent ses grandeurs, son délai de paiement, qui déplace ses décaissements sans
-    changer aucun montant (WF-DEV-0020, WF-IND-0100 ; #1566), et son parent, la tâche qui la
-    porte. Le montant d'une tâche est celui de ses lignes, qui le disent.
+    changer aucun montant (WF-DEV-0020, WF-IND-0100 ; #1566), son sous-projet (`subproject`) et sa
+    catégorie de coût (`cost_category`), qui changent la clé sous laquelle elle compte ses écarts
+    même à montant inchangé — une catégorie qui change peut changer sa nature
+    (`RevisionComparison.amount_deltas`, #1751) —, et son parent, la tâche qui la porte. Une ligne
+    qui change de sous-projet ou de catégorie est donc `modified`, et « Écarts seulement »
+    (`difference`) la retient. Le montant d'une tâche est celui de ses lignes, qui le disent.
 
 KanbanTask:
   description: >-
     Une tâche du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et les gestes que sa
-    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090).
+    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090). Une
+    récapitulative qui n'attend plus que ses lignes propres le dit par sa facette
+    (`TaskFacet.awaiting_own_lines`), que la carte signale (WF-PLA-0040 ; #1774).
   allOf:
     - $ref: '#/Node'
     - type: object
@@ -1143,7 +1222,11 @@ NodesWritten:
         Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds
         écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —,
         recalculés : montants,
-        dates, durée, avancement, marge et criticité d'une récapitulative. Chacun une fois,
+        dates, durée, avancement, marge et criticité d'une récapitulative, et son attente de ses
+        seules lignes propres (`TaskFacet.awaiting_own_lines`) — la réestimation ou la
+        terminaison qui achève sa dernière subordonnée fait paraître le signal sans relecture,
+        celle qui ramène à zéro sa dernière ligne propre le fait disparaître, la récapitulative se
+        terminant (WF-PLA-0040 ; #1774). Chacun une fois,
         entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une
         récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient —
         une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est
@@ -1349,6 +1432,7 @@ TaskFacet:
     - finish
     - progress
     - finish_overdue
+    - awaiting_own_lines
     - is_summary
     - is_milestone
     - calendar_hours
@@ -1386,6 +1470,16 @@ TaskFacet:
       description: >-
         Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de
         calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon.
+    awaiting_own_lines:
+      type: boolean
+      description: >-
+        Calculé, toujours rendu : vrai pour une récapitulative démarrée dont toutes les
+        subordonnées sont terminées et dont une ligne propre hors provision garde un reste à
+        engager (WF-PLA-0040) ; la grille de reste à engager et le Kanban la signalent, ainsi que
+        ses lignes propres hors provision, seules lignes ouvertes de la phase, selon l'échelle
+        commune (WF-IHM-0070). Faux pour toute autre tâche. Le signal des lignes est porté par
+        leur tâche : le front signale les lignes propres hors provision d'une tâche dont ce
+        drapeau est vrai (F-05, #1774).
     started_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-
@@ -1789,7 +1883,11 @@ NodeCreate:
     parent visé — un nœud d'un autre parent, ou qui n'est pas de la structure — est refusé par
     422 `VALIDATION_FAILED`, `fields[].pointer` à `/after_node_id`, motif `NODE_NOT_SIBLING`,
     rien n'étant écrit : la grille désigne la place par le nœud qu'elle lit, jamais par un rang
-    qu'une lecture filtrée ne lui permet pas de compter (#1183).
+    qu'une lecture filtrée ne lui permet pas de compter (#1183). Une tâche créée sous un jalon,
+    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`, `fields[].pointer`
+    à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params` nommant le jalon
+    (`node_id`, `label`), rien n'étant écrit ; une ligne de devis sous un jalon est permise
+    (WF-PLA-0050 ; F-04, #1771).
   properties:
     kind: { $ref: '#/NodeKind' }
     parent_id:
@@ -1805,9 +1903,12 @@ TaskFacetWrite:
   description: >-
     Champs saisissables d'une tâche, à sa création (WF-PLA-0130). Les valeurs calculées sont
     refusées. La durée se saisit dans son unité (WF-PLA-0160) ; le début et la fin,
-    saisissables en mode manuel, sont une date et des heures de travail écoulées
-    (WF-DAT-0100) ; une date sur un jour sans aucune heure travaillée au calendrier de la
-    tâche — sans ligne de main-d'œuvre, le calendrier par défaut (WF-PLA-0010) — est refusée,
+    saisissables en mode manuel, se saisissent comme à la modification (`WorkInstantWrite`) :
+    sans leurs heures, que le serveur complète sur le calendrier de la tâche — le calendrier par
+    défaut pour une tâche créée sans ligne (WF-PLA-0010) —, et que la lecture rend complétées
+    (`WorkInstant`, WF-DAT-0100 ; `node_created_manual`, #1769) ; des heures envoyées hors du
+    jour sont refusées, `/task/start/hours` ou `/task/finish/hours` par `VALUE_OUT_OF_RANGE`.
+    Une date sur un jour sans aucune heure travaillée au calendrier de la tâche est refusée,
     nommant le jour travaillé suivant (`NON_WORKING_DAY`, WF-PLA-0020), comme à la modification
     (`TaskFacetUpdate` ; #1345). Le rattachement à un lot ou à un poste est accepté de toute
     tâche de la structure principale et suit les règles de `TaskFacetUpdate`, le parent de la
@@ -1820,9 +1921,9 @@ TaskFacetWrite:
     scheduling_mode: { $ref: '#/SchedulingMode' }
     duration: { $ref: '#/Duration' }
     start:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     finish:
-      anyOf: [{ $ref: ../common.yaml#/WorkInstant }, { type: 'null' }]
+      anyOf: [{ $ref: ../common.yaml#/WorkInstantWrite }, { type: 'null' }]
     order_item_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
     work_package_id:
@@ -1835,9 +1936,9 @@ TaskFacetUpdate:
   description: >-
     Modification d'une tâche, cellule par cellule (WF-IHM-0040) : seul le compteur lu est
     exigé, tout autre champ est facultatif, et seul ce qui est envoyé change — un champ absent
-    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`), à ceci près que
-    le début et la fin se saisissent sans leurs heures, que le serveur complète sur le
-    calendrier de la tâche (`WorkInstantWrite`, #1244), et qu'une date sur un jour sans heure
+    reste ce qu'il était. Les mêmes champs qu'à la création (`TaskFacetWrite`) : le début et la
+    fin se saisissent sans leurs heures, que le serveur complète sur le calendrier de la tâche
+    (`WorkInstantWrite`, #1244, #1769), et une date sur un jour sans heure
     travaillée à ce calendrier est refusée, nommant le jour travaillé suivant (`NON_WORKING_DAY`,
     WF-PLA-0020 ; #1271) ; une valeur
     que le serveur calcule pour ce nœud est refusée (`COMPUTED_VALUE`, WF-IHM-0030) — ainsi le
@@ -1974,7 +2075,7 @@ EstimateLineUpdate:
         Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de
         provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
         422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
-        (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
+        (`updateRiskProvision`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
         Une ligne dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu
         des coûts réels, une part de ces coûts lui revenant : la passer à un autre sous-projet ou
         hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
@@ -2017,7 +2118,11 @@ NodeMove:
     `NODE_NOT_SIBLING`, rien ne bougeant (#1183). Une ligne de provision parmi `node_ids` est
     refusée par 422 `VALIDATION_FAILED`, `fields[].pointer` sur elle, motif
     `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant son risque : sa tâche se
-    désigne par le formulaire du risque (WF-RIS-0010 ; #1227).
+    désigne par le formulaire du risque (WF-RIS-0010 ; #1227). Une tâche déplacée sous un jalon,
+    qui ne porte pas de sous-tâches, est refusée par 422 `VALIDATION_FAILED`,
+    `fields[].pointer` à `/parent_id`, motif `MILESTONE_HAS_NO_SUBTASK`, `fields[].params`
+    nommant le jalon (`node_id`, `label`), rien ne bougeant ; une ligne de devis déplacée sous
+    un jalon est permise (WF-PLA-0050 ; F-04, #1771).
   properties:
     node_ids:
       type: array
@@ -2095,10 +2200,12 @@ UndoResult:
     (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une
     autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une
     modification postérieure porte sur le même objet, `UNDO_CONFLICT` le nommant (WF-IHM-0110). Les saisies de risque —
-    création, modification, réexamen, suppression — sont dans le même historique que celles des
-    grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute
+    création, changement de la provision, réexamen, suppression — sont dans le même historique que
+    celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
+    La modification de l'identité d'un risque, donnée du projet, n'y entre pas (`updateRisk` ;
+    H-02, #1782). Toute
     annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision
-    d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la
+    d'un risque créé ou supprimé, ou dont la provision a changé, ou à une ligne de devis par une écriture de la grille, la
     suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409
     `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne
     défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
@@ -2196,7 +2303,10 @@ PastePreview:
     elle est vide, qui n'écrit rien — un champ calculé pour ce nœud par `COMPUTED_VALUE`, un
     champ que sa nature refuse ou une colonne qu'aucune écriture ne porte, comme les montants,
     par `FIELD_NOT_ACCEPTED` (EP-14/L42s) ; le sous-projet d'une ligne qui ne peut pas le
-    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`). Un bloc plus large que les
+    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`) ; toute colonne d'une ligne de
+    la structure principale dont la tâche est terminée, qui n'en accepte aucune, par
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la ligne n'étant
+    pas écrite (WF-RAE-0040 ; F-01, #1766). Un bloc plus large que les
     colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`,
     `params.max_columns`).
   properties:
@@ -2249,7 +2359,7 @@ PasteRejection:
     la confirmation, que si elle change la catégorie ou le rôle de sa ligne : celle qui nomme la
     catégorie ou le rôle que la ligne porte déjà, désactivés depuis, ne change rien et n'est pas
     refusée, comme le parent d'un nœud, la catégorie d'un rôle ou celle d'un risque
-    (`updateOrgNode`, `updateResourceRole`, `updateRisk` ; EP-14/L42j, #747). Une
+    (`updateOrgNode`, `updateResourceRole`, `updateRiskProvision` ; EP-14/L42j, #747). Une
     cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis
     propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
     n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche
@@ -2268,7 +2378,16 @@ PasteRejection:
     rôles et la tâche comme le refus d'une saisie (`resource_role_ids`, `tasks`), et la ligne n'est
     pas écrite (WF-PLA-0010 ; #779). Un collage dont la cellule visée est sur un nœud retiré par
     le différentiel est refusé entier par `PASTE_TARGET_REMOVED`, un seul refus, à la ligne `0`,
-    sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361).
+    sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361). Une
+    ligne du bloc qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est
+    refusée par `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon (`node_id`, `label`), et
+    n'est pas écrite ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04, #1771).
+    Une cellule non vide collée sur une ligne de la structure principale dont la tâche est
+    terminée — une ligne qui ne nomme aucun champ dans `editable_fields` — est refusée par
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la tâche se
+    rouvrant d'abord depuis le Kanban, et la ligne n'est pas écrite ; une cellule vide n'écrit
+    rien et n'est pas refusée. Sur un différentiel, une telle ligne se colle comme une autre,
+    l'avenant la rebudgétant (WF-RAE-0040, WF-REV-0050 ; F-01, #1766).
   properties:
     row:
       type: integer
@@ -2376,7 +2495,14 @@ RevisionComparison:
         retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue,
         selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y
         apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la
-        révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux
+        révision de base, où qu'elle fût dans celle-ci. Une ligne compte sous la clé qu'elle porte
+        dans chaque révision : son montant dans la révision comparée sous sa nature et son
+        sous-projet d'alors, moins son montant dans la révision de base sous les siens. Une ligne
+        qui change de nature ou de sous-projet compte donc son montant entier en moins sous
+        l'ancienne clé et en plus sous la nouvelle, même quand son montant ne change pas ; l'offre
+        sans sous-projet comparée à la référence en est l'exemple (`comparison`). L'écart d'une clé
+        est ainsi la différence de ses totaux entre les deux révisions, et la somme des écarts par
+        sous-projet égale celle par nature (#1751). Une nature ou un sous-projet dont les deux
         écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte
         donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul
         montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait.
@@ -2405,15 +2531,20 @@ RevisionComparison:
               comparé (`EstimateIndicators.delta_to_reference`). La comparaison d'une révision
               obtenue par fusion d'un différentiel avec la révision marquée qui la précède, sans
               autre modification entre les deux, restitue exactement les montants budgétés de ce
-              différentiel.
+              différentiel, quelle que soit l'année de référence de chacune (WF-REV-0080, #1754).
           reestimated_delta:
             allOf: [{ $ref: ../common.yaml#/Money }]
             description: >-
               L'écart des montants réestimés de la nature ou du sous-projet, inflation comprise,
-              dans le même sens (WF-REV-0080). Après une fusion, il ne vient que des lignes que le
-              différentiel ajoute ou retire, de celles des tâches démarrées qu'il termine et de
-              celles dont il change l'année de consommation : une ligne existante dont le
-              différentiel ne modifie que le montant budgété n'y apporte rien.
+              dans le même sens (WF-REV-0080). Entre deux révisions de même année de référence, il
+              ne vient, après une fusion, que des lignes que le différentiel ajoute ou retire, de
+              celles des tâches démarrées qu'il termine et de celles dont il change l'année de
+              consommation : une ligne existante dont le différentiel ne modifie que le montant
+              budgété n'y apporte rien. Entre deux révisions d'années de référence différentes, il
+              vient aussi de chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la
+              nouvelle année de référence (WF-REV-0060), les montants budgétés restant ceux du
+              différentiel ; l'offre de 2025 comparée à la référence de 2026 en est l'exemple
+              (`comparison`, #1754).
 
 ComparedNodeRead:
   type: object

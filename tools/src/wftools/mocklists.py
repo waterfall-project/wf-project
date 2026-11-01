@@ -75,8 +75,8 @@ PROJECT_STATES = ("created", "pricing", "in_progress", "completed", "lost", "aba
 """The states of a project in the order of `ProjectState`, that of the life cycle (WF-CYC-0010)."""
 
 DEFAULT_STATES = ("in_progress",)
-"""The states a list of projects retains when it names none: the projects in progress, the
-default of the perimeter of the portfolio, whose parameter it shares (WF-PTF-0010)."""
+"""The states a list of projects retains when it names none: the projects in progress, by a
+parameter of its own, which retains every state it names (`ProjectStates`, #1747)."""
 
 CONTRIBUTOR_KINDS = ("project_manager", "contributor")
 """The capacities of a contributor in the order of `ContributorKind`: project managers first."""
@@ -927,8 +927,8 @@ def examples() -> dict[str, JsonObject]:
     start, end = PERIOD
     return {
         "projects_default_states.json": _example(
-            f"Les projets lus sans état nommé : les projets en cours seuls, le défaut du périmètre "
-            f"du portefeuille (WF-PTF-0010) : "
+            f"Les projets lus sans état nommé : les projets en cours seuls, le défaut de la liste, "
+            f"qui retient sinon tout état nommé (ProjectStates) : "
             f"{_labels(cast('list[JsonObject]', default['items']))}, les projets d'un autre état "
             f"écartés ; meta.states nomme l'état retenu, que l'écran montre sans le deviner "
             f"(WF-IHM-0130).",

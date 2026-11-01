@@ -35,7 +35,7 @@ export type RemainingIndicators = components["schemas"]["RemainingIndicators"];
 /** The name of a key of a breakdown: the label the server gives, « out of any sub-project ». */
 function useKeyName() {
   const t = useTranslations();
-  return (item: { readonly key: string; readonly label?: string }) =>
+  return (item: { readonly key: string; readonly label?: string | null }) =>
     item.label ??
     (item.key === UNASSIGNED ? t("enums.Scope.unassigned") : t("remainingSummary.unnamed"));
 }
@@ -61,10 +61,10 @@ function Figures({
       <FiguresCard title={t("title")} context={context}>
         <FiguresList>
           <ComputedTotal name={t("total")} amount={indicators.total} />
-          {reference === null || reference === undefined ? null : (
+          {reference === null ? null : (
             <ComputedTotal name={t("deltaToReference")} amount={reference} />
           )}
-          {previous === null || previous === undefined ? null : (
+          {previous === null ? null : (
             <ComputedTotal name={t("deltaToPrevious")} amount={previous} />
           )}
         </FiguresList>

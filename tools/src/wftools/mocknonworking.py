@@ -13,19 +13,23 @@ report by one sentence. The day is judged on the applicable calendar of the comm
 the same date in a planning exported today and imported back, the commissioning made manual in
 it, which the report keeps and signals. A task created in manual mode with the same start is
 refused alike (#1345): « une date saisie » is not bound to the modification, and a task created
-without any labour line is judged on the default calendar (WF-PLA-0010).
+without any labour line is judged on the default calendar (WF-PLA-0010). Sent on the days of work
+that follow, without their hours, it is created, the server completing the hours on that calendar
+(``node_created_manual``; the decision of the author of 2026-11-01, F-03, #1769).
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from typing import TYPE_CHECKING, Any, cast
 
 from wftools import mockcore, mockdating, mocktext
-from wftools.mockexchanges import main_structure, opened_on
+from wftools.mockexchanges import import_commands, main_structure, opened_on
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import described
-from wftools.mockwitness import N, default_calendar, fixture
+from wftools.mockwitness import CORE, N, Task, default_calendar, fixture
+from wftools.mockwrites import amended, core_write
 
 if TYPE_CHECKING:
     from wftools.mockcalendar import Calendar
@@ -43,6 +47,9 @@ PLANNING_START_CORRELATION = universe(1593)
 
 CREATED_LABEL = "Réception provisoire sur site"
 """The task created in manual mode with its start on SATURDAY, under the installation on site."""
+
+CREATED_MANUAL = 594
+"""The node of the task created in manual mode on the days of work after SATURDAY (#1769)."""
 
 _WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 
@@ -111,6 +118,41 @@ def node_create_non_working_day() -> JsonObject:
         ],
         "correlation_id": CREATED_CORRELATION,
     }
+
+
+def created_manual_dates() -> tuple[date, date]:
+    """Return the dates the task created in manual mode is sent with, without their hours.
+
+    The day of work that follows SATURDAY on the default calendar, the one the refusal names, and
+    the second day of work after it: three days of work.
+    """
+    on = default_calendar()
+    start = on.next_working_day(SATURDAY)
+    finish = on.next_working_day(on.next_working_day(start))
+    return start, finish
+
+
+def created_manual() -> Task:
+    """Return the task created in manual mode at the dates sent, not started (WF-RAE-0030)."""
+    return Task(
+        CREATED_MANUAL, CREATED_LABEL, manual=created_manual_dates(), progress="not_started"
+    )
+
+
+def node_created_manual() -> JsonObject:
+    """Return what createNode answers to that task created on days of work, without hours.
+
+    Its start and finish are sent by their date alone (`WorkInstantWrite`): the server completes
+    their hours on its calendar, the default one, the task bearing no line (WF-PLA-0010), and
+    the answer renders them completed (#1769).
+    """
+
+    def add(each: Task) -> Task:
+        if each.number != N.INSTALLATION:
+            return each
+        return replace(each, children=(*each.children, created_manual()))
+
+    return core_write(amended(CORE, add), [CREATED_MANUAL])
 
 
 # --- The same date imported from MS Project ----------------------------------------------------
@@ -259,6 +301,7 @@ def import_planning_non_working_day() -> JsonObject:
             "problem": None,
             "result_url": None,
         },
+        "available_commands": import_commands("analysed", import_report()),
     }
 
 
@@ -280,7 +323,25 @@ def examples() -> dict[str, JsonObject]:
     start_following = date.fromisoformat(start["params"]["next_working_day"])
     report = cast("dict[str, list[dict[str, Any]]]", imported["report"])
     [ignored] = report["ignored"]
+    start, finish = created_manual_dates()
+    written = node_created_manual()
+    [task] = [
+        node
+        for node in cast("list[dict[str, Any]]", written["nodes"])
+        if node["node_id"] == universe(CREATED_MANUAL)
+    ]
     return {
+        "node_created_manual.json": mocktext.example(
+            f"La même tâche « {CREATED_LABEL} » créée en mode manuel sous l'« Installation sur "
+            f"site », son début envoyé {said(start)} et sa fin {said(finish)}, par leur seule "
+            f"date, sans heures (WorkInstantWrite) : le serveur les complète sur le calendrier de "
+            f"la tâche, le calendrier par défaut, la tâche ne portant aucune ligne — le début à "
+            f"{task['task']['start']['hours']} h, au début de son jour, la fin à "
+            f"{task['task']['finish']['hours']} h, au bout des heures du jour. Non démarrée, à sa "
+            f"première version ; avec elle, ses ancêtres et les totaux de la structure "
+            f"(WF-PLA-0020, WF-PLA-0010, #1769).",
+            written,
+        ),
         "task_date_non_working_day.json": mocktext.example(
             f"Le début de la « {commissioning} », en mode manuel (task_mode_changed), envoyé "
             f"{said(SATURDAY)}, un jour sans heure travaillée au calendrier de la tâche : la date "

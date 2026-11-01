@@ -2138,7 +2138,7 @@ elles en dépendent. Les filtres de colonnes des grilles (F-06) ne sont pas de l
 
 ## US-0704 — Le contrat suit les majeurs de la revue du 2026-10-31
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : celles que citent les constats tranchés, nommées par chaque issue « contrat »
 - **opérations** : celles que nomment les issues « contrat » rattachées à #1735
 - **issue** : #1735

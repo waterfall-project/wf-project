@@ -543,8 +543,14 @@ Past the journal, its sequels and the variants of the journal written by hand
 (``audit_events_anonymized_*``): the administration is a variant of its own, whose identifiers and
 correlations no other example gives (#961)."""
 
-IDENTITY = ("last_name", "first_name", "email")
-"""The fields of the identity of an account, in the order of the account (`AuditUserField`)."""
+ACCOUNT_FIELDS = ("last_name", "first_name", "email", "org_node_id")
+"""The fields of an account a modification names, in the order of the account (`AuditUserField`):
+its identity, and its attachment to a node of the organisation (#1739)."""
+
+ATTACHED_NODE = "Bureau d'études électricité"
+"""The node of the organisation the administration attaches the account of Léa Garnier to, once she
+holds her first role: a modification of her attachment alone no example of updateUser answers, a
+liberty of that variant (#1739)."""
 
 WITHDRAWN = ("cost_settings.write", "resource_settings.write")
 """The permissions the modification of the administration withdraws from « Manager », in the order
@@ -625,10 +631,11 @@ def _administered_roles() -> list[Inscription]:
 def _administered_accounts() -> list[Inscription]:
     """Return the accounts the administration of today creates, modifies and takes roles from.
 
-    Léa Garnier created a local account (`user_created`) with her first role, « Chiffreur », which
-    the request that creates her gives her and inscribes after her creation, under its correlation:
-    a creation with a first role no example of createUser answers — each creates its account without
-    any role —, a liberty of this variant;
+    Léa Garnier created a local account (`user_created`), born without a role (#1731), then
+    given her first role, « Chiffreur », by setUserAccessRoles, a request of its own after the
+    creation: a first attribution no example of setUserAccessRoles answers, a liberty of this
+    variant; then attached to a node of the organisation (``ATTACHED_NODE``), a modification of
+    her attachment alone no example of updateUser answers, a liberty of this variant (#1739);
     the name of Lucas Petit corrected (`user_renamed`); Noé Vidal, as the list of the accounts has
     him, attached by the platform to the person of the directory who holds his address, under the
     name the directory gives him (``DIRECTORY_LAST_NAME``), from the directory from now on (#707):
@@ -642,25 +649,25 @@ def _administered_accounts() -> list[Inscription]:
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
     [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
+    [node] = [each for each in fixture("org_nodes") if each["label"] == ATTACHED_NODE]
     attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
+    placed = {**created, "org_node_id": node["org_node_id"]}
     actor = _updater(created)
 
-    def changed(after: JsonObject) -> list[JsonValue]:
-        before = users[after["user_id"]]
-        return [name for name in IDENTITY if after[name] != before[name]]
+    def changed(after: JsonObject, before: JsonObject | None = None) -> list[JsonValue]:
+        earlier = users[after["user_id"]] if before is None else before
+        return [name for name in ACCOUNT_FIELDS if after[name] != earlier[name]]
 
     held = cast("list[str]", users[cleared["user_id"]]["access_role_ids"])
     return [
         _account(created, "user_create", actor, {"origin": created["origin"]}),
-        replace(
-            _account(
-                created,
-                "user_access_roles_set",
-                actor,
-                {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
-            ),
-            joined=True,
+        _account(
+            created,
+            "user_access_roles_set",
+            actor,
+            {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
         ),
+        _account(placed, "user_update", actor, {"fields": changed(placed, created)}),
         _account(
             renamed,
             "user_update",
@@ -690,8 +697,7 @@ def administration() -> list[JsonObject]:
     """Return the administration of the accounts and the roles of today, the latest first.
 
     A variant of the journal, each write of today on an account or a role a request of its own,
-    at the instant of today, save the first role of an account created, inscribed by the request
-    that creates it (``joined``). Numbered from ``ADMINISTERED``, its requests too.
+    at the instant of today. Numbered from ``ADMINISTERED``, its requests too.
     """
     events: list[JsonObject] = []
     request = ADMINISTERED - 1
@@ -911,9 +917,11 @@ def examples() -> dict[str, JsonObject]:
             "« Manager » renommé « Responsable d'équipe », doté de la modification de la "
             "planification et privé de celle des paramètres de coûts et de ressources par une "
             "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
-            "compte local de Léa Garnier créé avec son premier rôle, « Chiffreur », que la "
-            "requête de la création inscrit après elle, sous sa corrélation : une création avec "
-            "premier rôle qu'aucun exemple de createUser ne répond ; le nom de Lucas "
+            "compte local de Léa Garnier créé sans rôle, puis doté de son premier rôle, "
+            "« Chiffreur », par une attribution à elle : une première attribution qu'aucun "
+            "exemple de setUserAccessRoles ne répond, puis rattachée au nœud "
+            f"« {ATTACHED_NODE} », une modification du seul rattachement qu'aucun exemple "
+            "d'updateUser ne répond ; le nom de Lucas "
             "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
             "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
             f"donne, « {DIRECTORY_LAST_NAME} », et venu de l'annuaire désormais : un "

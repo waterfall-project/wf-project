@@ -9,8 +9,12 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - a risk declared today, its own structure opened empty with it — its severity and its provision
   nought until its own estimate is priced in the grid of estimate — and its line of provision on
   the first task of the first level, no task designated (``risk_created``, WF-RIS-0010, #786);
-- that risk modified, its line of provision moved to the task its form designates, the total of
-  the estimate unchanged (``risk_updated``);
+- that risk modified, its actions of mitigation entered, a data of the project
+  (``risk_updated``), then its line of provision moved to the task its form designates, the
+  total of the estimate unchanged, an entry of the current revision (``risk_provision_moved``;
+  H-02, #1782); and the rework of the wiring modified the same way once the revision 102 is
+  abandoned, the project without a current revision, which creates none
+  (``risk_updated_without_current_revision``);
 - the rework of the wiring confirmed today without a change, a review dated of today
   (``risk_reviewed``, WF-RIS-0010), and its reviews read after it (``risk_reviews_reviewed``);
 - the rework of the wiring dismissed today instead, a counterfactual, its line of provision
@@ -57,7 +61,7 @@ from wftools.mockhistory import (
 )
 from wftools.mockids import universe
 from wftools.mockstructure import described
-from wftools.mockwitness import REWORK_ESTIMATE, TODAY, N, lineage_id
+from wftools.mockwitness import AMENDMENT_MERGED, REWORK_ESTIMATE, TODAY, N, fixture, lineage_id
 from wftools.mockwitnessrisks import (
     AUTOMATION_ENGINEER,
     DELIVERY_DELAY,
@@ -120,15 +124,69 @@ def risk_created() -> JsonObject:
 
 
 def risk_updated() -> JsonObject:
-    """Return what updateRisk answers when the risk declared moves its provision to the mounting.
+    """Return what updateRisk answers when the risk declared receives its actions of mitigation.
 
-    It follows the declaration (``risk_created``), one version further; its line stays its line,
-    the provision unchanged (WF-RIS-0010).
+    It follows the declaration (``risk_created``), one version further: its identity alone, a data
+    of the project, its provision where the declaration put it (WF-RIS-0020; H-02, #1782).
+    """
+    changed = replace(DECLARED, mitigation_notes=MITIGATION)
+    item = risk_item(changed, _budget(), first_root())
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {**item, "audit": audit, "lock_version": 2}
+
+
+UNVERSIONED_MITIGATION = (
+    "Contrôle du câblage en atelier avant expédition ; essais de continuité et d'isolement "
+    "systématiques."
+)
+"""The actions of mitigation the rework of the wiring receives once the revision 102 is abandoned:
+its identity, a data of the project, entered without a current revision (H-02, #1782)."""
+
+
+def risk_updated_without_current_revision() -> JsonObject:
+    """Return what updateRisk answers on the rework of the wiring, the revision 102 just abandoned.
+
+    The project of ``project_without_current_revision``: the risk back at its evaluation in the
+    reference 101, the last marked revision — its review of 12 January, its own structure there,
+    its line of provision under the task that bore it —, its actions of mitigation entered. No
+    revision is created, nothing enters the history of undo; its counter, never going back, goes
+    on past its four versions of today, one for the abandon, one for this modification (H-02,
+    #1782; ``abandonRevision``).
+    """
+    marked = AMENDMENT_MERGED.instant
+    own = next(
+        structure["structure_id"]
+        for structure in fixture("structures_amendments")
+        if structure.get("risk_id") == universe(REWORK.number)
+    )
+    reverted = replace(
+        REWORK,
+        mitigation_notes=UNVERSIONED_MITIGATION,
+        reviews=tuple(review for review in REWORK.reviews if review.at <= marked),
+    )
+    rows = {row.number: row for row in reference_rows()}
+    bearer = cast("int", rows[cast("int", REWORK.reference_provision_line)].parent)
+    item = risk_item(reverted, _budget(), bearer)
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {
+        **item,
+        "structure_id": own,
+        "provision_task": {"node_id": universe(bearer), "label": rows[bearer].label},
+        "audit": audit,
+        "lock_version": len(REWORK.reviews) + 3,
+    }
+
+
+def risk_provision_moved() -> JsonObject:
+    """Return what updateRiskProvision answers when that risk moves its provision to the mounting.
+
+    It follows the modification (``risk_updated``), one version further, the counter of the risk
+    being one (H-02, #1782); its line stays its line, the provision unchanged (WF-RIS-0010).
     """
     changed = replace(DECLARED, mitigation_notes=MITIGATION)
     item = risk_item(changed, _budget(), DESIGNATED)
     audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
-    return {**item, "audit": audit, "lock_version": 2}
+    return {**item, "audit": audit, "lock_version": 3}
 
 
 def _reviewed(risk: Risk, state: str) -> Risk:
@@ -316,7 +374,7 @@ def risk_estimate() -> list[mockcore.Row]:
 
     It has no previous review: an own estimate has no remaining to commit (WF-RAE-0040).
     """
-    return mockcore.core(REWORK_ESTIMATE)
+    return mockcore.opened(mockcore.core(REWORK_ESTIMATE))
 
 
 def nodes_risk_estimate() -> JsonObject:
@@ -466,6 +524,23 @@ def _task_label(item: JsonObject) -> str:
     return cast("str", cast("JsonObject", item["provision_task"])["label"])
 
 
+def _without_current_revision_example() -> JsonObject:
+    """Return the example of the modification of an identity without a current revision."""
+    item = risk_updated_without_current_revision()
+    return mocktext.example(
+        f"« {REWORK.label} », modifié aujourd'hui sur le projet sans révision en cours "
+        f"(project_without_current_revision), la révision 102 abandonnée à 14 h 05 : ses "
+        f"actions de mitigation saisies, une donnée du projet. Aucune révision n'est créée, et "
+        f"la modification n'entre dans aucun historique d'annulation. Le risque se lit tel que "
+        f"la dernière révision marquée, la référence 101, le porte, l'abandon l'y ayant rendu : "
+        f"son évaluation du {mocktext.day(REWORK.reviews[0].at.date())}, sa structure propre de "
+        f"la référence et sa ligne de provision sous « {_task_label(item)} ». Son compteur, qui "
+        f"ne revient jamais en arrière, avance d'une version pour l'abandon et d'une pour la "
+        f"modification (WF-RIS-0020, #1782).",
+        item,
+    )
+
+
 def _reviews_examples() -> dict[str, JsonObject]:
     """Return the named examples of the reviews of a risk, by file name."""
     reviewed, dismissed, returned = risk_reviewed(), risk_dismissed(), risk_reidentified()
@@ -590,7 +665,7 @@ def _occurrence_examples() -> dict[str, JsonObject]:
 
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the entries of a risk, by file name."""
-    created, updated = risk_created(), risk_updated()
+    created, updated, moved = risk_created(), risk_updated(), risk_provision_moved()
     rows = {row.number: row for row in mockamendment.rows()}
     main = {row.number: row for row in mockcore.current()}
     provision = main[cast("int", REWORK.provision_line)]
@@ -614,11 +689,20 @@ def examples() -> dict[str, JsonObject]:
         ),
         "risk_updated.json": mocktext.example(
             f"« {DECLARED.label} », déclaré aujourd'hui (risk_created), modifié : ses actions de "
-            f"mitigation saisies, et sa ligne de provision déplacée sur la tâche que le formulaire "
-            f"désigne, « {_task_label(updated)} » (provision_task_id), le total du devis "
-            f"inchangé ; une version de plus, modifié après sa déclaration (audit.updated_at ; "
-            f"WF-RIS-0010, #786).",
+            f"mitigation saisies, une donnée du projet — ni révision créée, ni annulation, ni "
+            f"abandon qui la défasse —, sa ligne de provision toujours portée par « "
+            f"{_task_label(updated)} » ; une version de plus, modifié après sa déclaration "
+            f"(audit.updated_at ; WF-RIS-0020, #1782).",
             updated,
+        ),
+        "risk_updated_without_current_revision.json": _without_current_revision_example(),
+        "risk_provision_moved.json": mocktext.example(
+            f"« {DECLARED.label} », modifié (risk_updated), sa provision changée : sa ligne "
+            f"déplacée sur la tâche que le formulaire désigne, « {_task_label(moved)} » "
+            f"(provision_task_id), le total du devis inchangé ; une saisie de la révision en "
+            f"cours, annulable et que l'abandon défait ; une version de plus, le même compteur "
+            f"que la modification de son identité (WF-RIS-0010, WF-RIS-0020, #786, #1782).",
+            moved,
         ),
         **_reviews_examples(),
         "task_occurrence_queued.json": mocktext.example(

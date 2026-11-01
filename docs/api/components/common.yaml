@@ -58,7 +58,8 @@ WorkInstantWrite:
   type: object
   required: [date]
   description: >-
-    Début ou fin d'une tâche saisis (`TaskFacetUpdate`, WF-PLA-0020) : la date, et
+    Début ou fin d'une tâche saisis, à la création comme à la modification (`TaskFacetWrite`,
+    `TaskFacetUpdate`, WF-PLA-0020 ; #1769) : la date, et
     facultativement les heures de travail écoulées ce jour-là (WF-DAT-0100). Le client ne
     connaît pas le calendrier applicable (WF-PLA-0010) : sans `hours`, le serveur les
     complète sur ce calendrier, le début au début de son jour (`0`), la fin au bout des
@@ -66,11 +67,13 @@ WorkInstantWrite:
     heures. Une date sur un jour sans aucune heure travaillée au calendrier applicable est
     refusée, et le refus nomme le jour travaillé suivant ; rien n'est écrit (WF-PLA-0020 ;
     #1271) : 422 `VALIDATION_FAILED`, `fields` sur `/start/date` ou `/finish/date` par
-    `NON_WORKING_DAY`, `fields[].params.date` la date envoyée et `next_working_day` le jour
+    `NON_WORKING_DAY` — `/task/start/date` ou `/task/finish/date` à la création —,
+    `fields[].params.date` la date envoyée et `next_working_day` le jour
     travaillé suivant ; les heures envoyées avec elle ne sont pas jugées. Envoyées avec un jour
     travaillé, les heures sont prises telles quelles, jamais bornées : hors de `0` aux heures
     que le calendrier accorde ce jour-là, elles sont refusées par 422 `VALIDATION_FAILED`,
-    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE`,
+    `fields` sur `/start/hours` ou `/finish/hours` par `VALUE_OUT_OF_RANGE` —
+    `/task/start/hours` ou `/task/finish/hours` à la création —,
     `fields[].params.minimum` à `0` ou `maximum` aux heures du jour, la seule borne franchie,
     jamais nulle. La lecture rend toujours un `WorkInstant`, ses heures complétées ; une date
     importée d'un fichier MS Project un jour chômé y est gardée, le début et la fin à `0`, et le
@@ -339,8 +342,10 @@ Problem:
         paramètres au signalement d'une telle date importée (`ImportSignal.params`) ;
         `missing_parts`, les numéros, en tableau d'entiers, des morceaux qu'un dépôt par morceaux
         n'a pas reçus (`completeChunkedUpload`, `STATE_FORBIDS_OPERATION`, WF-ADM-0160) ;
-        `max_length`, dans `fields[].params`, le plus grand nombre de caractères qu'admet le code
-        d'un sous-projet trop long (`VALUE_TOO_LONG`, `31`, WF-PRJ-0050), et
+        `max_length`, dans `fields[].params`, qui accompagne tout `VALUE_TOO_LONG` : la borne du
+        champ refusé, le plus grand nombre de caractères qu'admet un texte (`maxLength`) ou
+        d'éléments qu'admet une liste (`maxItems`) — `50` pour le code d'un projet, `31` pour
+        celui d'un sous-projet (WF-PRJ-0010, WF-PRJ-0050 ; J-02, #1796) —, et
         `forbidden_characters` ou `reserved_name`, ceux de `SUBPROJECT_CODE_INVALID` — et
         `forbidden_characters`, de `PROJECT_CODE_INVALID`, `["/"]` (`createProject`,
         `updateProject`, WF-PRJ-0010 ; D-07, US-0701/L9) — : les
@@ -438,8 +443,6 @@ ErrorCode:
     # (WF-REF-0030, WF-REF-0040) — sans `fields` quand la clé est celle du chemin, le taux d'une
     # catégorie et d'une année (`setHourlyRate`).
     - ALREADY_EXISTS
-    - CURRENT_REVISION_EXISTS
-    - REFERENCE_NOT_CORRECTABLE
     # Une annulation ou un rétablissement qui défairait une modification postérieure portée sur le
     # même objet — qu'un autre contributeur a depuis reprise — : `params.conflicting_object_id` et
     # `params.conflicting_object_label` nomment cet objet, une tâche, une ligne de devis ou un
@@ -516,12 +519,16 @@ ErrorCode:
     # dans la semaine ; aussi motif de rejet d'une ligne collée ou importée (WF-PLA-0010).
     - TASK_WITHOUT_WORKING_HOURS
     # Motifs par champ, par ligne collée ou importée (`fields`, `PastePlan`,
-    # `ImportRejection`).
+    # `ImportRejection`). `VALUE_TOO_LONG` porte toujours `params.max_length`, la borne du champ
+    # refusé, `maxLength` d'un texte ou `maxItems` d'une liste (J-02, #1796).
     - VALUE_REQUIRED
     - VALUE_TOO_LONG
     - VALUE_OUT_OF_RANGE
     - NUMBER_INVALID
     - DATE_INVALID
+    # Une catégorie de coût que le référentiel n'a pas ; aussi, à la mise à jour des taux, une
+    # catégorie que la proposition ne présente pas (`/cost_category_ids/<n>`, `applyRateUpdate`,
+    # `RateUpdateApply`, WF-REV-0060 ; E-03, #1755).
     - UNKNOWN_COST_CATEGORY
     # Une nature de coût que le référentiel n'a pas, donnée à une catégorie (`/cost_type_id`,
     # WF-REF-0040).
@@ -555,6 +562,12 @@ ErrorCode:
     # parent visé : un nœud d'un autre parent, l'un des nœuds déplacés, ou un nœud que la
     # structure n'a pas (`/after_node_id`, `createNode`, `moveNodes` ; #1183).
     - NODE_NOT_SIBLING
+    # Une tâche créée ou déplacée sous un jalon, qui ne porte pas de sous-tâches (`/parent_id`,
+    # `createNode`, `moveNodes`, WF-PLA-0050 ; F-04, #1771) : `fields[].params` nomme le jalon,
+    # `node_id` et `label` ; rien n'est écrit. Aussi le motif d'une ligne importée ou collée qui
+    # placerait une tâche sous un jalon (`ImportRejection`, `PasteRejection`), la ligne n'étant
+    # pas écrite. Une ligne de devis sous un jalon est permise.
+    - MILESTONE_HAS_NO_SUBTASK
     # Une entrée `milestone_tracking` envoyée pour une tâche qui n'est pas un jalon : le suivi
     # temps/temps est celui des jalons (`/entries/<n>/kind`, `setNodeTracking`, WF-PLA-0060 ;
     # #1159).
@@ -563,6 +576,9 @@ ErrorCode:
     # serveur n'a pas (`/entries/<n>/timeline_id`, `setNodeTracking`, WF-PLA-0060, WF-PLA-0140 ;
     # F-11, US-0702/L2).
     - UNKNOWN_TIMELINE
+    # Un risque nommé par le filtre des nœuds issus d'un risque qui n'est pas un risque survenu du
+    # projet (`/query/origin_risk_ids/<n>`, `listNodes`, `compareRevisions`, WF-RIS-0060 ; #1761).
+    - UNKNOWN_RISK
     # Un prédécesseur nommé deux fois dans les prédécesseurs envoyés pour une tâche : deux tâches
     # ne sont reliées que par une liaison au plus (`/predecessors/<n>/predecessor_node_id` de
     # chaque occurrence après la première, `setPredecessors`, WF-PLA-0030 ; F-03, US-0702/L2).
@@ -584,7 +600,7 @@ ErrorCode:
     # déclaration d'un risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
     # Une catégorie d'une nature d'un autre type que provision pour risques désignée pour la
-    # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRisk`,
+    # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRiskProvision`,
     # `reviewRisk`, WF-RIS-0010).
     - PROVISION_CATEGORY_REQUIRED
     # Une ligne de provision déplacée dans la grille : elle se déplace par le formulaire de son
@@ -681,7 +697,8 @@ ErrorCode:
     # (`/code`, `createSubproject`, `updateSubproject` ; WF-PRJ-0050, D-7, EP-16/US-0610) : il
     # porte un caractère interdit, `fields[].params.forbidden_characters` les nommant, ou vaut un
     # nom réservé, sans égard à la casse, `fields[].params.reserved_name` le nommant. Un code trop
-    # long est `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`.
+    # long est `VALUE_TOO_LONG`, `fields[].params.max_length` à `31`, comme tout `VALUE_TOO_LONG`
+    # porte la borne de son champ.
     - SUBPROJECT_CODE_INVALID
     # Un code projet qui porte une barre oblique, le seul séparateur de l'élément d'OTP qui le
     # porte (`/code`, `createProject`, `updateProject` ; `ProjectCode`, WF-PRJ-0010, WF-CRE-0020 ;

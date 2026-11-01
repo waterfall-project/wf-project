@@ -74,6 +74,8 @@ const SETUP_LINK = new RegExp(
     String.raw`^admin\.users\.resent$`,
     String.raw`^commands\.resend_invitation\.help$`,
     String.raw`^columns\.users\.resend_invitation\.help$`,
+    // The command of the account that has it sent again (`UserCommand`, A-04).
+    String.raw`^enums\.UserCommand\.resend_invitation$`,
   ].join("|"),
 );
 // What would set up a directory, or the federation of one: LDAP, its binding, the provider itself.

@@ -428,9 +428,9 @@ describe("the witness path", () => {
     expect(html).toMatch(/data-column="cost_category"[^>]*>Sous-traitance</);
   });
 
-  it("shows the grid without naming the roles when the API does not let the caller read them", async () => {
+  it("shows the grid without naming the roles when the API refuses them (403, the deactivated ones: any session reads the active ones, C-01)", async () => {
     const { html, grid } = await estimateWith({
-      "GET /reference/resource-roles": { problem: { code: "NOT_FOUND", status: 404 } },
+      "GET /reference/resource-roles": { problem: { code: "PERMISSION_MISSING", status: 403 } },
     });
     expect(grid?.reference.roles).toBeUndefined();
     expect(grid?.reference.categories).toHaveLength(200);

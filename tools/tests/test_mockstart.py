@@ -165,14 +165,15 @@ def test_the_contract_says_the_command_its_conditions_and_the_writes_it_chains()
     assert "## L'encart « Démarrer le projet » sur un projet sans révision" in decisions
 
 
-def test_the_opening_refused_says_the_revision_in_progress_by_its_code() -> None:
+def test_the_opening_refused_says_the_revision_in_progress_by_its_condition() -> None:
     # A second opening on the project created today, asked from a screen read before its revision
-    # 103 opened, is refused by the code of the catalogue, without parameter: the screen reads the
-    # project again (WF-REV-0010).
+    # 103 opened, is refused by the condition its command `create_revision` says beforehand, as
+    # every refusal of a state (J-01, #1795): the screen reads the project again (WF-REV-0010).
     refused = fixture("current_revision_exists")
     assert refused == {
-        "code": "CURRENT_REVISION_EXISTS",
+        "code": "STATE_FORBIDS_OPERATION",
         "status": 409,
+        "params": {"missing_condition": "no_current_revision"},
         "correlation_id": universe(1308),
     }
     summary = _summary("current_revision_exists")
@@ -183,7 +184,10 @@ def test_the_opening_refused_says_the_revision_in_progress_by_its_code() -> None
     said = block.split("'409':", 1)[1].split("'422':", 1)[0]
     example = "../../../fixtures/api/current_revision_exists.json"
     assert f"current_revision_exists: {{ $ref: {example} }}" in said
-    assert "`CURRENT_REVISION_EXISTS`" in _flat(said)
+    assert "`no_current_revision`" in _flat(said)
+    codes = (API / "components" / "common.yaml").read_text(encoding="utf-8")
+    assert "CURRENT_REVISION_EXISTS" not in codes
+    assert "REFERENCE_NOT_CORRECTABLE" not in codes
 
 
 def test_the_project_without_a_revision_names_the_background_task_that_creates_one() -> None:

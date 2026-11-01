@@ -156,7 +156,7 @@ export function PhysicalProgressCell({ node }: { readonly node: PlanningNode }) 
   if (progress === undefined || progress === null) {
     return null;
   }
-  if (progress.is_computable && progress.value !== undefined && progress.value !== null) {
+  if (progress.is_computable && progress.value !== null) {
     return formatShare(progress.value, locale, bounds);
   }
   // Not computable, said as such, and why when the API says it — seen and read with the cell,

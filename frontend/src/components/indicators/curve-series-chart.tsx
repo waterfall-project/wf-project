@@ -80,7 +80,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
       ? t("projectIndicators.curves.beforeStep", { series: name })
       : name;
   };
-  const steps = curves.steps ?? [];
+  const steps = curves.steps;
   const months = curves.cash_out_by_month ?? [];
   const caption = "text-left font-medium";
   return (
@@ -180,7 +180,7 @@ export function CurveSeriesChart({
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
       const tick = new Intl.NumberFormat(formatLocale(locale));
-      const steps = curves.steps ?? [];
+      const steps = curves.steps;
       const lines = curves.series.map((series, index) => ({
         name: t(`enums.CurveSeries.series.name.${series.name}`),
         ...curve(

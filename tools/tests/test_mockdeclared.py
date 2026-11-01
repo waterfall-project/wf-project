@@ -9,13 +9,15 @@ counter: each refusal has its code or its condition, said by its operation, and 
 requirement where it takes up its Vérif.
 """
 
+import json
 import re
+from decimal import Decimal
 from typing import Any, cast
 
 import pytest
 import yaml
 
-from wftools import REPOSITORY, mockdeclared
+from wftools import REPOSITORY, mockcore, mockdeclared, mockwitness
 from wftools.mockids import universe
 from wftools.mockwitness import N, fixture
 
@@ -144,6 +146,7 @@ def test_the_deletion_that_would_leave_a_provision_without_a_task_names_the_risk
     assert _cited("deleteNode", "409") == [
         "node_delete_started_refused",
         "node_delete_last_provision_task_refused",
+        "node_delete_line_completed_refused",
     ]
 
 
@@ -290,9 +293,13 @@ def test_a_task_deleted_leaves_its_provision_on_its_parent_task_and_the_quote_un
     assert line["parent_id"] == universe(N.INSTALLATION)
     ancestors = cast("list[Entry]", moved["ancestors"])
     assert [node["node_id"] for node in ancestors] == [universe(N.INSTALLATION)]
+    # The mounting takes its two lines with it, 12 600,00 for 160 h; the provision stays (#1768).
     totals = cast("Entry", moved["totals"])
-    assert totals["base_amount"] == before["totals"]["base_amount"]
-    assert totals["estimate_line_count"] == before["totals"]["estimate_line_count"]
+    assert Decimal(before["totals"]["base_amount"]) - Decimal(totals["base_amount"]) == Decimal(
+        "12600.00"
+    )
+    assert Decimal(before["totals"]["hours"]) - Decimal(totals["hours"]) == 160
+    assert totals["estimate_line_count"] == before["totals"]["estimate_line_count"] - 2
     assert totals == after["totals"]
     [was] = [node for node in before["items"] if node["node_id"] == line["node_id"]]
     assert was["parent_id"] == universe(N.MOUNTING)
@@ -306,3 +313,63 @@ def _cited_ok(operation: str) -> list[str]:
     """Return the examples the 200 of an operation cites, by their name in the contract."""
     answer = _operations()[operation]["responses"]["200"]
     return list(answer["content"]["application/json"]["examples"])
+
+
+def test_a_task_left_without_a_predecessor_keeps_its_progress() -> None:
+    # #1768 (F-02): the commissioning, which followed the mounting deleted, goes back to the start
+    # of the planning, in the past, not started still; its summary keeps its progress with it.
+    moved = cast("Entry", fixture("node_deleted_provision_moved"))
+    [placed] = [
+        entry for entry in moved["rescheduled"] if entry["node_id"] == universe(N.COMMISSIONING)
+    ]
+    assert placed["start"]["date"] == "2026-03-02"
+    read = _witness()
+    assert read[universe(N.COMMISSIONING)]["task"]["progress"] == "not_started"
+    [installation] = moved["ancestors"]
+    assert installation["task"]["progress"] == "not_started"
+    assert "started_on" not in installation["task"]
+    said = " ".join(_operations()["deleteNode"]["description"].split())
+    assert "sans changer d'état" in said
+
+
+def test_no_write_generated_changes_the_progress_of_a_task() -> None:
+    # #1768 (F-02): the invariant of the witness extends to every task, started or not — no
+    # write generated but the gestures of the Kanban changes the progress of a task it renders,
+    # nor redates a task started or completed (WF-RAE-0030, WF-PLA-0130). Each answer of a write
+    # of the grids is held to the reading of the witness, the nodes it shares with it.
+    gestures = set(_cited_ok("setTaskProgress"))
+    read = _witness()
+    tried = 0
+    for path in sorted(mockwitness.FIXTURES.glob("*.json")):
+        loaded: object = json.loads(path.read_text(encoding="utf-8"))["value"]
+        if not isinstance(loaded, dict):
+            continue
+        value = cast("Entry", loaded)
+        if not {"nodes", "ancestors", "rescheduled"} <= set(value):
+            continue
+        if path.stem in {_example_file(name) for name in gestures}:
+            continue
+        tried += 1
+        for node in [*value["nodes"], *value["ancestors"]]:
+            if node["kind"] == "task" and node["node_id"] in read:
+                was = read[node["node_id"]]["task"]["progress"]
+                assert node["task"]["progress"] == was, (path.name, node["node_id"])
+        for entry in value["rescheduled"]:
+            if entry["node_id"] in read:
+                was = read[entry["node_id"]]["task"]
+                if was["progress"] != "not_started":
+                    assert (entry["start"], entry["finish"]) == (was["start"], was["finish"])
+    assert tried > 30
+
+
+def _witness() -> dict[str, Entry]:
+    """Return the nodes of the witness read whole today, by identifier."""
+    items = cast("list[Entry]", mockcore.whole(mockcore.current())["items"])
+    return {node["node_id"]: node for node in items}
+
+
+def _example_file(name: str) -> str:
+    """Return the file an example of setTaskProgress names, from its name in the contract."""
+    answer = _operations()["setTaskProgress"]["responses"]["200"]
+    ref = answer["content"]["application/json"]["examples"][name]["$ref"]
+    return re.sub(r".*/(\w+)\.json$", r"\1", ref)

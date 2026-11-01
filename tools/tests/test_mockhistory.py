@@ -384,6 +384,11 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _amounts(node: Node) -> list[str]:
+    """Return what changed of a node besides its subproject, which moves none of its amounts."""
+    return [change for change in cast("list[str]", node["changes"]) if change != "subproject"]
+
+
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
     whole: Node,
 ) -> None:
@@ -418,19 +423,27 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
     assert core == {
         mockcore.lineage(526): ["dates", "duration"],
-        mockcore.lineage(553): ["budgeted_amount", "reestimated_amount"],
+        mockcore.lineage(553): ["budgeted_amount", "reestimated_amount", "subproject"],
+        # The offer bore no subproject, the reference puts the lines of the control station under
+        # theirs: each is modified by its subproject, its amounts kept or not (#1751).
+        mockcore.lineage(554): ["subproject"],
         # Not designated by the amendment: their budget is the offer's, their amount at the one
         # rate of 2026 of their category (#467, WF-DEV-0020).
-        mockcore.lineage(563): ["reestimated_amount"],
-        mockcore.lineage(566): ["reestimated_amount"],
+        mockcore.lineage(563): ["reestimated_amount", "subproject"],
+        mockcore.lineage(566): ["reestimated_amount", "subproject"],
     }
     # Every labour line drawn about the core is re-estimated at the rate of 2026 the same way, and
-    # nothing else of the drawn tasks changes: the offer dated them as the reference does.
-    drawn = {lineage: changes for lineage, changes in changed.items() if lineage not in core}
-    assert len(drawn) == 2_766
-    assert {tuple(cast("list[str]", changes)) for changes in drawn.values()} == {
-        ("reestimated_amount",)
+    # nothing else of the drawn tasks changes: the offer dated them as the reference does. Those
+    # the reference puts under a subproject change it besides, which moves none of their amounts
+    # (#1751).
+    drawn = {
+        lineage: [change for change in cast("list[str]", changes) if change != "subproject"]
+        for lineage, changes in changed.items()
+        if lineage not in core
     }
+    rerated = {lineage: changes for lineage, changes in drawn.items() if changes}
+    assert len(rerated) == 2_766
+    assert {tuple(changes) for changes in rerated.values()} == {("reestimated_amount",)}
     # The deltas by nature, as by subproject, sum to the difference of the two estimates: the
     # 3,165 of the core without its provisions, the 850,060 of the provisions the reference bore —
     # 751 and 753 at the scale of the structure (EP-14/L45b) —, and the rates of 2026 on the labour
@@ -457,7 +470,7 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
             assert sum(deltas, Decimal(0)) == difference == Decimal(expected), key
     # Read whole, its totals are those of listNodes on the reference (#1193).
     assert len(compared["items"]) == 5_999
-    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
+    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 4_251
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
     # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
     # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
@@ -536,7 +549,9 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
     # Those of the core, under the installation on site, by their label in the window the example
     # reads; those drawn about it, in the comparison read whole (EP-14/L45a, #1193).
     core = {mockcore.lineage(row.number) for row in mockcore.alone()}
-    rerated = [entry for entry in whole["items"] if entry["changes"] == ["reestimated_amount"]]
+    # A line the reference puts under a subproject is modified by it besides (#1751): what is
+    # named here is what moves of its amounts.
+    rerated = [entry for entry in whole["items"] if _amounts(entry) == ["reestimated_amount"]]
     kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
     assert kept == ["Câblage sur site", "Mise en service sur site"]
     assert len(rerated) - len(kept) == 2_766
@@ -545,7 +560,7 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
     assert [
         entry["estimate_line"]["label"]
         for entry in window
-        if entry["changes"] == ["reestimated_amount"]
+        if _amounts(entry) == ["reestimated_amount"]
     ] == kept
     assert all(f"« {label} »" in str(example["summary"]) for label in kept)
     assert "réestimées au taux de 2026 de leur catégorie" in str(example["summary"])

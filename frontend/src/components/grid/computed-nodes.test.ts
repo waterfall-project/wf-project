@@ -76,7 +76,7 @@ describe("the cells of a structure the server computes", () => {
       "Poste de commande",
       "Câblage des armoires",
       "Réception usine",
-      "Risque survenu — Retard de livraison des armoires",
+      "Retard de livraison des armoires",
       "Relance du fournisseur",
       "Transport exceptionnel",
     ]);

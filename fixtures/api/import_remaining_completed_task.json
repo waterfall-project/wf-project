@@ -1,0 +1,22 @@
+{
+  "summary": "L'import d'un reste à engager ouvert ce matin sur la structure principale, analysé à 11 h 01 et applicable jusqu'à demain : une ligne nouvelle, « Reprise des notes de calcul », sans identifiant, placée dans l'onglet « Hors sous-projet » sous les « Études de détail », terminées. Comme sa saisie, elle est rejetée au compte rendu par la condition qui manque, la tâche nommée par sa lignée et son libellé : la tâche se rouvre d'abord depuis le Kanban ; un différentiel l'accepterait, son avenant la rebudgétant (WF-INTF-0120, WF-INTF-0080, #1793, #1766).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a1c",
+    "kind": "remaining",
+    "filename": "reste-a-engager-etudes.xlsx",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T11:00:05Z",
+    "expires_at": "2026-06-04T11:01:00Z",
+    "report": {"format_version":"1","read_count":1,"unchanged_count":0,"rejected":[{"sheet":"Hors sous-projet","row":2,"code":"STATE_FORBIDS_OPERATION","params":{"missing_condition":"task_not_completed","tasks":[{"lineage_id":"01926f3a-7c00-7000-8000-000000000622","label":"Études de détail"}]}}],"refusals":[],"differences":[],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":[]},
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000924","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-06-03T11:00:05Z","finished_at":"2026-06-03T11:01:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":true,"missing_conditions":[]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
+  }
+}

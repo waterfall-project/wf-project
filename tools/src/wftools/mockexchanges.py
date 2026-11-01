@@ -181,6 +181,26 @@ FIRST_ROW = 2
 HELD_IMPORT, HELD_IMPORT_TASK = hex_identifier(0xA17), universe(947)
 
 
+def import_commands(status: str, report: JsonObject | None) -> list[JsonValue]:
+    """Return the commands of an import, available or not, in the order of `ImportCommand`.
+
+    Applying waits for an import ``analysed`` (``import_awaiting_decision``) whose report accepts
+    the file (``import_file_accepted``); abandoning, for one neither applying nor applied
+    (``import_not_applied``; WF-IHM-0090, WF-INTF-0080; I-01, I-02, #1789).
+    """
+    refusals = [] if report is None else cast("list[JsonValue]", report["refusals"])
+    apply: list[JsonValue] = []
+    if status != "analysed":
+        apply.append("import_awaiting_decision")
+    elif refusals:
+        apply.append("import_file_accepted")
+    abandon: list[JsonValue] = ["import_not_applied"] if status in {"applying", "applied"} else []
+    return [
+        {"command": "apply", "is_available": not apply, "missing_conditions": apply},
+        {"command": "abandon", "is_available": not abandon, "missing_conditions": abandon},
+    ]
+
+
 def import_report(nodes: dict[int, Node]) -> JsonObject:
     """Return the report of the remaining to commit of IMPORTED placed in the tab of TAB.
 
@@ -251,6 +271,7 @@ def import_remaining_subproject_held() -> JsonObject:
             "problem": None,
             "result_url": None,
         },
+        "available_commands": import_commands("analysed", import_report(read())),
     }
 
 
@@ -385,6 +406,7 @@ def import_remaining_completed_tasks() -> JsonObject:
             "problem": None,
             "result_url": None,
         },
+        "available_commands": import_commands("analysed", completing_report(read())),
     }
 
 
@@ -571,6 +593,7 @@ def import_actual_costs_first() -> JsonObject:
             "problem": None,
             "result_url": None,
         },
+        "available_commands": import_commands("analysed", april_report()),
     }
 
 

@@ -33,6 +33,8 @@ from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER
 CITED = (
     ("risks.yaml", "createRisk", "201", "risk_created"),
     ("risks.yaml", "updateRisk", "200", "risk_updated"),
+    ("risks.yaml", "updateRisk", "200", "risk_updated_without_current_revision"),
+    ("risks.yaml", "updateRiskProvision", "200", "risk_provision_moved"),
     ("risks.yaml", "reviewRisk", "201", "risk_reviewed"),
     ("risks.yaml", "reviewRisk", "201", "risk_dismissed"),
     ("risks.yaml", "reviewRisk", "201", "risk_reidentified"),
@@ -111,16 +113,49 @@ def test_a_risk_declared_without_a_task_bears_its_provision_on_the_first_root_ta
     assert all(entry["is_available"] for entry in created["available_commands"])
 
 
-def test_a_risk_modified_moves_its_line_to_the_task_designated_and_keeps_its_provision() -> None:
+def test_a_risk_modified_changes_its_identity_alone_and_keeps_its_provision() -> None:
     created, updated = example("risk_created")["value"], example("risk_updated")["value"]
     assert updated["lock_version"] == created["lock_version"] + 1
-    assert updated["provision_task"]["node_id"] == universe(mockriskwrites.DESIGNATED)
     assert updated["mitigation_notes"] == mockriskwrites.MITIGATION
-    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "structure_id")
+    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "provision_task")
     assert [updated[key] for key in kept] == [created[key] for key in kept]
     assert updated["audit"]["created_at"] == created["audit"]["created_at"]
     assert updated["audit"]["updated_at"] > updated["audit"]["created_at"]
     assert updated["audit"]["updated_at"] == stamp(TODAY)
+
+
+def test_an_identity_modified_without_a_current_revision_reads_the_risk_of_the_reference() -> None:
+    # H-02, #1782: the project of project_without_current_revision; the risk back at its
+    # evaluation in the reference 101, its counter on past the abandon, no revision created.
+    project = mockwitness.fixture("project_without_current_revision")
+    assert project["current_revision_id"] is None
+    read, updated = example("risk")["value"], example("risk_updated_without_current_revision")
+    value = updated["value"]
+    assert value["risk_id"] == read["risk_id"] == universe(751)
+    assert value["mitigation_notes"] == mockriskwrites.UNVERSIONED_MITIGATION
+    assert value["mitigation_notes"] != read["mitigation_notes"]
+    assert value["lock_version"] == read["lock_version"] + 2
+    first = mockwitnessrisks.REWORK.reviews[0]
+    assert value["last_review_on"] == first.at.date().isoformat()
+    assert (value["probability"], value["severity"]) == (str(first.probability), "1000000.00")
+    reference = {
+        each["risk_id"]: each["structure_id"]
+        for each in mockwitness.fixture("structures_amendments")
+        if each.get("risk_id")
+    }
+    assert value["structure_id"] == reference[universe(751)] != read["structure_id"]
+    assert value["provision_task"]["node_id"] == universe(N.WIRING)
+    assert value["audit"]["updated_at"] == stamp(TODAY)
+    assert "Aucune révision n'est créée" in updated["summary"]
+    assert "aucun historique d'annulation" in updated["summary"]
+
+
+def test_a_provision_changed_moves_its_line_to_the_task_designated_on_the_one_counter() -> None:
+    updated, moved = example("risk_updated")["value"], example("risk_provision_moved")["value"]
+    assert moved["lock_version"] == updated["lock_version"] + 1
+    assert moved["provision_task"]["node_id"] == universe(mockriskwrites.DESIGNATED)
+    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "mitigation_notes")
+    assert [moved[key] for key in kept] == [updated[key] for key in kept]
 
 
 def test_a_risk_confirmed_without_change_is_reviewed_today_and_one_version_further() -> None:

@@ -179,11 +179,11 @@ def test_each_account_read_by_getme_is_one_the_accounts_list_with_the_roles_it_h
 
 def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None:
     # The accounts are read by Camille Martin, who may modify them: each carries the command that
-    # changes its state, the anonymisation of a deactivated one, and the attribution of its
-    # roles. The one active account that holds the permissions to modify the accounts and the
-    # access roles has its deactivation unavailable, the condition `last_administrator` missing
-    # (WF-ADM-0120); giving it more roles stays possible, and every other command listed is
-    # available.
+    # changes its state, the anonymisation of a deactivated one, the attribution of its roles, and
+    # for a local one the link that sets its password and its invitation. The one active account
+    # that holds the permissions to modify the accounts and the access roles has its deactivation
+    # unavailable, the condition `last_administrator` missing (WF-ADM-0120); giving it more roles
+    # stays possible, and every other command listed is available.
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
 
     def administers(user: Node) -> bool:
@@ -205,6 +205,14 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             "missing_conditions": [],
         }
         anonymization = [] if user["is_active"] else [anonymize]
+        # A local account carries the link that sets its password and the invitation that bears
+        # it, unavailable while it is deactivated (WF-ADM-0140, #1737); another, never.
+        inactive = [] if user["is_active"] else ["is_active_account"]
+        links: list[dict[str, Any]] = [
+            {"command": command, "is_available": user["is_active"], "missing_conditions": inactive}
+            for command in ("create_password_link", "resend_invitation")
+            if user["origin"] == "local"
+        ]
         assert user["available_commands"] == [
             {
                 "command": "deactivate" if user["is_active"] else "reactivate",
@@ -213,6 +221,7 @@ def test_the_last_administrator_has_its_deactivation_alone_unavailable() -> None
             },
             *anonymization,
             {"command": "set_access_roles", "is_available": True, "missing_conditions": []},
+            *links,
         ], user["last_name"]
 
 
@@ -380,6 +389,10 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
         if item["status"] == "analysing":
             assert item["expires_at"] is None, name
             continue
+        # An import whose application was refused no longer applies: no expiry (I-01, #1789).
+        if item["status"] == "refused":
+            assert item["expires_at"] is None, name
+            continue
         expiries[item["import_id"]].add(item["expires_at"])
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
@@ -450,6 +463,7 @@ def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_
         "import_analysed.json",
         "import_analysing.json",
         "import_estimate_task_without_hours.json",
+        "import_apply_refused_permission.json",
     }
     assert listed
     assert listed <= set(read.values())
@@ -898,6 +912,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
+        "risks": ("/query/last_review_on_to", "minimum", date),
         "users": ("/query/created_at_to", "minimum", datetime),
     }
     assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
@@ -968,6 +983,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "listBackups",
         "listNodes",
         "listProjects",
+        "listRisks",
         "listUsers",
     ]
     for name, text in taking.items():

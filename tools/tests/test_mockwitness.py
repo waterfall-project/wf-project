@@ -317,6 +317,7 @@ _KEYS = {
     "access_role_ids": ("rôles d'habilitation",),
     "resource_role_ids": ("rôles de ressources",),
     "risk_id": ("risques", "risques du portefeuille"),
+    "origin_risk_id": ("risques",),
     "subproject_id": ("sous-projets",),
     "provision_cost_category_id": ("catégories de coût",),
     "provision_subproject_id": ("sous-projets",),

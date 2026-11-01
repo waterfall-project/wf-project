@@ -87,9 +87,9 @@
       (`charts`, EP-15/US-0550). Le front écrit avec une grille les colonnes qu'elle offrait
       (`GridPreferences.known_columns`), pour qu'une colonne reçue depuis prenne ce que la
       grille lui donne par défaut (EP-16/US-0650). Le choix d'états de la liste des projets de
-      l'accueil, différent du défaut de l'écran — Chiffrage et En cours —, se garde dans la
-      grille de cette liste, `projects`, comme tout filtre d'une grille : `filters.states`, les
-      états choisis tels que l'adresse les écrit (`GridPreferences.filters` ; #1401).
+      l'accueil, différent du défaut de l'écran — Créé, Chiffrage et En cours —, se garde dans
+      la grille de cette liste, `projects`, comme tout filtre d'une grille : `filters.states`,
+      les états choisis tels que l'adresse les écrit (`GridPreferences.filters` ; #1401, #1747).
     requestBody:
       required: true
       content:

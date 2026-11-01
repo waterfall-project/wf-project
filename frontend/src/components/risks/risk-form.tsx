@@ -17,7 +17,10 @@
  * `update_provision` says (`provisionOpen`): listed unavailable, the three are shown fixed, the
  * conditions it lacks said under the first, and none is sent. A category deactivated since the risk
  * was declared stays among the choices, said no longer admitted: kept, the server accepts it
- * unchanged; another is a choice of the active ones.
+ * unchanged; another is a choice of the active ones. The identity and the provision are written by
+ * two operations (H-02, #1782): the provision only when one of its fields asked changed — an entry
+ * of the revision in progress, which it would create, and that « Annuler » undoes —, the identity
+ * when it changed, or when nothing else is written. How the form may part the two is #1784's.
  *
  * A refusal by field (422) is said at its field — `PROVISION_CATEGORY_REQUIRED`,
  * `INACTIVE_REFERENCE_OBJECT`, `UNKNOWN_TASK`, a probability out of its bounds, said in percentages
@@ -30,7 +33,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { writeRisk } from "@/api/actions/risks";
+import { type RiskIdentity, type RiskProvision, writeRisk } from "@/api/actions/risks";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { ANOTHER_OBJECT } from "@/components/reference/commands";
@@ -239,7 +242,7 @@ function fixedProvision(
  * choice of none writes none: on a modification, `null` takes the line out of its sub-project and
  * gives it back to the first task of the first level.
  */
-function provisionBody(choices: Asked, draft: Draft) {
+function provisionBody(choices: Asked, draft: Draft): RiskProvision {
   const { provision_cost_category_id: category, provision_subproject_id: subproject } = draft;
   return {
     ...(choices.categories === undefined || category === undefined || category === ""
@@ -248,6 +251,29 @@ function provisionBody(choices: Asked, draft: Draft) {
     ...(choices.subprojects === undefined ? {} : { provision_subproject_id: orNull(subproject) }),
     ...(choices.tasks === undefined ? {} : { provision_task_id: orNull(draft.provision_task_id) }),
   };
+}
+
+/** Whether the provision the form writes changes that of the risk: a field asked holds another value. */
+function provisionMoved(risk: Risk, provision: RiskProvision): boolean {
+  const {
+    provision_cost_category_id: category,
+    provision_subproject_id: subproject,
+    provision_task_id: task,
+  } = provision;
+  return (
+    (category !== undefined && category !== risk.provision_cost_category_id) ||
+    (subproject !== undefined && subproject !== (risk.provision_subproject_id ?? null)) ||
+    (task !== undefined && task !== (risk.provision_task?.node_id ?? null))
+  );
+}
+
+/** Whether the identity the form writes changes that of the risk. */
+function renamed(risk: Risk, identity: RiskIdentity): boolean {
+  return (
+    identity.label !== risk.label ||
+    identity.description !== (risk.description ?? null) ||
+    identity.mitigation_notes !== (risk.mitigation_notes ?? null)
+  );
 }
 
 /** Render the dialog that declares a risk or modifies one. */
@@ -305,18 +331,25 @@ export function RiskForm({
   ];
   const ask = (values: Draft): Promise<Outcome<Risk>> => {
     const { label = "", description, mitigation_notes: mitigation, probability = "0" } = values;
-    const written = {
+    const identity = {
       label,
       description: orNull(description),
       mitigation_notes: orNull(mitigation),
-      ...provisionBody(choices, values),
     };
+    const provision = provisionBody(choices, values);
     // The probability in the declaration alone: `RiskUpdate` does not take it (H-04).
+    if (risk === undefined) {
+      return writeRisk(projectId, {
+        id: undefined,
+        body: { ...identity, ...provision, probability: percentRatio(probability) },
+      });
+    }
+    const modified = { id: risk.risk_id, lockVersion: risk.lock_version };
     return writeRisk(
       projectId,
-      risk === undefined
-        ? { id: undefined, body: { ...written, probability: percentRatio(probability) } }
-        : { id: risk.risk_id, body: { ...written, lock_version: risk.lock_version } },
+      provisionMoved(risk, provision)
+        ? { ...modified, identity: renamed(risk, identity) ? identity : undefined, provision }
+        : { ...modified, identity, provision: undefined },
     );
   };
   return (

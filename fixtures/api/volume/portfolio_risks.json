@@ -480,7 +480,7 @@
       ],
       "totals": {"identified":"104325697.03","occurred":"2739060.00","dismissed":"5537000.00","total":"112601757.03","reserve":"103703525.80"}
     },
-    "coverage": {"reserve":"103703525.80","remaining_provisions":"104325697.03","occurred_cost":"4605324.00","coverage_variance":"-5227495.23"},
+    "coverage": {"reserve":"103703525.80","remaining_provisions":"104325697.03","occurred_cost":"4605324.00","occurred_reestimated":"4605324.00","coverage_variance":"-5227495.23"},
     "period_outcome": {"occurred_provisions":"2739060.00","dismissed_provisions":"5537000.00"}
   }
 }
