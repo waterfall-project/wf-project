@@ -1859,7 +1859,7 @@ suis.
   (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
   (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), et relues par
   l'auteur le 2026-11-01 ; la version anglaise, décidée le même jour, est la part détachée
-  US-0670b (#1811), qui solde cet écart ; EP-11 clôt.
+  US-0670b (#1811), qui solde cet écart : le critère y est tenu ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
@@ -1917,7 +1917,7 @@ révèlent, qui deviennent des constats (#1438 → EP-17).
 
 ## US-0670b — L'aide en ligne en anglais
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune
 - **issue** : #1811
@@ -1950,6 +1950,16 @@ dans ma langue sans lire une aide française.
 - Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452) ; un seul lot, hors
   cible de taille.
 - Voir la conception, « Un lot détaché du 2026-11-01 : l'aide en anglais ».
+- Réalisé en un lot (`lot/US-0670b`) : l'écart « L’aide s’affiche dans la langue de
+  l’utilisateur. », écrit sous US-0670, est tenu ici. `frontend/help/en/` porte les 69 fichiers
+  du français, sous les mêmes noms ; `HELP_LANGUAGE` a disparu : `readHelp` reçoit la langue de
+  l'interface et la refuse hors de `LOCALES`, la lecture, l'index — un par langue, gardé par le
+  processus — et les titres de la structure fixe (`SCREEN_HEADINGS`, `NOTION_HEADINGS`) sont par
+  langue, et le panneau dit sur la page la langue où elle a été lue. Les exemples de saisie sont
+  ceux du catalogue `en` : « 2 d », « 1 wk », « 1 mo », « 3FS+2 d; 5SS » — l'unité de la semaine
+  s'écrit `wk` dans l'interface anglaise (`enums.DurationUnit.w`), non `w`. Les deux noms d'onglet
+  réservés du fichier de reste à engager, « Synthèse » et « Hors sous-projet », restent en français
+  dans la page anglaise des sous-projets : Waterfall les écrit ainsi quelle que soit la langue.
 
 **Hors périmètre.** Une retouche du contenu des aides ; une autre langue ; la spécification en
 anglais ; les défauts d'écran que la traduction révèle, qui deviennent des constats.

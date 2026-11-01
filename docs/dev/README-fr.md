@@ -2252,39 +2252,51 @@ pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.t
 partout sur l'écran, ouvre à côté de lui un panneau
 latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
 suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
-(FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
-`frontend/help/fr/notions/<notion>.md`. Le serveur les lit à l'ouverture du panneau, par l'action
-`readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), qui ne nomme aucun fichier
-d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion, et
+(FBS-4). Une page est un fichier Markdown, `frontend/help/<langue>/<code>.md` ; une notion de la
+méthode, `frontend/help/<langue>/notions/<notion>.md` — les mêmes fichiers, sous les mêmes noms, en
+français et en anglais (US-0670b). Le serveur les lit à l'ouverture du panneau, dans la langue de
+l'interface, par l'action `readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`),
+qui ne nomme aucun fichier d'après la requête sans avoir confronté la page aux codes de la table ou à
+la forme d'un nom de notion, et la langue aux langues de l'interface (`LOCALES`), et
 dont la lecture refuse, là où le chemin s'écrit, tout fichier hors du dossier de l'aide (#1462) ; le
 standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le panneau les rend par
 `react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
 un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
 notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
 dans le panneau ; tout autre lien se lit comme du texte. La recherche porte sur les titres des pages
-écrites, que l'action rend avec la page. Le panneau tient le focus, se ferme par Échap et rend le focus
+écrites dans la langue lue, que l'action rend avec la page ; le serveur garde un index par langue.
+Aucune page ne se lit dans une autre langue à la place de la sienne : une page anglaise manquante est
+un échec, comme une page française manquante. Le panneau tient le focus, se ferme par Échap et rend le focus
 à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
 focus à son titre. Une réponse arrivée après une autre demande est ignorée.
 
-La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
-(`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
-calculées », « Les gestes au clavier », « Voir aussi ». Les définitions des colonnes ne s'y écrivent
+La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre, dits dans
+sa langue (`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses
+valeurs calculées », « Les gestes au clavier », « Voir aussi » ; « What the screen shows », « Its
+commands », « Its columns and computed values », « Keyboard gestures », « See also » en anglais. Les définitions des colonnes ne s'y écrivent
 pas : le panneau les rend après la troisième section, depuis la configuration de la grille de l'écran
 et les clés de ses en-têtes (`columns.<grille>.<colonne>.help`, `COLUMNS` de `read.ts`), une seule
 source avec leurs infobulles. Une notion cite le glossaire de l'annexe A mot pour mot, sans les identifiants d'exigence entre
 parenthèses (« (WF-RIS-0050) »), qui ne disent rien à qui lit l'aide, et que `help.test.ts` ignore dans sa
 comparaison (#1440), une citation par terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
-« Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
-de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075). `lang="fr"` ne couvre que la page rendue
-(`WrittenPage`), le titre du panneau et les titres que la recherche trouve : les messages de l'interface
-du corps (lecture, échec, nombre de résultats) gardent sa langue (#1442).
+« Voir aussi » (`NOTION_HEADINGS`). La spécification n'existant qu'en français, une notion anglaise
+traduit ses citations, sous la même forme et en même nombre, sous « What the glossary says », « In
+Waterfall » et « See also ». La page anglaise est la traduction fidèle de la française : ses exemples
+de saisie sont ceux de l'interface anglaise (« 2 d », « 1 wk », « 3FS+2 d; 5SS », #1441), et les
+libellés qu'elle cite, ceux du catalogue `en`. Le panneau dit la langue où la page a été lue (`lang`)
+sur la page rendue (`WrittenPage`), le titre du panneau et les titres que la recherche trouve : les
+messages de l'interface du corps (lecture, échec, nombre de résultats) n'en portent pas (#1442).
 
-_Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
-qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,
-`NOTIONS_TO_COME`) — liste qui échoue dès qu'un code qu'elle nomme reçoit son fichier ; il tient la
-structure des pages, les citations du glossaire, les liens, qui mènent à une page écrite ou à venir, et
-l'absence de HTML brut. Une page à venir se dit telle dans le panneau. `help-panel.dom.test.tsx` éprouve
-le panneau, et `e2e/accessibility.spec.ts` l'audite ouvert par F1 sur le planning.
+_Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige, dans chaque langue, une page par code de
+la table qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit
+(`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — liste qui échoue dès qu'un code qu'elle nomme reçoit son
+fichier —, et les mêmes fichiers en anglais qu'en français ; il tient la structure des pages dans
+chaque langue, les citations du glossaire — mot pour mot en français, en même nombre en anglais —, les
+liens, qui mènent à une page écrite ou à venir, les mêmes en anglais qu'en français, les libellés cités
+en gras, pris au catalogue `en` là où la page française cite le catalogue `fr`, et l'absence de HTML
+brut. Une page à venir se dit telle dans le panneau. `help-panel.dom.test.tsx` éprouve le panneau dans
+les deux langues, et `e2e/accessibility.spec.ts` l'audite ouvert par F1 sur le planning, en français
+et en anglais.
 
 ### Les actions longues et le suivi des tâches de fond
 

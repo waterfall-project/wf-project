@@ -21,7 +21,8 @@
  *
  * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
  * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
- * (US-0580), and the planning with the panel of its help open by F1.
+ * (US-0580), and the planning with the panel of its help open by F1 — in French, and in English
+ * (US-0670b).
  *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
@@ -303,6 +304,41 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
         });
       });
     }
+
+    // The same panel in an interface in English (US-0670b): the English help, said English.
+    test.describe("a browser asking for English, the help open", () => {
+      test.use({ colorScheme: "light", locale: "en-US" });
+
+      test(`${screen.code} ${screen.route}, in English, the panel of the help open by F1: the English page of the screen, said English, no breach of axe's rules for WCAG A and AA [WF-IHM-0140-A]`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(WINDOWS[0]);
+        await page.goto(screen.address);
+        await expect(page.locator("html")).toHaveAttribute("lang", "en");
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planning", {
+          timeout: WORKING,
+        });
+        await untilHydrated(page);
+        const help = page.getByRole("button", { name: "Help", exact: true });
+        await help.focus();
+        await page.keyboard.press("F1");
+        const panel = page.getByRole("dialog", { name: "Planning" });
+        await expect(panel.getByRole("heading", { name: "Its commands" })).toBeVisible({
+          timeout: WORKING,
+        });
+        await expect(panel).toContainText("The grid is a single tab stop");
+        await expect(panel.getByRole("heading", { level: 2, name: "Planning" })).toHaveAttribute(
+          "lang",
+          "en",
+        );
+        await expect(panel.locator('[lang="fr"]')).toHaveCount(0);
+        const { breaches } = await axeAudit(page);
+        expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(help).toBeFocused();
+      });
+    });
   }
 
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
