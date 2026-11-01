@@ -26,7 +26,7 @@ Le prochain état, son déclencheur et ses conditions sont ceux que le serveur c
 ## Les gestes au clavier
 
 - `Tab` parcourt les sorties, puis l’historique ; une sortie indisponible reste atteignable, et sa condition se lit dans sa description.
-- Dans la confirmation, `Tab` parcourt le sort de la révision, ses champs et les commandes ; `Échap` la ferme sans rien appliquer.
+- Dans la confirmation, qui s’ouvre dans la page, `Tab` parcourt le sort de la révision, ses champs et les commandes ; **Annuler** la referme sans rien appliquer.
 - `F1` ouvre cette aide.
 
 ## Voir aussi

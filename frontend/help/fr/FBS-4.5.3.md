@@ -2,7 +2,7 @@
 
 ## Ce que montre l’écran
 
-Une feuille de l’[estimation du reste à engager](FBS-4.5.md), atteinte depuis son en-tête, dans le même contexte : la vue par laquelle le chef de projet déclare qu’une tâche a commencé. Ce geste n’a pas d’autre effet que d’exposer les lignes de la tâche à la réestimation, dans la grille de reste à engager de la même révision. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se montre ni ne se saisit.
+Une feuille de l’[estimation du reste à engager](FBS-4.5.md), atteinte depuis son en-tête, dans le même contexte : la vue par laquelle le chef de projet déclare qu’une tâche a commencé. Ce geste n’a pas d’autre effet que d’exposer les lignes de la tâche à la réestimation, dans la grille de reste à engager de la même révision ; une tâche qui porte des lignes peut aussi s’y réestimer avant même de démarrer, par **Saisir le reste à engager**. Une tâche est démarrée ou ne l’est pas : aucun pourcentage ne se montre ni ne se saisit.
 
 Trois colonnes, dans l’ordre que donne le serveur : **Non démarrées**, **Démarrées**, **Terminées**. Chaque tâche de la structure principale de la révision en cours est une carte : son numéro de ligne et son libellé, sa fin, et **Fin dépassée** quand elle précède la date de calcul ; terminée, la date où elle l’a été. Un jalon non démarré dont tous les prédécesseurs sont terminés porte « jalon à terminer », par un texte et une icône, pour inviter à le terminer : rien ne se termine seul.
 
@@ -33,6 +33,6 @@ Les colonnes sont les états de la tâche, tels que le serveur les donne : l’�
 
 ## Voir aussi
 
-- [L’estimation du reste à engager](FBS-4.5.md) et [la grille de reste à engager](FBS-4.5.2.md), où se réestiment les lignes des tâches démarrées ;
+- [L’estimation du reste à engager](FBS-4.5.md) et [la grille de reste à engager](FBS-4.5.2.md), où se réestiment les lignes des tâches, démarrées ou non ;
 - [la grille de planning](FBS-4.3.2.md), où se lisent les dates de démarrage et de terminaison ;
 - la notion : [le reste à engager](notions/reste-a-engager.md).

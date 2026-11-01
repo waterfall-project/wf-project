@@ -95,7 +95,7 @@ const CONTRIBUTORS = CONTRIBUTOR_GRID.columns;
  * The columns each screen defines: the grid of its function and the section of the grid itself;
  * the column a section of a single column is; the grids of a screen of the reference data or of
  * the settings of a project, each definition once, and the grids of its sections; the lines of the
- * actual costs, with a column kept from the file, which every one is alike. A table is defined with
+ * actual costs, every column kept from the file being defined alike. A table is defined with
  * every column a session may see there — those of its commands included, which only a session that
  * may exercise them sees.
  */

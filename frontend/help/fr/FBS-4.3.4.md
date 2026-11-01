@@ -4,7 +4,7 @@
 
 Une feuille de la [planification](FBS-4.3.md), où se font les échanges de fichiers du projet : le planning MS Project, le devis, le reste à engager et les coûts réels s’y importent, et la révision lue s’y exporte. L’en-tête du planning y mène, comme ceux du devis, du reste à engager et des coûts réels quand leur import vous est offert. L’écran se montre à qui lit le planning, ou à qui le projet offre un import.
 
-Un import se fait en deux temps. Le fichier est déposé et analysé, sans rien changer au projet ; son **compte rendu** dit ce que l’import ferait. Puis il s’applique, après confirmation, en une seule opération — ou s’abandonne, et le projet reste tel qu’il était. Un import s’applique à la révision en cours, quelle que soit la révision lue, et la crée si le projet n’en a pas.
+Un import se fait en deux temps. Le fichier est déposé et analysé, sans rien changer au projet ; son **compte rendu** dit ce que l’import ferait. Puis il s’applique, après confirmation, en une seule opération — ou s’abandonne, et le projet reste tel qu’il était. Un import de planning, de devis ou de reste à engager s’applique à la révision en cours, quelle que soit la révision lue, et la crée si le projet n’en a pas ; un import de coûts réels n’écrit dans aucune révision : les coûts réels appartiennent au projet.
 
 De haut en bas :
 
@@ -24,13 +24,13 @@ De haut en bas :
 
 ## Ses colonnes et ses valeurs calculées
 
-Le compte rendu est celui du serveur. Il dit le nombre de lignes lues, les motifs qui demandent une confirmation explicite, les lignes rejetées avec leur ligne, leur onglet et leur motif — ou les motifs qui rejettent le fichier entier, rien ne s’appliquant alors —, les écarts avec les données existantes, objet par objet, et les éléments que l’import ignore. Pour un planning, il dit aussi les tâches que le fichier date autrement, ce que Waterfall recalcule faisant foi, les valeurs gardées et signalées, et les tâches terminées par l’import. Pour des coûts réels, il désigne une ligne par sa pièce et son poste — deux lignes du fichier de même pièce et de même poste sont rejetées —, et nomme chaque colonne de l’extraction ni lue ni conservée. Un compte rendu s’applique jusqu’à la date qu’il dit ; au-delà, l’import expire.
+Le compte rendu est celui du serveur. Il dit le nombre de lignes lues, les motifs qui demandent une confirmation explicite, les lignes rejetées avec leur ligne, leur onglet et leur motif — ou les motifs qui rejettent le fichier entier, rien ne s’appliquant alors —, les écarts avec les données existantes, objet par objet, et les éléments que l’import ignore. Pour un planning, il dit aussi les tâches que le fichier date autrement, ce que Waterfall recalcule faisant foi, et les valeurs gardées et signalées. Pour un reste à engager, il nomme les tâches que l’import termine, parce qu’il met à zéro le reste à engager de toutes leurs lignes, à la date de la revue que porte le fichier. Pour des coûts réels, il désigne une ligne par sa pièce et son poste — deux lignes du fichier de même pièce et de même poste sont rejetées —, et nomme chaque colonne de l’extraction ni lue ni conservée. Un compte rendu s’applique jusqu’à la date qu’il dit ; au-delà, l’import expire.
 
 ## Les gestes au clavier
 
 - `Tab` parcourt les commandes d’import, les champs, le compte rendu, ses tables et ses commandes, puis la liste des imports et le formulaire d’export.
 - Une table du compte rendu qui dépasse sa boîte défile aux flèches une fois atteinte.
-- `Échap` ferme la confirmation sans rien appliquer.
+- Dans la confirmation, qui s’ouvre dans la page, **Annuler** revient au compte rendu sans rien appliquer.
 - `F1` ouvre cette aide.
 
 ## Voir aussi
