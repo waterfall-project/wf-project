@@ -27,6 +27,9 @@ import { ESTIMATE_GRID } from "@/components/grid/estimate";
 import { PLANNING_GRID } from "@/components/grid/planning";
 import { REMAINING_GRID } from "@/components/grid/remaining";
 import { PROJECT_GRID } from "@/components/portfolio/portfolio-grid";
+import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
+import { RATE_HEADINGS } from "@/components/reference/rate-columns";
+import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { RISK_GRID } from "@/components/risks/risk-grid";
 
 import {
@@ -58,8 +61,28 @@ function defined(columns: readonly AnyColumn[]): HelpColumn[] {
 }
 
 /**
+ * The columns of several grids of one screen, each definition once: the columns of the state and of
+ * the modification of the reference data are the same in each of its lists.
+ */
+function distinct(...grids: readonly (readonly AnyColumn[])[]): HelpColumn[] {
+  const columns = defined(grids.flat());
+  return columns.filter(
+    (column, at) => columns.findIndex((other) => other.help === column.help) === at,
+  );
+}
+
+/** The tables of the reference data, as a session that may modify them sees them. */
+const COST_TYPES = costTypeGrid(true).columns;
+const COST_CATEGORIES = costCategoryGrid(true).columns;
+const HOURLY_RATES: readonly AnyColumn[] = Object.values(RATE_HEADINGS);
+const ORG_NODES = orgNodeGrid(true).columns;
+const RESOURCE_ROLES = resourceRoleGrid(true).columns;
+const CALENDARS = calendarGrid(true).columns;
+
+/**
  * The columns each screen defines: the grid of its function and the section of the grid itself;
- * the column a section of a single column is. A table of the administration is defined with every
+ * the column a section of a single column is; the grids of a screen of the reference data, each
+ * definition once, and the grids of its section. A table of the administration is defined with every
  * column a session may see there — those of its commands included, which only a session that may
  * exercise them sees.
  */
@@ -69,6 +92,13 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-1.4": defined(backupGrid({ marks: true, downloads: true, restores: true }).columns),
   "FBS-1.5": defined(auditGrid({ functions: [], revision: false }).columns),
   "FBS-2.1": defined(PROJECT_GRID.columns),
+  "FBS-3.1": distinct(COST_TYPES, COST_CATEGORIES, HOURLY_RATES),
+  "FBS-3.1.1": distinct(COST_TYPES, COST_CATEGORIES),
+  "FBS-3.1.2": defined(HOURLY_RATES),
+  "FBS-3.2": distinct(ORG_NODES, RESOURCE_ROLES, CALENDARS),
+  "FBS-3.2.1": defined(ORG_NODES),
+  "FBS-3.2.2": defined(RESOURCE_ROLES),
+  "FBS-3.2.3": defined(CALENDARS),
   "FBS-4.3": defined(PLANNING_GRID.columns),
   "FBS-4.3.2": defined(PLANNING_GRID.columns),
   "FBS-4.3.3": defined(PLANNING_GRID.columns).filter((column) => column.label === "gantt"),

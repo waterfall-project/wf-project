@@ -14,6 +14,20 @@
  * `typescript.md`).
  */
 
+import type { ColumnHelp, ColumnLabel } from "@/components/grid/columns";
+
+/**
+ * The heading and the definition of each column of the grid, in its order: the code, the label and
+ * the state of the category, and the rate of a year, every year alike — which the grid and the help
+ * of its screen both read (US-0670/L3, #1434), the grid being built in the browser alone.
+ */
+export const RATE_HEADINGS = {
+  code: { label: "code", help: "hourlyRates.code" },
+  label: { label: "label", help: "hourlyRates.label" },
+  state: { label: "state", help: "hourlyRates.state" },
+  year: { label: "hourlyRate", help: "hourlyRates.year" },
+} as const satisfies Record<string, { readonly label: ColumnLabel; readonly help: ColumnHelp }>;
+
 /** The key of the settings of the grid in the account: stable. */
 export const RATE_GRID_KEY = "hourly_rates";
 

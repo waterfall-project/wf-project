@@ -11,18 +11,6 @@
 /** The codes whose page is still to write, by the lot that writes it. */
 export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntries([
   ...[
-    "FBS-3.1",
-    "FBS-3.1.1",
-    "FBS-3.1.2",
-    "FBS-3.1.3",
-    "FBS-3.2",
-    "FBS-3.2.1",
-    "FBS-3.2.2",
-    "FBS-3.2.3",
-    "FBS-3.3",
-    "FBS-3.4",
-  ].map((code) => [code, "US-0670/L3, #1451"] as const),
-  ...[
     "FBS-4",
     "FBS-4.2",
     "FBS-4.2.1",
@@ -49,11 +37,8 @@ export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntr
   ].map((code) => [code, "US-0670/L4, #1140"] as const),
 ]);
 
-/** The notions still to write, by the lot that writes them, which the pages may link to already. */
-export const NOTIONS_TO_COME: Readonly<Record<string, string>> = {
-  "reste-a-engager": "US-0670/L3, #1451",
-  "provision-et-reserve": "US-0670/L3, #1451",
-  "avenant-et-differentiel": "US-0670/L3, #1451",
-  lotissement: "US-0670/L3, #1451",
-  "chemin-critique": "US-0670/L3, #1451",
-};
+/**
+ * The notions still to write, by the lot that writes them, which the pages may link to already: none
+ * since US-0670/L3 (#1451) wrote the last five.
+ */
+export const NOTIONS_TO_COME: Readonly<Record<string, string>> = {};

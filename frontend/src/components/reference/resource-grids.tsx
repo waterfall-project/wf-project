@@ -26,6 +26,10 @@
  *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
+ *
+ * `help/read.ts` also reads these configurations on the server: only their columns (titles and
+ * definitions) must stay readable there, since the "use client" modules they import in value
+ * become client references in the server bundle.
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
@@ -126,15 +130,24 @@ export function orgNodeGrid(editable = false): GridConfig<OrgNode, never, null> 
       {
         key: "label",
         label: "label",
+        help: "orgNodes.label",
         format: "text",
         width: 280,
         pinned: true,
         value: (node) => node.label,
       },
-      { key: "code", label: "code", format: "text", width: 110, value: (node) => node.code },
+      {
+        key: "code",
+        label: "code",
+        help: "orgNodes.code",
+        format: "text",
+        width: 110,
+        value: (node) => node.code,
+      },
       {
         key: "level",
         label: "level",
+        help: "orgNodes.level",
         format: "decimal",
         width: 70,
         value: (node) => node.level.toString(),
@@ -178,6 +191,7 @@ export function resourceRoleGrid(
       {
         key: "label",
         label: "label",
+        help: "resourceRoles.label",
         format: "text",
         width: 220,
         pinned: true,
@@ -187,6 +201,7 @@ export function resourceRoleGrid(
       {
         key: "code",
         label: "code",
+        help: "resourceRoles.code",
         format: "text",
         width: 110,
         contract: "code",
@@ -195,6 +210,7 @@ export function resourceRoleGrid(
       {
         key: "org_node",
         label: "orgNode",
+        help: "resourceRoles.orgNode",
         format: "text",
         width: 200,
         contract: "org_node",
@@ -203,6 +219,7 @@ export function resourceRoleGrid(
       {
         key: "cost_category",
         label: "costCategory",
+        help: "resourceRoles.costCategory",
         format: "text",
         width: 180,
         contract: "cost_category",
@@ -211,6 +228,7 @@ export function resourceRoleGrid(
       {
         key: "calendar",
         label: "calendar",
+        help: "resourceRoles.calendar",
         format: "text",
         width: 200,
         contract: "calendar",
@@ -219,6 +237,7 @@ export function resourceRoleGrid(
       {
         key: "monthly_hours",
         label: "monthlyHours",
+        help: "resourceRoles.monthlyHours",
         format: "decimal",
         width: 120,
         contract: "monthly_hours",
@@ -227,6 +246,7 @@ export function resourceRoleGrid(
       {
         key: "headcount",
         label: "headcount",
+        help: "resourceRoles.headcount",
         format: "decimal",
         width: 90,
         contract: "headcount",
@@ -268,6 +288,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
       {
         key: "label",
         label: "label",
+        help: "calendars.label",
         format: "text",
         width: 220,
         pinned: true,
@@ -277,6 +298,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
       ...DAYS.map((day): GridColumn<Calendar, CalendarSort, null> => ({
         key: day,
         label: day,
+        help: `calendars.${day}`,
         format: "decimal",
         width: 60,
         contract: day,
@@ -285,6 +307,7 @@ export function calendarGrid(editable = false): GridConfig<Calendar, CalendarSor
       {
         key: "is_default",
         label: "defaultCalendar",
+        help: "calendars.defaultCalendar",
         format: "text",
         width: 180,
         contract: "is_default",

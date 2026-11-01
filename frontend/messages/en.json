@@ -1632,6 +1632,108 @@
       "modify": {
         "help": "Modification of the object, in its form."
       }
+    },
+    "costTypes": {
+      "code": {
+        "help": "Code of the cost type, unique."
+      },
+      "label": {
+        "help": "Label of the cost type."
+      },
+      "kind": {
+        "help": "Kind of the cost type: labour, non-labour or risk provision; it no longer changes once one of its categories is used, bears a rate or is attached to a role."
+      }
+    },
+    "costCategories": {
+      "code": {
+        "help": "Code of the category, unique."
+      },
+      "label": {
+        "help": "Label of the cost category."
+      },
+      "costType": {
+        "help": "Cost type the category is attached to, active or not."
+      },
+      "accountingCode": {
+        "help": "Accounting code of the category, unique and documentary: it enters no calculation; the files of the estimate and of the remaining to commit name the category of a non-labour line by it."
+      }
+    },
+    "hourlyRates": {
+      "code": {
+        "help": "Code of the labour category."
+      },
+      "label": {
+        "help": "Label of the labour category."
+      },
+      "state": {
+        "help": "State of the category, active or deactivated; it is reactivated in the list of the categories."
+      },
+      "year": {
+        "help": "Hourly rate of the category for the year of the column, in the currency of the installation; empty until it is entered."
+      }
+    },
+    "orgNodes": {
+      "label": {
+        "help": "Label of the node, indented under the node it is attached to."
+      },
+      "code": {
+        "help": "Code of the node, unique."
+      },
+      "level": {
+        "help": "Depth of the node in the tree: 1 for a root."
+      }
+    },
+    "resourceRoles": {
+      "label": {
+        "help": "Label of the resource role."
+      },
+      "code": {
+        "help": "Code of the role, unique."
+      },
+      "orgNode": {
+        "help": "Organisation node of the role, set at its creation."
+      },
+      "costCategory": {
+        "help": "Labour category of the role, whose hourly rate prices its hours."
+      },
+      "calendar": {
+        "help": "Calendar of the role, which gives its working hours of each day."
+      },
+      "monthlyHours": {
+        "help": "Hours available a month, alone compared with the workload plan."
+      },
+      "headcount": {
+        "help": "Headcount the hours a month stand for."
+      }
+    },
+    "calendars": {
+      "label": {
+        "help": "Label of the calendar, unique."
+      },
+      "monday": {
+        "help": "Hours worked on Monday."
+      },
+      "tuesday": {
+        "help": "Hours worked on Tuesday."
+      },
+      "wednesday": {
+        "help": "Hours worked on Wednesday."
+      },
+      "thursday": {
+        "help": "Hours worked on Thursday."
+      },
+      "friday": {
+        "help": "Hours worked on Friday."
+      },
+      "saturday": {
+        "help": "Hours worked on Saturday."
+      },
+      "sunday": {
+        "help": "Hours worked on Sunday."
+      },
+      "defaultCalendar": {
+        "help": "The default calendar, a single one among the active ones, or the command that designates the one of the row."
+      }
     }
   },
   "help": {

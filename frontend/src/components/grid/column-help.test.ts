@@ -4,7 +4,8 @@
  * The guard of the definitions of the columns (US-0580/L2, #1137): each column of the grids of the
  * estimate, of the planning, of the remaining to commit and of the risks (US-0580/L3) has a
  * definition for its header. So has each column of the tables of the administration and of the
- * portfolio, those of their commands included (US-0670/L2, #1434), in both catalogues.
+ * portfolio, those of their commands included (US-0670/L2, #1434), in both catalogues; and each
+ * column of the tables of the reference data (US-0670/L3, #1434).
  */
 import { describe, expect, it } from "vitest";
 
@@ -13,6 +14,10 @@ import { backupGrid } from "@/components/admin/backup-columns";
 import { auditGrid } from "@/components/audit/audit-columns";
 import { PROJECT_GRID } from "@/components/portfolio/portfolio-grid";
 import { commandColumns } from "@/components/reference/command-columns";
+import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
+import { RATE_HEADINGS } from "@/components/reference/rate-columns";
+import { rateGrid } from "@/components/reference/rate-grid";
+import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
 import { RISK_GRID } from "@/components/risks/risk-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { estimateReference } from "@/test/reference";
@@ -28,6 +33,17 @@ type AnyColumn = Pick<GridColumn<never, string, never>, "key" | "help">;
 function bare(columns: readonly AnyColumn[]): string[] {
   return columns.filter((column) => column.help === undefined).map((column) => column.key);
 }
+
+/** The grid of the hourly rates, with two years: each column of a year alike. */
+const HOURLY_RATES = rateGrid(
+  [
+    { year: 2025, index: 0 },
+    { year: 2026, index: 1 },
+  ],
+  true,
+  () => 0,
+  () => undefined,
+).columns;
 
 describe("the definitions of the columns", () => {
   it.each([
@@ -49,6 +65,13 @@ describe("the definitions of the columns", () => {
     ["journal of audit", auditGrid({ functions: [], revision: false }).columns],
     ["projects of the portfolio", PROJECT_GRID.columns],
     ["commands of the reference data", commandColumns(true, () => ({}) as never, undefined)],
+    ["cost types", costTypeGrid(true).columns],
+    ["cost types, read only", costTypeGrid().columns],
+    ["cost categories", costCategoryGrid(true).columns],
+    ["hourly rates", HOURLY_RATES],
+    ["organisation nodes", orgNodeGrid(true).columns],
+    ["resource roles", resourceRoleGrid(true).columns],
+    ["calendars", calendarGrid(true).columns],
   ] as const)(
     "gives every column of the table of the %s a definition, in both catalogues [WF-IHM-0140-A]",
     (_table, columns: readonly AnyColumn[]) => {
@@ -63,6 +86,17 @@ describe("the definitions of the columns", () => {
       }
     },
   );
+
+  it("defines the columns of the hourly rates as their help names them, every year alike [WF-IHM-0140-A]", () => {
+    const year = RATE_HEADINGS.year;
+    expect(HOURLY_RATES.map(({ label, help }) => ({ label, help }))).toEqual([
+      RATE_HEADINGS.code,
+      RATE_HEADINGS.label,
+      RATE_HEADINGS.state,
+      year,
+      year,
+    ]);
+  });
 
   it("gives the amount re-estimated a definition of its own whether or not the revision is known [WF-IHM-0140-A]", () => {
     const find = (columns: ReturnType<typeof estimateGrid>["columns"]) =>
