@@ -70,7 +70,9 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   calcul et les gestes du contrat, au contrat et au faux back — US-0701 ;
 - ceux qui touchent la forme des refus — une seule forme par refus, les codes et les conditions
   morts, le 500, les refus sans code ni exemple, le compteur des écritures concurrentes — US-0702 ;
-- l'adoption par les écrans de ce qu'US-0701 et US-0702 écrivent au contrat — US-0703.
+- l'adoption par les écrans de ce qu'US-0701 et US-0702 écrivent au contrat — US-0703 ;
+- les majeurs de la revue du contrat du 2026-10-31, tranchés par l'auteur le 2026-11-01, au contrat,
+  à ses fixtures et à `docs/api/DECISIONS.md` — US-0704.
 
 ## Ce qui n'en fait pas partie
 
@@ -328,6 +330,25 @@ recadrage du 2026-10-28 — US-0701, US-0702 et US-0703 :
   (E-06) ; #1596, WF-PLA-0130, la date de terminaison d'une tâche terminée par un import, qui est la
   date de la revue que porte le fichier, comme WF-INTF-0120 et WF-INTF-0130 le disent (I-09) ;
   #1597, WF-RAE-0020, le sens de la marge du reste à engager, que la décision #466 fixe (G-07).
+
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`,
+120 constats : 31 majeurs, 89 mineurs), tranchés point par point par l'auteur le 2026-11-01 —
+US-0704 :
+
+- les 31 majeurs, et quatre mineurs réglés avec G-03 (D-11, E-10, A-05, I-06) : une issue
+  « contrat » par point, ou par groupe de points liés, sous #1735 ; chaque décision est écrite dans
+  `docs/api/DECISIONS.md` ;
+- cinq points de la spécification, en issues « Specification finding » rattachées à l'EPIC et
+  traitées à part : #1730, WF-ADM-0070, un compte local naît sans rôle (A-01) ; #1741,
+  WF-ADM-0160, la planification des sauvegardes conservée à travers la restauration (B-02) ;
+  #1757, WF-REV-0100 et WF-DAT-0010, la révision suivante ne reprend ni un différentiel fusionné
+  ni le devis d'un risque survenu (E-04) ; #1760, WF-RIS-0060 et WF-RIS-0050, la trace des lignes
+  issues d'un risque survenu (E-04) ; #1765, WF-DEV-0050 et WF-INTF-0100, les lignes d'une tâche
+  terminée saisissables dans un différentiel (F-01, I-05) ;
+- le service, à l'EPIC de son domaine (EP-03, livré, pour une branche de correction ; EP-04 à
+  EP-10, EP-13), et les écrans, à EP-17 (décision de l'auteur du 2026-11-01) : ils ne sont pas
+  d'EP-16, et le fichier de leur EPIC les liste ;
+- les 89 mineurs restants : après le gel, en issues « contrat ».
 
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
 leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
@@ -1046,11 +1067,14 @@ adopte. US-0670/L3 à L5 suivent US-0703 ; le gel vient toujours en dernier.
    porte la décision de la langue et passe l'US `fini`. Leurs pull requests se fusionnent comme
    celles des autres lots : l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du
    2026-10-26, #1139).
-9. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
-   lots — US-0670/L3 à L5, US-0690 et US-0701 à US-0703 compris (décision de l'auteur du
-   2026-10-28) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après s'écrit en
-   tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de domaine passe par
-   une issue « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
+9. **US-0704**, le contrat qui suit les majeurs de la revue du 2026-10-31 (décision de l'auteur du
+   2026-11-01) : après US-0703, avant le gel ; ses décisions d'abord (#1799), puis son
+   implémentation en un seul lot, dans une pull request dédiée.
+10. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
+    lots — US-0670/L3 à L5, US-0690 et US-0701 à US-0704 compris (décisions de l'auteur du
+    2026-10-28 et du 2026-11-01) : le contrat est figé, `info.version` passe à `1.0.0`. La règle
+    d'après s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
+    domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
 
 ### Trois lots détachés du 2026-10-31
 
@@ -2098,3 +2122,30 @@ qui ne changeront plus.
 elles en dépendent. Les filtres de colonnes des grilles (F-06) ne sont pas de l'US : EP-17.
 
 **Hors périmètre.** Les filtres de colonnes des trois grilles (EP-17) ; les mineurs de la revue.
+
+## US-0704 — Le contrat suit les majeurs de la revue du 2026-10-31
+
+- **statut** : en cours
+- **exigences** : celles que citent les constats tranchés, nommées par chaque issue « contrat »
+- **opérations** : celles que nomment les issues « contrat » rattachées à #1735
+- **issue** : #1735
+
+**En tant qu'**auteur du contrat, **je veux** que les majeurs de la revue du contrat du 2026-10-31
+soient tranchés point par point, puis portés au contrat, à ses fixtures et à `DECISIONS.md`, **afin
+que** le gel ne fige ni un statut, ni une énumération, ni un champ exigé, ni un corps que la
+spécification 1.0.1 contredit.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque majeur de la revue du 2026-10-31 a une décision de l'auteur, écrite dans
+  `DECISIONS.md` et portée au contrat, à ses fixtures et à ses générateurs, comme son issue
+  « contrat » le dit.
+- propre à l'US : le client engendré est régénéré, et la vérification de types et les tests du
+  front qu'il casse sont corrigés dans l'US.
+
+**Notes de réalisation.** Les décisions sont écrites d'abord, dans `DECISIONS.md` (#1799) ;
+l'implémentation suit, en un seul lot, non découpé malgré sa taille, dans une pull request dédiée
+(décisions de l'auteur du 2026-11-01). Les issues de spécification sont citées, non portées.
+
+**Hors périmètre.** La spécification (cinq issues à part) ; le service, aux EPIC de domaine ; les
+écrans, à EP-17 ; les 89 mineurs restants, après le gel.
