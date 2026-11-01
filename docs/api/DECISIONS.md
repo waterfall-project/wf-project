@@ -10341,6 +10341,10 @@ vide, chaque catégorie prise parmi celles que la proposition présente, sinon 4
 `VALIDATION_FAILED` sur `/cost_category_ids/<n>` (exemple `rate_update_category_not_proposed`). Le
 front envoyait déjà les deux. Le service le suit par #1756 (EP-07).
 
+*Note de réalisation du 2026-11-01 (US-0704) : une catégorie que la proposition ne présente pas est
+refusée par `UNKNOWN_COST_CATEGORY`, dont le sens est élargi dans le catalogue des codes
+(`ErrorCode`) ; un code nouveau a été écarté.*
+
 ### La révision suivante ne reprend pas une structure fusionnée (US-0704, #1735, E-04, #1758, #1757)
 
 Décision de l'auteur du 2026-11-01. `createRevision` disait copier « les structures » de la
@@ -10366,6 +10370,12 @@ La spécification est à corriger (#1757, WF-REV-0100 et WF-DAT-0010). Le servic
 création d'une révision avec EP-04, le suit par #1759. La trace des lignes issues d'un risque
 survenu est l'objet de la décision suivante.
 
+*Note de réalisation du 2026-11-01 (US-0704) : la phrase « `is_merged` vrai ne se lit donc jamais
+dans une révision en cours » vaut pour une structure reprise. Le devis propre d'un risque survenu
+depuis l'ouverture de la révision en cours y est fusionné, la survenance ne marquant aucune
+révision, et se lit `is_merged` vrai : la structure 205, devis propre du risque 752, dans la
+révision 102 du témoin (`structures`). Le contrat le dit (`CostStructure.is_merged`).*
+
 ### Les lignes issues d'un risque survenu gardent sa trace (US-0704, #1735, #1761, #1760)
 
 Décision de l'auteur du 2026-11-01, prise en traitant E-04. Le devis propre d'un risque survenu
@@ -10390,6 +10400,11 @@ sur le réestimé.
 
 La spécification est à compléter (#1760, WF-RIS-0060, WF-RIS-0050, WF-RIS-0040). Le service le suit
 par #1762 (EP-08), les écrans par #1763 (EP-17).
+
+*Note de réalisation du 2026-11-01 (US-0704) : un identifiant nommé dans `origin_risk_ids` qui n'est
+pas celui d'un risque survenu du projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur
+`/query/origin_risk_ids/<n>`, motif nouveau `UNKNOWN_RISK` (`NodeOriginRiskFilter`, exemple
+`nodes_origin_risk_unknown`) ; le témoin n'a que 752 de survenu.*
 
 ### Les taux d'une révision nouvelle, projetés par défaut (US-0704, #1735, E-05, #1764)
 
@@ -10487,6 +10502,10 @@ jalon reste permise. Écarté : un 409 `parent_not_milestone`. Être un jalon es
 tâche visée, comme les autres refus de placement (`NODE_NOT_SIBLING`), et non un état que l'objet
 annonce dans ses commandes. Le service le suit par #1772 (EP-06), la grille par #1773 (EP-17).
 
+*Note de réalisation du 2026-11-01 (US-0704) : `params` nomme le jalon par `node_id` et `label` au
+refus de `createNode` et de `moveNodes`, et dans le compte rendu d'un import par `lineage_id` et
+`label` (`ImportRejection`).*
+
 ### La récapitulative qui n'attend plus que ses lignes propres (US-0704, #1735, F-05, #1774)
 
 Décision de l'auteur du 2026-11-01. WF-PLA-0040 veut signalées, dans la grille de reste à engager
@@ -10550,6 +10569,13 @@ L'histoire d'un risque — sa première révision, ses états, ses réexamens da
 son coût à la survenance — reste lisible révision par révision ; seuls ses trois textes ne sont pas
 versionnés. Le service le suit par #1783 (EP-08), le détail du risque par #1784 (EP-17).
 
+*Note de réalisation du 2026-11-01 (US-0704) : le 409 d'`updateRisk` nomme `project_not_terminal`
+puis `risk_not_occurred`, et plus `no_background_task_running`, la modification n'écrivant pas dans
+la révision ; celui d'`updateRiskProvision` nomme `project_not_terminal`,
+`no_background_task_running`, `risk_identified`, puis `may_create_revision`. L'exemple
+`risk_updated_without_current_revision` modifie l'identité d'un risque sur le projet sans révision
+en cours (`project_without_current_revision`) : aucune révision n'est créée.*
+
 ### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
 
 Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six
@@ -10593,6 +10619,10 @@ déjà employé était tantôt un 409, tantôt un 404.
   `analysed` sans échéance, qui cacherait le refus.
 
 Le service le suit par #1790 (EP-06), l'écran du compte rendu par #1791 (EP-17).
+
+*Note de réalisation du 2026-11-01 (US-0704) : un refus d'application par 403, une permission ou une
+qualité de contributeur retirée depuis l'analyse, fait aussi passer l'import `refused`, comme
+l'issue #1789 le dit (`applyImport`, exemple `import_apply_refused_permission`).*
 
 ### Les refus manquants de l'import : l'ouverture et la ligne sous une tâche terminée (US-0704, #1735, I-04, I-05, #1792, #1793)
 
