@@ -61,6 +61,8 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 - l'adoption par les écrans de ce que le contrat décrit — ce qu'EP-14/L42s y a écrit (#1142, #779),
   puis ce qu'US-0640 y ajoute —, qui peut encore y faire apparaître un manque — US-0660 ;
 - les aides des autres écrans et la recherche de l'aide, reprises d'EP-15 (#1445) — US-0670 ;
+- l'aide en anglais, traduite des aides françaises que l'auteur a relues le 2026-11-01 (décision de
+  l'auteur du 2026-11-01) — US-0670b ;
 - le compte rendu préalable de la survenance d'un risque, une lecture nouvelle du contrat
   (#1383) — US-0680 ;
 - l'adresse de retour de la connexion durcie, une redirection ouverte (#1429) — US-0690 ;
@@ -101,8 +103,8 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
     n'applique pas), #1400 (l'écran du projet mène à sa révision), et la part front de #1395 (la
     matrice sur fond blanc, la couleur sur les bulles, les seuls risques identifiés) — sa part
     contrat, le décompte de `cells`, reste ici (US-0700) ;
-- la version anglaise de l'aide en ligne : décidée par l'auteur au dernier lot d'US-0670, après la
-  relecture de toutes les aides, elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
+- la relecture de l'aide anglaise par l'auteur : traduite des aides françaises relues, elle n'en
+  demande pas (décision de l'auteur du 2026-11-01) ;
 - les navigateurs et les largeurs d'affichage (US-0290, #92), et les dépendances sans version
   corrigée (#1291) : EP-13, reportés le 2026-10-22 ;
 - de la revue du 2026-10-28 (recadrage du 2026-10-28) :
@@ -121,7 +123,7 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 | `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-07 | US-0610 |
 | `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0610 |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | US-0620 |
-| `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670 |
+| `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670, US-0670b |
 
 Les autres travaux ne réalisent aucune exigence en propre. Comme en EP-14 et en EP-15, leurs tests
 citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du domaine les clôt.
@@ -175,9 +177,10 @@ EP-15 livré.
 - les EPIC de domaine nomment, dans leurs « Constats reçus », le service de chaque point de #1304 ;
 - `make check` passe sur la branche de l'EPIC ; les parcours de bout en bout s'y jouent contre le
   front construit, en local comme dans la chaîne ;
-- chaque code de la table des fonctions qui a un écran a son aide en français, relue par l'auteur ;
-  les listes des pages à venir (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) sont vides ; la version
-  anglaise est décidée, et son écart écrit sous WF-IHM-0140 (US-0670) ;
+- chaque code de la table des fonctions qui a un écran a son aide en français, relue par l'auteur
+  (relecture du 2026-11-01, sans retouche) ; les listes des pages à venir (`SCREENS_TO_COME`,
+  `NOTIONS_TO_COME`) sont vides (US-0670) ; chaque page et chaque notion a sa traduction anglaise,
+  que l'interface anglaise ouvre (US-0670b) ;
 - chaque constat ajouté au label `EP-16` depuis le cadrage du 2026-10-22 est placé : corrigé par un
   lot, reporté vers EP-17 et listé dans son fichier, ou fermé avec sa décision.
 
@@ -1111,6 +1114,41 @@ contrat : le contrat et le faux back sont inchangés.
   code), pour que son rejeu sous charge ne se fasse plus sur un harnais qui a ces défauts. Le gel
   #1333 attend déjà tous les lots.
 
+### Un lot détaché du 2026-11-01 : l'aide en anglais
+
+Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452 : « français seul pour
+la version 1.0, aucune traduction de l'aide dans EP-16 »). Aucune table, aucune migration, aucun
+module du noyau, aucune modification du contrat.
+
+- **La relecture des aides françaises est faite.** L'auteur a relu, le 2026-11-01, toutes les aides
+  françaises que US-0670 laisse sur `epic/EP-16` — les 59 pages d'écran et les 10 notions de
+  `frontend/help/fr/` — et elles conviennent telles qu'elles sont : aucune retouche, aucune issue de
+  relecture. Ce point de la définition de fini est tenu.
+- **L'aide anglaise en est la traduction, sans relecture** (US-0670b #1811). Traduite de pages
+  relues, elle ne repasse pas par l'auteur ; sa pull request se fusionne comme les autres. Écarté :
+  une relecture de l'anglais à 18 h 30, comme le français, qui retarderait le gel pour un texte dont
+  le fond est déjà validé.
+- **Les mêmes fichiers, par langue.** `frontend/help/en/` reprend les noms des fichiers du français,
+  notions comprises : un nom de notion est une clé, non un mot affiché, et les liens entre pages
+  restent les mêmes. Le contenu est traduit fidèlement, rien n'y est ajouté ni retiré ; seuls
+  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `w`, FS/SS,
+  #1441), et les libellés cités, pris au catalogue `en`.
+- **La langue est celle de l'interface.** `HELP_LANGUAGE` disparaît : l'action `readHelp` reçoit la
+  langue (`Locale`) et la valide comme la cible, la lecture et l'index sont tenus par langue, les
+  titres de la structure fixe aussi. Écarté : un repli sur la page française quand l'anglaise
+  manque, qui laisserait une page oubliée passer pour écrite — une page manquante reste un échec,
+  dans chaque langue.
+- **Le glossaire.** La spécification n'existe qu'en français : une notion anglaise garde la forme de
+  ses citations du glossaire, traduites ; la comparaison mot à mot reste sur le français, et le test
+  tient en anglais le même nombre de citations et les mêmes liens.
+- **Un seul lot, hors cible de taille** (≈ 2 800 lignes, dont ≈ 2 450 de Markdown ; décision de
+  l'auteur du 2026-11-01, comme pour US-0704). Écarté : deux lots (la mécanique, les notions et
+  FBS-1 à FBS-3, puis FBS-4) — la revue d'une traduction sans relecture ne porte que sur la
+  mécanique et la fidélité au français, qu'un découpage n'allège pas.
+- **L'ordre.** Après US-0670/L5 #1452 ; avant le gel #1333, qui attend tous les lots. Une part
+  détachée d'US-0670, plutôt qu'un lot L7 : US-0670 est `fini`, et lui ajouter un lot la
+  rouvrirait.
+
 ---
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
@@ -1819,10 +1857,9 @@ suis.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
   (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
-  (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), qui ne rédige pas
-  la version anglaise : sa décision revient à l'auteur, à la relecture de ce dernier lot, et reste
-  en attente ; décidée, le test de complétude (`help.test.ts`) exigera un fichier anglais par code
-  et par notion ; EP-11 clôt.
+  (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), et relues par
+  l'auteur le 2026-11-01 ; la version anglaise, décidée le même jour, est la part détachée
+  US-0670b (#1811), qui solde cet écart ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
@@ -1868,9 +1905,54 @@ hors de la table des fonctions : le compte (`/account`), l'avatar (`/account/ava
 d'erreur (adresse inconnue, panne) et de session (`/login/unavailable`). L4 laisse FBS-4.8 et ses
 sections à L5, qui les écrit avec la décision de la langue.
 
-**Hors périmètre.** La version anglaise elle-même (EP-11, après la décision de l'auteur) ; un
-tutoriel guidé ; une documentation hors de l'application ; les défauts d'écran que les aides
+**Relecture de l'auteur (2026-11-01).** Toutes les aides françaises — 59 pages d'écran, 10
+notions — conviennent telles que US-0670/L5 les laisse : aucune retouche demandée. La version
+anglaise est décidée le même jour et détachée en US-0670b (#1811), sans relecture.
+
+**Hors périmètre.** La version anglaise elle-même (US-0670b) ; un tutoriel guidé ; une
+documentation hors de l'application ; les défauts d'écran que les aides
 révèlent, qui deviennent des constats (#1438 → EP-17).
+
+---
+
+## US-0670b — L'aide en ligne en anglais
+
+- **statut** : à faire
+- **exigences** : `WF-IHM-0140-A`
+- **opérations** : aucune
+- **issue** : #1811
+
+**En tant qu'**utilisateur de l'interface en anglais, **je veux** que l'aide en ligne s'affiche en
+anglais, avec les exemples de saisie que cette interface attend, **afin de** me servir de Waterfall
+dans ma langue sans lire une aide française.
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'interface anglaise
+  ouvre l'aide anglaise, la française l'aide française ; chaque page d'écran et chaque notion de
+  `frontend/help/fr/` a sa traduction dans `frontend/help/en/`, sous le même nom de fichier, dans
+  la structure fixe dite en anglais ; le test de complétude (`help.test.ts`) exige un fichier par
+  code et par notion dans chaque langue, et une page manquante est un échec dans chaque langue ;
+  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `w`, FS/SS, #1441) ;
+- propre à l'US : la traduction est fidèle au français relu, sans rien y ajouter ni retirer ; les
+  libellés des commandes et des colonnes cités sont ceux du catalogue `en` ; un écart entre une
+  page et son écran devient un constat, non une correction ;
+- propre à l'US : une notion anglaise garde la forme de ses citations du glossaire, traduites ; le
+  test tient en anglais le même nombre de citations et les mêmes liens qu'en français, la
+  comparaison mot à mot au glossaire restant sur le français ;
+- propre à l'US : l'action `readHelp` reçoit la langue et la valide comme la cible ; l'index de la
+  recherche est tenu par langue ; le panneau porte `lang` à la langue de la page rendue ;
+- propre à l'US : la pull request se fusionne comme les autres lots, sans relecture de l'auteur
+  (décision de l'auteur du 2026-11-01).
+
+**Notes de réalisation.**
+- Part détachée d'US-0670 (un lot) ; US-0670 reste `fini`.
+- Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452) ; un seul lot, hors
+  cible de taille.
+- Voir la conception, « Un lot détaché du 2026-11-01 : l'aide en anglais ».
+
+**Hors périmètre.** Une retouche du contenu des aides ; une autre langue ; la spécification en
+anglais ; les défauts d'écran que la traduction révèle, qui deviennent des constats.
 
 ---
 
