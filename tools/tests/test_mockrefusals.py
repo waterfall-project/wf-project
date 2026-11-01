@@ -73,6 +73,8 @@ def test_the_designation_on_a_terminal_project_names_its_condition_before_the_co
     answer = _operations()["designateReferenceRevision"]["responses"]["409"]
     said = " ".join(answer["description"].split())
     assert said.index("`project_not_terminal`") < said.index("`revision_marked`")
+    # The terminal-project example is cited last on that 409 (#1674).
+    assert _cited("designateReferenceRevision", "409")[-1] == "reference_designation_terminal"
     # The schemas that list the commands say it too (#1674).
     schemas = API / "components" / "schemas"
     projects = " ".join((schemas / "projects.yaml").read_text("utf-8").split())
