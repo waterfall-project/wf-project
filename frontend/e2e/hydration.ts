@@ -249,6 +249,10 @@ export async function holdRoute(
         await Promise.allSettled([...inFlight]);
       }
       await page.unroute(pattern, handler);
+      // A request caught in the window of the removal is waited for too.
+      while (inFlight.size > 0) {
+        await Promise.allSettled([...inFlight]);
+      }
     },
   };
 }
