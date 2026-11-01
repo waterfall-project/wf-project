@@ -302,6 +302,11 @@ def _witness() -> tuple[str, Earned]:
     )
 
 
+def forget_witness() -> None:
+    """Forget the witness computed, so that the next reading computes it from what it reads then."""
+    _witness.cache_clear()
+
+
 def earned(row: JsonObject) -> Earned:
     """Return the values of earned value of a project in progress of the portfolio.
 

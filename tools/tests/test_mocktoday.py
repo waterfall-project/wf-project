@@ -7,7 +7,7 @@ of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre aucune e
 """
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
@@ -716,6 +716,19 @@ def test_the_state_at_a_marking_is_read_in_the_transitions_of_the_project_not_fr
     assert mockindicators.state_at(at, transitions) == "suspended"
 
 
+@pytest.fixture
+def fresh_witness() -> Iterator[None]:
+    """Forget the witness of the portfolio around a test that changes what it is computed from.
+
+    The witness is computed once a process: computed under a patch, it would stay so for every
+    later test of the worker, whichever ran first.
+    """
+    mockportfolio.forget_witness()
+    yield
+    mockportfolio.forget_witness()
+
+
+@pytest.mark.usefixtures("fresh_witness")
 def test_one_run_writes_the_portfolio_from_the_indicators_it_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

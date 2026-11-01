@@ -140,8 +140,12 @@ dev: mock-spec ## Start the front against the fake back (http://localhost:3000)
 dev-down: ## Stop the development platform
 	@PRISM_VERSION=$(PRISM_VERSION) $(COMPOSE_DEV) down
 
+# The tests of the tools compute more than they wait: one process per core (pytest-xdist). Work
+# stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
+# worker's queue: on four cores, eleven minutes become under five. A heavy run always, behind the
+# lock (HEAVY_LOCK): it takes every core, and selects no single file (TESTS).
 test-tools: ## Run the tests of the repository tools
-	@cd $(TOOLS) && uv run --frozen pytest
+	@cd $(TOOLS) && flock $(HEAVY_LOCK) uv run --frozen pytest -n auto --dist worksteal
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
