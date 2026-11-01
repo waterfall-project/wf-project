@@ -9,7 +9,7 @@
       {"key":"01926f3a-7c00-7000-8000-000000000462","label":"Débours","amount":{"is_computable":true,"value":"58894953.47","reason":null},"share":{"is_computable":true,"value":"0.8631","reason":null}}
     ],
     "by_subproject": [
-      {"key":"unassigned","amount":{"is_computable":true,"value":"68238703.05","reason":null},"share":{"is_computable":true,"value":"1","reason":null}}
+      {"key":"unassigned","label":null,"amount":{"is_computable":true,"value":"68238703.05","reason":null},"share":{"is_computable":true,"value":"1","reason":null}}
     ],
     "by_work_package": [
       {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Lot 1","amount":{"is_computable":true,"value":"2019.56","reason":null},"share":{"is_computable":true,"value":"0.00003","reason":null}}

@@ -1,0 +1,10 @@
+{
+  "summary": "Un planning importé le 1er février 2026, quand le projet n'a pas de révision en cours (revision_marked_merge_offered), par un compte qui n'a pas la permission de créer une révision : l'import la créerait, et il est refusé par la condition qui manque, un 409 et non un 403, comme la fusion (merge_may_create_revision_refused) ; rien n'est analysé (WF-INTF-0090, #1792).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"may_create_revision"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001680"
+  }
+}

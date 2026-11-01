@@ -160,9 +160,12 @@
       ligne de provision et coût à la survenance — : un risque créé dans la révision abandonnée
       disparaît, un réexamen qu'elle portait est défait, et un risque qui y a été déclaré
       survenu redevient identifié avec sa ligne de provision, sans coût à la survenance — seul
-      l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060). Le libellé, la description et
-      les actions de mitigation d'un risque qui reste sont des données du projet, que l'abandon
-      ne change pas (WF-RIS-0020). Refusé sur une révision marquée (WF-DAT-0020), et pendant un
+      l'abandon défait la survenance (WF-RIS-0020, WF-RIS-0060) —, et la catégorie, le
+      sous-projet et la tâche de sa provision qu'elle avait changés reviennent
+      (`updateRiskProvision`). Le libellé, la description et les actions de mitigation d'un
+      risque qui reste sont des données du projet, que l'abandon ne change pas (`updateRisk`,
+      WF-RIS-0020 ; H-02, #1782) ; son compteur (`Risk.lock_version`) avance, son évaluation lue
+      changeant, et ne revient jamais en arrière. Refusé sur une révision marquée (WF-DAT-0020), et pendant un
       traitement de fond qui court sur elle, comme sa commande `abandon` le dit. L'abandon est
       irréversible, hors de l'annulation : il ne s'inscrit pas à l'historique que `undoLastChange`
       défait, la révision et ses lignes n'étant plus (WF-IHM-0110, C-363) ; l'écran le dit dans sa
@@ -552,6 +555,8 @@
       - $ref: ../components/parameters.yaml#/NodePreviousReestimatedAmountMin
       - $ref: ../components/parameters.yaml#/NodePreviousReestimatedAmountMax
       - $ref: ../components/parameters.yaml#/NodeInactiveObjectFilter
+      - $ref: ../components/parameters.yaml#/NodeIsFromRiskFilter
+      - $ref: ../components/parameters.yaml#/NodeOriginRiskFilter
       - $ref: ../components/parameters.yaml#/NodeSortBy
       - $ref: ../components/parameters.yaml#/SortOrder
       - $ref: ../components/parameters.yaml#/NodeFields
@@ -576,8 +581,9 @@
           la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`, `params.minimum` la borne
           inférieure donnée, une fin de période antérieure à son début par `VALUE_OUT_OF_RANGE`
           sur `/query/<colonne>_to`, `params.minimum` le début donné (WF-IHM-0130) ; `fields`
-          sur le paramètre. Une propriété inconnue de `fields`, comme `listNodes` la refuse
-          (`NodeFields`, `fields_unknown`).
+          sur le paramètre. Une propriété inconnue de `fields`, et un risque de `origin_risk_ids`
+          qui n'est pas un risque survenu du projet, comme `listNodes` les refuse (`NodeFields`,
+          `fields_unknown`, `NodeOriginRiskFilter`).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -585,6 +591,7 @@
               period_inverted: { $ref: ../../../fixtures/api/nodes_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
+              origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -949,6 +956,9 @@
       lignes ; ceux de la ligne — grandeurs, délai de paiement, année de consommation, montants
       courants et précédents, objet désactivé — retiennent des lignes, la borne d'un montant
       portant sur celui de la ligne, jamais sur celui d'une tâche (`nodes_estimate_filtered`).
+      Ceux de l'origine, `is_from_risk` et `origin_risk_ids`, retiennent les nœuds, tâches et
+      lignes, qu'a fusionnés la survenance d'un risque, chacun jugé sur le sien
+      (`Node.origin_risk_id`, `nodes_from_risk` ; WF-RIS-0060, #1761).
       Une borne mal formée est refusée par 422 `NUMBER_INVALID`, une date par `DATE_INVALID`,
       une borne haute inférieure à la basse ou une fin antérieure au début par
       `VALUE_OUT_OF_RANGE`, `fields` sur le paramètre (README). Les prédécesseurs, une liste de
@@ -1062,6 +1072,8 @@
       - $ref: ../components/parameters.yaml#/NodePreviousReestimatedAmountMin
       - $ref: ../components/parameters.yaml#/NodePreviousReestimatedAmountMax
       - $ref: ../components/parameters.yaml#/NodeInactiveObjectFilter
+      - $ref: ../components/parameters.yaml#/NodeIsFromRiskFilter
+      - $ref: ../components/parameters.yaml#/NodeOriginRiskFilter
       - $ref: ../components/parameters.yaml#/NodeSortBy
       - $ref: ../components/parameters.yaml#/SortOrder
       - $ref: ../components/parameters.yaml#/NodeFields
@@ -1102,6 +1114,9 @@
               amendment_differences: { $ref: ../../../fixtures/api/nodes_amendment_differences.json }
               risk_estimate: { $ref: ../../../fixtures/api/nodes_risk_estimate.json }
               awaiting_own_lines: { $ref: ../../../fixtures/api/nodes_awaiting_own_lines.json }
+              from_risk: { $ref: ../../../fixtures/api/nodes_from_risk.json }
+              risk_estimate_occurred:
+                $ref: ../../../fixtures/api/nodes_risk_estimate_occurred.json
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '422':
@@ -1114,7 +1129,9 @@
           `params.minimum` le début donné (`period_inverted`, WF-IHM-0130). Une propriété
           inconnue de `fields`, `VALIDATION_FAILED`, `fields` désignant `/query/fields` par
           `FIELD_NOT_ACCEPTED`, comme tout paramètre de requête refusé (`NodeFields`,
-          `fields_unknown`, WF-ARC-0110).
+          `fields_unknown`, WF-ARC-0110). Un risque de `origin_risk_ids` qui n'est pas un risque
+          survenu du projet, `/query/origin_risk_ids/<n>` par `UNKNOWN_RISK`
+          (`NodeOriginRiskFilter`, #1761).
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -1122,6 +1139,7 @@
               period_inverted: { $ref: ../../../fixtures/api/nodes_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/nodes_bounds_inverted.json }
               fields_unknown: { $ref: ../../../fixtures/api/nodes_fields_unknown.json }
+              origin_risk_unknown: { $ref: ../../../fixtures/api/nodes_origin_risk_unknown.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -2081,7 +2099,7 @@
           `PROJECT_HORIZON_EXCEEDED`, `params.task` nommant la tâche déplacée ou celle qui reçoit
           la ligne déplacée (WF-PLA-0150). Ou une ligne de provision parmi les nœuds déplacés :
           sa tâche est celle que son risque désigne, et elle se déplace par le formulaire du
-          risque (`updateRisk`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
+          risque (`updateRiskProvision`, `provision_task_id`) — `fields` sur la ligne, `/node_ids/<n>`,
           motif `PROVISION_LINE_MOVED_BY_RISK`, `fields[].params.risk` nommant le risque par
           son identifiant et son libellé (`risk_id`, `label`), que la grille ne lit pas
           (WF-RIS-0010 ; #1227) ; une tâche qui porte une ligne de provision se déplace, elle,

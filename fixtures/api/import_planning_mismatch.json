@@ -109,6 +109,28 @@
         }
       ],
       "requires_confirmation_reasons": []
-    }
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000921",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-05-20T10:15:00Z",
+      "finished_at": "2026-05-20T10:16:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
   }
 }

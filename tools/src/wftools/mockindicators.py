@@ -544,9 +544,8 @@ def _parts(
     )
     parts: list[JsonValue] = []
     for group, each_share in zip(groups, found, strict=True):
-        part: JsonObject = {"key": group.key}
-        if group.label is not None:
-            part["label"] = group.label
+        # The label of the key ``unassigned`` is null: the front names it (G-03, #1780).
+        part: JsonObject = {"key": group.key, "label": group.label}
         amount = _amount(reading, group.lines, missing)
         part["amount"] = amount
         if absent or amount["is_computable"] is not True:

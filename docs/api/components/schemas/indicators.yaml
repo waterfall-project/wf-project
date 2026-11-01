@@ -5,7 +5,7 @@
 
 Computable:
   type: object
-  required: [is_computable]
+  required: [is_computable, value, reason]
   description: >-
     Enveloppe d'une valeur qui peut être non calculable (WF-IND-0010) : un indicateur, un
     montant qu'un taux horaire manquant empêche de calculer (WF-DEV-0010).
@@ -31,7 +31,7 @@ Computable:
 
 ComputableMoney:
   type: object
-  required: [is_computable]
+  required: [is_computable, value, reason]
   description: >-
     Un montant qui peut être non calculable : la même enveloppe que `Computable`, sa valeur
     contrainte comme un `Money` — deux décimales au plus, dans la devise de l'installation
@@ -125,7 +125,15 @@ CalculationContext:
 
 EstimateIndicators:
   type: object
-  required: [context, total, by_cost_type, by_subproject, by_work_package, delta_to_reference]
+  required:
+    - context
+    - total
+    - by_cost_type
+    - by_subproject
+    - by_work_package
+    - provisions_identified
+    - delta_to_reference
+    - delta_to_previous_revision
   description: >-
     Indicateurs de devis, disponibles dès le chiffrage (WF-DEV-0060, WF-IND-0010). Chaque
     montant est un `ComputableMoney` : tant qu'une catégorie de main-d'œuvre employée n'a pas de
@@ -178,7 +186,7 @@ EstimateIndicators:
 
 ComputableAmountByKey:
   type: object
-  required: [key, amount, share]
+  required: [key, label, amount, share]
   description: >-
     Un montant par clé — nature de coût, sous-projet, lot —, qui peut ne pas se calculer
     (`hourly_rate_missing` ; pour un lot qu'aucune tâche ne porte, `work_package_without_task`),
@@ -186,7 +194,11 @@ ComputableAmountByKey:
     total nul (`no_total`).
   properties:
     key: { type: string }
-    label: { type: string }
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le libellé de la clé, résolu à la lecture ; nul pour la seule clé `unassigned`, que le
+        front nomme (`AmountByKey.label` ; G-03, #1780).
     amount: { $ref: '#/ComputableMoney' }
     share:
       allOf: [{ $ref: '#/Computable' }]
@@ -198,7 +210,14 @@ ComputableAmountByKey:
 
 RemainingIndicators:
   type: object
-  required: [context, total, by_cost_type, by_subproject, coverage]
+  required:
+    - context
+    - total
+    - by_cost_type
+    - by_subproject
+    - coverage
+    - delta_to_reference
+    - delta_to_previous_revision
   description: >-
     Indicateurs de reste à engager (WF-RAE-0020, WF-RAE-0010) : le total, lignes de provision des
     risques identifiés comprises, ses ventilations, ses écarts et la couverture des risques. Chaque
@@ -278,10 +297,14 @@ SubprojectBalance:
 
 AmountByKey:
   type: object
-  required: [key, amount, share]
+  required: [key, label, amount, share]
   properties:
     key: { type: string }
-    label: { type: string }
+    label:
+      anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        Le libellé de la clé, résolu à la lecture ; nul pour la seule clé `unassigned`, que le
+        front nomme dans la langue du lecteur, comme `IndexHistoryScope.label` (G-03, #1780).
     amount: { $ref: ../common.yaml#/Money }
     share:
       allOf: [{ $ref: '#/Computable' }]
@@ -464,7 +487,7 @@ WorkloadPlan:
       type: array
       items:
         type: object
-        required: [resource_role_id, label, capacity_monthly_hours, months]
+        required: [resource_role_id, label, org_node_id, capacity_monthly_hours, months]
         properties:
           resource_role_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
@@ -474,7 +497,7 @@ WorkloadPlan:
             type: array
             items:
               type: object
-              required: [month, hours]
+              required: [month, hours, zone]
               properties:
                 month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
                 hours: { $ref: ../common.yaml#/Hours }
@@ -504,12 +527,13 @@ MilestoneTracking:
       type: array
       items:
         type: object
-        required: [lineage_id, label, points]
+        required: [lineage_id, label, completed_on, points]
         properties:
           lineage_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
           completed_on:
             anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
+            description: La date de terminaison du jalon ; nulle tant qu'il n'est pas terminé.
           points:
             type: array
             description: >-
@@ -537,7 +561,7 @@ MilestoneTracking:
 
 CurveSeries:
   type: object
-  required: [context, payment_delays, series, cash_out_by_month]
+  required: [context, payment_delays, series, steps, cash_out_by_month]
   description: >-
     Séries cumulées au pas du mois, chaque point portant le cumul à la fin du mois
     (WF-IND-0100, WF-IND-0110) : la première, à la fin du mois qui précède le premier montant
@@ -589,7 +613,8 @@ CurveSeries:
       type: array
       description: >-
         Marches du budget de référence, datées et motivées : seuls les avenants le
-        déplacent (WF-IND-0100, WF-RIS-0050).
+        déplacent (WF-IND-0100, WF-RIS-0050). Toujours rendu, vide quand aucune marche ne tombe
+        dans la courbe lue (`cost_curve_subproject_empty` ; G-03, #1780).
       items:
         type: object
         required: [date, amount, cause]

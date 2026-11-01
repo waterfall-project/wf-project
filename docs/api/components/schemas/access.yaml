@@ -535,7 +535,7 @@ PermissionCode:
 
 Permission:
   type: object
-  required: [code, kind]
+  required: [code, kind, fbs_code]
   properties:
     code: { $ref: '#/PermissionCode' }
     kind:

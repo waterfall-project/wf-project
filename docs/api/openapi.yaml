@@ -295,6 +295,8 @@ paths:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks
   /projects/{project_id}/risks/{risk_id}:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}
+  /projects/{project_id}/risks/{risk_id}/provision:
+    $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1provision
   /projects/{project_id}/risks/{risk_id}/reviews:
     $ref: ./paths/risks.yaml#/~1projects~1{project_id}~1risks~1{risk_id}~1reviews
   /projects/{project_id}/risks/{risk_id}/occurrence:

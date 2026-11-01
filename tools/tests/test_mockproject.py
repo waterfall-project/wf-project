@@ -643,8 +643,8 @@ def test_a_line_of_provision_is_moved_off_a_subproject_by_its_risk() -> None:
     block = text.split("operationId: deleteSubproject\n", 1)[1].split("    parameters:", 1)[0]
     said = " ".join(block.split())
     assert (
-        "une ligne de provision se passe par son risque (`updateRisk`, `provision_subproject_id`)"
-        in said
+        "une ligne de provision se passe par son risque (`updateRiskProvision`, "
+        "`provision_subproject_id`)" in said
     )
     assert "la décision contredit le Vérif" not in said
 

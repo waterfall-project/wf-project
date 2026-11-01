@@ -9,8 +9,10 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - a risk declared today, its own structure opened empty with it — its severity and its provision
   nought until its own estimate is priced in the grid of estimate — and its line of provision on
   the first task of the first level, no task designated (``risk_created``, WF-RIS-0010, #786);
-- that risk modified, its line of provision moved to the task its form designates, the total of
-  the estimate unchanged (``risk_updated``);
+- that risk modified, its actions of mitigation entered, a data of the project
+  (``risk_updated``), then its line of provision moved to the task its form designates, the
+  total of the estimate unchanged, an entry of the current revision (``risk_provision_moved``;
+  H-02, #1782);
 - the rework of the wiring confirmed today without a change, a review dated of today
   (``risk_reviewed``, WF-RIS-0010), and its reviews read after it (``risk_reviews_reviewed``);
 - the rework of the wiring dismissed today instead, a counterfactual, its line of provision
@@ -120,15 +122,27 @@ def risk_created() -> JsonObject:
 
 
 def risk_updated() -> JsonObject:
-    """Return what updateRisk answers when the risk declared moves its provision to the mounting.
+    """Return what updateRisk answers when the risk declared receives its actions of mitigation.
 
-    It follows the declaration (``risk_created``), one version further; its line stays its line,
-    the provision unchanged (WF-RIS-0010).
+    It follows the declaration (``risk_created``), one version further: its identity alone, a data
+    of the project, its provision where the declaration put it (WF-RIS-0020; H-02, #1782).
+    """
+    changed = replace(DECLARED, mitigation_notes=MITIGATION)
+    item = risk_item(changed, _budget(), first_root())
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {**item, "audit": audit, "lock_version": 2}
+
+
+def risk_provision_moved() -> JsonObject:
+    """Return what updateRiskProvision answers when that risk moves its provision to the mounting.
+
+    It follows the modification (``risk_updated``), one version further, the counter of the risk
+    being one (H-02, #1782); its line stays its line, the provision unchanged (WF-RIS-0010).
     """
     changed = replace(DECLARED, mitigation_notes=MITIGATION)
     item = risk_item(changed, _budget(), DESIGNATED)
     audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
-    return {**item, "audit": audit, "lock_version": 2}
+    return {**item, "audit": audit, "lock_version": 3}
 
 
 def _reviewed(risk: Risk, state: str) -> Risk:
@@ -590,7 +604,7 @@ def _occurrence_examples() -> dict[str, JsonObject]:
 
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the entries of a risk, by file name."""
-    created, updated = risk_created(), risk_updated()
+    created, updated, moved = risk_created(), risk_updated(), risk_provision_moved()
     rows = {row.number: row for row in mockamendment.rows()}
     main = {row.number: row for row in mockcore.current()}
     provision = main[cast("int", REWORK.provision_line)]
@@ -614,11 +628,19 @@ def examples() -> dict[str, JsonObject]:
         ),
         "risk_updated.json": mocktext.example(
             f"« {DECLARED.label} », déclaré aujourd'hui (risk_created), modifié : ses actions de "
-            f"mitigation saisies, et sa ligne de provision déplacée sur la tâche que le formulaire "
-            f"désigne, « {_task_label(updated)} » (provision_task_id), le total du devis "
-            f"inchangé ; une version de plus, modifié après sa déclaration (audit.updated_at ; "
-            f"WF-RIS-0010, #786).",
+            f"mitigation saisies, une donnée du projet — ni révision créée, ni annulation, ni "
+            f"abandon qui la défasse —, sa ligne de provision toujours portée par « "
+            f"{_task_label(updated)} » ; une version de plus, modifié après sa déclaration "
+            f"(audit.updated_at ; WF-RIS-0020, #1782).",
             updated,
+        ),
+        "risk_provision_moved.json": mocktext.example(
+            f"« {DECLARED.label} », modifié (risk_updated), sa provision changée : sa ligne "
+            f"déplacée sur la tâche que le formulaire désigne, « {_task_label(moved)} » "
+            f"(provision_task_id), le total du devis inchangé ; une saisie de la révision en "
+            f"cours, annulable et que l'abandon défait ; une version de plus, le même compteur "
+            f"que la modification de son identité (WF-RIS-0010, WF-RIS-0020, #786, #1782).",
+            moved,
         ),
         **_reviews_examples(),
         "task_occurrence_queued.json": mocktext.example(

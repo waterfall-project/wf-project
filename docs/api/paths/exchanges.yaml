@@ -274,8 +274,11 @@
       l'onglet d'un autre sous-projet d'un reste à engager (WF-INTF-0120), ou portant un autre
       sous-projet dans la colonne d'un devis (WF-INTF-0100), elle est rejetée au compte rendu, qui
       nomme ce sous-projet (`ImportRejection`, `SUBPROJECT_HAS_ACTUAL_COSTS` ; C-359, #1152,
-      #1153). L'analyse est confiée au worker (WF-ARC-0090). Un dépôt inconnu ou expiré, une
-      structure inconnue ou d'une autre révision sont refusés par 404.
+      #1153). L'analyse est confiée au worker (WF-ARC-0090). Un dépôt inconnu, expiré ou déjà
+      employé par un import, donc supprimé (WF-DAT-0120), une structure inconnue ou d'une autre
+      révision sont refusés par 404 (I-03, #1789). Une ligne nouvelle sous une tâche terminée de la
+      structure principale est rejetée au compte rendu, la tâche nommée, comme sa saisie
+      (`ImportRejection`, `task_not_completed` ; I-05, #1793).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
     requestBody:
@@ -288,7 +291,7 @@
         description: Analyse mise en file.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
             examples:
               analysing: { $ref: ../../../fixtures/api/import_analysing.json }
       '400': { $ref: ../components/responses.yaml#/BadRequest }
@@ -297,24 +300,33 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Projet terminal, ou fichier déjà consommé (WF-CYC-0100). Ou un devis importé sur la
-          structure principale d'un projet qui a atteint En cours : `STATE_FORBIDS_OPERATION`,
-          `params.missing_condition` à `project_before_in_progress`, la condition que la
-          structure principale nomme à la saisie de son devis (`StructureCommand.edit_estimate`),
-          et rien n'est analysé (WF-INTF-0100 ; C-358). Une structure différentielle et le devis
-          propre d'un risque l'acceptent quel que soit l'état du projet. Ou un import de coûts
-          réels tant que la correspondance de l'installation est incomplète :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `actual_cost_mapping_complete`,
-          la condition que la commande `import_actual_costs` du projet nomme d'avance, et
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
+          manque, et rien n'est analysé. Un projet terminal, `project_not_terminal`
+          (WF-CYC-0100) — il ne liste alors aucune commande, et ce 409 est le seul endroit où la
+          condition est nommée (I-03, #1789). Pour un planning, un devis ou un reste à engager,
+          dans l'ordre où `ProjectCommand.import_*` les nomme : `no_background_task_running`
+          pendant un traitement de fond qui écrit dans la révision en cours ou la fige, puis
+          `may_create_revision` à qui n'a pas `revisions.write` quand l'import créerait la
+          révision en cours — un 409 et non un 403, comme pour la fusion (`mergeCostStructure`)
+          (WF-INTF-0090 ; I-04, #1792). Ou un devis importé sur la structure principale d'un
+          projet qui a atteint En cours, `project_before_in_progress`, la condition que la
+          structure principale nomme à la saisie de son devis (`StructureCommand.edit_estimate`,
+          WF-INTF-0100 ; C-358). Une structure différentielle et le devis propre d'un risque
+          l'acceptent quel que soit l'état du projet. Ou un import de coûts réels tant que la
+          correspondance de l'installation est incomplète, `actual_cost_mapping_complete`, la
+          condition que la commande `import_actual_costs` du projet nomme d'avance, et
           `params.columns` les colonnes exigées sans intitulé (`ActualCostSourceColumn`, dans
-          l'ordre de la correspondance) ; rien n'est analysé (WF-REF-0190). Elle se juge après
-          l'état du projet, dans l'ordre où la commande nomme ses conditions.
+          l'ordre de la correspondance ; WF-REF-0190). Elle se juge après l'état du projet, dans
+          l'ordre où la commande nomme ses conditions.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               estimate_main_in_progress: { $ref: ../../../fixtures/api/import_estimate_main_in_progress.json }
               actual_cost_mapping_incomplete: { $ref: ../../../fixtures/api/import_actual_cost_mapping_incomplete.json }
+              terminal: { $ref: ../../../fixtures/api/import_open_terminal.json }
+              background_running: { $ref: ../../../fixtures/api/import_open_background_running.json }
+              may_create_revision: { $ref: ../../../fixtures/api/import_open_may_create_revision.json }
       '422':
         description: >-
           Format ou version non reconnus à la lecture de l'en-tête, avant toute analyse ; le
@@ -368,7 +380,12 @@
       (`DUPLICATE_COST_LINE`, WF-INTF-0140 ; EP-16/US-0630), et celles dont l'élément d'OTP est
       mal formé ou d'un autre projet (`WBS_ELEMENT_INVALID`, `WBS_ELEMENT_OUTSIDE_PROJECT`,
       WF-CRE-0020). Le compte rendu est conservé sous forme de codes et rendu dans la langue du
-      lecteur (WF-ARC-0110).
+      lecteur (WF-ARC-0110). L'import rend toujours son compte rendu, sa tâche et ses commandes,
+      appliquer et abandonner, disponibles ou non avec leurs conditions (`ImportDetail`,
+      WF-IHM-0090 ; I-01, I-06, #1789, #1780) ; d'un reste à engager, une ligne nouvelle sous une
+      tâche terminée est rejetée, la tâche nommée (`import_remaining_completed_task` ; I-05,
+      #1793), et un import dont l'application a été refusée se lit `refused`
+      (`import_apply_refused_permission`).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
@@ -377,7 +394,7 @@
         description: Import et son compte rendu.
         content:
           application/json:
-            schema: { $ref: ../components/schemas/exchanges.yaml#/Import }
+            schema: { $ref: ../components/schemas/exchanges.yaml#/ImportDetail }
             examples:
               analysed: { $ref: ../../../fixtures/api/import_analysed.json }
               analysing: { $ref: ../../../fixtures/api/import_analysing.json }
@@ -395,6 +412,8 @@
               estimate_task_without_hours: { $ref: ../../../fixtures/api/import_estimate_task_without_hours.json }
               actual_costs_wbs_invalid: { $ref: ../../../fixtures/api/import_actual_costs_wbs_invalid.json }
               remaining_ambiguous_label: { $ref: ../../../fixtures/api/import_remaining_ambiguous_label.json }
+              remaining_completed_task: { $ref: ../../../fixtures/api/import_remaining_completed_task.json }
+              apply_refused_permission: { $ref: ../../../fixtures/api/import_apply_refused_permission.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '500': { $ref: ../components/responses.yaml#/InternalError }
@@ -405,19 +424,30 @@
     summary: Abandonner un import
     description: >-
       Le projet reste inchangé et le fichier est supprimé (WF-INTF-0080, WF-DAT-0120). L'abandon
-      est idempotent : celui d'un import déjà abandonné ou expiré rend 204 sans effet, son
-      fichier étant déjà supprimé (WF-ARC-0100). Le contrat ne dit rien de l'abandon d'un import
-      appliqué ou en cours d'application : la spécification n'en dit rien, et la forme de ce
-      refus est celle des refus d'US-0702.
+      est idempotent : celui d'un import terminé sans écrire — abandonné, expiré, échoué ou refusé
+      — rend 204 sans effet, son fichier étant déjà supprimé (WF-ARC-0100). Un import appliqué ou
+      en cours d'application ne s'abandonne pas : ce qu'il a écrit ne se défait pas par l'abandon
+      (WF-INTF-0080), ce que sa commande `abandon` dit d'avance (I-02, #1789).
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/ImportId
     responses:
       '204':
-        description: Import abandonné, ou déjà abandonné ou expiré (sans effet).
+        description: >-
+          Import abandonné, ou déjà abandonné, expiré, échoué ou refusé (sans effet).
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `import_not_applied` : l'import
+          est appliqué ou en cours d'application (`applying`, `applied`), et ce qu'il a écrit ne
+          se défait pas par l'abandon (WF-INTF-0080 ; I-02, #1789). Rien n'est changé.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              applied: { $ref: ../../../fixtures/api/import_abandon_applied.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -458,14 +488,19 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          Compte rendu expiré, déjà appliqué, ou condition de droits ou d'état qui a
-          cessé d'être vraie depuis l'analyse (WF-ARC-0100). Ou un compte rendu qui rejette le
-          fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) :
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `import_file_accepted`, et
-          rien n'est appliqué (EP-14/L42s). Un compte rendu expiré ou déjà appliqué l'emporte — il
-          n'y a plus rien à appliquer —, puis `import_file_accepted`, puis les conditions de
-          droits et d'état revérifiées. Refusé, le fichier est supprimé, comme celui de tout import
-          refusé à l'application (WF-ARC-0100), et seul l'abandon reste offert. Les refus se
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
+          manque, dans cet ordre (I-01, #1789). D'abord `import_awaiting_decision`, l'import n'étant
+          plus `analysed` — appliqué ou en cours d'application, abandonné, expiré, échoué ou
+          refusé : il n'y a plus rien à appliquer (WF-ARC-0100), et l'import ne change pas
+          (`import_apply_expired`). Puis `import_file_accepted`, un compte rendu qui rejette le
+          fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150 ; EP-14/L42s). Puis
+          les conditions d'état revérifiées au dépôt de la tâche, celles qu'a jugées l'ouverture
+          (`openImport`) : `project_not_terminal`, `no_background_task_running` (I-04, #1792),
+          `project_before_in_progress`. Refusé par l'une des deux dernières sortes — le compte
+          rendu ou une condition revérifiée —, comme par une permission ou une qualité de
+          contributeur retirées depuis l'analyse (403), l'import passe `refused` et son fichier est
+          supprimé (WF-ARC-0100) : il ne s'applique plus, et l'abandon rend 204 sans effet
+          (`import_apply_refused_permission`). Les refus se
           rejugent à l'exécution : un fichier que l'analyse acceptait et qu'une saisie faite depuis
           ferait rejeter n'est pas appliqué, la tâche de fond échouant sur le motif du refus, avec
           les paramètres que le compte rendu lui donnerait. Un devis analysé sur la structure
@@ -477,6 +512,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               file_rejected: { $ref: ../../../fixtures/api/import_apply_rejected.json }
+              expired: { $ref: ../../../fixtures/api/import_apply_expired.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

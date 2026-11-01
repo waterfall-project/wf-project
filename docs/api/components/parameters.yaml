@@ -595,6 +595,35 @@ NodeInactiveObjectFilter:
     (`uses_inactive_object`), faux aux autres ; absent, ne restreint rien (WF-REF-0010).
   schema: { type: boolean }
 
+# Les nœuds issus d'un risque survenu (`Node.origin_risk_id`, #1761), filtrés comme les autres.
+
+NodeIsFromRiskFilter:
+  name: is_from_risk
+  in: query
+  description: >-
+    Vrai, restreint aux nœuds, tâches et lignes, qu'a fusionnés la survenance d'un risque
+    (`origin_risk_id` non nul, WF-RIS-0060) ; faux, aux autres ; absent, ne restreint rien. Chaque
+    nœud se juge sur le sien : une tâche issue d'un risque retient ses lignes issues de lui, non
+    une ligne créée depuis sous elle. Les ancêtres d'un nœud retenu sont rendus, comme pour tout
+    filtre, et les totaux sont ceux des lignes retenues (WF-IHM-0130). `listNodes` et
+    `compareRevisions` le lisent de même.
+  schema: { type: boolean }
+
+NodeOriginRiskFilter:
+  name: origin_risk_ids
+  in: query
+  description: >-
+    Restreint aux nœuds qu'a fusionnés la survenance de l'un de ces risques
+    (`Node.origin_risk_id`, WF-RIS-0060), leurs ancêtres rendus comme pour tout filtre. Un
+    identifiant qui n'est pas celui d'un risque survenu du projet est refusé par 422
+    `VALIDATION_FAILED`, `fields` désignant `/query/origin_risk_ids/<n>` par `UNKNOWN_RISK`
+    (#1761). `listNodes` et `compareRevisions` le lisent de même.
+  schema:
+    type: array
+    minItems: 1
+    items: { $ref: common.yaml#/Uuid }
+  explode: false
+
 NodeSortBy:
   name: sort_by
   in: query
@@ -667,6 +696,107 @@ RiskId:
   in: path
   required: true
   schema: { $ref: common.yaml#/Uuid }
+
+# Les filtres de colonne du registre des risques (H-01, #1785) : chaque colonne de nombres par ses
+# deux bornes, la date du dernier réexamen par sa période (README du contrat ; WF-IHM-0130).
+
+RiskProbabilityMin:
+  name: probability_min
+  in: query
+  description: >-
+    Restreint aux risques dont la probabilité atteint cette borne, incluse (WF-RIS-0040,
+    WF-IHM-0130).
+  schema: { $ref: common.yaml#/Percent }
+
+RiskProbabilityMax:
+  name: probability_max
+  in: query
+  description: >-
+    Restreint aux risques dont la probabilité ne dépasse pas cette borne, incluse ; inférieure à
+    `probability_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/probability_max`.
+  schema: { $ref: common.yaml#/Percent }
+
+RiskSeverityMin:
+  name: severity_min
+  in: query
+  description: Restreint aux risques dont la gravité atteint cette borne, incluse (WF-RIS-0040).
+  schema: { $ref: common.yaml#/Money }
+
+RiskSeverityMax:
+  name: severity_max
+  in: query
+  description: >-
+    Restreint aux risques dont la gravité ne dépasse pas cette borne, incluse ; inférieure à
+    `severity_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/severity_max`.
+  schema: { $ref: common.yaml#/Money }
+
+RiskProvisionAmountMin:
+  name: provision_amount_min
+  in: query
+  description: >-
+    Restreint aux risques dont la provision (`Risk.provision_amount`) atteint cette borne,
+    incluse (WF-RIS-0040).
+  schema: { $ref: common.yaml#/Money }
+
+RiskProvisionAmountMax:
+  name: provision_amount_max
+  in: query
+  description: >-
+    Restreint aux risques dont la provision ne dépasse pas cette borne, incluse ; inférieure à
+    `provision_amount_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/provision_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+RiskOccurrenceCostMin:
+  name: occurrence_cost_min
+  in: query
+  description: >-
+    Restreint aux risques dont le coût à la survenance atteint cette borne, incluse : des risques
+    survenus, un autre n'en ayant pas (`Risk.occurrence_cost`, WF-RIS-0010 ; #1761).
+  schema: { $ref: common.yaml#/Money }
+
+RiskOccurrenceCostMax:
+  name: occurrence_cost_max
+  in: query
+  description: >-
+    Restreint aux risques survenus dont le coût à la survenance ne dépasse pas cette borne,
+    incluse ; inférieure à `occurrence_cost_min`, refusée par 422 `VALUE_OUT_OF_RANGE` sur
+    `/query/occurrence_cost_max`.
+  schema: { $ref: common.yaml#/Money }
+
+RiskOccurredReestimatedMin:
+  name: occurred_reestimated_amount_min
+  in: query
+  description: >-
+    Restreint aux risques survenus dont le réestimé des lignes issues d'eux atteint cette borne,
+    incluse (`Risk.occurred_reestimated_amount` ; #1761).
+  schema: { $ref: common.yaml#/Money }
+
+RiskOccurredReestimatedMax:
+  name: occurred_reestimated_amount_max
+  in: query
+  description: >-
+    Restreint aux risques survenus dont le réestimé des lignes issues d'eux ne dépasse pas cette
+    borne, incluse ; inférieure à `occurred_reestimated_amount_min`, refusée par 422
+    `VALUE_OUT_OF_RANGE` sur `/query/occurred_reestimated_amount_max`.
+  schema: { $ref: common.yaml#/Money }
+
+RiskLastReviewOnFrom:
+  name: last_review_on_from
+  in: query
+  description: >-
+    Restreint aux risques dont le dernier réexamen (`Risk.last_review_on`) tombe ce jour ou
+    après (WF-RIS-0040).
+  schema: { $ref: common.yaml#/PlanningDate }
+
+RiskLastReviewOnTo:
+  name: last_review_on_to
+  in: query
+  description: >-
+    Restreint aux risques dont le dernier réexamen tombe ce jour ou avant, la fin incluse : la
+    revue périodique l'emploie pour présenter les risques dont la probabilité n'a pas été
+    réexaminée depuis le dernier marquage (WF-RIS-0020). Antérieure à `last_review_on_from`,
+    refusée par 422 `VALUE_OUT_OF_RANGE` sur `/query/last_review_on_to`.
+  schema: { $ref: common.yaml#/PlanningDate }
 
 RiskRevision:
   name: revision_id

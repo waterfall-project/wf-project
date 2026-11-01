@@ -45,6 +45,7 @@ from wftools.mockdating import (
     schedule,
     tasks_in_order,
 )
+from wftools.mockids import universe
 from wftools.mockstructure import (
     LABOUR_RATES,
     JsonObject,
@@ -164,7 +165,7 @@ class _Emitter:
         """Append a task, its lines and its subordinates; return the amounts it sums."""
         place = Place(parent, position, self._number(task.number), level)
         facet = self._task_facet(self.dated[task.number])
-        node = self._node(task.number, place, TASK, facet)
+        node = self._node(task.number, place, TASK, facet, task.origin_risk)
         if task.links:
             node["predecessors"] = [
                 {
@@ -228,7 +229,7 @@ class _Emitter:
             "uses_inactive_object": False,
             "remaining_entry": _remaining_entry(completed=completed, provision=line.is_provision),
         }
-        node = self._node(line.number, place, ESTIMATE_LINE, facet)
+        node = self._node(line.number, place, ESTIMATE_LINE, facet, line.origin_risk)
         is_labour, is_provision = line.hours is not None, line.is_provision
         fields = line_fields(
             is_labour=is_labour, is_provision=is_provision, is_held=held, is_closed=completed
@@ -395,7 +396,10 @@ class _Emitter:
         return computable(decimal(share(completed / budgeted)))
 
     @staticmethod
-    def _node(number: int, place: Place, kind: str, facet: JsonObject) -> JsonObject:
+    def _node(
+        number: int, place: Place, kind: str, facet: JsonObject, origin: int | None
+    ) -> JsonObject:
+        """Return a node; ``origin`` the risk whose occurrence merged it, if any (#1761)."""
         return {
             "node_id": node_id(number),
             "lineage_id": lineage_id(number),
@@ -404,6 +408,7 @@ class _Emitter:
             "position": place.position,
             "row_number": place.row,
             "level": place.level,
+            "origin_risk_id": None if origin is None else universe(origin),
             "lock_version": 1,
             kind: facet,
         }

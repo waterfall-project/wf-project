@@ -25,7 +25,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Any, cast
 
 from wftools import mockcore, mockdating, mocktext
-from wftools.mockexchanges import main_structure, opened_on
+from wftools.mockexchanges import import_commands, main_structure, opened_on
 from wftools.mockids import hex_identifier, universe
 from wftools.mockstructure import described
 from wftools.mockwitness import CORE, N, Task, default_calendar, fixture
@@ -301,6 +301,7 @@ def import_planning_non_working_day() -> JsonObject:
             "problem": None,
             "result_url": None,
         },
+        "available_commands": import_commands("analysed", import_report()),
     }
 
 

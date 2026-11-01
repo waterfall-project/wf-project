@@ -365,11 +365,17 @@ _RENAMED = {
         ("paste_applied_amendment_skipping.json", identifier)
         for identifier in (mockamendment.own_id(N.SITE_TESTS), mockcore.lineage(N.SITE_TESTS))
     ),
+    *(
+        ("nodes_risk_estimate_occurred.json", identifier)
+        for row in mockreview.delivery_delay_rows()
+        for identifier in (universe(row.number), mockcore.lineage(row.number))
+    ),
 }
 """The nodes a write renames, by their node and their lineage, in the fixture that answers it:
 the wiring of the cabinets (``wftools.mockwrites``), the three rows the block pasted on the
 amendment 2 relabels (``wftools.mockamendmentwrites``, #1277), and the trials on site the block
-that skips the line withdrawn relabels (#1278)."""
+that skips the line withdrawn relabels (#1278); and the own estimate of the risk 752 as the
+reference 101 froze it, whose nodes the occurrence merged as nodes of the core (#1788)."""
 
 
 def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
@@ -575,6 +581,8 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_amendment_differences": mockamendment.rows(),
         "nodes_risk_estimate": mockriskwrites.risk_estimate(),
         "nodes_awaiting_own_lines": mockcore.current(described(mockreview.awaiting_roots())),
+        "nodes_from_risk": current,
+        "nodes_risk_estimate_occurred": mockreview.delivery_delay_rows(),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0

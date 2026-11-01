@@ -576,6 +576,9 @@ ErrorCode:
     # serveur n'a pas (`/entries/<n>/timeline_id`, `setNodeTracking`, WF-PLA-0060, WF-PLA-0140 ;
     # F-11, US-0702/L2).
     - UNKNOWN_TIMELINE
+    # Un risque nommé par le filtre des nœuds issus d'un risque qui n'est pas un risque survenu du
+    # projet (`/query/origin_risk_ids/<n>`, `listNodes`, `compareRevisions`, WF-RIS-0060 ; #1761).
+    - UNKNOWN_RISK
     # Un prédécesseur nommé deux fois dans les prédécesseurs envoyés pour une tâche : deux tâches
     # ne sont reliées que par une liaison au plus (`/predecessors/<n>/predecessor_node_id` de
     # chaque occurrence après la première, `setPredecessors`, WF-PLA-0030 ; F-03, US-0702/L2).
@@ -597,7 +600,7 @@ ErrorCode:
     # déclaration d'un risque crée une ligne de provision (WF-DEV-0020, WF-RIS-0010).
     - PROVISION_CATEGORY_RESERVED
     # Une catégorie d'une nature d'un autre type que provision pour risques désignée pour la
-    # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRisk`,
+    # provision d'un risque (`/provision_cost_category_id`, `createRisk`, `updateRiskProvision`,
     # `reviewRisk`, WF-RIS-0010).
     - PROVISION_CATEGORY_REQUIRED
     # Une ligne de provision déplacée dans la grille : elle se déplace par le formulaire de son

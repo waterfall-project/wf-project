@@ -785,7 +785,7 @@
       effets que rien ne maîtrise. Un sous-projet que portent des lignes de devis de la révision en
       cours ne se supprime qu'une fois ces lignes passées hors sous-projet ou à un autre : ses codes
       viennent de l'ERP et définissent la granularité des coûts réels ; une ligne de provision se
-      passe par son risque (`updateRisk`, `provision_subproject_id`). Un sous-projet qu'aucune
+      passe par son risque (`updateRiskProvision`, `provision_subproject_id`). Un sous-projet qu'aucune
       révision marquée ne cite, qu'aucun coût réel ne charge et qu'aucune ligne de la révision en
       cours ne porte est retiré de la base. Sa suppression passe à nul la désignation de tout
       risque qui n'est pas identifié et le désignait pour sa provision

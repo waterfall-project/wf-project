@@ -33,6 +33,7 @@ from wftools.mockwitnessrisks import DELIVERY_DELAY, REGISTER
 CITED = (
     ("risks.yaml", "createRisk", "201", "risk_created"),
     ("risks.yaml", "updateRisk", "200", "risk_updated"),
+    ("risks.yaml", "updateRiskProvision", "200", "risk_provision_moved"),
     ("risks.yaml", "reviewRisk", "201", "risk_reviewed"),
     ("risks.yaml", "reviewRisk", "201", "risk_dismissed"),
     ("risks.yaml", "reviewRisk", "201", "risk_reidentified"),
@@ -111,16 +112,23 @@ def test_a_risk_declared_without_a_task_bears_its_provision_on_the_first_root_ta
     assert all(entry["is_available"] for entry in created["available_commands"])
 
 
-def test_a_risk_modified_moves_its_line_to_the_task_designated_and_keeps_its_provision() -> None:
+def test_a_risk_modified_changes_its_identity_alone_and_keeps_its_provision() -> None:
     created, updated = example("risk_created")["value"], example("risk_updated")["value"]
     assert updated["lock_version"] == created["lock_version"] + 1
-    assert updated["provision_task"]["node_id"] == universe(mockriskwrites.DESIGNATED)
     assert updated["mitigation_notes"] == mockriskwrites.MITIGATION
-    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "structure_id")
+    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "provision_task")
     assert [updated[key] for key in kept] == [created[key] for key in kept]
     assert updated["audit"]["created_at"] == created["audit"]["created_at"]
     assert updated["audit"]["updated_at"] > updated["audit"]["created_at"]
     assert updated["audit"]["updated_at"] == stamp(TODAY)
+
+
+def test_a_provision_changed_moves_its_line_to_the_task_designated_on_the_one_counter() -> None:
+    updated, moved = example("risk_updated")["value"], example("risk_provision_moved")["value"]
+    assert moved["lock_version"] == updated["lock_version"] + 1
+    assert moved["provision_task"]["node_id"] == universe(mockriskwrites.DESIGNATED)
+    kept = ("risk_id", "provision_node_id", "provision_amount", "severity", "mitigation_notes")
+    assert [moved[key] for key in kept] == [updated[key] for key in kept]
 
 
 def test_a_risk_confirmed_without_change_is_reviewed_today_and_one_version_further() -> None:

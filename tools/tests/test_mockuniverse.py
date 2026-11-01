@@ -389,6 +389,10 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
         if item["status"] == "analysing":
             assert item["expires_at"] is None, name
             continue
+        # An import whose application was refused no longer applies: no expiry (I-01, #1789).
+        if item["status"] == "refused":
+            assert item["expires_at"] is None, name
+            continue
         expiries[item["import_id"]].add(item["expires_at"])
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
@@ -459,6 +463,7 @@ def test_no_import_of_the_estimate_of_the_witness_aims_at_the_main_structure_in_
         "import_analysed.json",
         "import_analysing.json",
         "import_estimate_task_without_hours.json",
+        "import_apply_refused_permission.json",
     }
     assert listed
     assert listed <= set(read.values())
@@ -907,6 +912,7 @@ def test_every_inverted_period_is_refused_by_one_rule() -> None:
         "portfolio": ("/query/to", "minimum", date),
         "portfolio_open": ("/query/from", "maximum", date),
         "projects": ("/query/to", "minimum", datetime),
+        "risks": ("/query/last_review_on_to", "minimum", date),
         "users": ("/query/created_at_to", "minimum", datetime),
     }
     assert {path.name.removesuffix("_period_inverted.json") for path in found} == set(expected)
@@ -977,6 +983,7 @@ def test_every_operation_that_takes_a_period_declares_its_refusal_with_an_exampl
         "listBackups",
         "listNodes",
         "listProjects",
+        "listRisks",
         "listUsers",
     ]
     for name, text in taking.items():

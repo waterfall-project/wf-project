@@ -2508,8 +2508,9 @@ of what it describes, and two generations write the same bytes:
   contract of 2026-10-31 — the list of the projects with the project created, the code of a
   subproject too long, the rate update of a category not proposed, a task refused under a
   milestone, the summary that awaits its own lines alone, the writes of a line of a completed
-  task refused on the main structure — (`wftools.mockreview`, held by
-  `tools/tests/test_mockreview.py`).
+  task refused on the main structure, the own estimate of the occurred risk as the reference 101
+  froze it and the nodes its occurrence merged, the register filtered on its columns, the life of
+  an import and its refusals — (`wftools.mockreview`, held by `tools/tests/test_mockreview.py`).
 
 What the same command generates is never re-read from the disk: the indicators, the risks
 and the curves of the witness, which the portfolio sums, are passed to it in memory, so that one single

@@ -130,8 +130,9 @@ ImportRequest:
     upload_id:
       allOf: [{ $ref: ../common.yaml#/Uuid }]
       description: >-
-        Un dépôt fait pour un import (`FileUploadPurpose`, `import`) ; un dépôt inconnu, déjà
-        supprimé ou expiré est refusé par 404.
+        Un dépôt fait pour un import (`FileUploadPurpose`, `import`) ; un dépôt inconnu, expiré
+        ou déjà employé par un import, donc supprimé (WF-DAT-0120), est refusé par 404 (I-03,
+        #1789).
     structure_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
       description: >-
@@ -165,7 +166,11 @@ Import:
     - status
     - created_at
     - expires_at
-  properties:
+  description: >-
+    Un import du projet, tel que la liste le rend (`listImports`) : son ouverture et l'état où il
+    en est, sans son compte rendu, sa tâche ni ses commandes, que seule la lecture d'un import
+    rend (`ImportDetail`, `getImport`, `openImport` ; I-06, #1780).
+  properties: &import_properties
     import_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/ExchangeKind' }
     filename:
@@ -198,24 +203,90 @@ Import:
         WF-CRE-0050) ; nulle quand elle n'en avait pas, et hors des coûts réels.
     status:
       type: string
-      enum: [analysing, analysed, applying, applied, abandoned, expired, failed]
+      enum: [analysing, analysed, applying, applied, abandoned, expired, failed, refused]
       description: >-
         Où l'import en est (WF-ARC-0100) : `analysing`, son analyse court, sans compte rendu ;
-        `analysed`, son compte rendu attend la décision de l'utilisateur jusqu'à `expires_at` —
-        une application refusée par 409 le laisse ainsi, seul l'abandon restant offert ;
+        `analysed`, son compte rendu attend la décision de l'utilisateur jusqu'à `expires_at` ;
         `applying`, l'application confirmée court ; `applied`, elle a écrit ; `abandoned`,
         l'utilisateur l'a abandonné ; `expired`, vingt-quatre heures ont passé sans application ;
         `failed`, la tâche de son analyse ou de son application a échoué (`task.problem`), sans
-        rien écrire (WF-INTF-0080).
+        rien écrire (WF-INTF-0080) ; `refused`, l'application a été refusée — à la revérification
+        de la permission, de la qualité de contributeur ou de l'état du projet, ou parce que le
+        compte rendu rejetait le fichier —, le fichier est supprimé (WF-ARC-0100), et l'import ne
+        s'applique plus (I-01, #1789). Seul un import `analysed` s'applique
+        (`import_awaiting_decision`) ; un import `applying` ou `applied` ne s'abandonne pas
+        (`import_not_applied`), et l'abandon d'un import terminé sans écrire — `abandoned`,
+        `expired`, `failed`, `refused` — rend 204 sans effet.
     created_at: { $ref: ../common.yaml#/Timestamp }
     expires_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
       description: >-
         Vingt-quatre heures après l'analyse ; au-delà le compte rendu ne s'applique plus
-        (WF-ARC-0100). Nul tant que l'analyse court, ou qu'elle a échoué.
+        (WF-ARC-0100). Nul tant que l'analyse court, qu'elle a échoué, ou que l'application a été
+        refusée (`refused`).
     report:
       anyOf: [{ $ref: '#/ImportReport' }, { type: 'null' }]
-    task: { $ref: ../common.yaml#/BackgroundTaskRef }
+      description: >-
+        Le compte rendu de l'analyse, nul tant qu'elle court ou quand elle a échoué ; rendu par la
+        lecture d'un import (`ImportDetail`), omis par la liste.
+    task:
+      allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
+      description: >-
+        La dernière tâche de fond de l'import, celle de son analyse ou de son application, que
+        l'écran suit (WF-IHM-0080) ; rendue par la lecture d'un import (`ImportDetail`), omise par
+        la liste.
+    available_commands:
+      type: array
+      description: >-
+        Les commandes de l'import que l'appelant a la permission d'exercer, chacune disponible ou
+        non, avec les conditions qui lui manquent, dans l'ordre d'`ImportCommand` (WF-IHM-0090 ;
+        I-01, I-02, #1789) ; rendues par la lecture d'un import (`ImportDetail`), omises par la
+        liste.
+      items: { $ref: '#/ImportCommandAvailability' }
+
+ImportDetail:
+  type: object
+  required:
+    - import_id
+    - kind
+    - filename
+    - structure_id
+    - revision_id
+    - period_from
+    - period_to
+    - status
+    - created_at
+    - expires_at
+    - report
+    - task
+    - available_commands
+  description: >-
+    Un import tel que sa lecture le rend (`getImport`) et son ouverture (`openImport`) : les
+    propriétés d'`Import`, reprises de lui, et toujours son compte rendu — nul tant que l'analyse
+    court ou quand elle a échoué —, sa tâche et ses commandes, que la liste omet (I-06, #1780).
+  properties: *import_properties
+
+ImportCommand:
+  type: string
+  enum: [apply, abandon]
+  description: >-
+    Les commandes d'un import (WF-IHM-0090 ; I-01, I-02, #1789) : l'appliquer (`applyImport`),
+    disponible pour un import `analysed` dont le compte rendu accepte le fichier — sinon
+    `import_awaiting_decision`, puis `import_file_accepted` —, les conditions de droits et
+    d'état revérifiées à l'exécution n'étant dites que par le 409 ; l'abandonner
+    (`abandonImport`), indisponible pour un import appliqué ou en cours d'application,
+    `import_not_applied`.
+
+ImportCommandAvailability:
+  type: object
+  required: [command, is_available, missing_conditions]
+  properties:
+    command: { $ref: '#/ImportCommand' }
+    is_available: { type: boolean }
+    missing_conditions:
+      type: array
+      description: Vide lorsque la commande est disponible.
+      items: { $ref: projects.yaml#/CommandCondition }
 
 ImportReport:
   type: object
@@ -513,7 +584,12 @@ ImportRejection:
     qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est rejetée par
     `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon par sa lignée et son libellé
     (`lineage_id`, `label`) ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04,
-    #1771).
+    #1771). Une ligne nouvelle — sans identifiant, ou dont la lignée n'existe pas dans la révision
+    — sous une tâche terminée de la structure principale est rejetée par `STATE_FORBIDS_OPERATION`,
+    `params.missing_condition` à `task_not_completed` et `params.tasks` nommant la tâche par sa
+    lignée et son libellé, comme sa saisie (`createNode` ; WF-INTF-0100, WF-INTF-0120 ; I-05,
+    #1793) ; sur un différentiel, elle est acceptée comme sa saisie, l'avenant la rebudgétant
+    (F-01, #1766).
     D'une extraction de coûts réels, une ligne dont une autre ligne du fichier porte la même pièce
     et le même poste, nul compris : `DUPLICATE_COST_LINE`, chacune de ces lignes rejetée,
     `params.rows` nommant les rangs des autres dans l'ordre du fichier — la ligne ne s'identifie

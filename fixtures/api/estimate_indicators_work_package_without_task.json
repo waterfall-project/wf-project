@@ -12,7 +12,7 @@
     "by_subproject": [
       {"key":"01926f3a-7c00-7000-8000-000000000801","label":"Poste de commande","amount":{"is_computable":true,"value":"23314197.53","reason":null},"share":{"is_computable":true,"value":"0.3383","reason":null}},
       {"key":"01926f3a-7c00-7000-8000-000000000802","label":"Essais et mise en service","amount":{"is_computable":true,"value":"21667888.47","reason":null},"share":{"is_computable":true,"value":"0.3144","reason":null}},
-      {"key":"unassigned","amount":{"is_computable":true,"value":"23941605.06","reason":null},"share":{"is_computable":true,"value":"0.3473","reason":null}}
+      {"key":"unassigned","label":null,"amount":{"is_computable":true,"value":"23941605.06","reason":null},"share":{"is_computable":true,"value":"0.3473","reason":null}}
     ],
     "by_work_package": [
       {"key":"01926f3a-7c00-7000-8000-000000000711","label":"Lot 1","amount":{"is_computable":true,"value":"502434.56","reason":null},"share":{"is_computable":true,"value":"0.0073","reason":null}},

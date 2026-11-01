@@ -453,7 +453,7 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         for n in (13, 14, 15, 16, 17)
     ] == [
         (2, "Réception usine"),
-        (2, "Risque survenu — Retard de livraison des armoires"),
+        (2, "Retard de livraison des armoires"),
         (3, "Relance du fournisseur"),
         (4, "Frais de relance"),
         (3, "Transport exceptionnel"),

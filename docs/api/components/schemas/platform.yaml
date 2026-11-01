@@ -116,7 +116,7 @@ OperatingParameters:
 
 ComponentHealth:
   type: object
-  required: [component, is_available, checked_at]
+  required: [component, is_available, version, checked_at]
   properties:
     component: { $ref: '#/PlatformComponent' }
     is_available: { type: boolean }
@@ -141,7 +141,7 @@ StorageUsage:
 
 OperationOutcome:
   type: object
-  required: [at, succeeded]
+  required: [at, succeeded, problem]
   properties:
     at: { $ref: ../common.yaml#/Timestamp }
     succeeded: { type: boolean }

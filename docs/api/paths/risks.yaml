@@ -10,6 +10,14 @@
       serveur, et les totaux sont ceux des risques retenus (WF-IHM-0130) : de tous les risques
       que les filtres et la recherche retiennent, non de la seule page lue. Le registre est une
       table plate, paginée comme toute autre (`limit`, `offset`, `meta` ; WF-IHM-0060, #1367).
+      Chacune de ses colonnes se filtre, selon la convention du README du contrat : l'état et la
+      zone par une liste, le libellé par la recherche, chaque colonne de nombres — probabilité,
+      gravité, provision, coût à la survenance et réestimé des survenus — par ses deux bornes
+      incluses, `<colonne>_min` et `<colonne>_max`, et la date du dernier réexamen par sa
+      période, `last_review_on_from` et `last_review_on_to`, fin incluse ; `last_review_on_to`
+      présente à la revue périodique les risques non réexaminés depuis une date (WF-RIS-0020,
+      `risks_filtered` ; H-01, #1785). Un risque sans coût à la survenance ni réestimé — un
+      risque identifié ou écarté — n'est retenu par aucune borne de ces deux colonnes.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision
@@ -30,12 +38,35 @@
           items: { $ref: ../components/schemas/reference.yaml#/AlertZone }
         explode: false
       - $ref: ../components/parameters.yaml#/Search
+      - $ref: ../components/parameters.yaml#/RiskProbabilityMin
+      - $ref: ../components/parameters.yaml#/RiskProbabilityMax
+      - $ref: ../components/parameters.yaml#/RiskSeverityMin
+      - $ref: ../components/parameters.yaml#/RiskSeverityMax
+      - $ref: ../components/parameters.yaml#/RiskProvisionAmountMin
+      - $ref: ../components/parameters.yaml#/RiskProvisionAmountMax
+      - $ref: ../components/parameters.yaml#/RiskOccurrenceCostMin
+      - $ref: ../components/parameters.yaml#/RiskOccurrenceCostMax
+      - $ref: ../components/parameters.yaml#/RiskOccurredReestimatedMin
+      - $ref: ../components/parameters.yaml#/RiskOccurredReestimatedMax
+      - $ref: ../components/parameters.yaml#/RiskLastReviewOnFrom
+      - $ref: ../components/parameters.yaml#/RiskLastReviewOnTo
       - name: sort_by
         in: query
-        description: Colonne du tri ; absente, l'ordre de déclaration.
+        description: >-
+          Colonne du tri ; absente, l'ordre de déclaration. Un risque sans coût à la survenance ni
+          réestimé vient après les autres dans l'ordre croissant de ces colonnes, avant dans le
+          décroissant, comme une valeur nulle de toute grille (#1761).
         schema:
           type: string
-          enum: [label, probability, severity, provision_amount, state, last_review_on]
+          enum:
+            - label
+            - probability
+            - severity
+            - provision_amount
+            - occurrence_cost
+            - occurred_reestimated_amount
+            - state
+            - last_review_on
       - $ref: ../components/parameters.yaml#/SortOrder
     responses:
       '200':
@@ -55,9 +86,22 @@
               witness: { $ref: ../../../fixtures/api/risks.json }
               page: { $ref: ../../../fixtures/api/risks_page.json }
               empty: { $ref: ../../../fixtures/api/risks_empty.json }
+              filtered: { $ref: ../../../fixtures/api/risks_filtered.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Un filtre de colonne refusé, selon la convention du README, `fields` sur le paramètre :
+          une borne mal formée par `NUMBER_INVALID`, une date par `DATE_INVALID`, une borne
+          haute inférieure à la basse par `VALUE_OUT_OF_RANGE` sur `/query/<colonne>_max`,
+          `params.minimum` la borne inférieure donnée, une fin de période antérieure à son début
+          par `VALUE_OUT_OF_RANGE` sur `/query/last_review_on_to`, `params.minimum` le début
+          donné (WF-IHM-0130 ; H-01, #1785).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              period_inverted: { $ref: ../../../fixtures/api/risks_period_inverted.json }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
@@ -185,22 +229,23 @@
   patch:
     operationId: updateRisk
     tags: [risks]
-    summary: Modifier un risque
+    summary: Modifier l'identité d'un risque
     description: >-
-      La gravité et la provision ne sont pas saisissables : elles suivent la structure
-      propre et la probabilité (WF-RIS-0010). La probabilité ne se modifie pas ici : la changer
-      est un réexamen daté, que seul `reviewRisk` écrit et que l'historique montre
-      (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040 ; H-04). Le devis propre reste modifiable tout au
-      long du projet (WF-RIS-0030). Une saisie de la révision en cours, créée au besoin et
-      annulable (WF-RIS-0020, WF-IHM-0110) — l'annulation rend aussi la catégorie et le sous-projet
-      de la provision d'avant, et elle est refusée quand ce sous-projet a été supprimé depuis
-      (409 `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists` ; décision
-      de l'auteur, #732) ; refusée sur un risque survenu, par 409
-      `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `risk_not_occurred` — la
-      commande `update` du risque le disait déjà indisponible. La catégorie, le sous-projet et la
-      tâche de la provision se changent tant que le risque est identifié (WF-RIS-0010), ce que la
-      commande `update_provision` dit d'avance ; omis, ils restent ceux du risque. Une autre tâche
-      déplace la ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786).
+      Le libellé, la description et la note de mitigation d'un risque, données du projet
+      (WF-RIS-0020, §4.4.1) : la modification ne crée aucune révision et s'écrit même sans
+      révision en cours, n'entre pas dans l'historique d'annulation (`undoLastChange`,
+      WF-IHM-0110), et l'abandon d'une révision ne la défait pas (`abandonRevision`). Elle relève
+      de la commande `update` du risque, sous `risks.write`, et non de la saisie des risques
+      dans la révision (`edit_risks`) : `may_create_revision` n'y manque jamais. La probabilité ne
+      se modifie pas ici : la changer est un réexamen daté, que seul `reviewRisk` écrit et que
+      l'historique montre (`RiskUpdate`, WF-RIS-0010, WF-RIS-0040 ; H-04). La gravité et la
+      provision ne sont pas saisissables : elles suivent la structure propre et la probabilité
+      (WF-RIS-0010). La catégorie, le sous-projet et la tâche de la provision, portés par chaque
+      révision, se changent par `updateRiskProvision` (décision de l'auteur du 2026-11-01, H-02,
+      #1782). Refusée sur un risque survenu, par 409 `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` à `risk_not_occurred` — la commande `update` du risque le
+      disait déjà indisponible. Elle porte le compteur lu du risque (`Risk.lock_version`), qu'elle
+      fait avancer.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskId
@@ -223,31 +268,21 @@
       '404': { $ref: ../components/responses.yaml#/NotFound }
       '409':
         description: >-
-          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant les conditions d'état de
-          la saisie des risques : `project_not_terminal` sur un projet terminal, qui ne liste pas
-          la commande, puis `no_background_task_running`, jugées avant celles du risque, comme à
-          la déclaration (`createRisk`) ;
-          puis à `risk_not_occurred` pour un risque survenu, que la commande `update` dit
-          indisponible ; sinon à `risk_identified`
-          pour une autre catégorie, un autre sous-projet ou une tâche de provision envoyés pour un
-          risque écarté, que la commande `update_provision` dit indisponible (WF-RIS-0010). Ce 409
-          précède le 422, comme à la déclaration (`createRisk`) : une autre catégorie envoyée pour
-          un risque qui n'est pas identifié est refusée par `risk_identified`, qu'elle soit
-          désactivée, inconnue ou d'une nature d'un autre type, aucune n'étant valable tant que
-          la provision ne se change pas (#747). Rien n'est écrit.
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la condition qui manque :
+          `project_not_terminal` sur un projet terminal, qui ne liste pas la commande
+          (WF-CYC-0100) ; puis `risk_not_occurred` pour un risque survenu, que la commande
+          `update` dit indisponible. Aucune condition de la révision en cours : la modification
+          n'y écrit pas. Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
-            examples:
-              provision_frozen: { $ref: ../../../fixtures/api/risk_provision_frozen.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
-          `VALIDATION_FAILED`, `fields` désignant chaque champ, comme à la déclaration
-          (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur
-          `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa
-          catégorie inchangée, désactivée depuis, est acceptée. La probabilité n'est pas un champ
-          de la modification (`RiskUpdate`). Rien n'est écrit.
+          `VALIDATION_FAILED`, `fields` désignant chaque champ : `/label` vide, `VALUE_REQUIRED`, ou
+          plus long que le schéma ne l'admet, `VALUE_TOO_LONG`, comme à la déclaration
+          (`createRisk`). La probabilité n'est pas un champ de la modification (`RiskUpdate`), ni la
+          provision (`updateRiskProvision`). Rien n'est écrit.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -314,6 +349,75 @@
             examples:
               stale: { $ref: ../../../fixtures/api/risk_delete_stale.json }
       '422': { $ref: ../components/responses.yaml#/LockVersionInvalid }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
+      '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
+
+/projects/{project_id}/risks/{risk_id}/provision:
+  put:
+    operationId: updateRiskProvision
+    tags: [risks]
+    summary: Changer la provision d'un risque
+    description: >-
+      La catégorie, le sous-projet et la tâche de la ligne de provision d'un risque, portés par
+      chaque révision avec son évaluation (WF-RIS-0020, WF-RIS-0010) : une saisie de la révision
+      en cours, que le projet crée au préalable s'il n'en a pas, qu'annule `undoLastChange` et que
+      l'abandon de la révision défait (WF-IHM-0110 ; décision de l'auteur du 2026-11-01, H-02,
+      #1782). Elle relève de la saisie des risques (`edit_risks`, `risks.write`), et la commande
+      `update_provision` du risque dit d'avance qu'elle n'est offerte que tant que le risque est
+      identifié (WF-RIS-0010). Chaque champ omis reste celui du risque. Une autre tâche déplace la
+      ligne de provision sur elle, le total du devis inchangé (WF-RIS-0010, #786). L'annulation
+      rend la catégorie, le sous-projet et la tâche d'avant, et elle est refusée quand ce
+      sous-projet a été supprimé depuis (409 `STATE_FORBIDS_OPERATION`,
+      `params.missing_condition` à `restored_subproject_exists` ; décision de l'auteur, #732).
+      Elle porte le compteur lu du risque (`Risk.lock_version`), le même que celui de la
+      modification de son identité, qu'elle fait avancer.
+    parameters:
+      - $ref: ../components/parameters.yaml#/ProjectId
+      - $ref: ../components/parameters.yaml#/RiskId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/risks.yaml#/RiskProvisionUpdate }
+    responses:
+      '200':
+        description: Provision du risque changée.
+        content:
+          application/json:
+            schema: { $ref: ../components/schemas/risks.yaml#/Risk }
+            examples:
+              moved: { $ref: ../../../fixtures/api/risk_provision_moved.json }
+      '400': { $ref: ../components/responses.yaml#/BadRequest }
+      '401': { $ref: ../components/responses.yaml#/Unauthorized }
+      '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '409':
+        description: >-
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant la première condition qui
+          manque : les conditions d'état de la saisie des risques, `project_not_terminal` sur un
+          projet terminal, qui ne liste pas la commande, puis `no_background_task_running`,
+          jugées avant celles du risque, comme à la déclaration (`createRisk`) ; puis
+          `risk_identified` pour un risque survenu ou écarté, que la commande `update_provision`
+          dit indisponible (WF-RIS-0010) ; puis `may_create_revision`, sans révision en cours,
+          pour qui n'a pas `revisions.write` : la saisie la créerait (WF-RIS-0020). Ce 409 précède
+          le 422 : une catégorie envoyée pour un risque qui n'est pas identifié est refusée par
+          `risk_identified`, qu'elle soit désactivée, inconnue ou d'une nature d'un autre type,
+          aucune n'étant valable tant que la provision ne se change pas (#747). Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              provision_frozen: { $ref: ../../../fixtures/api/risk_provision_frozen.json }
+      '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
+      '422':
+        description: >-
+          `VALIDATION_FAILED`, `fields` désignant chaque champ, par les motifs de la déclaration
+          (`createRisk`), à ceci près que `INACTIVE_REFERENCE_OBJECT` ne vaut sur
+          `/provision_cost_category_id` que si la valeur change la catégorie du risque : sa
+          catégorie inchangée, désactivée depuis, est acceptée. Rien n'est écrit.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
       '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
@@ -499,7 +603,10 @@
       devis propre tant que ses dates n'ont pas changé (WF-RIS-0060) ; le compte rendu
       préalable décrit cette place (`RiskOccurrenceReport.differences`). Le risque garde son
       coût à la survenance, le total de son devis propre à cet instant (`Risk.occurrence_cost`,
-      WF-RIS-0010), que la couverture compare à la réserve (WF-RIS-0050). Les tâches
+      WF-RIS-0010), que la couverture compare à la réserve (WF-RIS-0050). Chaque tâche et chaque
+      ligne fusionnées portent le risque (`Node.origin_risk_id`), que la copie, les déplacements,
+      les imports rapprochés par la lignée et la fusion d'un avenant conservent, et dont le
+      registre somme le réestimé courant (`Risk.occurred_reestimated_amount`, #1761). Les tâches
       qu'elle ajoute ne portent aucun rattachement au lotissement, le devis propre d'un risque
       n'en portant pas (WF-PLA-0170). Lorsque le projet n'a pas de révision en cours, la
       survenance en crée une au préalable (WF-RIS-0060). Définitif : aucune commande ne
@@ -584,7 +691,9 @@
       identifiés dans la révision courante et aux coûts à la survenance des risques survenus
       (`Risk.occurrence_cost`), et leur écart signé (WF-RIS-0050, WF-RAE-0020) : la terminaison
       ou la réestimation des tâches issues d'un risque survenu ne change ni le coût des
-      survenus ni l'écart. Dans la révision nommée, ou la révision courante.
+      survenus ni l'écart ; le réestimé courant de leurs lignes est présenté en regard du coût
+      des survenus, hors de l'écart (`RiskCoverageTotals.occurred_reestimated`, #1761). Dans la
+      révision nommée, ou la révision courante.
     parameters:
       - $ref: ../components/parameters.yaml#/ProjectId
       - $ref: ../components/parameters.yaml#/RiskRevision

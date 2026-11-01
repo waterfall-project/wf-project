@@ -10,6 +10,7 @@
         "position": 1,
         "row_number": 1,
         "level": 1,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -82,6 +83,7 @@
         "position": 1,
         "row_number": 2,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -154,6 +156,7 @@
         "position": 1,
         "row_number": 3,
         "level": 3,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",
@@ -218,6 +221,7 @@
         "position": 2,
         "row_number": 4,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",

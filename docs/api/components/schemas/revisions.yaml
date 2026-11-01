@@ -20,6 +20,9 @@ Revision:
     - reference_year
     - inflation_rate
     - win_probability
+    - version_name
+    - description
+    - marked_at
     - source_revision_id
     - source_version_name
     - available_commands
@@ -35,9 +38,15 @@ Revision:
         projet (WF-REV-0020). Nul tant que la révision est en cours.
     description:
       anyOf: [{ type: string }, { type: 'null' }]
+      description: >-
+        La description saisie au marquage, facultative (WF-REV-0090) ; nulle tant que la révision
+        n'est pas marquée, ou quand le marquage n'en a pas reçu (E-10, #1780).
     status: { $ref: '#/RevisionStatus' }
     marked_at:
       anyOf: [{ $ref: ../common.yaml#/Timestamp }, { type: 'null' }]
+      description: >-
+        L'instant du marquage (WF-REV-0090) ; nul tant que la révision n'est pas marquée (E-10,
+        #1780).
     is_reference:
       type: boolean
       description: Caractère de révision de référence (WF-REV-0040, WF-REV-0090).
@@ -143,10 +152,13 @@ RevisionCommand:
     manque d'aucune condition : sur une révision marquée, pendant un marquage, sur un
     projet terminal, il reste disponible. Un export est présent ou absent.
 
-    `edit_risks` est la saisie des risques — déclarer, modifier, réexaminer, supprimer un
-    risque (`createRisk`, `updateRisk`, `reviewRisk`, `deleteRisk`), sous `risks.write` —,
-    une saisie de la révision en cours comme les trois autres, annulable par le même
-    historique (WF-RIS-0020, WF-IHM-0110). Seule la révision en cours la porte : une révision
+    `edit_risks` est la saisie des risques — déclarer un risque, changer sa provision, le
+    réexaminer, le supprimer (`createRisk`, `updateRiskProvision`, `reviewRisk`, `deleteRisk`),
+    sous `risks.write` —, une saisie de la révision en cours comme les trois autres, annulable par
+    le même historique (WF-RIS-0020, WF-IHM-0110). La modification de l'identité d'un risque — son
+    libellé, sa description, sa note de mitigation — n'en relève pas : donnée du projet, elle
+    n'écrit pas dans la révision, et sa commande est celle du risque (`RiskCommand.update`,
+    `updateRisk` ; H-02, #1782). Seule la révision en cours la porte : une révision
     marquée ne la liste jamais, pas même indisponible comme les trois autres saisies — elle est
     immuable (WF-DAT-0020), et l'écran ne doit pas montrer deux commandes de saisie des risques
     quand le projet la porte. Tant que le projet n'a pas
@@ -176,8 +188,8 @@ RevisionCommand:
     en cours ou la fige —, comme `ProjectCommand.update_work_breakdown` ; puis ses conditions
     propres — `at_least_one_task`, une structure principale sans tâche, puis
     `active_provision_category`, aucune catégorie active de type provision pour risques
-    (WF-RIS-0010) — ; puis les autres conditions d'`edit_risks`. La modification, le réexamen
-    et la suppression, qui n'en dépendent pas, restent sous `edit_risks`.
+    (WF-RIS-0010) — ; puis les autres conditions d'`edit_risks`. Le changement de la provision,
+    le réexamen et la suppression, qui n'en dépendent pas, restent sous `edit_risks`.
 
     `generate_skeleton` engendre le squelette de planning depuis le lotissement
     (`generatePlanningSkeleton`, WF-PRJ-0030), une saisie du planning gardée par la même
@@ -639,7 +651,7 @@ NodeKind:
 
 Node:
   type: object
-  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, computed_fields, editable_fields, lock_version]
+  required: [node_id, lineage_id, kind, parent_id, position, row_number, level, origin_risk_id, computed_fields, editable_fields, lock_version]
   description: >-
     `row_number` et `level` sont calculés à la lecture. `lineage_id` est stable
     d'une révision à l'autre et fonde la comparaison, le diagramme temps/temps, les
@@ -672,6 +684,18 @@ Node:
         sur une comparaison, les nœuds retirés rendus y comptent, chacun occupant sa ligne
         (`NodeDifference`).
     level: { type: integer, minimum: 1 }
+    origin_risk_id:
+      anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
+      readOnly: true
+      description: >-
+        Le risque dont la survenance a fusionné ce nœud, tâche ou ligne, dans la structure
+        principale (WF-RIS-0060) ; nul pour tout autre. En lecture seule : la survenance le pose
+        sur chaque tâche et chaque ligne qu'elle fusionne, et aucune écriture ne le change. La
+        copie d'une révision, les déplacements, les imports qui rapprochent le nœud par sa lignée
+        (`lineage_id`) et la fusion d'un avenant le conservent ; une création le laisse nul, même
+        sous une tâche issue d'un risque. Il retrouve les lignes issues d'un risque survenu, que
+        les filtres `is_from_risk` et `origin_risk_ids` retiennent, et dont le réestimé se compare
+        au coût à la survenance (`Risk.occurred_reestimated_amount` ; #1761).
     task:
       anyOf: [{ $ref: '#/TaskFacet' }, { type: 'null' }]
     estimate_line:
@@ -2051,7 +2075,7 @@ EstimateLineUpdate:
         Le sous-projet de la ligne, ou `null` pour la passer hors sous-projet. Celui d'une ligne de
         provision est celui que son risque désigne, calculé : envoyé sur elle, il est refusé par
         422 `COMPUTED_VALUE`, comme ses grandeurs (WF-IHM-0030), et se change par le risque
-        (`updateRisk`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
+        (`updateRiskProvision`, `update_provision`, WF-RIS-0010) ; un collage refuse la cellule de même.
         Une ligne dont la tâche est démarrée ou terminée ne quitte pas un sous-projet qui a reçu
         des coûts réels, une part de ces coûts lui revenant : la passer à un autre sous-projet ou
         hors sous-projet est refusé par 422 `VALIDATION_FAILED`, `fields` sur `/subproject_id`,
@@ -2176,10 +2200,12 @@ UndoResult:
     (`undoLastChange`, qui dit cet historique). Une annulation est une modification comme une
     autre : elle rend ce qu'une écriture rend (`written`), et elle est refusée par 409 si une
     modification postérieure porte sur le même objet, `UNDO_CONFLICT` le nommant (WF-IHM-0110). Les saisies de risque —
-    création, modification, réexamen, suppression — sont dans le même historique que celles des
-    grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent. Toute
+    création, changement de la provision, réexamen, suppression — sont dans le même historique que
+    celles des grilles (WF-RIS-0020) : leur annulation nomme le risque rendu à son état précédent.
+    La modification de l'identité d'un risque, donnée du projet, n'y entre pas (`updateRisk` ;
+    H-02, #1782). Toute
     annulation et tout rétablissement qui rendraient un sous-projet supprimé depuis — à la provision
-    d'un risque créé, modifié ou supprimé, ou à une ligne de devis par une écriture de la grille, la
+    d'un risque créé ou supprimé, ou dont la provision a changé, ou à une ligne de devis par une écriture de la grille, la
     suppression d'une ligne ou d'une tâche et de ses lignes comprise — sont refusés par 409
     `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `restored_subproject_exists`, et ne
     défont ni ne rétablissent rien (décision de l'auteur, #732). De même, toute annulation et tout
@@ -2333,7 +2359,7 @@ PasteRejection:
     la confirmation, que si elle change la catégorie ou le rôle de sa ligne : celle qui nomme la
     catégorie ou le rôle que la ligne porte déjà, désactivés depuis, ne change rien et n'est pas
     refusée, comme le parent d'un nœud, la catégorie d'un rôle ou celle d'un risque
-    (`updateOrgNode`, `updateResourceRole`, `updateRisk` ; EP-14/L42j, #747). Une
+    (`updateOrgNode`, `updateResourceRole`, `updateRiskProvision` ; EP-14/L42j, #747). Une
     cellule de la colonne `work_breakdown` collée sur une tâche d'un différentiel ou du devis
     propre d'un risque est refusée par `WORK_BREAKDOWN_MAIN_STRUCTURE_ONLY` : le rattachement
     n'existe que dans la structure principale (WF-PLA-0170 ; EP-14/L42k) ; collée sur une tâche

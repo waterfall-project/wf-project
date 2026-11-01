@@ -13,7 +13,13 @@ Project:
   required:
     - project_id
     - label
+    - description
+    - client
+    - code
     - state
+    - order_received_on
+    - reference_revision_id
+    - current_revision_id
     - inflation_rate
     - win_probability
     - available_commands
@@ -226,8 +232,8 @@ CommandCondition:
     `active_provision_category` manque à la déclaration d'un risque, et au retour d'un risque
     écarté à l'état identifié, quand aucune catégorie de coût active n'est de type provision pour
     risques (WF-RIS-0010 ; EP-14/L42p, #579) — une catégorie active l'est toujours sous une nature
-    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) modifie, réexamine et
-    supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
+    active (WF-REF-0010, C-291) : la saisie des risques (`edit_risks`) change la provision,
+    réexamine et supprime sans elle, la déclaration la dit d'avance (`declare_risk`, EP-14/L42s), et
     `createRisk` et `reviewRisk` la nomment dans leur 409 ; le retour d'un risque écarté, par la
     catégorie du risque (`Risk.provision_cost_category_is_active`) ; et la création d'un projet
     l'exige (`ReferenceReadiness.missing`, WF-CYC-0120). Elle manque aussi à toute annulation et à
@@ -251,9 +257,16 @@ CommandCondition:
     (`undoLastChange`, `redoLastUndo` ; WF-RIS-0010, #795) ; et à la suppression d'une tâche qui
     laisserait sans tâche une structure principale qui porte une ligne de provision, refusée en
     nommant les risques (`deleteNode`, `params.risks`, WF-RIS-0010 ; H-05, US-0702/L2).
-    `import_file_accepted` manque à l'application d'un import dont le compte rendu rejette le
-    fichier entier (`ImportReport.refusals`, WF-INTF-0040, WF-PLA-0150) : seul l'abandon reste
-    offert, et `applyImport` la nomme dans son 409 (EP-14/L42s).
+    Trois tiennent à l'import, et l'import les nomme (`ImportDetail.available_commands`,
+    WF-IHM-0090 ; I-01, I-02, #1789). `import_awaiting_decision` manque à l'application d'un
+    import qui n'est plus `analysed` — appliqué ou en cours d'application, abandonné, expiré,
+    échoué ou refusé : il n'y a plus rien à appliquer (WF-ARC-0100) —, et `applyImport` la nomme
+    dans son 409 avant toute autre. `import_file_accepted` manque à l'application d'un import dont
+    le compte rendu rejette le fichier entier (`ImportReport.refusals`, WF-INTF-0040,
+    WF-PLA-0150) : seul l'abandon reste offert, et `applyImport` la nomme dans son 409 ensuite
+    (EP-14/L42s). `import_not_applied` manque à l'abandon d'un import appliqué ou en cours
+    d'application (`applying`, `applied`) : ce qu'il a écrit ne se défait pas par l'abandon
+    (WF-INTF-0080) ; `abandonImport` la nomme dans son 409.
     Une tient aux comptes, et le compte la nomme (`User.available_commands`) :
     `last_administrator` manque à la désactivation du dernier compte actif qui porte les
     permissions de modifier les comptes et les rôles d'habilitation (WF-ADM-0120) ;
@@ -321,7 +334,9 @@ CommandCondition:
     vers elle ou depuis elle, la tâche se rouvrant d'abord depuis le Kanban : `createNode`,
     `updateEstimateLine`, `deleteNode` et `moveNodes` la nomment dans leur 409, et le collage
     dans le refus de la cellule (`PasteRejection`) ; la ligne ne nomme alors aucun champ
-    (`Node.editable_fields`). Dans un différentiel, elle ne manque jamais : les lignes d'une tâche
+    (`Node.editable_fields`). Une ligne nouvelle importée sous une telle tâche est rejetée au
+    compte rendu par la même condition, la tâche nommée (`ImportRejection`, WF-INTF-0120 ; I-05,
+    #1793). Dans un différentiel, elle ne manque jamais : les lignes d'une tâche
     terminée s'y saisissent comme les autres, pour que l'avenant les rebudgète (WF-DEV-0050,
     WF-RAE-0030, WF-RAE-0040, WF-REV-0050 ; #1184, #1214, #1766). `line_not_provision` manque à la
     réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
@@ -420,7 +435,9 @@ CommandCondition:
     - subproject_without_actual_costs
     - subproject_without_estimate_lines
     - main_structure_without_tasks
+    - import_awaiting_decision
     - import_file_accepted
+    - import_not_applied
     - is_local_account
     - is_active_account
     - is_deactivated_account
@@ -503,7 +520,9 @@ ProjectCommand:
     WF-RIS-0020), et chaque risque porte les siennes (`Risk.available_commands`) ; le projet
     porte `edit_risks` tant qu'il n'a pas de révision en cours, qu'il ait ou non des révisions
     marquées, comme les imports : la saisie d'un risque crée la révision en cours (WF-RIS-0020),
-    et nomme `may_create_revision` à qui n'a pas la permission de la créer. Dès qu'une révision
+    et nomme `may_create_revision` à qui n'a pas la permission de la créer. La modification de
+    l'identité d'un risque n'en relève pas : donnée du projet, elle ne crée pas de révision
+    (`updateRisk`, `RiskCommand.update` ; H-02, #1782). Dès qu'une révision
     est en cours, la commande n'est plus listée sur le projet, mais sur elle. `declare_risk` la
     suit, comme sur la révision (`RevisionCommand.declare_risk`), et nomme ses conditions dans le
     même ordre : celles de l'état d'abord, `project_not_terminal` — que seul le 409 nomme, un

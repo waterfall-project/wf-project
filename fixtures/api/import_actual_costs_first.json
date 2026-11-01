@@ -13,6 +13,10 @@
     "created_at": "2026-05-04T08:25:00Z",
     "expires_at": "2026-05-05T08:26:00Z",
     "report": {"format_version":null,"read_count":4,"unchanged_count":0,"rejected":[{"sheet":null,"row":5,"code":"WBS_ELEMENT_OUTSIDE_PROJECT","params":{"wbs_element":"PRJ-002/SP-CAB","project_code":"PRJ-002"}}],"refusals":[],"differences":[{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"AV-2026-0388","document_item":null,"predecessor_label":null,"fields":[]},{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"FA-2026-0409","document_item":"10","predecessor_label":null,"fields":[]},{"change":"added","target":"actual_cost_line","lineage_id":null,"label":"FA-2026-0412","document_item":"10","predecessor_label":null,"fields":[]}],"ignored":[],"completed_tasks":[],"date_mismatches":[],"signals":[],"requires_confirmation_reasons":["lines_outside_project","unknown_subproject"]},
-    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000944","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-05-04T08:25:00Z","finished_at":"2026-05-04T08:26:00Z","problem":null,"result_url":null}
+    "task": {"task_id":"01926f3a-7c00-7000-8000-000000000944","kind":"import_analysis","status":"succeeded","progress":100,"submitted_at":"2026-05-04T08:25:00Z","finished_at":"2026-05-04T08:26:00Z","problem":null,"result_url":null},
+    "available_commands": [
+      {"command":"apply","is_available":true,"missing_conditions":[]},
+      {"command":"abandon","is_available":true,"missing_conditions":[]}
+    ]
   }
 }

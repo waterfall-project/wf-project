@@ -12,6 +12,7 @@ contrat, à ses fixtures et à ses générateurs ».
 """
 
 import json
+from decimal import Decimal
 from functools import cache
 from pathlib import Path
 from typing import Any, cast
@@ -385,3 +386,159 @@ def test_the_line_of_a_completed_task_names_no_field_on_the_main_structure_alone
     assert "estimate_line_rebudgeted_amendment" in _cited("updateEstimateLine", "200")
     said = _flat(_schemas("revisions.yaml")["PasteRejection"]["description"])
     assert "`task_not_completed`" in said
+
+
+def test_the_nodes_an_occurrence_merges_bear_their_risk_and_are_filtered_by_it() -> None:
+    # #1761: `origin_risk_id`, read-only, required; the two filters shared by the two readings
+    # of the tree; a risk that has not occurred is refused by its rank in the list.
+    node = _schemas("revisions.yaml")["Node"]
+    assert "origin_risk_id" in node["required"]
+    assert node["properties"]["origin_risk_id"]["readOnly"] is True
+    for operation in ("listNodes", "compareRevisions"):
+        refs = {each.get("$ref", "") for each in _parameters(operation)}
+        assert "../components/parameters.yaml#/NodeIsFromRiskFilter" in refs, operation
+        assert "../components/parameters.yaml#/NodeOriginRiskFilter" in refs, operation
+        assert "nodes_origin_risk_unknown" in _cited(operation, "422"), operation
+    occurred = universe(mockwitness.DELIVERY_DELAY_RISK)
+    merged = {each["node_id"] for each in fixture("nodes_risk_occurred")["items"]}
+    found = fixture("nodes_from_risk")["items"]
+    assert {each["node_id"] for each in found if each["origin_risk_id"] == occurred} == merged
+    [ancestor] = [each for each in found if each["origin_risk_id"] is None]
+    assert ancestor["node_id"] == universe(mockwitness.N.CONTROL_STATION)
+    assert all(each["origin_risk_id"] is None for each in fixture("nodes_core")["items"][:3])
+    refused = fixture("nodes_origin_risk_unknown")
+    assert refused["fields"][0]["code"] == "UNKNOWN_RISK"
+
+
+def test_an_occurred_risk_shows_the_reestimate_of_its_lines_beside_its_cost() -> None:
+    # #1761: the re-estimate of the lines it merged, and its sum to the coverage, outside the
+    # variance, which stays reserve minus (remaining + occurred cost).
+    risks = {each["risk_id"]: each for each in fixture("risks")["items"]}
+    lines = [each for each in fixture("nodes_from_risk")["items"] if each["kind"] != "task"]
+    total = sum(Decimal(each["estimate_line"]["reestimated_amount"]) for each in lines)
+    for risk in risks.values():
+        assert (risk["occurred_reestimated_amount"] is None) == (risk["state"] != "occurred")
+    [occurred] = [each for each in risks.values() if each["state"] == "occurred"]
+    assert Decimal(occurred["occurred_reestimated_amount"]) == total
+    coverage = fixture("risk_coverage")
+    assert coverage["occurred_reestimated"] == occurred["occurred_reestimated_amount"]
+    variance = Decimal(coverage["reserve"]) - Decimal(coverage["remaining_provisions"])
+    assert Decimal(coverage["coverage_variance"]) == variance - Decimal(coverage["occurred_cost"])
+
+
+def test_the_own_estimate_of_the_occurred_risk_has_one_root_placed_last_under_its_bearer() -> None:
+    # H-03, #1788: 541 is the one root of the own estimate of 752, not an envelope.
+    estimate = fixture("nodes_risk_estimate_occurred")["items"]
+    roots = [each for each in estimate if each["parent_id"] is None]
+    occurred = fixture("nodes_risk_occurred")["items"]
+    assert [each["task"]["label"] for each in roots] == [occurred[0]["task"]["label"]]
+    assert not occurred[0]["task"]["label"].startswith("Risque survenu")
+    labels = [(each.get("task") or each["estimate_line"])["label"] for each in estimate]
+    assert labels == [(each.get("task") or each["estimate_line"])["label"] for each in occurred]
+    assert all(each["origin_risk_id"] is None for each in estimate)
+    assert "nodes_risk_estimate_occurred" in _cited("listNodes", "200")
+
+
+def test_the_identity_of_a_risk_and_its_provision_are_written_apart_on_one_counter() -> None:
+    # H-02, #1782: the identity, a data of the project; the provision, an entry of the revision.
+    update = _schemas("risks.yaml")["RiskUpdate"]["properties"]
+    assert set(update) == {"label", "description", "mitigation_notes", "lock_version"}
+    provision = _schemas("risks.yaml")["RiskProvisionUpdate"]
+    assert set(provision["properties"]) == {
+        "provision_cost_category_id",
+        "provision_subproject_id",
+        "provision_task_id",
+        "lock_version",
+    }
+    said = _flat(_operations()["updateRisk"]["description"])
+    assert "ne crée aucune révision" in said
+    assert "`edit_risks`" in said
+    assert "risk_provision_frozen" in _cited("updateRiskProvision", "409")
+    assert "risk_provision_moved" in _cited("updateRiskProvision", "200")
+    refusal = _flat(_operations()["updateRiskProvision"]["responses"]["409"]["description"])
+    assert refusal.index("`risk_identified`") < refusal.index("`may_create_revision`")
+    updated, moved = fixture("risk_updated"), fixture("risk_provision_moved")
+    assert moved["lock_version"] == updated["lock_version"] + 1
+    edit = _flat(_schemas("revisions.yaml")["RevisionCommand"]["description"])
+    assert "`updateRiskProvision`" in edit
+
+
+def test_the_register_filters_each_of_its_columns_and_totals_the_risks_retained() -> None:
+    # H-01, #1785: bounds of each column of numbers, the period of the last review.
+    names = {each.get("$ref", "").rsplit("/", 1)[-1] for each in _parameters("listRisks")}
+    for column in ("Probability", "Severity", "ProvisionAmount", "OccurrenceCost"):
+        assert {f"Risk{column}Min", f"Risk{column}Max"} <= names, column
+    assert {"RiskLastReviewOnFrom", "RiskLastReviewOnTo"} <= names
+    read = fixture("risks_filtered")
+    bound = mockreview.FILTERED_PROVISION_MIN
+    assert all(Decimal(each["provision_amount"]) >= bound for each in read["items"])
+    assert read["meta"]["total"] == len(read["items"]) < len(fixture("risks")["items"])
+    total = sum(Decimal(each["provision_amount"]) for each in read["items"])
+    assert Decimal(read["totals"]["total"]) == total
+    assert "risks_period_inverted" in _cited("listRisks", "422")
+
+
+def test_an_import_says_its_commands_and_refuses_what_its_state_forbids() -> None:
+    # I-01 to I-04, #1789, #1792: the state `refused`, the commands of an import and their
+    # conditions, the refusals of the opening, the application and the abandonment.
+    status = _schemas("exchanges.yaml")["Import"]["properties"]["status"]["enum"]
+    assert status[-1] == "refused"
+    detail = _schemas("exchanges.yaml")["ImportDetail"]
+    assert {"report", "task", "available_commands"} <= set(detail["required"])
+    assert "report" not in _schemas("exchanges.yaml")["Import"]["required"]
+    for name, operation, condition in (
+        ("import_open_terminal", "openImport", "project_not_terminal"),
+        ("import_open_background_running", "openImport", "no_background_task_running"),
+        ("import_open_may_create_revision", "openImport", "may_create_revision"),
+        ("import_apply_expired", "applyImport", "import_awaiting_decision"),
+        ("import_abandon_applied", "abandonImport", "import_not_applied"),
+    ):
+        assert name in _cited(operation, "409"), name
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == STATE, name
+        assert refused["params"] == {"missing_condition": condition}, name
+    said = _flat(_operations()["openImport"]["responses"]["409"]["description"])
+    assert "déjà consommé" not in said
+    assert said.index("`no_background_task_running`") < said.index("`may_create_revision`")
+    refused = fixture("import_apply_refused_permission")
+    assert (refused["status"], refused["expires_at"]) == ("refused", None)
+    [apply, abandon] = refused["available_commands"]
+    assert apply["missing_conditions"] == ["import_awaiting_decision"]
+    assert abandon["is_available"] is True
+
+
+def test_a_new_line_imported_under_a_completed_task_is_rejected_naming_the_task() -> None:
+    # I-05, #1793: as its entry, by the condition, the task named by its lineage and its label.
+    nodes = {each["node_id"]: each for each in fixture("nodes_core")["items"]}
+    under = nodes[universe(mockreview.COMPLETED_UNDER)]
+    [rejected] = fixture("import_remaining_completed_task")["report"]["rejected"]
+    assert rejected["code"] == "STATE_FORBIDS_OPERATION"
+    assert rejected["params"] == {
+        "missing_condition": "task_not_completed",
+        "tasks": [{"lineage_id": under["lineage_id"], "label": under["task"]["label"]}],
+    }
+    assert "remaining_completed_task" in str(_cited("getImport", "200"))
+
+
+def test_the_fields_always_rendered_are_required() -> None:
+    # G-03, #1780, with D-11, E-10, A-05 and I-06: required, nullable where they may be null.
+    required = {
+        ("portfolio.yaml", "PortfolioScope"): {"from", "to", "org_node_id"},
+        ("portfolio.yaml", "PortfolioProjectRow"): {"code", "cost_index", "schedule_index"},
+        ("indicators.yaml", "RemainingIndicators"): {"delta_to_previous_revision"},
+        ("indicators.yaml", "EstimateIndicators"): {"provisions_identified"},
+        ("indicators.yaml", "CurveSeries"): {"steps"},
+        ("indicators.yaml", "Computable"): {"value", "reason"},
+        ("indicators.yaml", "ComputableMoney"): {"value", "reason"},
+        ("indicators.yaml", "AmountByKey"): {"label"},
+        ("projects.yaml", "Project"): {"description", "code", "current_revision_id"},
+        ("revisions.yaml", "Revision"): {"version_name", "description", "marked_at"},
+        ("access.yaml", "Permission"): {"fbs_code"},
+        ("platform.yaml", "OperationOutcome"): {"problem"},
+        ("platform.yaml", "ComponentHealth"): {"version"},
+    }
+    for (file, name), fields in required.items():
+        assert fields <= set(_schemas(file)[name]["required"]), name
+    by_subproject = fixture("estimate_indicators")["by_subproject"]
+    [unassigned] = [each for each in by_subproject if each["key"] == "unassigned"]
+    assert unassigned["label"] is None
