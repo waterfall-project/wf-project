@@ -272,3 +272,33 @@ def test_a_summary_is_dated_on_the_calendar_of_its_own_lines_not_on_its_subordin
     standard = {**dict.fromkeys(("monday", "tuesday", "wednesday", "thursday", "friday"), "8")}
     standard |= {"saturday": "0", "sunday": "0"}
     assert (tasks[3]["calendar_hours"], tasks[1]["calendar_hours"]) == (four_days, standard)
+
+
+def _awaiting(own: Line) -> tuple[str, bool]:
+    """Return the progress of a summary whose one subordinate is completed, and its signal."""
+    done = Task(
+        1,
+        "Pose",
+        days=1,
+        manual=(date(2026, 3, 2), date(2026, 3, 2)),
+        progress="completed",
+    )
+    lot = Task(3, "Lot", children=(done,), lines=(own,))
+    summary = next(facet(row.node) for row in mockcore.core([lot]) if row.number == lot.number)
+    return summary["progress"], summary["awaiting_own_lines"]
+
+
+def test_a_summary_whose_own_line_keeps_a_negative_remaining_stays_started() -> None:
+    # #1807, WF-PLA-0040: « tant que ce reste n'est pas nul, elle reste démarrée » — not nought,
+    # of either sign. Its subordinates completed, a summary whose one own line is a credit of
+    # 500, a quantity of -1, stays started and says it awaits its own lines (F-05, #1774).
+    credit = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(-1))
+    assert mockdating.price(credit, 2026).base == Decimal(-500)
+    assert _awaiting(credit) == ("started", True)
+
+
+def test_a_summary_whose_own_line_keeps_no_remaining_completes() -> None:
+    # #1807, WF-PLA-0040: the same summary, its own line re-estimated to nought, completes with
+    # its last subordinate and says nothing (WF-RAE-0040).
+    nought = Line(2, "Avoir", mockwitness.EQUIPMENT, unit=Decimal("500.00"), quantity=Decimal(0))
+    assert _awaiting(nought) == ("completed", False)

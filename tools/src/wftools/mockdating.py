@@ -270,11 +270,13 @@ def open_own_lines(task: Task) -> bool:
     """Return whether a task bears a line of its own, not a provision, with a remaining to commit.
 
     The remaining of a line is what its current quantities give: a line re-estimated to nought
-    keeps none (WF-RAE-0040).
+    keeps none (WF-RAE-0040). It is open while that remaining is not nought, of either sign — the
+    contract signs the quantity, the hours and the disbursement, and a credit keeps a negative
+    remaining: « tant que ce reste n'est pas nul, elle reste démarrée » (WF-PLA-0040, #1807).
     """
     return any(
         not line.is_provision
-        and line.quantity * (line.hours if line.hours is not None else line.unit or 0) > 0
+        and line.quantity * (line.hours if line.hours is not None else line.unit or 0) != 0
         for line in task.lines
     )
 
