@@ -6,7 +6,7 @@ cite dans ses propres mots, résumé ou description ; les paramètres, les corps
 les réponses en citent d'autres, comptées dans la couverture ci-dessous mais pas
 dans le tableau.
 
-**168 opérations sur 130 chemins, dans 13 familles.**
+**169 opérations sur 131 chemins, dans 13 familles.**
 Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Système, métriques et traitements de fond
@@ -173,7 +173,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}` | Modifier la date de début de planning et le libellé d'une structure | WF-PLA-0010, WF-PLA-0020, WF-REV-0100 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
-| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
+| GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-REV-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170, WF-RAE-0030, WF-RAE-0040, WF-REV-0050, WF-RIS-0010 |
@@ -210,15 +210,16 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 
 ## Risques et provisions
 
-`paths/risks.yaml` — 11 opérations
+`paths/risks.yaml` — 12 opérations
 
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
-| GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0060, WF-IHM-0130, WF-RIS-0030, WF-RIS-0040 |
+| GET | `/projects/{project_id}/risks` | Registre des risques | WF-IHM-0060, WF-IHM-0130, WF-RIS-0020, WF-RIS-0030, WF-RIS-0040 |
 | POST | `/projects/{project_id}/risks` | Déclarer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}` | Un risque | WF-RIS-0010, WF-RIS-0020, WF-RIS-0030 |
-| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0030, WF-RIS-0040 |
+| PATCH | `/projects/{project_id}/risks/{risk_id}` | Modifier l'identité d'un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0040 |
 | DELETE | `/projects/{project_id}/risks/{risk_id}` | Supprimer un risque | WF-IHM-0110, WF-RIS-0020 |
+| PUT | `/projects/{project_id}/risks/{risk_id}/provision` | Changer la provision d'un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020 |
 | GET | `/projects/{project_id}/risks/{risk_id}/reviews` | Historique des réexamens | WF-RIS-0010, WF-RIS-0030 |
 | POST | `/projects/{project_id}/risks/{risk_id}/reviews` | Réexaminer un risque | WF-IHM-0110, WF-RIS-0010, WF-RIS-0020, WF-RIS-0050 |
 | GET | `/projects/{project_id}/risks/{risk_id}/occurrence` | Compte rendu préalable de la survenance d'un risque | WF-IHM-0110, WF-RIS-0060 |
@@ -247,8 +248,8 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PUT | `/chunked-uploads/{chunked_upload_id}/parts/{part_number}` | Déposer un morceau | WF-ADM-0160 |
 | POST | `/chunked-uploads/{chunked_upload_id}/completion` | Terminer le dépôt par morceaux | WF-ADM-0160 |
 | GET | `/projects/{project_id}/imports` | Imports du projet | WF-ARC-0100, WF-INTF-0080 |
-| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
-| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-CRE-0020, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
+| POST | `/projects/{project_id}/imports` | Ouvrir un import et lancer son analyse | WF-ARC-0090, WF-ARC-0100, WF-CRE-0050, WF-DAT-0120, WF-INTF-0040, WF-INTF-0070, WF-INTF-0080, WF-INTF-0090, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-PLA-0150, WF-PLA-0170, WF-PRJ-0050, WF-REF-0190 |
+| GET | `/projects/{project_id}/imports/{import_id}` | Compte rendu d'un import | WF-ARC-0110, WF-CRE-0020, WF-IHM-0090, WF-INTF-0040, WF-INTF-0080, WF-INTF-0100, WF-INTF-0120, WF-INTF-0140, WF-PLA-0020, WF-REF-0190 |
 | DELETE | `/projects/{project_id}/imports/{import_id}` | Abandonner un import | WF-ARC-0100, WF-DAT-0120, WF-INTF-0080 |
 | POST | `/projects/{project_id}/imports/{import_id}/apply` | Appliquer un import | WF-ARC-0100, WF-CRE-0030, WF-DAT-0110, WF-INTF-0080, WF-INTF-0100, WF-INTF-0140, WF-REF-0190 |
 | POST | `/projects/{project_id}/exports` | Demander un export | WF-ARC-0040, WF-CYC-0110, WF-DAT-0120, WF-INTF-0050, WF-INTF-0060, WF-INTF-0110, WF-INTF-0120, WF-INTF-0130, WF-INTF-0180, WF-PLA-0020, WF-PLA-0120 |
