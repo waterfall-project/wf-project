@@ -115,6 +115,28 @@ The family says which tests prove what the epic closes: a requirement closed by 
 only family is `front` is proved by the tests of the front; closed by another one, it
 is not as long as only the front and the end-to-end tests cite it (`make requirements`).
 
+## The reference data set
+
+The reference data set of WF-QUA-0040 starts from the witness universe that the examples of the
+contract describe (`docs/api/DECISIONS.md`, "L'univers témoin"; #1402, decision of the author of
+2026-10-28). It is loaded in slices: each epic of the back names its own in "Ce qui en fait
+partie" and loads it in turn — the reference data in EP-05, the projects and the revisions in
+EP-04, the tasks in EP-06, the lines in EP-07, the costs in EP-09, the amendments and the risks in
+EP-08, the three hundred projects in EP-13, which closes. Four rules, which each slice follows:
+
+- **what is entered is loaded, never by an `INSERT`**: by a command of the back that goes through
+  the interfaces of the modules of the core, with the identifiers of the witness imposed by this
+  one path, so that the loading goes through the business rules and survives the migrations;
+- **what is computed becomes the expected**: the fixtures of `fixtures/api/` are the expected
+  responses of the service on the loaded witness, and the computing code of the mock back
+  (`mockdating`, `mockcore`) is never reused by the back — two independent computations, otherwise
+  the witness no longer checks anything;
+- **the specification arbitrates**: when the back and a fixture disagree, it decides, and the
+  fixture is corrected;
+- **the journeys are reused**: a journey written on the mock back is replayed against the service,
+  the witness loaded, without rewriting what it expects to read; what depends on the clock, or
+  asserted the response of the mock back to a write, is rewritten or noted as not replayed.
+
 ## Order of the epics
 
 <!-- One epic per line, in the order they start. -->
@@ -127,9 +149,9 @@ is not as long as only the front and the end-to-end tests cite it (`make require
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Mockup of the front: finishing touches | livré | EP-02 |
 | [EP-15](EP-15-maquette-ajustements.md) | Mockup: adjustments from the validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | en cours | EP-15 |
-| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | à planifier | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Reference data of the company | à planifier | EP-16 |
-| [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | à planifier | EP-05 |
+| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | prêt | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16 |
+| [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
 | [EP-09](EP-09-couts-reels-et-reste-a-engager.md) | Actual costs, remaining to commit and cost import | à planifier | EP-07 |

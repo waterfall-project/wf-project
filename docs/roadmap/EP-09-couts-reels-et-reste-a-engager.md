@@ -74,6 +74,10 @@ La colonne US se remplit quand l'EPIC passe `prêt`.
 | `WF-DAT-0110-A` | Idempotence garantie par la base | fin — amorcée en EP-07 | — |
 | `WF-INTF-0120-A` | Import du reste à engager (FLX-05) | entière | — |
 | `WF-INTF-0130-A` | Export du reste à engager (FLX-06) | entière | — |
+| `WF-PRJ-0050-A` | Sous-projets | fin — amorcée en EP-15, EP-16, EP-04 | — |
+| `WF-CYC-0100-A` | Lecture seule des projets terminaux | fin — amorcée en EP-04 | — |
+| `WF-CYC-0110-A` | Consultation des projets terminaux | fin — amorcée en EP-04 | — |
+| `WF-IHM-0080-A` | Traitements longs | fin — amorcée en EP-02, EP-15, EP-04 | — |
 
 ## Opérations du contrat
 
@@ -95,6 +99,15 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
 
 ## Constats reçus
 
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`)
+et tranchés par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), que le service
+suit une fois figé.
+
+- #1775 — `awaiting_own_lines`, la récapitulative qui n'attend plus que ses lignes propres (F-05 ;
+  contrat #1774).
+- #1794 — l'import du reste à engager rejette la ligne nouvelle sous une tâche terminée (I-05 ;
+  contrat #1793).
+
 - #1340, pour #1304, points 3, 4 et 5 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   - la lecture de l'extraction selon la correspondance qu'EP-05 stocke : le refus tant
     qu'elle est incomplète, la colonne exigée absente nommée, les colonnes ignorées nommées au
@@ -105,6 +118,11 @@ Déjà servies, et reprises ici pour ce que cet EPIC y ajoute (10) :
     rendu (WF-INTF-0140, WF-DAT-0110) ;
   - l'élément d'OTP : le code projet, préfixe compris, puis la barre oblique et le code
     sous-projet ; seule la barre oblique sépare les deux codes (WF-CRE-0020, C-373).
+
+- #1525 — front : le test de la colonne « Poste » cite WF-CRE-0040-A, dont le Vérif ne nomme pas
+  les colonnes de la grille (relevé par US-0630/L2, EP-16 ; reporté ici avec #1340, le service du
+  poste, par la décision de l'auteur du 2026-10-27, confirmée au cadrage d'EP-17 le 2026-10-28) :
+  la citation se corrige quand EP-09 réalise le poste.
 
 Le rattachement de WF-REF-0190 est réécrit au cadrage d'EP-16 (décision de l'auteur du
 2026-10-22). C-374 la rattachait entière ici ; EP-05 la commence en stockant la correspondance,
