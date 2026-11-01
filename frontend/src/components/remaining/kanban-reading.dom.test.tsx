@@ -310,3 +310,30 @@ describe("the Kanban once a gesture is answered", () => {
     expect(within(card(reached)).queryByText("Mise à jour…")).toBeNull();
   });
 });
+
+describe("the gestures of a card, commands of a menu", () => {
+  it("says, in the tooltip of each gesture of the menu, what it does, and, unavailable, what it lacks [WF-IHM-0090-A]", async () => {
+    // #1435: the gestures of a card are commands of a menu (`MenuCommand`), each with its help.
+    serve({});
+    board();
+    const user = userEvent.setup();
+    const label = "Montage des armoires sur site";
+    await user.click(card(label));
+    await user.click(
+      within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
+    );
+    const menu = screen.getByRole("menu", { name: `Gestes de la tâche ${label}` });
+    const helps = CATALOGUES.fr.commands;
+    await user.keyboard("{ArrowDown}");
+    expect(within(menu).getByRole("menuitem", { name: "Démarrer" })).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(helps.startTask.help);
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("tooltip", { name: helps.completeTask.help })).toBeVisible();
+    // Unavailable, it is described by the conditions it lacks, said under its name.
+    expect(within(menu).getByRole("menuitem", { name: /^Terminer/ })).toHaveAccessibleDescription(
+      /^Conditions non remplies/,
+    );
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("tooltip", { name: helps.enterRemaining.help })).toBeVisible();
+  });
+});

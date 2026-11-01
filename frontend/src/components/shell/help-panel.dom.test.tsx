@@ -289,8 +289,9 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     await user.type(
       within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
-      "acquise",
+      "la valeur acquise",
     );
+    // « Courbes de valeur acquise », FBS-4.8.8, has no « la ».
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
     await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
     await panel("La valeur acquise");
@@ -339,7 +340,10 @@ describe("the panel of the help", () => {
     await user.click(screen.getByRole("button", { name: "Help" }));
     const dialog = await panel("Planification");
     await within(dialog).findAllByRole("heading", { level: 3 });
-    await user.type(within(dialog).getByRole("searchbox", { name: "Search the help" }), "acquise");
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search the help" }),
+      "la valeur acquise",
+    );
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page found");
     expect(within(dialog).getByRole("status").closest("[lang]")).toBeNull();
     expect(
@@ -423,6 +427,21 @@ describe("the panel of the help", () => {
     const dialog = await panel("Projets");
     expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4" });
     expect(dialog).toHaveTextContent("La page d’un projet");
+  });
+
+  it("opens, on the indicators of a project, their help, its parts leading to the page of each card and chart [WF-IHM-0140-A]", async () => {
+    // US-0670/L5 (#1452): the last screen of the table to receive its help.
+    at.pathname = "/projects/p/revisions/r/indicators";
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Indicateurs projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.8" });
+    expect(
+      within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
+    ).toHaveTextContent(
+      "Avancement financierProjection à terminaisonAvancement physiqueIndicateur de coûts (CPI)Indicateur de délais (SPI)Suivi des jalonsCoûts cumulésCourbes de valeur acquise",
+    );
   });
 
   it.each([["/account"], ["/account/avatar"], ["/login/unavailable"]])(

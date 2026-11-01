@@ -8,20 +8,12 @@
  * here has its file, nor lacks a place in the table.
  */
 
-/** The codes whose page is still to write, by the lot that writes it. */
-export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntries([
-  ...[
-    "FBS-4.8",
-    "FBS-4.8.1",
-    "FBS-4.8.2",
-    "FBS-4.8.3",
-    "FBS-4.8.4",
-    "FBS-4.8.5",
-    "FBS-4.8.6",
-    "FBS-4.8.7",
-    "FBS-4.8.8",
-  ].map((code) => [code, "US-0670/L5, #1452"] as const),
-]);
+/**
+ * The codes whose page is still to write, by the lot that writes it: none since US-0670/L5 (#1452)
+ * wrote the last nine, those of the indicators of a project. A code the table of the functions
+ * gains is listed here with the lot that writes its page, or the test of completeness fails.
+ */
+export const SCREENS_TO_COME: Readonly<Record<string, string>> = {};
 
 /**
  * The notions still to write, by the lot that writes them, which the pages may link to already: none

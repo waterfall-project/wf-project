@@ -835,7 +835,8 @@
     "cancel": "Cancel",
     "noGesture": "No gesture leads this task to the column “{column}”.",
     "gestureUnavailable": "“{command}” is unavailable. {conditions}",
-    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture."
+    "asking": "A date is already asked on another task: enter it or give it up before asking this gesture.",
+    "busy": "Waits for the gesture under way to end."
   },
   "contextBanner": {
     "label": "Reading context",
@@ -1303,6 +1304,18 @@
     },
     "cardGestures": {
       "help": "Opens the menu of the gestures of this task."
+    },
+    "startTask": {
+      "help": "Starts the task, at the date of the event asked on the card: the grid of the remaining to commit then shows its lines by default, for their re-estimation."
+    },
+    "completeTask": {
+      "help": "Completes the task, which carries no line outside provisions — a milestone, even not started, or a started task —, at the date of the event asked on the card."
+    },
+    "reopenTask": {
+      "help": "Reopens the completed task: it is started again; a milestone is not started again, its dates erased."
+    },
+    "enterRemaining": {
+      "help": "Leads to the grid of the remaining to commit, on the lines of this task, where they are re-estimated."
     },
     "retryReading": {
       "help": "Reads the tasks of this card again."
@@ -1809,6 +1822,11 @@
       },
       "passthrough": {
         "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
+      }
+    },
+    "comparison": {
+      "changes": {
+        "help": "What changes of the node itself from one revision to the other, as the server names it: the dates, the duration, the progress or the parent of a task; the budgeted and re-estimated amounts, the payment delay or the parent of a line. Empty for a node added, removed or unchanged, and for a task modified by its content alone — a line or a subordinate that changes."
       }
     }
   },

@@ -1785,7 +1785,7 @@ l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 
 
 ## US-0670 — Les aides des autres écrans et la recherche de l'aide
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
 - **issue** : #1447
@@ -1813,8 +1813,10 @@ suis.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
   (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
-  (#1441) ; la version anglaise se décide après la relecture par l'auteur de toutes les aides, au
-  dernier lot de cette US, et le test de complétude l'exigera alors ; EP-11 clôt.
+  (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), qui ne rédige pas
+  la version anglaise : sa décision revient à l'auteur, à la relecture de ce dernier lot, et reste
+  en attente ; décidée, le test de complétude (`help.test.ts`) exigera un fichier anglais par code
+  et par notion ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés

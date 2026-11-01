@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The online help as files (WF-IHM-0140, US-0580): every code of the FBS that has a screen has its
- * page in French, or waits for it in the list below, which names the lot that writes it; the page of
+ * page in French — since US-0670/L5 (#1452), none waits for it any more in the list of the pages to
+ * come, which names the lot that writes each and stays for a code the table would gain —; the page of
  * a screen keeps the fixed structure; a notion quotes the glossary of the specification without
  * rewriting it; every link leads to a page the help has, or will have; no page holds raw HTML.
  *
  * The list of the pages still to write never lies: a code that receives its file must leave it, and
  * a code it names must be one the table has. The English version is a gap of WF-IHM-0140, until its
- * translation is decided (#1075): nothing is asked of `help/en/` yet.
+ * translation is decided by the author on reading the last lot of US-0670 (#1452): nothing is asked
+ * of `help/en/` yet.
  */
 import {
   cpSync,
@@ -36,6 +38,7 @@ import {
   linkTarget,
   SCREEN_HEADINGS,
   searched,
+  sectionsOf,
 } from "./help";
 import { helpDirectory, helpIndex, parseHelp, readHelpPage } from "./read";
 import { NOTIONS_TO_COME, SCREENS_TO_COME } from "./to-come";
@@ -107,7 +110,11 @@ function links(text: string): string[] {
 }
 
 describe("the pages of the help", () => {
-  it("has a page in French for every code of the FBS that has a screen, or the lot that writes it [WF-IHM-0140-A]", () => {
+  it("has a page in French for every code of the FBS that has a screen, none left to come [WF-IHM-0140-A]", () => {
+    // US-0670/L5 (#1452) wrote the last pages: the list of the pages to come is empty, and every
+    // code of the table has its file.
+    expect(SCREENS_TO_COME).toEqual({});
+    expect(HELP_CODES.filter((code) => !written({ kind: "screen", code }))).toEqual([]);
     const missing = HELP_CODES.filter(
       (code) => !written({ kind: "screen", code }) && SCREENS_TO_COME[code] === undefined,
     );
@@ -265,6 +272,7 @@ describe("the reading of the help", () => {
     ["FBS-4.2.3"],
     ["FBS-4.2.4"],
     ["FBS-4.7"],
+    ["FBS-4.1"],
   ])(
     "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
     async (code) => {
@@ -302,11 +310,29 @@ describe("the reading of the help", () => {
     },
   );
 
-  it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
-    expect(await readHelpPage({ kind: "screen", code: "FBS-4.8" })).toEqual({
+  it("says a page not written yet is to come, when a code the table gains waits for its lot [WF-IHM-0140-A]", async () => {
+    // Every page is written since US-0670/L5: a code the table would gain is listed to come, with
+    // the lot that writes it, and its page, not carried, is said to come rather than failing.
+    const root = mkdtempSync(path.join(tmpdir(), "waterfall-help-"));
+    folders.push(root);
+    mkdirSync(path.join(root, "help", "fr"), { recursive: true });
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.resetModules();
+    vi.doMock("./to-come", () => ({
+      SCREENS_TO_COME: { "FBS-4.8": "a lot to come" },
+      NOTIONS_TO_COME: { indices: "a lot to come" },
+    }));
+    const fresh = await import("./read");
+    expect(await fresh.readHelpPage({ kind: "screen", code: "FBS-4.8" })).toEqual({
       kind: "pending",
       target: { kind: "screen", code: "FBS-4.8" },
     });
+    expect((await fresh.readHelpPage({ kind: "notion", name: "indices" })).kind).toBe("pending");
+    // A page not listed to come, and not carried, fails.
+    await expect(fresh.readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow(
+      "FBS-4.3.md",
+    );
+    vi.doUnmock("./to-come");
   });
 
   it.each([
@@ -372,6 +398,7 @@ describe("the reading of the help", () => {
     ["/projects/p/revisions/r/workload", "FBS-4.4.4", "Plan de charge du projet"],
     ["/projects/p/revisions/r/kanban", "FBS-4.5.3", "Kanban — démarrage des tâches"],
     ["/projects/p/revisions/r/actual-costs", "FBS-4.7", "Coûts réels"],
+    ["/projects/p/revisions/r/indicators", "FBS-4.8", "Indicateurs projets"],
     ["/projects/p/lifecycle", "FBS-4.9", "Cycle de vie du projet"],
   ])(
     "opens, at %s, the help of the screen of the project: %s, %s [WF-IHM-0140-A]",
@@ -382,6 +409,30 @@ describe("the reading of the help", () => {
       expect(page.kind).toBe("written");
       if (page.kind === "written") {
         expect(page.title).toBe(title);
+      }
+    },
+  );
+
+  it.each([
+    ["FBS-4.8.1", "Avancement financier"],
+    ["FBS-4.8.2", "Projection à terminaison"],
+    ["FBS-4.8.3", "Avancement physique"],
+    ["FBS-4.8.4", "Indicateur de coûts (CPI)"],
+    ["FBS-4.8.5", "Indicateur de délais (SPI)"],
+    ["FBS-4.8.6", "Suivi des jalons"],
+    ["FBS-4.8.7", "Coûts cumulés"],
+    ["FBS-4.8.8", "Courbes de valeur acquise"],
+  ])(
+    "writes the help of %s, a section of the indicators of a project: %s [WF-IHM-0140-A]",
+    async (code, title) => {
+      expect(sectionsOf("FBS-4.8")).toContain(code);
+      expect(SCREENS_TO_COME[code]).toBeUndefined();
+      const page = await readHelpPage({ kind: "screen", code });
+      expect(page.kind).toBe("written");
+      if (page.kind === "written") {
+        expect(page.title).toBe(title);
+        // Cards and charts: no grid, no definition of a column.
+        expect(page.columns).toEqual([]);
       }
     },
   );
@@ -426,8 +477,10 @@ describe("the reading of the help", () => {
       "projects.updatedAt",
     ]);
     expect((await helps("FBS-4.7")).at(-1)).toBe("actualCosts.passthrough");
+    // The comparison of two revisions, the one grid of their management (US-0670/L5, #1434).
+    expect(await helps("FBS-4.1")).toEqual(["nodes.label", "comparison.changes"]);
     // A leaf of a fact, or a screen without a table, defines no column.
-    for (const code of ["FBS-4.2.2", "FBS-4.2.5", "FBS-4.3.5", "FBS-4.9"]) {
+    for (const code of ["FBS-4.2.2", "FBS-4.2.5", "FBS-4.3.5", "FBS-4.8", "FBS-4.9"]) {
       expect(await helps(code), code).toEqual([]);
     }
   });
@@ -464,7 +517,7 @@ describe("the reading of the help", () => {
     expect(await helps("FBS-3.1.3")).toEqual([]);
   });
 
-  it("fails on a page that should be written and whose file is missing, and says a page to come [WF-IHM-0140-A]", async () => {
+  it("fails on a page that should be written and whose file is missing [WF-IHM-0140-A]", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "waterfall-help-"));
     folders.push(root);
     mkdirSync(path.join(root, "help", "fr"), { recursive: true });
@@ -472,7 +525,7 @@ describe("the reading of the help", () => {
     // FBS-4.3 has a page, which this directory does not carry, as a standalone build that forgot it.
     await expect(readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow("FBS-4.3.md");
     await expect(readHelpPage({ kind: "notion", name: "indices" })).rejects.toThrow("indices.md");
-    expect((await readHelpPage({ kind: "screen", code: "FBS-4.8" })).kind).toBe("pending");
+    await expect(readHelpPage({ kind: "screen", code: "FBS-4.8" })).rejects.toThrow("FBS-4.8.md");
   });
 
   it("fails the index on a page that should be written and is missing or untitled, and does not keep it [WF-IHM-0140-A]", async () => {
