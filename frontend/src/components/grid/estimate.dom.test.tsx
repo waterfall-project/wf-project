@@ -148,9 +148,7 @@ describe("the refusal of a cell that would leave a task without a working hour (
           structureVersion={1}
           reference={{
             ...reference,
-            roles: reference.roles?.filter(
-              (role) => role.active && role.resource_role_id !== FITTER,
-            ),
+            roles: reference.roles?.filter((role) => role.active && role.id !== FITTER),
           }}
           editable
           tasksEditable

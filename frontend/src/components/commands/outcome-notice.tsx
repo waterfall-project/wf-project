@@ -26,7 +26,7 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useId, useMemo } from "react";
+import { useCallback, useId, useMemo } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
