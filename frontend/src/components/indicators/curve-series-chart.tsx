@@ -174,6 +174,7 @@ export function CurveSeriesChart({
 }: CurveSeriesChartProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   const exported = useProvenance(provenance, title, curves.context.computed_at, file);
 
   const option = useCallback(
@@ -197,7 +198,7 @@ export function CurveSeriesChart({
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },
         // No legend: each curve is named at its end (`curve`).
-        grid: { left: 80, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+        grid: { left: 80, right: END_LABEL_WIDTH + 16, top: 32, bottom: 32 },
         xAxis: timeAxis(
           palette,
           formatLocale(locale),
@@ -211,6 +212,14 @@ export function CurveSeriesChart({
         ),
         yAxis: {
           type: "value",
+          // The currency of the amounts is the title of the axis (WF-REF-0140), ticks bare.
+          ...(currency === undefined
+            ? {}
+            : {
+                name: currency,
+                nameLocation: "end" as const,
+                nameTextStyle: { color: palette.text },
+              }),
           axisLine: { show: true, lineStyle: { color: palette.axis } },
           axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
           splitLine: { lineStyle: { color: palette.grid } },
@@ -246,7 +255,7 @@ export function CurveSeriesChart({
         ],
       };
     },
-    [curves, locale, t],
+    [curves, currency, locale, t],
   );
 
   return (

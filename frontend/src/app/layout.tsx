@@ -64,14 +64,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // mode, and whose permissions the navigation offers; the language is the request's, read
   // once, whatever else asks for it. The tasks of the user are asked once the session is known
   // to be open: none for a request without one, and the document goes without waiting for them.
-  const [state, { locale, preference }, jar] = await Promise.all([
+  // The currency every amount of the page carries is read for an open session only, once, as
+  // soon as the session is known and while the language and the cookies are read.
+  const [state, { locale, preference }, jar, currency] = await Promise.all([
     requestSessionState(),
     requestLanguage(),
     cookies(),
+    requestSessionState().then((opened) =>
+      opened.kind === "open" ? requestCurrency() : undefined,
+    ),
   ]);
   const account = state.kind === "open" ? state.account : undefined;
-  // The currency every amount of the page carries: read for an open session only, once.
-  const currency = account === undefined ? undefined : await requestCurrency();
   const theme = themePreference(account);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>

@@ -77,6 +77,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
+const UNAVAILABLE = { problem: { code: "INTERNAL_ERROR", status: 500 } } as const;
 const LAST =
   "/projects/01926f3a-7c00-7000-8000-000000000001/revisions/01926f3a-7c00-7000-8000-000000000102/risks";
 
@@ -219,9 +220,11 @@ describe("RootLayout", () => {
     const routes = server.client?.calls.map((call) => call.route);
     // The browser asks for no language offered: the installation decides. The currency and the
     // tasks of the user that still run are asked once the session is known to be open.
-    expect(routes).toEqual([
-      "GET /me",
+    // The session first; the currency is read beside the language, whichever answers first.
+    expect(routes?.[0]).toBe("GET /me");
+    expect([...(routes ?? [])].sort()).toEqual([
       "GET /installation",
+      "GET /me",
       "GET /reference/settings",
       "GET /tasks",
     ]);
@@ -286,6 +289,10 @@ describe("RootLayout", () => {
     server.cached.clear();
     request("fr", { "GET /reference/settings": UNAUTHORIZED });
     expect(await currencyOfPage()).toBe("none");
+    // A settings read that fails on the server's side is none too: the page is still rendered.
+    server.cached.clear();
+    request("fr", { "GET /reference/settings": UNAVAILABLE });
+    expect(await currencyOfPage()).toBe("none");
   });
 
   it("asks the installation once for a request whose browser leaves it the language", async () => {
@@ -293,9 +300,11 @@ describe("RootLayout", () => {
     await page();
     await generateMetadata();
     const routes = server.client?.calls.map((call) => call.route);
-    expect(routes).toEqual([
-      "GET /me",
+    // The session first; the currency is read beside the language, whichever answers first.
+    expect(routes?.[0]).toBe("GET /me");
+    expect([...(routes ?? [])].sort()).toEqual([
       "GET /installation",
+      "GET /me",
       "GET /reference/settings",
       "GET /tasks",
     ]);

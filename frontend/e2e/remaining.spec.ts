@@ -53,8 +53,9 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   test.slow();
   // The Kanban, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
   await compile(page.request, `${IN_REVISION}/kanban`);
-  // The currency now closes each amount of the cards, which wrap a line more: the window is
-  // taller by the height of the grid's totals.
+  // The currency now closes each amount of the cards, which wrap a line more (`FiguresGrid` sets
+  // them by the width, for every screen: a layout of the cards is a lot of its own, not this
+  // one's): the window is taller by that line, so that the totals of the grid stay in view.
   await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
@@ -256,8 +257,9 @@ test("leads from the remaining to commit to the workload of the project, on the 
 }) => {
   test.slow();
   await compile(page.request, `${IN_REVISION}/workload`);
-  // The link is an icon alone for the room of the head on a window of 1280 points: the title of
-  // the screen and the totals of the grid are in view all the same.
+  // The link is an icon alone for the room of the head on a window of 1280 points; the cards,
+  // with the currency closing each amount, wrap a line more (see the first test): the window is
+  // 800 points high so that the title of the screen and the totals of the grid are in view.
   await page.setViewportSize({ width: 1280, height: 800 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
