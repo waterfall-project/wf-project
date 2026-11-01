@@ -12,6 +12,7 @@ import { PROJECT_GRID } from "../portfolio/portfolio-grid";
 import { PROJECT_LIST_GRID } from "../projects/project-list-grid";
 import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
+import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
 import { RISK_GRID } from "../risks/risk-grid";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
@@ -199,6 +200,12 @@ describe("the columns a grid records as known", () => {
     orgNodes: orgNodeGrid(true),
     resourceRoles: resourceRoleGrid(true),
     calendars: calendarGrid(true),
+    hourlyRates: rateGrid(
+      [{ year: 2026, index: 0 }],
+      true,
+      () => 0,
+      () => undefined,
+    ),
     users: userGrid(),
     accessRoles: accessRoleGrid(true),
     backups: backupGrid({ marks: true, downloads: true, restores: true }),

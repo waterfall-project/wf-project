@@ -1632,6 +1632,108 @@
       "modify": {
         "help": "Modification de l’objet, dans son formulaire."
       }
+    },
+    "costTypes": {
+      "code": {
+        "help": "Code de la nature, unique."
+      },
+      "label": {
+        "help": "Libellé de la nature de coût."
+      },
+      "kind": {
+        "help": "Type de la nature : main-d’œuvre, hors main-d’œuvre ou provision pour risques ; il ne se modifie plus dès qu’une de ses catégories est employée, porte un taux ou est rattachée à un rôle."
+      }
+    },
+    "costCategories": {
+      "code": {
+        "help": "Code de la catégorie, unique."
+      },
+      "label": {
+        "help": "Libellé de la catégorie de coût."
+      },
+      "costType": {
+        "help": "Nature de coût à laquelle la catégorie est rattachée, active ou non."
+      },
+      "accountingCode": {
+        "help": "Code comptable de la catégorie, unique et documentaire : il n’entre dans aucun calcul ; les fichiers de devis et de reste à engager désignent par lui la catégorie d’une ligne hors main-d’œuvre."
+      }
+    },
+    "hourlyRates": {
+      "code": {
+        "help": "Code de la catégorie de main-d’œuvre."
+      },
+      "label": {
+        "help": "Libellé de la catégorie de main-d’œuvre."
+      },
+      "state": {
+        "help": "État de la catégorie, active ou désactivée ; elle se réactive dans la liste des catégories."
+      },
+      "year": {
+        "help": "Taux horaire de la catégorie pour l’année de la colonne, dans la devise de l’installation ; vide tant qu’il n’est pas saisi."
+      }
+    },
+    "orgNodes": {
+      "label": {
+        "help": "Libellé du nœud, en retrait sous le nœud auquel il est rattaché."
+      },
+      "code": {
+        "help": "Code du nœud, unique."
+      },
+      "level": {
+        "help": "Profondeur du nœud dans l’arbre : 1 pour une racine."
+      }
+    },
+    "resourceRoles": {
+      "label": {
+        "help": "Libellé du rôle de ressource."
+      },
+      "code": {
+        "help": "Code du rôle, unique."
+      },
+      "orgNode": {
+        "help": "Nœud d’organisation du rôle, fixé à sa création."
+      },
+      "costCategory": {
+        "help": "Catégorie de main-d’œuvre du rôle, dont le taux horaire chiffre ses heures."
+      },
+      "calendar": {
+        "help": "Calendrier du rôle, qui donne ses heures travaillées de chaque jour."
+      },
+      "monthlyHours": {
+        "help": "Heures disponibles par mois, seules comparées au plan de charge."
+      },
+      "headcount": {
+        "help": "Effectif auquel correspondent les heures par mois."
+      }
+    },
+    "calendars": {
+      "label": {
+        "help": "Libellé du calendrier, unique."
+      },
+      "monday": {
+        "help": "Heures travaillées le lundi."
+      },
+      "tuesday": {
+        "help": "Heures travaillées le mardi."
+      },
+      "wednesday": {
+        "help": "Heures travaillées le mercredi."
+      },
+      "thursday": {
+        "help": "Heures travaillées le jeudi."
+      },
+      "friday": {
+        "help": "Heures travaillées le vendredi."
+      },
+      "saturday": {
+        "help": "Heures travaillées le samedi."
+      },
+      "sunday": {
+        "help": "Heures travaillées le dimanche."
+      },
+      "defaultCalendar": {
+        "help": "Le calendrier par défaut, un seul parmi les actifs, ou la commande qui désigne celui de la ligne."
+      }
     }
   },
   "help": {
