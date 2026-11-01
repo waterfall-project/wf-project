@@ -1552,6 +1552,10 @@ transition ne partant d'un survenu (WF-RIS-0020). Le 409 de `deleteRisk` ne nomm
 (`params.missing_condition`) : `risk_not_occurred` avant `risk_not_cited` quand les deux manquent,
 pour ne pas renvoyer vers un réexamen qu'un survenu n'a pas.
 
+*Note du 2026-11-01 : la modification d'un risque est réécrite (US-0704, H-02) : son identité est
+une donnée du projet, sa provision une saisie de la révision (« L'identité d'un risque, donnée du
+projet ; sa provision, saisie de la révision », plus bas).*
+
 **Une ligne de provision ne se crée pas à la main** (amendement de #371 ; WF-DEV-0020,
 WF-RIS-0010) : « la création à la main d'une ligne de nature provision est refusée » (Vérif de
 WF-DEV-0020). Motif par champ `PROVISION_CATEGORY_RESERVED` de `VALIDATION_FAILED`, sur la
@@ -6145,8 +6149,9 @@ qu'aucune exigence ne demande et qu'une anonymisation devrait aussi effacer.
 L'exemple `administration` de `listAuditEvents` (`audit_events_administration`, US-0410/L2b, #961)
 donne ces paramètres tels que le service les inscrit, sur les écritures d'aujourd'hui des comptes
 et des rôles : un rôle créé sans permission, enregistré sans
-changement, renommé en recevant et en perdant des permissions ; un compte créé avec son premier
-rôle, que la requête de la création inscrit après lui sous sa corrélation ; un nom corrigé ; un
+changement, renommé en recevant et en perdant des permissions ; un compte créé sans rôle, puis
+doté de son premier rôle par une attribution, sur sa propre requête et sous sa propre
+corrélation ; un nom corrigé ; un
 rattachement à l'annuaire ; une attribution qui ne fait que retirer. Une attribution qui ne change
 rien n'y est pas : le service ne l'inscrit pas. Ce que les autres exemples ne répondent pas y est
 une liberté déclarée, dans le résumé comme ici :
@@ -6155,14 +6160,18 @@ une liberté déclarée, dans le résumé comme ici :
   par `mockaudit` (les permissions de `access_role_updated` moins celles de la saisie des
   paramètres de coûts et de ressources), et ce qu'elle accorde et retire s'en lit comme le
   service le lit, dans l'ordre du catalogue ;
-- une création avec premier rôle qu'aucun exemple de `createUser` ne répond — chacun crée son
-  compte sans rôle : le compte de `user_created` reçoit « Chiffreur » de la requête qui le crée ;
+- une première attribution qu'aucun exemple de `setUserAccessRoles` ne répond — aucun ne répond
+  le compte créé : le compte de `user_created`, créé sans rôle comme tout compte, reçoit
+  « Chiffreur » de la requête qui suit sa création ;
 - un rattachement à l'annuaire, par la plateforme, qu'aucun exemple ne répond : Noé Vidal, tel que
   la liste des comptes le donne, prend le nom que l'annuaire donne à la personne qui porte son
   adresse, « Vidal-Roux » (`mockaudit.DIRECTORY_LAST_NAME`).
 
 *Note du 2026-10-30 : la phrase sur les actions sans paramètre est réécrite ; recadrage d'EP-16
 décidé le 2026-10-28.*
+
+*Note du 2026-11-01 : la création avec premier rôle devient une création sans rôle suivie d'une
+première attribution ; un compte naît sans rôle (« Un compte naît sans rôle », A-01, #1731).*
 
 Une inscription lue d'un exemple est de l'auteur de sa dernière mise à jour (`audit.updated_by`) ;
 `test_mockaudit.py` le tient.
@@ -7096,6 +7105,8 @@ révision n'est pas marquée (C-362).
   catalogue porte ce code depuis EP-02, comme `CURRENT_REVISION_EXISTS` pour `createRevision`, et
   le cadrage le nomme. `test_mockproject.py` tient qu'un refus qui nomme une condition est celui de
   l'enveloppe commune : ce code n'en nomme donc aucune.
+  *Note du 2026-11-01 : le code propre est écarté à son tour ; le refus suit la règle unique,
+  `STATE_FORBIDS_OPERATION` à `reference_correctable` (US-0704, J-01, #1795).*
 - **`applyRateUpdate`** refuse une révision marquée par 409 `STATE_FORBIDS_OPERATION` à
   `revision_draft` (`rate_update_revision_marked`). C'est une écriture de la révision, comme son
   marquage, et non une saisie d'une grille, qu'une révision marquée refuse par 403. Aucune
@@ -7289,6 +7300,10 @@ de l'encart en inventait un, `STATE_FORBIDS_OPERATION`, quand le code est
 `current_revision_exists` (corrélation 1308, seconde suite) le donne : une seconde ouverture sur
 le projet créé aujourd'hui, demandée depuis un écran lu avant que sa révision 103 ne s'ouvre. Le
 409 le décrit, et `tools/tests/test_mockstart.py` le tient.
+
+*Note du 2026-11-01 : `CURRENT_REVISION_EXISTS` sort du catalogue ; le refus est
+`STATE_FORBIDS_OPERATION` à `no_current_revision`, la condition que la commande annonce (US-0704,
+J-01, #1795).*
 
 L'encart s'offre ainsi quand le projet liste `generate_skeleton` sans
 `main_structure_without_tasks`, ou, avec une révision en cours, quand celle-ci la liste ainsi,
@@ -8626,8 +8641,9 @@ adoptent sont d'US-0660/L3 et L4.
   paramètre, `states`, leurs valeurs séparées par des virgules, comme tout filtre d'une grille
   (`GridPreferences.filters`, US-0380). Écartés : une clé nouvelle, `home_projects` par exemple, qui
   séparerait des autres réglages de la même grille le filtre que l'écran garde avec eux ; une
-  propriété typée de `GridPreferences`, qui changerait le schéma. Le défaut — Chiffrage et En cours
-  — reste celui de l'écran (US-0660/L4), qu'un compte qui n'a rien écrit prend ; « Tous les états »
+  propriété typée de `GridPreferences`, qui changerait le schéma. Le défaut — Créé, Chiffrage et
+  En cours depuis US-0704 (#1747) — reste celui de l'écran (US-0660/L4), qu'un compte qui n'a rien
+  écrit prend ; « Tous les états »
   s'écrit comme l'adresse l'écrira, ce qu'US-0660/L4 fixe ; le serveur garde le filtre tel qu'il est
   écrit. `getPortfolioProjects` et `PortfolioStates` ne changent pas. Exemple écrit à la main,
   `preferences_project_states` (`updateMyPreferences`) : Chiffrage, En cours et Terminé choisis
@@ -8750,6 +8766,10 @@ reste omise. `mockcomparisons` les calcule sur le budgété et le réestimé des
 `comparison*.json` et `volume/comparison_volume.json` sont régénérés, et
 `test_mockcomparison.py` tient le Vérif sur une révision dont un différentiel ne change que le
 budget d'une ligne.
+
+*Note du 2026-11-01 : la règle du réestimé après une fusion est précisée d'après la
+spécification 1.0.1, qui la limite à deux révisions de même année de référence (« Le réestimé
+après une fusion, selon l'année de référence », US-0704, #1754).*
 
 ### Le réestimé d'une ligne non réestimée (US-0701/L1, #1601, M-08)
 
@@ -9435,6 +9455,8 @@ survenance d'un risque ne budgète rien ».
   l'ordre du plan, jusqu'à la racine suivante (`tools/tests/test_mockriskcoverage.py`, WF-RIS-0060-A).
   Les numéros de ligne des nœuds qui suivent, dont la « Réception usine » et l'« Installation sur
   site », en sont décalés dans les exemples (`make mock-data`).
+  *Note du 2026-11-01 : 541 est la racine du devis propre de 752, libellée « Retard de livraison
+  des armoires », et non une enveloppe (US-0704, H-03, #1788).*
 - **Les mineurs des fichiers touchés.** H-06 : l'axe des gravités est « en pourcentage de
   l'assiette du projet » (`RiskMatrixLevel`, `RiskMatrix.severity_levels`, `getProjectRiskMatrix`,
   `RiskMatrixSettings`). H-07 : `description`, `mitigation_notes`, `provision_node_id`,
@@ -9950,7 +9972,8 @@ colonne d'US-0701/L3 portent sur la grandeur que la comparaison affiche, « jama
   change pas les totaux (#487). `NodeTotals`, `RevisionComparison.totals`, `amount_deltas` et les
   deux opérations le disent. Une ligne dont seul le sous-projet change reste `unchanged` —
   `NodeChange` ne nomme pas le sous-projet — : « Écarts seulement » ne la retient pas, et ses écarts
-  par sous-projet, que la comparaison lue entière compte, n'y sont pas (relevé hors de ce lot).
+  par sous-projet, que la comparaison lue entière compte, n'y sont pas (relevé hors de ce lot ;
+  réglé par US-0704, #1751 : `NodeChange.subproject` la rend `modified`).
 - **Sans effet sur la structure principale et le devis propre d'un risque**, où `difference` est
   nul (#1398, « soit un refus, soit une lecture inchangée ») : la lecture est celle sans lui. Choisie
   au plus près du contrat : l'auteur le dit « sans effet » ; `PortfolioStates` est déjà « sans
@@ -10084,6 +10107,489 @@ l'US. Aucun schéma ne change.
   celle du traitement de fond dans ce seul exemple.
 
 Aucun identifiant nouveau.
+
+### Un compte naît sans rôle (US-0704, #1735, A-01, #1731, #1730)
+
+Décision de l'auteur du 2026-11-01. `createUser` recevait `access_role_ids` sous la seule
+permission de modifier les comptes (`users.write`), alors que `setUserAccessRoles` exige aussi
+celle de modifier les rôles d'habilitation (`access_roles.write`), pour qu'un porteur de la seule
+gestion des comptes ne se donne pas le rôle administrateur. La création ouvrait ainsi le geste
+que l'attribution refuse. WF-ADM-0090 range l'attribution d'un rôle dans la gestion des rôles
+(FBS-1.2), et WF-ADM-0100 sépare sa permission de celle des comptes (FBS-1.1).
+
+- **`UserCreate` perd `access_role_ids`.** Un compte local naît sans rôle, comme un compte lu de
+  l'annuaire (WF-ADM-0070), et ses rôles lui sont attribués ensuite par `setUserAccessRoles`. Le
+  422 de `createUser` perd le cas `/access_role_ids/<rang>` `UNKNOWN_ACCESS_ROLE`. Chaque
+  permission couvre ainsi une seule opération, et la création comme l'attribution s'inscrivent
+  chacune au journal sous leur propre requête.
+- **Écartée : garder le champ** et exiger `access_roles.write` pour une liste non vide, avec un
+  403 `PERMISSION_MISSING` qui la nomme. La permission d'une opération dépendrait alors du contenu
+  de son corps, alors que le front ne s'en sert pas (sa création n'envoie aucun rôle) et que la
+  spécification décrit deux gestes : l'administrateur « crée un compte, lui affecte un rôle »
+  (FBS-1.1, FBS-1.2).
+- **Le journal du témoin.** La première attribution du compte de Léa Garnier
+  (`audit_events_administration`, `mockaudit`) devient une écriture de `setUserAccessRoles`, sur
+  sa propre requête et sous sa propre corrélation, qui suit la création (« Le journal d'audit rend
+  les paramètres de l'action »).
+- **L'amorçage de l'installation** donne son rôle au premier administrateur sans passer par l'API
+  (WF-ADM-0010) : il n'est pas concerné.
+
+La spécification est à compléter pour le dire (#1730, WF-ADM-0070) ; le service, qui attribue
+aujourd'hui les rôles du corps, l'est par #1732. Le contrat, sa fixture et son générateur le
+suivent par #1731.
+
+### La suppression d'un rôle porte son compteur ; celle d'une chronologie n'en a pas (US-0704, #1735, A-02, #1733)
+
+Décision de l'auteur du 2026-11-01. La règle du compteur (README, « `lock_version` sur les
+écritures concurrentes ») veut qu'une suppression sans corps passe le compteur en paramètre.
+US-0702/L2 l'a appliquée à `deleteRisk`, `deleteSubproject`, `deleteNode` et `abandonRevision`,
+mais pas à `deleteAccessRole`, alors que le rôle porte un compteur qu'`updateAccessRole` exige.
+Un administrateur pouvait ainsi supprimer un rôle qu'un autre venait de renommer et de doter de
+permissions, sans l'avoir relu. Le 409 `ACCESS_ROLE_IN_USE` ne protège que les rôles attribués.
+
+- **`deleteAccessRole` exige `lock_version`**, le compteur du rôle tel que l'écran l'a lu : s'il
+  est périmé, 412 `STALE_LOCK_VERSION` et rien n'est supprimé ; s'il est absent ou invalide, 422
+  `LockVersionInvalid`, comme `deleteRisk`. L'exemple du 412 est `access_role_delete_stale`.
+- **`deleteTimeline` n'en porte pas, par exception écrite au README.** Une chronologie n'a pas de
+  compteur et aucune opération ne la modifie : elle se crée et se supprime (WF-PLA-0140). Ses
+  inscriptions sont des entrées des tâches de la révision, qui ont leurs propres compteurs. Il n'y
+  a donc rien à comparer : une chronologie déjà supprimée est un 404. L'exception rejoint celle de
+  `setActualCostTrackedScope`.
+- **Écarté : un compteur sur la chronologie**, qui n'avancerait jamais et ne refuserait rien.
+
+Le service et l'écran des rôles le suivent par #1734.
+
+### Les comptes désactivés se lisent comme les actifs (US-0704, #1735, A-03, #1736)
+
+Décision de l'auteur du 2026-11-01. `listUsers` empruntait le paramètre partagé
+`IncludeInactive`, qui promet un 403 sous la permission de modification (WF-REF-0150, décision
+d'US-0702/L2), alors que l'opération dit les comptes désactivés « lisibles » et ne déclare aucun
+403. WF-REF-0150 ne vaut que pour le référentiel. Pour les comptes, WF-ADM-0060 veut qu'un compte
+désactivé « reste affiché partout où il a agi », et rien n'en réserve la lecture à la permission
+de modifier.
+
+- **`listUsers` porte son propre `include_inactive`** : les comptes désactivés s'ajoutent aux
+  actifs sous la même permission, `users.read`. Le service, l'écran des comptes, qui les liste
+  par défaut, et les fixtures `users_*` le faisaient déjà. Le schéma ne change pas.
+- **`IncludeInactive` reste au référentiel**, et sa description le dit.
+- **Écarté : un 403 sous `users.write`.** Il contredirait WF-ADM-0060 : un auditeur qui n'a que
+  la consultation ne verrait plus les comptes désactivés dont les actes restent cités.
+
+### Le lien de fixation et le renvoi de l'invitation sont des commandes du compte (US-0704, #1735, A-04, #1737)
+
+Décision de l'auteur du 2026-11-01. `createPasswordSetupLink` et `resendInvitation` refusaient
+par des conditions, `is_local_account` et `is_active_account`, qu'aucune commande du compte ne
+disait d'avance, contre la règle du README : le 409 nomme la condition que l'objet dit de sa
+commande. Le front en recalculait donc la règle d'après `origin`, `is_active` et
+`anonymized_at` (WF-ARC-0020).
+
+- **`UserCommand` gagne `create_password_link` et `resend_invitation`**, et `available_commands`
+  passe à `maxItems: 5`. Ces commandes sont listées pour un compte local non anonymisé, et pour
+  lui seul : un compte de l'annuaire ou d'un fournisseur externe ne les porte jamais, pas plus
+  qu'un compte anonymisé, retiré du fournisseur (WF-ADM-0060) ; un état définitif retire la
+  commande, comme sur un projet clos. Elles sont disponibles pour un compte actif, et
+  indisponibles pour un compte désactivé, `is_active_account` manquante. Elles relèvent de
+  `users.write`.
+- **Un compte local anonymisé est refusé par `is_not_anonymized`**, jugée entre
+  `is_local_account` et `is_active_account` : elle dit la vraie raison, que la réactivation ne
+  lève pas, et c'est la condition que `reactivate` et `anonymize` nomment déjà. Chaque opération
+  a son exemple (`password_link_anonymized`, `invitation_anonymized`).
+- **Écarté : `origin` et `is_active` à la place des commandes.** Cela consacrerait le calcul côté
+  front, et une valeur ajoutée à l'énumération après le gel serait incompatible.
+- **Écarté : `is_local_account` pour un compte anonymisé**, au motif qu'il n'est plus dans le
+  fournisseur : son origine reste locale, et le refus tairait l'anonymisation.
+
+Le service et l'écran des comptes le suivent par #1738.
+
+### Le journal nomme le rattachement d'un compte qu'une modification change (US-0704, #1735, B-01, #1739)
+
+Décision de l'auteur du 2026-11-01. `updateUser` donne, change ou retire le rattachement d'un
+compte à un nœud d'organisation, que WF-ADM-0050 range parmi ses attributs. Mais
+`AuditParams.fields` ne nommait que les champs de l'identité, et `AuditUserField` ne connaissait
+que le nom, le prénom et l'adresse : une modification du seul rattachement s'inscrivait sans rien
+dire, et le contrat ne disait même pas si elle s'inscrivait.
+
+- **`AuditUserField` gagne `org_node_id`**, en dernier, dans l'ordre du compte. `fields` nomme les
+  champs du compte que la modification a changés, sans leur valeur, comme le veut #706.
+- **Écarté : `fields` vide pour une modification du seul rattachement.** L'inscription ne dirait
+  pas ce qui a changé, alors que le rattachement décide des contributeurs proposés à un projet
+  (WF-PRJ-0070) : savoir qui l'a donné a la même utilité que savoir qui a donné un rôle.
+
+Le service, qui écrira le rattachement avec EP-05, le suit par #1740.
+
+### La planification des sauvegardes, refusée pendant une restauration et conservée à travers elle (US-0704, #1735, B-02, #1742, #1741)
+
+Décision de l'auteur du 2026-11-01. `startRestore` refusait « toute autre écriture des
+sauvegardes » pendant une restauration, mais n'en citait que trois (« La sauvegarde et la
+restauration », EP-14/L42h) : `setBackupSchedule` répondait 200 dans cette fenêtre, et sa valeur
+était ensuite perdue (WF-EXP-0040). Le contrat ne disait pas non plus quelle planification
+s'appliquait après la restauration.
+
+- **`setBackupSchedule` est refusé par `no_restore_running`** pendant une restauration, comme le
+  déclenchement et le marquage. Son exemple est `backup_schedule_refused_during_restore`.
+- **La planification, la rétention et la copie externe sont conservées** à travers la
+  restauration, relues avant le remplacement des bases et réécrites après lui, comme la liste des
+  sauvegardes qu'elles gouvernent. La spécification est à compléter pour le dire (#1741,
+  WF-ADM-0160).
+- **Écarté : la planification de la sauvegarde reprend effet**, selon la lettre de WF-ADM-0160
+  (« l'intégralité des deux bases »). Une rétention plus petite ferait supprimer, à la rotation
+  suivante, des sauvegardes de la liste conservée, peut-être celle qu'on vient de restaurer, et une
+  copie externe ancienne échouerait sans que personne ne l'ait décidé.
+
+Le service, qui réalisera la planification avec EP-13, le suit par #1743.
+
+### Les objets actifs du référentiel se lisent par toute session, hors la grille des taux (US-0704, #1735, C-01, #1745)
+
+Décision de l'auteur du 2026-11-01, sur la question qu'US-0702/L2 laissait ouverte (« qui lit les
+objets actifs »). Six lectures du référentiel déclaraient un 404 : deux sans cause possible, trois
+sans nommer la permission qui les gardait, et la grille des taux sans rien dire. Trois permissions
+de consultation ne gardaient plus rien de nommé.
+
+- **Les objets actifs des cinq listes de vocabulaire** (nœuds, rôles de ressources, calendriers,
+  natures, catégories) **se lisent par toute session ouverte**, sans 404. Ils servent de
+  vocabulaire aux projets (FBS-4) : le rôle ou la catégorie d'une ligne de devis, le nœud du plan
+  de charge, le calendrier d'un rôle. Les désactivés et toute écriture relèvent de la permission de
+  modifier la fonction, comme `getReferenceSettings` et `getDurationUnits` le faisaient déjà.
+- **La grille des taux horaires est lue sous `cost_settings.read`**, avec un 404 sans elle
+  (WF-ADM-0110), comme la correspondance de l'extraction. Seul l'écran du référentiel la lit, le
+  serveur calculant les montants, et les taux sont proches de la masse salariale. Le rôle
+  prédéfini « chef de projet » porte déjà cette permission.
+- **Ce qu'ouvre chaque permission de consultation** est dit dans `PermissionCode` :
+  `cost_settings.read` ouvre la grille et la correspondance ; `resource_settings.read`,
+  `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
+  fonction (WF-IHM-0090). Le catalogue les garde toutes (WF-ADM-0100).
+- **Écarté : les actifs des nœuds, des calendriers et des natures sous une permission de
+  consultation.** Les formulaires des projets ne pourraient plus nommer ce qu'ils citent pour qui
+  ne consulte pas le référentiel.
+
+Le service, qui réalisera le référentiel avec EP-05, le suit par #1746.
+
+### La liste des projets a son propre filtre d'états ; l'accueil retient aussi les projets créés (US-0704, #1735, D-01, #1747)
+
+Décisions de l'auteur du 2026-11-01. `listProjects` empruntait `PortfolioStates`, dont la règle
+vaut pour les vues du portefeuille (WF-PTF-0010) : un projet créé, perdu ou abandonné nommé dans
+`states` y est « sans effet ». La liste, elle, dit retenir les six états que l'accueil nomme. Le
+client engendré documentait le paramètre par le texte du composant partagé.
+
+- **`ProjectStates`, propre à `listProjects`** : tout état nommé est retenu. Sans `states`, les
+  projets en cours seuls, le défaut du serveur restant inchangé, puisque l'accueil envoie toujours
+  ses états. `PortfolioStates` reste aux vues du portefeuille. L'exemple `projects_with_created`
+  montre le projet créé aujourd'hui dans la liste lue sous les six états.
+- **Le défaut de l'écran d'accueil est Créé, Chiffrage et En cours**, et non plus Chiffrage et En
+  cours (#1401) : l'accueil montre ce dont l'utilisateur a besoin dans la plupart des cas, et un
+  projet qu'il vient de créer en fait partie. Le contrat le dit là où il le nommait
+  (`updateMyPreferences`, `GridPreferences.filters`) ; le front le suit par #1748.
+- **Écarté : retirer « sans effet » de `PortfolioStates`** et laisser chaque vue dire sa règle. Le
+  composant resterait partagé entre deux règles différentes.
+
+Le service, qui servira la liste avec EP-04, le suit par #1749.
+
+### L'écart par sous-projet d'une ligne qui change de clé (US-0704, #1735, E-01, #1751)
+
+Décision de l'auteur du 2026-11-01. `amount_deltas` disait la fenêtre de l'écart, le parent dans
+la révision comparée, mais pas la clé sous laquelle compte une ligne dont la nature ou le
+sous-projet n'est pas le même dans les deux révisions. Le témoin comptait déjà sous la clé de
+chaque révision, sans qu'aucune règle le dise.
+
+- **Une ligne compte sous la clé qu'elle porte dans chaque révision** : son montant dans la
+  révision comparée sous sa nature et son sous-projet d'alors, moins son montant dans la révision
+  de base sous les siens. Une ligne qui change de clé compte son montant entier en moins sous
+  l'ancienne et en plus sous la nouvelle, même à montant inchangé. L'écart d'une clé est ainsi la
+  différence de ses totaux entre les deux révisions, et la somme par sous-projet égale la somme
+  par nature.
+- **`NodeChange` gagne `subproject` et `cost_category`** : une ligne qui change de sous-projet ou
+  de catégorie est `modified`, et le filtre « Écarts seulement » la retient.
+- **Écarté : figer la ventilation par sous-projet au marquage de la référence**, modifiable
+  seulement par la fusion d'un avenant. Le budget de référence d'un sous-projet se calcule déjà
+  sur les lignes de la référence (WF-IND-0020), et une ligne démarrée ne quitte pas un sous-projet
+  qui a reçu des coûts réels (WF-PRJ-0050). Les codes de sous-projet arrivent de l'ERP à la
+  commande, souvent après la référence : figer la ventilation obligerait à un avenant pour
+  répartir les lignes, contre WF-PRJ-0050, qui permet de les faire passer d'un sous-projet à
+  l'autre d'une révision à la suivante.
+- **Écarté : l'écart entier sous la clé de la révision comparée**, qui donnerait un écart nul à un
+  sous-projet dont le total a changé.
+
+Le service le suit par #1752 (EP-07), et le front, pour les libellés des deux valeurs, par #1753
+(EP-17).
+
+### Le réestimé après une fusion, selon l'année de référence (US-0704, #1735, E-02, #1754)
+
+Décision de l'auteur du 2026-11-01 : le contrat suit WF-REV-0080 en 1.0.1 (#1645). La règle selon
+laquelle, après une fusion, le réestimé ne vient que des lignes que le différentiel ajoute,
+retire, termine ou redate vaut entre deux révisions **de même année de référence**. Entre deux
+années différentes, il vient aussi de chaque ligne dont le taux a été mis à jour ou projeté
+jusqu'à la nouvelle année (WF-REV-0060), et le budgété reste celui du différentiel. C'est le cas
+du témoin, l'offre de 2025 comparée à la référence de 2026 (`comparison`) : la description de
+`reestimated_delta` contredisait l'exemple. `budgeted_delta` dit que sa règle vaut quelle que soit
+l'année. Aucun schéma ne change.
+
+### Le corps de la mise à jour des taux (US-0704, #1735, E-03, #1755)
+
+Décision de l'auteur du 2026-11-01. Le corps d'`applyRateUpdate` était anonyme, n'exigeait que
+`cost_category_ids` et laissait `lock_version` facultatif, alors que l'opération déclare un 412 et
+avance le compteur de la révision. C'était la seule écriture de la famille dans ce cas. Il devient
+`RateUpdateApply` : `lock_version` exigé, le compteur lu de la révision ; `cost_category_ids` non
+vide, chaque catégorie prise parmi celles que la proposition présente, sinon 422
+`VALIDATION_FAILED` sur `/cost_category_ids/<n>` (exemple `rate_update_category_not_proposed`). Le
+front envoyait déjà les deux. Le service le suit par #1756 (EP-07).
+
+### La révision suivante ne reprend pas une structure fusionnée (US-0704, #1735, E-04, #1758, #1757)
+
+Décision de l'auteur du 2026-11-01. `createRevision` disait copier « les structures » de la
+dernière révision marquée, sans exception, et les Vérif de WF-REV-0100 et WF-DAT-0010 demandent
+toutes les structures. Le témoin, lui, ne reprenait pas l'avenant 1 fusionné dans la référence.
+
+- **Une structure fusionnée est consommée**, et la révision suivante ne la reprend pas : un
+  différentiel par sa fusion, dont le contenu est dans la structure principale (WF-REV-0050) ; le
+  devis propre d'un risque survenu par sa survenance (WF-RIS-0060), dont le coût reste figé dans
+  `Risk.occurrence_cost`, que la couverture compare à la réserve (WF-RIS-0050). Ce qu'elle
+  contenait se relit dans la révision où elle a été fusionnée, immuable une fois marquée
+  (WF-DAT-0020). `is_merged` vrai ne se lit donc jamais dans une révision en cours. Le devis propre
+  d'un risque écarté, qui peut redevenir identifié, est repris. Le témoin est déjà juste, et aucun
+  schéma ne change.
+- **Écarté : copier les structures fusionnées telles quelles**, inertes. On ne les saisit plus et
+  on ne les fusionne pas une seconde fois, elles s'accumuleraient d'une révision à l'autre sur un
+  projet de dix ans, et la couverture n'en a pas besoin.
+- **Écarté : reprendre le seul devis du risque survenu**, au motif que WF-REV-0100 lie la
+  structure propre à l'existence du risque. Un risque survenu n'est plus un risque à chiffrer : son
+  devis est devenu du travail de la structure principale.
+
+La spécification est à corriger (#1757, WF-REV-0100 et WF-DAT-0010). Le service, qui servira la
+création d'une révision avec EP-04, le suit par #1759. La trace des lignes issues d'un risque
+survenu est l'objet de la décision suivante.
+
+### Les lignes issues d'un risque survenu gardent sa trace (US-0704, #1735, #1761, #1760)
+
+Décision de l'auteur du 2026-11-01, prise en traitant E-04. Le devis propre d'un risque survenu
+n'étant plus repris, et `risk_id` n'étant porté que par la structure, rien ne permettait de
+retrouver les lignes qu'une survenance avait fusionnées, ni de voir si un risque survenu dérive.
+Les coûts réels, qui arrivent par sous-projet, ne se rapprochent pas d'un risque : le suivi se fait
+sur le réestimé.
+
+- **`Node.origin_risk_id`**, nullable, en lecture seule : la survenance le pose sur chaque tâche et
+  chaque ligne qu'elle fusionne (WF-RIS-0060). La copie d'une révision, les déplacements, les
+  imports rapprochés par `lineage_id` et la fusion d'un avenant le conservent ; une création le
+  laisse nul, même sous une tâche issue d'un risque.
+- **Deux filtres de l'arbre**, `is_from_risk` et `origin_risk_ids`, partagés par `listNodes` et
+  `compareRevisions` (WF-IHM-0130).
+- **`Risk.occurred_reestimated_amount`** et **`RiskCoverageTotals.occurred_reestimated`** : le
+  réestimé courant des lignes issues de chaque risque survenu, et leur somme, présentés en regard
+  du coût à la survenance. C'est une information sur la dérive, hors de l'écart de couverture, qui
+  reste `reserve − (remaining_provisions + occurred_cost)` (WF-RIS-0050). Le registre les trie et
+  les filtre.
+- **Écarté : un booléen « issu d'un risque »** à la place de l'identifiant. Il coûterait autant et
+  perdrait le détail par risque, qui ne se reconstitue pas après coup.
+
+La spécification est à compléter (#1760, WF-RIS-0060, WF-RIS-0050, WF-RIS-0040). Le service le suit
+par #1762 (EP-08), les écrans par #1763 (EP-17).
+
+### Les taux d'une révision nouvelle, projetés par défaut (US-0704, #1735, E-05, #1764)
+
+Décision de l'auteur du 2026-11-01 : le contrat suit WF-REV-0060. `apply_rate_update` disait que
+sa valeur par défaut « conserve les taux de la révision source », sans dire qu'ils sont projetés
+par le taux d'inflation du projet jusqu'à la nouvelle année de référence, comme WF-REV-0060,
+WF-REV-0010 et WF-DEV-0030 le veulent et comme `mergeCostStructure` et les fixtures le disaient
+déjà. Faux ou absent, la révision est chiffrée à ces taux projetés, la mise à jour restant
+proposée ; vrai, chaque catégorie que la proposition présenterait au taux du référentiel de l'année
+reçoit ce taux, comme `applyRateUpdate` sur toutes, et les autres gardent leur taux projeté.
+`createRevision` le dit aussi. Aucun schéma ne change ; le service le suit par #1759 (EP-04).
+
+### Le devis principal en réalisation et sous une tâche terminée ; le différentiel rebudgète (US-0704, #1735, F-01, #1766, #1765)
+
+Décision de l'auteur du 2026-11-01. `edit_estimate` disait le devis de la structure principale en
+lecture seule dès En cours, mais `updateEstimateLine` ne déclarait que le 409 générique, et
+`deleteNode` ne refusait pas une ligne d'une tâche terminée. `editable_fields` nommait tous les
+champs de ces lignes. Le front, qui suit la commande, n'en souffrait pas ; un client de l'API
+publiée ne trouvait aucun refus déclaré. À l'inverse, `createNode` et `moveNodes` refusaient
+`task_not_completed` jusque dans un différentiel.
+
+- **Structure principale** : les saisies d'une ligne (création, modification, déplacement,
+  suppression) déclarent leur 409, `project_before_in_progress` dès En cours, puis
+  `task_not_completed` sous une tâche terminée, qui se rouvre d'abord depuis le Kanban
+  (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). `editable_fields` n'y nomme alors aucun champ du devis,
+  et le collage refuse la cellule par la même condition.
+- **Différentiel** : les lignes d'une tâche terminée s'y saisissent comme les autres, pour que
+  l'avenant les rebudgète (WF-REV-0050) ; c'est le moyen d'intégrer un dépassement au budget de
+  référence. La spécification est à préciser (#1765, WF-DEV-0050).
+- **Écarté : le libellé seul modifiable** sous une tâche terminée. La spécification n'en fait pas
+  d'exception, et rouvrir la tâche suffit.
+- **Écarté : la règle dans les différentiels aussi**, qui interdirait de rebudgéter par avenant ce
+  qui est fait.
+
+Le service le suit par #1767 (EP-07).
+
+### Une écriture engendrée ne change l'avancement d'aucune tâche (US-0704, #1735, F-02, #1768)
+
+Décision de l'auteur du 2026-11-01. La variante `node_deleted_provision_moved` retirait à la
+« Mise en service » son seul prédécesseur ; ramenée à la date de début de planning, dans le passé,
+elle était tenue pour terminée par la règle du témoin qui fait d'une fin automatique passée un
+geste fait à sa date, et sa récapitulative avec elle. Une suppression terminait deux tâches.
+
+- **L'invariant du témoin s'étend** : aucune écriture engendrée ne change l'avancement d'une tâche,
+  démarrée ou non. La règle des fins automatiques passées ne vaut que pour l'histoire du témoin,
+  pas pour les variantes d'une écriture. La variante est régénérée, la « Mise en service » au
+  2 mars 2026 et non démarrée, et son résumé dit la baisse des totaux (12 600,00, 160 h).
+- **`deleteNode` le dit** : une tâche laissée sans prédécesseur se replace selon son mode
+  (WF-PLA-0020) sans changer d'état ; rien ne se termine seul (WF-RAE-0030).
+
+### Les heures d'une tâche créée, complétées par le serveur (US-0704, #1735, F-03, #1769)
+
+Décision de l'auteur du 2026-11-01, qui étend #1244 à la création. `TaskFacetWrite` gardait des
+`WorkInstant`, aux heures exigées, alors que la modification prenait des `WorkInstantWrite` : le
+client devait inventer les heures d'un jour dont il ne connaît pas le calendrier (WF-PLA-0010,
+WF-ARC-0020). Le début et la fin d'une tâche créée sont désormais des `WorkInstantWrite`, que le
+serveur complète sur le calendrier de la tâche, le calendrier par défaut pour une tâche créée sans
+ligne ; des heures hors du jour sont refusées comme à la modification. L'exemple
+`node_created_manual` le montre. Le service le suit par #1770 (EP-06).
+
+### Une tâche ne se place pas sous un jalon (US-0704, #1735, F-04, #1771)
+
+Décision de l'auteur du 2026-11-01. WF-PLA-0050 interdit à un jalon de porter des sous-tâches, mais
+`createNode` et `moveNodes` ne déclaraient aucun refus, et `moveNodes` faisait d'une feuille qui
+reçoit une subordonnée une récapitulative, sans excepter le jalon. Le refus est un 422
+`VALIDATION_FAILED` sur `/parent_id`, motif nouveau `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le
+jalon ; l'import et le collage refusent la ligne par le même motif. Une ligne de devis sous un
+jalon reste permise. Écarté : un 409 `parent_not_milestone`. Être un jalon est une propriété de la
+tâche visée, comme les autres refus de placement (`NODE_NOT_SIBLING`), et non un état que l'objet
+annonce dans ses commandes. Le service le suit par #1772 (EP-06), la grille par #1773 (EP-17).
+
+### La récapitulative qui n'attend plus que ses lignes propres (US-0704, #1735, F-05, #1774)
+
+Décision de l'auteur du 2026-11-01. WF-PLA-0040 veut signalées, dans la grille de reste à engager
+et dans le Kanban, les lignes propres d'une récapitulative dont toutes les subordonnées sont
+terminées, « seules lignes ouvertes de la phase » ; le contrat ne le disait pas, et le front aurait
+dû le déduire de subordonnées que la lecture par défaut du reste à engager ne rend pas.
+`TaskFacet.awaiting_own_lines`, calculé et toujours rendu, le dit ; les ancêtres rendus par une
+écriture le reprennent, et `KanbanTask` par sa facette. Le signal des lignes reste porté par leur
+tâche, le front signalant les lignes propres hors provision d'une tâche dont le drapeau est vrai.
+Écartée : une condition sur `remaining_entry`, qui est disponible et ne dirait pas le signalement.
+Le service le suit par #1775 (EP-09), les écrans par #1776 (EP-17).
+
+### Les indicateurs projets avant l'état En cours : ni point, ni lecture (US-0704, #1735, G-01, G-02, #1777, #1778)
+
+Décision de l'auteur du 2026-11-01 : le contrat suit WF-IND-0010, WF-DAT-0040 et WF-IND-0130.
+
+- **`getIndexHistory` ne donne aucun point pour une révision marquée avant l'état En cours**, qui
+  n'a conservé que ses indicateurs de devis. La phrase qui promettait un point non calculable,
+  reste d'avant la passe de cohérence du 2026-10-09, est remplacée ; le point non calculable reste
+  celui d'un indice qu'une révision marquée En cours n'a pas su calculer. Le schéma et la fixture
+  le disaient déjà (G-01).
+- **`getIndexHistory` et `getMilestoneTracking` refusent un projet antérieur à l'état En cours**
+  par le 409 des trois autres lectures d'indicateurs projets (décision #247), `params.state` et
+  `params.state_enum`, avec l'exemple `project_indicators_not_in_progress`. Écarté : un 200 vide,
+  qui romprait avec elles (G-02).
+
+Le service le suit par #1779 (EP-10).
+
+### Les champs toujours rendus sont exigés : le résidu (US-0704, #1735, G-03, #1780)
+
+Décision de l'auteur du 2026-11-01, qui étend la règle de G-02 du 2026-10-28 : un champ que
+l'opération dit toujours rendu est exigé, nullable s'il le faut. Elle s'applique aux colonnes de
+`PortfolioProjectRow` et à `PortfolioScope`, aux écarts de `RemainingIndicators` et
+d'`EstimateIndicators`, à `MilestoneTracking`, `WorkloadPlan`, `CurveSeries`, `Computable` et
+`ComputableMoney`, puis, avec les mineurs voisins, à `Project` (D-11), `Revision` (E-10) et
+`Permission` (A-05). Le `label` d'un montant par clé est exigé et nul pour `unassigned`, que le
+front nomme, comme partout ailleurs. `Import` garde `report` et `task` facultatifs pour la liste,
+et un schéma dérivé, `ImportDetail`, les exige pour `openImport` et `getImport` (I-06). Aucun
+service à suivre : les modèles engendrés imposent les champs.
+
+### L'identité d'un risque, donnée du projet ; sa provision, saisie de la révision (US-0704, #1735, H-02, #1782)
+
+Décision de l'auteur du 2026-11-01 : le contrat suit WF-RIS-0020 et §4.4.1, et la forme du
+2026-10-07 (« La saisie des risques est une saisie de la révision en cours ») est réécrite pour la
+modification. Le libellé, la description et la note de mitigation d'un risque sont des données du
+projet ; son évaluation — probabilité, état, devis propre, provision — est portée par chaque
+révision.
+
+- **`updateRisk`** n'écrit plus que l'identité : sans créer de révision, hors de l'historique
+  d'annulation, sans que l'abandon la défasse.
+- **`updateRiskProvision`**, opération nouvelle, écrit la catégorie, le sous-projet et la tâche de
+  la provision : une saisie de la révision en cours, créée au besoin, annulable, défaite par
+  l'abandon, réservée à un risque identifié (`update_provision`).
+- **Un seul compteur**, `Risk.lock_version`, qui avance à toute écriture du risque et ne revient
+  jamais en arrière.
+- **Écartée : faire écrire à la spécification que la modification est une saisie de la révision.**
+  La spécification est explicite à trois endroits. Écartée aussi : une inscription au journal des
+  modifications de l'identité, que l'auteur ne demande pas.
+
+L'histoire d'un risque — sa première révision, ses états, ses réexamens datés, ses devis propres,
+son coût à la survenance — reste lisible révision par révision ; seuls ses trois textes ne sont pas
+versionnés. Le service le suit par #1783 (EP-08), le détail du risque par #1784 (EP-17).
+
+### Le registre des risques se filtre sur chacune de ses colonnes (US-0704, #1735, H-01, #1785)
+
+Décision de l'auteur du 2026-11-01 : le contrat suit WF-IHM-0130. `listRisks` se triait sur ses six
+colonnes, mais ne se filtrait que par état, par zone et par recherche. Il gagne, selon les
+conventions du README, les bornes de la probabilité, de la gravité et de la provision, et la
+période du dernier réexamen, fin incluse ; `last_review_on_to` sert à la revue périodique pour
+présenter les risques non réexaminés (WF-RIS-0020). Les colonnes ajoutées par la trace des risques
+survenus, le coût à la survenance et le réestimé des survenus, reçoivent leurs bornes de même. Les
+totaux restent ceux des risques retenus. Le service le suit par #1786 (EP-08), le registre par #1787
+(EP-17).
+
+### La racine du devis propre d'un risque survenu, dans le témoin (US-0704, #1735, H-03, #1788)
+
+Décision de l'auteur du 2026-11-01. La lecture après la survenance de 752 plaçait ses tâches sous
+une tâche 541 « Risque survenu — Retard de livraison des armoires », que la règle de placement
+(WF-RIS-0060) ne connaît pas si c'est une enveloppe. 541 est la racine unique du devis propre de
+752, libellée « Retard de livraison des armoires », et la règle la place, avec ses subordonnées,
+en dernière position sous le « Poste de commande ». L'exemple `nodes_risk_estimate_occurred` montre
+ce devis propre tel que la référence 101 le fige avant la fusion. Le témoin montre ainsi les deux
+cas, un devis propre à plat (751) et un devis propre à une racine (752). Écarté : retirer 541, qui
+ferait perdre ce second cas. Aucun schéma ne change.
+
+### Le cycle de vie d'un import (US-0704, #1735, I-01, I-02, I-03, #1789)
+
+Décision de l'auteur du 2026-11-01. Le 409 de l'application ne nommait aucune condition pour un
+compte rendu expiré ou déjà appliqué ; une application refusée laissait l'import `analysed` alors
+que son fichier était supprimé ; l'abandon d'un import appliqué était dit sans forme ; et un dépôt
+déjà employé était tantôt un 409, tantôt un 404.
+
+- **`refused`**, état nouveau d'un import : l'application a été refusée, son fichier supprimé
+  (WF-ARC-0100), et il ne s'applique plus.
+- **L'import porte ses commandes**, `apply` et `abandon` (WF-IHM-0090), avec deux conditions
+  nouvelles : `import_awaiting_decision`, qui manque à l'application d'un import qui n'est plus
+  `analysed`, et `import_not_applied`, qui manque à l'abandon d'un import appliqué ou en cours
+  d'application, ce qu'il a écrit ne se défaisant pas (WF-INTF-0080).
+- **L'abandon d'un import terminé sans écrire est idempotent** (204) : abandonné, expiré, échoué ou
+  refusé, son fichier est déjà supprimé.
+- **Un dépôt déjà employé par un import est un 404**, comme un dépôt inconnu ou expiré : il est
+  supprimé (WF-DAT-0120). Le projet terminal est refusé par `project_not_terminal`.
+- **Écartés** : le 404 pour un import qui n'est plus applicable, alors qu'il se lit au journal ; un
+  `analysed` sans échéance, qui cacherait le refus.
+
+Le service le suit par #1790 (EP-06), l'écran du compte rendu par #1791 (EP-17).
+
+### Les refus manquants de l'import : l'ouverture et la ligne sous une tâche terminée (US-0704, #1735, I-04, I-05, #1792, #1793)
+
+Décisions de l'auteur du 2026-11-01.
+
+- **`openImport` nomme les conditions que ses commandes annoncent**, `no_background_task_running`
+  et `may_create_revision`, en 409 et non en 403, comme la fusion, dans l'ordre de
+  `ProjectCommand.import_*` ; `applyImport` revérifie la première au dépôt de sa tâche (I-04).
+- **Une ligne nouvelle importée sous une tâche terminée de la structure principale est rejetée**
+  par `STATE_FORBIDS_OPERATION`, `task_not_completed`, `params.tasks` nommant la tâche, comme la
+  saisie (WF-INTF-0120). Sur un différentiel, elle est acceptée comme sa saisie (« Le devis
+  principal en réalisation et sous une tâche terminée », plus haut) ; la phrase de WF-INTF-0100 est
+  à accorder (#1765). Écarté : un code propre, contre le catalogue sans code mort (I-05).
+
+Le service le suit par #1790 (EP-06) et #1794 (EP-09).
+
+### Plus de code propre pour un refus d'état ; `max_length` sur tout `VALUE_TOO_LONG` (US-0704, #1735, J-01, J-02, #1795, #1796)
+
+Décisions de l'auteur du 2026-11-01.
+
+- **La règle unique des refus d'état vaut sans exception** : `createRevision` refuse par
+  `STATE_FORBIDS_OPERATION`, `no_current_revision`, et `designateReferenceRevision` par
+  `reference_correctable`, les conditions que leurs commandes annoncent. `CURRENT_REVISION_EXISTS`
+  et `REFERENCE_NOT_CORRECTABLE` sortent du catalogue. Les décisions d'EP-15 qui les gardaient,
+  antérieures à US-0702/L1, portent une note. Écartée : l'exception écrite au README, qui aurait été
+  la seule du contrat (J-01).
+- **`max_length` accompagne tout `VALUE_TOO_LONG`**, la borne `maxLength` du champ, et non le seul
+  code d'un sous-projet ; les générateurs le posent, et l'exemple `subproject_code_too_long` le
+  montre (J-02).
+
+Le service le suit par #1797 (EP-04) et #1798 (EP-03, la traduction commune des refus).
 
 ## Collage et annulation
 
