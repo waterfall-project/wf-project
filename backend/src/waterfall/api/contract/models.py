@@ -6058,69 +6058,20 @@ class ImportRequest(ContractModel):
     ] = None
 
 
-class ImportDetail(ContractModel):
-    import_id: Uuid
-    kind: ExchangeKind
-    filename: Annotated[
-        str,
-        Field(
-            description="Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120)."
-        ),
-    ]
-    structure_id: Annotated[
-        Uuid | None,
-        Field(
-            description="La structure sur laquelle l'import écrit, celle que l'ouverture a désignée, ou la structure principale qu'elle a résolue quand la requête n'en nommait pas (WF-INTF-0090) : le compte rendu la nomme sans relire la requête. Nulle pour une extraction de coûts réels, qui n'écrit sur aucune structure, ses lignes étant du projet (WF-CRE-0020)."
-        ),
-    ]
-    revision_id: Annotated[
-        Uuid | None,
-        Field(
-            description="La révision en cours sur laquelle l'import écrit ; nulle tant qu'elle n'existe pas, quand l'application de l'import la créera (WF-INTF-0090), et pour une extraction de coûts réels, qui n'écrit dans aucune révision (WF-CRE-0010)."
-        ),
-    ]
-    period_from: Annotated[
-        PlanningDate | None,
-        Field(
-            description="Le début de la période extraite que l'ouverture a reçu (`ImportRequest.period_from`, WF-CRE-0050) ; nul quand elle n'en avait pas, et hors des coûts réels."
-        ),
-    ]
-    period_to: Annotated[
-        PlanningDate | None,
-        Field(
-            description="La fin de la période extraite que l'ouverture a reçue (`ImportRequest.period_to`, WF-CRE-0050) ; nulle quand elle n'en avait pas, et hors des coûts réels."
-        ),
-    ]
-    status: Annotated[
-        Status,
-        Field(
-            description="Où l'import en est (WF-ARC-0100) : `analysing`, son analyse court, sans compte rendu ; `analysed`, son compte rendu attend la décision de l'utilisateur jusqu'à `expires_at` ; `applying`, l'application confirmée court ; `applied`, elle a écrit ; `abandoned`, l'utilisateur l'a abandonné ; `expired`, vingt-quatre heures ont passé sans application ; `failed`, la tâche de son analyse ou de son application a échoué (`task.problem`), sans rien écrire (WF-INTF-0080) ; `refused`, l'application a été refusée — à la revérification de la permission, de la qualité de contributeur ou de l'état du projet, ou parce que le compte rendu rejetait le fichier —, le fichier est supprimé (WF-ARC-0100), et l'import ne s'applique plus (I-01, #1789). Seul un import `analysed` s'applique (`import_awaiting_decision`) ; un import `applying` ou `applied` ne s'abandonne pas (`import_not_applied`), et l'abandon d'un import terminé sans écrire — `abandoned`, `expired`, `failed`, `refused` — rend 204 sans effet."
-        ),
-    ]
-    created_at: Timestamp
-    expires_at: Annotated[
-        Timestamp | None,
-        Field(
-            description="Vingt-quatre heures après l'analyse ; au-delà le compte rendu ne s'applique plus (WF-ARC-0100). Nul tant que l'analyse court, qu'elle a échoué, ou que l'application a été refusée (`refused`)."
-        ),
-    ]
+class ImportDetail(Import):
     report: Annotated[
         ImportReport | None,
-        Field(
-            description="Le compte rendu de l'analyse, nul tant qu'elle court ou quand elle a échoué ; rendu par la lecture d'un import (`ImportDetail`), omis par la liste."
-        ),
+        Field(description="Le compte rendu de l'analyse, celui d'`Import`, ici toujours rendu."),
     ]
     task: Annotated[
         BackgroundTaskRef,
         Field(
-            description="La dernière tâche de fond de l'import, celle de son analyse ou de son application, que l'écran suit (WF-IHM-0080) ; rendue par la lecture d'un import (`ImportDetail`), omise par la liste."
+            description="La dernière tâche de fond de l'import, celle d'`Import`, ici toujours rendue."
         ),
     ]
     available_commands: Annotated[
         list[ImportCommandAvailability],
-        Field(
-            description="Les commandes de l'import que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent, dans l'ordre d'`ImportCommand` (WF-IHM-0090 ; I-01, I-02, #1789) ; rendues par la lecture d'un import (`ImportDetail`), omises par la liste."
-        ),
+        Field(description="Les commandes de l'import, celles d'`Import`, ici toujours rendues."),
     ]
 
 

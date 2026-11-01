@@ -3757,18 +3757,6 @@
         "refused": "Refused"
       }
     },
-    "ImportDetail": {
-      "status": {
-        "analysing": "Analysing",
-        "analysed": "Analysed",
-        "applying": "Applying",
-        "applied": "Applied",
-        "abandoned": "Abandoned",
-        "expired": "Expired",
-        "failed": "Failed",
-        "refused": "Refused"
-      }
-    },
     "ImportCommand": {
       "apply": "Apply the import",
       "abandon": "Abandon the import"

@@ -170,7 +170,7 @@ Import:
     Un import du projet, tel que la liste le rend (`listImports`) : son ouverture et l'état où il
     en est, sans son compte rendu, sa tâche ni ses commandes, que seule la lecture d'un import
     rend (`ImportDetail`, `getImport`, `openImport` ; I-06, #1780).
-  properties: &import_properties
+  properties:
     import_id: { $ref: ../common.yaml#/Uuid }
     kind: { $ref: '#/ExchangeKind' }
     filename:
@@ -245,26 +245,25 @@ Import:
       items: { $ref: '#/ImportCommandAvailability' }
 
 ImportDetail:
-  type: object
-  required:
-    - import_id
-    - kind
-    - filename
-    - structure_id
-    - revision_id
-    - period_from
-    - period_to
-    - status
-    - created_at
-    - expires_at
-    - report
-    - task
-    - available_commands
   description: >-
-    Un import tel que sa lecture le rend (`getImport`) et son ouverture (`openImport`) : les
-    propriétés d'`Import`, reprises de lui, et toujours son compte rendu — nul tant que l'analyse
+    Un import tel que sa lecture le rend (`getImport`) et son ouverture (`openImport`) : un
+    `Import`, dont il reprend les propriétés, et toujours son compte rendu — nul tant que l'analyse
     court ou quand elle a échoué —, sa tâche et ses commandes, que la liste omet (I-06, #1780).
-  properties: *import_properties
+  allOf:
+    - $ref: '#/Import'
+    - type: object
+      required: [report, task, available_commands]
+      properties:
+        report:
+          anyOf: [{ $ref: '#/ImportReport' }, { type: 'null' }]
+          description: Le compte rendu de l'analyse, celui d'`Import`, ici toujours rendu.
+        task:
+          allOf: [{ $ref: ../common.yaml#/BackgroundTaskRef }]
+          description: La dernière tâche de fond de l'import, celle d'`Import`, ici toujours rendue.
+        available_commands:
+          type: array
+          description: Les commandes de l'import, celles d'`Import`, ici toujours rendues.
+          items: { $ref: '#/ImportCommandAvailability' }
 
 ImportCommand:
   type: string

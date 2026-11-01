@@ -5719,33 +5719,13 @@ export interface components {
             /** @description La fin de la période extraite, incluse, facultative (WF-CRE-0050). Une fin qui précède le début est refusée par 422, `VALIDATION_FAILED`, `/period_to` par `VALUE_OUT_OF_RANGE`, `params.minimum` le début, comme toute période du contrat. */
             period_to?: components["schemas"]["PlanningDate"] | null;
         };
-        /** @description Un import tel que sa lecture le rend (`getImport`) et son ouverture (`openImport`) : les propriétés d'`Import`, reprises de lui, et toujours son compte rendu — nul tant que l'analyse court ou quand elle a échoué —, sa tâche et ses commandes, que la liste omet (I-06, #1780). */
-        ImportDetail: {
-            import_id: components["schemas"]["Uuid"];
-            kind: components["schemas"]["ExchangeKind"];
-            /** @description Nom du fichier déposé, tel que l'utilisateur l'a envoyé ; il reste au compte rendu et à la liste des imports quand le fichier lui-même est supprimé (WF-DAT-0120). */
-            filename: string;
-            /** @description La structure sur laquelle l'import écrit, celle que l'ouverture a désignée, ou la structure principale qu'elle a résolue quand la requête n'en nommait pas (WF-INTF-0090) : le compte rendu la nomme sans relire la requête. Nulle pour une extraction de coûts réels, qui n'écrit sur aucune structure, ses lignes étant du projet (WF-CRE-0020). */
-            structure_id: components["schemas"]["Uuid"] | null;
-            /** @description La révision en cours sur laquelle l'import écrit ; nulle tant qu'elle n'existe pas, quand l'application de l'import la créera (WF-INTF-0090), et pour une extraction de coûts réels, qui n'écrit dans aucune révision (WF-CRE-0010). */
-            revision_id: components["schemas"]["Uuid"] | null;
-            /** @description Le début de la période extraite que l'ouverture a reçu (`ImportRequest.period_from`, WF-CRE-0050) ; nul quand elle n'en avait pas, et hors des coûts réels. */
-            period_from: components["schemas"]["PlanningDate"] | null;
-            /** @description La fin de la période extraite que l'ouverture a reçue (`ImportRequest.period_to`, WF-CRE-0050) ; nulle quand elle n'en avait pas, et hors des coûts réels. */
-            period_to: components["schemas"]["PlanningDate"] | null;
-            /**
-             * @description Où l'import en est (WF-ARC-0100) : `analysing`, son analyse court, sans compte rendu ; `analysed`, son compte rendu attend la décision de l'utilisateur jusqu'à `expires_at` ; `applying`, l'application confirmée court ; `applied`, elle a écrit ; `abandoned`, l'utilisateur l'a abandonné ; `expired`, vingt-quatre heures ont passé sans application ; `failed`, la tâche de son analyse ou de son application a échoué (`task.problem`), sans rien écrire (WF-INTF-0080) ; `refused`, l'application a été refusée — à la revérification de la permission, de la qualité de contributeur ou de l'état du projet, ou parce que le compte rendu rejetait le fichier —, le fichier est supprimé (WF-ARC-0100), et l'import ne s'applique plus (I-01, #1789). Seul un import `analysed` s'applique (`import_awaiting_decision`) ; un import `applying` ou `applied` ne s'abandonne pas (`import_not_applied`), et l'abandon d'un import terminé sans écrire — `abandoned`, `expired`, `failed`, `refused` — rend 204 sans effet.
-             * @enum {string}
-             */
-            status: "analysing" | "analysed" | "applying" | "applied" | "abandoned" | "expired" | "failed" | "refused";
-            created_at: components["schemas"]["Timestamp"];
-            /** @description Vingt-quatre heures après l'analyse ; au-delà le compte rendu ne s'applique plus (WF-ARC-0100). Nul tant que l'analyse court, qu'elle a échoué, ou que l'application a été refusée (`refused`). */
-            expires_at: components["schemas"]["Timestamp"] | null;
-            /** @description Le compte rendu de l'analyse, nul tant qu'elle court ou quand elle a échoué ; rendu par la lecture d'un import (`ImportDetail`), omis par la liste. */
+        /** @description Un import tel que sa lecture le rend (`getImport`) et son ouverture (`openImport`) : un `Import`, dont il reprend les propriétés, et toujours son compte rendu — nul tant que l'analyse court ou quand elle a échoué —, sa tâche et ses commandes, que la liste omet (I-06, #1780). */
+        ImportDetail: components["schemas"]["Import"] & {
+            /** @description Le compte rendu de l'analyse, celui d'`Import`, ici toujours rendu. */
             report: components["schemas"]["ImportReport"] | null;
-            /** @description La dernière tâche de fond de l'import, celle de son analyse ou de son application, que l'écran suit (WF-IHM-0080) ; rendue par la lecture d'un import (`ImportDetail`), omise par la liste. */
+            /** @description La dernière tâche de fond de l'import, celle d'`Import`, ici toujours rendue. */
             task: components["schemas"]["BackgroundTaskRef"];
-            /** @description Les commandes de l'import que l'appelant a la permission d'exercer, chacune disponible ou non, avec les conditions qui lui manquent, dans l'ordre d'`ImportCommand` (WF-IHM-0090 ; I-01, I-02, #1789) ; rendues par la lecture d'un import (`ImportDetail`), omises par la liste. */
+            /** @description Les commandes de l'import, celles d'`Import`, ici toujours rendues. */
             available_commands: components["schemas"]["ImportCommandAvailability"][];
         };
         /** @description Applique l'import en une seule transaction. Les droits et l'état du projet sont revérifiés au moment de l'exécution : un import confirmé n'est pas appliqué si l'une des conditions a cessé d'être vraie depuis l'analyse (WF-ARC-0100). */
