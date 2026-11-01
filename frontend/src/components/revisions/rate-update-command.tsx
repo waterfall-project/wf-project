@@ -26,6 +26,7 @@ import { applyRateUpdate } from "@/api/actions/revisions";
 import type { components } from "@/api/generated/schema";
 import { ConfirmedCommand } from "@/components/commands/confirmed-command";
 import type { CommandOffer } from "@/components/commands/offer";
+import { useCurrency } from "@/currency/context";
 import { formatMoney } from "@/i18n/format";
 
 /** A category of the proposal. */
@@ -55,6 +56,7 @@ export function ApplyRateUpdateCommand({
   const t = useTranslations("revisionCommands.rateUpdate");
   const helps = useTranslations("commands");
   const locale = useLocale();
+  const currency = useCurrency();
   const legend = useId();
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const retained = categories.filter(({ cost_category_id: id }) => !refused.has(id));
@@ -99,8 +101,8 @@ export function ApplyRateUpdateCommand({
             />
             {t("change", {
               category: category.label,
-              previous: formatMoney(category.previous_amount, locale),
-              proposed: formatMoney(category.proposed_amount, locale),
+              previous: formatMoney(category.previous_amount, locale, currency),
+              proposed: formatMoney(category.proposed_amount, locale, currency),
             })}
           </label>
         ))}

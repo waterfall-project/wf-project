@@ -41,7 +41,13 @@ type FigureName =
   | "scheduleVariance";
 
 /** The figures of a card, each named, its amount the API's; one the API leaves out, not shown. */
-function Figures({ figures }: { readonly figures: readonly [FigureName, Money | undefined][] }) {
+function Figures({
+  figures,
+  currency,
+}: {
+  readonly figures: readonly [FigureName, Money | undefined][];
+  readonly currency: string | undefined;
+}) {
   const t = useTranslations("projectIndicators.figures");
   const locale = useLocale();
   return (
@@ -50,7 +56,7 @@ function Figures({ figures }: { readonly figures: readonly [FigureName, Money | 
         amount === undefined ? null : (
           <div key={name} className="space-y-0.5">
             <dt className="text-xs text-muted-foreground">{t(name)}</dt>
-            <dd className="font-semibold tabular-nums">{formatMoney(amount, locale)}</dd>
+            <dd className="font-semibold tabular-nums">{formatMoney(amount, locale, currency)}</dd>
           </div>
         ),
       )}
@@ -76,12 +82,18 @@ function IndicatorCard({
 }
 
 /** The projections at completion, by hypothesis, with their variance from the budget. */
-function Projections({ indicators }: { readonly indicators: ProjectIndicators }) {
+function Projections({
+  indicators,
+  currency,
+}: {
+  readonly indicators: ProjectIndicators;
+  readonly currency: string | undefined;
+}) {
   const t = useTranslations("projectIndicators.projections");
   const locale = useLocale();
   const { projections, context } = indicators;
   const money = (amount: Money | null | undefined) =>
-    amount === null || amount === undefined ? null : formatMoney(amount, locale);
+    amount === null || amount === undefined ? null : formatMoney(amount, locale, currency);
   return (
     <>
       <table className="w-full text-left text-sm">
@@ -118,11 +130,12 @@ function Projections({ indicators }: { readonly indicators: ProjectIndicators })
         value={projections.at_observed_rate}
         context={context}
         date="held"
+        currency={currency}
       />
       {projections.variance_at_observed_rate === null ? null : (
         <p className="text-sm">
           {t("varianceAtObservedRate", {
-            variance: formatMoney(projections.variance_at_observed_rate, locale),
+            variance: formatMoney(projections.variance_at_observed_rate, locale, currency),
           })}
         </p>
       )}
@@ -135,7 +148,9 @@ function IndexCard({
   kind,
   indicators,
   history,
+  currency,
 }: {
+  readonly currency: string | undefined;
   readonly kind: "cost" | "schedule";
   readonly indicators: ProjectIndicators;
   readonly history: IndexHistory;
@@ -167,7 +182,7 @@ function IndexCard({
         />
         {index.zone === null ? null : <Signal zone={index.zone} />}
       </div>
-      <Figures figures={figures} />
+      <Figures figures={figures} currency={currency} />
       <IndexChart kind={kind} history={history} />
     </IndicatorCard>
   );
@@ -180,10 +195,16 @@ export interface ProjectIndicatorCardsProps {
    * The evolution of the indices, for the sub-project the indicators are read for, or every scope.
    */
   readonly history: IndexHistory;
+  /** The currency of the installation, which every amount carries; none when it is unknown. */
+  readonly currency: string | undefined;
 }
 
 /** Render the indicators of a project, one card for each function FBS-4.8.1 to FBS-4.8.5. */
-export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorCardsProps) {
+export function ProjectIndicatorCards({
+  indicators,
+  history,
+  currency,
+}: ProjectIndicatorCardsProps) {
   const t = useTranslations("projectIndicators");
   const { context } = indicators;
   return (
@@ -209,10 +230,11 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
             ["remaining", indicators.remaining],
             ["referenceBudget", indicators.reference_budget],
           ]}
+          currency={currency}
         />
       </IndicatorCard>
       <IndicatorCard title={t("projections.title")} context={context}>
-        <Projections indicators={indicators} />
+        <Projections indicators={indicators} currency={currency} />
       </IndicatorCard>
       <IndicatorCard title={t("physical.title")} context={context}>
         <ComputedIndicator
@@ -226,11 +248,12 @@ export function ProjectIndicatorCards({ indicators, history }: ProjectIndicatorC
             ["earnedValue", indicators.earned_value],
             ["referenceBudget", indicators.reference_budget],
           ]}
+          currency={currency}
         />
       </IndicatorCard>
       <div className="grid gap-6 lg:col-span-2 lg:grid-cols-2">
-        <IndexCard kind="cost" indicators={indicators} history={history} />
-        <IndexCard kind="schedule" indicators={indicators} history={history} />
+        <IndexCard kind="cost" indicators={indicators} history={history} currency={currency} />
+        <IndexCard kind="schedule" indicators={indicators} history={history} currency={currency} />
       </div>
     </div>
   );

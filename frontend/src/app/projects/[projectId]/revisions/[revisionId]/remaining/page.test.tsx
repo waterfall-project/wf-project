@@ -127,6 +127,7 @@ beforeEach(() => {
   server.clients = [];
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
     [REVISION_READ]: "revision",
@@ -210,7 +211,7 @@ describe("the screen of the remaining to commit", () => {
     );
     // Each amount bears the one mark of a computed value.
     expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
-    expect(text(summary)).toContain("Débours: 57,634,670.39 (85.42%)");
+    expect(text(summary)).toContain("Débours: €57,634,670.39 (85.42%)");
     expect(text(summary)).toContain(
       "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
     );
@@ -224,8 +225,8 @@ describe("the screen of the remaining to commit", () => {
     server.answers = { ...server.answers, [INDICATORS]: "remaining_indicators_over_budget" };
     const markup = section(await remainingAt(), "Remaining to commit indicators");
     const summary = text(markup);
-    expect(summary).toContain("Poste de commande: 23,313,997.53, margin -64,499.97");
-    expect(summary).toContain("No subproject: 23,341,668.61, margin -540,306.57");
+    expect(summary).toContain("Poste de commande: €23,313,997.53, margin -€64,499.97");
+    expect(summary).toContain("No subproject: €23,341,668.61, margin -€540,306.57");
     // Each by the zone the server gives it, named: every scope is over its budget, the remaining
     // of its tasks not started projected on their years of consumption beyond it (EP-14/L45a).
     expect(

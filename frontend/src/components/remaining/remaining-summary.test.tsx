@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { CurrencyProvider } from "@/currency/context";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { example } from "@/test/fixtures";
 
@@ -20,10 +21,16 @@ function text(markup: string): string {
 }
 
 /** The summary of the remaining to commit on an answer of the API, in English by default. */
-function renderSummary(indicators: RemainingIndicators, locale: "en" | "fr" = "en"): string {
+function renderSummary(
+  indicators: RemainingIndicators,
+  locale: "en" | "fr" = "en",
+  currency?: string,
+): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <RemainingSummary indicators={indicators} />
+      <CurrencyProvider currency={currency}>
+        <RemainingSummary indicators={indicators} currency={currency} />
+      </CurrencyProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -34,6 +41,16 @@ function computed(value: string): RemainingIndicators["by_cost_type"][number]["s
 }
 
 describe("the summary of the remaining to commit", () => {
+  it("shows the currency of the installation with each amount, in each language [WF-REF-0140-A]", () => {
+    const indicators = example("remaining_indicators") as RemainingIndicators;
+    expect(text(renderSummary(indicators, "en", "EUR"))).toContain(
+      "Remaining to commit €67,470,132.98 Margin on the reference budget -€641,535.13",
+    );
+    expect(text(renderSummary(indicators, "fr", "EUR"))).toMatch(
+      /Marge sur le budget de référence -641\s535,13\s€/,
+    );
+  });
+
   it("leaves out the deviation from a previous review that never was, rather than nil [WF-RAE-0020-A]", () => {
     // Sur un projet sans revue précédente, l'écart correspondant est absent plutôt que nul.
     const indicators = example("remaining_indicators") as RemainingIndicators;

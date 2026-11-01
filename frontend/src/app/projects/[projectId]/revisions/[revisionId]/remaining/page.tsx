@@ -26,6 +26,7 @@ import type { ReactNode } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { OPTIONAL_READ_REFUSALS, readUnlessRefused } from "@/api/problem";
+import { requestCurrency } from "@/currency/request";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -235,9 +236,10 @@ export default async function RemainingPage({
     ]);
     return { screen: read, categories, subprojects };
   });
-  const [{ screen, categories, subprojects }, indicators] = await Promise.all([
+  const [{ screen, categories, subprojects }, indicators, currency] = await Promise.all([
     grid,
     readIndicators(at),
+    requestCurrency(),
   ]);
   const notStarted = progress.includes("not_started");
   const editable = screen.commands.has("edit_remaining");
@@ -260,7 +262,7 @@ export default async function RemainingPage({
             <ExchangesLink project={screen.reading.project} kind="remaining" context={at.context} />
           }
         />
-        <RemainingSummary indicators={indicators} />
+        <RemainingSummary indicators={indicators} currency={currency} />
         <PendingAddress>
           {screen.breakdown === undefined ? null : (
             <BreakdownFilterChoice choices={screen.breakdown} />

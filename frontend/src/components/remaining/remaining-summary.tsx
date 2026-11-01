@@ -41,7 +41,13 @@ function useKeyName() {
 }
 
 /** The cards of the indicators: the total and the deviations, the breakdowns, the coverage. */
-function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
+function Figures({
+  indicators,
+  currency,
+}: {
+  readonly indicators: RemainingIndicators;
+  readonly currency: string | undefined;
+}) {
   const t = useTranslations("remainingSummary");
   const bounds = useTranslations("share");
   const locale = useLocale();
@@ -49,7 +55,7 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
   const reference = indicators.delta_to_reference;
   const previous = indicators.delta_to_previous_revision;
   const { context } = indicators;
-  const money = (amount: string) => formatMoney(amount, locale);
+  const money = (amount: string) => formatMoney(amount, locale, currency);
   return (
     <FiguresGrid>
       <FiguresCard title={t("title")} context={context}>
@@ -111,8 +117,11 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
 /** Render the indicators of the remaining to commit, or say them unavailable. */
 export function RemainingSummary({
   indicators,
+  currency,
 }: {
   readonly indicators: RemainingIndicators | undefined;
+  /** The currency of the installation, which every amount carries; none when it is unknown. */
+  readonly currency: string | undefined;
 }) {
   const t = useTranslations("remainingSummary");
   return indicators === undefined ? (
@@ -122,6 +131,6 @@ export function RemainingSummary({
       </FiguresCard>
     </FiguresGrid>
   ) : (
-    <Figures indicators={indicators} />
+    <Figures indicators={indicators} currency={currency} />
   );
 }

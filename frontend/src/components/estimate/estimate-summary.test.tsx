@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { CurrencyProvider } from "@/currency/context";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { example } from "@/test/fixtures";
@@ -34,10 +35,18 @@ function renderSummary(
   rates: MissingRates,
   permissions: readonly Permission[] = all,
   locale: Locale = "fr",
+  currency?: string,
 ): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <EstimateSummary indicators={indicators} missingRates={rates} permissions={permissions} />
+      <CurrencyProvider currency={currency}>
+        <EstimateSummary
+          indicators={indicators}
+          missingRates={rates}
+          permissions={permissions}
+          currency={currency}
+        />
+      </CurrencyProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -58,6 +67,20 @@ function summary(
 }
 
 describe("the summary of the estimate", () => {
+  it("shows the currency of the installation with each amount [WF-REF-0140-A]", () => {
+    const html = renderSummary(
+      example("estimate_indicators") as EstimateIndicators,
+      example("missing_rates_none") as MissingRates,
+      all,
+      "en",
+      "EUR",
+    );
+    const shown = text(html);
+    const figures = shown.match(/\d[\d,]*\.\d{2}(?![\d%])/g) ?? [];
+    expect(figures.length).toBeGreaterThan(0);
+    expect(shown.match(/€[\d,]+\.\d{2}(?![\d%])/g)).toHaveLength(figures.length);
+  });
+
   it("shows the total, the provisions and the deviations the API gives, with the date they are computed at", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(

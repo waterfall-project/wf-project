@@ -31,6 +31,7 @@ import type { ReactNode } from "react";
 
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import { OPTIONAL_READ_REFUSALS, readOrFail, readUnlessRefused } from "@/api/problem";
+import { requestCurrency } from "@/currency/request";
 import { serverClient } from "@/api/server";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { ContextBanner, type Restrictions } from "@/components/context/context-banner";
@@ -274,7 +275,7 @@ export default async function EstimatePage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "estimate");
-  const [screen, [indicators, missingRates], reference, session] = await Promise.all([
+  const [screen, [indicators, missingRates], reference, session, currency] = await Promise.all([
     readGridScreen(at, {
       key: ESTIMATE_GRID.key,
       sortable: ESTIMATE_SORT_COLUMNS,
@@ -286,6 +287,7 @@ export default async function EstimatePage({
     readEstimateFigures(at),
     readReference(revision.projectId),
     requestSession(),
+    requestCurrency(),
   ]);
   // The sub-project of a line is entered from the list of the project, in a revision open to
   // entry: elsewhere, its identifier does not cross to the browser, its label alone shown.
@@ -318,6 +320,7 @@ export default async function EstimatePage({
           indicators={indicators}
           missingRates={missingRates}
           permissions={session?.permissions ?? []}
+          currency={currency}
         />
         {screen.breakdown === undefined ? null : (
           <BreakdownFilterChoice choices={screen.breakdown} />

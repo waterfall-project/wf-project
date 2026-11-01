@@ -22,6 +22,7 @@ import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { type ObjectNames, OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Differences } from "@/components/exchanges/import-report";
+import { useCurrency } from "@/currency/context";
 import { formatMoney } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
@@ -34,11 +35,12 @@ const HEADING = "text-sm font-semibold";
 function ReportBody({ report }: { readonly report: OccurrenceReport }) {
   const t = useTranslations("riskOccurrenceReport");
   const locale = useLocale();
+  const currency = useCurrency();
   const messages = useMessages();
   return (
     <div className="space-y-3">
       {report.creates_current_revision ? <p role="note">{t("createsRevision")}</p> : null}
-      <p>{t("provision", { amount: formatMoney(report.provision_amount, locale) })}</p>
+      <p>{t("provision", { amount: formatMoney(report.provision_amount, locale, currency) })}</p>
       {report.refusals.length === 0 ? null : (
         <div role="alert" className="space-y-1 text-destructive">
           <h3 className={HEADING}>{t("refusals", { count: report.refusals.length })}</h3>

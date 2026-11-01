@@ -82,6 +82,7 @@ beforeEach(() => {
   grids.estimate = [];
   server.clients = [];
   server.answers = {
+    "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
@@ -234,8 +235,8 @@ describe("the shares of the estimate (#626)", () => {
       .replace(/<[^>]+>/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/\s+/g, " ");
-    expect(page).toContain("By work package Computed on Lot 1 2,019.56 (<0.01%)");
-    expect(page).toContain("Computed on No subproject 68,238,703.05 (100%)");
+    expect(page).toContain("By work package Computed on Lot 1 €2,019.56 (<0.01%)");
+    expect(page).toContain("Computed on No subproject €68,238,703.05 (100%)");
   });
 });
 

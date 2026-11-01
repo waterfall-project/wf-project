@@ -126,6 +126,7 @@ beforeEach(() => {
   server.clients = [];
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
@@ -180,13 +181,13 @@ describe("the screen of the indicators of a project", () => {
   it("shows the amounts as the API gives them, nothing summed nor divided", async () => {
     const page = text(html(await IndicatorsPage(at())));
     expect(page).toContain(
-      "Actual cost 1,412,970.20 Remaining to commit 67,470,132.98 Reference budget 68,241,568.05",
+      "Actual cost €1,412,970.20 Remaining to commit €67,470,132.98 Reference budget €68,241,568.05",
     );
     expect(page).toContain(
-      "At budget 68,204,679.92 -36,888.13 Project manager’s 68,883,103.18 641,535.13",
+      "At budget €68,204,679.92 -€36,888.13 Project manager’s €68,883,103.18 €641,535.13",
     );
     expect(page).toContain(
-      "Schedule variance -221,599.80 Earned value 1,449,858.33 Planned value 1,671,458.13",
+      "Schedule variance -€221,599.80 Earned value €1,449,858.33 Planned value €1,671,458.13",
     );
   });
 

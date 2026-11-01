@@ -14,6 +14,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react";
 
+import { useCurrency } from "@/currency/context";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -221,11 +222,12 @@ export function EntryProblemNotice({
 }) {
   const t = useTranslations("grid.entry");
   const locale = useLocale();
+  const currency = useCurrency();
   const problem = draft?.problem;
   if (problem === undefined || kind === undefined) {
     return null;
   }
-  const amount = formatCell("money", "1234.56", locale);
+  const amount = formatCell("money", "1234.56", locale, currency);
   const texts: Readonly<Record<EntryProblem, () => string>> = {
     required: () => t("required"),
     tooLong: () => t("tooLong", { max: kind.type === "text" ? (kind.maxLength ?? 0) : 0 }),

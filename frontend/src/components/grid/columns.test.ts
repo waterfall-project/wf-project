@@ -34,6 +34,9 @@ function contractEnum(name: string): string[] {
 describe("a cell of a grid", () => {
   it("shows its value by its format, from the exact string of the contract", () => {
     expect(formatCell("money", "1234.5", "en")).toBe("1,234.50");
+    // An amount carries the currency of the installation, a figure that is not one does not.
+    expect(formatCell("money", "1234.5", "en", "EUR")).toBe("€1,234.50");
+    expect(formatCell("decimal", "12.5", "en", "EUR")).toBe("12.5");
     expect(formatCell("decimal", "12.5", "fr")).toBe("12,5");
     expect(formatCell("date", "2026-06-30", "en")).toBe("30/06/2026");
     expect(formatCell("date", "2026-03-02", "fr")).toBe("02/03/2026");
