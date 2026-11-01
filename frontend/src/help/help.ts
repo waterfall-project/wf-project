@@ -4,14 +4,16 @@
  * The online help (WF-IHM-0140, US-0580): a page of Markdown for each code of the FBS that has a
  * screen — a function, a leaf with a screen of its own, a section its function's screen shows, the
  * list of the projects —, and a page for each notion of the method, under `frontend/help/<language>/`
- * (`<code>.md`, `notions/<notion>.md`). The table of the functions is its key: the code of the screen
- * shown is that of the route the address follows.
+ * (`<code>.md`, `notions/<notion>.md`), in each language of the interface (US-0670b): the same files,
+ * by the same names, in French and in English. The table of the functions is its key: the code of the
+ * screen shown is that of the route the address follows.
  *
  * Neither server nor client: what the panel of the help and the reading of its files share — what a
  * page is, which codes have one, where a link between pages leads, what a search finds. The files
  * are read on the server alone (`read.ts`).
  */
 import type { ColumnHelp, ColumnLabel } from "@/components/grid/columns";
+import type { Locale } from "@/i18n/locale";
 import { isIdentifier } from "@/navigation/context";
 import { FUNCTION_GROUPS, findScreen } from "@/navigation/functions";
 import { HOME } from "@/navigation/home";
@@ -19,30 +21,43 @@ import { HOME } from "@/navigation/home";
 /** The first segment of the address of a project's page and of its functions. */
 const PROJECTS = "projects";
 
-/**
- * The language the help is written in: French alone, the English version being decided once the
- * author has read the French (#1075) — an interface in English shows the French help until then,
- * a gap written under WF-IHM-0140 in the file of EP-15.
- */
-export const HELP_LANGUAGE = "fr";
-
 /** A page of the help: that of a screen, by its code of the FBS, or that of a notion of the method. */
 export type HelpTarget =
   | { readonly kind: "screen"; readonly code: string }
   | { readonly kind: "notion"; readonly name: string };
 
 /**
- * The headings of the page of a screen, always the same, in this order (#1075): what the screen
- * shows and its part in the method; its commands, their keys and their conditions; its columns and
- * its computed values; the gestures of the keyboard; the notions and the screens nearby.
+ * The headings of the page of a screen, always the same, in this order (#1075), in each language of
+ * the interface (US-0670b): what the screen shows and its part in the method; its commands, their
+ * keys and their conditions; its columns and its computed values; the gestures of the keyboard; the
+ * notions and the screens nearby.
  */
-export const SCREEN_HEADINGS = [
-  "Ce que montre l’écran",
-  "Ses commandes",
-  "Ses colonnes et ses valeurs calculées",
-  "Les gestes au clavier",
-  "Voir aussi",
-] as const;
+export const SCREEN_HEADINGS = {
+  fr: [
+    "Ce que montre l’écran",
+    "Ses commandes",
+    "Ses colonnes et ses valeurs calculées",
+    "Les gestes au clavier",
+    "Voir aussi",
+  ],
+  en: [
+    "What the screen shows",
+    "Its commands",
+    "Its columns and computed values",
+    "Keyboard gestures",
+    "See also",
+  ],
+} as const satisfies Record<Locale, readonly string[]>;
+
+/**
+ * The headings of the page of a notion, in each language of the interface: what the glossary of the
+ * specification says, quoted — translated in English, the specification being French alone —, what
+ * Waterfall makes of it, and the pages nearby.
+ */
+export const NOTION_HEADINGS = {
+  fr: ["Ce que dit le glossaire", "Dans Waterfall", "Voir aussi"],
+  en: ["What the glossary says", "In Waterfall", "See also"],
+} as const satisfies Record<Locale, readonly string[]>;
 
 /** The place, among `SCREEN_HEADINGS`, of the section the definitions of the columns follow. */
 export const COLUMNS_SECTION = 2;
@@ -83,8 +98,12 @@ export interface HelpEntry {
   readonly title: string;
 }
 
-/** What the panel receives: the page asked, and the index of the pages written. */
+/**
+ * What the panel receives: the page asked, and the index of the pages written, both in the language
+ * they were read in — that of the interface, which the panel says on them (`lang`).
+ */
 export interface HelpReading {
+  readonly language: Locale;
   readonly page: HelpPage;
   readonly index: readonly HelpEntry[];
 }

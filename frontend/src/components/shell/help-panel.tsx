@@ -13,10 +13,10 @@
  * The section of the columns is followed by the definitions of the columns of the grid, from the
  * catalogues, as their headers show them; a function's screen leads to the pages of its sections.
  * A search reads the titles of the pages written. A page not written yet says that its help is to
- * come. The help is in French alone (`HELP_LANGUAGE`): the title and the page, and the titles a
- * search finds, say so (`lang`) in an interface in another language, for a screen reader to speak
- * them as French; the messages of the interface around them keep its language. The body, which
- * scrolls, is a region, named like the title, that Tab reaches.
+ * come. The help is read in the language of the interface (US-0670b), and never in another in its
+ * place: the title and the page, and the titles a search finds, say the language they were read in
+ * (`lang`), for a screen reader to speak them so; the messages of the interface around them are the
+ * catalogue's own. The body, which scrolls, is a region, named like the title, that Tab reaches.
  *
  * The panel is a sheet: a dialog of Radix, named by its title, which holds the focus, closes by
  * Escape and gives the focus back to where it was — the button, or the cell where F1 was pressed. A
@@ -47,7 +47,6 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/comp
 import {
   COLUMNS_SECTION,
   fileOf,
-  HELP_LANGUAGE,
   type HelpColumn,
   type HelpEntry,
   type HelpPage,
@@ -58,6 +57,7 @@ import {
   searched,
   sectionsOf,
 } from "@/help/help";
+import type { Locale } from "@/i18n/locale";
 
 import { HelpLink } from "./help-link";
 
@@ -95,7 +95,8 @@ function HelpColumns({ columns }: { readonly columns: readonly HelpColumn[] }) {
   const t = useTranslations("help");
   const headings = useTranslations("grid.columns");
   const definitions = useTranslations("columns");
-  // The headers and the definitions are the interface's own: they stay out of the French page around them.
+  // The headers and the definitions are the interface's own, from the catalogue: they say its
+  // language, not the page's around them.
   const locale = useLocale();
   if (columns.length === 0) {
     return null;
@@ -121,15 +122,17 @@ function HelpColumns({ columns }: { readonly columns: readonly HelpColumn[] }) {
 function HelpParts({
   code,
   index,
+  language,
   onFollow,
 }: {
   readonly code: string;
   readonly index: readonly HelpEntry[];
+  readonly language: Locale;
   readonly onFollow: (target: HelpTarget) => void;
 }) {
   const t = useTranslations("help");
-  // The title of the list is the interface's own, the titles of its links the French of the help:
-  // each says its language, for a screen reader to speak it so (#1480).
+  // The title of the list is the interface's own, the titles of its links those of the help as it
+  // was read: each says its language, for a screen reader to speak it so (#1480).
   const locale = useLocale();
   const heading = useId();
   const parts = sectionsOf(code).flatMap((section) =>
@@ -145,7 +148,7 @@ function HelpParts({
       </h4>
       <ul className="list-disc space-y-1 pl-5">
         {parts.map((entry) => (
-          <li key={fileOf(entry.target)} lang={HELP_LANGUAGE}>
+          <li key={fileOf(entry.target)} lang={language}>
             <HelpLink target={entry.target} onFollow={onFollow}>
               {entry.title}
             </HelpLink>
@@ -156,20 +159,25 @@ function HelpParts({
   );
 }
 
-/** A page of the help written: its sections, the columns after theirs. */
+/**
+ * A page of the help written, in the language it was read in: its sections, the columns after
+ * theirs.
+ */
 function WrittenPage({
   page,
   index,
+  language,
   onFollow,
 }: {
   readonly page: Extract<HelpPage, { kind: "written" }>;
   readonly index: readonly HelpEntry[];
+  readonly language: Locale;
   readonly onFollow: (target: HelpTarget) => void;
 }) {
   const id = useId();
   const { target } = page;
   return (
-    <div lang={HELP_LANGUAGE} className="space-y-5 text-sm">
+    <div lang={language} className="space-y-5 text-sm">
       {page.intro === "" ? null : (
         <HelpMarkdown from={target} text={page.intro} onFollow={onFollow} />
       )}
@@ -184,7 +192,7 @@ function WrittenPage({
           </h3>
           <HelpMarkdown from={target} text={section.body} onFollow={onFollow} />
           {at === 0 && target.kind === "screen" ? (
-            <HelpParts code={target.code} index={index} onFollow={onFollow} />
+            <HelpParts code={target.code} index={index} language={language} onFollow={onFollow} />
           ) : null}
           {at === COLUMNS_SECTION ? <HelpColumns columns={page.columns} /> : null}
         </section>
@@ -199,6 +207,35 @@ type Shown =
   | { readonly kind: "failed" }
   | { readonly kind: "read"; readonly reading: HelpReading };
 
+/** The index the search reads, and the language it was read in: none before the first reading. */
+type Indexed = Pick<HelpReading, "index"> & { readonly language: Locale | undefined };
+
+const NO_INDEX: Indexed = { index: [], language: undefined };
+
+/** A page shown written, and the language it was read in. */
+interface WrittenShown {
+  readonly page: Extract<HelpPage, { kind: "written" }>;
+  readonly language: Locale;
+}
+
+const LOADING: Shown = { kind: "loading" };
+
+/**
+ * What the panel shows in the language of the interface: a page read in another is on its way again
+ * in this one — the language changed under an open panel.
+ */
+function shownIn(answered: Shown, locale: Locale): Shown {
+  return answered.kind === "read" && answered.reading.language !== locale ? LOADING : answered;
+}
+
+/** The page shown when it is written, and the language it was read in; `undefined` otherwise. */
+function writtenOf(shown: Shown): WrittenShown | undefined {
+  if (shown.kind !== "read" || shown.reading.page.kind !== "written") {
+    return undefined;
+  }
+  return { page: shown.reading.page, language: shown.reading.language };
+}
+
 /**
  * Whether the body shows the results of a search: a word is typed, and there is an index to read
  * them in — a reading failed or on its way, with no index yet, would answer « no page » to a word
@@ -208,12 +245,17 @@ function searching(query: string, index: readonly HelpEntry[], shown: Shown): bo
   return query.trim() !== "" && (index.length > 0 || shown.kind === "read");
 }
 
-/** The results of a search, each a link to its page: the count is the interface's own, the titles are French. */
+/**
+ * The results of a search, each a link to its page: the count is the interface's own, the titles
+ * those of the index, in the language it was read in.
+ */
 function SearchResults({
   found,
+  language,
   onFollow,
 }: {
   readonly found: readonly HelpEntry[];
+  readonly language: Locale | undefined;
   readonly onFollow: (target: HelpTarget) => void;
 }) {
   const t = useTranslations("help");
@@ -223,7 +265,7 @@ function SearchResults({
       {found.length === 0 ? null : (
         <ul className="space-y-1">
           {found.map((entry) => (
-            <li key={fileOf(entry.target)} lang={HELP_LANGUAGE}>
+            <li key={fileOf(entry.target)} lang={language}>
               <HelpLink target={entry.target} onFollow={onFollow}>
                 {entry.title}
               </HelpLink>
@@ -242,11 +284,17 @@ function SearchResults({
  */
 function ScreenHelp({ code }: { readonly code: string }) {
   const t = useTranslations();
+  // The help is read in the language of the interface, and in no other in its place.
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState<HelpTarget>({ kind: "screen", code });
   const [history, setHistory] = useState<readonly HelpTarget[]>([]);
-  const [shown, setShown] = useState<Shown>({ kind: "loading" });
-  const [index, setIndex] = useState<readonly HelpEntry[]>([]);
+  const [answered, setShown] = useState<Shown>(LOADING);
+  const shown = shownIn(answered, locale);
+  // The index of the last reading, and the language it was read in, which its titles say.
+  const [indexed, setIndexed] = useState<Indexed>(NO_INDEX);
+  // An index read in another language than the interface's is not searched: the language changed.
+  const index = indexed.language === locale ? indexed.index : NO_INDEX.index;
   const [query, setQuery] = useState("");
   const panelId = useId();
   // The page asked last: an answer to an earlier one, arriving after it, is dropped.
@@ -259,30 +307,56 @@ function ScreenHelp({ code }: { readonly code: string }) {
   // which it goes back to on closing: the panel has no trigger of Radix to give it back to.
   const returnTo = useRef<HTMLElement | null>(null);
 
-  const show = useCallback((target: HelpTarget, past: readonly HelpTarget[]) => {
-    asked.current += 1;
-    const ticket = asked.current;
-    setPage(target);
-    setHistory(past);
-    setShown({ kind: "loading" });
-    setQuery("");
-    const answer = (next: Shown) => {
-      if (ticket === asked.current) {
-        setShown(next);
-        if (next.kind === "read") {
-          setIndex(next.reading.index);
+  // Read a page in the language of the interface: its answer is shown only if no other page was
+  // asked after it. Nothing is set before the answer, so that a language changed under an open
+  // panel reads again from an effect.
+  const read = useCallback(
+    (target: HelpTarget) => {
+      asked.current += 1;
+      const ticket = asked.current;
+      const answer = (next: Shown) => {
+        if (ticket === asked.current) {
+          setShown(next);
+          if (next.kind === "read") {
+            setIndexed(next.reading);
+          }
         }
-      }
-    };
-    readHelp(target).then(
-      (reading) => {
-        answer(reading === undefined ? { kind: "failed" } : { kind: "read", reading });
-      },
-      () => {
-        answer({ kind: "failed" });
-      },
-    );
-  }, []);
+      };
+      readHelp(target, locale).then(
+        (reading) => {
+          answer(reading === undefined ? { kind: "failed" } : { kind: "read", reading });
+        },
+        () => {
+          answer({ kind: "failed" });
+        },
+      );
+    },
+    [locale],
+  );
+
+  const show = useCallback(
+    (target: HelpTarget, past: readonly HelpTarget[]) => {
+      setPage(target);
+      setHistory(past);
+      setShown(LOADING);
+      setQuery("");
+      read(target);
+    },
+    [read],
+  );
+
+  // The language the page was asked in: the language changed under an open panel reads the same
+  // page again in the new one, the page of the old one shown as on its way meanwhile.
+  const askedIn = useRef(locale);
+  useEffect(() => {
+    if (askedIn.current === locale) {
+      return;
+    }
+    askedIn.current = locale;
+    if (open) {
+      read(page);
+    }
+  }, [locale, open, page, read]);
 
   const openScreen = useCallback(() => {
     if (!open) {
@@ -339,8 +413,8 @@ function ScreenHelp({ code }: { readonly code: string }) {
     show({ kind: "screen", code }, []);
   };
 
-  const written = shown.kind === "read" ? shown.reading.page : undefined;
-  const heading = written?.kind === "written" ? written.title : t("help.title");
+  const written = writtenOf(shown);
+  const heading = written?.page.title ?? t("help.title");
   const atScreen = sameTarget(page, { kind: "screen", code });
   const found = searched(index, query);
 
@@ -377,7 +451,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           <SheetHeader className="flex-row items-center gap-2 border-b">
             <SheetTitle
               ref={title}
-              lang={written?.kind === "written" ? HELP_LANGUAGE : undefined}
+              lang={written?.language}
               tabIndex={-1}
               className="flex-1 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -428,7 +502,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
             className="flex-1 overflow-y-auto p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
             {searching(query, index, shown) ? (
-              <SearchResults found={found} onFollow={follow} />
+              <SearchResults found={found} language={indexed.language} onFollow={follow} />
             ) : shown.kind === "loading" ? (
               <p role="status" className="text-sm text-muted-foreground">
                 {t("help.loading")}
@@ -454,7 +528,12 @@ function ScreenHelp({ code }: { readonly code: string }) {
                     </p>
                   }
                 >
-                  <WrittenPage page={shown.reading.page} index={index} onFollow={follow} />
+                  <WrittenPage
+                    page={shown.reading.page}
+                    index={index}
+                    language={shown.reading.language}
+                    onFollow={follow}
+                  />
                 </Suspense>
               </ChunkBoundary>
             )}

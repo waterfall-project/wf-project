@@ -2236,43 +2236,54 @@ only wraps if the last line of the title is full, and it is then there without a
 separates it from the title, not a margin —, or F1 anywhere on the screen, opens beside it a side
 panel (`shell/help-panel.tsx`, a `Sheet`) on the page of its FBS code — the one of the route the
 address follows (`helpCodeAt`, `src/help/help.ts`): a function, a sheet, the list of projects
-(FBS-4). A page is a Markdown file, `frontend/help/fr/<code>.md`; a notion of the method,
-`frontend/help/fr/notions/<notion>.md`. The server reads them when the panel opens, through the
-`readHelp` action (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), which names no
-file after the request without having checked it against the codes of the table or the form of a
-notion name, and whose reading refuses, where the path is written, any file outside the help folder
+(FBS-4). A page is a Markdown file, `frontend/help/<language>/<code>.md`; a notion of the method,
+`frontend/help/<language>/notions/<notion>.md` — the same files, under the same names, in French and
+in English (US-0670b). The server reads them when the panel opens, in the language of the interface,
+through the `readHelp` action (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), which
+names no file after the request without having checked the page against the codes of the table or
+the form of a notion name, and the language against the languages of the interface (`LOCALES`), and
+whose reading refuses, where the path is written, any file outside the help folder
 (#1462); the standalone takes them along through `outputFileTracingIncludes` (`next.config.ts`).
 The panel renders them with `react-markdown` and `remark-gfm`, without raw HTML (`skipHtml`) and in
 the elements of a text only; a code between backticks reads there as a key (`<kbd>`). A relative
 link to a code or a notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` from a
 notion) shows its page in the panel; any other link reads as text. The search covers the titles of
-the written pages, which the action returns with the page. The panel holds the focus, closes by
+the pages written in the language read, which the action returns with the page; the server keeps an
+index per language. No page is read in another language in the place of its own: a missing English
+page is a failure, as a missing French page is. The panel holds the focus, closes by
 Escape and gives the focus back to what had it — the button, or the cell where F1 was pressed; a
 page followed through a link gives the focus to its title. An answer arrived after another request
 is ignored.
 
-The page of a screen follows the structure of #1075, its second-level headings in this order
-(`SCREEN_HEADINGS`): « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
-calculées », « Les gestes au clavier », « Voir aussi ». The definitions of the columns are not
+The page of a screen follows the structure of #1075, its second-level headings in this order, said
+in its language (`SCREEN_HEADINGS`): « Ce que montre l'écran », « Ses commandes », « Ses colonnes et
+ses valeurs calculées », « Les gestes au clavier », « Voir aussi »; « What the screen shows », « Its
+commands », « Its columns and computed values », « Keyboard gestures », « See also » in English. The definitions of the columns are not
 written there: the panel renders them after the third section, from the configuration of the grid
 of the screen and the keys of its headers (`columns.<grille>.<colonne>.help`, `COLUMNS` of
 `read.ts`), a single source with their tooltips. A notion quotes the glossary of appendix A word
 for word, without the requirement identifiers between parentheses (« (WF-RIS-0050) »), which mean
 nothing to whoever reads the help, and which `help.test.ts` ignores in its comparison (#1440), one
 quotation per term (`> **Terme** — définition`), under « Ce que dit le glossaire », then « Dans
-Waterfall » and « Voir aussi ». The help exists only in French: an interface in English shows it in
-French, a deviation from WF-IHM-0140 as long as the translation is not decided (#1075). `lang="fr"`
-only covers the rendered page (`WrittenPage`), the title of the panel and the titles the search
-finds: the messages of the interface of the body (loading, failure, number of results) keep its
-language (#1442).
+Waterfall » and « Voir aussi » (`NOTION_HEADINGS`). The specification existing in French alone, an
+English notion translates its quotations, in the same form and as many, under « What the glossary
+says », « In Waterfall » and « See also ». The English page is the faithful translation of the
+French one: its input examples are those of the English interface (« 2 d », « 1 wk », « 3FS+2 d;
+5SS », #1441), and the labels it cites, those of the `en` catalogue. The panel says the language the
+page was read in (`lang`) on the rendered page (`WrittenPage`), the title of the panel and the titles
+the search finds: the messages of the interface of the body (loading, failure, number of results)
+bear none (#1442).
 
-_Check_: `src/help/help.test.ts` (`make test-front`) requires a French page per code of the table
-that has a screen, or its place in the list of the pages to come with the lot that writes it
-(`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — a list that fails as soon as a code it names receives its
-file; it holds the structure of the pages, the quotations of the glossary, the links, which lead to
-a written page or one to come, and the absence of raw HTML. A page to come says so in the panel.
-`help-panel.dom.test.tsx` tests the panel, and `e2e/accessibility.spec.ts` audits it opened by F1 on
-the planning.
+_Check_: `src/help/help.test.ts` (`make test-front`) requires, in each language, a page per code of
+the table that has a screen, or its place in the list of the pages to come with the lot that writes
+it (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — a list that fails as soon as a code it names receives its
+file —, and the same files in English as in French; it holds the structure of the pages in each
+language, the quotations of the glossary — word for word in French, as many in English —, the links,
+which lead to a written page or one to come, the same in English as in French, the labels cited in
+bold, taken from the `en` catalogue where the French page cites the `fr` one, and the absence of raw
+HTML. A page to come says so in the panel. `help-panel.dom.test.tsx` tests the panel in both
+languages, and `e2e/accessibility.spec.ts` audits it opened by F1 on the planning, in French and in
+English.
 
 ### Long actions and the tracking of background tasks
 

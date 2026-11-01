@@ -1131,7 +1131,7 @@ module du noyau, aucune modification du contrat.
 - **Les mêmes fichiers, par langue.** `frontend/help/en/` reprend les noms des fichiers du français,
   notions comprises : un nom de notion est une clé, non un mot affiché, et les liens entre pages
   restent les mêmes. Le contenu est traduit fidèlement, rien n'y est ajouté ni retiré ; seuls
-  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `w`, FS/SS,
+  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `wk`, FS/SS,
   #1441), et les libellés cités, pris au catalogue `en`.
 - **La langue est celle de l'interface.** `HELP_LANGUAGE` disparaît : l'action `readHelp` reçoit la
   langue (`Locale`) et la valide comme la cible, la lecture et l'index sont tenus par langue, les
@@ -1856,10 +1856,10 @@ suis.
   constaté par EP-15 (US-0580/L2), inchangé ici ; EP-11 clôt.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
-  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
+  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `wk`, FS/SS
   (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), et relues par
   l'auteur le 2026-11-01 ; la version anglaise, décidée le même jour, est la part détachée
-  US-0670b (#1811), qui solde cet écart ; EP-11 clôt.
+  US-0670b (#1811), qui solde cet écart : le critère y est tenu ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
@@ -1917,7 +1917,7 @@ révèlent, qui deviennent des constats (#1438 → EP-17).
 
 ## US-0670b — L'aide en ligne en anglais
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune
 - **issue** : #1811
@@ -1933,7 +1933,7 @@ dans ma langue sans lire une aide française.
   `frontend/help/fr/` a sa traduction dans `frontend/help/en/`, sous le même nom de fichier, dans
   la structure fixe dite en anglais ; le test de complétude (`help.test.ts`) exige un fichier par
   code et par notion dans chaque langue, et une page manquante est un échec dans chaque langue ;
-  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `w`, FS/SS, #1441) ;
+  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `wk`, FS/SS, #1441) ;
 - propre à l'US : la traduction est fidèle au français relu, sans rien y ajouter ni retirer ; les
   libellés des commandes et des colonnes cités sont ceux du catalogue `en` ; un écart entre une
   page et son écran devient un constat, non une correction ;
@@ -1950,6 +1950,16 @@ dans ma langue sans lire une aide française.
 - Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452) ; un seul lot, hors
   cible de taille.
 - Voir la conception, « Un lot détaché du 2026-11-01 : l'aide en anglais ».
+- Réalisé en un lot (`lot/US-0670b`) : l'écart « L’aide s’affiche dans la langue de
+  l’utilisateur. », écrit sous US-0670, est tenu ici. `frontend/help/en/` porte les 69 fichiers
+  du français, sous les mêmes noms ; `HELP_LANGUAGE` a disparu : `readHelp` reçoit la langue de
+  l'interface et la refuse hors de `LOCALES`, la lecture, l'index — un par langue, gardé par le
+  processus — et les titres de la structure fixe (`SCREEN_HEADINGS`, `NOTION_HEADINGS`) sont par
+  langue, et le panneau dit sur la page la langue où elle a été lue. Les exemples de saisie sont
+  ceux du catalogue `en` : « 2 d », « 1 wk », « 1 mo », « 3FS+2 d; 5SS » — l'unité de la semaine
+  s'écrit `wk` dans l'interface anglaise (`enums.DurationUnit.w`), non `w`. Les deux noms d'onglet
+  réservés du fichier de reste à engager, « Synthèse » et « Hors sous-projet », restent en français
+  dans la page anglaise des sous-projets : Waterfall les écrit ainsi quelle que soit la langue.
 
 **Hors périmètre.** Une retouche du contenu des aides ; une autre langue ; la spécification en
 anglais ; les défauts d'écran que la traduction révèle, qui deviennent des constats.

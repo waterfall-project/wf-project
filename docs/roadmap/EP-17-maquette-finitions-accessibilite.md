@@ -105,6 +105,18 @@ que ce qui concerne le durcissement ou le contrat —, label et titre déjà `EP
   - #1481 — front : Échap dans le champ de recherche de l'aide ferme le panneau au lieu de vider le
     champ (relevé par US-0670/L1 ; reporté vers EP-17 sur décision de l'auteur du 2026-10-25).
 
+**Reçus d'US-0670b (2026-11-01, #1811)**, relevés par la traduction anglaise de l'aide et reportés
+vers EP-17 sur décision de l'auteur, label et titre déjà `EP-17` :
+
+- #1821 — doc, front : `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment une colonne
+  « Montant corrigé de l'inflation » que la grille de devis intitule « Montant réestimé »
+  (`grid.columns.reestimatedAmount`), et `FBS-4.4.3.md` dit que le devis ne montre pas le montant
+  réestimé ;
+- #1822 — front : les incohérences du catalogue `en` — « Reste à engager » en « Remaining to
+  commit » ou « Estimate to complete », « Nouvelle nature » en « New nature » face à « Cost types »,
+  « Cash-out by month » et « Cash out by month », « Modify the schedule » pour la périodicité et la
+  planification face à « Edit the schedule ».
+
 **Le harnais d'accessibilité.**
 
 - #782 — front : les dialogues, les menus et les éditeurs hors du harnais d'accessibilité (option A,
