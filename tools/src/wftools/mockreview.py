@@ -17,20 +17,27 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   (``RateUpdateApply``; E-03, #1755);
 - ``node_create_under_milestone.json`` and ``nodes_move_under_milestone.json``, a task created
   under the reception of the studies and one moved under the factory acceptance, two milestones,
-  which bear no subtask: refused on ``/parent_id``, the milestone named (F-04, #1771).
+  which bear no subtask: refused on ``/parent_id``, the milestone named (F-04, #1771);
+- ``nodes_awaiting_own_lines.json``, the studies read in a counterfactual variant where they bear
+  a line of their own, 500,00 to commit, and the operator desks, their last open subordinate,
+  are completed: the summary stays started, and awaits its own lines (F-05, #1774).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
+from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mocktext
 from wftools.mockids import universe
 from wftools.mockindicators import rate_update
 from wftools.mocklists import PROJECT_STATES, project_page
-from wftools.mockwitness import N, fixture
+from wftools.mockstructure import described
+from wftools.mockwitness import CORE, SUBCONTRACTING, Line, N, Task, fixture
+from wftools.mockwrites import amended, on_task
 
 if TYPE_CHECKING:
     from wftools.mockstructure import JsonObject
@@ -61,6 +68,20 @@ CREATED_UNDER_MILESTONE = ("Note de calcul des protections", N.STUDIES_RECEIVED)
 
 MOVED_UNDER_MILESTONE = (N.COMMISSIONING, N.FACTORY_ACCEPTANCE)
 """The task moved under a milestone, and the milestone, by their numbers."""
+
+
+OWN_LINE = Line(595, "Reprographie des dossiers d'études", SUBCONTRACTING, unit=Decimal(500))
+"""The line of their own the studies bear in ``nodes_awaiting_own_lines``: 500,00 to commit, as
+the Vérif of WF-PLA-0040 says (« dont une ligne propre porte un reste à engager de 500 »)."""
+
+
+def awaiting_roots() -> tuple[Task, ...]:
+    """Return the core where the studies bear OWN_LINE and the operator desks are completed."""
+
+    def own(each: Task) -> Task:
+        return replace(each, lines=(*each.lines, OWN_LINE)) if each.number == N.STUDIES else each
+
+    return amended(amended(CORE, own), on_task(N.DESKS, progress="completed"))
 
 
 def too_long(pointer: str, bound: int) -> JsonObject:
@@ -165,6 +186,31 @@ def _under_milestone() -> dict[str, JsonObject]:
     }
 
 
+def _awaiting_own_lines() -> JsonObject:
+    rows = mockcore.current(described(awaiting_roots()))
+    read = mockcore.subtree(rows, N.STUDIES)
+    [studies] = [
+        node
+        for node in cast("list[JsonObject]", read["items"])
+        if node["node_id"] == universe(N.STUDIES)
+    ]
+    facet = cast("JsonObject", studies["task"])
+    if not facet["awaiting_own_lines"] or facet["progress"] != "started":
+        message = "the studies do not await their own lines"
+        raise ValueError(message)
+    named = {row.number: row.label for row in rows}
+    return mocktext.example(
+        f"Variante contrefactuelle déclarée : les « {named[N.STUDIES]} » lues seules (subtree_of), "
+        f"comme si elles portaient une ligne propre, « {OWN_LINE.label} », 500,00 à engager, et "
+        f"que les « {named[N.DESKS]} », leur dernière subordonnée ouverte, avaient été "
+        f"terminés : toutes leurs subordonnées terminées, la récapitulative reste démarrée tant "
+        f"que sa ligne propre garde un reste à engager, et le dit (awaiting_own_lines) ; la "
+        f"grille de reste à engager et le Kanban la signalent avec sa ligne, seule ligne ouverte "
+        f"de la phase (WF-PLA-0040, WF-IHM-0070, #1774).",
+        read,
+    )
+
+
 def _with_created() -> JsonObject:
     projects = cast("list[JsonObject]", fixture("projects")["items"])
     created = fixture("project_created")
@@ -188,4 +234,5 @@ def examples() -> dict[str, JsonObject]:
         "subproject_code_too_long.json": _code_too_long(),
         "rate_update_category_not_proposed.json": _category_not_proposed(),
         **_under_milestone(),
+        "nodes_awaiting_own_lines.json": _awaiting_own_lines(),
     }

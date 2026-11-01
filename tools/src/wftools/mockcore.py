@@ -37,6 +37,7 @@ from wftools.mockcalendar import (
 from wftools.mockdating import (
     Amounts,
     Dated,
+    awaiting_own_lines,
     float_of,
     payment_delay,
     price,
@@ -276,6 +277,7 @@ class _Emitter:
             "progress": state,
             # Overdue: started, and past its finish at the day the examples are read.
             "finish_overdue": state == "started" and placed.finish.day < self.today,
+            "awaiting_own_lines": awaiting_own_lines(self.dated, task.number, self.today),
         }
         started_on, completed_on = self._dates_of(task, state)
         if started_on is not None:

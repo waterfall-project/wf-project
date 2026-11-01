@@ -774,7 +774,9 @@ NodeChange:
 KanbanTask:
   description: >-
     Une tâche du Kanban (`listStartableTasks`, WF-RAE-0030) : le nœud, et les gestes que sa
-    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090).
+    carte offre, que le front ne déduit ni de son état ni de ses lignes (WF-IHM-0090). Une
+    récapitulative qui n'attend plus que ses lignes propres le dit par sa facette
+    (`TaskFacet.awaiting_own_lines`), que la carte signale (WF-PLA-0040 ; #1774).
   allOf:
     - $ref: '#/Node'
     - type: object
@@ -1189,7 +1191,11 @@ NodesWritten:
         Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds
         écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —,
         recalculés : montants,
-        dates, durée, avancement, marge et criticité d'une récapitulative. Chacun une fois,
+        dates, durée, avancement, marge et criticité d'une récapitulative, et son attente de ses
+        seules lignes propres (`TaskFacet.awaiting_own_lines`) — la réestimation ou la
+        terminaison qui achève sa dernière subordonnée fait paraître le signal sans relecture,
+        celle qui ramène à zéro sa dernière ligne propre le fait disparaître, la récapitulative se
+        terminant (WF-PLA-0040 ; #1774). Chacun une fois,
         entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une
         récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient —
         une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est
@@ -1395,6 +1401,7 @@ TaskFacet:
     - finish
     - progress
     - finish_overdue
+    - awaiting_own_lines
     - is_summary
     - is_milestone
     - calendar_hours
@@ -1432,6 +1439,16 @@ TaskFacet:
       description: >-
         Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de
         calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon.
+    awaiting_own_lines:
+      type: boolean
+      description: >-
+        Calculé, toujours rendu : vrai pour une récapitulative démarrée dont toutes les
+        subordonnées sont terminées et dont une ligne propre hors provision garde un reste à
+        engager (WF-PLA-0040) ; la grille de reste à engager et le Kanban la signalent, ainsi que
+        ses lignes propres hors provision, seules lignes ouvertes de la phase, selon l'échelle
+        commune (WF-IHM-0070). Faux pour toute autre tâche. Le signal des lignes est porté par
+        leur tâche : le front signale les lignes propres hors provision d'une tâche dont ce
+        drapeau est vrai (F-05, #1774).
     started_on:
       anyOf: [{ $ref: ../common.yaml#/PlanningDate }, { type: 'null' }]
       description: >-

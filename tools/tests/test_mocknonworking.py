@@ -21,6 +21,7 @@ import yaml
 
 from wftools import REPOSITORY, mockcore, mockdata, mockdating, mocknonworking, mockwitness
 from wftools.mockcalendar import Calendar
+from wftools.mockids import universe
 from wftools.mockstructure import described
 from wftools.mockwitness import N
 from wftools.mockwrites import amended, on_task
@@ -223,11 +224,11 @@ def test_a_task_created_by_its_dates_alone_is_answered_with_its_hours_completed(
     assert "node_created_manual.json" in _answers("revisions.yaml", "createNode")
     start, finish = mocknonworking.created_manual_dates()
     assert start == MONDAY
-    written = mocknonworking.node_created_manual()
+    written = cast("dict[str, Any]", _json(mocknonworking.node_created_manual()))
     [node] = [
         each
-        for each in written["nodes"]
-        if each["node_id"] == mockwitness.universe(mocknonworking.CREATED_MANUAL)
+        for each in cast("list[dict[str, Any]]", written["nodes"])
+        if each["node_id"] == universe(mocknonworking.CREATED_MANUAL)
     ]
     task = node["task"]
     default = mockwitness.default_calendar()

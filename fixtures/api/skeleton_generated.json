@@ -28,6 +28,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -99,6 +100,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -170,6 +172,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {
@@ -233,6 +236,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {

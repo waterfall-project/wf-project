@@ -574,6 +574,7 @@ paths = [
     "fixtures/api/rate_update_category_not_proposed.json",
     "fixtures/api/node_create_under_milestone.json",
     "fixtures/api/nodes_move_under_milestone.json",
+    "fixtures/api/nodes_awaiting_own_lines.json",
     "fixtures/api/users_by_access_role.json",
     "fixtures/api/users_search.json",
     "fixtures/api/users_inactive.json",

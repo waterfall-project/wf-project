@@ -63,7 +63,7 @@ KEYS = ("subproject", "cost_category")
 
 def _amounts(node: Node) -> list[str]:
     """Return what changed of a node besides its key: its amounts, its delay, its parent."""
-    return [change for change in node.get("changes") or [] if change not in KEYS]
+    return [change for change in cast("list[str]", node.get("changes") or []) if change not in KEYS]
 
 
 def _summed(compared: Node) -> set[Decimal]:
@@ -147,10 +147,13 @@ def test_a_line_that_changes_its_subproject_alone_moves_its_whole_amount_from_ke
     [line] = [row for row in rows if row.number == N.LABOUR]
     assert mockhistory.estimate_line(line)["subproject_id"] == first
     after = [moved(row) if row.number == N.LABOUR else row for row in rows]
-    compared = mockcomparisons.comparison(rows, after, mockhistory.REFERENCE, mockhistory.REFERENCE)
+    compared = cast(
+        "Node",
+        mockcomparisons.comparison(rows, after, mockhistory.REFERENCE, mockhistory.REFERENCE),
+    )
     [node] = [node for node in compared["items"] if node["node_id"] == universe(N.LABOUR)]
     assert (node["difference"], node["changes"]) == ("modified", ["subproject"])
-    kept = mockcomparisons.by_differences(compared, rows, after, mockdiff.DIFFERENCES)
+    kept = cast("Node", mockcomparisons.by_differences(compared, rows, after, mockdiff.DIFFERENCES))
     assert universe(N.LABOUR) in [node["node_id"] for node in kept["items"]]
     amount = money(line.amounts.budgeted)
     assert compared["amount_deltas"] == [

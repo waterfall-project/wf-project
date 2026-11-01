@@ -47,12 +47,14 @@ from wftools import (
     mockcore,
     mockdata,
     mockids,
+    mockreview,
     mockriskwrites,
     mocktext,
     mockwitness,
     mockwitnessrisks,
 )
 from wftools.mockids import universe
+from wftools.mockstructure import described
 from wftools.mockwitness import TODAY, Line, N, Task
 
 
@@ -572,6 +574,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_amendment": mockamendment.rows(),
         "nodes_amendment_differences": mockamendment.rows(),
         "nodes_risk_estimate": mockriskwrites.risk_estimate(),
+        "nodes_awaiting_own_lines": mockcore.current(described(mockreview.awaiting_roots())),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0

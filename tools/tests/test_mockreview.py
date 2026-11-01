@@ -19,6 +19,7 @@ from typing import Any, cast
 import yaml
 
 from wftools import REPOSITORY, mockreview, mockwitness
+from wftools.mockids import universe
 from wftools.mocklists import PROJECT_STATES
 from wftools.mockwitness import fixture
 
@@ -238,7 +239,9 @@ def test_the_rate_update_carries_its_counter_and_categories_the_proposal_present
     assert _cited("applyRateUpdate", "422") == ["rate_update_category_not_proposed"]
     refused = fixture("rate_update_category_not_proposed")
     assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
-    assert refused["fields"] == [{"pointer": "/cost_category_ids/1", "code": "UNKNOWN_COST_CATEGORY"}]
+    assert refused["fields"] == [
+        {"pointer": "/cost_category_ids/1", "code": "UNKNOWN_COST_CATEGORY"}
+    ]
     proposed = {entry["cost_category_id"] for entry in fixture("rate_update")["categories"]}
     assert mockreview.NOT_PROPOSED_CATEGORY not in proposed
 
@@ -291,7 +294,38 @@ def test_a_task_is_refused_under_a_milestone_on_its_parent() -> None:
         [field] = refused["fields"]
         assert (field["pointer"], field["code"]) == ("/parent_id", "MILESTONE_HAS_NO_SUBTASK")
         assert set(field["params"]) == {"node_id", "label"}, name
-    received = mockwitness.universe(mockreview.CREATED_UNDER_MILESTONE[1])
+    received = universe(mockreview.CREATED_UNDER_MILESTONE[1])
     assert fixture("node_create_under_milestone")["fields"][0]["params"]["node_id"] == received
-    for schema, file in (("ImportRejection", "exchanges.yaml"), ("PasteRejection", "revisions.yaml")):
+    for schema, file in (
+        ("ImportRejection", "exchanges.yaml"),
+        ("PasteRejection", "revisions.yaml"),
+    ):
         assert "`MILESTONE_HAS_NO_SUBTASK`" in _flat(_schemas(file)[schema]["description"]), schema
+
+
+def test_a_summary_awaiting_its_own_lines_says_it_by_its_facet() -> None:
+    # F-05, #1774: computed, always rendered, required; the ancestors a write renders and the
+    # cards of the Kanban carry it by the facet. The variant reads the Vérif of WF-PLA-0040 — « une
+    # récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre porte
+    # un reste à engager de 500 est démarrée et signalée ».
+    facet = _schemas("revisions.yaml")["TaskFacet"]
+    assert "awaiting_own_lines" in facet["required"]
+    assert facet["properties"]["awaiting_own_lines"]["type"] == "boolean"
+    assert "nodes_awaiting_own_lines" in _cited("listNodes", "200")
+    read = fixture("nodes_awaiting_own_lines")["items"]
+    summary, own = read[0], read[1]
+    assert (summary["task"]["progress"], summary["task"]["awaiting_own_lines"]) == (
+        "started",
+        True,
+    )
+    assert own["estimate_line"]["reestimated_amount"] == "500.00"
+    below = [node["task"] for node in read[2:] if node["kind"] == "task"]
+    assert below
+    assert {(each["progress"], each["awaiting_own_lines"]) for each in below} == {
+        ("completed", False)
+    }
+    # Every task of the witness renders it, false: no summary of the witness bears own lines.
+    for name in ("nodes", "startable_tasks"):
+        tasks = [each for each in _walk(fixture(name)) if "is_summary" in each]
+        assert tasks, name
+        assert {each["awaiting_own_lines"] for each in tasks} == {False}, name
