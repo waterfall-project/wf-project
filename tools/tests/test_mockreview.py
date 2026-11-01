@@ -154,11 +154,15 @@ def test_the_active_objects_of_the_reference_are_read_by_any_session_but_the_rat
     ):
         assert "404" not in _operations()[operation]["responses"], operation
     assert _cited("getHourlyRateGrid", "404") == ["hourly_rate_grid_not_readable"]
+    # The complement of the author of 2026-11-01: the rates of a category follow the grid.
+    assert _cited("listHourlyRates", "404") == ["hourly_rates_not_readable"]
+    assert fixture("hourly_rates_not_readable")["code"] == "NOT_FOUND"
     [auditor] = [role for role in fixture("access_roles") if role["label"] == "Auditeur"]
     assert "cost_settings.read" not in auditor["permissions"]
     said = _flat(_schemas("access.yaml")["PermissionCode"]["description"])
     for code in ("cost_settings.read", "resource_settings.read", "risk_settings.read"):
         assert f"`{code}`" in said, code
+    assert "`listHourlyRates`" in said
 
 
 def test_the_list_of_the_projects_retains_every_state_it_names() -> None:

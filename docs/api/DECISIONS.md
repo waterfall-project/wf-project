@@ -10260,6 +10260,12 @@ de consultation ne gardaient plus rien de nommé.
   `cost_settings.read` ouvre la grille et la correspondance ; `resource_settings.read`,
   `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
   fonction (WF-IHM-0090). Le catalogue les garde toutes (WF-ADM-0100).
+- **Les taux d'une catégorie suivent la grille** (complément de l'auteur du 2026-11-01, à la
+  revue du lot) : `listHourlyRates` est lue sous `cost_settings.read`, avec un 404 sans elle,
+  comme une catégorie qui n'existerait pas (WF-ADM-0110) ; l'exemple
+  `hourly_rates_not_readable` le montre. La raison est la même : les taux, proches de la masse
+  salariale, ne se montrent pas à toute session. `PermissionCode` le dit :
+  `cost_settings.read` ouvre la grille, les taux d'une catégorie et la correspondance.
 - **Écarté : les actifs des nœuds, des calendriers et des natures sous une permission de
   consultation.** Les formulaires des projets ne pourraient plus nommer ce qu'ils citent pour qui
   ne consulte pas le référentiel.

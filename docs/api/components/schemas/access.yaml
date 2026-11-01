@@ -467,8 +467,9 @@ PermissionCode:
     actifs du référentiel — nœuds, rôles de ressources, calendriers, natures et catégories — se
     lisent par toute session ouverte, vocabulaire des projets (FBS-4), et leurs désactivés comme
     leurs écritures relèvent de la permission de modifier la fonction. `cost_settings.read`
-    ouvre la grille des taux horaires (`getHourlyRateGrid`) et la correspondance de l'extraction
-    des coûts réels (`getActualCostMapping`), 404 sans elle ; `resource_settings.read`,
+    ouvre la grille des taux horaires (`getHourlyRateGrid`), les taux d'une catégorie
+    (`listHourlyRates`) et la correspondance de l'extraction des coûts réels
+    (`getActualCostMapping`), 404 sans elle ; `resource_settings.read`,
     `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
     fonction (`UserSelf.permissions`, WF-IHM-0090), leurs données actives se lisant par
     ailleurs. Le catalogue les garde toutes (WF-ADM-0100 ; décision de l'auteur du 2026-11-01, #1745).
