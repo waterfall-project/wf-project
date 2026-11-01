@@ -255,7 +255,7 @@ export interface Examples {
     200: "volume/structure_planning_start_advanced";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line": {
-    200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
+    200: "estimate_line_entered" | "estimate_line_payment_delay_amendment" | "estimate_line_rebudgeted_amendment" | "estimate_line_redated" | "estimate_line_subproject_changed" | "estimate_line_updated" | "estimate_line_updated_amendment";
   };
   "PATCH /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task": {
     200: "task_attached" | "task_dates_conflicting" | "task_dates_entered" | "task_description_entered" | "task_duration_entered" | "task_mode_changed" | "task_renamed" | "volume/task_lengthened";
