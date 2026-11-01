@@ -32,7 +32,7 @@ import { PROJECT_LIST_GRID } from "@/components/projects/project-list-grid";
 import {
   BREAKDOWN_GRID,
   CONTRIBUTOR_GRID,
-  SUBPROJECT_GRID,
+  subprojectGrid,
 } from "@/components/projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
 import { RATE_HEADINGS } from "@/components/reference/rate-columns";
@@ -86,18 +86,18 @@ const ORG_NODES = orgNodeGrid(true).columns;
 const RESOURCE_ROLES = resourceRoleGrid(true).columns;
 const CALENDARS = calendarGrid(true).columns;
 
-/** The tables of the settings of a project. */
+/** The tables of the settings of a project, as a session that may modify them sees them. */
 const WORK_BREAKDOWN = BREAKDOWN_GRID.columns;
-const SUBPROJECTS = SUBPROJECT_GRID.columns;
+const SUBPROJECTS = subprojectGrid(true).columns;
 const CONTRIBUTORS = CONTRIBUTOR_GRID.columns;
 
 /**
  * The columns each screen defines: the grid of its function and the section of the grid itself;
  * the column a section of a single column is; the grids of a screen of the reference data or of
- * the settings of a project, each definition once, and the grids of its section; the lines of the
- * actual costs with a column kept from the file, every one defined alike. A table of the administration is defined with every
- * column a session may see there — those of its commands included, which only a session that may
- * exercise them sees.
+ * the settings of a project, each definition once, and the grids of its sections; the lines of the
+ * actual costs, with a column kept from the file, which every one is alike. A table is defined with
+ * every column a session may see there — those of its commands included, which only a session that
+ * may exercise them sees.
  */
 const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-1.1": defined(userGrid({ roles: () => [], rename: undefined }).columns),

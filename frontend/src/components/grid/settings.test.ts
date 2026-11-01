@@ -10,7 +10,12 @@ import { auditGrid } from "../audit/audit-columns";
 import { COST_GRID } from "../costs/cost-grid";
 import { PROJECT_GRID } from "../portfolio/portfolio-grid";
 import { PROJECT_LIST_GRID } from "../projects/project-list-grid";
-import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
+import {
+  BREAKDOWN_GRID,
+  CONTRIBUTOR_GRID,
+  SUBPROJECT_GRID,
+  subprojectGrid,
+} from "../projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
 import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
@@ -194,6 +199,7 @@ describe("the columns a grid records as known", () => {
     risks: RISK_GRID,
     breakdown: BREAKDOWN_GRID,
     subprojects: SUBPROJECT_GRID,
+    subprojectsEditable: subprojectGrid(true),
     contributors: CONTRIBUTOR_GRID,
     costTypes: costTypeGrid(true),
     costCategories: costCategoryGrid(true),

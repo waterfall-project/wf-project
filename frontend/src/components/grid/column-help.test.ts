@@ -21,6 +21,7 @@ import {
   BREAKDOWN_GRID,
   CONTRIBUTOR_GRID,
   SUBPROJECT_GRID,
+  subprojectGrid,
 } from "@/components/projects/settings-grids";
 import { commandColumns } from "@/components/reference/command-columns";
 import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
@@ -87,6 +88,7 @@ describe("the definitions of the columns", () => {
     ["projects of the home", PROJECT_LIST_GRID.columns],
     ["work breakdown", BREAKDOWN_GRID.columns],
     ["sub-projects", SUBPROJECT_GRID.columns],
+    ["sub-projects, editable", subprojectGrid(true).columns],
     ["contributors", CONTRIBUTOR_GRID.columns],
     ["actual costs, with columns kept", ACTUAL_COSTS],
   ] as const)(

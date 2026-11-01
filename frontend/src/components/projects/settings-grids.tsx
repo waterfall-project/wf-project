@@ -31,6 +31,10 @@
  *
  * Neither server nor client: the page reads the keys and the names; the grids, in the browser, the
  * rest — the functions that read a row never cross to the server.
+ *
+ * `help/read.ts` also reads these configurations on the server: only their columns (titles and
+ * definitions) must stay readable there, since the "use client" components the commands of the
+ * sub-projects render become client references in the server bundle.
  */
 import { User, UserCog } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -42,6 +46,7 @@ import { prefixedAddress } from "@/components/grid/query";
 import { ActiveState } from "@/components/reference/section";
 
 import { ICON } from "./project-tables";
+import { DeleteSubproject, ModifySubproject } from "./subproject-commands";
 
 /** A sub-project, as the contract gives it. */
 export type Subproject = components["schemas"]["Subproject"];
@@ -254,6 +259,41 @@ export const SUBPROJECT_GRID: GridConfig<Subproject, SubprojectSort, null> = {
     },
   ],
 };
+
+/**
+ * The grid of the sub-projects, with the columns of the commands of its rows when the project
+ * lists `update` (`editable`), each with its definition — which the grid and the help of its screen
+ * both read (US-0670/L4, #1434).
+ */
+export function subprojectGrid(editable = false): GridConfig<Subproject, SubprojectSort, null> {
+  if (!editable) {
+    return SUBPROJECT_GRID;
+  }
+  return {
+    ...SUBPROJECT_GRID,
+    columns: [
+      ...SUBPROJECT_GRID.columns,
+      {
+        key: "modify",
+        label: "modify",
+        help: "subprojects.modify",
+        format: "text",
+        width: 110,
+        value: () => null,
+        render: (row) => <ModifySubproject row={row} />,
+      },
+      {
+        key: "delete",
+        label: "delete",
+        help: "subprojects.delete",
+        format: "text",
+        width: 120,
+        value: () => null,
+        render: (row) => <DeleteSubproject row={row} />,
+      },
+    ],
+  };
+}
 
 /** The name of the account of a contributor, after the icon of a person. */
 function ContributorName({ contributor }: { readonly contributor: Contributor }) {

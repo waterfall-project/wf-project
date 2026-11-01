@@ -1766,6 +1766,12 @@
       },
       "actualCosts": {
         "help": "Whether actual costs are charged to the sub-project: a sub-project charged is not deleted."
+      },
+      "modify": {
+        "help": "Modification of the sub-project, in its form; offered to the project managers as long as the project is not terminal."
+      },
+      "delete": {
+        "help": "Deletion of the sub-project, once confirmed; unavailable for a sub-project charged with actual costs, cited by a marked revision or borne by estimate lines of the current revision."
       }
     },
     "contributors": {

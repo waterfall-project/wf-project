@@ -1766,6 +1766,12 @@
       },
       "actualCosts": {
         "help": "Si des coûts réels sont imputés au sous-projet : un sous-projet imputé ne se supprime pas."
+      },
+      "modify": {
+        "help": "Modification du sous-projet, dans son formulaire ; offerte aux chefs de projet tant que le projet n’est pas terminal."
+      },
+      "delete": {
+        "help": "Suppression du sous-projet, après confirmation ; indisponible pour un sous-projet imputé de coûts réels, cité par une révision marquée ou porté par des lignes de devis de la révision en cours."
       }
     },
     "contributors": {

@@ -411,6 +411,14 @@ describe("the reading of the help", () => {
       ...(await helps("FBS-4.2.4")),
     ]);
     expect(await helps("FBS-4.2.1")).toEqual(["workBreakdown.label", "workBreakdown.kind"]);
+    // The sub-projects with the columns of their commands, which a session that may modify them sees.
+    expect(await helps("FBS-4.2.3")).toEqual([
+      "subprojects.code",
+      "subprojects.label",
+      "subprojects.actualCosts",
+      "subprojects.modify",
+      "subprojects.delete",
+    ]);
     expect(await helps("FBS-4")).toEqual([
       "projects.label",
       "projects.code",
