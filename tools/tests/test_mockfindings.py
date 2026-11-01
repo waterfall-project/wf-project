@@ -11,6 +11,7 @@ They try the examples of the fake back, not the Vérif of a requirement: none ci
 """
 
 import json
+from decimal import Decimal
 from functools import cache
 from pathlib import Path
 from typing import Any, cast
@@ -156,7 +157,12 @@ def test_the_register_of_the_risks_is_paged_its_totals_on_every_risk_retained() 
             assert register["totals"] == whole["totals"]
             continue
         assert register["meta"] == {"limit": 50, "offset": 0, "total": len(register["items"])}
-    assert "risks_page" in _cited("listRisks", "200")
+        if not register["items"]:
+            # A register that retains no risk has its totals, all null (WF-RIS-0040; #1695).
+            totals = cast("dict[str, str]", register["totals"])
+            assert set(totals) == set(whole["totals"]), name
+            assert all(Decimal(value) == 0 for value in totals.values()), name
+    assert {"risks_page", "risks_empty"} <= set(_cited("listRisks", "200"))
 
 
 # --- #1345: a date on a day without hours, refused at the creation ------------------------------

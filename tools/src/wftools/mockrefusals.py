@@ -10,7 +10,8 @@ never by a 403 (US-0702/L1):
 - ``timeline_create_terminal.json``, a timeline created on the witness completed today
   (``project_completed``), which lists no command any more (US-0702/L3), refused by
   ``project_not_terminal`` — and ``timeline_delete_terminal``, written by hand (#803), refused
-  alike;
+  alike; ``reference_designation_terminal.json``, the offer designated as the reference of that
+  project, refused alike, before the conditions of the command (#1674);
 - ``node_create_marked_refused.json`` and ``skeleton_marked_refused.json``, a task created and the
   skeleton generated on the reference, the marked revision 101, refused by ``revision_draft``,
   the condition the revision names for its entries (``revision_marked``).
@@ -119,6 +120,9 @@ SUBPROJECT_STALE_CORRELATION = universe(1663)
 ACCESS_ROLE_STALE_CORRELATION = universe(1664)
 """The correlation of the deletion of an access role, which carries its counter since #1733."""
 
+DESIGNATE_TERMINAL_CORRELATION = universe(1683)
+"""The correlation of a reference designated on a terminal project (#1674)."""
+
 WITHOUT_HOURS_BLOCK = (
     mockwrites.BLOCK[0],
     (mockwrites.ENTERED, mockwrites.BLOCK[0][1], "Monteur câbleur", "1"),
@@ -162,8 +166,8 @@ volume of the portfolio."""
 UNKNOWN_FIELD = "task.duration_days"
 """A property a grid would ask for that ``Node`` lacks: its duration is ``task.duration``."""
 
-REFERENCE = universe(101)
-"""The reference of the witness, its marked revision 101."""
+REFERENCE, OFFER = universe(101), universe(100)
+"""The reference of the witness, its marked revision 101, and its offer, the marked revision 100."""
 
 PROGRESS_SUMMARY, DATE_SUMMARY = N.STUDIES, N.CONTROL_STATION
 """The summaries whose state, and whose finish, are entered: the studies, the control station."""
@@ -262,13 +266,30 @@ def field_refused(pointer: str, code: str, correlation: str) -> JsonObject:
     }
 
 
+def named_roles(identifiers: list[str]) -> list[JsonValue]:
+    """Return roles of the reference as a refusal names them: identifier, code and label.
+
+    The form of ``ProblemResourceRole``, which every ``TASK_WITHOUT_WORKING_HOURS`` takes since
+    #1684, so that the planning names the roles without reading them.
+    """
+    known = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
+    return [
+        {
+            "resource_role_id": identifier,
+            "code": known[identifier]["code"],
+            "label": known[identifier]["label"],
+        }
+        for identifier in identifiers
+    ]
+
+
 def without_hours(roles: list[str], correlation: str) -> JsonObject:
     """Return the refusal of a line of labour that would leave the wiring without hours of work.
 
     Created, its role changed or moved under it (`createNode`, `updateEstimateLine`, `moveNodes`).
 
-    The roles whose calendars never meet, by their identifiers, and the task by its project, its
-    node and its label (WF-PLA-0010).
+    The roles whose calendars never meet, by their identifier, code and label, and the task by
+    its project, its node and its label (WF-PLA-0010; #1684).
     """
     task: JsonObject = {
         "project_id": fixture("project")["project_id"],
@@ -278,7 +299,7 @@ def without_hours(roles: list[str], correlation: str) -> JsonObject:
     return {
         "code": "TASK_WITHOUT_WORKING_HOURS",
         "status": 422,
-        "params": {"resource_role_ids": cast("list[JsonValue]", roles), "tasks": [task]},
+        "params": {"resource_roles": named_roles(roles), "tasks": [task]},
         "correlation_id": correlation,
     }
 
@@ -304,7 +325,7 @@ def paste_plan_without_hours() -> JsonObject:
         "column": "resource_role",
         "code": "TASK_WITHOUT_WORKING_HOURS",
         "params": {
-            "resource_role_ids": [roles[row[2]] for row in WITHOUT_HOURS_BLOCK[:2]],
+            "resource_roles": named_roles([roles[row[2]] for row in WITHOUT_HOURS_BLOCK[:2]]),
             "tasks": [
                 {
                     "project_id": fixture("project")["project_id"],
@@ -336,10 +357,10 @@ def _participant() -> str:
     return str(row["display_name"])
 
 
-def _reference() -> str:
-    """Return the version name of the marked revision 101, from the revisions written by hand."""
+def _version_name(identifier: str) -> str:
+    """Return the version name of a marked revision, from the revisions written by hand."""
     revisions = cast("list[JsonObject]", fixture("revisions")["items"])
-    [revision] = [each for each in revisions if each["revision_id"] == REFERENCE]
+    [revision] = [each for each in revisions if each["revision_id"] == identifier]
     return str(revision["version_name"])
 
 
@@ -562,7 +583,7 @@ def _shared_examples() -> dict[str, JsonObject]:
 
 def _state_examples() -> dict[str, JsonObject]:
     project = cast("JsonObject", fixture("project_completed"))
-    reference = _reference()
+    reference = _version_name(REFERENCE)
     _, timeline = CREATED_TIMELINE
     return {
         "timeline_create_terminal.json": mocktext.example(
@@ -572,6 +593,16 @@ def _state_examples() -> dict[str, JsonObject]:
             f"project_not_terminal, comme toute écriture d'un projet terminal ; rien n'est créé "
             f"(WF-CYC-0100, WF-PLA-0140, WF-IHM-0090).",
             state_refused("project_not_terminal", TIMELINE_CORRELATION),
+        ),
+        "reference_designation_terminal.json": mocktext.example(
+            f"La désignation de la révision « {_version_name(OFFER)} » comme référence, demandée "
+            f"sur le projet témoin, « {project['label']} », terminé aujourd'hui "
+            f"(project_completed) : le projet clos ne liste aucune commande, designate_reference "
+            f"comprise, et l'appel direct est refusé par la condition qui manque, "
+            f"project_not_terminal, jugée avant celles de la commande, comme toute écriture d'un "
+            f"projet terminal ; rien n'est "
+            f"écrit (WF-CYC-0100, WF-REV-0040, WF-IHM-0090 ; #1674).",
+            state_refused("project_not_terminal", DESIGNATE_TERMINAL_CORRELATION),
         ),
         "node_create_marked_refused.json": mocktext.example(
             f"Une tâche créée sur la structure principale de la révision « {reference} », "
@@ -663,14 +694,16 @@ def _tree_examples() -> dict[str, JsonObject]:
         "node_create_without_hours.json": mocktext.example(
             f"Une ligne du monteur câbleur créée sous le « {wiring} », qui porte une ligne de "
             f"l'ingénieur : leurs calendriers n'auraient aucun jour en commun, et la tâche aucune "
-            f"heure travaillée. Refusée, les deux rôles et la tâche nommés ; rien n'est créé "
+            f"heure travaillée. Refusée, les deux rôles et la tâche nommés par leur libellé ; rien "
+            f"n'est créé "
             f"(WF-PLA-0010). {supposed}.",
             without_hours([ENGINEER, CABLE_FITTER], CREATE_HOURS_CORRELATION),
         ),
         "estimate_line_without_hours.json": mocktext.example(
             f"Le rôle du « {line} », seule ligne de main-d'œuvre du « {wiring} », passé au "
             f"monteur câbleur, dont le calendrier n'aurait aucune heure dans la semaine : refusé, "
-            f"le rôle et la tâche nommés ; rien n'est écrit (WF-PLA-0010). {supposed}.",
+            f"le rôle et la tâche nommés par leur libellé ; rien n'est écrit (WF-PLA-0010). "
+            f"{supposed}.",
             without_hours([CABLE_FITTER], ROLE_HOURS_CORRELATION),
         ),
         "nodes_move_without_hours.json": mocktext.example(
@@ -678,7 +711,7 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"sous la « {rows[N.COMMISSIONING].label} », déplacée sous le « {wiring} », qui porte "
             f"une ligne de l'ingénieur : leurs calendriers n'auraient aucun jour en commun, et la "
             f"tâche qui la reçoit aucune heure travaillée. Refusé, les deux rôles et la tâche "
-            f"nommés ; rien ne bouge (WF-PLA-0010). {supposed}.",
+            f"nommés par leur libellé ; rien ne bouge (WF-PLA-0010). {supposed}.",
             without_hours([ENGINEER, COMMISSIONING_TECHNICIAN], MOVE_HOURS_CORRELATION),
         ),
         "paste_plan_without_hours.json": mocktext.example(
@@ -687,7 +720,8 @@ def _tree_examples() -> dict[str, JsonObject]:
             f"{WITHOUT_HOURS_BLOCK[1][0]} » ; sa tâche, « {mockwrites.pasted_task().label} », le "
             f"porterait avec l'ingénieur électricien, que la première ligne et la ligne de "
             f"supervision gardent, et leurs calendriers n'auraient aucun jour en commun : cette "
-            f"ligne est refusée sur sa cellule de rôle, les deux rôles et la tâche nommés, et les "
+            f"ligne est refusée sur sa cellule de rôle, les deux rôles et la tâche nommés par leur "
+            f"libellé, et les "
             f"deux autres seraient écrites ; confirmé, le collage écrira les deux autres et non "
             f"celle-ci, abandonné, il n'écrira rien (WF-IHM-0050, WF-PLA-0010). {supposed}.",
             paste_plan_without_hours(),

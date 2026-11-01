@@ -2375,7 +2375,7 @@ PasteRejection:
     n'est pas refusée, ni une cellule vide, qui n'écrit rien (`PastePreview`) (WF-PRJ-0050 ;
     C-359, #1152). Une cellule de rôle qui laisserait la tâche de sa ligne sans aucune heure
     travaillée dans la semaine est refusée par `TASK_WITHOUT_WORKING_HOURS`, `params` nommant les
-    rôles et la tâche comme le refus d'une saisie (`resource_role_ids`, `tasks`), et la ligne n'est
+    rôles et la tâche comme le refus d'une saisie (`resource_roles`, `tasks`), et la ligne n'est
     pas écrite (WF-PLA-0010 ; #779). Un collage dont la cellule visée est sur un nœud retiré par
     le différentiel est refusé entier par `PASTE_TARGET_REMOVED`, un seul refus, à la ligne `0`,
     sur la colonne visée : il tient à l'ancre, non à une ligne du bloc (`PastePlan` ; #1361). Une

@@ -73,6 +73,8 @@ class Span(BaseModel):
         return self
 
 
+CABLE_FITTER = {"resource_role_id": str(UUID(int=454)), "code": "MONT-CAB", "label": "Monteur"}
+
 ERRORS: dict[str, Exception] = {
     "bad": BadRequestError("MALFORMED_REQUEST"),
     "unauthenticated": UnauthenticatedError("SESSION_EXPIRED"),
@@ -93,7 +95,7 @@ ERRORS: dict[str, Exception] = {
     "uncoded": UnprocessableError(
         "TASK_WITHOUT_WORKING_HOURS",
         {
-            "resource_role_ids": [str(UUID(int=454))],
+            "resource_roles": [CABLE_FITTER],
             "projects": [{"project_label": "Rénovation", "project_code": None}],
         },
     ),
@@ -230,7 +232,7 @@ def test_a_null_the_typed_parameters_carry_travels_and_nothing_absent_is_sent(
     response = TestClient(app).get("/fail/uncoded")
     body = response.json()
     assert body["params"] == {
-        "resource_role_ids": [str(UUID(int=454))],
+        "resource_roles": [CABLE_FITTER],
         "projects": [{"project_label": "Rénovation", "project_code": None}],
     }
     assert "fields" not in body

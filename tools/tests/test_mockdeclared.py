@@ -305,14 +305,18 @@ def test_a_task_deleted_leaves_its_provision_on_its_parent_task_and_the_quote_un
     assert was["parent_id"] == universe(N.MOUNTING)
     assert line["lock_version"] == was["lock_version"] + 1
     assert universe(N.MOUNTING) not in {node["node_id"] for node in after["items"]}
-    assert "provision_moved" in _cited_ok("deleteNode")
-    assert "écrites sous" in _operations()["deleteNode"]["responses"]["200"]["description"]
+    # The contract cites this very example as the provision moved (#1665).
+    assert _cited_ok("deleteNode")["provision_moved"] == "node_deleted_provision_moved"
 
 
-def _cited_ok(operation: str) -> list[str]:
-    """Return the examples the 200 of an operation cites, by their name in the contract."""
+def _cited_ok(operation: str) -> dict[str, str]:
+    """Return the files the examples of the 200 of an operation name, by their name there."""
     answer = _operations()[operation]["responses"]["200"]
-    return list(answer["content"]["application/json"]["examples"])
+    examples = cast("dict[str, Entry]", answer["content"]["application/json"]["examples"])
+    return {
+        name: re.sub(r".*/(\w+)\.json$", r"\1", cast("str", each["$ref"]))
+        for name, each in examples.items()
+    }
 
 
 def test_a_task_left_without_a_predecessor_keeps_its_progress() -> None:

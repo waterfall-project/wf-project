@@ -8,6 +8,7 @@ their condition, as the object says it beforehand. The tests hold the contract a
 ``wftools.mockrefusals`` writes; a test cites a requirement where it takes up its Vérif.
 """
 
+import json
 import re
 from typing import Any, cast
 
@@ -55,6 +56,7 @@ def test_a_terminal_project_refuses_its_timelines_by_the_condition_it_misses() -
     for operation, name in (
         ("createTimeline", "timeline_create_terminal"),
         ("deleteTimeline", "timeline_delete_terminal"),
+        ("designateReferenceRevision", "reference_designation_terminal"),
     ):
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == STATE, name
@@ -62,6 +64,16 @@ def test_a_terminal_project_refuses_its_timelines_by_the_condition_it_misses() -
         assert name in _cited(operation, "409"), name
     # The delete answers the shared 403 now, which names the qualities alone.
     assert "403" in _operations()["deleteTimeline"]["responses"]
+
+
+def test_the_designation_on_a_terminal_project_names_its_condition_before_the_command() -> None:
+    # #1674 (option 2 of the author): the 409 of `designateReferenceRevision` names
+    # `project_not_terminal` too, judged before the conditions `designate_reference` lists, so that
+    # the single rule of the refusals of US-0702 holds without an exception.
+    answer = _operations()["designateReferenceRevision"]["responses"]["409"]
+    said = " ".join(answer["description"].split())
+    assert said.index("`project_not_terminal`") < said.index("`revision_marked`")
+    assert _cited("designateReferenceRevision", "409")[-1] == "reference_designation_terminal"
 
 
 def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_draft() -> None:
@@ -311,7 +323,19 @@ def test_a_field_a_node_does_not_accept_is_refused_on_it_as_the_node_says() -> N
     assert "estimate_line_provision_reserved" in _cited("updateEstimateLine", "422")
 
 
+def _named(identifiers: list[str]) -> list[Entry]:
+    """Return roles of the reference as a refusal names them, read from the roles by hand."""
+    roles = {role["resource_role_id"]: role for role in fixture("resource_roles")["items"]}
+    return [
+        {key: roles[each][key] for key in ("resource_role_id", "code", "label")}
+        for each in identifiers
+    ]
+
+
+@pytest.mark.requirement("WF-PLA-0010-A")
 def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_task() -> None:
+    # #1684 (option A of the author): the refusal names the roles by their label, as it names the
+    # task, so that the planning, which reads no role, names them too.
     wiring = _node(552)
     for operation, name, roles in (
         ("createNode", "node_create_without_hours", [451, 454]),
@@ -323,7 +347,7 @@ def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_
         refused = fixture(name)
         assert (refused["status"], refused["code"]) == (422, "TASK_WITHOUT_WORKING_HOURS"), name
         assert refused["params"] == {
-            "resource_role_ids": [universe(each) for each in roles],
+            "resource_roles": _named([universe(each) for each in roles]),
             "tasks": [
                 {
                     "project_id": fixture("project")["project_id"],
@@ -333,6 +357,36 @@ def test_a_line_that_would_leave_its_task_without_hours_names_the_roles_and_the_
             ],
         }, name
         assert name in _cited(operation, "422"), name
+
+
+def _without_hours(value: Any) -> list[Entry]:
+    """Return the params of each refusal TASK_WITHOUT_WORKING_HOURS a value read from JSON holds."""
+    if isinstance(value, list):
+        return [found for item in cast("list[Any]", value) for found in _without_hours(item)]
+    if not isinstance(value, dict):
+        return []
+    entry = cast("Entry", value)
+    own = [entry["params"]] if entry.get("code") == "TASK_WITHOUT_WORKING_HOURS" else []
+    return own + [found for item in entry.values() for found in _without_hours(item)]
+
+
+def test_every_refusal_of_a_task_without_hours_names_its_roles_by_their_label() -> None:
+    # #1684: one form for every such refusal — an entry, a paste, an import, the reference —, the
+    # roles by their identifier, code and label (`ProblemResourceRole`), never by identifiers alone.
+    found = {
+        path.stem: _without_hours(json.loads(path.read_text("utf-8"))["value"])
+        for path in sorted(mockwitness.FIXTURES.glob("*.json"))
+    }
+    refusals = {name: params for name, params in found.items() if params}
+    assert len(refusals) >= 7
+    for name, all_params in refusals.items():
+        for params in all_params:
+            assert "resource_role_ids" not in params, name
+            roles = cast("list[Entry]", params["resource_roles"])
+            assert roles == _named([role["resource_role_id"] for role in roles]), name
+    # The default calendar left without hours names no role: only tasks without labour lose them.
+    [default] = refusals["calendar_default_without_hours"]
+    assert default["resource_roles"] == []
 
 
 def test_a_pasted_row_leaving_its_task_without_hours_is_refused_naming_roles_and_task() -> None:
@@ -360,7 +414,7 @@ def test_a_pasted_row_leaving_its_task_without_hours_is_refused_naming_roles_and
                 "column": "resource_role",
                 "code": "TASK_WITHOUT_WORKING_HOURS",
                 "params": {
-                    "resource_role_ids": [ENGINEER, CABLE_FITTER],
+                    "resource_roles": _named([ENGINEER, CABLE_FITTER]),
                     "tasks": [
                         {
                             "project_id": fixture("project")["project_id"],

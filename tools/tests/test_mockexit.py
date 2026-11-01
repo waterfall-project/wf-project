@@ -9,7 +9,7 @@ Vérif of WF-CYC-0090, WF-CYC-0060, WF-PRJ-0060 and WF-IHM-0090, and against the
 
 import json
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -147,11 +147,7 @@ _IDENTITY = ("task_id", "submitted_at", "finished_at")
 def _took(name: str) -> timedelta:
     """Return how long a task took, from its being put in the queue to its end."""
     task = fixture(name)
-    return _moment(task["finished_at"]) - _moment(task["submitted_at"])
-
-
-def _moment(instant: str) -> datetime:
-    return datetime.strptime(instant, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    return mockproject.moment(task["finished_at"]) - mockproject.moment(task["submitted_at"])
 
 
 @pytest.mark.requirement("WF-CYC-0090-A")
