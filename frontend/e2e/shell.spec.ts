@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
 import { openMenu, setExpanded } from "./hydration";
@@ -201,14 +201,21 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   const held = new Promise<void>((resolve) => {
     cut = resolve;
   });
-  await page.route("**/account", async (route) => {
+  const handlers = new Set<Promise<void>>();
+  const record = async (route: Route): Promise<void> => {
     if (route.request().headers()["next-action"] === undefined) {
       await route.continue();
       return;
     }
     await held;
     await route.abort();
-  });
+  };
+  const account = (route: Route): Promise<void> => {
+    const handled = record(route);
+    handlers.add(handled);
+    return handled;
+  };
+  await page.route("**/account", account);
   // A choice made before React hydrated the page is lost: it is made again until it holds.
   const dark = page.getByRole("radio", { name: "Sombre" });
   await expect(async () => {
@@ -235,4 +242,7 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   );
   await alert.getByRole("button", { name: "Fermer l’avis" }).click();
   await expect(alert).toHaveCount(0);
+  // The route is taken away once its handlers are done, as `holdScripts` does (#1721).
+  await Promise.allSettled([...handlers]);
+  await page.unroute("**/account", account);
 });

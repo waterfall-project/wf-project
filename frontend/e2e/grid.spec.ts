@@ -11,7 +11,7 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
-import { openHydrated, openMenu, WORKING } from "./hydration";
+import { continueUnlessClosed, openHydrated, openMenu, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
@@ -389,7 +389,7 @@ test("shows the sort asked without waiting for the server actions of the page, i
       dispatched.push(route.request().url());
       await new Promise((resolve) => setTimeout(resolve, HELD));
     }
-    await route.continue().catch(() => undefined);
+    await continueUnlessClosed(route);
   });
   await openHydrated(page, GRID);
   const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
@@ -416,7 +416,7 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     if (isRetotal(route.request())) {
       await new Promise((resolve) => setTimeout(resolve, HELD));
     }
-    await route.continue().catch(() => undefined);
+    await continueUnlessClosed(route);
   });
   await openHydrated(page, `${REMAINING}?search=revue`);
   // The effort of row 10, a line of labour, re-estimated: the main structure of the project in

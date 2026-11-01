@@ -179,6 +179,32 @@ function handledAlready(error: unknown): boolean {
 }
 
 /**
+ * Whether an error is that of a page, a context or a browser closed under a call of the journey:
+ * the one failure a route held past the end of its test may meet, which no type of error tells.
+ */
+function closedPage(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /Target (page, context or browser has been )?closed|Browser has been closed/.test(error.message)
+  );
+}
+
+/**
+ * Let a request a route held go on to the network. A route held longer than its test finds the page
+ * closed when it lets the request go, and that failure alone is not the journey's: any other error
+ * of the handler goes up (#1720).
+ */
+export async function continueUnlessClosed(route: Route): Promise<void> {
+  try {
+    await route.continue();
+  } catch (error) {
+    if (!closedPage(error)) {
+      throw error;
+    }
+  }
+}
+
+/**
  * Hold the scripts of the front a journey picks, so that a screen hydrates when the journey lets
  * it, whatever the load: each script the page asks for is fetched, given to `hold` with its body,
  * and served once what `hold` returns has settled — at once for a script it does not pick.
