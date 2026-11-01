@@ -64,6 +64,7 @@ class ErrorCode(StrEnum):
     INACTIVE_REFERENCE_OBJECT = "INACTIVE_REFERENCE_OBJECT"
     ORG_NODE_CYCLE = "ORG_NODE_CYCLE"
     NODE_NOT_SIBLING = "NODE_NOT_SIBLING"
+    MILESTONE_HAS_NO_SUBTASK = "MILESTONE_HAS_NO_SUBTASK"
     MILESTONE_REQUIRED = "MILESTONE_REQUIRED"
     UNKNOWN_TIMELINE = "UNKNOWN_TIMELINE"
     DUPLICATE_PREDECESSOR = "DUPLICATE_PREDECESSOR"
@@ -2981,7 +2982,7 @@ class RevisionCreate(ContractModel):
     apply_rate_update: Annotated[
         bool | None,
         Field(
-            description="Applique la mise à jour des taux proposée par WF-REV-0060. Jamais imposée : la valeur par défaut conserve les taux de la révision source."
+            description="Applique la mise à jour des taux proposée par WF-REV-0060. Faux ou absent, la révision est chiffrée aux taux de la révision source projetés par le taux d'inflation du projet jusqu'à son année de référence (WF-REV-0060, WF-REV-0010, WF-DEV-0030), la mise à jour restant proposée (`getRateUpdateProposal`). Vrai, chaque catégorie que la proposition présenterait au taux du référentiel de l'année (`reference_rate`) est chiffrée à ce taux, comme `applyRateUpdate` sur toutes ; les autres gardent leur taux projeté. Jamais imposée (#1764)."
         ),
     ] = False
 
@@ -3036,6 +3037,22 @@ class RateUpdateProposal(ContractModel):
         ),
     ] = None
     categories: list[Category]
+
+
+class RateUpdateApply(ContractModel):
+    cost_category_ids: Annotated[
+        list[Uuid],
+        Field(
+            description="Les catégories acceptées parmi celles que la proposition présente (`getRateUpdateProposal`) ; une catégorie qu'elle ne présente pas est refusée par 422 `VALIDATION_FAILED`, `fields` sur `/cost_category_ids/<n>`, et une liste vide de même, sur `/cost_category_ids` ; rien n'est écrit.",
+            min_length=1,
+        ),
+    ]
+    lock_version: Annotated[
+        LockVersion,
+        Field(
+            description="Le compteur lu de la révision (`Revision.lock_version`) ; périmé, 412 et rien n'est écrit."
+        ),
+    ]
 
 
 class NodeKind(StrEnum):
@@ -3200,6 +3217,12 @@ class ComparedTaskFacet(ContractModel):
         bool | None,
         Field(
             description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
+        ),
+    ] = None
+    awaiting_own_lines: Annotated[
+        bool | None,
+        Field(
+            description="Calculé, toujours rendu : vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et dont une ligne propre hors provision garde un reste à engager (WF-PLA-0040) ; la grille de reste à engager et le Kanban la signalent, ainsi que ses lignes propres hors provision, seules lignes ouvertes de la phase, selon l'échelle commune (WF-IHM-0070). Faux pour toute autre tâche. Le signal des lignes est porté par leur tâche : le front signale les lignes propres hors provision d'une tâche dont ce drapeau est vrai (F-05, #1774)."
         ),
     ] = None
     started_on: Annotated[
@@ -3530,6 +3553,8 @@ class NodeChange(StrEnum):
     budgeted_amount = "budgeted_amount"
     reestimated_amount = "reestimated_amount"
     payment_delay_days = "payment_delay_days"
+    subproject = "subproject"
+    cost_category = "cost_category"
     parent = "parent"
 
 
@@ -3630,13 +3655,13 @@ class AmountDelta(ContractModel):
     budgeted_delta: Annotated[
         Money,
         Field(
-            description="L'écart des montants budgétés de la nature ou du sous-projet, inflation comprise (WF-DEV-0020, WF-REV-0080) : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`). La comparaison d'une révision obtenue par fusion d'un différentiel avec la révision marquée qui la précède, sans autre modification entre les deux, restitue exactement les montants budgétés de ce différentiel."
+            description="L'écart des montants budgétés de la nature ou du sous-projet, inflation comprise (WF-DEV-0020, WF-REV-0080) : la révision comparée (`to_revision_id`) moins la révision de base (`from_revision_id`), positif quand la comparée porte davantage — le sens où une tâche est dite ajoutée, et celui du devis en cours moins le devis comparé (`EstimateIndicators.delta_to_reference`). La comparaison d'une révision obtenue par fusion d'un différentiel avec la révision marquée qui la précède, sans autre modification entre les deux, restitue exactement les montants budgétés de ce différentiel, quelle que soit l'année de référence de chacune (WF-REV-0080, #1754)."
         ),
     ]
     reestimated_delta: Annotated[
         Money,
         Field(
-            description="L'écart des montants réestimés de la nature ou du sous-projet, inflation comprise, dans le même sens (WF-REV-0080). Après une fusion, il ne vient que des lignes que le différentiel ajoute ou retire, de celles des tâches démarrées qu'il termine et de celles dont il change l'année de consommation : une ligne existante dont le différentiel ne modifie que le montant budgété n'y apporte rien."
+            description="L'écart des montants réestimés de la nature ou du sous-projet, inflation comprise, dans le même sens (WF-REV-0080). Entre deux révisions de même année de référence, il ne vient, après une fusion, que des lignes que le différentiel ajoute ou retire, de celles des tâches démarrées qu'il termine et de celles dont il change l'année de consommation : une ligne existante dont le différentiel ne modifie que le montant budgété n'y apporte rien. Entre deux révisions d'années de référence différentes, il vient aussi de chaque ligne dont le taux a été mis à jour ou projeté jusqu'à la nouvelle année de référence (WF-REV-0060), les montants budgétés restant ceux du différentiel ; l'offre de 2025 comparée à la référence de 2026 en est l'exemple (`comparison`, #1754)."
         ),
     ]
 
@@ -3665,7 +3690,7 @@ class RevisionComparison(ContractModel):
     amount_deltas: Annotated[
         list[AmountDelta],
         Field(
-            description="Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens ; sous `difference`, ceux des seules lignes qu'il retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la révision de base, où qu'elle fût dans celle-ci. Une nature ou un sous-projet dont les deux écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
+            description="Les écarts des montants budgétés et des montants réestimés, inflation comprise, par nature de coût et par sous-projet (WF-REV-0080), chacun nommé par son libellé, résolu à la lecture comme `AmountByKey.label` : l'écran ne joint rien (WF-ARC-0020). Rendus dans chaque réponse, comme `totals`, et calculés sur les lignes que la lecture retient, retirées comprises, quel que soit `kinds` : sans filtre, ceux de toute la structure ; d'un sous-arbre, les siens ; sous `difference`, ceux des seules lignes qu'il retient, quand `totals` ne change pas avec lui (#1398). L'écart se compte par ligne retenue, selon son parent dans la révision comparée (`to_revision_id`) : chaque ligne retenue y apporte ses écarts entiers, ses montants dans la révision comparée moins ceux de la révision de base, où qu'elle fût dans celle-ci. Une ligne compte sous la clé qu'elle porte dans chaque révision : son montant dans la révision comparée sous sa nature et son sous-projet d'alors, moins son montant dans la révision de base sous les siens. Une ligne qui change de nature ou de sous-projet compte donc son montant entier en moins sous l'ancienne clé et en plus sous la nouvelle, même quand son montant ne change pas ; l'offre sans sous-projet comparée à la référence en est l'exemple (`comparison`). L'écart d'une clé est ainsi la différence de ses totaux entre les deux révisions, et la somme des écarts par sous-projet égale celle par nature (#1751). Une nature ou un sous-projet dont les deux écarts sont nuls est omis. Une ligne déplacée hors d'un sous-arbre n'en compte donc plus rien, et une ligne déplacée dedans y compte son écart entier, et non son seul montant dans la révision comparée ; une ligne retirée se compte à la place qu'elle avait. Les écarts de sous-arbres disjoints s'ajoutent ainsi à ceux de la structure entière, chaque ligne comptée une fois."
         ),
     ]
 
@@ -3708,7 +3733,7 @@ class CostStructure(ContractModel):
     is_merged: Annotated[
         bool,
         Field(
-            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060)."
+            description="Vrai lorsque le différentiel a été fusionné dans la principale (WF-REV-0050), ou lorsque le devis propre d'un risque l'a été par sa survenance (WF-RIS-0060). Une structure fusionnée est consommée : elle n'est que dans la révision où elle a été fusionnée, que son marquage fige, et la révision suivante ne la reprend pas (`createRevision`). Une révision en cours ne porte donc jamais une structure fusionnée qu'elle a reprise ; vrai ne s'y lit que pour le devis propre d'un risque survenu depuis son ouverture, la survenance ne marquant aucune révision (WF-RIS-0060 ; #1758)."
         ),
     ]
     available_commands: Annotated[
@@ -3753,6 +3778,12 @@ class TaskFacet(ContractModel):
         bool,
         Field(
             description="Calculé : vrai pour une tâche démarrée dont la fin est antérieure à la date de calcul, que la grille de reste à engager signale (WF-RAE-0040). Faux sinon."
+        ),
+    ]
+    awaiting_own_lines: Annotated[
+        bool,
+        Field(
+            description="Calculé, toujours rendu : vrai pour une récapitulative démarrée dont toutes les subordonnées sont terminées et dont une ligne propre hors provision garde un reste à engager (WF-PLA-0040) ; la grille de reste à engager et le Kanban la signalent, ainsi que ses lignes propres hors provision, seules lignes ouvertes de la phase, selon l'échelle commune (WF-IHM-0070). Faux pour toute autre tâche. Le signal des lignes est porté par leur tâche : le front signale les lignes propres hors provision d'une tâche dont ce drapeau est vrai (F-05, #1774)."
         ),
     ]
     started_on: Annotated[
@@ -4093,7 +4124,7 @@ class NodesWritten(ContractModel):
     ancestors: Annotated[
         list[Node],
         Field(
-            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement, marge et criticité d'une récapitulative. Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient — une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est nulle et qu'elle n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040) —, ses `computed_fields` et `editable_fields` changés avec elle (`deleteNode`, `moveNodes`)."
+            description="Les ancêtres des nœuds écrits et des tâches redatées (`rescheduled`), hors des nœuds écrits — ceux du nœud supprimé, et, pour un déplacement, leurs anciens ancêtres —, recalculés : montants, dates, durée, avancement, marge et criticité d'une récapitulative, et son attente de ses seules lignes propres (`TaskFacet.awaiting_own_lines`) — la réestimation ou la terminaison qui achève sa dernière subordonnée fait paraître le signal sans relecture, celle qui ramène à zéro sa dernière ligne propre le fait disparaître, la récapitulative se terminant (WF-PLA-0040 ; #1774). Chacun une fois, entier, dans l'ordre du plan ; vide quand aucun de ces nœuds n'a de parent. Une récapitulative qui a perdu sa dernière subordonnée y est rendue telle qu'elle devient — une feuille en mode automatique de la durée qu'elle calculait, un jalon si cette durée est nulle et qu'elle n'est pas démarrée, une feuille d'un jour si elle l'est (WF-PLA-0040) —, ses `computed_fields` et `editable_fields` changés avec elle (`deleteNode`, `moveNodes`)."
         ),
     ]
     rescheduled: Annotated[
@@ -4298,13 +4329,18 @@ class StructureMerge(ContractModel):
     ]
 
 
+class WorkInstantWrite(ContractModel):
+    date: PlanningDate
+    hours: Hours | None = None
+
+
 class TaskFacetWrite(ContractModel):
     label: Annotated[str, Field(max_length=300, min_length=1, pattern="\\S")]
     description: str | None = None
     scheduling_mode: SchedulingMode | None = None
     duration: Duration | None = None
-    start: WorkInstant | None = None
-    finish: WorkInstant | None = None
+    start: WorkInstantWrite | None = None
+    finish: WorkInstantWrite | None = None
     order_item_id: Uuid | None = None
     work_package_id: Uuid | None = None
 
@@ -4409,11 +4445,6 @@ class ComputedValueDependencies(ContractModel):
     rows: Annotated[
         list[DependencyRow], Field(description="Chaque ligne une fois, dans l'ordre du plan.")
     ]
-
-
-class WorkInstantWrite(ContractModel):
-    date: PlanningDate
-    hours: Hours | None = None
 
 
 class TaskFacetUpdate(ContractModel):

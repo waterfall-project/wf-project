@@ -2523,7 +2523,9 @@ et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
   forme (`wftools.mockrefusals`, tenu par `tools/tests/test_mockrefusals.py`), avec ceux que le
   contrat déclarait sans code, condition ni exemple (`wftools.mockdeclared`, tenu par
   `tools/tests/test_mockdeclared.py`) ; et les exemples des majeurs de la revue du contrat du
-  2026-10-31 — la liste des projets avec le projet créé, le code d'un sous-projet trop long —
+  2026-10-31 — la liste des projets avec le projet créé, le code d'un sous-projet trop long, la
+  mise à jour des taux d'une catégorie non proposée, une tâche refusée sous un jalon, la
+  récapitulative qui n'attend plus que ses lignes propres —
   (`wftools.mockreview`, tenu par `tools/tests/test_mockreview.py`).
 
 Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques

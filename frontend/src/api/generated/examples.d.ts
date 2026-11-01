@@ -150,7 +150,7 @@ export interface Examples {
     200: "structure_merge_report" | "structure_merge_report_horizon_exceeded" | "structure_merge_report_link_cycle" | "structure_merge_report_link_forbidden" | "structure_merge_report_provision_moved" | "structure_merge_report_refused" | "structure_merge_report_started_task" | "structure_merge_report_without_current_revision";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
+    200: "nodes" | "nodes_amendment" | "nodes_amendment_differences" | "nodes_awaiting_own_lines" | "nodes_core" | "nodes_empty" | "nodes_estimate" | "nodes_estimate_filtered" | "nodes_estimate_hours" | "nodes_estimate_sorted" | "nodes_installation" | "nodes_milestone" | "nodes_nested" | "nodes_planning" | "nodes_risk_estimate" | "nodes_risk_occurred" | "nodes_summaries" | "nodes_summaries_leaves" | "nodes_timeline" | "volume/nodes_thousand";
   };
   "GET /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies": {
     200: "dependencies_labour" | "dependencies_labour_category" | "dependencies_manual_float" | "dependencies_provision" | "dependencies_provision_subproject" | "dependencies_summary" | "dependencies_summary_moved" | "dependencies_task_amount" | "volume/summary_dependencies";
@@ -343,7 +343,7 @@ export interface Examples {
     202: "task_merge_queued";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes": {
-    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "estimate_line_created_labelled" | "node_created" | "node_created_child";
+    201: "estimate_line_created" | "estimate_line_created_after_subtask" | "estimate_line_created_labelled" | "node_created" | "node_created_child" | "node_created_manual";
   };
   "POST /projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move": {
     200: "nodes_indented" | "nodes_moved";

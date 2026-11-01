@@ -160,7 +160,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | Méthode | Chemin | Opération | Exigences citées |
 |---|---|---|---|
 | GET | `/projects/{project_id}/revisions` | Historique des révisions | WF-IHM-0020, WF-REV-0070, WF-REV-0090 |
-| POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-PLA-0170, WF-REV-0010, WF-REV-0060 |
+| POST | `/projects/{project_id}/revisions` | Ouvrir la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-PLA-0170, WF-REV-0010, WF-REV-0050, WF-REV-0060, WF-REV-0100, WF-RIS-0060 |
 | GET | `/projects/{project_id}/revisions/{revision_id}` | Une révision et son instantané | WF-REV-0030, WF-REV-0090 |
 | DELETE | `/projects/{project_id}/revisions/{revision_id}` | Abandonner la révision en cours | WF-DAT-0010, WF-DAT-0020, WF-IHM-0110, WF-REV-0010, WF-RIS-0020, WF-RIS-0060 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/mark` | Marquer la révision | WF-ARC-0090, WF-DAT-0040, WF-DEV-0010, WF-IHM-0080, WF-REV-0020, WF-SEC-0030 |
@@ -174,9 +174,9 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Compte rendu préalable de la fusion d'un différentiel | WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/merge` | Fusionner un différentiel dans la structure principale | WF-ARC-0090, WF-DEV-0020, WF-IHM-0080, WF-PLA-0010, WF-PLA-0030, WF-PLA-0150, WF-PLA-0170, WF-REV-0010, WF-REV-0020, WF-REV-0050, WF-REV-0060, WF-SEC-0030 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Arbre commun de la structure | WF-DEV-0020, WF-DEV-0050, WF-IHM-0030, WF-IHM-0060, WF-IHM-0130, WF-PLA-0080, WF-PLA-0090, WF-PLA-0110, WF-PLA-0140, WF-PLA-0170, WF-REV-0100 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes` | Créer une tâche ou une ligne de devis | WF-CYC-0100, WF-DAT-0020, WF-DEV-0020, WF-DEV-0050, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0170, WF-RAE-0040, WF-RAE-0050, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}` | Le nœud qui porte un numéro de ligne | WF-ADM-0110, WF-PLA-0080 |
-| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170, WF-RIS-0010 |
+| DELETE | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}` | Supprimer un nœud | WF-DAT-0090, WF-DEV-0040, WF-IHM-0110, WF-PLA-0020, WF-PLA-0040, WF-PLA-0070, WF-PLA-0100, WF-PLA-0160, WF-PLA-0170, WF-RAE-0030, WF-RIS-0010 |
 | GET | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies` | Ce dont dépend une valeur calculée | WF-IHM-0030, WF-PLA-0040 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/task` | Modifier la facette temps d'une tâche | WF-IHM-0040, WF-PLA-0010, WF-PLA-0020, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0160, WF-PLA-0170 |
 | PATCH | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/estimate-line` | Modifier la facette argent d'une ligne de devis | WF-DEV-0020, WF-DEV-0030, WF-DEV-0040, WF-IHM-0040, WF-PLA-0010, WF-PRJ-0050, WF-RIS-0010 |
@@ -184,7 +184,7 @@ Le contrat cite **189 des 212 exigences** de la spécification.
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/progress` | Démarrer, terminer ou rouvrir une tâche | WF-IHM-0030, WF-IND-0030, WF-PLA-0040, WF-PLA-0130, WF-RAE-0030 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/remaining` | Réestimer une ligne | WF-PLA-0130, WF-RAE-0030, WF-RAE-0040 |
 | PUT | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/tracking` | Inscrire ou retirer une tâche des suivis | WF-PLA-0060 |
-| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0150, WF-PLA-0170 |
+| POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/move` | Déplacer des nœuds dans l'arbre | WF-DEV-0040, WF-PLA-0020, WF-PLA-0030, WF-PLA-0040, WF-PLA-0050, WF-PLA-0150, WF-PLA-0170 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste-preview` | Aperçu d'un collage depuis un tableur | WF-DEV-0050, WF-IHM-0050, WF-PLA-0080, WF-PRJ-0050 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/paste` | Appliquer un collage | WF-IHM-0050, WF-IHM-0110 |
 | POST | `/projects/{project_id}/revisions/{revision_id}/undo` | Annuler la dernière modification | WF-CRE-0030, WF-IHM-0110, WF-RIS-0020 |
