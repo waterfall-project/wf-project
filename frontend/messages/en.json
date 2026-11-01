@@ -2764,8 +2764,6 @@
     "NOT_FOUND": "Not found: this item does not exist, or you do not have access to it.",
     "STATE_FORBIDS_OPERATION": "The current state does not allow this operation.",
     "ALREADY_EXISTS": "This item already exists.",
-    "CURRENT_REVISION_EXISTS": "The project already has a draft revision.",
-    "REFERENCE_NOT_CORRECTABLE": "The reference revision can no longer be corrected.",
     "UNDO_CONFLICT": "Cannot undo: the data has changed since.",
     "LAST_ADMINISTRATOR": "At least one active account must keep the administration permissions.",
     "LAST_PROJECT_MANAGER": "A project keeps at least one project manager.",
@@ -2799,9 +2797,11 @@
     "UNKNOWN_TASK": "Unknown task.",
     "DUPLICATE_PREDECESSOR": "This predecessor already appears earlier in the list entered: each is written once.",
     "UNKNOWN_TIMELINE": "Unknown timeline of the project.",
+    "UNKNOWN_RISK": "Unknown risk.",
     "INACTIVE_REFERENCE_OBJECT": "This reference item is inactive.",
     "ORG_NODE_CYCLE": "A node goes neither under itself nor under one of its descendants.",
     "NODE_NOT_SIBLING": "The node to place it after is not among the siblings of the new place: the grid is read again.",
+    "MILESTONE_HAS_NO_SUBTASK": "A milestone bears no subtasks.",
     "MILESTONE_REQUIRED": "Only a milestone can be tracked on the time/time diagram.",
     "UPLOAD_PURPOSE_MISMATCH": "This file was not uploaded for this purpose.",
     "PROVISION_CATEGORY_RESERVED": "A provision line is created only by declaring a risk: this category cannot be entered.",
@@ -3185,7 +3185,8 @@
     "AuditUserField": {
       "last_name": "Last name",
       "first_name": "First name",
-      "email": "Email address"
+      "email": "Email address",
+      "org_node_id": "Organisation node"
     },
     "ReferenceReadiness": {
       "missing": {
@@ -3284,7 +3285,9 @@
       "subproject_without_actual_costs": "no actual cost booked against the subproject",
       "subproject_without_estimate_lines": "no estimate line of the current revision bearing the subproject",
       "main_structure_without_tasks": "main structure without any task",
+      "import_awaiting_decision": "import awaiting a decision",
       "import_file_accepted": "file accepted by the report",
+      "import_not_applied": "import not applied",
       "is_local_account": "account created in Waterfall",
       "is_active_account": "active account",
       "is_deactivated_account": "deactivated account",
@@ -3356,7 +3359,9 @@
       "budgeted_amount": "Budgeted amount",
       "reestimated_amount": "Re-estimated amount",
       "payment_delay_days": "Payment delay",
-      "parent": "Parent"
+      "parent": "Parent",
+      "subproject": "Subproject",
+      "cost_category": "Cost category"
     },
     "NodeDifference": {
       "added": "Added",
@@ -3658,7 +3663,9 @@
       "deactivate": "Deactivate the account",
       "reactivate": "Reactivate the account",
       "anonymize": "Anonymise the account",
-      "set_access_roles": "Assign the roles of the account"
+      "set_access_roles": "Assign the roles of the account",
+      "create_password_link": "Give the password setup link",
+      "resend_invitation": "Resend the password setup email"
     },
     "RiskComputedField": {
       "field": {
@@ -3746,8 +3753,25 @@
         "applied": "Applied",
         "abandoned": "Abandoned",
         "expired": "Expired",
-        "failed": "Failed"
+        "failed": "Failed",
+        "refused": "Refused"
       }
+    },
+    "ImportDetail": {
+      "status": {
+        "analysing": "Analysing",
+        "analysed": "Analysed",
+        "applying": "Applying",
+        "applied": "Applied",
+        "abandoned": "Abandoned",
+        "expired": "Expired",
+        "failed": "Failed",
+        "refused": "Refused"
+      }
+    },
+    "ImportCommand": {
+      "apply": "Apply the import",
+      "abandon": "Abandon the import"
     },
     "ExportKind": {
       "ms_project_schedule": "MS Project schedule",
