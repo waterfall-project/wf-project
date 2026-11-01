@@ -11,19 +11,6 @@
 /** The codes whose page is still to write, by the lot that writes it. */
 export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntries([
   ...[
-    "FBS-4",
-    "FBS-4.2",
-    "FBS-4.2.1",
-    "FBS-4.2.2",
-    "FBS-4.2.3",
-    "FBS-4.2.4",
-    "FBS-4.2.5",
-    "FBS-4.3.1",
-    "FBS-4.3.4",
-    "FBS-4.3.5",
-    "FBS-4.4.4",
-    "FBS-4.5.3",
-    "FBS-4.7",
     "FBS-4.8",
     "FBS-4.8.1",
     "FBS-4.8.2",
@@ -33,8 +20,7 @@ export const SCREENS_TO_COME: Readonly<Record<string, string>> = Object.fromEntr
     "FBS-4.8.6",
     "FBS-4.8.7",
     "FBS-4.8.8",
-    "FBS-4.9",
-  ].map((code) => [code, "US-0670/L4, #1140"] as const),
+  ].map((code) => [code, "US-0670/L5, #1452"] as const),
 ]);
 
 /**

@@ -1734,6 +1734,82 @@
       "defaultCalendar": {
         "help": "The default calendar, a single one among the active ones, or the command that designates the one of the row."
       }
+    },
+    "projects": {
+      "label": {
+        "help": "Label of the project; a link opens its page."
+      },
+      "code": {
+        "help": "Project code, the one the ERP knows the project by; empty until the order has arrived."
+      },
+      "state": {
+        "help": "State of the project in its life cycle."
+      },
+      "updatedAt": {
+        "help": "Date and time of the last modification of the project, in the time of your workstation."
+      }
+    },
+    "workBreakdown": {
+      "label": {
+        "help": "Label of the work package, the order item or the deliverable, indented under what holds it."
+      },
+      "kind": {
+        "help": "Kind of the element of the work breakdown: work package, order item of a package, or deliverable of an item."
+      }
+    },
+    "subprojects": {
+      "code": {
+        "help": "Code of the sub-project, the one the ERP gives it, unique in the project; it names the sheet of the sub-project in the file of the remaining to commit."
+      },
+      "label": {
+        "help": "Label of the sub-project."
+      },
+      "actualCosts": {
+        "help": "Whether actual costs are charged to the sub-project: a sub-project charged is not deleted."
+      },
+      "modify": {
+        "help": "Modification of the sub-project, in its form; offered to the project managers as long as the project is not terminal."
+      },
+      "delete": {
+        "help": "Deletion of the sub-project, once confirmed; unavailable for a sub-project charged with actual costs, cited by a marked revision or borne by estimate lines of the current revision."
+      }
+    },
+    "contributors": {
+      "name": {
+        "help": "Name of the account of the contributor."
+      },
+      "kind": {
+        "help": "Capacity of the contributor: project manager, who sets the project up, or contributor."
+      },
+      "account": {
+        "help": "State of the account, active or deactivated; a deactivated account stays inscribed."
+      }
+    },
+    "actualCosts": {
+      "documentNumber": {
+        "help": "Number of the document of the ERP the line belongs to."
+      },
+      "documentItem": {
+        "help": "Number of the item of the line in its document; empty when the extraction gives none."
+      },
+      "documentDate": {
+        "help": "Date of the document."
+      },
+      "amount": {
+        "help": "Signed amount of the line, as the extraction gives it."
+      },
+      "subproject": {
+        "help": "Sub-project the line is charged to, after its WBS element; “No subproject” for a line charged to the project alone, followed by the code read when the element bears one the project does not have."
+      },
+      "trackedScope": {
+        "help": "Whether the line is in the tracked scope; a line excluded stays consultable and enters no indicator."
+      },
+      "excludedReason": {
+        "help": "Reason given for the exclusion of the line from the tracked scope."
+      },
+      "passthrough": {
+        "help": "Column of the extraction the mapping declares kept, given back as it is: it enters no calculation."
+      }
     }
   },
   "help": {

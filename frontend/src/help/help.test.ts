@@ -259,6 +259,12 @@ describe("the reading of the help", () => {
     ["FBS-3.2.1"],
     ["FBS-3.2.2"],
     ["FBS-3.2.3"],
+    ["FBS-4"],
+    ["FBS-4.2"],
+    ["FBS-4.2.1"],
+    ["FBS-4.2.3"],
+    ["FBS-4.2.4"],
+    ["FBS-4.7"],
   ])(
     "names the columns of %s, each with a label and a definition key [WF-IHM-0140-A]",
     async (code) => {
@@ -297,9 +303,9 @@ describe("the reading of the help", () => {
   );
 
   it("says a page not written yet is to come [WF-IHM-0140-A]", async () => {
-    expect(await readHelpPage({ kind: "screen", code: "FBS-4.2" })).toEqual({
+    expect(await readHelpPage({ kind: "screen", code: "FBS-4.8" })).toEqual({
       kind: "pending",
-      target: { kind: "screen", code: "FBS-4.2" },
+      target: { kind: "screen", code: "FBS-4.8" },
     });
   });
 
@@ -356,6 +362,76 @@ describe("the reading of the help", () => {
     },
   );
 
+  it.each([
+    ["/", "FBS-4", "Projets"],
+    ["/projects/p", "FBS-4", "Projets"],
+    ["/projects/p/settings", "FBS-4.2", "Paramètres de projets"],
+    ["/projects/p/revisions/r/timelines", "FBS-4.3.1", "Chronologies"],
+    ["/projects/p/revisions/r/exchanges", "FBS-4.3.4", "Imports et exports"],
+    ["/projects/p/revisions/r/task-tree", "FBS-4.3.5", "Arborescence de tâches"],
+    ["/projects/p/revisions/r/workload", "FBS-4.4.4", "Plan de charge du projet"],
+    ["/projects/p/revisions/r/kanban", "FBS-4.5.3", "Kanban — démarrage des tâches"],
+    ["/projects/p/revisions/r/actual-costs", "FBS-4.7", "Coûts réels"],
+    ["/projects/p/lifecycle", "FBS-4.9", "Cycle de vie du projet"],
+  ])(
+    "opens, at %s, the help of the screen of the project: %s, %s [WF-IHM-0140-A]",
+    async (pathname, code, title) => {
+      expect(helpCodeAt(pathname)).toBe(code);
+      expect(SCREENS_TO_COME[code]).toBeUndefined();
+      const page = await readHelpPage({ kind: "screen", code });
+      expect(page.kind).toBe("written");
+      if (page.kind === "written") {
+        expect(page.title).toBe(title);
+      }
+    },
+  );
+
+  // The exclusion written under US-0670 in the file of EP-16 (#1439): the screens outside the table
+  // of the functions open no help — the account, the avatar, the pages of error and of the session.
+  it.each([
+    ["/account"],
+    ["/account/avatar"],
+    ["/login/unavailable"],
+    ["/nowhere"],
+    ["/projects"],
+    ["/projects/p/nowhere"],
+    ["/projects/p/revisions/r"],
+  ])("opens no help at %s, outside the table of the functions [WF-IHM-0140-A]", (pathname) => {
+    expect(helpCodeAt(pathname)).toBeUndefined();
+  });
+
+  it("names the columns of the settings of a project once, and every column kept from the file of the actual costs alike [WF-IHM-0140-A]", async () => {
+    const helps = async (code: string) => {
+      const page = await readHelpPage({ kind: "screen", code });
+      return page.kind === "written" ? page.columns.map((column) => column.help) : [];
+    };
+    expect(await helps("FBS-4.2")).toEqual([
+      ...(await helps("FBS-4.2.1")),
+      ...(await helps("FBS-4.2.3")),
+      ...(await helps("FBS-4.2.4")),
+    ]);
+    expect(await helps("FBS-4.2.1")).toEqual(["workBreakdown.label", "workBreakdown.kind"]);
+    // The sub-projects with the columns of their commands, which a session that may modify them sees.
+    expect(await helps("FBS-4.2.3")).toEqual([
+      "subprojects.code",
+      "subprojects.label",
+      "subprojects.actualCosts",
+      "subprojects.modify",
+      "subprojects.delete",
+    ]);
+    expect(await helps("FBS-4")).toEqual([
+      "projects.label",
+      "projects.code",
+      "projects.state",
+      "projects.updatedAt",
+    ]);
+    expect((await helps("FBS-4.7")).at(-1)).toBe("actualCosts.passthrough");
+    // A leaf of a fact, or a screen without a table, defines no column.
+    for (const code of ["FBS-4.2.2", "FBS-4.2.5", "FBS-4.3.5", "FBS-4.9"]) {
+      expect(await helps(code), code).toEqual([]);
+    }
+  });
+
   it("names each column of the screens of the reference data once, their state and modification shared by their lists [WF-IHM-0140-A]", async () => {
     const helps = async (code: string) => {
       const page = await readHelpPage({ kind: "screen", code });
@@ -396,7 +472,7 @@ describe("the reading of the help", () => {
     // FBS-4.3 has a page, which this directory does not carry, as a standalone build that forgot it.
     await expect(readHelpPage({ kind: "screen", code: "FBS-4.3" })).rejects.toThrow("FBS-4.3.md");
     await expect(readHelpPage({ kind: "notion", name: "indices" })).rejects.toThrow("indices.md");
-    expect((await readHelpPage({ kind: "screen", code: "FBS-4.2" })).kind).toBe("pending");
+    expect((await readHelpPage({ kind: "screen", code: "FBS-4.8" })).kind).toBe("pending");
   });
 
   it("fails the index on a page that should be written and is missing or untitled, and does not keep it [WF-IHM-0140-A]", async () => {

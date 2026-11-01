@@ -40,9 +40,10 @@ import {
   type ContributorSort,
   SUBPROJECT_GRID,
   type Subproject,
+  subprojectGrid,
   type SubprojectSort,
 } from "./settings-grids";
-import { DeleteSubproject, ModifySubproject, useSubprojectRows } from "./subproject-commands";
+import { useSubprojectRows } from "./subproject-commands";
 
 /**
  * What a grid of the settings of a project shows, by its kind: its rows, its query, its settings.
@@ -71,28 +72,7 @@ export type SettingsGridProps =
   | ({ readonly kind: "contributors" } & GridProps<Contributor, ContributorSort>);
 
 /** The grid of the sub-projects, with the columns of the commands of its rows. */
-const EDITABLE_SUBPROJECT_GRID: typeof SUBPROJECT_GRID = {
-  ...SUBPROJECT_GRID,
-  columns: [
-    ...SUBPROJECT_GRID.columns,
-    {
-      key: "modify",
-      label: "modify",
-      format: "text",
-      width: 110,
-      value: () => null,
-      render: (row) => <ModifySubproject row={row} />,
-    },
-    {
-      key: "delete",
-      label: "delete",
-      format: "text",
-      width: 120,
-      value: () => null,
-      render: (row) => <DeleteSubproject row={row} />,
-    },
-  ],
-};
+const EDITABLE_SUBPROJECT_GRID = subprojectGrid(true);
 
 /** Render the grid of the sub-projects, each row as the server last answered it. */
 function SubprojectGrid({

@@ -1853,7 +1853,12 @@ place avant le gel, au cas où `DisplayPreferences` n'aurait pas où ranger ces 
 dépend d'US-0670/L2. La conception d'EP-15
 (« L'aide en ligne et les infobulles ») fait foi pour la mécanique. Un lot d'EP-16 qui ajoute un
 code à la table des fonctions l'inscrit dans `SCREENS_TO_COME` avec le lot de cette US qui l'écrit
-(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue.
+(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue. L4 (#1439, option 1)
+rattache la page d'un projet (`/projects/P`) au bloc des projets, FBS-4, dont l'aide décrit
+la liste et la page — le fil d'Ariane l'y range déjà — ; restent sans aide, par exclusion, les écrans
+hors de la table des fonctions : le compte (`/account`), l'avatar (`/account/avatar`), les pages
+d'erreur (adresse inconnue, panne) et de session (`/login/unavailable`). L4 laisse FBS-4.8 et ses
+sections à L5, qui les écrit avec la décision de la langue.
 
 **Hors périmètre.** La version anglaise elle-même (EP-11, après la décision de l'auteur) ; un
 tutoriel guidé ; une documentation hors de l'application ; les défauts d'écran que les aides

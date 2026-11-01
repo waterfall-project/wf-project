@@ -413,11 +413,26 @@ describe("the panel of the help", () => {
     expect(screen.queryByRole("dialog", { name: "Chiffrage et devis" })).toBeNull();
   });
 
-  it("offers no help where the table of the functions knows no screen", () => {
-    at.pathname = "/account";
+  it("opens, on the page of a project, the help of the projects, FBS-4 [WF-IHM-0140-A]", async () => {
+    // #1439: the page of a project, which no function of the table routes to, opens the help of
+    // the block of the projects, whose page describes it.
+    at.pathname = "/projects/01926f3a-7c00-7000-8000-000000000001";
+    const user = userEvent.setup();
     renderHeader();
-    expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+    await user.click(helpButton());
+    const dialog = await panel("Projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4" });
+    expect(dialog).toHaveTextContent("La page d’un projet");
   });
+
+  it.each([["/account"], ["/account/avatar"], ["/login/unavailable"]])(
+    "offers no help at %s, outside the table of the functions",
+    (pathname) => {
+      at.pathname = pathname;
+      renderHeader();
+      expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+    },
+  );
 });
 
 /** The button of the panel that comes back to the page of the screen. */
