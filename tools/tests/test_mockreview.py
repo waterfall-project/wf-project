@@ -333,3 +333,55 @@ def test_a_summary_awaiting_its_own_lines_says_it_by_its_facet() -> None:
         tasks = [each for each in _walk(fixture(name)) if "is_summary" in each]
         assert tasks, name
         assert {each["awaiting_own_lines"] for each in tasks} == {False}, name
+
+
+COMPLETED_REFUSED = {
+    "createNode": "estimate_line_completed_refused",
+    "updateEstimateLine": "estimate_line_completed_update_refused",
+    "deleteNode": "node_delete_line_completed_refused",
+    "moveNodes": "nodes_move_completed_refused",
+}
+
+
+def test_a_line_of_a_completed_task_of_the_main_structure_is_refused_by_its_task() -> None:
+    # F-01, #1766: on the main structure, a line is neither created under a task completed, nor
+    # modified, deleted, or moved to it or from it — the task is reopened from the Kanban first
+    # (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). The phase of the project refuses no write (C-358):
+    # no operation names `project_before_in_progress`.
+    nodes = {each["node_id"]: each for each in fixture("nodes_core")["items"]}
+    under = nodes[universe(mockreview.COMPLETED_UNDER)]
+    assert under["task"]["progress"] == "completed"
+    correlations: set[str] = set()
+    for operation, name in COMPLETED_REFUSED.items():
+        assert name in _cited(operation, "409"), operation
+        refused = fixture(name)
+        assert (refused["status"], refused["code"]) == STATE, name
+        assert refused["params"] == {"missing_condition": "task_not_completed"}, name
+        correlations.add(refused["correlation_id"])
+        said = _flat(_operations()[operation]["responses"]["409"]["description"])
+        assert "`task_not_completed`" in said, operation
+        assert "`project_before_in_progress`" not in said, operation
+        assert "différentiel" in said, operation
+    assert len(correlations) == len(COMPLETED_REFUSED)
+    moved = nodes[universe(mockreview.COMPLETED_MOVED)]
+    assert nodes[moved["parent_id"]]["task"]["progress"] != "completed"
+
+
+def test_the_line_of_a_completed_task_names_no_field_on_the_main_structure_alone() -> None:
+    # F-01, #1766: no field, its label included, its remaining to commit said apart; the
+    # differential names them, for the amendment to rebudget the line (WF-REV-0050, #1765).
+    nodes = fixture("nodes_core")["items"]
+    tasks = {each["node_id"]: each["task"] for each in nodes if each["kind"] == "task"}
+    lines = [each for each in nodes if each["kind"] == "estimate_line"]
+    for line in lines:
+        closed = tasks[line["parent_id"]]["progress"] == "completed"
+        assert (line["editable_fields"] == []) == closed, line["node_id"]
+    [line] = [each for each in lines if each["node_id"] == universe(mockreview.COMPLETED_LINE)]
+    assert line["estimate_line"]["remaining_entry"]["missing_conditions"] == ["task_not_completed"]
+    rebudgeted = fixture("estimate_line_rebudgeted_amendment")
+    [written] = rebudgeted["nodes"]
+    assert written["lineage_id"] == line["lineage_id"]
+    assert "estimate_line.unit_disbursement" in written["editable_fields"]
+    assert "estimate_line_rebudgeted_amendment" in _cited("updateEstimateLine", "200")
+    said = _flat(_schemas("revisions.yaml")["PasteRejection"]["description"])
+    assert "`task_not_completed`" in said

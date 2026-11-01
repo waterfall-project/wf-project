@@ -316,9 +316,14 @@ CommandCondition:
     cette ouverture copierait, comporte une tâche (WF-REV-0010 ; EP-15/US-0490/L4).
     `task_not_completed` manque à la réestimation au reste à engager d'une ligne d'une tâche
     terminée, dont les lignes ne se modifient pas (`EstimateLine.remaining_entry`, WF-RAE-0040),
-    et à la création d'une ligne sous une tâche terminée, ou à son déplacement vers elle ou depuis
-    elle, qui se rouvre d'abord depuis le Kanban : `createNode` et `moveNodes` la nomment dans
-    leur 409 (WF-DEV-0050, WF-RAE-0030 ; #1184, #1214). `line_not_provision` manque à la
+    et, sur la structure principale, à la création d'une ligne sous une tâche terminée, à la
+    modification et à la suppression d'une ligne d'une telle tâche, et au déplacement d'une ligne
+    vers elle ou depuis elle, la tâche se rouvrant d'abord depuis le Kanban : `createNode`,
+    `updateEstimateLine`, `deleteNode` et `moveNodes` la nomment dans leur 409, et le collage
+    dans le refus de la cellule (`PasteRejection`) ; la ligne ne nomme alors aucun champ
+    (`Node.editable_fields`). Dans un différentiel, elle ne manque jamais : les lignes d'une tâche
+    terminée s'y saisissent comme les autres, pour que l'avenant les rebudgète (WF-DEV-0050,
+    WF-RAE-0030, WF-RAE-0040, WF-REV-0050 ; #1184, #1214, #1766). `line_not_provision` manque à la
     réestimation d'une ligne de provision, dont le montant est celui que son risque calcule et
     que le reste à engager compte pour ce montant (`EstimateLineFacet.remaining_entry`,
     WF-RIS-0010, WF-RAE-0010) ; `setLineRemaining` la nomme dans son 409.

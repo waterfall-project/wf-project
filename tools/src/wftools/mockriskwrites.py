@@ -316,7 +316,7 @@ def risk_estimate() -> list[mockcore.Row]:
 
     It has no previous review: an own estimate has no remaining to commit (WF-RAE-0040).
     """
-    return mockcore.core(REWORK_ESTIMATE)
+    return mockcore.opened(mockcore.core(REWORK_ESTIMATE))
 
 
 def nodes_risk_estimate() -> JsonObject:

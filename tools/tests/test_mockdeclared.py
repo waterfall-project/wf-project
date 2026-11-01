@@ -146,6 +146,7 @@ def test_the_deletion_that_would_leave_a_provision_without_a_task_names_the_risk
     assert _cited("deleteNode", "409") == [
         "node_delete_started_refused",
         "node_delete_last_provision_task_refused",
+        "node_delete_line_completed_refused",
     ]
 
 

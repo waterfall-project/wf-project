@@ -16,9 +16,11 @@ difference between two readings of the differential, before and after the gestur
 (``wftools.mockwrites.written``), each node named by its identifier in the differential
 (``mockamendment.own_id``) and marked against the main structure; never written by hand.
 
-Their refusals on the same differential: the body of a move that mixes a line and a task, the
-line created under a task completed, and the line moved to it (WF-DEV-0050, WF-RAE-0030, #1184);
-and a line the move carried one version further, deleted at the counter read before it (#1210).
+Their refusals on the same differential: the body of a move that mixes a line and a task, and a
+line the move carried one version further, deleted at the counter read before it (#1210). A line
+of a task completed is written there as any other — the amendment rebudgets it (WF-REV-0050) —:
+the line of the detailed studies, completed, whose unit disbursement the amendment raises; on the
+main structure, the same writes are refused (``mockgestures``; F-01, #1766).
 """
 
 from __future__ import annotations
@@ -295,49 +297,6 @@ def nodes_move_mixed() -> JsonObject:
     }
 
 
-COMPLETED_UNDER = N.DETAILED_STUDIES
-COMPLETED_MOVED = N.BLOCKS
-COMPLETED_CORRELATION, MOVE_COMPLETED_CORRELATION = universe(1186), universe(1195)
-
-
-def completed_refused(correlation: str) -> JsonObject:
-    """Return the refusal of a line written under the detailed studies, completed (#1184).
-
-    No line is created, modified, moved or deleted under a task completed, which is reopened from
-    the Kanban first (WF-DEV-0050, WF-RAE-0030): the state of the task refuses it, by the condition
-    a line under it misses.
-    """
-    rows = {row.number: row for row in mockamendment.rows()}
-    if cast("dict[str, Any]", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
-        message = f"the task {COMPLETED_UNDER} is not completed"
-        raise ValueError(message)
-    return {
-        "code": "STATE_FORBIDS_OPERATION",
-        "status": 409,
-        "params": {"missing_condition": "task_not_completed"},
-        "correlation_id": correlation,
-    }
-
-
-def estimate_line_completed_refused() -> JsonObject:
-    """Return what createNode answers to a line created under a task completed."""
-    return completed_refused(COMPLETED_CORRELATION)
-
-
-def nodes_move_completed_refused() -> JsonObject:
-    """Return what moveNodes answers to the blocks moved under a task completed (#1214).
-
-    « Le déplacement d'une ligne vers elle, est refusé » (Vérif of WF-DEV-0050): the blocks of the
-    wiring, a task not completed, sent under the detailed studies.
-    """
-    rows = {row.number: row for row in mockamendment.rows()}
-    bearer = rows[cast("int", rows[COMPLETED_MOVED].parent)]
-    if cast("dict[str, Any]", bearer.node["task"])["progress"] == "completed":
-        message = f"the line {COMPLETED_MOVED} is under a task completed"
-        raise ValueError(message)
-    return completed_refused(MOVE_COMPLETED_CORRELATION)
-
-
 # --- The cell entered and the block pasted (#1277) ---------------------------------------------
 
 ENTERED_LINE = N.TESTS_RESUMED_LINE
@@ -382,6 +341,31 @@ def estimate_line_payment_delay_amendment() -> JsonObject:
         )
 
     return amendment_write(amended(mockamendment.amendment(), line=delayed), [DELAYED_LINE])
+
+
+REBUDGETED_LINE = N.STUDIES_LINE
+REBUDGETED_UNIT = Decimal("112000.00")
+"""The line of the detailed studies, a task completed, whose unit disbursement the amendment
+raises: an overrun of the subcontracting the amendment brings into the budget of reference, which
+the merge draws from its quantities (WF-REV-0050; F-01, #1765, #1766)."""
+
+
+def estimate_line_rebudgeted_amendment() -> JsonObject:
+    """Return what updateEstimateLine answers to the line of a task completed, on the amendment.
+
+    On a differential, a line of a task completed is modified as any other, for the amendment to
+    rebudget it (WF-REV-0050); on the main structure it is refused (``mockgestures``, F-01).
+    """
+    rows = {row.number: row for row in mockamendment.rows()}
+    bearer = rows[cast("int", rows[REBUDGETED_LINE].parent)]
+    if cast("dict[str, Any]", bearer.node["task"])["progress"] != "completed":
+        message = f"the line {REBUDGETED_LINE} is not under a task completed"
+        raise ValueError(message)
+
+    def raised(each: Line) -> Line:
+        return replace(each, unit=REBUDGETED_UNIT) if each.number == REBUDGETED_LINE else each
+
+    return amendment_write(amended(mockamendment.amendment(), line=raised), [REBUDGETED_LINE])
 
 
 type Block = tuple[tuple[str, str, str, str], ...]
@@ -641,21 +625,6 @@ def examples() -> dict[str, JsonObject]:
             f"(#1187, #1188).",
             nodes_move_mixed(),
         ),
-        "estimate_line_completed_refused.json": mocktext.example(
-            f"{on}, une ligne créée sous les « {rows[COMPLETED_UNDER].label} », terminées : "
-            f"aucune ligne ne se crée sous une tâche terminée, qui se rouvre d'abord depuis le "
-            f"Kanban. La création est refusée, la condition nommée ; rien n'est créé "
-            f"(WF-DEV-0050, WF-RAE-0030, #1184).",
-            estimate_line_completed_refused(),
-        ),
-        "nodes_move_completed_refused.json": mocktext.example(
-            f"{on}, les « {rows[COMPLETED_MOVED].label} » du "
-            f"« {_parent(rows, COMPLETED_MOVED)} » déplacés sous les "
-            f"« {rows[COMPLETED_UNDER].label} », terminées : aucune ligne ne se déplace vers une "
-            f"tâche terminée, qui se rouvre d'abord depuis le Kanban. Le déplacement est refusé, "
-            f"la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
-            nodes_move_completed_refused(),
-        ),
         **_labelled_examples(open_),
         **edit_examples(),
     }
@@ -751,6 +720,7 @@ def edit_examples() -> dict[str, JsonObject]:
             applied,
         ),
         "estimate_line_payment_delay_amendment.json": _delay_example(on),
+        "estimate_line_rebudgeted_amendment.json": _rebudgeted_example(on),
         **skipping_examples(),
     }
 
@@ -773,6 +743,29 @@ def _delay_example(on: str) -> JsonObject:
         f"différentiel passé à {delayed['structure_lock_version']} (WF-DEV-0020, WF-IND-0100, "
         f"#785).",
         delayed,
+    )
+
+
+def _rebudgeted_example(on: str) -> JsonObject:
+    """Return the example of the line of a task completed, rebudgeted by the amendment (F-01)."""
+    rebudgeted = estimate_line_rebudgeted_amendment()
+    [line] = _nodes(rebudgeted)
+    facet = cast("Node", line["estimate_line"])
+    rows = {row.number: row for row in mockamendment.rows()}
+    before = cast("Node", rows[REBUDGETED_LINE].node["estimate_line"])
+    return mocktext.example(
+        f"{on}, la ligne « {facet['label']} » des « {_parent(rows, REBUDGETED_LINE)} », "
+        f"terminées, dont le débours unitaire passe de {money_said(before['unit_disbursement'])} "
+        f"à {money_said(facet['unit_disbursement'])} : un dépassement que l'avenant intègre au "
+        f"budget de référence. Sur un différentiel, une ligne d'une tâche terminée se modifie "
+        f"comme les autres, et nomme ses champs (editable_fields) ; sur la structure principale, "
+        f"la même écriture est refusée (estimate_line_completed_update_refused). Son montant "
+        f"recalculé, {money_said(facet['base_amount'])}, et son budgété avec lui, "
+        f"{money_said(facet['budgeted_amount'])}, d'où la fusion tirera le budget ; une version "
+        f"de plus. Avec elle, ses ancêtres, {tasks_said(rebudgeted, 'ancestors')}, dont le "
+        f"montant suit, {totals_said(rebudgeted)}, et le compteur du différentiel passé à "
+        f"{rebudgeted['structure_lock_version']} (WF-REV-0050, WF-DEV-0020, #1765, #1766).",
+        rebudgeted,
     )
 
 

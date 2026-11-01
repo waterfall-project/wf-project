@@ -459,7 +459,9 @@ StructureCommand:
     accepte les mêmes écritures depuis les trois grilles — une tâche ou une ligne créée sur la
     structure principale d'un projet En cours est la même écriture depuis le planning et depuis
     le reste à engager — : c'est la commande de la structure qui dit quelle grille la saisit,
-    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090).
+    selon la phase du projet, que le front ne déduit pas (WF-IHM-0090). L'état d'une tâche, lui,
+    refuse sur la structure principale les saisies d'une ligne d'une tâche terminée, depuis toute
+    grille (`task_not_completed`, `Node.editable_fields` ; F-01, #1766).
 
     Sur la structure principale, en chiffrage le devis, en réalisation le reste à engager :
     `edit_estimate` est indisponible dès que le projet a atteint En cours, ou un état terminal,
@@ -703,7 +705,12 @@ Node:
         son sous-projet, que son risque désigne et ne change que tant qu'il est identifié
         (`RiskCommand.update_provision`, WF-RIS-0010) ; une ligne dont la tâche est démarrée ou
         terminée, et dont le sous-projet a reçu des coûts réels, ne le nomme pas non plus : elle
-        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ;
+        ne peut pas quitter ce sous-projet (`SUBPROJECT_HAS_ACTUAL_COSTS`, WF-PRJ-0050) ; une
+        ligne de la structure principale dont la tâche est terminée n'en nomme aucun, son libellé
+        compris : elle ne se modifie pas tant que la tâche n'est pas rouverte depuis le Kanban
+        (`task_not_completed`, WF-RAE-0040, WF-DEV-0050), son reste à engager relevant de
+        `remaining_entry` — une ligne d'un différentiel les nomme quel que soit l'état de sa
+        tâche, l'avenant la rebudgétant (WF-REV-0050 ; F-01, #1766) — ;
         une tâche en mode manuel porte ses dates, un jalon n'a pas de durée à
         saisir, une récapitulative ni mode, ni durée, ni dates, ni avancement (WF-PLA-0040,
         WF-PLA-0130). Un champ
@@ -2270,7 +2277,10 @@ PastePreview:
     elle est vide, qui n'écrit rien — un champ calculé pour ce nœud par `COMPUTED_VALUE`, un
     champ que sa nature refuse ou une colonne qu'aucune écriture ne porte, comme les montants,
     par `FIELD_NOT_ACCEPTED` (EP-14/L42s) ; le sous-projet d'une ligne qui ne peut pas le
-    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`). Un bloc plus large que les
+    quitter, par `SUBPROJECT_HAS_ACTUAL_COSTS` (`PasteRejection`) ; toute colonne d'une ligne de
+    la structure principale dont la tâche est terminée, qui n'en accepte aucune, par
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la ligne n'étant
+    pas écrite (WF-RAE-0040 ; F-01, #1766). Un bloc plus large que les
     colonnes de la facette à partir de la colonne visée est refusé par 422 (`PASTE_TOO_WIDE`,
     `params.max_columns`).
   properties:
@@ -2346,6 +2356,12 @@ PasteRejection:
     ligne du bloc qui placerait une tâche sous un jalon, qui ne porte pas de sous-tâches, est
     refusée par `MILESTONE_HAS_NO_SUBTASK`, `params` nommant le jalon (`node_id`, `label`), et
     n'est pas écrite ; une ligne de devis sous un jalon est permise (WF-PLA-0050 ; F-04, #1771).
+    Une cellule non vide collée sur une ligne de la structure principale dont la tâche est
+    terminée — une ligne qui ne nomme aucun champ dans `editable_fields` — est refusée par
+    `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_not_completed`, la tâche se
+    rouvrant d'abord depuis le Kanban, et la ligne n'est pas écrite ; une cellule vide n'écrit
+    rien et n'est pas refusée. Sur un différentiel, une telle ligne se colle comme une autre,
+    l'avenant la rebudgétant (WF-RAE-0040, WF-REV-0050 ; F-01, #1766).
   properties:
     row:
       type: integer

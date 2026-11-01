@@ -10411,16 +10411,42 @@ champs de ces lignes. Le front, qui suit la commande, n'en souffrait pas ; un cl
 publiée ne trouvait aucun refus déclaré. À l'inverse, `createNode` et `moveNodes` refusaient
 `task_not_completed` jusque dans un différentiel.
 
-- **Structure principale** : les saisies d'une ligne (création, modification, déplacement,
-  suppression) déclarent leur 409, `project_before_in_progress` dès En cours, puis
-  `task_not_completed` sous une tâche terminée, qui se rouvre d'abord depuis le Kanban
-  (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). `editable_fields` n'y nomme alors aucun champ du devis,
-  et le collage refuse la cellule par la même condition.
-- **Différentiel** : les lignes d'une tâche terminée s'y saisissent comme les autres, pour que
-  l'avenant les rebudgète (WF-REV-0050) ; c'est le moyen d'intégrer un dépassement au budget de
-  référence. La spécification est à préciser (#1765, WF-DEV-0050).
+- **La phase du projet ne refuse aucune écriture de ligne.** C-358 tient : le serveur accepte les
+  mêmes écritures depuis les trois grilles, et la lecture seule du devis principal dès En cours
+  est une règle de présentation, que dit `edit_estimate` et qu'il dit seul. En En cours, la grille
+  de reste à engager crée, modifie, déplace et supprime des lignes par les mêmes opérations
+  (WF-RAE-0040).
+- **Structure principale : l'état de la tâche refuse.** La création d'une ligne sous une tâche
+  terminée, la modification et la suppression d'une ligne d'une tâche terminée, et le déplacement
+  d'une ligne vers ou depuis une tâche terminée sont refusés par 409 `STATE_FORBIDS_OPERATION`,
+  `params.missing_condition` à `task_not_completed` : la tâche se rouvre d'abord depuis le Kanban
+  (WF-DEV-0050, WF-RAE-0040, WF-RAE-0030). `createNode`, `updateEstimateLine`, `deleteNode` d'une
+  ligne et `moveNodes` le déclarent, dans cet ordre de conditions : `project_not_terminal`, puis
+  les conditions d'état de la révision, `revision_draft` et `no_background_task_running`, puis
+  `task_not_completed` — pour `deleteNode`, à la place des conditions propres à une tâche,
+  `task_not_started` et `at_least_one_task`, qu'une ligne ne connaît pas. Une telle ligne ne
+  nomme aucun champ dans `editable_fields`, son libellé compris ; `remaining_entry` est inchangé.
+  Le collage refuse une cellule non vide sur une telle ligne par la même condition, la ligne
+  n'étant pas écrite ; une cellule vide n'écrit rien et n'est pas refusée.
+- **Différentiel : rien n'est refusé.** Les lignes d'une tâche terminée s'y créent, se modifient,
+  se déplacent et se suppriment comme les autres, pour que l'avenant les rebudgète
+  (WF-REV-0050) ; c'est le moyen d'intégrer un dépassement au budget de référence. `createNode` et
+  `moveNodes` disent que `task_not_completed` ne vaut que sur la principale. La spécification est
+  à préciser (#1765, WF-DEV-0050).
+- **Le témoin** : les refus sont posés sur la structure principale du projet En cours, sous les
+  « Études de détail », terminées — `estimate_line_completed_refused`,
+  `estimate_line_completed_update_refused`, `node_delete_line_completed_refused`,
+  `nodes_move_completed_refused` —, et l'avenant 2 rebudgète la ligne de la même tâche
+  (`estimate_line_rebudgeted_amendment`). Les lectures de la principale rendent ses lignes sous
+  une tâche terminée sans champ saisissable ; celles d'un différentiel les leur laissent.
 - **Écarté : le libellé seul modifiable** sous une tâche terminée. La spécification n'en fait pas
   d'exception, et rouvrir la tâche suffit.
+- **Écarté : `project_before_in_progress` sur les écritures de ligne.** La première rédaction de
+  cette décision faisait refuser les saisies d'une ligne de la structure principale dès En cours.
+  Elle a été corrigée par l'auteur le 2026-11-01, à la réalisation du lot : elle contredisait
+  WF-RAE-0040, dont la grille de reste à engager saisit les lignes en En cours par ces mêmes
+  opérations, et C-358, qui ne fait refuser au serveur aucune écriture selon la grille qui
+  l'envoie.
 - **Écarté : la règle dans les différentiels aussi**, qui interdirait de rebudgéter par avenant ce
   qui est fait.
 

@@ -461,7 +461,9 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     return Fields(dates, [*editable, *main_only])
 
 
-def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -> Fields:
+def line_fields(
+    *, is_labour: bool, is_provision: bool, is_held: bool = False, is_closed: bool = False
+) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
     A labour line takes its role and its hours, its category being its role's, computed (Vérif of
@@ -475,7 +477,11 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
     a payment delay, which it does not carry (WF-DEV-0020; EP-14/L42s). A line held by its
     subproject — its task started or completed, the subproject charged with actual costs — does
     not take it either: it may not leave it, a share of those costs being its own, and its
-    subproject is not computed for all that (WF-PRJ-0050, #1066).
+    subproject is not computed for all that (WF-PRJ-0050, #1066). A line closed — of the main
+    structure, its task completed — takes nothing, not even its label: it is not modified until
+    its task is reopened from the Kanban (WF-RAE-0040, WF-DEV-0050), and what it computes is
+    unchanged; on a differential, its fields stay open, for the amendment to rebudget it
+    (WF-REV-0050; F-01, #1766).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
@@ -484,7 +490,7 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
             "estimate_line.unit_disbursement",
             "estimate_line.subproject_id",
         ]
-        return Fields(provision, editable)
+        return Fields(provision, [] if is_closed else editable)
     computed: list[JsonValue] = []
     if is_labour:
         computed.append("estimate_line.cost_category_id")
@@ -502,7 +508,7 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
     editable.append("estimate_line.payment_delay_days")
     if not is_held:
         editable.append("estimate_line.subproject_id")
-    return Fields(computed, editable)
+    return Fields(computed, [] if is_closed else editable)
 
 
 def computable(value: str) -> JsonObject:

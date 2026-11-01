@@ -20,7 +20,13 @@ The author decided each major point by point (`docs/api/DECISIONS.md`, the secti
   which bear no subtask: refused on ``/parent_id``, the milestone named (F-04, #1771);
 - ``nodes_awaiting_own_lines.json``, the studies read in a counterfactual variant where they bear
   a line of their own, 500,00 to commit, and the operator desks, their last open subordinate,
-  are completed: the summary stays started, and awaits its own lines (F-05, #1774).
+  are completed: the summary stays started, and awaits its own lines (F-05, #1774);
+- ``estimate_line_completed_refused.json``, ``estimate_line_completed_update_refused.json``,
+  ``node_delete_line_completed_refused.json`` and ``nodes_move_completed_refused.json``, on the
+  main structure of the project in progress, a line created under the detailed studies, completed,
+  their line modified, then deleted, and the terminal blocks moved under them: refused by
+  ``task_not_completed``, the task reopened from the Kanban first, whatever the phase of the
+  project — a differential accepts them, its amendment rebudgeting the line (F-01, #1766).
 
 Nothing here reads the clock or draws at random, nor a file the same command writes.
 """
@@ -186,6 +192,115 @@ def _under_milestone() -> dict[str, JsonObject]:
     }
 
 
+COMPLETED_UNDER = N.DETAILED_STUDIES
+COMPLETED_LINE = N.STUDIES_LINE
+COMPLETED_MOVED = N.BLOCKS
+"""The task completed of the main structure, the detailed studies; its one line, the detailed
+engineering; and the line sent under it from a task not completed, the terminal blocks of the
+wiring of the cabinets."""
+
+COMPLETED_CORRELATION, MOVE_COMPLETED_CORRELATION = universe(1186), universe(1195)
+UPDATE_COMPLETED_CORRELATION, DELETE_COMPLETED_CORRELATION = universe(1674), universe(1675)
+
+
+def completed_refused(correlation: str) -> JsonObject:
+    """Return the refusal of a line written on the main structure under the detailed studies.
+
+    On the main structure, no line is created under a task completed, nor modified, deleted, or
+    moved to it or from it: the task is reopened from the Kanban first (WF-DEV-0050, WF-RAE-0040,
+    WF-RAE-0030). The state of the task refuses it, by the condition a line under it misses; the
+    phase of the project refuses nothing (C-358), and a differential refuses nothing either, its
+    amendment rebudgeting the line (WF-REV-0050; F-01, #1766).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    if cast("JsonObject", rows[COMPLETED_UNDER].node["task"])["progress"] != "completed":
+        message = f"the task {COMPLETED_UNDER} is not completed"
+        raise ValueError(message)
+    if rows[COMPLETED_LINE].parent != COMPLETED_UNDER:
+        message = f"the line {COMPLETED_LINE} is not under the task {COMPLETED_UNDER}"
+        raise ValueError(message)
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "task_not_completed"},
+        "correlation_id": correlation,
+    }
+
+
+def estimate_line_completed_refused() -> JsonObject:
+    """Return what createNode answers to a line created under a task completed (#1184)."""
+    return completed_refused(COMPLETED_CORRELATION)
+
+
+def estimate_line_completed_update_refused() -> JsonObject:
+    """Return what updateEstimateLine answers to the line of a task completed, modified."""
+    return completed_refused(UPDATE_COMPLETED_CORRELATION)
+
+
+def node_delete_line_completed_refused() -> JsonObject:
+    """Return what deleteNode answers to the line of a task completed, deleted."""
+    return completed_refused(DELETE_COMPLETED_CORRELATION)
+
+
+def nodes_move_completed_refused() -> JsonObject:
+    """Return what moveNodes answers to the blocks moved under a task completed (#1214).
+
+    « Le déplacement d'une ligne vers elle, est refusé » (Vérif of WF-DEV-0050): the blocks of the
+    wiring, a task not completed, sent under the detailed studies.
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    bearer = rows[cast("int", rows[COMPLETED_MOVED].parent)]
+    if cast("JsonObject", bearer.node["task"])["progress"] == "completed":
+        message = f"the line {COMPLETED_MOVED} is under a task completed"
+        raise ValueError(message)
+    return completed_refused(MOVE_COMPLETED_CORRELATION)
+
+
+def _completed_examples() -> dict[str, JsonObject]:
+    rows = {row.number: row for row in mockcore.current()}
+    under, line = rows[COMPLETED_UNDER].label, rows[COMPLETED_LINE].label
+    moved_from = rows[cast("int", rows[COMPLETED_MOVED].parent)].label
+    on = (
+        f"Sur la structure principale de la révision courante, le projet En cours, sous les "
+        f"« {under} », terminées"
+    )
+    reopened = (
+        "la tâche se rouvre d'abord depuis le Kanban ; la phase du projet ne refuse rien (C-358), "
+        "et un différentiel l'accepterait, son avenant rebudgétant la ligne (WF-REV-0050)"
+    )
+    return {
+        "estimate_line_completed_refused.json": mocktext.example(
+            f"{on} : une ligne créée sous elles. Aucune ligne de la structure principale ne se "
+            f"crée sous une tâche terminée : {reopened}. La création est refusée, la condition "
+            f"nommée ; rien n'est créé (WF-DEV-0050, WF-RAE-0030, #1184, #1766).",
+            estimate_line_completed_refused(),
+        ),
+        "estimate_line_completed_update_refused.json": mocktext.example(
+            f"{on} : leur ligne « {line} » modifiée. Une ligne de la structure principale d'une "
+            f"tâche terminée ne se modifie pas, son libellé pas plus que ses grandeurs, et ne "
+            f"nomme aucun champ parmi ceux qu'elle accepte (editable_fields) : {reopened}. "
+            f"La modification est refusée, la condition nommée ; rien n'est écrit (WF-RAE-0040, "
+            f"WF-DEV-0050, #1766).",
+            estimate_line_completed_update_refused(),
+        ),
+        "node_delete_line_completed_refused.json": mocktext.example(
+            f"{on} : leur ligne « {line} » supprimée. Une ligne de la structure principale d'une "
+            f"tâche terminée ne se supprime pas : {reopened}. La suppression est "
+            f"refusée, la condition nommée ; rien n'est supprimé (WF-RAE-0040, WF-DEV-0050, "
+            f"#1766).",
+            node_delete_line_completed_refused(),
+        ),
+        "nodes_move_completed_refused.json": mocktext.example(
+            f"{on} : les « {rows[COMPLETED_MOVED].label} » du "
+            f"« {moved_from} », non terminé, déplacés sous elles. Aucune "
+            f"ligne de la structure principale ne se déplace vers une tâche terminée, ni depuis "
+            f"elle : {reopened}. Le déplacement est refusé, la condition nommée ; rien ne bouge "
+            f"(WF-DEV-0050, WF-RAE-0030, #1214, #1766).",
+            nodes_move_completed_refused(),
+        ),
+    }
+
+
 def _awaiting_own_lines() -> JsonObject:
     rows = mockcore.current(described(awaiting_roots()))
     read = mockcore.subtree(rows, N.STUDIES)
@@ -235,4 +350,5 @@ def examples() -> dict[str, JsonObject]:
         "rate_update_category_not_proposed.json": _category_not_proposed(),
         **_under_milestone(),
         "nodes_awaiting_own_lines.json": _awaiting_own_lines(),
+        **_completed_examples(),
     }

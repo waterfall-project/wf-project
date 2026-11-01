@@ -24,7 +24,7 @@ marked revision show none.
 from __future__ import annotations
 
 import functools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
@@ -120,6 +120,8 @@ class Row:
     node: JsonObject
     hours: Decimal = Decimal(0)
     amounts: Amounts = field(default_factory=Amounts)
+    opened: list[JsonValue] | None = None
+    """The fields a line closed on the main structure accepts on a differential (``opened``)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,7 +199,10 @@ class _Emitter:
         """Append a line of a task, consumed in the year its task starts; return its amounts.
 
         A line of a task started or completed does not leave a subproject charged with actual
-        costs (WF-PRJ-0050): it does not name it among the fields it accepts.
+        costs (WF-PRJ-0050): it does not name it among the fields it accepts. A line of a task
+        completed accepts none, read as the main structure reads it: it is not modified until the
+        task is reopened from the Kanban (WF-RAE-0040); the fields a differential opens to it,
+        for the amendment to rebudget it, are kept aside (``opened``; WF-REV-0050, F-01, #1766).
         """
         task = place.bearing
         completed = progress == "completed"
@@ -224,15 +229,27 @@ class _Emitter:
             "remaining_entry": _remaining_entry(completed=completed, provision=line.is_provision),
         }
         node = self._node(line.number, place, ESTIMATE_LINE, facet)
+        is_labour, is_provision = line.hours is not None, line.is_provision
         fields = line_fields(
-            is_labour=line.hours is not None, is_provision=line.is_provision, is_held=held
+            is_labour=is_labour, is_provision=is_provision, is_held=held, is_closed=completed
         )
         node["computed_fields"] = fields.computed
         node["editable_fields"] = fields.editable
+        opened = None
+        if completed:
+            opened = line_fields(is_labour=is_labour, is_provision=is_provision, is_held=held)
         hours = Decimal(0) if line.hours is None else line.hours
         self.rows.append(
             Row(
-                line.number, task.number, place.row, ESTIMATE_LINE, line.label, node, hours, amounts
+                line.number,
+                task.number,
+                place.row,
+                ESTIMATE_LINE,
+                line.label,
+                node,
+                hours,
+                amounts,
+                None if opened is None else opened.editable,
             )
         )
         return amounts
@@ -530,6 +547,22 @@ def current(roots: Iterable[Task] | None = None) -> list[Row]:
     write entered: a line a write adds has none.
     """
     return core(described() if roots is None else roots, previous=REFERENCE)
+
+
+def opened(rows: Iterable[Row]) -> list[Row]:
+    """Return a structure read as a differential or the own estimate of a risk reads it.
+
+    The emitter reads every structure as the main one, whose lines of a task completed accept no
+    field (WF-RAE-0040); a differential, or an own estimate, opens them, for the amendment to
+    rebudget them (WF-REV-0050; F-01, #1766). A line opened is a copy: the nodes of a reading are
+    shared by every reading of it.
+    """
+    return [
+        row
+        if row.opened is None
+        else replace(row, node={**row.node, "editable_fields": row.opened}, opened=None)
+        for row in rows
+    ]
 
 
 REFERENCE = reference(described())
