@@ -822,6 +822,7 @@ describe("the gestures of the cards of the Kanban", () => {
     const user = await openMenu("Pupitres opérateurs");
     const entry = await screen.findByRole("menuitem", { name: /^Terminer/ });
     expect(entry).toHaveAttribute("aria-disabled", "true");
+    expect(entry).toHaveAccessibleDescription("Attend la fin du geste en cours.");
     await user.click(entry);
     await user.keyboard("{Escape}");
     expect(within(card("Pupitres opérateurs")).queryByLabelText("Date de l’événement")).toBeNull();

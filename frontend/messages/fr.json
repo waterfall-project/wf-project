@@ -835,7 +835,8 @@
     "cancel": "Annuler",
     "noGesture": "Aucun geste ne mène cette tâche vers la colonne « {column} ».",
     "gestureUnavailable": "« {command} » est indisponible. {conditions}",
-    "asking": "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste."
+    "asking": "Une date est déjà demandée sur une autre tâche : validez-la ou abandonnez-la avant de demander ce geste.",
+    "busy": "Attend la fin du geste en cours."
   },
   "contextBanner": {
     "label": "Contexte de lecture",
@@ -1303,6 +1304,18 @@
     },
     "cardGestures": {
       "help": "Ouvre le menu des gestes de cette tâche."
+    },
+    "startTask": {
+      "help": "Démarre la tâche, à la date de l’événement demandée sur la carte : la grille du reste à engager montre alors ses lignes par défaut, pour leur réestimation."
+    },
+    "completeTask": {
+      "help": "Termine la tâche, qui ne porte aucune ligne hors provision — un jalon, même non démarré, ou une tâche démarrée —, à la date de l’événement demandée sur la carte."
+    },
+    "reopenTask": {
+      "help": "Rouvre la tâche terminée : elle redevient démarrée ; un jalon redevient non démarré, ses dates effacées."
+    },
+    "enterRemaining": {
+      "help": "Mène à la grille du reste à engager, sur les lignes de cette tâche, où elles se réestiment."
     },
     "retryReading": {
       "help": "Relit les tâches de cette carte."
@@ -1809,6 +1822,11 @@
       },
       "passthrough": {
         "help": "Colonne de l’extraction que la correspondance déclare conservée, restituée telle quelle : elle n’entre dans aucun calcul."
+      }
+    },
+    "comparison": {
+      "changes": {
+        "help": "Ce qui change du nœud lui-même d’une révision à l’autre, tel que le serveur le nomme : les dates, la durée, l’avancement ou le rattachement d’une tâche ; les montants budgété et réestimé, le délai de paiement ou le rattachement d’une ligne. Vide pour un nœud ajouté, retiré ou inchangé, et pour une tâche modifiée par son seul contenu — une ligne ou une subordonnée qui change."
       }
     }
   },

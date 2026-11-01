@@ -37,6 +37,7 @@ import {
 import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
 import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
+import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
 
 import {
@@ -95,7 +96,8 @@ const CONTRIBUTORS = CONTRIBUTOR_GRID.columns;
  * The columns each screen defines: the grid of its function and the section of the grid itself;
  * the column a section of a single column is; the grids of a screen of the reference data or of
  * the settings of a project, each definition once, and the grids of its sections; the lines of the
- * actual costs, every column kept from the file being defined alike. A table is defined with
+ * actual costs, every column kept from the file being defined alike; the comparison of two
+ * revisions, the one grid of their management. A table is defined with
  * every column a session may see there — those of its commands included, which only a session that
  * may exercise them sees.
  */
@@ -113,6 +115,7 @@ const COLUMNS: Readonly<Record<string, readonly HelpColumn[]>> = {
   "FBS-3.2.2": defined(RESOURCE_ROLES),
   "FBS-3.2.3": defined(CALENDARS),
   "FBS-4": defined(PROJECT_LIST_GRID.columns),
+  "FBS-4.1": defined(COMPARISON_GRID.columns),
   "FBS-4.2": distinct(WORK_BREAKDOWN, SUBPROJECTS, CONTRIBUTORS),
   "FBS-4.2.1": defined(WORK_BREAKDOWN),
   "FBS-4.2.3": defined(SUBPROJECTS),
