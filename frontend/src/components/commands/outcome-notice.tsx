@@ -11,8 +11,7 @@
  * session (401), the way to the sign-in page,
  * which comes back here; and, the API out of reach, that it is — the screen stays, it never goes
  * blank. The objects the refusal gives by their identifiers alone are named as the screen read them:
- * those it was given, and those the screen lends every notice under it (`KnownNames`) — every role,
- * which a refusal of a calendar gives by its identifier (`resource_role_ids`, EP-14/L42r).
+ * those it was given, and those the screen lends every notice under it (`KnownNames`).
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once — save
  * the lines or the projects listed, which may run to thousands: out of the alert, which would read

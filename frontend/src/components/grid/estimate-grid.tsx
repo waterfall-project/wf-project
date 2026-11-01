@@ -31,7 +31,6 @@ import {
 } from "@/api/actions/nodes";
 import type { Outcome } from "@/api/problem";
 import { formatPercent } from "@/i18n/format";
-import { KnownNames, type ObjectNames } from "@/components/commands/outcome-notice";
 
 import { DenseGrid } from "./dense-grid";
 import {
@@ -104,25 +103,6 @@ export interface EstimateGridProps {
    * server rates them; none, and the column bears a definition that names neither.
    */
   readonly inflation?: { readonly referenceYear: number; readonly rate: string } | undefined;
-}
-
-/**
- * The roles the grid knows by their labels, by identifier: those of the lines it shows
- * (`resource_role_label`) and those it offers a line (`reference.roles`), which a refusal that
- * leaves a task without a working hour names by their identifiers alone (`resource_role_ids`,
- * WF-PLA-0010, #779).
- */
-function roleNames(rows: readonly EstimateNode[], roles: EstimateReference["roles"]): ObjectNames {
-  const names: Record<string, string> = {};
-  for (const { estimate_line: line } of rows) {
-    if (line?.resource_role_id != null && line.resource_role_label != null) {
-      names[line.resource_role_id] = line.resource_role_label;
-    }
-  }
-  for (const { id, label } of roles ?? []) {
-    names[id] = label;
-  }
-  return names;
 }
 
 /**
@@ -316,27 +296,21 @@ export function EstimateGrid({
     locale,
   ]);
   const config = useMemo(() => withDifference(read, differential), [read, differential]);
-  const names = useMemo(
-    () => roleNames(nodes.items, reference.roles),
-    [nodes.items, reference.roles],
-  );
   return (
-    <KnownNames names={names}>
-      <DenseGrid
-        config={config}
-        rows={nodes.items}
-        totals={nodes.totals}
-        totalsCaption={(totals) =>
-          t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
-        }
-        query={query}
-        preferences={preferences}
-        dependencies={dependencies}
-        foldScope={structure.revision_id}
-        narrowing={nodeNarrowing(filters)}
-        undoable={editable}
-        commands={gestures}
-      />
-    </KnownNames>
+    <DenseGrid
+      config={config}
+      rows={nodes.items}
+      totals={nodes.totals}
+      totalsCaption={(totals) =>
+        t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
+      }
+      query={query}
+      preferences={preferences}
+      dependencies={dependencies}
+      foldScope={structure.revision_id}
+      narrowing={nodeNarrowing(filters)}
+      undoable={editable}
+      commands={gestures}
+    />
   );
 }

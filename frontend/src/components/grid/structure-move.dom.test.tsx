@@ -499,18 +499,17 @@ describe("the refusal of a move, said to the row in cause", () => {
     expect(alert).toHaveTextContent("Câblage des armoires");
   });
 
-  it("names the task of a move refused from the planning, whose grid reads no role: the roles are left unnamed, by no identifier [WF-PLA-0010-A]", async () => {
+  it("names the task and both roles of a move refused from the planning, whose grid reads no role: the refusal names them itself [WF-PLA-0010-A]", async () => {
     // The planning lists tasks and reads no estimate line nor the settings of the resources: the
-    // roles of the refusal stay unnamed, and the notice says so.
-    // This fallback sentence does not yet hold the Vérif of WF-PLA-0010 (« en nommant les deux
-    // rôles »): the decision of #1684 is awaited, and this test freezes the sentence as it is. It will have to
-    // change with that decision.
+    // refusal of the contract (#1684) names the two roles by their labels and codes all the same.
     serve({ [MOVE]: refusal("nodes_move_without_hours") });
     render(planningGrid());
     await choose(REVIEW, "Indenter");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Câblage des armoires");
-    expect(alert).toHaveTextContent("Les calendriers de ses rôles ne se recoupent aucun jour.");
+    expect(alert).toHaveTextContent(
+      "Rôles dont les calendriers ne se recoupent aucun jour : Ingénieur électricien (ING-ELEC) et Technicien de mise en service (TECH-MES).",
+    );
     expect(alert).not.toHaveTextContent("000000000451");
   });
 

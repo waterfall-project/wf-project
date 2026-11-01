@@ -122,14 +122,22 @@ describe("the refusal of a cell that would leave a task without a working hour (
     ]);
   });
 
-  it("says the roles of the refusal are unnamed, by no identifier and no blank, when neither a line shown nor the roles the session reads know them [WF-PLA-0010-A]", async () => {
-    // An estimator reads the active roles alone (`resource_settings.read` missing): the two roles of
-    // the refusal are deactivated, and no line of the grid bears them.
+  it("names the roles of the refusal by their labels and codes even when neither a line shown nor the roles the session reads know them [WF-PLA-0010-A]", async () => {
+    // An estimator reads the active roles alone (`resource_settings.read` missing): a variant of the
+    // refusal of the contract names two deactivated roles, which no line of the grid bears; the
+    // refusal names them itself (#1684).
     const refused = example("estimate_line_without_hours") as Problem & { status: 422 };
-    const unknown = [AUTOMATION_ENGINEER, "01926f3a-7c00-7000-8000-000000000455"];
+    const unknown = [
+      { resource_role_id: AUTOMATION_ENGINEER, code: "AUTOM", label: "Automaticien" },
+      {
+        resource_role_id: "01926f3a-7c00-7000-8000-000000000455",
+        code: "ARCH",
+        label: "Archiviste",
+      },
+    ];
     const client = fakeClient({
       [LINE]: {
-        problem: { ...refused, params: { ...refused.params, resource_role_ids: unknown } },
+        problem: { ...refused, params: { ...refused.params, resource_roles: unknown } },
       },
     });
     server.client = client;
@@ -157,10 +165,11 @@ describe("the refusal of a cell that would leave a task without a working hour (
     );
     await userEvent.keyboard("{Tab}");
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Les calendriers de ses rôles ne se recoupent aucun jour.");
+    expect(alert).toHaveTextContent(
+      "Rôles dont les calendriers ne se recoupent aucun jour : Automaticien (AUTOM) et Archiviste (ARCH).",
+    );
     expect(alert).toHaveTextContent("Câblage des armoires");
     expect(alert).not.toHaveTextContent("000000000453");
-    expect(alert).not.toHaveTextContent("Automaticien");
   });
 });
 
