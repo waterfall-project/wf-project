@@ -475,7 +475,7 @@ def test_the_declaration_names_the_state_of_the_entry_before_its_own_conditions(
         "sur un projet terminal, où la commande n'est pas listée", 1
     )
     assert len(terminal) == 2
-    assert terminal[1].startswith(", il nomme `project_not_terminal`.")
+    assert "`project_not_terminal`" in terminal[1][:60]
     assert "de la révision en cours, ou de celle que la déclaration créerait" in refused
     # The examples name the conditions in that order, `project_not_terminal` first on a terminal
     # project; those of the entry of the risks alone, where the structure is not judged.

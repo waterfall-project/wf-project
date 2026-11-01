@@ -230,7 +230,8 @@ RevisionCommand:
     `designate_reference` nomme `revision_marked` sur la révision en cours, puis
     `revision_has_tasks_and_lines`, `reference_correctable` et `no_background_task_running`
     pendant un traitement de fond qui court sur la révision ; `designateReferenceRevision` refuse
-    par la première qui manque, dans cet ordre (WF-CYC-0030, WF-REV-0040 ; E-12, US-0702/L2).
+    par la première qui manque, dans cet ordre, `project_not_terminal` d'abord sur un projet
+    terminal (WF-CYC-0030, WF-REV-0040 ; E-12, US-0702/L2, #1674).
 
 RevisionCommandAvailability:
   type: object

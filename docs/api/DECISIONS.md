@@ -5356,6 +5356,9 @@ autre détail ». Écartée : l'option (b) de #762, garder `params.tasks` et pas
 libellé d'une tâche d'un projet que l'appelant ne consulte pas — la forme du refus aurait dépendu de
 ce que l'appelant consulte, et un même refus se serait lu autrement d'une session à l'autre.
 
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu.*
+
 Exemple `calendar_update_without_hours` (corrélation 1112), cité sous le 422 d'`updateCalendar`
 après `hours_out_of_range`, qui reste le premier : la semaine de quatre jours, le calendrier du
 monteur câbleur, vidée de ses heures. Ce rôle travaille seul sur les cent trois tâches de câblage de
@@ -5864,6 +5867,9 @@ calendrier sans heure ; et de même `createNode`, le 422 d'`updateEstimateLine` 
 `Problem.params.resource_role_ids`, qui nomme alors ce rôle seul (relecture 1). La mention de la
 section d'EP-02/L30 le dit. Pas d'exemple nouveau : le refus a la forme de
 `calendar_update_without_hours`.
+
+*Remplacé par US-0640/L5 (#1684) : tout refus `TASK_WITHOUT_WORKING_HOURS` nomme ses rôles par
+`params.resource_roles` (identifiant, code, libellé) ; `resource_role_ids` n'est plus rendu.*
 
 **Le refus d'un changement de type nomme les catégories en cause** (#766, point 2 ; WF-IHM-0090 :
 « Tout refus nomme la condition manquante et, lorsqu'elle est atteignable par l'utilisateur, ce

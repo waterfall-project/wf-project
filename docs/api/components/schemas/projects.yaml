@@ -381,7 +381,8 @@ CommandCondition:
     plus, le projet ayant reçu un coût réel ou une révision ayant été marquée depuis la
     dernière désignation (WF-REV-0040). `designateReferenceRevision` refuse dans son 409 par la
     première qui manque, dans cet ordre, `STATE_FORBIDS_OPERATION` la nommant, comme toute
-    autre (EP-15/US-0490 ; J-01, #1795).
+    autre (EP-15/US-0490 ; J-01, #1795) ; sur un projet terminal, il nomme d'abord
+    `project_not_terminal` (#1674).
     `actual_cost_mapping_complete` manque à l'import des coûts réels
     (`ProjectCommand.import_actual_costs`) tant que l'une des quatre colonnes exigées de la
     correspondance de l'extraction n'a aucun intitulé — ainsi sur une installation neuve, dont

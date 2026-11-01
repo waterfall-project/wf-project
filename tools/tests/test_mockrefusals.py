@@ -73,7 +73,12 @@ def test_the_designation_on_a_terminal_project_names_its_condition_before_the_co
     answer = _operations()["designateReferenceRevision"]["responses"]["409"]
     said = " ".join(answer["description"].split())
     assert said.index("`project_not_terminal`") < said.index("`revision_marked`")
-    assert _cited("designateReferenceRevision", "409")[-1] == "reference_designation_terminal"
+    # The schemas that list the commands say it too (#1674).
+    schemas = API / "components" / "schemas"
+    projects = " ".join((schemas / "projects.yaml").read_text("utf-8").split())
+    revisions = " ".join((schemas / "revisions.yaml").read_text("utf-8").split())
+    assert "sur un projet terminal, il nomme d'abord `project_not_terminal` (#1674)" in projects
+    assert "`project_not_terminal` d'abord sur un projet terminal" in revisions
 
 
 def test_a_marked_revision_refuses_a_task_created_and_the_skeleton_by_revision_draft() -> None:

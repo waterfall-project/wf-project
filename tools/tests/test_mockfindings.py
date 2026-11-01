@@ -157,11 +157,13 @@ def test_the_register_of_the_risks_is_paged_its_totals_on_every_risk_retained() 
             assert register["totals"] == whole["totals"]
             continue
         assert register["meta"] == {"limit": 50, "offset": 0, "total": len(register["items"])}
-        if not register["items"]:
-            # A register that retains no risk has its totals, all null (WF-RIS-0040; #1695).
-            totals = cast("dict[str, str]", register["totals"])
-            assert set(totals) == set(whole["totals"]), name
-            assert all(Decimal(value) == 0 for value in totals.values()), name
+    # A register that retains no risk has its totals, all at zero (WF-RIS-0040; #1695): read
+    # from the fixture itself, so that the check cannot be skipped.
+    empty = fixture("risks_empty")
+    assert empty["items"] == []
+    totals = cast("dict[str, str]", empty["totals"])
+    assert set(totals) == set(whole["totals"])
+    assert all(Decimal(value) == 0 for value in totals.values())
     assert {"risks_page", "risks_empty"} <= set(_cited("listRisks", "200"))
 
 
