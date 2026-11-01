@@ -2182,7 +2182,10 @@ tooltip says:
 A menu item is written by `MenuCommand` (`menu-command.tsx`), which takes the item
 (`item={ContextMenuItem}` or `DropdownMenuItem`), the name, the help, the keys, the condition, the
 icon and `onSelect`: the name is both the text of the item and that of the tooltip, and the keys
-are set on the item, shown at its end and in the tooltip, from a single input.
+are set on the item, shown at its end and in the tooltip, from a single input. An item that leads
+elsewhere takes `href` instead of `onSelect` — one or the other, never both —, and is rendered as a
+link; `detail` is a text the item says under its name, the condition a gesture of the Kanban lacks
+(#1435).
 
 The tooltip follows WCAG 1.4.13: it opens on hover, after a short rest, and on keyboard focus, at
 once — in a menu, after the same rest, so that Escape pressed at once closes the menu (`inMenu`,

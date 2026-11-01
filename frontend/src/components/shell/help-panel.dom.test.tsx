@@ -289,8 +289,9 @@ describe("the panel of the help", () => {
     await within(dialog).findAllByRole("heading", { level: 3 });
     await user.type(
       within(dialog).getByRole("searchbox", { name: "Chercher dans l’aide" }),
-      "acquise",
+      "la valeur acquise",
     );
+    // « Courbes de valeur acquise », FBS-4.8.8, has no « la ».
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page trouvée");
     await user.click(within(dialog).getByRole("link", { name: "La valeur acquise" }));
     await panel("La valeur acquise");
@@ -339,7 +340,10 @@ describe("the panel of the help", () => {
     await user.click(screen.getByRole("button", { name: "Help" }));
     const dialog = await panel("Planification");
     await within(dialog).findAllByRole("heading", { level: 3 });
-    await user.type(within(dialog).getByRole("searchbox", { name: "Search the help" }), "acquise");
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Search the help" }),
+      "la valeur acquise",
+    );
     expect(within(dialog).getByRole("status")).toHaveTextContent("1 page found");
     expect(within(dialog).getByRole("status").closest("[lang]")).toBeNull();
     expect(
@@ -413,11 +417,41 @@ describe("the panel of the help", () => {
     expect(screen.queryByRole("dialog", { name: "Chiffrage et devis" })).toBeNull();
   });
 
-  it("offers no help where the table of the functions knows no screen", () => {
-    at.pathname = "/account";
+  it("opens, on the page of a project, the help of the projects, FBS-4 [WF-IHM-0140-A]", async () => {
+    // #1439: the page of a project, which no function of the table routes to, opens the help of
+    // the block of the projects, whose page describes it.
+    at.pathname = "/projects/01926f3a-7c00-7000-8000-000000000001";
+    const user = userEvent.setup();
     renderHeader();
-    expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+    await user.click(helpButton());
+    const dialog = await panel("Projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4" });
+    expect(dialog).toHaveTextContent("La page d’un projet");
   });
+
+  it("opens, on the indicators of a project, their help, its parts leading to the page of each card and chart [WF-IHM-0140-A]", async () => {
+    // US-0670/L5 (#1452): the last screen of the table to receive its help.
+    at.pathname = "/projects/p/revisions/r/indicators";
+    const user = userEvent.setup();
+    renderHeader();
+    await user.click(helpButton());
+    const dialog = await panel("Indicateurs projets");
+    expect(readHelp).toHaveBeenCalledWith({ kind: "screen", code: "FBS-4.8" });
+    expect(
+      within(dialog).getByRole("navigation", { name: "Les parties de l’écran" }),
+    ).toHaveTextContent(
+      "Avancement financierProjection à terminaisonAvancement physiqueIndicateur de coûts (CPI)Indicateur de délais (SPI)Suivi des jalonsCoûts cumulésCourbes de valeur acquise",
+    );
+  });
+
+  it.each([["/account"], ["/account/avatar"], ["/login/unavailable"]])(
+    "offers no help at %s, outside the table of the functions",
+    (pathname) => {
+      at.pathname = pathname;
+      renderHeader();
+      expect(screen.queryByRole("button", { name: "Aide" })).toBeNull();
+    },
+  );
 });
 
 /** The button of the panel that comes back to the page of the screen. */

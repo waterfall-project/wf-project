@@ -19,14 +19,14 @@ import {
   Play,
   Undo2,
 } from "lucide-react";
-import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useUnmet } from "@/components/commands/command";
-import { CommandTooltip } from "@/components/commands/command-tooltip";
+import { type CommandHelp, CommandTooltip } from "@/components/commands/command-tooltip";
+import { MenuCommand } from "@/components/commands/menu-command";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,14 @@ const ICONS: Readonly<Record<KanbanCommand, LucideIcon>> = {
   reopen: Undo2,
   enter_remaining: PenLine,
 };
+
+/** The help of each gesture, `commands.<gesture>.help`, which its tooltip says. */
+const GESTURE_HELPS = {
+  start: "startTask",
+  complete: "completeTask",
+  reopen: "reopenTask",
+  enter_remaining: "enterRemaining",
+} as const satisfies Readonly<Record<KanbanCommand, CommandHelp>>;
 
 /** The type of the data a card carries when dragged: no text a field would take on a drop. */
 const DRAG_TYPE = "application/x-waterfall-card";
@@ -103,6 +111,76 @@ function CardDate({ card }: { readonly card: KanbanCard }) {
 }
 
 /**
+ * A gesture of the menu of a card, with its tooltip (`MenuCommand`, #1435): its name, what it does
+ * (`commands.<gesture>.help`), and, unavailable, the conditions it lacks, said under its name and in
+ * its tooltip — chosen, it does nothing, the menu left open on why; the entry of the remaining to
+ * commit a link to the grid on the task. While a gesture is written, the others wait, and say so.
+ */
+function GestureItem({
+  card,
+  gesture,
+  remaining,
+  busy,
+  onChosen,
+}: {
+  readonly card: KanbanCard;
+  readonly gesture: CardGesture;
+  readonly remaining: string;
+  readonly busy: boolean;
+  /** The gesture chosen: it is made once the menu is gone. */
+  readonly onChosen: () => void;
+}) {
+  const t = useTranslations("kanban");
+  const helps = useTranslations("commands");
+  const commands = useTranslations("enums.KanbanCommand");
+  const unmet = useUnmet();
+  const lacking = useId();
+  const Icon = ICONS[gesture.command];
+  const said = {
+    item: DropdownMenuItem,
+    label: commands(gesture.command),
+    help: helps(`${GESTURE_HELPS[gesture.command]}.help`),
+    icon: <Icon aria-hidden="true" />,
+  };
+  if (!gesture.is_available) {
+    const conditions = unmet(gesture);
+    return (
+      <MenuCommand
+        {...said}
+        unavailable={conditions}
+        describedBy={lacking}
+        detail={
+          <span id={lacking} className="block text-xs text-muted-foreground">
+            {conditions}
+          </span>
+        }
+        className={UNAVAILABLE}
+        onSelect={(event) => {
+          event.preventDefault();
+        }}
+      />
+    );
+  }
+  if (gesture.command === "enter_remaining") {
+    return <MenuCommand {...said} href={remainingHref(remaining, card)} />;
+  }
+  return (
+    <MenuCommand
+      {...said}
+      unavailable={busy ? t("busy") : undefined}
+      className={UNAVAILABLE}
+      onSelect={(event) => {
+        if (busy) {
+          event.preventDefault();
+          return;
+        }
+        onChosen();
+      }}
+    />
+  );
+}
+
+/**
  * The menu of the gestures of a card: every gesture it lists, available or not — an unavailable one
  * stays in the menu, and names what it lacks (WF-IHM-0090) —, the entry of the remaining to commit a
  * link to the grid on the task. The focus goes where the gesture sends it, not back to the button.
@@ -128,8 +206,6 @@ function CardMenu({
 }) {
   const t = useTranslations("kanban");
   const helps = useTranslations("commands");
-  const commands = useTranslations("enums.KanbanCommand");
-  const unmet = useUnmet();
   const chosen = useRef<CardGesture>(undefined);
   // Whether the menu was left by a click or a touch outside it: the focus then stays where it went.
   const outside = useRef(false);
@@ -178,59 +254,18 @@ function CardMenu({
           }
         }}
       >
-        {card.commands.map((gesture) => {
-          const Icon = ICONS[gesture.command];
-          const name = commands(gesture.command);
-          const lacking = gesture.is_available ? null : (
-            <span className="block text-xs text-muted-foreground">{unmet(gesture)}</span>
-          );
-          const label = (
-            <>
-              <Icon aria-hidden="true" />
-              <span>
-                {name}
-                {lacking}
-              </span>
-            </>
-          );
-          if (!gesture.is_available) {
-            return (
-              <DropdownMenuItem
-                key={gesture.command}
-                aria-disabled="true"
-                className={UNAVAILABLE}
-                onSelect={(event) => {
-                  event.preventDefault();
-                }}
-              >
-                {label}
-              </DropdownMenuItem>
-            );
-          }
-          if (gesture.command === "enter_remaining") {
-            return (
-              <DropdownMenuItem key={gesture.command} asChild>
-                <Link href={remainingHref(remaining, card)}>{label}</Link>
-              </DropdownMenuItem>
-            );
-          }
-          return (
-            <DropdownMenuItem
-              key={gesture.command}
-              aria-disabled={busy ? "true" : undefined}
-              className={UNAVAILABLE}
-              onSelect={(event) => {
-                if (busy) {
-                  event.preventDefault();
-                  return;
-                }
-                chosen.current = gesture;
-              }}
-            >
-              {label}
-            </DropdownMenuItem>
-          );
-        })}
+        {card.commands.map((gesture) => (
+          <GestureItem
+            key={gesture.command}
+            card={card}
+            gesture={gesture}
+            remaining={remaining}
+            busy={busy}
+            onChosen={() => {
+              chosen.current = gesture;
+            }}
+          />
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

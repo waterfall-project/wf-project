@@ -1014,6 +1014,10 @@ ce qui manque, et qu'une commande que je n'ai pas le droit d'exercer ne me soit 
   cette commande. »
 - `WF-IHM-0090-A` — « Un refus de saisie sur un projet dont l'utilisateur n'est pas
   contributeur nomme cette condition. »
+- écart : `WF-IHM-0090-A` — « Pendant un traitement de fond sur le projet, la saisie du
+  lotissement est présentée indisponible en nommant le traitement en cours comme condition
+  manquante, et une écriture tentée est refusée en le nommant. » : ajouté par la spécification
+  1.0.2 (#1687) ; le lotissement pendant un traitement de fond est d'US-0660/L2 (#1336).
 
 **Notes de réalisation.** Les conditions manquantes viennent du serveur, jamais d'une règle
 recopiée dans le front (WF-ARC-0020) : le projet et la révision portent leurs commandes

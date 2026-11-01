@@ -12,7 +12,12 @@
  * are read on the server alone (`read.ts`).
  */
 import type { ColumnHelp, ColumnLabel } from "@/components/grid/columns";
+import { isIdentifier } from "@/navigation/context";
 import { FUNCTION_GROUPS, findScreen } from "@/navigation/functions";
+import { HOME } from "@/navigation/home";
+
+/** The first segment of the address of a project's page and of its functions. */
+const PROJECTS = "projects";
 
 /**
  * The language the help is written in: French alone, the English version being decided once the
@@ -105,15 +110,23 @@ export function sectionsOf(code: string): readonly string[] {
 
 /**
  * The code of the screen an address shows: that of the function or of the leaf whose route it
- * follows, that of the list of the projects at its route; `undefined` elsewhere — the account, a
- * page of the system.
+ * follows, that of the list of the projects at its route; at the page of a project
+ * (`/projects/<id>`), which no function of the table routes to, that of the block of the projects,
+ * which the breadcrumb puts it under and whose page describes it (#1439); `undefined` elsewhere —
+ * the account, the avatar, the pages of error and of the session, which open no help, an exclusion
+ * written under US-0670 in the file of EP-16.
  */
 export function helpCodeAt(pathname: string): string | undefined {
   const group = FUNCTION_GROUPS.find((each) => each.route === pathname);
   if (group !== undefined) {
     return group.code;
   }
-  return findScreen(pathname.split("/").slice(1))?.fn.code;
+  const segments = pathname.split("/").slice(1);
+  const [first, project, ...rest] = segments;
+  if (first === PROJECTS && project !== undefined && isIdentifier(project) && rest.length === 0) {
+    return FUNCTION_GROUPS.find((each) => each.route === HOME)?.code;
+  }
+  return findScreen(segments)?.fn.code;
 }
 
 /** The name of a notion, as its file is named: words of small letters and digits, by hyphens. */

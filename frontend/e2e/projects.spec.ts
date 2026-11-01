@@ -127,7 +127,9 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
     "Modernisation du poste de commande",
   );
   await expect(main.getByRole("definition").first()).toHaveText("PRJ-001");
-  await expect(main.getByRole("button")).toHaveCount(0);
+  // The page offers no command: its one button is the help, of the projects, FBS-4 (#1439).
+  await expect(main.getByRole("button")).toHaveCount(1);
+  await expect(main.getByRole("button", { name: "Aide", exact: true })).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "Fonctions" });
   await nav.getByRole("link", { name: "Paramètres de projets" }).click();

@@ -5,19 +5,31 @@
  * estimate, of the planning, of the remaining to commit and of the risks (US-0580/L3) has a
  * definition for its header. So has each column of the tables of the administration and of the
  * portfolio, those of their commands included (US-0670/L2, #1434), in both catalogues; and each
- * column of the tables of the reference data (US-0670/L3, #1434).
+ * column of the tables of the reference data (US-0670/L3, #1434), and of the tables of the screens
+ * of the project — the list of the projects, the settings of a project, its actual costs, each
+ * column kept from the file alike (US-0670/L4, #1434), and of the comparison of two revisions
+ * (US-0670/L5, #1434).
  */
 import { describe, expect, it } from "vitest";
 
 import { accessRoleGrid, userGrid } from "@/components/admin/admin-grids";
 import { backupGrid } from "@/components/admin/backup-columns";
 import { auditGrid } from "@/components/audit/audit-columns";
+import { costGrid, KEPT_HEADING } from "@/components/costs/cost-grid";
 import { PROJECT_GRID } from "@/components/portfolio/portfolio-grid";
+import { PROJECT_LIST_GRID } from "@/components/projects/project-list-grid";
+import {
+  BREAKDOWN_GRID,
+  CONTRIBUTOR_GRID,
+  SUBPROJECT_GRID,
+  subprojectGrid,
+} from "@/components/projects/settings-grids";
 import { commandColumns } from "@/components/reference/command-columns";
 import { costCategoryGrid, costTypeGrid } from "@/components/reference/cost-grids";
 import { RATE_HEADINGS } from "@/components/reference/rate-columns";
 import { rateGrid } from "@/components/reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "@/components/reference/resource-grids";
+import { COMPARISON_GRID } from "@/components/revisions/comparison-columns";
 import { RISK_GRID } from "@/components/risks/risk-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { estimateReference } from "@/test/reference";
@@ -44,6 +56,9 @@ const HOURLY_RATES = rateGrid(
   () => 0,
   () => undefined,
 ).columns;
+
+/** The grid of the actual costs with two columns kept from the file, linked: each kept alike. */
+const ACTUAL_COSTS = costGrid(["Nom Matricule", "Centre"], true).columns;
 
 describe("the definitions of the columns", () => {
   it.each([
@@ -72,6 +87,13 @@ describe("the definitions of the columns", () => {
     ["organisation nodes", orgNodeGrid(true).columns],
     ["resource roles", resourceRoleGrid(true).columns],
     ["calendars", calendarGrid(true).columns],
+    ["projects of the home", PROJECT_LIST_GRID.columns],
+    ["work breakdown", BREAKDOWN_GRID.columns],
+    ["sub-projects", SUBPROJECT_GRID.columns],
+    ["sub-projects, editable", subprojectGrid(true).columns],
+    ["contributors", CONTRIBUTOR_GRID.columns],
+    ["actual costs, with columns kept", ACTUAL_COSTS],
+    ["comparison of two revisions", COMPARISON_GRID.columns],
   ] as const)(
     "gives every column of the table of the %s a definition, in both catalogues [WF-IHM-0140-A]",
     (_table, columns: readonly AnyColumn[]) => {
@@ -95,6 +117,14 @@ describe("the definitions of the columns", () => {
       RATE_HEADINGS.state,
       year,
       year,
+    ]);
+  });
+
+  it("defines every column kept from the file of the actual costs alike, under the name the file gives it [WF-IHM-0140-A]", () => {
+    const kept = ACTUAL_COSTS.filter((column) => column.label === KEPT_HEADING.label);
+    expect(kept.map(({ heading, help }) => ({ heading, help }))).toEqual([
+      { heading: "Nom Matricule", help: KEPT_HEADING.help },
+      { heading: "Centre", help: KEPT_HEADING.help },
     ]);
   });
 

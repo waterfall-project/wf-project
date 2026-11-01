@@ -10,10 +10,16 @@ import { auditGrid } from "../audit/audit-columns";
 import { COST_GRID } from "../costs/cost-grid";
 import { PROJECT_GRID } from "../portfolio/portfolio-grid";
 import { PROJECT_LIST_GRID } from "../projects/project-list-grid";
-import { BREAKDOWN_GRID, CONTRIBUTOR_GRID, SUBPROJECT_GRID } from "../projects/settings-grids";
+import {
+  BREAKDOWN_GRID,
+  CONTRIBUTOR_GRID,
+  SUBPROJECT_GRID,
+  subprojectGrid,
+} from "../projects/settings-grids";
 import { costCategoryGrid, costTypeGrid } from "../reference/cost-grids";
 import { rateGrid } from "../reference/rate-grid";
 import { calendarGrid, orgNodeGrid, resourceRoleGrid } from "../reference/resource-grids";
+import { COMPARISON_GRID } from "../revisions/comparison-columns";
 import { RISK_GRID } from "../risks/risk-grid";
 import { MAX_WIDTH, MIN_WIDTH, WIDEST } from "./columns";
 import { ESTIMATE_GRID } from "./estimate";
@@ -194,6 +200,7 @@ describe("the columns a grid records as known", () => {
     risks: RISK_GRID,
     breakdown: BREAKDOWN_GRID,
     subprojects: SUBPROJECT_GRID,
+    subprojectsEditable: subprojectGrid(true),
     contributors: CONTRIBUTOR_GRID,
     costTypes: costTypeGrid(true),
     costCategories: costCategoryGrid(true),
@@ -210,6 +217,7 @@ describe("the columns a grid records as known", () => {
     accessRoles: accessRoleGrid(true),
     backups: backupGrid({ marks: true, downloads: true, restores: true }),
     audit: auditGrid({ functions: [], revision: true }),
+    comparison: COMPARISON_GRID,
   };
 
   // The grids declared by a wrapper of another, which show the same columns once the reading

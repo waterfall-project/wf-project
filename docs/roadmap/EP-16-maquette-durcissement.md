@@ -1785,7 +1785,7 @@ l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 
 
 ## US-0670 — Les aides des autres écrans et la recherche de l'aide
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
 - **issue** : #1447
@@ -1813,8 +1813,10 @@ suis.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
   (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
-  (#1441) ; la version anglaise se décide après la relecture par l'auteur de toutes les aides, au
-  dernier lot de cette US, et le test de complétude l'exigera alors ; EP-11 clôt.
+  (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), qui ne rédige pas
+  la version anglaise : sa décision revient à l'auteur, à la relecture de ce dernier lot, et reste
+  en attente ; décidée, le test de complétude (`help.test.ts`) exigera un fichier anglais par code
+  et par notion ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
@@ -1853,7 +1855,12 @@ place avant le gel, au cas où `DisplayPreferences` n'aurait pas où ranger ces 
 dépend d'US-0670/L2. La conception d'EP-15
 (« L'aide en ligne et les infobulles ») fait foi pour la mécanique. Un lot d'EP-16 qui ajoute un
 code à la table des fonctions l'inscrit dans `SCREENS_TO_COME` avec le lot de cette US qui l'écrit
-(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue.
+(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue. L4 (#1439, option 1)
+rattache la page d'un projet (`/projects/P`) au bloc des projets, FBS-4, dont l'aide décrit
+la liste et la page — le fil d'Ariane l'y range déjà — ; restent sans aide, par exclusion, les écrans
+hors de la table des fonctions : le compte (`/account`), l'avatar (`/account/avatar`), les pages
+d'erreur (adresse inconnue, panne) et de session (`/login/unavailable`). L4 laisse FBS-4.8 et ses
+sections à L5, qui les écrit avec la décision de la langue.
 
 **Hors périmètre.** La version anglaise elle-même (EP-11, après la décision de l'auteur) ; un
 tutoriel guidé ; une documentation hors de l'application ; les défauts d'écran que les aides
