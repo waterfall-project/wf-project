@@ -213,6 +213,10 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   const account = (route: Route): Promise<void> => {
     const handled = record(route);
     handlers.add(handled);
+    const settled = (): void => {
+      handlers.delete(handled);
+    };
+    handled.then(settled, settled);
     return handled;
   };
   await page.route("**/account", account);
@@ -243,6 +247,8 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   await alert.getByRole("button", { name: "Fermer l’avis" }).click();
   await expect(alert).toHaveCount(0);
   // The route is taken away once its handlers are done, as `holdScripts` does (#1721).
-  await Promise.allSettled([...handlers]);
+  while (handlers.size > 0) {
+    await Promise.allSettled([...handlers]);
+  }
   await page.unroute("**/account", account);
 });

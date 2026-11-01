@@ -11,7 +11,7 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
-import { continueUnlessClosed, openHydrated, openMenu, WORKING } from "./hydration";
+import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
@@ -384,19 +384,27 @@ test("shows the sort asked without waiting for the server actions of the page, i
   // have answered: the preference is written once the sort is shown, and the page opens without
   // any — an action goes to the address the page shows as it is dispatched.
   const dispatched: string[] = [];
-  await page.route(`**${GRID}*`, async (route) => {
+  // The actions held are let go before the test ends, whatever it ends in (#1720).
+  const held = await holdRoute(page, `**${GRID}*`, async (route, released) => {
     if (route.request().headers()["next-action"] !== undefined) {
       dispatched.push(route.request().url());
-      await new Promise((resolve) => setTimeout(resolve, HELD));
+      await pause(HELD, released);
     }
-    await continueUnlessClosed(route);
   });
-  await openHydrated(page, GRID);
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
-  await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, { timeout: WORKING });
-  await expect(header).toHaveAttribute("aria-sort", "ascending");
-  expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+  try {
+    await openHydrated(page, GRID);
+    const header = grid(page).getByRole("columnheader", {
+      name: "Calculé Montant (année de réf.)",
+    });
+    await header.getByRole("button").click();
+    await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, {
+      timeout: WORKING,
+    });
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+    expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+  } finally {
+    await held.release();
+  }
 });
 
 test("shows the sort asked without waiting for the totals a searched grid reads anew after a write", async ({
@@ -412,33 +420,38 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     request.headers()["next-action"] !== undefined &&
     (request.postData() ?? "").includes("revue") &&
     !(request.postData() ?? "").includes("lock_version");
-  await page.route(`**${REMAINING}*`, async (route) => {
+  // The action held is let go before the test ends, whatever it ends in (#1720).
+  const held = await holdRoute(page, `**${REMAINING}*`, async (route, released) => {
     if (isRetotal(route.request())) {
-      await new Promise((resolve) => setTimeout(resolve, HELD));
+      await pause(HELD, released);
     }
-    await continueUnlessClosed(route);
   });
-  await openHydrated(page, `${REMAINING}?search=revue`);
-  // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
-  // progress lists the remaining to commit available, where it lists the estimate unavailable,
-  // and the fake back answers the write whatever is sent.
-  const remaining = remainingGrid(page);
-  const effort = await remaining
-    .getByRole("columnheader", { name: "Charge (h)", exact: true })
-    .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
-  const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
-  await hours.click();
-  await page.keyboard.type("9");
-  const retotal = page.waitForRequest(isRetotal);
-  await page.keyboard.press("Enter");
-  await retotal;
-  await expect(hours.getByRole("textbox")).toHaveCount(0);
-  const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
-  await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`, {
-    timeout: WORKING,
-  });
-  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  try {
+    await openHydrated(page, `${REMAINING}?search=revue`);
+    // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
+    // progress lists the remaining to commit available, where it lists the estimate unavailable,
+    // and the fake back answers the write whatever is sent.
+    const remaining = remainingGrid(page);
+    const effort = await remaining
+      .getByRole("columnheader", { name: "Charge (h)", exact: true })
+      .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
+    const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
+    await hours.click();
+    await page.keyboard.type("9");
+    const retotal = page.waitForRequest(isRetotal);
+    await page.keyboard.press("Enter");
+    await retotal;
+    await expect(hours.getByRole("textbox")).toHaveCount(0);
+    const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
+    await header.getByRole("button").click();
+    await expect(page).toHaveURL(
+      `${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`,
+      { timeout: WORKING },
+    );
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+  } finally {
+    await held.release();
+  }
 });
 
 test("hides a column chosen in the menu of the columns, and searches the labels on the server, the field keeping the focus", async ({
