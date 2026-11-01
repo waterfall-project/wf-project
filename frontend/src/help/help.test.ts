@@ -139,7 +139,6 @@ describe("the pages of the help", () => {
       "valeur-planifiee",
     ]);
     expect(NOTIONS_TO_COME).toEqual({});
-    expect(notions().filter((name) => NOTIONS_TO_COME[name] !== undefined)).toEqual([]);
   });
 
   it("gives the page of every screen the fixed structure of the help, each section filled [WF-IHM-0140-A]", () => {

@@ -4,7 +4,7 @@
 
 La troisième table des [paramètres de ressources](FBS-3.2.md) : les calendriers, chacun avec son libellé, unique, et les heures travaillées de chacun des sept jours, du lundi au dimanche. Un calendrier convertit une durée en dates pour les tâches du rôle qui l’emploie ; il ne gère ni les jours fériés ni les temps partiels.
 
-Un et un seul calendrier actif est désigné **Par défaut**, marqué dans sa colonne : il s’applique aux tâches auxquelles aucun rôle n’est affecté.
+Un et un seul calendrier actif est désigné **Par défaut**, marqué dans sa colonne : il s’applique aux tâches qui ne portent aucune ligne de main-d’œuvre.
 
 ## Ses commandes
 

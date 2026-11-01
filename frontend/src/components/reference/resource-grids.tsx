@@ -26,6 +26,10 @@
  *
  * Neither server nor client: the page reads the keys, the names and the columns sorted; the grids,
  * in the browser, the rest — the functions that read a row never cross to the server.
+ *
+ * `help/read.ts` also reads these configurations on the server: only their columns (titles and
+ * definitions) must stay readable there, since the "use client" modules they import in value
+ * become client references in the server bundle.
  */
 import type { components, operations } from "@/api/generated/schema";
 import { type GridColumn, type GridConfig, sortColumns } from "@/components/grid/columns";
