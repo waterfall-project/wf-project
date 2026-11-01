@@ -416,6 +416,7 @@ paths = [
     "fixtures/api/risk_coverage.json",
     "fixtures/api/risk_created.json",
     "fixtures/api/risk_updated.json",
+    "fixtures/api/risk_updated_without_current_revision.json",
     "fixtures/api/risk_provision_moved.json",
     "fixtures/api/risk_reviewed.json",
     "fixtures/api/risk_reviews_reviewed.json",

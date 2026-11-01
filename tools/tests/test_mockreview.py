@@ -483,8 +483,11 @@ def test_an_import_says_its_commands_and_refuses_what_its_state_forbids() -> Non
     # conditions, the refusals of the opening, the application and the abandonment.
     status = _schemas("exchanges.yaml")["Import"]["properties"]["status"]["enum"]
     assert status[-1] == "refused"
-    detail = _schemas("exchanges.yaml")["ImportDetail"]
-    assert {"report", "task", "available_commands"} <= set(detail["required"])
+    # ImportDetail is an Import that requires what the list omits, its state the one of Import.
+    base, added = _schemas("exchanges.yaml")["ImportDetail"]["allOf"]
+    assert base == {"$ref": "#/Import"}
+    assert {"report", "task", "available_commands"} <= set(added["required"])
+    assert "status" not in added["properties"]
     assert "report" not in _schemas("exchanges.yaml")["Import"]["required"]
     for name, operation, condition in (
         ("import_open_terminal", "openImport", "project_not_terminal"),
