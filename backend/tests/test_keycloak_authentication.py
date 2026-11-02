@@ -25,7 +25,7 @@ from access_rows import role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from pydantic import SecretStr
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, insert, select
 from support import ContractClient, Logs, Watching, nowhere, raw_account
 from test_keycloak_platform import (
     ADDRESS_VARIABLE,
@@ -50,12 +50,11 @@ from test_keycloak_platform import (
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.core.access_roles.tables import AccessRole
 from waterfall.core.users import interface
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import AuditEntry
 from waterfall.platform.correlation import HEADER
-from waterfall.platform.database import Database, utc_now
+from waterfall.platform.database import Database
 from waterfall.platform.errors import UnprocessableError
 from waterfall.platform.keycloak import IdentityProviderError, Keycloak
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity, refused_identity
@@ -597,6 +596,7 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     administrator: dict[str, str],
     keycloak_admin: Watching,
 ) -> None:
+    # « Un compte local créé depuis Waterfall existe dans le fournisseur d'identité, sans rôle. »
     email = new_address()
     response = api.post(USERS, headers=administrator, json=jeanne(email))
     assert response.status_code == 201, response.text
@@ -621,6 +621,17 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     assert body["invitation_sent"] is True
     # Keycloak is asked with no connection of the database held (#669).
     assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
+    # Roles sent in the body, which the contract does not declare, are ignored (#1732): the realm
+    # holds an account created with them as one created without, its roles and groups alike.
+    given = role(database, "Administrateur", permissions=("users.write", "access_roles.write"))
+    other = api.post(
+        USERS, headers=administrator, json=jeanne(new_address(), access_role_ids=[str(given)])
+    )
+    assert (other.status_code, other.json()["access_role_ids"]) == (201, []), other.text
+    pair = (subject, subject_of(database, other.json()["user_id"]))
+    mappings = [admin.get(f"/users/{one}/role-mappings").json() for one in pair]
+    assert mappings[0] == mappings[1]
+    assert [admin.get(f"/users/{one}/groups").json() for one in pair] == [[], []]
 
 
 @pytest.mark.parametrize(
@@ -777,61 +788,60 @@ def test_the_account_that_overtook_a_creation_in_the_provider_is_named(
     ]
 
 
-class Deleting(Watching):
-    """The administration client of the service, during whose creation of an account a role goes.
+class Taking(Watching):
+    """The administration client of the service, during whose creation of an account another takes.
 
-    The role is deleted as an administrator would delete it between the checks of the creation and
-    its writing: Waterfall refuses the account the provider has just created.
+    Between the checks of the creation and its writing, once the provider created the account,
+    another one of that address is written in Waterfall, which refuses the account created.
     """
 
-    def __init__(
-        self, keycloak: Keycloak, settings: ServiceSettings, database: Database, role_id: UUID
-    ) -> None:
-        """Delete ``role_id`` in ``database`` at the creation of an account."""
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Write the other account in ``database`` at the creation of an account."""
         super().__init__(keycloak, settings, database)
         self.database = database
-        self.role_id = role_id
         self.subjects: list[str] = []
+        self.holder: UUID | None = None
 
     def create_account(self, identity: LocalIdentity) -> str | None:
-        """Create the account, then delete the role."""
+        """Create the account, then write in Waterfall the other account of its address."""
         subject = super().create_account(identity)
         assert subject is not None
         self.subjects.append(subject)
+        row = raw_account(email=identity.email)
         with self.database.transaction() as session:
-            session.execute(
-                update(AccessRole).where(AccessRole.id == self.role_id).values(deleted_at=utc_now())
-            )
+            session.execute(insert(UserAccount).values(**row))
+        self.holder = cast("UUID", row["id"])
         return subject
 
 
 @pytest.fixture
-def deleting(
+def taken(
     contract: OpenAPI, database: Database, keycloak: Keycloak, settings: ServiceSettings
-) -> tuple[ContractClient, Deleting]:
-    """Give a client of the API during whose creation of an account a role goes, and the role."""
-    administration = Deleting(keycloak, settings, database, role(database, "Rôle supprimé"))
-    app = create_app(Services(database, keycloak, administration, *nowhere()))
-    return ContractClient(TestClient(app, raise_server_exceptions=False), contract), administration
+) -> tuple[ContractClient, Taking]:
+    """Give a client of the API during whose creation of an account another takes its address."""
+    taking = Taking(keycloak, settings, database)
+    app = create_app(Services(database, keycloak, taking, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract), taking
 
 
 def test_an_account_waterfall_refuses_once_the_provider_created_it_is_withdrawn_from_it(
-    deleting: tuple[ContractClient, Deleting],
+    taken: tuple[ContractClient, Taking],
     admin: httpx2.Client,
     administrator: dict[str, str],
     in_realm: list[str],
 ) -> None:
-    client, administration = deleting
-    sent = jeanne(new_address(), access_role_ids=[str(administration.role_id)])
-    response = client.post(USERS, headers=administrator, json=sent)
-    assert response.status_code == 422, response.text
-    assert response.json()["fields"] == [
-        {"pointer": "/access_role_ids/0", "code": "UNKNOWN_ACCESS_ROLE"}
-    ]
-    in_realm.extend(administration.subjects)
-    statuses = [admin.get(f"/users/{subject}").status_code for subject in administration.subjects]
+    client, taking = taken
+    response = client.post(USERS, headers=administrator, json=jeanne(new_address()))
+    assert response.status_code == 409, response.text
+    (field,) = response.json()["fields"]
+    assert (field["pointer"], field["params"]) == (
+        "/email",
+        {"conflicting_object_id": str(taking.holder)},
+    )
+    in_realm.extend(taking.subjects)
+    statuses = [admin.get(f"/users/{subject}").status_code for subject in taking.subjects]
     assert statuses == [404]
-    assert administration.held == [("create_account", 0), ("remove_account", 0)]
+    assert taking.held == [("create_account", 0), ("remove_account", 0)]
 
 
 @pytest.mark.parametrize(

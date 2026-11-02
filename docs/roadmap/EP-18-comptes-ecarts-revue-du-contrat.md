@@ -211,7 +211,7 @@ toute fusion. EP-05 dépend d'EP-18 (`depend_de: EP-16, EP-18`). Décisions de l
 
 ## US-1050 — Un compte local naît sans rôle
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0070-A`, `WF-ADM-0090-A`, `WF-ADM-0100-A`
 - **opérations** : `createUser`, `setUserAccessRoles`
 - **issue** : #1853
