@@ -14,8 +14,8 @@ At the top of the screen:
 
 Above the register:
 
-- **Filter by state**: **Every state**, **Identified**, **Occurred**, **Dismissed**; the provisions, the bubbles of the matrix and the register follow the filter.
-- **Chart** unfolds or folds the risk matrix, a cloud of bubbles — the probability on the horizontal axis, the severity as a share of the reference budget on the vertical axis, each bubble as large as the severity in amount —, with under it the count of the risks by cell, all states together. A bubble clicked opens the detail of its risk.
+- **Filter by state**: **Every state**, **Identified**, **Occurred**, **Dismissed**; the provisions and the register follow the filter; the matrix shows the identified risks alone, whatever the filter.
+- **Chart** unfolds or folds the risk matrix, a cloud of bubbles — the probability on the horizontal axis, the severity as a share of the base of the project on the vertical axis, each bubble as large as the severity in amount, in the colour and the shape of its zone (circle, diamond, triangle), on a white ground —, with under it the count of the identified risks by cell. A bubble clicked opens the detail of its risk.
 - **Search a label** and **Columns**.
 
 In the detail of a risk:

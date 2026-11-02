@@ -530,12 +530,12 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the risks and of the indicators", () => {
-  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the reference budget", async () => {
+  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the base of the project", async () => {
     const page = rendered(await RiskSettingsPage());
     expect(rows(page, "Bornes de la matrice de risques")).toEqual([
       "Axe Première borne Deuxième borne Troisième borne",
       "Probabilité 10 % 30 % 60 %",
-      "Gravité, en pourcentage du budget de référence 1 % 5 % 10 %",
+      "Gravité, en pourcentage de l’assiette du projet 1 % 5 % 10 %",
     ]);
   });
 

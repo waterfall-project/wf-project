@@ -176,6 +176,8 @@ export interface KeptWriter<P> {
   readonly shown: () => void;
   /** Record at once what waits, if anything. */
   readonly flush: () => void;
+  /** Record these preferences at once, without waiting for a pause: `record`, then `flush`. */
+  readonly writeNow: (preferences: P) => void;
   /** The outcome of the last write that failed; nothing once it succeeded. */
   readonly outcome: Settled | undefined;
   /** Forget the outcome told. */
@@ -255,6 +257,13 @@ export function useKeptWriter<P>(
     },
     [flush],
   );
+  const writeNow = useCallback(
+    (preferences: P) => {
+      record(preferences);
+      flush();
+    },
+    [record, flush],
+  );
   const recordShown = useCallback((build: () => P) => {
     clearTimeout(timer.current);
     waiting.current = build;
@@ -268,5 +277,5 @@ export function useKeptWriter<P>(
   const clear = useCallback(() => {
     setOutcome(undefined);
   }, []);
-  return { record, recordShown, shown, flush, outcome, clear };
+  return { record, recordShown, shown, flush, writeNow, outcome, clear };
 }

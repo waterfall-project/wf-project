@@ -181,13 +181,11 @@ function RisksHeader({ count, actions }: { readonly count: number; readonly acti
 function RiskMatrixSection({
   reading,
   matrix,
-  states,
   computedAt,
   folded,
 }: {
   readonly reading: ProjectReading;
   readonly matrix: RiskMatrix;
-  readonly states: readonly RiskState[];
   readonly computedAt: string;
   readonly folded: boolean;
 }) {
@@ -196,7 +194,6 @@ function RiskMatrixSection({
   return (
     <ProjectRiskMatrix
       matrix={matrix}
-      states={states}
       provenance={{
         project: project.label,
         code: project.code ?? project.project_id,
@@ -295,7 +292,6 @@ export default async function RisksPage({
           <RiskMatrixSection
             reading={read}
             matrix={matrix}
-            states={states}
             computedAt={coverage.context.computed_at}
             folded={kept?.display_preferences?.charts?.risk_matrix?.folded ?? true}
           />

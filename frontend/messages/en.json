@@ -493,14 +493,14 @@
     },
     "matrix": {
       "title": "Risk matrix",
-      "description": "Bubble chart of the risks: the probability across and the severity, as a share of the reference budget, up; each risk is a bubble at its exact values, as large as its severity in amount, over the sixteen zones of the matrix.",
-      "axisSeverity": "Severity (% of the budget)",
-      "counts": "Count of the risks by cell of the matrix, all states together",
-      "none": "No risk to draw for this filter.",
-      "unplotted": "{count, plural, one {# risk is not drawn: its severity cannot be set as a share of the budget — {reason}} other {# risks are not drawn: their severity cannot be set as a share of the budget — {reason}}}",
+      "description": "Bubble chart of the risks: the probability across and the severity, as a share of the base of the project, up; each risk identified is a bubble at its exact values, as large as its severity in amount, in the colour and the shape of its zone, over the sixteen zones of the matrix.",
+      "axisSeverity": "Severity (% of the base of the project)",
+      "counts": "Count of the risks identified by cell of the matrix",
+      "none": "No risk identified to draw.",
+      "unplotted": "{count, plural, one {# risk is not drawn: its severity cannot be set as a share of the base of the project — {reason}} other {# risks are not drawn: their severity cannot be set as a share of the base of the project — {reason}}}",
       "file": "risk-matrix",
       "probability": "Probability",
-      "severity": "Severity, as a share of the reference budget",
+      "severity": "Severity, as a share of the base of the project",
       "between": "{lower} to under {upper}",
       "from": "{lower} and over",
       "tooltip": {
@@ -508,8 +508,6 @@
         "probability": "Probability",
         "severity": "Severity",
         "provision": "Provision",
-        "referenceProvision": "Reference provision",
-        "state": "State",
         "zone": "Zone",
         "closed": "Project cannot be opened"
       }
@@ -2421,7 +2419,7 @@
       "second": "Second bound",
       "third": "Third bound",
       "probability": "Probability",
-      "severity": "Severity, as a percentage of the reference budget"
+      "severity": "Severity, as a percentage of the base of the project"
     },
     "riskZones": {
       "title": "Zones of the risk matrix",
@@ -2445,7 +2443,7 @@
       "modify": "Modify the risk matrix",
       "hint": "The three bounds of each axis, strictly rising, and the zone of each of the sixteen cells; the matrix holds for every project.",
       "probability": "Bounds of probability (%)",
-      "severity": "Bounds of severity (% of the reference budget)",
+      "severity": "Bounds of severity (% of the base of the project)",
       "saved": "Risk matrix saved."
     },
     "durationUnitsForm": {

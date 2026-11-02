@@ -493,14 +493,14 @@
     },
     "matrix": {
       "title": "Matrice des risques",
-      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part du budget de référence, en ordonnée ; chaque risque est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, sur les seize zones de la matrice.",
-      "axisSeverity": "Gravité (% du budget)",
-      "counts": "Décompte des risques par case de la matrice, tous états confondus",
-      "none": "Aucun risque à tracer pour ce filtre.",
-      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée au budget — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée au budget — {reason}}}",
+      "description": "Nuage de bulles des risques : la probabilité en abscisse et la gravité, en part de l’assiette du projet, en ordonnée ; chaque risque identifié est une bulle à ses valeurs exactes, aussi grande que sa gravité en montant, de la couleur et de la forme de sa zone, sur les seize zones de la matrice.",
+      "axisSeverity": "Gravité (% de l’assiette du projet)",
+      "counts": "Décompte des risques identifiés par case de la matrice",
+      "none": "Aucun risque identifié à tracer.",
+      "unplotted": "{count, plural, one {# risque n’est pas tracé : sa gravité ne peut pas être rapportée à l’assiette du projet — {reason}} other {# risques ne sont pas tracés : leur gravité ne peut pas être rapportée à l’assiette du projet — {reason}}}",
       "file": "matrice-des-risques",
       "probability": "Probabilité",
-      "severity": "Gravité, en part du budget de référence",
+      "severity": "Gravité, en part de l’assiette du projet",
       "between": "{lower} à moins de {upper}",
       "from": "{lower} et plus",
       "tooltip": {
@@ -508,8 +508,6 @@
         "probability": "Probabilité",
         "severity": "Gravité",
         "provision": "Provision",
-        "referenceProvision": "Provision de la référence",
-        "state": "État",
         "zone": "Zone",
         "closed": "Projet non ouvrable"
       }
@@ -2421,7 +2419,7 @@
       "second": "Deuxième borne",
       "third": "Troisième borne",
       "probability": "Probabilité",
-      "severity": "Gravité, en pourcentage du budget de référence"
+      "severity": "Gravité, en pourcentage de l’assiette du projet"
     },
     "riskZones": {
       "title": "Zones de la matrice de risques",
@@ -2445,7 +2443,7 @@
       "modify": "Modifier la matrice de risques",
       "hint": "Les trois bornes de chaque axe, strictement croissantes, et la zone de chacune des seize cases ; la matrice vaut pour tous les projets.",
       "probability": "Bornes de probabilité (%)",
-      "severity": "Bornes de gravité (% du budget de référence)",
+      "severity": "Bornes de gravité (% de l’assiette du projet)",
       "saved": "Matrice de risques enregistrée."
     },
     "durationUnitsForm": {
