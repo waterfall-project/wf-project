@@ -155,23 +155,23 @@ test("a grid of a few rows is no taller than its content, in a window that would
  * The screens whose key figures lie in cards above their grid (US-0550), with the widths at which
  * the totals of the grid stay in a window 768 high, measured — the cards take, at 1366 then at 911:
  * estimate 170 and 305 points, remaining to commit 189 and 476, actual costs 53 and 99, risks 103
- * and 145. At 911 the remaining to commit is left out: its four blocks need two rows of cards, 476
- * points, and the header and the bar of the screen leave 519 under them for the cards, the filter,
- * the bar of the grid and the 160 of its floor. So is the actual costs, whose cards are no cause:
- * below 1024 its grid and the journal of imports lie one under the other, and the grid takes the
- * height of the window (`max-h-svh`) from where it starts. The risks hold at both widths, their
- * cards 103 and 145 points high, with the chart of their matrix folded between the cards and the
- * grid (US-0550/L4b, #1252): unfolded, it takes its 288 points and the page scrolls.
+ * and 145. At 911 the cards of the remaining to commit, which need two rows, are folded into a
+ * summary that unfolds (`FoldingFigures`, below 1024 points); the actual costs, whose grid and
+ * journal of imports lie one under the other below 1024, bounds the grid to the height of the
+ * window less where it starts (`useRoomBelow`, `max-h-svh` alone not being enough) (US-0710,
+ * #1209). The risks hold at both widths, their cards 103 and 145 points high, with the chart of
+ * their matrix folded between the cards and the grid (US-0550/L4b, #1252): unfolded, it takes its
+ * 288 points and the page scrolls.
  */
 const CARD_SCREENS = [
   { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768 },
-  { address: path(`${REVISION}/remaining`), widths: [1366], height: 768 },
-  { address: path(`${REVISION}/actual-costs`), widths: [1366], height: 768 },
+  { address: path(`${REVISION}/remaining`), widths: [1366, 911], height: 768 },
+  { address: path(`${REVISION}/actual-costs`), widths: [1366, 911], height: 768 },
   { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768 },
 ] as const;
 
 for (const { address, widths, height } of CARD_SCREENS) {
-  test(`${address}: the cards of figures leave the totals of the grid in the window`, async ({
+  test(`${address}: the cards of figures leave the totals of the grid in the window at 911 points as at 1366 [WF-IHM-0100-A]`, async ({
     page,
   }) => {
     await compile(page.request, address);

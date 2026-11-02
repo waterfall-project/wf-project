@@ -11,6 +11,8 @@ The cards above the grid of the [remaining to commit](FBS-4.5.md), as the server
 - **Remaining to commit by sub-project, and margin on the budget**: for each subproject, and for the set “No subproject”, its remaining to commit and the deviation between the sum of its actual cost and of its remaining to commit and its budget, with the signal of the zone the server gives: a subproject whose budget is exceeded is signalled. The subprojects add up to the total of the project.
 - **Risk coverage**: the risk reserve of the reference, the remaining provisions, the cost of the risks occurred, and the coverage variance.
 
+Below 1024 points of width — a window zoomed to 150% —, the cards fold into a summary, **Key figures**, which unfolds on a click or from the keyboard: the totals of the grid stay in view. Above that width they are open.
+
 When the API does not find the indicators, the screen says them unavailable and shows the rest.
 
 ## Its commands

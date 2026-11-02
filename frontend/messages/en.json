@@ -801,6 +801,7 @@
   },
   "remainingSummary": {
     "title": "Remaining to commit indicators",
+    "fold": "Key figures",
     "unavailable": "The remaining to commit indicators are unavailable.",
     "unnamed": "Unnamed",
     "total": "Remaining to commit",

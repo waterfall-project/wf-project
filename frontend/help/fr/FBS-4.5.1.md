@@ -11,6 +11,8 @@ Les cartes au-dessus de la grille du [reste à engager](FBS-4.5.md), telles que 
 - **Reste à engager par sous-projet, et marge sur le budget** : pour chaque sous-projet, et pour l’ensemble « hors sous-projet », son reste à engager et l’écart entre la somme de son coût réel et de son reste à engager et son budget, avec le signal de la zone que le serveur donne : un sous-projet dont le budget est dépassé est signalé. Les sous-projets s’additionnent au total du projet.
 - **Couverture des risques** : la réserve pour risques de la référence, les provisions restantes, le coût des risques survenus, et l’écart de couverture.
 
+Sous 1024 points de large — une fenêtre agrandie à 150 % —, les cartes se replient en un résumé, **Chiffres clés**, qui se déplie d’un clic ou au clavier : les totaux de la grille restent ainsi en vue. Au-dessus, elles sont ouvertes.
+
 Quand l’API ne trouve pas les indicateurs, l’écran les dit indisponibles et montre le reste.
 
 ## Ses commandes
