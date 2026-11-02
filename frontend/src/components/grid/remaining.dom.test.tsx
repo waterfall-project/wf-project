@@ -377,14 +377,21 @@ describe("the grid of the remaining to commit", () => {
     // pas signalée : sans le signal du serveur, rien n'est marqué.
     serve();
     render(grid(example("nodes_estimate") as NodeList));
+    // Une cellule bien rendue, pour qu'un rendu vide ne fasse pas passer le test.
+    expect(cell(WIRING, "finish")).toHaveTextContent("30/06/2026");
     for (const row of [WIRING, LABOUR, DISBURSEMENT, PROVISION]) {
       expect(cell(row, "own_lines_open")).toBeEmptyDOMElement();
     }
   });
 
   it("never marks the line of provision of a task that awaits its own lines, the lines beside it marked [WF-PLA-0040-A]", () => {
-    // The example of the estimate has a provision under the wiring; the wiring is made to await its
-    // own lines, as the server would say it, to try the provision under such a task.
+    // Une ligne propre de provision sous une tâche qui attend ses lignes propres n'est jamais
+    // marquée, les lignes voisines le sont. Aucune récapitulative de l'exemple de l'estimation ne
+    // porte de ligne propre (« Poste de commande » n'a que des tâches) : la seule provision est
+    // sous « Câblage des armoires », une feuille, que le service ne dirait jamais en attente (le
+    // drapeau n'est vrai que d'une récapitulative démarrée). On la pose tout de même en attente
+    // pour éprouver la ligne de provision, faute d'exemple du contrat qui en porte une sous une
+    // récapitulative (#1851) : la tâche retouchée est la plus proche, pas une réponse du service.
     serve();
     const read = example("nodes_estimate") as NodeList;
     render(

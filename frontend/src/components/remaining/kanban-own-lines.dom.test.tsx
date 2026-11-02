@@ -14,6 +14,8 @@ import { cardOf, columnsOf, type KanbanColumns, type StartableTasks } from "./ka
 // The mark of the own lines still open on the card of the Kanban (WF-PLA-0040, WF-IHM-0070): the
 // cards of a summary task come from the example `nodes_awaiting_own_lines`, whose nodes are those
 // the Kanban lists (`KanbanTask` is a `Node`), and the mark is what the reading says of the task.
+// No example of `listStartableTasks` carries the facet (the contract says today that it never
+// returns a summary task: #1851), hence the cards made by `cardOf` from a `Node` of the example.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh: vi.fn(), replace: vi.fn(), push: vi.fn() }),
@@ -82,5 +84,7 @@ describe("the card of a task that awaits its own lines", () => {
       completed: all.completed.slice(0, 4),
     });
     expect(screen.queryByText(MARK)).toBeNull();
+    // Des cartes bien rendues, pour qu'un rendu vide ne fasse pas passer le test.
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0);
   });
 });
