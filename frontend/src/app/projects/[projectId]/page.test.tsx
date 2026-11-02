@@ -100,16 +100,6 @@ describe("the imports on the screen of a project without revision", () => {
     expect(report).toBeLessThan(page.indexOf('aria-label="Import a file"'));
   });
 
-  it("offers no import on the screen of a project that has revisions: the screen of the imports does", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}": "project",
-      "GET /projects/{project_id}/revisions": "revisions",
-    };
-    const page = await projectAt();
-    expect(page).not.toContain('aria-label="Import a file"');
-  });
-
   it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, reading it once [WF-REF-0190-A]", async () => {
     server.answers = {
       ...server.answers,
@@ -151,33 +141,6 @@ describe("the imports on the screen of a project without revision", () => {
 describe("the encart « Démarrer le projet »", () => {
   const REVISION_READ = "GET /projects/{project_id}/revisions/{revision_id}";
 
-  /**
-   * The page of the witness project, whose revision in progress (102) the list of its revisions
-   * carries whole. No example of the contract lists a revision in progress that offers the skeleton
-   * for a project that has it in progress: the encart shown is tested on the components, against
-   * `revision_without_tasks` (project-start.dom.test.tsx), and the fake back serves the witness.
-   */
-  async function withRevisions(list: "revisions" | "revisions_designation_open") {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}": "project",
-      "GET /projects/{project_id}/revisions": list,
-    };
-    return projectAt();
-  }
-
-  it("is no longer shown once the main structure bears a task: the list names main_structure_without_tasks as missing, and no revision is read besides it [WF-PRJ-0030-A]", async () => {
-    const page = await withRevisions("revisions");
-    expect(page).not.toContain('aria-label="Start the project"');
-    expect(routes()).not.toContain(REVISION_READ);
-  });
-
-  it("is not shown when the revision in progress is not among the revisions listed, and reads no revision either", async () => {
-    const page = await withRevisions("revisions_designation_open");
-    expect(page).not.toContain('aria-label="Start the project"');
-    expect(routes()).not.toContain(REVISION_READ);
-  });
-
   it("is shown from the creation on a project without a revision, as the project lists the skeleton, and reads no revision [WF-PRJ-0030-A]", async () => {
     const page = await projectAt();
     expect(page).toContain('aria-label="Start the project"');
@@ -201,5 +164,107 @@ describe("the encart « Démarrer le projet »", () => {
     };
     const page = await projectAt();
     expect(page).not.toContain('aria-label="Start the project"');
+  });
+});
+
+/** Where the page leads, from the redirect it throws; `undefined` when it renders. */
+async function leadsTo(search: PageSearchParams = {}): Promise<string | undefined> {
+  try {
+    await projectAt(search);
+  } catch (error) {
+    const digest = (error as { digest?: unknown }).digest;
+    if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT;")) {
+      return digest.split(";")[2];
+    }
+    throw error;
+  }
+  return undefined;
+}
+
+describe("the screen of a project that has a revision leads to it", () => {
+  const WITNESS = `/projects/${PRICING}`;
+  const CURRENT = "01926f3a-7c00-7000-8000-000000000102";
+  const REFERENCE = "01926f3a-7c00-7000-8000-000000000101";
+  const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000301";
+
+  beforeEach(() => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project",
+      "GET /projects/{project_id}/revisions": "revisions",
+      "GET /projects/{project_id}/revisions/{revision_id}": "revision",
+    };
+  });
+
+  it("to the revision in progress, the reading context of the address and its filters kept [WF-IHM-0010-A]", async () => {
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions/${CURRENT}`);
+    expect(await leadsTo({ subproject_id: SUBPROJECT })).toBe(
+      `${WITNESS}/revisions/${CURRENT}?subproject_id=${SUBPROJECT}`,
+    );
+  });
+
+  it("to the reference when the project has none in progress [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_without_current_revision",
+    };
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions/${REFERENCE}`);
+  });
+
+  it("to the last revision marked when it has neither in progress nor reference [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_marked",
+    };
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions/${REFERENCE}`);
+  });
+
+  it("to the revisions when the revision chosen cannot be read by the session [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}/revisions/{revision_id}": {
+        problem: { code: "NOT_FOUND", status: 404 },
+      },
+    };
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions`);
+  });
+
+  it("to the revisions when the project has some but none in progress, of reference or marked, the filters of the address kept [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_project_created",
+    };
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions`);
+    expect(await leadsTo({ subproject_id: SUBPROJECT })).toBe(
+      `${WITNESS}/revisions?subproject_id=${SUBPROJECT}`,
+    );
+  });
+
+  it("to the revision in progress, not to the one the address names, which the path replaces [WF-IHM-0010-A]", async () => {
+    expect(await leadsTo({ revision_id: REFERENCE })).toBe(`${WITNESS}/revisions/${CURRENT}`);
+  });
+
+  it("sends the report of an import its address names to the exchanges of the revision, which shows it [WF-IHM-0010-A]", async () => {
+    expect(await leadsTo({ import: IMPORT })).toBe(
+      `${WITNESS}/revisions/${CURRENT}/exchanges?import=${IMPORT}`,
+    );
+    expect(await leadsTo({ import: IMPORT, subproject_id: SUBPROJECT })).toBe(
+      `${WITNESS}/revisions/${CURRENT}/exchanges?subproject_id=${SUBPROJECT}&import=${IMPORT}`,
+    );
+  });
+
+  it("keeps the screen, its encart and its imports, of a project without a revision, and no list of revisions [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
+    expect(await leadsTo()).toBeUndefined();
+    const page = await projectAt();
+    expect(page).toContain('aria-label="Start the project"');
+    expect(page).toContain('aria-label="Import a file"');
+    expect(page).not.toContain('aria-label="Revisions"');
   });
 });

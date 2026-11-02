@@ -14,6 +14,7 @@ import { withinBox } from "./scroll";
 // — and it keeps nothing: any project it is asked is the witness.
 const PROJECT = "/projects/01926f3a-7c00-7000-8000-000000000001";
 const CREATED = "/projects/01926f3a-7c00-7000-8000-000000000003";
+const CURRENT = "01926f3a-7c00-7000-8000-000000000102";
 
 test("the home lists the projects the user contributes to, a filter shown and lifted, never a restriction of reading", async ({
   page,
@@ -120,16 +121,22 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
 }) => {
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
   // first (`e2e/compile.ts`).
-  await compile(page.request, `${PROJECT}/settings`, `${PROJECT}/lifecycle`);
+  await compile(
+    page.request,
+    `${PROJECT}/revisions/${CURRENT}/planning`,
+    `${PROJECT}/settings`,
+    `${PROJECT}/lifecycle`,
+  );
+  // The screen of a project leads to its revision in progress, the fake back serving every project
+  // as the witness, which has one (US-0720, WF-IHM-0010-A); the project itself is named by the
+  // banner of its reading context.
   await page.goto(PROJECT);
   const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+  await expect(page).toHaveURL(`${PROJECT}/revisions/${CURRENT}/planning`, { timeout: WORKING });
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText("Planification");
+  await expect(page.getByRole("region", { name: "Contexte de lecture" })).toContainText(
     "Modernisation du poste de commande",
   );
-  await expect(main.getByRole("definition").first()).toHaveText("PRJ-001");
-  // The page offers no command: its one button is the help, of the projects, FBS-4 (#1439).
-  await expect(main.getByRole("button")).toHaveCount(1);
-  await expect(main.getByRole("button", { name: "Aide", exact: true })).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "Fonctions" });
   await nav.getByRole("link", { name: "Paramètres de projets" }).click();
@@ -186,12 +193,12 @@ test("creates a project from the home, then modifies the identity of a project o
   await expect(creation.getByRole("textbox", { name: "Libellé" })).toBeFocused();
   await creation.getByRole("textbox", { name: "Libellé" }).fill("Rénovation du poste de livraison");
   await creation.getByRole("button", { name: "Créer" }).click();
-  // The screen of the project the server created — which the fake back serves as the witness.
+  // The screen of the project the server created — which the fake back serves as the witness. It
+  // has no revision yet: the screen stays, with the encart that starts the planning (#1358).
   await expect(page).toHaveURL(CREATED, { timeout: WORKING });
   await expect(main.getByRole("heading", { level: 1 })).toHaveText(
     "Rénovation du poste de livraison",
   );
-  // No revision yet: the encart that starts the planning is there from the creation (#1358).
   await expect(main.getByRole("region", { name: "Démarrer le projet" })).toBeVisible();
 
   // The modification is played on the witness: the fake back keeps nothing of what is written.

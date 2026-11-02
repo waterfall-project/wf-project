@@ -4,6 +4,8 @@
 
 Les révisions du projet : chacune est un instantané complet — ses structures de coûts et les valeurs du référentiel qu’elles emploient. Une révision est d’abord en cours d’élaboration, puis figée quand elle est marquée ; l’une des révisions marquées est la référence, qui fixe le budget, la réserve pour risques et la valeur planifiée. Ce cycle est celui de la [revue périodique](notions/revisions.md) : ouvrir une révision en cours, mettre à jour le planning et le reste à engager, réexaminer les risques, puis marquer.
 
+Ouvrir un projet ne passe pas par cet écran : la page du projet mène à sa révision en cours, sinon à sa référence, sinon à sa dernière révision marquée ; elle ne mène ici que si cette révision n’est pas lisible par votre session. On y vient aussi par la fonction **Révisions**, pour en lire une autre.
+
 De haut en bas :
 
 - l’**Historique des révisions** : pour chacune, sa version, son état, sa date de marquage, sa description, le lien qui l’ouvre, et la marque de la référence ;

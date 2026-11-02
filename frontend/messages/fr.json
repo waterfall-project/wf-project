@@ -1989,8 +1989,7 @@
     "description": "Description",
     "missing": "Non renseigné",
     "inflationRate": "Taux d’inflation annuel",
-    "winProbability": "Probabilité de gain",
-    "revisions": "Révisions"
+    "winProbability": "Probabilité de gain"
   },
   "riskForm": {
     "identify": "Identifier un risque",
@@ -2245,9 +2244,7 @@
   },
   "emptyStates": {
     "noProjects": "Aucun projet.",
-    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet.",
-    "noRevisions": "Ce projet n’a encore aucune révision.",
-    "revisions": "Aller aux révisions du projet"
+    "noContributedProjects": "Vous n’êtes contributeur d’aucun projet."
   },
   "referenceReadiness": {
     "title": "Référentiel incomplet",

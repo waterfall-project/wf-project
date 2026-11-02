@@ -16,7 +16,7 @@ import { example } from "@/test/fixtures";
 import { loadDocument } from "@/navigation/document";
 
 import { useBrowserLocale } from "./browser-locale";
-import { NoProjects, NoRevisions, ReferenceIncomplete } from "./empty-states";
+import { NoProjects, ReferenceIncomplete } from "./empty-states";
 import {
   type BoundaryError,
   correlationDigest,
@@ -271,13 +271,6 @@ describe("the empty states", () => {
   it("say the user contributes to no project when the filter emptied the list, leaving its lifting to the filter itself", async () => {
     const { container } = inLanguage(<NoProjects filtered />);
     expect(container).toHaveTextContent("Vous n’êtes contributeur d’aucun projet.");
-    expect(screen.queryByRole("link")).toBeNull();
-    await expectAccessible(container);
-  });
-
-  it("say a project has no revision yet, even without an address to lead to", async () => {
-    const { container } = inLanguage(<NoRevisions revisions={undefined} />);
-    expect(container).toHaveTextContent("Ce projet n’a encore aucune révision.");
     expect(screen.queryByRole("link")).toBeNull();
     await expectAccessible(container);
   });

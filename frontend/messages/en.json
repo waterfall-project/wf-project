@@ -1989,8 +1989,7 @@
     "description": "Description",
     "missing": "Not set",
     "inflationRate": "Annual inflation rate",
-    "winProbability": "Probability of winning",
-    "revisions": "Revisions"
+    "winProbability": "Probability of winning"
   },
   "riskForm": {
     "identify": "Identify a risk",
@@ -2245,9 +2244,7 @@
   },
   "emptyStates": {
     "noProjects": "No project.",
-    "noContributedProjects": "You contribute to no project.",
-    "noRevisions": "This project has no revision yet.",
-    "revisions": "Go to the revisions of the project"
+    "noContributedProjects": "You contribute to no project."
   },
   "referenceReadiness": {
     "title": "Incomplete reference data",

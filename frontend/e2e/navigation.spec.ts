@@ -68,12 +68,21 @@ test("the way back to the previous project from a function outside any project f
   await expect(page).toHaveURL(`${IN_PROJECT}/risks${CONTEXT}`);
 });
 
-test("a project opened without a revision to read in offers the functions of the project itself", async ({
+test("the address of a project leads to its revision, the reading context and its filters kept, the way to the screens of the revision then offered [WF-IHM-0010-A]", async ({
+  page,
+}) => {
+  await compile(page.request, `${IN_PROJECT}/planning`);
+  await page.goto(`/projects/${PROJECT}${CONTEXT}`);
+  await expect(page).toHaveURL(`${IN_PROJECT}/planning${CONTEXT}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planification");
+});
+
+test("a screen of the project itself, read without a revision, offers the functions of the project itself (the project's own address leads to its revision, US-0720)", async ({
   page,
 }) => {
   // The lifecycle, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, `/projects/${PROJECT}/lifecycle`);
-  await page.goto(`/projects/${PROJECT}`);
+  await compile(page.request, `/projects/${PROJECT}/settings`, `/projects/${PROJECT}/lifecycle`);
+  await page.goto(`/projects/${PROJECT}/settings`);
   await open(page, "Cycle de vie du projet");
   await expect(page).toHaveURL(`/projects/${PROJECT}/lifecycle`);
   await expect(
