@@ -149,7 +149,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-14](EP-14-maquette-du-front-finitions.md) | Mockup of the front: finishing touches | livré | EP-02 |
 | [EP-15](EP-15-maquette-ajustements.md) | Mockup: adjustments from the validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | livré | EP-15 |
-| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | prêt | EP-16 |
+| [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | en cours | EP-16 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |

@@ -3562,10 +3562,12 @@ lui-même, les pages du compte, la connexion et le mot de passe oublié, l'écra
 le fait échouer, comme une page de `REDIRECTS` qui ne fait pas que rediriger, ou une route qui en
 intercepte une autre. Chaque écran s'ouvre par son adresse dans une fenêtre de 1366 × 768 points,
 hydraté (`untilHydrated`, qui attend les clés que React pose sur chaque élément qu'atteint le
-clavier), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
+clavier — ceux que le parcours atteint, un seul sélecteur, `REACHABLE`, partagé avec la sonde du
+focus), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
 page remise en page comme le navigateur la remet quand on agrandit ; un facteur d'échelle de
-l'appareil changerait les pixels, pas la mise en page. Trois tests par écran contrôlent chacun les
-deux largeurs :
+l'appareil changerait les pixels, pas la mise en page. Trois contrôles par écran, joués chacun
+en mode clair et en mode sombre (`colorScheme`) — six tests —, portent chacun sur les deux
+largeurs :
 
 - les règles d'axe pour WCAG A et AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe n'est pas WCAG —,
   contraste compris, une fois en mode clair et une fois en mode sombre (`colorScheme`), chaque test
@@ -3575,13 +3577,18 @@ deux largeurs :
   écart, ses couleurs dites ; ce qu'axe laisse sans mesure (`unmeasured`), le test le note en
   annotation, raison par raison (`elmPartiallyObscured`, `bgOverlap`…), les figures de courbe à part — un caractère seul
   dont axe n'a pas mesuré les couleurs y compte sous sa brièveté, axe l'écrivant par-dessus la raison
-  qui l'a empêché de mesurer. En mode clair, les
+  qui l'a empêché de mesurer. Ce que les autres règles laissent « incomplet » — une cible trop
+  petite, un lien dans un texte qu'axe ne sait pas juger… — est noté de même, règle par règle, sans
+  verdict (`undecided`, #784). En mode clair, les
   règles des libellés des champs et des descriptions des images — `label`, `image-alt` et leurs
   parentes — sont dites à part ;
 - le parcours au clavier (`walkByTab`, `frontend/e2e/tab-walk.ts`, la mesure dans la page par
-  `frontend/e2e/focus-probe.ts`) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
+  `frontend/e2e/focus-probe.ts`), dans les deux modes, l'indicateur du focus peint dans chacun
+  (#784) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
   là où le premier parcours s'est arrêté, chaque fois jusqu'au retour au premier élément atteint.
-  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste, coupé
+  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste — de sa
+  première boîte, pour un lien replié sur deux lignes, dont la boîte englobante a son milieu entre
+  les deux (#784) —, coupé
   par la fenêtre et par la boîte de remplissage de chaque boîte qui le rogne le long de ses blocs
   conteneurs, est l'élément lui-même : rien qui peigne n'est dessiné par-dessus, une couche que le
   pointeur traverse comprise —, et rien d'autre n'y prend le pointeur, une couche transparente qui
@@ -3599,8 +3606,9 @@ deux largeurs :
   ne doit se trouver entier au-delà du bord d'une boîte qui cache ce qui la déborde, que le
   navigateur fait défiler au focus mais que le pointeur n'atteint pas — une boîte que l'utilisateur
   fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
-  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
-  l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
+  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton — ni rien
+  qui en dise le rôle, ou celui d'une case à cocher (`[role=button]`, `link`, `checkbox`) — n'est
+  sorti de l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
   l'atteint encore à 911 (`lost`). Pour voir ce qui peint par-dessus un élément, le parcours fait
   prendre le pointeur, le temps de la mesure, aux seuls éléments qui ne le prennent pas et dont la
   boîte touche celle de l'élément ou de l'un de ses enfants — chaque point que la mesure demande au
@@ -3626,11 +3634,31 @@ deux largeurs :
   écouteurs posés par la page après la sonde ni le focus, si bien que le focus est revenu au
   premier élément quand le parcours suivant commence ; ce que la page a mesuré au-delà d'un
   piège n'est pas lu, ni compté dans ce que Tab n'a pas atteint. Le décompte des éléments atteints
-  et des pièges reste du côté du test. Le parcours, et lui seul, garde sa trace sans instantanés du
+  et des pièges reste du côté du test. Les tests qui parcourent au Tab — l'écran, et ce qu'un geste ouvre —, et eux seuls, gardent leur trace sans instantanés du
   DOM (`withoutSnapshots`) : un instantané par touche pesait plus que le parcours lui-même sous
   charge (#1540), et ses fautes se lisent dans ses relevés. `test.use({ trace })` ne vaut pas pour
   un seul test — un groupe refuse une option qui impose un nouveau worker : le test relance la trace
-  que le harnais a ouverte, avec les mêmes options, sans les instantanés.
+  que le harnais a ouverte, avec les mêmes options, sans les instantanés ;
+- ce qu'un geste ouvre (US-0710, `frontend/e2e/opened.ts`) : sur chaque écran, les déclencheurs
+  d'un dialogue ou d'un menu — `aria-haspopup="dialog"` ou `"menu"`, que pose chaque commande qui
+  ouvre un dialogue et chaque déclencheur d'un menu —, affichés et actifs, reçoivent le focus et
+  Entrée ; la première cellule saisissable de chaque grille — une cellule de `DenseGrid`, que
+  `data-column` situe et que rien ne dit en lecture seule (`aria-readonly`) — reçoit le focus et F2.
+  Un dialogue ouvert est parcouru au Tab borné à lui (`walkByTab(page, dialogue)`) : ce que Tab peut
+  atteindre, les widgets et les bords se jugent dans le dialogue seul, le retour à son premier
+  élément est le piège qu'il veut — un dialogue d'un seul élément le garde —, et tout élément
+  atteint hors de lui est une faute (`escaped`). Un menu déplace le focus aux flèches et un éditeur
+  valide au Tab : le test y vérifie que le focus est entré. Ce qui s'est ouvert est ensuite audité
+  par axe — la cellule, pour un éditeur —, et le reste de la page par la seule règle dont
+  l'ouverture change le verdict hors de lui (`aria-hidden-focus` : un menu ou un dialogue modal
+  cache la page au lecteur d'écran) ; la page entière, que son propre audit juge, n'est pas auditée
+  de nouveau à chaque ouverture, ce qui dépassait le délai d'un test sur le Kanban et le
+  référentiel, huit secondes l'audit. Puis Échap le ferme et le focus revient au déclencheur, ou à la
+  cellule — celle qui tient le déclencheur, pour une commande d'une ligne de grille. Les
+  déclencheurs se découvrent à chaque largeur et se jouent l'un après l'autre dans un seul test par
+  écran et par mode, chaque contrôle dit à part, nommé par le déclencheur et la largeur
+  (`expect.soft`) ; une commande qu'une grille répète de ligne en ligne n'est jouée que pour la
+  première ligne, et un contrôle en échec rouvre l'écran avant le déclencheur suivant.
 
 `frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
 d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
@@ -3643,12 +3671,36 @@ sur un poste chargé ; la compilation à froid d'un écran n'ajoute à ce temps 
 `E2E_DEV_SERVER=1`, le front construit n'en ayant pas. Un écart relevé se corrige dans l'écran, jamais en écartant une
 règle.
 
-Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
-un menu, le refus d'une cellule, l'éditeur d'une cellule — n'est pas parcouru, ni ce qu'un
-`details` fermé contient, ni un état qu'un geste atteint (un refus, `?import=`) ; axe ne juge pas le
-contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indicateur du focus
-(WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
-ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
+Ce que le harnais ne prouve pas, et ce qui le couvre ailleurs (US-0200, US-0710 ; la note
+d'US-0200 dans le fichier d'EP-14 le dit aussi) :
+
+- ce qu'un geste ouvre sans déclencheur que le harnais joue : le Popover d'un refus — d'une cellule
+  calculée, ou d'une écriture refusée —, qui ne s'ouvre qu'une fois le serveur a refusé ; un menu
+  ou un dialogue ouvert depuis un menu — le menu d'une cellule (Maj+F10), et les dialogues qu'il
+  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les dialogues qu'un geste ouvre
+  sans bouton — `TimelineForm` et `GestureDialog` de `structure-gestures.tsx` —, que le harnais ne
+  trouve pas faute de commande qui dise `aria-haspopup="dialog"` : le test
+  `dialog-command-guard.test.ts` fait échouer toute source qui rend un `<Dialog` piloté par un état
+  sans cette commande, hors de sa liste nommée (chaque entrée avec sa raison). Les tests
+  de composants les tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en
+  page ; le focus que Radix rend) ;
+- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule : l'audit
+  d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
+- le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
+  atteint — un refus affiché, une adresse `?import=` — : le harnais ouvre chaque écran à son
+  adresse, et n'y joue que les déclencheurs ;
+- l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre : seuls ses tests
+  le rendent (`system-pages.test.tsx`, et `expectAccessible` dans `system.dom.test.tsx`) ;
+- dans un widget qui déplace lui-même le focus, l'entrée seule est vérifiée : atteindre chacun de
+  ses éléments aux flèches reste aux tests de composants (#784) ;
+- les textes qu'axe ne mesure pas : posés sur le dessin d'une courbe, du Gantt ou d'une chronologie
+  — des images pour axe —, en partie hors de la boîte qui les fait défiler, sous un autre ; le test
+  les compte en annotation, raison par raison, mais ce compte n'est comparé à rien : un texte qui
+  devient non mesurable ne change aucun verdict (#784). Les textes indicatifs des champs
+  (`placeholder`, la recherche de la barre du haut et celle d'une grille) ne sont pas jugés par
+  axe : seule la paire de jetons `muted-foreground`/`background` de `contrast.test.ts` les couvre ;
+- le contraste de l'indicateur du focus (WCAG 1.4.11), mesuré par les seuls jetons de
+  `contrast.test.ts`, pas sur les écrans.
 
 _Contrôle_ : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
 échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
@@ -4056,8 +4108,8 @@ les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `curr
 qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
 `contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
 compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
-contrôle dans le navigateur, sur chaque écran de la table, en clair et en sombre
-(`frontend/e2e/accessibility.spec.ts`, US-0200) ; le reste de l'accessibilité d'un composant, dans ses
+contrôle dans le navigateur, sur chaque écran de l'application et sur ce qu'un geste y ouvre, en
+clair et en sombre (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710) ; le reste de l'accessibilité d'un composant, dans ses
 tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
 calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
 ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un

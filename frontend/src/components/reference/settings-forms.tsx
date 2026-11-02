@@ -405,6 +405,7 @@ function SettingsWriter<Settings extends Versioned>({
       <div className="flex flex-wrap items-start gap-2">
         <Button
           ref={trigger}
+          aria-haspopup="dialog"
           type="button"
           variant="outline"
           size="sm"

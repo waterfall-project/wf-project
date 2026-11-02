@@ -299,6 +299,7 @@ export function DeleteRole({ role }: { readonly role: AccessRole }) {
     <CellCommand
       label={name}
       help={said("deleteRole.help")}
+      aria-haspopup="dialog"
       unavailable={held}
       aria-busy={pending}
       className={UNAVAILABLE}

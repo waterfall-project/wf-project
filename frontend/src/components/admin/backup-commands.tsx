@@ -391,6 +391,7 @@ export function RestoreCell({ backup }: { readonly backup: Backup }) {
     <CellCommand
       label={name}
       help={said("restoreBackup.help")}
+      aria-haspopup="dialog"
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ backup, trigger: event.currentTarget });
       }}

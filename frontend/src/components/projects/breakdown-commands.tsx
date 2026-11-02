@@ -345,6 +345,7 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
               variant="outline"
               size="sm"
               aria-label={command.name}
+              aria-haspopup="dialog"
               aria-disabled={waiting ? true : undefined}
               aria-busy={writing}
               className={`h-7 text-xs ${UNAVAILABLE}`}

@@ -3542,10 +3542,11 @@ with these screens and with the pages that only redirect (`REDIRECTS`): a page a
 makes it fail, as does a page of `REDIRECTS` that does not only redirect, or a route that
 intercepts another. Each screen is opened by its address in a 1366 × 768 point window,
 hydrated (`untilHydrated`, which waits for the keys React sets on each element the
-keyboard reaches), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
+keyboard reaches — those the walk reaches, one selector, `REACHABLE`, shared with the probe of the
+focus), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
 page laid out again as the browser lays it out again when zooming; a device scale
-factor would change the pixels, not the layout. Three tests per screen each check the
-two widths:
+factor would change the pixels, not the layout. Three checks per screen, each played in light
+mode and in dark mode (`colorScheme`) — six tests —, each bear on the two widths:
 
 - the axe rules for WCAG A and AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe is not WCAG —,
   contrast included, once in light mode and once in dark mode (`colorScheme`), each test
@@ -3555,13 +3556,18 @@ two widths:
   deviation, its colours stated; what axe leaves unmeasured (`unmeasured`), the test notes in an
   annotation, reason by reason (`elmPartiallyObscured`, `bgOverlap`…), the curve figures apart — a lone character
   whose colours axe did not measure counts there under its brevity, axe writing it over the reason
-  that prevented it from measuring. In light mode, the
+  that prevented it from measuring. What the other rules leave « incomplete » — a target too
+  small, a link in a text axe cannot judge… — is noted likewise, rule by rule, without a verdict
+  (`undecided`, #784). In light mode, the
   rules of field labels and image descriptions — `label`, `image-alt` and their
   relatives — are stated apart;
 - the keyboard walk (`walkByTab`, `frontend/e2e/tab-walk.ts`, the in-page measurement by
-  `frontend/e2e/focus-probe.ts`): at 1366 points, Tab from the top of the page, at 911 points from
+  `frontend/e2e/focus-probe.ts`), in both modes, the focus indicator painted in each (#784): at
+  1366 points, Tab from the top of the page, at 911 points from
   where the first walk stopped, each time until the return to the first element reached.
-  Each element reached is seen — displayed, not transparent, and the middle of what remains of it, clipped
+  Each element reached is seen — displayed, not transparent, and the middle of what remains of it —
+  of its first box, for a link wrapped over two lines, whose bounding box has its middle between
+  the two (#784) —, clipped
   by the viewport and by the padding box of each box that clips it along its containing
   blocks, is the element itself: nothing that paints is drawn over it, a layer the
   pointer passes through included —, and nothing else takes the pointer there, a transparent layer that
@@ -3579,8 +3585,9 @@ two widths:
   may lie entirely beyond the edge of a box that hides what overflows it, which the
   browser scrolls on focus but the pointer does not reach — a box the user
   scrolls is never an edge: what it hides, it shows by scrolling, and it is the box that
-  must be within the boxes around it; what it shows is still judged against them; no link or button is taken out of
-  the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
+  must be within the boxes around it; what it shows is still judged against them; no link or button — nor anything
+  that states its role, or that of a checkbox (`[role=button]`, `link`, `checkbox`) — is taken out
+  of the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
   still reaches at 911 (`lost`). To see what paints over an element, the walk makes
   only the elements that do not take the pointer, and whose box touches that of the element or of one of its
   children, take it for the time of the measurement — each point the measurement asks the
@@ -3605,11 +3612,30 @@ two widths:
   batch reach neither the listeners the page set after the probe nor the focus, so that the focus is
   back on the first element when the next walk starts; what the page measured beyond a trap is not
   read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on
-  the test's side. The walk, and it alone, keeps its trace without DOM snapshots
+  the test's side. The tests that walk by Tab — the screen, and what a gesture opens —, and they alone, keep their trace without DOM snapshots
   (`withoutSnapshots`): a snapshot per key weighed more than the walk itself under load (#1540), and
   its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
   group refuses an option that forces a new worker: the test restarts the trace the harness opened,
-  with the same options, without the snapshots.
+  with the same options, without the snapshots;
+- what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a
+  dialog or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a
+  dialog and each trigger of a menu sets —, displayed and enabled, receive the focus and Enter; the
+  first enterable cell of each grid — a cell of `DenseGrid`, which `data-column` places and nothing
+  states read only (`aria-readonly`) — receives the focus and F2. An open dialog is walked by Tab
+  bounded to it (`walkByTab(page, dialog)`): what Tab can reach, the widgets and the edges are judged
+  in the dialog alone, the return to its first element is the trap it wants — a dialog of a single
+  element keeps it —, and any element reached outside it is a fault (`escaped`). A menu moves the
+  focus with the arrows and an editor validates on Tab: the test checks there that the focus
+  entered. What opened is then audited by axe — the cell, for an editor —, and the rest of the
+  page by the one rule whose verdict outside it the opening changes (`aria-hidden-focus`: a menu
+  or a modal dialog hides the page from a screen reader); the whole page, which its own audit
+  judges, is not audited again at each opening, which exceeded the timeout of a test on the
+  Kanban and the reference data, eight seconds an audit. Then Escape closes it and
+  the focus comes back to the trigger, or to the cell — the one holding the trigger, for a command
+  of a grid row. The triggers are discovered at each width and played one after the other in a
+  single test per screen and per mode, each check stated apart, named by the trigger and the width
+  (`expect.soft`); a command a grid repeats from row to row is played for the first row only, and a
+  failing check reopens the screen before the next trigger.
 
 `frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
 themselves, on pages written for them (`page.setContent`): each defect they must
@@ -3622,12 +3648,36 @@ on a loaded workstation; the cold compilation of a screen adds to this time only
 `E2E_DEV_SERVER=1`, the built front having none. A reported deviation is fixed in the screen, never by setting aside a
 rule.
 
-The harness checks only the screens as they open: what a gesture opens — a dialog,
-a menu, the refusal of a cell, the editor of a cell — is not walked, nor what a
-closed `details` contains, nor a state a gesture reaches (a refusal, `?import=`); axe does not judge the
-contrast of a text laid on the drawing of a curve, and the contrast of the focus indicator
-(WCAG 1.4.11) is measured only by the tokens of `contrast.test.ts`. What covers them elsewhere, and
-what remains, is stated in the note of US-0200 (EP-14) and in #782.
+What the harness does not prove, and what covers it elsewhere (US-0200, US-0710; the note of
+US-0200 in the file of EP-14 says it too):
+
+- what a gesture opens without a trigger the harness plays: the Popover of a refusal — of a
+  computed cell, or of a refused write —, which opens only once the server has refused; a menu or a
+  dialog opened from a menu — the menu of a cell (Shift+F10), and the dialogs it opens, the
+  insertion of a task for instance —; the paste of a block, opened by Ctrl+V; the dialogs a gesture opens
+  without a button — `TimelineForm` and `GestureDialog` of `structure-gestures.tsx` —, which the
+  harness does not find for want of a command saying `aria-haspopup="dialog"`: the test
+  `dialog-command-guard.test.ts` fails any source that renders a `<Dialog` driven by a state without
+  such a command, outside its named list (each entry with its reason). The component tests
+  hold them (`expectAccessible`, axe under happy-dom, without contrast nor layout; the focus Radix
+  gives back);
+- the list or the popover a cell editor would render in a portal outside the cell: the audit of an
+  editor covers the cell, and no editor today renders one;
+- the content of a closed `details` — the table of the values of a curve — and a state a gesture
+  reaches — a refusal shown, an address `?import=` —: the harness opens each screen at its address,
+  and plays only the triggers there;
+- the failure screen (`error.tsx`, `global-error.tsx`), which no address opens: only its tests
+  render it (`system-pages.test.tsx`, and `expectAccessible` in `system.dom.test.tsx`);
+- in a widget that moves the focus itself, only the entry is checked: reaching each of its elements
+  with the arrows stays with the component tests (#784);
+- the texts axe does not measure: laid on the drawing of a curve, of the Gantt or of a timeline —
+  images for axe —, partly outside the box that scrolls them, under another; the test counts them in
+  an annotation, reason by reason, but that count is compared to nothing: a text that becomes
+  unmeasurable changes no verdict (#784). The placeholder texts of the fields (`placeholder`, the
+  search of the top bar and that of a grid) are not judged by axe: only the pair of tokens
+  `muted-foreground`/`background` of `contrast.test.ts` covers them;
+- the contrast of the focus indicator (WCAG 1.4.11), measured only by the tokens of
+  `contrast.test.ts`, not on the screens.
 
 _Check_: `make e2e`, at the full tier of the chain; the failure of a path makes it
 fail, a grid opening that exceeds the second is only a warning there.
@@ -4035,8 +4085,8 @@ the colours of an SVG, any literal or template without an expression other than 
 that no stylesheet lives outside `src/theme/`. `make test-front` —
 `contrast.test.ts` measures each pair of tokens in both modes, `brand.test.ts`
 compares the logos and the icon with those of `docs/assets`. The contrast of the rendered screens is
-checked in the browser, on each screen of the table, in light and in dark
-(`frontend/e2e/accessibility.spec.ts`, US-0200); the rest of the accessibility of a component, in its
+checked in the browser, on each screen of the application and on what a gesture opens there, in
+light and in dark (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710); the rest of the accessibility of a component, in its
 tests, through `expectAccessible` (`frontend/src/test/axe.ts`, axe-core under happy-dom, which does not
 compute colours). Left to the review: a colour built by a template with expressions
 or by a function, and a `style` or an SVG attribute that receives a variable rather than an

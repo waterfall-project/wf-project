@@ -543,6 +543,7 @@ export function BackupScheduleSection({
         </p>
         <Button
           ref={trigger}
+          aria-haspopup="dialog"
           type="button"
           variant="outline"
           size="sm"

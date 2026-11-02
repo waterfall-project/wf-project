@@ -100,6 +100,7 @@ export function OpensForm({
       <CommandTooltip label={label} help={help} describedBy={writing ? why : undefined}>
         <Button
           ref={trigger}
+          aria-haspopup="dialog"
           type="button"
           variant="outline"
           size="sm"

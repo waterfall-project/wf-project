@@ -203,7 +203,10 @@ test("opens the screen hydrated, though the shell has written its cookie before 
   };
   const opening = releasedAtRead(page, heldScreen, release);
   const opened = openHydrated(opening, SCREEN).then(() => page.evaluate(chartCommands));
-  // A late rejection, if the test fails before `opened` is awaited, must not hide that failure.
+  // A rejection of `opened` must not be reported unhandled, whatever ends the test. This catch
+  // swallows nothing: `opened` is awaited just below, first in the `try`, on every path — nothing
+  // before it can throw —, and that await gets its rejection and fails the test with it; the
+  // catch is only a second listener (#1808).
   void opened.catch(() => undefined);
   try {
     expect(await opened).toEqual({ shown: 3, hydrated: 3 });

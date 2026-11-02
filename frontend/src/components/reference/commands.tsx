@@ -332,6 +332,7 @@ export function CreateCommand({ label }: { readonly label: string }) {
       <WrittenRegion said={commands?.said} />
       <CommandTooltip label={label} help={said("create.help")}>
         <Button
+          aria-haspopup="dialog"
           type="button"
           variant="outline"
           size="sm"
@@ -355,6 +356,7 @@ export function ModifyCommand({ row }: { readonly row: ReferenceObject }) {
   return (
     <CellCommand
       label={t("modifyNamed", { name: row.label })}
+      aria-haspopup="dialog"
       help={said("modify.help")}
       onClick={(event: MouseEvent<HTMLElement>) => {
         commands?.open({ row, trigger: event.currentTarget });

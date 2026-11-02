@@ -1,7 +1,7 @@
 ---
 id: EP-17
 titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs des écrans, lenteur du navigateur, cosmétique
-statut: prêt
+statut: en cours
 depend_de: EP-16
 famille: front
 issue: 1547
@@ -523,7 +523,11 @@ ses mesures par lots ; rien n'y est réécrit.
   - Chaque ouverture est un test à elle, nommé par l'écran et le déclencheur, en clair et en sombre,
     aux deux largeurs : un parcours au Tab borné à ce qui s'est ouvert (`walkByTab`, dont le piège
     voulu du modal est le retour au premier élément du dialogue, non de la page), un audit d'axe de
-    la page entière, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
+    ce qui s'est ouvert — la cellule, pour un éditeur —, auquel s'ajoute, sur le reste de la page,
+    la seule règle dont l'ouverture change le verdict (`aria-hidden-focus` : un menu ou un dialogue
+    modal cache la page au lecteur d'écran) — l'écran, que son propre audit juge, n'est pas audité
+    de nouveau à chaque ouverture : la page entière coûtait huit secondes l'audit et dépassait le
+    délai d'un test —, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
     se parcourt aux flèches, pas au Tab : le test y vérifie l'entrée du focus, l'audit, et le
     retour.
   - Les déclencheurs se découvrent à l'ouverture de l'écran, et le test les joue l'un après l'autre
@@ -531,7 +535,13 @@ ses mesures par lots ; rien n'y est réécrit.
     qu'elle a de déclencheurs —, chaque échec dit à part (`expect.soft`, nommé par le déclencheur).
 - **Ce qui reste hors du harnais**, écrit dans la note de l'US-0200 (EP-14, « Ce que les tests ne
   prouvent pas »), que le lot réécrit, et dans le guide (« L'accessibilité minimale de chaque
-  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint.
+  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint, les
+  dialogues qu'un geste ouvre sans bouton (`TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx`, le collage de `paste-dialog.tsx` par Ctrl+V) — un garde-fou
+  (`dialog-command-guard.test.ts`) fait échouer toute commande d'un dialogue qui ne dit pas
+  `aria-haspopup="dialog"` hors de cette liste —, et la liste ou le popover qu'un éditeur rendrait
+  dans un portail hors de la cellule (aucun éditeur d'aujourd'hui n'en rend un : l'audit d'un
+  éditeur porte sur la cellule).
 - **Le mode sombre** : le test du parcours au Tab reçoit `test.use({ colorScheme })` comme celui
   d'axe, un `describe` par mode ; la durée se relève par `--reporter=json` sur le fichier, avant et
   après, et s'écrit dans la pull request.
@@ -726,7 +736,7 @@ ses mesures par lots ; rien n'y est réécrit.
 
 ## US-0710 — Le harnais d'accessibilité parcourt les dialogues, les menus et les éditeurs
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1548
@@ -766,6 +776,14 @@ mesures par lots avant que cette US ne commence. Les popovers de refus, les `<de
 les états atteints par un geste (`?import=`) restent aux tests de composants et s'écrivent dans la
 note du guide (décision de l'auteur du 2026-10-28). Le coût de chaîne se mesure contre la règle
 d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la pull request.
+- L1 (#1558) : les dialogues du front s'ouvrent par un état, non par un `DialogTrigger` ; chaque
+  commande qui en ouvre un pose donc elle-même `aria-haspopup="dialog"`, que le harnais lit. Ce
+  qu'un geste ouvre est audité par axe en lui-même, et le reste de la page par `aria-hidden-focus`
+  seule : la page entière auditée à chaque ouverture dépassait le délai d'un test sur le Kanban et
+  le référentiel (huit secondes l'audit). Les écarts relevés et corrigés : les menus déroulants
+  modaux (`aria-hidden-focus`, rendus non modaux), le dialogue d'alerte qui ne se disait pas modal
+  (`aria-modal`), le premier champ d'un dialogue long atteint hors de la vue (WCAG 2.4.11, le
+  dialogue défile au focus), la cellule en saisie restée cible autour de son champ (`target-size`).
 
 **Hors périmètre.** Les navigateurs et 360 points (US-0290, EP-13) ; une conformité déclarée (§2.2).
 
