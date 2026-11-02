@@ -149,7 +149,8 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-15](EP-15-maquette-ajustements.md) | Maquette : ajustements issus de la validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16 |
+| [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | prêt | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
@@ -189,7 +190,10 @@ d'EP-15 les aides en ligne des écrans que les cinq écrans clés ne couvrent pa
 relecture ne tienne pas `epic/EP-15` ouverte, et la règle qui prime est que n'y reste que ce qui
 concerne le durcissement ou le contrat — tout le reste, dont les ajustements de la validation du
 2026-10-23 qui ne touchent pas le contrat, part à EP-17 ; la stabilité restante des parcours de bout
-en bout, elle, est du durcissement et revient à EP-16 (US-0590b).
+en bout, elle, est du durcissement et revient à EP-16 (US-0590b). EP-18 fait suivre au service des comptes et à son écran les
+quatre décisions de la revue du contrat du 2026-10-31 qui touchent EP-03, livré ; il passe avant
+EP-05, qui touche les mêmes fichiers, et se livre avant le lot des comptes d'EP-17 (US-0780/L1),
+sans suspendre le reste d'EP-17.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.

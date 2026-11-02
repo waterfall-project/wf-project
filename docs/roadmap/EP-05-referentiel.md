@@ -2,7 +2,7 @@
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: prêt
-depend_de: EP-16
+depend_de: EP-16, EP-18
 famille: front, back
 issue:
 ---

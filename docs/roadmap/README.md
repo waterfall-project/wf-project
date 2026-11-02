@@ -150,7 +150,8 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-15](EP-15-maquette-ajustements.md) | Mockup: adjustments from the validation | livré | EP-14 |
 | [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | prêt | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16 |
+| [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | prêt | EP-16 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
@@ -190,7 +191,10 @@ from EP-15 the online helps of the screens that the five key screens do not cove
 review does not keep `epic/EP-15` open, and the rule that prevails is that only what
 concerns the hardening or the contract stays there — everything else, including the adjustments of the
 2026-10-23 validation that do not touch the contract, goes to EP-17; the remaining stability of the end-to-end
-paths, for its part, is hardening and comes back to EP-16 (US-0590b).
+paths, for its part, is hardening and comes back to EP-16 (US-0590b). EP-18 brings the accounts service and its screen in
+line with the four decisions of the 2026-10-31 contract review that touch EP-03, delivered; it comes
+before EP-05, which touches the same files, and is delivered before the accounts lot of EP-17
+(US-0780/L1), without suspending the rest of EP-17.
 
 EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
 whose last action comes late, and it finishes last.
