@@ -121,7 +121,7 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   expect(frame.y).toBeLessThan(register.y);
   expect(frame.width).toBeGreaterThan(register.width - 1);
   await figure.getByText("Valeurs du graphique").click();
-  const matrix = figure.getByRole("table", { name: "Décompte des risques par case de la matrice" });
+  const matrix = figure.getByRole("table", { name: "Décompte des risques identifiés par case de la matrice" });
   await expect(matrix.getByRole("columnheader", { name: "10 % et plus" })).toBeVisible();
   await expect(matrix.getByRole("rowheader", { name: "60 % et plus" })).toBeVisible();
   await expect(matrix.getByRole("img", { name: "Alerte" })).toHaveCount(3);
@@ -193,11 +193,11 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
       await expect(name).toBeVisible();
     }
   }
-  // The legend names the states of the risks, each by the shape of its bubbles too.
+  // The chart draws the identified risks alone, by the shape of their zone: no state is named.
   for (const state of ["Identifié", "Survenu", "Écarté"]) {
-    await expect(drawing.locator("text", { hasText: new RegExp(`^${state}$`) })).toBeVisible();
+    await expect(drawing.locator("text", { hasText: new RegExp(`^${state}$`) })).toHaveCount(0);
   }
-  // The heaviest risk (12 000 000,00) is the largest bubble: those of the legend are smaller.
+  // The heaviest risk identified (1 250 000,00) is the largest bubble; the risk occurred is not drawn.
   const bubbles = await drawing.locator("path[fill-opacity='0.85']").evaluateAll((paths) =>
     paths.map((path) => {
       const box = path.getBoundingClientRect();
@@ -207,10 +207,10 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   const heaviest = bubbles.reduce((most, each) => (each.size > most.size ? each : most));
   expect(heaviest.size).toBeGreaterThan(30);
   await page.mouse.move(heaviest.x, heaviest.y);
-  await expect(drawing).toContainText("Indisponibilité de l'automaticien");
-  await expect(drawing).toContainText("Gravité : 12 000 000,00 € (17,58 %)");
+  await expect(drawing).toContainText("Risque de reprise du câblage");
+  await expect(drawing).toContainText("Gravité : 1 250 000,00 € (1,83 %)");
   await page.mouse.click(heaviest.x, heaviest.y);
-  await expect(page).toHaveURL(`${RISKS}?risk=01926f3a-7c00-7000-8000-000000000753`, {
+  await expect(page).toHaveURL(`${RISKS}?risk=01926f3a-7c00-7000-8000-000000000751`, {
     timeout: WORKING,
   });
 });
