@@ -42,6 +42,8 @@ const NARROWEST = 640;
 /**
  * The column of the names: the room of an indent a level, of a character, and of the edges, as a
  * size of text of the image takes; narrowest and widest, a longer name being cut with an ellipsis.
+ * The width is an estimate — `character` a character, `label.length` counting UTF-16 units — while
+ * the cut is made at `measureText`: a name in capitals or in CJK is cut sooner than the estimate.
  */
 const NAMES = {
   indent: 12,
@@ -164,7 +166,8 @@ function overflowOf(
 /**
  * The bound the image of a drawing so wide, of so many rows, passes at the density of the screen,
  * if any: the command says which, for the remedy differs — zoom out for the width, fold summaries
- * for the height; `names` is the width of the column of the names (`namesWidth`). The head is judged at its usual height (`HEAD_ROOM`); the export measures it.
+ * for the height; `names` is the width of the column of the names (`namesWidth`). The head is
+ * judged at its usual height (`HEAD_ROOM`); the export measures it.
  */
 export function ganttOverflow(
   width: number,

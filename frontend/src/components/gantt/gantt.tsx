@@ -236,6 +236,8 @@ function zoomByKey(event: KeyboardEvent, zoomTo: (step: 1 | -1) => void) {
  * and held — through the hydration, seconds under load — until the axis has measured its frame
  * (`framed`): it then goes if the days are under a pixel, which moves the grid by its height, once
  * (#1539). Not rendering it on the server until then is set aside: the grid would move as well.
+ * It is held for the commit of the mount alone: an axis mounted after it holds nothing back, the
+ * legend following its measure (the axes of the screens are in the first render).
  * Given the hours of a day, its finest level is the worked hours; given
  * where it comes from, it is exported as an image.
  */

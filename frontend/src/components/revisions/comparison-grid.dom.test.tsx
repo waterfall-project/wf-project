@@ -191,13 +191,3 @@ describe("the grid of the comparison of two revisions", () => {
     expect(cell(0, "label")).toHaveTextContent(VOLUME.items[0]?.task?.label ?? "?");
   });
 });
-
-describe("the rows of the comparison of the kinds a reading asked [WF-PLA-0080-A]", () => {
-  it("keep the nodes of these kinds alone, the server being free to render more than it was asked", () => {
-    const tasks = comparisonRows(COMPARISON.items, ["task"]);
-    expect(tasks.length).toBeGreaterThan(0);
-    expect(tasks.length).toBeLessThan(COMPARISON.items.length);
-    expect(tasks.every((row) => row.kind === "task")).toBe(true);
-    expect(comparisonRows(COMPARISON.items)).toHaveLength(COMPARISON.items.length);
-  });
-});

@@ -609,8 +609,8 @@ ses mesures par lots ; rien n'y est réécrit.
   rendus diffèrent.
 - **US-0750, les grilles du projet** : `projectNodes` (`grid/nodes.tsx`) reçoit `kinds` et écarte
   les nœuds d'un autre type avant `projectNode`, appelé par `grid-screen.ts` pour toute lecture qui
-  passe `kinds` — le planning, le planning d'un différentiel, la comparaison (`comparison-rows.ts`)
-  —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
+  passe `kinds` — le planning, le planning d'un différentiel ; la comparaison (`comparison-rows.ts`),
+  qui ne demande aucun `kinds`, montre ses deux natures —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
   gauche (`ROW` par ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le
   plus long, bornée), comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la
   légende jusqu'au signal de mesure de l'axe (#1421), et le commentaire de `GanttRows` dit qu'elle
@@ -626,8 +626,8 @@ ses mesures par lots ; rien n'y est réécrit.
   place déjà rien sous un jalon (`byLevel`, `createdOn`), rend « Indenter » et « Ajouter une
   sous-tâche » indisponibles avec leur condition au lieu de les taire, par la forme des gestes
   indisponibles de la grille (WF-IHM-0090) ; le refus `MILESTONE_HAS_NO_SUBTASK`, déjà au
-  catalogue, est éprouvé sur un collage et dans un compte rendu d'import. Les aides FBS-4.3 et
-  FBS-4.3.1 disent l'export.
+  catalogue, est éprouvé sur un collage et dans un compte rendu d'import. Les aides touchées,
+  FBS-4.3.2 (gestes) et FBS-4.3.3 (export), le disent.
 - **US-0760, le faux back dit** : `docs/dev/README.md` reçoit « Ce que le faux back ne fait pas »
   sous « Le faux back », et les mentions des lignes 984 et 1228 y renvoient. `MockupNotice` reçoit
   une prop `lists?: boolean` : posée par les pages de listes et de grilles, elle ajoute la phrase

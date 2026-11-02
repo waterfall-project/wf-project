@@ -332,22 +332,49 @@ describe("the Gantt of the planning", () => {
     expect(first.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
     // The timers never run: the legend goes on the signal of the measure, not on a tick (#1421).
     vi.useFakeTimers();
-    // A frame measured too narrow, the days under a pixel: neither legend nor band.
-    const narrow = render(drawing(10));
-    expect(narrow.container.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+    try {
+      // A frame measured too narrow, the days under a pixel: neither legend nor band.
+      const narrow = render(drawing(10));
+      expect(narrow.container.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+      narrow.unmount();
+      // A frame measured wide: the legend stays, with its bands, whatever the time that passes.
+      const wide = render(drawing(4000));
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(screen.getByRole("group", { name: "Légende du Gantt" })).toBeInTheDocument();
+      wide.unmount();
+      // A Gantt not drawn, no axis to measure: no legend once the commit of the mount is over.
+      render(drawing(undefined));
+      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("follows the measure of an axis mounted after the commit of the mount [WF-PLA-0090-A]", () => {
+    const rows = planning.items;
+    const row = rows.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    const drawing = (axis: number | undefined) => (
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <GanttRows rows={rows}>
+          {axis === undefined ? null : <GanttAxis width={axis} />}
+          <GanttCell row={row} />
+          <GanttLegend />
+        </GanttRows>
+      </NextIntlClientProvider>
+    );
+    const view = render(drawing(undefined));
+    // The mount is over with no axis in it: the legend has gone. An axis rendered next is not
+    // waited for: its measure alone decides, the legend back for a wide frame, gone for a narrow one.
     expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
-    narrow.unmount();
-    // A frame measured wide: the legend stays, with its bands, whatever the time that passes.
-    const wide = render(drawing(4000));
-    act(() => {
-      vi.advanceTimersByTime(10_000);
-    });
+    view.rerender(drawing(4000));
     expect(screen.getByRole("group", { name: "Légende du Gantt" })).toBeInTheDocument();
-    wide.unmount();
-    // A Gantt not drawn, no axis to measure: no legend once the commit of the mount is over.
-    render(drawing(undefined));
+    view.rerender(drawing(10));
     expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
-    vi.useRealTimers();
   });
 
   // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au
