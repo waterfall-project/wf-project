@@ -160,44 +160,35 @@ beforeEach(() => {
   };
 });
 
-describe("the screen of a project", () => {
+describe("the screen of a project without a revision, the only one a project keeps (US-0720)", () => {
+  beforeEach(() => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
+  });
+
   it("shows what the project is as the API reads it, a value it lacks said missing, never invented", async () => {
     const page = html(await ProjectPage(at()));
     expect(text(page)).toContain(
-      "Code PRJ-001 State In progress Order received on 15 Jan 2026 Description Not set",
+      "Code PRJ-002 State Pricing Order received on Not set Description Not set",
     );
     expect(page).toContain('<dl aria-label="The project"');
   });
 
-  it("names each revision by its version name, and the draft without one the current revision, from its status", async () => {
-    const page = html(await ProjectPage(at()));
-    expect(text(page)).toContain("Revisions Current revision Référence");
-  });
-
-  it("opens each revision with the filters of its address, the revision it was read in left to the link", async () => {
-    const subproject = "01926f3a-7c00-7000-8000-000000000801";
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}/revisions/{revision_id}": "revision_offer",
-    };
-    const page = html(
-      await ProjectPage(
-        at({
-          revision_id: "01926f3a-7c00-7000-8000-000000000100",
-          subproject_id: subproject,
-          as_of: "2026-05-31",
-        }),
-      ),
-    );
-    const revision = `/projects/${PROJECT}/revisions/01926f3a-7c00-7000-8000-000000000102`;
-    expect(page).toContain(`href="${revision}?subproject_id=${subproject}&amp;as_of=2026-05-31"`);
-    expect(html(await ProjectPage(at()))).toContain(`href="${revision}"`);
-  });
-
   it("offers nothing to create or modify: those forms belong to the epic of their domain", async () => {
     const page = html(await ProjectPage(at()));
-    // The help of the screen at the address alone, which the test sets to the settings.
-    expect(buttons(page)).toEqual(["Help"]);
+    // The help of the screen, the start of the planning and the imports: no command of the project.
+    expect(buttons(page)).toEqual([
+      "Help",
+      "Import an MS Project file",
+      "Later",
+      "Import an MS Project schedule",
+      "Import an estimate",
+      "Import an estimate to complete",
+      "Import actual costs",
+    ]);
     expect(page).not.toContain("<form");
   });
 });

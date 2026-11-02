@@ -272,16 +272,14 @@ beforeEach(() => {
 const FILLED_SCREEN = `<main data-fill="" class="${SCREEN.dense} min-h-0">`;
 
 describe("the witness path", () => {
-  it("shows a project and links to its revisions", async () => {
-    const page = await ProjectPage({
+  it("leads a project to its revision in progress [WF-IHM-0010-A]", async () => {
+    const page = ProjectPage({
       params: Promise.resolve({ projectId: PROJECT }),
       searchParams: NO_SEARCH,
     });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(html).toContain(`<main class="${SCREEN.dense}">`);
-    expect(html).toMatch(/<h1[^>]*><svg[^>]*>.*?<\/svg>Modernisation du poste de commande<\/h1>/);
-    expect(html).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}"`);
-    expect(html).toContain(">Référence</a>");
+    await expect(page).rejects.toMatchObject({
+      digest: expect.stringContaining(`/projects/${PROJECT}/revisions/${REVISION};`) as string,
+    });
   });
 
   it("shows the grid of the estimate on the main structure, a row for each node, in the order of the answer", async () => {
@@ -822,15 +820,20 @@ describe("the indicators and the missing rates of the estimate", () => {
 });
 
 describe("the banner of the reading context on the witness path", () => {
-  it("names the project on the page of a project [WF-IHM-0020-A]", async () => {
+  it("names the project on the page of a project without a revision [WF-IHM-0020-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_empty",
+    };
     const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PROJECT }),
+      params: Promise.resolve({ projectId: PRICING }),
       searchParams: NO_SEARCH,
     });
     const html = renderToStaticMarkup(inEnglish(page));
     expect(html.startsWith(BANNER)).toBe(true);
     expect(text(html)).toMatch(
-      /^Project Modernisation du poste de commande Modernisation du poste de commande Help Code PRJ-001/,
+      /^Project Extension de la ligne d&#x27;essais Extension de la ligne d&#x27;essais Help Code PRJ-002/,
     );
   });
 
@@ -874,42 +877,6 @@ function links(markup: string): string[] {
 }
 
 describe("the empty states of the shell", () => {
-  it("says a project has no revision yet, on the example of an empty history, and leads to its revisions", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /projects/{project_id}": "project_pricing",
-      "GET /projects/{project_id}/revisions": "revisions_empty",
-    };
-    const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PRICING }),
-      searchParams: NO_SEARCH,
-    });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(text(html)).toContain(
-      "Revisions This project has no revision yet. Go to the revisions of the project",
-    );
-    expect(links(html)).toContain(`/projects/${PRICING}/revisions`);
-    // No revision is listed: the only links to a revision are none.
-    expect(links(html).filter((href) => href.includes("/revisions/"))).toEqual([]);
-  });
-
-  it("does not offer the way to the revisions to a session that may not read them", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /me": UNAUTHORIZED,
-      "GET /projects/{project_id}": "project_pricing",
-      "GET /projects/{project_id}/revisions": "revisions_empty",
-    };
-    const page = await ProjectPage({
-      params: Promise.resolve({ projectId: PRICING }),
-      searchParams: NO_SEARCH,
-    });
-    const html = renderToStaticMarkup(inEnglish(page));
-    expect(text(html)).toContain("This project has no revision yet.");
-    expect(text(html)).not.toContain("Go to the revisions of the project");
-    expect(links(html)).not.toContain(`/projects/${PRICING}/revisions`);
-  });
-
   it("is not found for a revision its address carries that the API does not find", async () => {
     server.answers = {
       ...server.answers,

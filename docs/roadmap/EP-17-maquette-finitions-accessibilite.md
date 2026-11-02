@@ -791,7 +791,7 @@ d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la 
 
 ## US-0720 — L'écran d'un projet mène à sa révision
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0010-A`
 - **opérations** : `getProject`, `listRevisions`
 - **issue** : #1549
