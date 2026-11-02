@@ -385,10 +385,10 @@ describe("the gestures of the cards of the Kanban", () => {
         expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       });
       expect(card(label)).not.toHaveFocus();
-      // The menu being modal, the focus goes back to its button, not to the card.
+      // The menu is not modal (US-0710): the focus stays where the click took it, not on its button.
       expect(
         within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
-      ).toHaveFocus();
+      ).not.toHaveFocus();
     });
 
     it("gives the stop of Tab back to the first card when the card chosen leaves the reading", async () => {

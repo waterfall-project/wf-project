@@ -239,6 +239,7 @@ export function IdentitySyncScheduleSection({
             <>
               <Button
                 ref={trigger}
+                aria-haspopup="dialog"
                 type="button"
                 variant="outline"
                 size="sm"

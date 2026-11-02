@@ -375,6 +375,7 @@ export function AnonymizeCommand({ user }: { readonly user: User }) {
     <CellCommand
       ref={control}
       label={named}
+      aria-haspopup="dialog"
       help={said("anonymize.help")}
       unavailable={lacking}
       waiting={held}

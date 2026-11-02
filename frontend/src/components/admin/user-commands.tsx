@@ -457,6 +457,7 @@ export function CreateUser() {
       variant="outline"
       size="sm"
       className="self-start"
+      aria-haspopup="dialog"
       onClick={(event) => {
         writes?.create(event.currentTarget);
       }}

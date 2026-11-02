@@ -21,7 +21,12 @@ export function AlertDialog(props: ComponentProps<typeof AlertDialogPrimitive.Ro
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
-/** The content of an alert dialog, over the page, at its centre. */
+/**
+ * The content of an alert dialog, over the page, at its centre. It says it is modal
+ * (`aria-modal`), which Radix leaves unsaid: the page behind is hidden from a reader of the screen,
+ * and only a dialog that says so is taken for one that holds the focus (axe, `aria-hidden-focus`,
+ * US-0710).
+ */
 export function AlertDialogContent({
   className,
   ...props
@@ -30,6 +35,7 @@ export function AlertDialogContent({
     <AlertDialogPrimitive.Portal>
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
+        aria-modal="true"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-1/2 gap-4 rounded-lg border bg-background p-6 shadow-md outline-hidden",
           className,
