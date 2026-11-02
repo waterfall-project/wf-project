@@ -7,7 +7,9 @@ the realm of test, which serves keys and nothing of the administration API: a cr
 accepts reaches it and fails there (503), what it refuses is refused before Keycloak is asked. A
 local account created in Keycloak is tried against the platform
 (``test_keycloak_authentication.py``); the writing of the account once Keycloak has created it is
-tried here, by the function the route calls, under the correlation of a request.
+tried here, by the function the route calls, under the correlation of a request, and through the
+API with a provider that creates what it is asked (``Creating``). An account is born without a
+role, whatever the body sends (US-1050, #1732).
 """
 
 import threading
@@ -20,28 +22,28 @@ from access_rows import account, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
-from sqlalchemy import select, update
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from support import ContractClient, Logs, Watching, bearer, nowhere, wait_for_a_lock
+from support import ContractClient, Logs, Watching, bearer, nowhere
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
 from waterfall.api.users import withdraw, write_new_account
 from waterfall.core.access_roles.administrators import lock_administrators
 from waterfall.core.access_roles.interface import Actor
-from waterfall.core.access_roles.tables import AccessRole
-from waterfall.core.users.interface import Identity, is_address, lock_account_for_change
+from waterfall.core.access_roles.tables import UserAccessRole
+from waterfall.core.users.interface import Identity, is_address
 from waterfall.core.users.tables import UserAccount
 from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database, utc_now
-from waterfall.platform.errors import ConflictError, UnprocessableError
+from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak import Keycloak
-from waterfall.platform.keycloak_admin import KeycloakAdmin
+from waterfall.platform.keycloak_admin import InvitationFailure, KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings
 
 USERS = "/api/v1/users"
+ME = "/api/v1/me"
 SUBJECT = "6c2d4e1f-3a5b-4c7d-8e9f-0a1b2c3d4e5f"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
 CHANGE = ("users.read", "users.write")
@@ -179,37 +181,15 @@ def test_an_address_is_received_as_written_special_use_domains_included(address:
     assert not is_address(f"{'j' * 64}@{'m' * 182}.invalid")
 
 
-def test_the_roles_the_installation_lacks_and_any_node_are_each_named_on_its_field(
+def test_a_node_the_installation_lacks_is_named_and_roles_sent_are_not_judged(
     client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
 ) -> None:
-    known = role(database, "Chiffreur")
+    # The contract declares no role in the body of a creation: roles sent are not read, not even
+    # to be refused (#1732). A node is unknown to every installation before EP-05 creates the tree.
     deleted = role(database, "Ancien rôle", deleted=True)
-    sent = {
-        **JEANNE,
-        "access_role_ids": [str(known), str(uuid4()), str(deleted)],
-        "org_node_id": str(uuid4()),
-    }
+    sent = {**JEANNE, "access_role_ids": [str(uuid4()), str(deleted)], "org_node_id": str(uuid4())}
     response = client.post(USERS, headers=headers, json=sent)
-    # A node is unknown to every installation before EP-05 creates the tree.
-    assert fields(response) == [
-        ("422", "VALIDATION_FAILED"),
-        ("/org_node_id", "UNKNOWN_ORG_NODE"),
-        ("/access_role_ids/1", "UNKNOWN_ACCESS_ROLE"),
-        ("/access_role_ids/2", "UNKNOWN_ACCESS_ROLE"),
-    ]
-    assert watching.held == []
-    assert accounts(database) == ["camille.martin@example.org"]
-
-
-def test_roles_sent_null_are_refused_on_their_field(
-    client: ContractClient, database: Database, headers: dict[str, str], watching: Watching
-) -> None:
-    # Not sent, the account has no role; sent, they are a list, empty or not.
-    response = client.post(USERS, headers=headers, json={**JEANNE, "access_role_ids": None})
-    assert fields(response) == [
-        ("422", "VALIDATION_FAILED"),
-        ("/access_role_ids", "VALIDATION_FAILED"),
-    ]
+    assert fields(response) == [("422", "VALIDATION_FAILED"), ("/org_node_id", "UNKNOWN_ORG_NODE")]
     assert watching.held == []
     assert accounts(database) == ["camille.martin@example.org"]
 
@@ -243,6 +223,131 @@ def test_an_account_the_provider_fails_to_withdraw_is_said_in_the_log(
     assert (record["subject"], record["level"]) == ("kc-jeanne", "error")
 
 
+class Creating(Watching):
+    """The administration client of the API, as a provider that creates what it is asked.
+
+    The realm of test serves no administration API: each account asked is noted, as the provider
+    would hold it, under a subject of its own, and its invitation said sent. Every call is noted
+    (``held``): what else the provider would be asked shows there.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """No account is created yet."""
+        super().__init__(keycloak, settings, database)
+        self.created: dict[str, LocalIdentity] = {}
+
+    def create_account(self, identity: LocalIdentity) -> str | None:
+        """Note, then hold the account under a subject of its own."""
+        self._note("create_account")
+        subject = f"kc-{uuid4()}"
+        self.created[subject] = identity
+        return subject
+
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
+        """Note, then say the invitation sent."""
+        del subject
+        self._note("send_invitation")
+        return None
+
+
+@pytest.fixture
+def creating(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, realm_settings: ServiceSettings
+) -> tuple[ContractClient, Creating]:
+    """Give a client of the API whose provider creates the accounts asked, and the provider."""
+    provider = Creating(keycloak, realm_settings, database)
+    app = create_app(Services(database, keycloak, provider, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract), provider
+
+
+# The two permissions of the administration (WF-ADM-0120), and those to consult what they change.
+ADMINISTRATION = ("users.read", "users.write", "access_roles.read", "access_roles.write")
+
+
+def subject_of(database: Database, user_id: str) -> str:
+    """Read the subject under which the provider holds an account Waterfall holds."""
+    with database.transaction() as session:
+        return session.get_one(UserAccount, UUID(user_id)).idp_subject
+
+
+def holders(database: Database) -> set[UUID]:
+    """Give the accounts that hold a role."""
+    with database.transaction() as session:
+        return set(session.scalars(select(UserAccessRole.user_account_id)))
+
+
+@pytest.mark.requirement("WF-ADM-0070-A")
+@pytest.mark.parametrize(
+    "roles_sent",
+    ["absent", "the administration", "an empty list", "null", "a role the installation lacks"],
+)
+def test_a_local_account_created_from_waterfall_is_born_without_a_role_whatever_the_body_sends(
+    creating: tuple[ContractClient, Creating],
+    database: Database,
+    realm: TestRealm,
+    headers: dict[str, str],
+    roles_sent: str,
+) -> None:
+    # « Un compte local créé depuis Waterfall existe dans le fournisseur d'identité, sans rôle. »
+    # The contract declares no role in the body of a creation: roles sent are ignored as any
+    # property it does not declare, never given (#1732). The provider of the platform is tried in
+    # test_keycloak_authentication.py.
+    api, provider = creating
+    administration = role(database, "Administrateur", permissions=ADMINISTRATION)
+    bodies: dict[str, dict[str, object]] = {
+        "absent": {},
+        "the administration": {"access_role_ids": [str(administration)]},
+        "an empty list": {"access_role_ids": []},
+        "null": {"access_role_ids": None},
+        "a role the installation lacks": {"access_role_ids": [str(uuid4())]},
+    }
+    response = api.post(USERS, headers=headers, json={**JEANNE, **bodies[roles_sent]})
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert (body["access_role_ids"], body["access_role_labels"]) == ([], [])
+    # The provider holds it, and was asked nothing but to create it and to invite its holder.
+    subject = subject_of(database, body["user_id"])
+    assert provider.created == {subject: LocalIdentity("Montgolfier", "Jeanne", JEANNE["email"])}
+    assert provider.held == [("create_account", 0), ("send_invitation", 0)]
+    # Its holder, signed in, has no role and no permission.
+    held = api.get(ME, headers=bearer(realm.token(subject, KEY))).json()
+    assert (held["access_role_ids"], held["permissions"]) == ([], [])
+    # Nothing else is written in Waterfall: no role given to anyone, and one inscription, the
+    # creation, which names none.
+    assert holders(database) == {CALLER}
+    assert set(accounts(database)) == {"camille.martin@example.org", "Jeanne@Mairie.LOCAL"}
+    (created,) = journal(database)
+    assert (created.action, created.object_id, created.params) == (
+        "user_create",
+        UUID(body["user_id"]),
+        {"origin": "local"},
+    )
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+@pytest.mark.requirement("WF-ADM-0100-A")
+def test_who_changes_the_accounts_alone_creates_one_and_gives_it_no_role(
+    creating: tuple[ContractClient, Creating], database: Database, headers: dict[str, str]
+) -> None:
+    # Giving a role is managing the roles (FBS-1.2), not the accounts (FBS-1.1): Camille, who may
+    # change the accounts but not the roles, creates Jeanne's account and gives it no role, not
+    # even by the body of its creation (#1732).
+    api, provider = creating
+    administration = role(database, "Administrateur", permissions=ADMINISTRATION)
+    sent = {**JEANNE, "access_role_ids": [str(administration)]}
+    created = api.post(USERS, headers=headers, json=sent)
+    assert created.status_code == 201, created.text
+    user_id = created.json()["user_id"]
+    given = {"access_role_ids": [str(administration)], "lock_version": 0}
+    response = api.request("PUT", f"{USERS}/{user_id}/access-roles", headers=headers, json=given)
+    assert fields(response) == [("403", "PERMISSION_MISSING")]
+    assert response.json()["params"] == {"missing_permission": "access_roles.write"}
+    assert api.get(f"{USERS}/{user_id}", headers=headers).json()["access_role_ids"] == []
+    assert holders(database) == {CALLER}
+    assert [entry.action for entry in journal(database)] == ["user_create"]
+    assert provider.held == [("create_account", 0), ("send_invitation", 0)]
+
+
 @pytest.fixture
 def act() -> Iterator[Act]:
     """Act as Camille Martin, under the correlation of a request."""
@@ -251,17 +356,14 @@ def act() -> Iterator[Act]:
 
 
 @pytest.mark.requirement("WF-SEC-0030-A")
-def test_a_local_account_is_written_with_its_first_roles_and_both_are_inscribed(
+def test_a_local_account_is_written_without_a_role_and_its_creation_inscribed(
     database: Database, headers: dict[str, str], act: Act
 ) -> None:
     del headers
-    estimator, pilot = role(database, "Chiffreur"), role(database, "Pilote")
     identity = Identity("Montgolfier", "Jeanne", "Jeanne@Mairie.LOCAL")
     with database.transaction() as session:
-        user = write_new_account(
-            session, (identity, "kc-jeanne"), [pilot, estimator, pilot], Actor(CALLER, CHANGE), act
-        )
-    # The address as written; the roles by label, the one sent twice held once.
+        user = write_new_account(session, (identity, "kc-jeanne"), Actor(CALLER, CHANGE), act)
+    # The address as written, and no role.
     written = user.model_dump(mode="json")
     assert (written["last_name"], written["first_name"], written["email"], written["origin"]) == (
         "Montgolfier",
@@ -269,7 +371,7 @@ def test_a_local_account_is_written_with_its_first_roles_and_both_are_inscribed(
         "Jeanne@Mairie.LOCAL",
         "local",
     )
-    assert user.access_role_labels == ["Chiffreur", "Pilote"]
+    assert (user.access_role_ids, user.access_role_labels) == ([], [])
     assert (user.is_active, user.lock_version.root, user.audit.created_by.kind.value) == (
         True,
         0,
@@ -278,31 +380,19 @@ def test_a_local_account_is_written_with_its_first_roles_and_both_are_inscribed(
     with database.transaction() as session:
         written = session.get_one(UserAccount, user.user_id.root)
         assert (written.idp_subject, written.created_by) == ("kc-jeanne", CALLER)
-    created, given = journal(database)
+    (created,) = journal(database)
     assert (created.action, created.object_id, created.object_label, created.params) == (
         "user_create",
         user.user_id.root,
         "Jeanne Montgolfier",
         {"origin": "local"},
     )
-    assert (given.action, given.object_id, given.params) == (
-        "user_access_roles_set",
-        user.user_id.root,
-        {
-            "access_roles_granted": [
-                {"access_role_id": str(estimator), "label": "Chiffreur"},
-                {"access_role_id": str(pilot), "label": "Pilote"},
-            ],
-            "access_roles_withdrawn": [],
-        },
+    assert (created.actor_user_id, created.actor_display_name, created.correlation_id) == (
+        CALLER,
+        "Camille Martin",
+        CORRELATION,
     )
-    for entry in (created, given):
-        assert (entry.actor_user_id, entry.actor_display_name, entry.correlation_id) == (
-            CALLER,
-            "Camille Martin",
-            CORRELATION,
-        )
-        assert entry.occurred_at == act.at
+    assert created.occurred_at == act.at
 
 
 def test_an_address_taken_meanwhile_is_refused_by_the_unique_index(
@@ -312,7 +402,7 @@ def test_an_address_taken_meanwhile_is_refused_by_the_unique_index(
     holder = account(database, "Montgolfier", "Jeanne", email="JEANNE@mairie.local")
     identity = Identity("Montgolfier", "Jeanne", "jeanne@MAIRIE.local")
     with pytest.raises(ConflictError) as refused, database.transaction() as session:
-        write_new_account(session, (identity, "kc-jeanne"), [], Actor(CALLER, CHANGE), act)
+        write_new_account(session, (identity, "kc-jeanne"), Actor(CALLER, CHANGE), act)
     assert refused.value.code == "ALREADY_EXISTS"
     assert [(each.pointer, dict(each.params)) for each in refused.value.fields] == [
         ("/email", {"conflicting_object_id": str(holder)})
@@ -320,78 +410,31 @@ def test_an_address_taken_meanwhile_is_refused_by_the_unique_index(
     assert journal(database) == []
 
 
-def test_a_role_deleted_while_the_account_waits_for_the_guard_is_refused(
+def test_a_creation_completes_while_another_write_holds_the_guard_of_the_last_administrator(
     database: Database, headers: dict[str, str], act: Act
 ) -> None:
-    # The creation reads the roles sent under the lock that the deletion of a role holds while
-    # it counts the holders: the role deleted meanwhile is unknown, and nothing is written.
+    # Born without a role, an account takes the administration from nobody and gives it to nobody:
+    # its creation does not wait for the lock of the guard, which another write holds meanwhile.
     del headers
-    leaving = role(database, "Rôle supprimé")
     identity = Identity("Montgolfier", "Jeanne", "jeanne@mairie.local")
-    failures: list[UnprocessableError] = []
+    created: list[tuple[str | None, list[str]]] = []
 
     def create() -> None:
-        with logging_context(correlation_id=CORRELATION):
-            try:
-                with database.transaction() as session:
-                    write_new_account(
-                        session, (identity, "kc-jeanne"), [leaving], Actor(CALLER, CHANGE), act
-                    )
-            except UnprocessableError as error:
-                failures.append(error)
-
-    with Session(database.engine) as deleting:
-        lock_administrators(deleting)
-        creating = threading.Thread(target=create)
-        creating.start()
-        wait_for_a_lock(database)
-        deleting.execute(
-            update(AccessRole).where(AccessRole.id == leaving).values(deleted_at=act.at)
-        )
-        deleting.commit()
-    creating.join(timeout=10)
-    assert [[(each.pointer, each.code) for each in failure.fields] for failure in failures] == [
-        [("/access_role_ids/0", "UNKNOWN_ACCESS_ROLE")]
-    ]
-    assert accounts(database) == ["camille.martin@example.org"]
-    assert journal(database) == []
-
-
-def test_a_creation_with_roles_and_a_write_on_its_author_under_the_guard_both_complete(
-    database: Database, headers: dict[str, str], act: Act
-) -> None:
-    # Camille creates Jeanne with a role while another write — her deactivation, the attribution
-    # of her roles — holds the guard, then locks her account. The creation takes the guard before
-    # it inscribes, and with it the share lock of its author: it waits, and holds nothing the
-    # other waits for. Taken after, the two would wait for each other (DeadlockDetected).
-    del headers
-    pilot = role(database, "Pilote")
-    identity = Identity("Montgolfier", "Jeanne", "jeanne@mairie.local")
-    failures: list[DBAPIError] = []
-
-    def create() -> None:
-        with logging_context(correlation_id=CORRELATION):
-            try:
-                with database.transaction() as session:
-                    write_new_account(
-                        session, (identity, "kc-jeanne"), [pilot], Actor(CALLER, CHANGE), act
-                    )
-            except DBAPIError as error:
-                failures.append(error)
+        with logging_context(correlation_id=CORRELATION), database.transaction() as session:
+            user = write_new_account(session, (identity, "kc-jeanne"), Actor(CALLER, CHANGE), act)
+        created.append((user.email, user.access_role_labels))
 
     with Session(database.engine) as guarding:
         lock_administrators(guarding)
         creating = threading.Thread(target=create)
         creating.start()
-        wait_for_a_lock(database)
-        locked = lock_account_for_change(guarding, CALLER, 0)
+        creating.join(timeout=10)
+        done_under_the_guard = not creating.is_alive()
         guarding.commit()
     creating.join(timeout=10)
-    assert not creating.is_alive()
-    assert failures == []
-    assert locked.user_id == CALLER
-    assert accounts(database) == ["camille.martin@example.org", "jeanne@mairie.local"]
-    assert [entry.action for entry in journal(database)] == ["user_create", "user_access_roles_set"]
+    assert done_under_the_guard
+    assert created == [("jeanne@mairie.local", [])]
+    assert [entry.action for entry in journal(database)] == ["user_create"]
 
 
 def change(client: ContractClient, headers: dict[str, str], user_id: UUID, **sent: object) -> Any:
