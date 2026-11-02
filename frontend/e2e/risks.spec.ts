@@ -121,7 +121,9 @@ test("draws the matrix over the whole width between the cards and the grid, the 
   expect(frame.y).toBeLessThan(register.y);
   expect(frame.width).toBeGreaterThan(register.width - 1);
   await figure.getByText("Valeurs du graphique").click();
-  const matrix = figure.getByRole("table", { name: "Décompte des risques identifiés par case de la matrice" });
+  const matrix = figure.getByRole("table", {
+    name: "Décompte des risques identifiés par case de la matrice",
+  });
   await expect(matrix.getByRole("columnheader", { name: "10 % et plus" })).toBeVisible();
   await expect(matrix.getByRole("rowheader", { name: "60 % et plus" })).toBeVisible();
   await expect(matrix.getByRole("img", { name: "Alerte" })).toHaveCount(3);
