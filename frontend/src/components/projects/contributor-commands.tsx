@@ -257,6 +257,7 @@ function ModifyContributors({
           size="sm"
           aria-disabled={offer.is_available && !writing ? undefined : true}
           aria-busy={writing}
+          aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
             if (offer.is_available && !writing && reading !== undefined) {

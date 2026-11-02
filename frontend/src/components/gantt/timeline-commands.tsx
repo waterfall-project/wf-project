@@ -184,6 +184,7 @@ function ManageButtons({
           variant="outline"
           size="sm"
           aria-disabled={offer.is_available ? undefined : true}
+          aria-haspopup="dialog"
           className={UNAVAILABLE}
           onClick={(event: MouseEvent<HTMLElement>) => {
             open(undefined, event.currentTarget);
@@ -205,6 +206,7 @@ function ManageButtons({
             variant="outline"
             size="sm"
             aria-label={t("deleteNamed", { label: current.label })}
+            aria-haspopup="dialog"
             aria-disabled={offer.is_available ? undefined : true}
             className={UNAVAILABLE}
             onClick={(event: MouseEvent<HTMLElement>) => {

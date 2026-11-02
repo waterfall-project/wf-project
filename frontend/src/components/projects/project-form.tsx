@@ -118,6 +118,7 @@ export function CreateProject({ ready }: { readonly ready: boolean }) {
     <Reactivations reads={[]}>
       <Button
         ref={trigger}
+        aria-haspopup="dialog"
         type="button"
         variant="outline"
         size="sm"
@@ -328,6 +329,7 @@ export function ProjectIdentity({ project }: { readonly project: Project }) {
           >
             <Button
               ref={trigger}
+              aria-haspopup="dialog"
               type="button"
               variant="outline"
               size="sm"
