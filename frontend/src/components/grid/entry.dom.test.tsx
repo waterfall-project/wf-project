@@ -206,6 +206,34 @@ describe("the keyboard of a grid", () => {
     },
   );
 
+  it("keeps the cell out of the order of the keyboard while its entry is open, and gives the one stop of the grid back to a cell when it closes, by Escape or by a validation [WF-IHM-0100-A]", async () => {
+    serve();
+    render(grid());
+    const stops = () =>
+      screen.getByRole("treegrid").querySelectorAll<HTMLElement>('td[tabindex="0"]');
+    cell(LABOUR, "hours").focus();
+    // Open: the field is the stop, the cell around it is not a second target.
+    await userEvent.keyboard("{F2}");
+    expect(screen.getByRole("textbox", { name: "Charge (h)" })).toBeInTheDocument();
+    expect(cell(LABOUR, "hours")).toHaveAttribute("tabindex", "-1");
+    expect(stops()).toHaveLength(0);
+    // Escape: the same cell is the stop again, and holds the focus.
+    await userEvent.keyboard("{Escape}");
+    expect(cell(LABOUR, "hours")).toHaveAttribute("tabindex", "0");
+    expect(cell(LABOUR, "hours")).toHaveFocus();
+    expect(stops()).toHaveLength(1);
+    // Tab validates and moves the cursor: the cell that took the focus is the one stop.
+    await userEvent.keyboard("{F2}{Tab}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(stops()).toHaveLength(1);
+    expect(stops()[0]).toHaveFocus();
+    // Enter validates too, and the cursor goes to the next row.
+    await userEvent.keyboard("{F2}{Enter}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(stops()).toHaveLength(1);
+    expect(stops()[0]).toHaveFocus();
+  });
+
   it("renames a task by its own operation, and shows the label the server answered", async () => {
     const client = serve();
     render(grid());

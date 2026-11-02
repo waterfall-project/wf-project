@@ -3654,9 +3654,15 @@ US-0200 in the file of EP-14 says it too):
 - what a gesture opens without a trigger the harness plays: the Popover of a refusal — of a
   computed cell, or of a refused write —, which opens only once the server has refused; a menu or a
   dialog opened from a menu — the menu of a cell (Shift+F10), and the dialogs it opens, the
-  insertion of a task for instance —; the paste of a block, opened by Ctrl+V. The component tests
+  insertion of a task for instance —; the paste of a block, opened by Ctrl+V; the dialogs a gesture opens
+  without a button — `TimelineForm` and `GestureDialog` of `structure-gestures.tsx` —, which the
+  harness does not find for want of a command saying `aria-haspopup="dialog"`: the test
+  `dialog-command-guard.test.ts` fails any source that renders a `<Dialog` driven by a state without
+  such a command, outside its named list (each entry with its reason). The component tests
   hold them (`expectAccessible`, axe under happy-dom, without contrast nor layout; the focus Radix
   gives back);
+- the list or the popover a cell editor would render in a portal outside the cell: the audit of an
+  editor covers the cell, and no editor today renders one;
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture
   reaches — a refusal shown, an address `?import=` —: the harness opens each screen at its address,
   and plays only the triggers there;

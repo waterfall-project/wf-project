@@ -1227,12 +1227,15 @@ disent le harnais et la règle des listes.
 Ce que les tests ne prouvent pas (réécrit par EP-17, US-0710/L1, #782, #784). L'écart des
 dialogues, des menus et des éditeurs est levé : le harnais ouvre sur chaque écran chaque déclencheur
 d'un dialogue ou d'un menu par Entrée, et l'éditeur de la première cellule saisissable de chaque
-grille par F2, parcourt un dialogue au Tab borné à lui, l'audite par axe, la referme
+grille par F2, parcourt un dialogue au Tab borné à lui, l'audite par axe — ce qui s'est ouvert, et sur le
+reste de la page la seule règle `aria-hidden-focus`, non la page entière, que son audit juge —, la referme
 par Échap et attend le focus sur le déclencheur ou la cellule, en clair et en sombre, aux deux
 largeurs ; le parcours au Tab de l'écran joue lui aussi dans les deux modes (guide, « Un parcours de
 bout en bout »). Restent hors du harnais : le Popover d'un refus, qui ne s'ouvre qu'une fois le
 serveur a refusé ; un menu ou un dialogue ouvert depuis un menu — le menu d'une cellule et ce qu'il
-ouvre — et le collage d'un bloc, ouvert par Ctrl+V ; le contenu d'un `details` fermé — le tableau
+ouvre — et les dialogues qu'un geste ouvre sans bouton — `TimelineForm` et `GestureDialog` de
+`structure-gestures.tsx`, le collage d'un bloc par Ctrl+V : un test de garde fait échouer toute commande
+d'un dialogue qui ne dit pas `aria-haspopup="dialog"` hors de cette liste ; le contenu d'un `details` fermé — le tableau
 des valeurs d'une courbe — et un état qu'un geste atteint — un refus affiché, une adresse
 `?import=` — ; l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre. Dans un
 widget qui déplace lui-même le focus, seule l'entrée est vérifiée : atteindre chacun de ses éléments

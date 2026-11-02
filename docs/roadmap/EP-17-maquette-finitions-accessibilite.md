@@ -523,7 +523,11 @@ ses mesures par lots ; rien n'y est réécrit.
   - Chaque ouverture est un test à elle, nommé par l'écran et le déclencheur, en clair et en sombre,
     aux deux largeurs : un parcours au Tab borné à ce qui s'est ouvert (`walkByTab`, dont le piège
     voulu du modal est le retour au premier élément du dialogue, non de la page), un audit d'axe de
-    la page entière, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
+    ce qui s'est ouvert — la cellule, pour un éditeur —, auquel s'ajoute, sur le reste de la page,
+    la seule règle dont l'ouverture change le verdict (`aria-hidden-focus` : un menu ou un dialogue
+    modal cache la page au lecteur d'écran) — l'écran, que son propre audit juge, n'est pas audité
+    de nouveau à chaque ouverture : la page entière coûtait huit secondes l'audit et dépassait le
+    délai d'un test —, puis Échap, et le focus attendu sur le déclencheur ou sur la cellule. Un menu
     se parcourt aux flèches, pas au Tab : le test y vérifie l'entrée du focus, l'audit, et le
     retour.
   - Les déclencheurs se découvrent à l'ouverture de l'écran, et le test les joue l'un après l'autre
@@ -531,7 +535,13 @@ ses mesures par lots ; rien n'y est réécrit.
     qu'elle a de déclencheurs —, chaque échec dit à part (`expect.soft`, nommé par le déclencheur).
 - **Ce qui reste hors du harnais**, écrit dans la note de l'US-0200 (EP-14, « Ce que les tests ne
   prouvent pas »), que le lot réécrit, et dans le guide (« L'accessibilité minimale de chaque
-  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint.
+  écran ») : les popovers de refus, le contenu d'un `details` fermé, les états qu'un geste atteint, les
+  dialogues qu'un geste ouvre sans bouton (`TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx`, le collage de `paste-dialog.tsx` par Ctrl+V) — un garde-fou
+  (`dialog-command-guard.test.ts`) fait échouer toute commande d'un dialogue qui ne dit pas
+  `aria-haspopup="dialog"` hors de cette liste —, et la liste ou le popover qu'un éditeur rendrait
+  dans un portail hors de la cellule (aucun éditeur d'aujourd'hui n'en rend un : l'audit d'un
+  éditeur porte sur la cellule).
 - **Le mode sombre** : le test du parcours au Tab reçoit `test.use({ colorScheme })` comme celui
   d'axe, un `describe` par mode ; la durée se relève par `--reporter=json` sur le fichier, avant et
   après, et s'écrit dans la pull request.
