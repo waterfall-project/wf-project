@@ -17,3 +17,7 @@ overrides:
   # GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv and GHSA-r825-w8mm-5pxw, fixed in 8.3.3; pulled by
   # vitest. Caret: stays in the major version vitest supports.
   vite: "^8.3.3"
+  # GHSA-xjj6-f33q-929c, GHSA-9fm3-97px-rjf6, GHSA-qrxm-fqhp-jwvm, GHSA-2m5v-pch6-74hx and
+  # GHSA-4w7w-5xrc-9h26, fixed in 8.12.2; pulled by jsdom, under vitest. Caret: stays in the
+  # major version jsdom asks for.
+  undici: "^8.12.2"
