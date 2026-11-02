@@ -736,7 +736,7 @@ ses mesures par lots ; rien n'y est réécrit.
 
 ## US-0710 — Le harnais d'accessibilité parcourt les dialogues, les menus et les éditeurs
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1548

@@ -47,9 +47,15 @@ export function cellStateOf(cells: CellReading, key: string, position: CellPosit
   };
 }
 
-/** The ring of a cell whose write the server refused: none for another. */
+/**
+ * The ring of a cell whose write the server refused: none for another. Its focus is told by a
+ * second stroke, a dashed contour inside the ring, not by the colour of the ring alone
+ * (WF-IHM-0100, #819).
+ */
 export function invalidRing(invalid: string | undefined): string | null {
-  return invalid === undefined ? null : "ring-2 ring-destructive ring-inset";
+  return invalid === undefined
+    ? null
+    : "ring-2 ring-destructive ring-inset focus-visible:outline-2 focus-visible:outline-dashed focus-visible:outline-foreground focus-visible:-outline-offset-4";
 }
 
 /** The key that opens the menu of a cell, as `aria-keyshortcuts` names it (`CellMenu`). */

@@ -801,6 +801,7 @@
   },
   "remainingSummary": {
     "title": "Indicateurs du reste à engager",
+    "fold": "Chiffres clés",
     "unavailable": "Les indicateurs du reste à engager sont indisponibles.",
     "unnamed": "Sans nom",
     "total": "Reste à engager",

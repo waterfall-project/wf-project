@@ -659,6 +659,24 @@ describe("a write the server refuses", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("tells the focus of a refused cell by a dashed contour as well as by its ring [WF-IHM-0100-A]", async () => {
+    // The walk by Tab (`unmarked`) does not judge this second mark: this test holds its class; the contour
+    // the browser draws is no path's to read (EP-14, « Ce que les tests ne prouvent pas », #819, point 1).
+    serve({
+      [LINE]: {
+        problem: example("estimate_line_rate_missing") as Problem & { status: 422 },
+      },
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    await screen.findByRole("alert");
+    const refused = document.querySelector<HTMLElement>("td[aria-invalid='true']");
+    expect(refused).not.toBeNull();
+    expect(refused).toHaveClass("ring-destructive", "focus-visible:outline-dashed");
+    expect(cell(LABOUR, "quantity")).not.toHaveClass("focus-visible:outline-dashed");
+  });
+
   it("explains a conflict, and says the API is out of reach", async () => {
     serve({
       [LINE]: {
