@@ -353,6 +353,56 @@ describe("the grid of the remaining to commit", () => {
     expect(cell(DESKS, "finish")).toHaveAttribute("aria-readonly", "true");
   });
 
+  it("marks the task the server says awaits its own lines, and its lines but the provisions, and no other row [WF-PLA-0040-A]", () => {
+    // Une récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre porte
+    // un reste à engager de 500 est démarrée et signalée : la tâche et sa ligne propre portent la
+    // marque, par une icône et un texte, et la tâche voisine et sa ligne ne la portent pas.
+    serve();
+    render(grid(example("nodes_awaiting_own_lines") as NodeList));
+    const studies = 0;
+    const own = 1;
+    const detail = 2;
+    const detailLine = 3;
+    for (const row of [studies, own]) {
+      const mark = cell(row, "own_lines_open");
+      expect(mark).toHaveTextContent("Lignes propres ouvertes");
+      expect(mark.querySelector("svg")).not.toBeNull();
+    }
+    expect(cell(detail, "own_lines_open")).toBeEmptyDOMElement();
+    expect(cell(detailLine, "own_lines_open")).toBeEmptyDOMElement();
+  });
+
+  it("marks no row of a task the reading does not say awaits its own lines, provision included [WF-PLA-0040-A]", () => {
+    // Une récapitulative dont la seule ligne propre est une provision de 40 est terminée et n'est
+    // pas signalée : sans le signal du serveur, rien n'est marqué.
+    serve();
+    render(grid(example("nodes_estimate") as NodeList));
+    for (const row of [WIRING, LABOUR, DISBURSEMENT, PROVISION]) {
+      expect(cell(row, "own_lines_open")).toBeEmptyDOMElement();
+    }
+  });
+
+  it("never marks the line of provision of a task that awaits its own lines, the lines beside it marked [WF-PLA-0040-A]", () => {
+    // The example of the estimate has a provision under the wiring; the wiring is made to await its
+    // own lines, as the server would say it, to try the provision under such a task.
+    serve();
+    const read = example("nodes_estimate") as NodeList;
+    render(
+      grid({
+        ...read,
+        items: read.items.map((node, index) =>
+          index === WIRING && node.task !== undefined && node.task !== null
+            ? { ...node, task: { ...node.task, awaiting_own_lines: true } }
+            : node,
+        ),
+      }),
+    );
+    expect(cell(WIRING, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
+    expect(cell(LABOUR, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
+    expect(cell(DISBURSEMENT, "own_lines_open")).toHaveTextContent("Lignes propres ouvertes");
+    expect(cell(PROVISION, "own_lines_open")).toBeEmptyDOMElement();
+  });
+
   it("places undo and redo where the remaining to commit may be entered, and enters nothing elsewhere", () => {
     serve();
     const { unmount } = render(grid());

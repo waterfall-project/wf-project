@@ -10,6 +10,8 @@ Le Kanban lit la révision en cours d’élaboration, quelle que soit la révisi
 
 Une tâche non démarrée dont tous les prédécesseurs sont terminés porte **Prête à démarrer**, par une icône et un texte, qu’un filtre soit actif ou non ; sur un jalon, elle s’ajoute à « jalon à terminer ». Le serveur dit quelles tâches sont prêtes : l’écran ne le calcule pas.
 
+Une récapitulative démarrée dont toutes les subordonnées sont terminées, et dont une ligne propre hors provision garde un reste à engager, porte **Lignes propres ouvertes**, par une icône et un texte : elle n’attend plus que ses lignes propres. Le serveur le dit de la tâche ; l’écran ne le déduit pas de ses subordonnées, et une provision ne le fait jamais dire.
+
 ## Ses commandes
 
 **Retrouver une tâche.** Deux filtres, au-dessus des colonnes, écrivent l’adresse de l’écran — ils ne se gardent ni dans les préférences ni dans la session, et la page copiée les porte :

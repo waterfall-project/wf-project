@@ -196,6 +196,7 @@
       "scheduleIndex": "Schedule index",
       "lastMarkedAt": "Last marked revision",
       "finishOverdue": "Finish overdue",
+      "ownLinesOpen": "Own lines open",
       "budgetedAmount": "Budgeted amount",
       "previousQuantity": "Qty at the previous review",
       "previousHours": "Effort (h) at the previous review",
@@ -461,6 +462,7 @@
   },
   "remainingGrid": {
     "finishOverdue": "Started task past its finish",
+    "ownLinesOpen": "Own lines open",
     "showNotStarted": "Show the tasks not started too",
     "startedOnly": "Show the started tasks only"
   },
@@ -822,6 +824,7 @@
     "milestone": "Milestone",
     "milestoneDue": "Its predecessors are completed: milestone to complete.",
     "readyToStart": "Ready to start",
+    "ownLinesOpen": "Own lines open",
     "filters": {
       "label": "Search a task",
       "placeholder": "Search a label",
@@ -1447,6 +1450,9 @@
       },
       "finishOverdue": {
         "help": "Marks a task whose planned finish has passed without it being done."
+      },
+      "ownLinesOpen": {
+        "help": "Marks a summary task whose subordinates are all completed and which waits only for its own lines, and those lines, provisions excepted, that still hold a remaining to commit."
       },
       "budgetedAmount": {
         "help": "Budgeted amount of the line, as the reference budget froze it."

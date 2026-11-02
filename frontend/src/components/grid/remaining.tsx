@@ -18,7 +18,7 @@
  * (`computed_fields`), and where the line says it takes a re-estimation (`remaining_entry`) — the
  * lines of a task completed do not —, never deduced here from the progress of its task.
  */
-import { CalendarX2, Contrast } from "lucide-react";
+import { CalendarX2, Contrast, ListTodo } from "lucide-react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -45,7 +45,7 @@ import {
   type RowOf,
 } from "./nodes";
 import { ProgressCell } from "./planning-cells";
-import { OverdueCell } from "./remaining-cells";
+import { OverdueCell, OwnLinesCell } from "./remaining-cells";
 
 /**
  * What the columns of the remaining to commit read of a node, beyond what every grid reads: the
@@ -55,7 +55,14 @@ import { OverdueCell } from "./remaining-cells";
  */
 export const REMAINING_FIELDS = {
   node: [],
-  task: ["progress", "finish", "finish_overdue", "budgeted_amount", "reestimated_amount"],
+  task: [
+    "progress",
+    "finish",
+    "finish_overdue",
+    "awaiting_own_lines",
+    "budgeted_amount",
+    "reestimated_amount",
+  ],
   line: [
     "quantity",
     "hours",
@@ -135,6 +142,19 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       icon: CalendarX2,
       value: () => undefined,
       render: (node) => <OverdueCell node={node} />,
+    },
+    // The own lines still open of a summary task, and the lines but the provisions (WF-PLA-0040);
+    // the server says it of the task alone, the cell reads the task of a line (`OwnLinesOpen`).
+    {
+      key: "own_lines_open",
+      label: "ownLinesOpen",
+      help: "remaining.ownLinesOpen",
+      format: "text",
+      width: 168,
+      icon: ListTodo,
+      sorts: false,
+      value: () => undefined,
+      render: (node) => <OwnLinesCell node={node} />,
     },
     {
       key: "budgeted_amount",

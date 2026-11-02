@@ -8,7 +8,9 @@ Three columns, in the order the server gives: **Not started**, **Started**, **Co
 
 The Kanban reads the draft revision, whatever the revision of the context: on a marked revision, which has no task to start, it says so and shows nothing.
 
-A task not started all of whose predecessors are completed bears **Ready to start**, by an icon and a text, whether a filter is active or not; on a milestone, it comes beside “milestone to complete”. The server says which tasks are ready: the screen computes nothing of it.
+A task not started all of whose predecessors are completed bears **Ready to start**, by an icon and a text, whether a filter is active or not; on a milestone, it comes beside “milestone to complete”. The server says which tasks are ready: the screen does not compute it.
+
+A started summary task whose subordinates are all completed, and one of whose own lines outside provisions still holds a remaining to commit, bears **Own lines open**, by an icon and a text: it waits only for its own lines. The server says it of the task; the screen does not deduce it from its subordinates, and a provision never makes it say so.
 
 ## Its commands
 

@@ -380,7 +380,7 @@ export function Kanban({
             one permanent region of the board, not in a region of each card (#1356); the button of
             the retry is not in it. */}
         {Object.values(answered).map((each) => (
-          <span key={each.node_id}>
+          <span key={`${each.node_id}-${failed ? "outdated" : "updating"}`}>
             {" "}
             {t(failed ? "outdatedTold" : "updatingTold", { label: each.label })}
           </span>
