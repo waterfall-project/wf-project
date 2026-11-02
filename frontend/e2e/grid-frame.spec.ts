@@ -152,33 +152,40 @@ test("a grid of a few rows is no taller than its content, in a window that would
 });
 
 /**
- * The screens whose key figures lie in cards above their grid (US-0550), with the widths at which
- * the totals of the grid stay in a window 768 high, measured — the cards take, at 1366 then at 911:
- * estimate 170 and 305 points, remaining to commit 189 and 476, actual costs 53 and 99, risks 103
- * and 145. At 911 the cards of the remaining to commit, which need two rows, are folded into a
- * summary that unfolds (`FoldingFigures`, below 1024 points); the actual costs, whose grid and
- * journal of imports lie one under the other below 1024, bounds the grid to the height of the
- * window less where it starts (`useRoomBelow`, `max-h-svh` alone not being enough) (US-0710,
- * #1209). The risks hold at both widths, their cards 103 and 145 points high, with the chart of
- * their matrix folded between the cards and the grid (US-0550/L4b, #1252): unfolded, it takes its
- * 288 points and the page scrolls.
+ * The screens whose key figures lie in cards above their grid (US-0550), at the two widths of the
+ * harness, in a window 768 high: the totals of the grid stay in the window at both. Two ways hold
+ * the criterion at 911 (US-0710, #1209): on the remaining to commit, `folded`, the cards are
+ * folded into a summary that unfolds (`FoldingFigures`, below 1024 points) and are hidden; on the
+ * others they stay visible, the actual costs, whose grid and journal of imports lie one under the
+ * other below 1024, bounding the grid to the height of the window less where it starts
+ * (`useRoomBelow`, `max-h-svh` alone not being enough). The risks hold with the chart of their
+ * matrix folded between the cards and the grid (US-0550/L4b, #1252): unfolded, it takes its 288
+ * points and the page scrolls.
  */
 const CARD_SCREENS = [
-  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768 },
-  { address: path(`${REVISION}/remaining`), widths: [1366, 911], height: 768 },
-  { address: path(`${REVISION}/actual-costs`), widths: [1366, 911], height: 768 },
-  { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768 },
+  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768, folded: false },
+  { address: path(`${REVISION}/remaining`), widths: [1366, 911], height: 768, folded: true },
+  { address: path(`${REVISION}/actual-costs`), widths: [1366, 911], height: 768, folded: false },
+  { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768, folded: false },
 ] as const;
 
-for (const { address, widths, height } of CARD_SCREENS) {
+for (const { address, widths, height, folded } of CARD_SCREENS) {
   test(`${address}: the cards of figures leave the totals of the grid in the window at 911 points as at 1366 [WF-IHM-0100-A]`, async ({
     page,
   }) => {
     await compile(page.request, address);
     for (const width of widths) {
       await open(page, address, { width, height });
-      const cards = await page.locator("main [data-slot='card'][role='region']").count();
-      expect(cards, `the cards of ${address}`).toBeGreaterThan(0);
+      const cards = page.locator("main [data-slot='card'][role='region']");
+      expect(await cards.count(), `the cards of ${address}`).toBeGreaterThan(0);
+      if (folded && width < 1024) {
+        await expect(
+          cards.first(),
+          `the folded cards of ${address} at ${String(width)}`,
+        ).toBeHidden();
+      } else {
+        await expect(cards.first(), `the cards of ${address} at ${String(width)}`).toBeVisible();
+      }
       const grid = page.locator("main [role='grid'], main [role='treegrid']").first();
       // The totals stick to the foot of the grid: the cell that holds them tells where they are.
       await expect(

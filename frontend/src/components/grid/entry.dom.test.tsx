@@ -660,7 +660,8 @@ describe("a write the server refuses", () => {
   });
 
   it("tells the focus of a refused cell by a dashed contour as well as by its ring [WF-IHM-0100-A]", async () => {
-    // Le parcours au Tab (`unmarked`) ne juge pas ce second trait : ce test le tient (#819, point 1).
+    // The walk by Tab (`unmarked`) does not judge this second mark: this test holds its class; the contour
+    // the browser draws is no path's to read (EP-14, « Ce que les tests ne prouvent pas », #819, point 1).
     serve({
       [LINE]: {
         problem: example("estimate_line_rate_missing") as Problem & { status: 422 },

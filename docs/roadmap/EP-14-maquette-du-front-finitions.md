@@ -1248,7 +1248,11 @@ n'a pas mesuré les couleurs y compte sous sa brièveté, non comme un écart ; 
 laissent « incomplet » est noté de même, sans verdict. Les textes indicatifs des champs
 (`placeholder`) ne sont pas jugés par axe : seule la paire de jetons
 `muted-foreground`/`background` les couvre. Le contraste de l'indicateur du focus (WCAG 1.4.11)
-n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Ce qui les couvre ailleurs : `expectAccessible`,
+n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Le contour en pointillé
+d'une cellule refusée dont le focus est posé (`invalidRing`, #819, point 1, US-0710/L2) n'est tenu que
+par la classe qu'un test DOM lit : aucun parcours de bout en bout ne porte une cellule refusée par le
+serveur dont le focus est posé — le refus d'un numéro de prédécesseur se rend au niveau de l'éditeur, et
+Échap l'efface avec la cellule —, et happy-dom ne calcule pas `outline-style`. Ce qui les couvre ailleurs : `expectAccessible`,
 axe sous happy-dom sans le contraste, dans 57 fichiers de tests de composants à la livraison
 d'EP-14 — le 58e qui l'appelle est le test de l'outil lui-même, `src/test/axe.dom.test.tsx` —, dont
 21 ouvrent un dialogue ou un menu ; les jetons de la charte, mesurés deux à deux par

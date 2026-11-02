@@ -200,7 +200,10 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   /**
    * Whether the screen may lay the grid low on the page, below what it stacks above it: the frame
    * is then bounded to the window less where it starts, so that its totals stay in view
-   * (US-0710, #1209).
+   * (US-0710, #1209). The bound is kept at every width, though the stacking exists below the
+   * large breakpoint alone: above it the grid starts high and the bound is the window less a
+   * little, which `max-h-svh` already gives, so nothing visible changes for the cost of one
+   * observer of the page.
    */
   readonly stacked?: boolean | undefined;
 }

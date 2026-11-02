@@ -8,7 +8,7 @@
  */
 "use client";
 
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 
 /** The width from which the cards stay unfolded, in CSS pixels (Tailwind's `lg`). */
 const LARGE = "(min-width: 1024px)";
@@ -39,10 +39,17 @@ export function FoldingFigures({
   readonly children: ReactNode;
 }) {
   const large = useLarge();
+  const details = useRef<HTMLDetailsElement>(null);
+  // Set on the element, not through a prop or a key: crossing the breakpoint sets the summary
+  // anew without remounting the cards (nothing they hold is lost), and the reader's own
+  // toggling stays in the element until then.
+  useLayoutEffect(() => {
+    if (details.current !== null) {
+      details.current.open = large;
+    }
+  }, [large]);
   return (
-    // Keyed by the width: crossing the breakpoint sets the summary anew, and the reader's own
-    // toggling stays in the element until then.
-    <details key={large ? "large" : "narrow"} open={large} className="text-sm">
+    <details ref={details} className="text-sm">
       <summary className="cursor-pointer text-muted-foreground">{title}</summary>
       <div className="mt-2">{children}</div>
     </details>

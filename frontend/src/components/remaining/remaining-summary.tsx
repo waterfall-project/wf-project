@@ -126,17 +126,20 @@ export function RemainingSummary({
   readonly currency: string | undefined;
 }) {
   const t = useTranslations("remainingSummary");
+  if (indicators === undefined) {
+    // The notice that the figures are unavailable is not folded: a reader of a narrow window
+    // would see a closed summary and no notice (US-0710, #1209).
+    return (
+      <FiguresGrid>
+        <FiguresCard title={t("title")}>
+          <p className="text-muted-foreground">{t("unavailable")}</p>
+        </FiguresCard>
+      </FiguresGrid>
+    );
+  }
   return (
     <FoldingFigures title={t("fold")}>
-      {indicators === undefined ? (
-        <FiguresGrid>
-          <FiguresCard title={t("title")}>
-            <p className="text-muted-foreground">{t("unavailable")}</p>
-          </FiguresCard>
-        </FiguresGrid>
-      ) : (
-        <Figures indicators={indicators} currency={currency} />
-      )}
+      <Figures indicators={indicators} currency={currency} />
     </FoldingFigures>
   );
 }
