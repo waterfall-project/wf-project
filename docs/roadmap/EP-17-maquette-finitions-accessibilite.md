@@ -30,22 +30,24 @@ Cadré le 2026-10-28, par objet : une US par écran ou par famille de composants
 exigences de domaine dont une phrase de Vérif tient côté front (décision de l'auteur du 2026-10-28).
 
 - le harnais d'accessibilité étendu aux dialogues, aux menus et aux éditeurs de cellule (#782,
-  option A ; #784 ; #819, point 1), et les totaux gardés en vue à 911 points (#1209) — US-0710 ;
+  option A ; #784 ; #819, point 1 ; #1808), et les totaux gardés en vue à 911 points (#1209) —
+  US-0710 ;
 - l'écran d'un projet qui mène à sa révision (#1400) — US-0720 ;
 - le Kanban filtré par libellé et par tâches prêtes, et l'accessibilité de sa carte (#1396,
   #1356) — US-0730 ;
 - la matrice des risques sur fond blanc, la couleur sur les bulles, les seuls risques identifiés,
-  pour sa part front (#1395), et les mineurs de la matrice repliable (#1386) — US-0740 ;
+  pour sa part front (#1395), les mineurs de la matrice repliable (#1386), les libellés de la
+  gravité (#1781) et le composant `Amount` de la vue du portefeuille (#1729) — US-0740 ;
 - les grilles du projet, le Gantt et les chronologies : la projection sur `kinds` (#1397), l'export
-  PNG du Gantt avec les noms des tâches (#1428), et leurs mineurs (#1421, #1144, #1424, #806, #819
-  points 4, 13, 14 et 15) — US-0750 ;
+  PNG du Gantt avec les noms des tâches (#1428), et leurs mineurs (#1421, #1539, #1144, #1424, #806,
+  #819 points 4, 13, 14 et 15, #1699) — US-0750 ;
 - ce que le faux back n'applique pas, dit dans le guide et à l'écran (#1399) — US-0760 ;
 - les commandes et les écritures retenues des composants partagés (#1364, #1377, #889, #1476,
-  #1430, #1432, #901, #781, et le point 2 de #1384) — US-0770 ;
+  #1430, #1432, #901, #781, #1701, #1500, et le point 2 de #1384, #1568) — US-0770 ;
 - l'administration, la session et le journal d'audit (#941, #942, #949, #951, #984, #990, #1005,
-  #1010, #1012, #1021, #1023, #1024, #1180, #847, #963, #967) — US-0780 ;
+  #1010, #1012, #1021, #1023, #1024, #1180, #847, #963, #967, #1673, #1744) — US-0780 ;
 - l'écran des révisions, le panneau de l'aide et l'outillage des tests (#1438, #1481, #902, #905,
-  #846, #888) — US-0790 ;
+  #846, #888, #1821, #1822, #1819, et la part de l'aide de #1804) — US-0790 ;
 - la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du
   produit — US-0800 ;
 - le cosmétique, chaque constat marqué comme tel dans « Constats reçus », corrigé par le lot de
@@ -75,6 +77,10 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
   WF-IHM-0100, et le constat reste ici (décision de l'auteur du 2026-10-28) ;
 - le point 1 de #1384 (les exemples du contrat) : EP-16, US-0640/L6 et US-0660/L3 ; ses points 2
   et 3 viennent ici (« Constats reçus », US-0770) ;
+- toute écriture dans `docs/api`, même une remise en forme qui laisse le document lu identique : la
+  définition de fini l'interdit à la branche de l'EPIC. Deux constats reçus en demandent une, et
+  l'auteur les tranche (« Constats reçus », « Hors des US ») : l'exemple `task_occurrence_succeeded`
+  du point 3 de #1384 (#1830), et le reflux des lignes longues du contrat (#1820) ;
 - le comportement réel des écrans : l'EPIC de leur domaine.
 
 ## Exigences réalisées
@@ -149,7 +155,10 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   13 sont **cosmétiques** (rédaction du guide, de la note et d'un titre de test) ;
 - #819, point 1 — front : le focus d'une cellule refusée distingué par la seule couleur ;
 - #1209 — front : à 911 de large, replier les cartes ou plafonner la grille empilée pour garder les
-  totaux en vue (reçu d'EP-15 le 2026-10-20 ; gardé ici le 2026-10-28).
+  totaux en vue (reçu d'EP-15 le 2026-10-20 ; gardé ici le 2026-10-28) ;
+- #1808 — e2e : `tab-walk.ts` (le `finally` de `walkByTab`) et `indicators.spec.ts` avalent toute
+  erreur par un `catch` global (relevé hors lot en EP-16 ; reporté ici par décision de l'auteur du
+  2026-11-01 : aucune instabilité ne leur est attribuée, ce n'est pas un constat de stabilité).
 
 **US-0720 — l'écran d'un projet.**
 
@@ -169,7 +178,13 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 
 - #1395 — front : la matrice des risques sur fond blanc, la couleur sur les bulles, les seuls
   risques identifiés ; sa part contrat (le décompte de `cells`) est écrite par EP-16 (US-0700) ;
-- #1386 — front : trois mineurs de la matrice repliable gardée ; son point 2 est **cosmétique**.
+- #1386 — front : trois mineurs de la matrice repliable gardée ; son point 2 est **cosmétique** ;
+- #1781 — front : les libellés de la gravité d'un risque, dans les réglages de la matrice et sur le
+  graphique, disent « budget de référence » au lieu de l'assiette du projet (WF-REF-0160 ; relevé
+  par US-0670/L3) ;
+- #1729 — front : deux composants « Amount » aux propriétés différentes (`portfolio-views.tsx`, qui
+  porte la vue des risques du portefeuille, et `components/amount.tsx`) ; reporté d'EP-16 à sa
+  livraison (décision de l'auteur du 2026-11-01).
 
 **US-0750 — les grilles du projet, le Gantt et les chronologies.**
 
@@ -179,14 +194,19 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   l'auteur, #1426) ;
 - #1421 — front : la tenue de la légende des jours chômés dure un tick ;
 - #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation et non
-  « for a tick at most » (US-0750/L1 #1560, décision de l'auteur du 2026-10-28) ;
+  « for a tick at most » ; aucun lot d'EP-16 n'a touché le Gantt, il revient donc à US-0750/L1 #1560
+  (décision de l'auteur du 2026-10-28), avec #1421, qui touche le même code ;
 - #1144 — front : la largeur mesurée de la barre des grilles denses n'est pas éprouvée au
   redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15) ;
 - #1424 — front : deux mineurs du test de provenance de l'écran des chronologies ;
 - #806 — front : les mineurs de la relecture 1 de L44c, le lotissement dans sa grille ; son point 14
   relève de #803, corrigé en EP-16 ; ses points 11 et 15 sont **cosmétiques** ;
 - #819, points 4, 13, 14 et 15 — front : la grille sous une recherche sans résultat, la lecture du
-  lotissement en série, l'attente d'une action serveur trop large ; le point 15 est **cosmétique**.
+  lotissement en série, l'attente d'une action serveur trop large ; le point 15 est **cosmétique** ;
+- #1699 — front : la garde locale du collage (`paste.ts`, `localRefusal`) refuserait en « colonne
+  absente » un bloc qui traverse `is_critical`, que la grille de planning ne montre pas ; piste A
+  retenue par l'auteur le 2026-10-31 — la garde ne refuse que si une cellule non vide du bloc tombe
+  sur la colonne absente.
 
 **US-0760 — ce que le faux back n'applique pas.**
 
@@ -208,13 +228,17 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1384, points 2 et 3 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer »
   (#1568 reprend le point 2) ; le succès de « Déclarer survenu », son message et `router.refresh`,
   non testé faute d'un exemple `task_occurrence_succeeded` de `GET /tasks/{id}` (point 3, reporté
-  ici par décision de l'auteur du 2026-10-28). L'exemple modifie le contrat figé : il passe par une
-  issue « contrat » que l'auteur tranche (`docs/api/DECISIONS.md`). Le point 1 est corrigé en
-  EP-16 ; l'issue porte le label `EP-17` depuis le 2026-11-01 ;
+  ici par décision de l'auteur du 2026-10-28). L'exemple modifie le contrat figé : il passe par
+  l'issue « contrat » #1830, que l'auteur tranche (voir « Hors des US ») ; le test du succès ne
+  vient ici que si l'exemple est ajouté sur `main`. Le point 1 est corrigé en EP-16 ; l'issue
+  porte le label `EP-17` depuis le 2026-11-01, et se ferme quand #1568 et #1830 le sont ;
 - #1701 — front : l'historique des messages nomme une ligne de devis créée sans libellé d'après la
-  ligne active (`structure-gestures.tsx`) ;
+  ligne active (`structure-gestures.tsx`), comme le sujet de son refus — le même objet de `say(...)`
+  que #1430 ;
 - #1500 — doc : l'entrée n° 25 de `docs/dev/typescript.md`, la parenthèse sur `held(…)` et le
-  renvoi à l'audit de #1491 ; **cosmétique**.
+  renvoi à l'audit de #1491 ; **cosmétique**. Sa correction par une pull request de documentation
+  vers `epic/EP-16` (décision de l'auteur du 2026-10-31) n'a pas été faite : `main` porte encore les
+  deux phrases.
 
 **US-0780 — l'administration, la session et le journal d'audit.**
 
@@ -235,9 +259,10 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   expirée ;
 - #847 — front : la source commune des rôles répondus n'est éprouvée que dans un sens ;
 - #1673 — front : l'infobulle d'une inscription du journal perd l'instant de la sauvegarde
-  restaurée (`audit-cells.tsx`) ;
+  restaurée (`audit-cells.tsx`) ; la même cellule que le `title` de #967, à corriger avec lui ;
 - #1744 — front : la lecture de la session répétée dans le layout, et le titre d'axe en devise des
-  graphiques sans test ;
+  graphiques des indicateurs et du portefeuille sans test ; son point 2 n'est pas de l'objet de
+  l'US, mais un test de deux options ECharts, pris avec le point 1 pour ne pas couper l'issue ;
 - **cosmétiques** : #963 — deux finitions de l'écran et du parcours du journal d'audit (son point 2
   reçoit une phrase, décision de l'auteur du 2026-10-28) ; #967 — deux finitions du parcours et de
   la cellule de l'action du journal ; #990 — « Adresse portée par le compte Compte anonymisé » ;
@@ -254,8 +279,17 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1821 — doc, front : `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment une colonne
   « Montant corrigé de l'inflation » que la grille de devis intitule « Montant réestimé », et
   `FBS-4.4.3.md` dit que le devis ne montre pas le montant réestimé (relevé par US-0670b #1811) ;
+  c'est l'aide qui suit la grille, dont l'intitulé est le terme de la spécification (§3.2.5) ;
 - #1822 — front : les incohérences du catalogue `en` — « Reste à engager », « Nouvelle nature »,
   « Cash-out by month », « Modify the schedule » (relevé par US-0670b #1811) ;
+- #1819 — outil : trois copies de l'analyseur d'instants des exemples (`mockaudit.py`,
+  `test_mockuniverse.py`, `test_mockhistory.py`) subsistent après #1708 (relevé par US-0640/L5
+  #1333, transféré d'EP-16 le 2026-11-02) ; de l'outillage des tests et des exemples, sans effet sur
+  le contrat : les exemples engendrés ne changent pas ;
+- #1804 — spec : WF-IND-0040, l'avancement financier n'est pas le seul indicateur indépendant de la
+  valeur acquise (reporté d'EP-16 à sa livraison, 2026-11-01). La modification de la spécification
+  est à l'auteur, que nul lot n'écrit ; l'US ne prend que sa suite, la formulation reportée dans
+  l'aide `FBS-4.8.1.md`, en français et en anglais, si l'auteur l'a intégrée avant le lot ;
 - **cosmétiques** : #905 — des espaces insécables littéraux dans les tests du front ; #846 — le
   guide dit encore à venir la confirmation de #836 ; #888 — trois mineurs du tour 3 d'US-0350/L5b.
 
@@ -266,17 +300,39 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   2026-10-28).
 
 **Reportés d'EP-16 à sa livraison (2026-11-01)**, label et titre `EP-17`, décision de l'auteur
-du 2026-11-01, à ranger sous l'US qui les règle à l'ouverture des lots ; aucun ne touche le
-contrat :
+du 2026-11-01 : #1729 est rangé sous US-0740, #1804 sous US-0790. Reste #1810, qu'aucune US ne
+prend, avec #1567, reçu le 2026-10-28 et que le cadrage n'avait pas listé — deux écrans du
+référentiel, dont EP-17 n'a pas d'US ; à ranger par l'auteur, avec le bloc de la revue du contrat
+qui suit :
 
-- #1729 — front : deux composants « Amount » aux propriétés différentes (`portfolio-views.tsx` et
-  `components/amount.tsx`) ;
-- #1804 — spec : WF-IND-0040, l'avancement financier n'est pas le seul indicateur indépendant de la
-  valeur acquise ; une modification de la spécification, que l'auteur intègre, puis la formulation
-  reportée dans `FBS-4.8.1.md` ;
 - #1810 — front : les désactivés du référentiel demandés sous la seule permission de consultation,
   quand le contrat les réserve à `*.write` (WF-REF-0150 ; relevé par US-0704 #1735, comme C-01
-  #1745).
+  #1745) — les écrans des ressources et des coûts du référentiel, et le devis ;
+- #1567 — front : la correspondance des coûts réels (`/reference/costs/actual-cost-mapping`) ne
+  plafonne pas les colonnes conservées aux 50 du contrat et ne dit pas leur refus `VALUE_TOO_LONG`
+  (relevé par US-0640/L2 ; reporté ici par décision de l'auteur du 2026-10-28).
+
+**Hors des US — à trancher par l'auteur.** Deux constats demandent d'écrire dans `docs/api`, ce que
+la définition de fini interdit à la branche de l'EPIC (« le diff de la branche de l'EPIC ne touche
+aucun fichier de `docs/api` ») ; aucune US ne peut les prendre sans que l'auteur y déroge :
+
+- #1830 — contrat : aucun exemple de `getBackgroundTask` ne montre une survenance aboutie
+  (`task_occurrence_succeeded`, le point 3 de #1384), ouvert le 2026-11-02 comme l'issue « contrat »
+  que la règle d'après le gel demande. Voies : A, l'exemple ajouté sur `main` par une pull request
+  de contrat hors de tout EPIC, une entrée de `docs/api/DECISIONS.md` à l'appui, puis le test du
+  succès par US-0770 ; B, reporté → EP-08, le succès éprouvé contre le service réel sans exemple
+  ajouté, comme #1714 ; C, une dérogation à la définition de fini, déconseillée.
+- #1820 — contrat : environ 300 lignes de plus de 100 colonnes dans `docs/api/DECISIONS.md` et 237
+  dans 23 fichiers YAML du contrat, hors les quatre de #1678 (relevé par US-0640/L5 #1333,
+  transféré d'EP-16 le 2026-11-02). La règle d'après le gel vise une modification du contrat :
+  un reflux qui laisse le document lu identique — les valeurs des descriptions inchangées, les
+  `{ $ref: … }` en ligne devenus des mappings en bloc — n'en est pas une, ne change pas
+  `info.version` et n'appelle pas d'entrée de `DECISIONS.md` ; mais il touche `docs/api`, et la
+  question qu'il pose, faire de la largeur une règle outillée, est à l'auteur. Voies : A, une pull
+  request de remise en forme vers `main`, hors de tout EPIC, qui prouve le document inchangé — le
+  contrat assemblé, le client et les modèles engendrés identiques, `make check-contract` au vert —,
+  avec le contrôle de largeur si l'auteur en fait une règle ; B, une dérogation à la définition de
+  fini d'EP-17 ; C, l'abandon, si la largeur n'est pas une règle. Proposé : A ou C, selon la règle.
 
 **La revue du contrat du 2026-10-31.** Les écrans de ce que la revue du contrat a changé, tranché
 par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), et les écrans viennent à
@@ -366,6 +422,36 @@ construction, et les décisions prises avec leur option écartée. Validée par 
   l'auteur le passe `en cours` quand il tire `epic/EP-17`. Écarté : `en cours` dès le cadrage, qui
   ferait lire un EPIC en travail alors qu'aucun lot ne peut partir.
 
+**Les constats reçus après le cadrage** (reportés d'EP-16 du 2026-10-28 au 2026-11-02, rangés le
+2026-11-02, à valider par l'auteur avec la pull request qui les range) :
+
+- **Chacun sous l'US de son fichier**, dans un lot existant, sans lot nouveau : aucun ne fait passer
+  son lot au-delà de la taille visée. Écarté : un lot de mineurs à part, qui toucherait en fin
+  d'EPIC les fichiers des lots d'écran.
+- **#1539, le commentaire dit vrai** : la légende est rendue par le serveur et tenue jusqu'à la
+  mesure de l'axe, ce que #1421 fait tenir ; le commentaire de `GanttRows` le dit. Écarté : ne plus
+  rendre la légende au serveur, qui déplacerait la grille dans l'autre sens sur les projets qui la
+  gardent.
+- **#1699, la piste A dès maintenant**, sur la garde de `paste.ts`, éprouvée par un test de la
+  garde sur les colonnes de la grille de planning, sans câbler le collage sur cette grille. Écarté :
+  attendre le lot qui câblera ce collage, qui laisserait le constat ouvert à la livraison, contre
+  la définition de fini.
+- **#1821, l'aide suit la grille** : « Montant réestimé » est le terme de la spécification (§3.2.5).
+  Écarté : renommer la colonne d'après l'aide.
+- **#1822, un terme, une traduction** : pour chaque terme, le lot retient celui que le catalogue
+  emploie déjà le plus, et donne à deux commandes distinctes deux libellés distincts ; la pull
+  request dit chaque choix. Écarté : un glossaire anglais à part, qui n'existe pas et que rien ne
+  demande.
+- **#1744 entier sous US-0780** : son point 2, un test du titre d'axe de deux graphiques, est pris
+  avec le point 1. Écarté : couper l'issue entre deux US pour quelques lignes de test.
+- **#1830 et #1820, hors des US** : chacun demande d'écrire dans `docs/api`, que la définition de
+  fini ferme à la branche de l'EPIC ; l'auteur les tranche (« Constats reçus »). Écarté : les ranger
+  sous une US, ce qui aurait tranché par omission une dérogation à la définition de fini.
+- **#1810 et #1567, à ranger par l'auteur** : deux écrans du référentiel, dont EP-17 n'a pas d'US.
+  Écartés sans décision : une US nouvelle (une US de plus, ses critères et son lot, à valider), les
+  ranger sous US-0790 comme des mineurs sans écran, ou les rendre à EP-05, contre la décision de
+  l'auteur qui les a reportés ici.
+
 ### Le harnais (US-0710)
 
 Le harnais est celui d'EP-14 — `accessibility.spec.ts`, `axe.ts`, `tab-walk.ts`,
@@ -402,6 +488,10 @@ ses mesures par lots ; rien n'y est réécrit.
   10) ; les résultats « incomplete » des autres règles d'axe annotés (point 8) ; l'écran de panne
   (`error.tsx`, `global-error.tsx`) ajouté à la note (point 11) ; les points 5, 9 et 14 écrits
   dans la note ; les points 1, 4, 6, 7, 12 et 13, cosmétiques, corrigés en passant.
+- **#1808** : le `finally` de `walkByTab` ne rattrape que l'erreur de fermeture de la page, sous la
+  forme qu'a établie le correctif de #1720 (« Test ended. », « Test timeout of …ms exceeded. »), et
+  relance toute autre ; dans `indicators.spec.ts`, le `catch` qui évite un rejet non géré est gardé
+  si `opened` est attendu sur tous les chemins, et un commentaire le dit, ou il se retire.
 - **#819, point 1** : `dense-grid.tsx` distingue le focus d'une cellule refusée par un second
   trait — un anneau double, ou un contour en pointillé —, non par la seule couleur de l'anneau ; le
   parcours au Tab (`unmarked`) ne le juge pas, un test DOM le tient.
@@ -443,20 +533,29 @@ ses mesures par lots ; rien n'y est réécrit.
   (`risks/page.tsx`, `portfolio/risks/page.tsx`) passent la matrice telle quelle. #1386 : le test
   du refus nomme le bouton par le catalogue, l'import est rangé, `useKeptWriter` reçoit `writeNow`.
   Cette US attend US-0700/L2 (EP-16) fusionné, qui met `cells` au compte des seuls identifiés. Les
-  aides FBS-4.6 et celle de la vue des risques du portefeuille suivent.
+  aides FBS-4.6 et celle de la vue des risques du portefeuille suivent. #1781 : les libellés de la
+  gravité (`reference.riskMatrix.severity`, `reference.riskForm.severity`, ceux du graphique), en
+  français et en anglais, disent l'assiette du projet (WF-REF-0160), un test les tenant ; le front
+  ne calcule pas la gravité (WF-ARC-0020), il la lit. #1729 : le `Amount` local de
+  `portfolio-views.tsx` cède la place à `components/amount.tsx`, ou prend un autre nom si leurs
+  rendus diffèrent.
 - **US-0750, les grilles du projet** : `projectNodes` (`grid/nodes.tsx`) reçoit `kinds` et écarte
   les nœuds d'un autre type avant `projectNode`, appelé par `grid-screen.ts` pour toute lecture qui
   passe `kinds` — le planning, le planning d'un différentiel, la comparaison (`comparison-rows.ts`)
   —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
   gauche (`ROW` par ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le
   plus long, bornée), comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la
-  légende jusqu'au signal de mesure de l'axe (#1421, et #1539 s'il y vient). `frame-width.ts` est
+  légende jusqu'au signal de mesure de l'axe (#1421), et le commentaire de `GanttRows` dit qu'elle
+  est rendue par le serveur et tenue jusque-là, hydratation comprise (#1539). `frame-width.ts` est
   éprouvé par un `setViewportSize` dans `grid-frame.spec.ts` (#1144). Le lotissement (#806) :
   `breakdown-edits.ts` n'envoie rien quand l'élément visé manque et le dit, attribue un refus pointé
   sur l'élément même ; `settings-grid.tsx` dit « Aucun poste » ; les tests manquants s'écrivent.
   #819 : la grille sous une recherche sans résultat (point 4), la lecture du lotissement dans le
-  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). Les aides FBS-4.3 et
-  FBS-4.3.1 disent l'export.
+  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). #1699 : `localRefusal`
+  (`paste.ts`) ne refuse « colonne absente » que si une cellule non vide du bloc tombe sur une
+  colonne que la grille ne configure pas, un test de la garde sur les colonnes de la grille de
+  planning (`is_critical` entre `total_float` et `started_on`). Les aides FBS-4.3 et FBS-4.3.1
+  disent l'export.
 - **US-0760, le faux back dit** : `docs/dev/README.md` reçoit « Ce que le faux back ne fait pas »
   sous « Le faux back », et les mentions des lignes 984 et 1228 y renvoient. `MockupNotice` reçoit
   une prop `lists?: boolean` : posée par les pages de listes et de grilles, elle ajoute la phrase
@@ -470,8 +569,14 @@ ses mesures par lots ; rien n'y est réécrit.
   et l'écran revenu par « Suivant » ne le redit pas (#1476, point 1), le guide gagne sa phrase
   (point 2), `shell.spec.ts` son commentaire (point 3) ; `say(...)` sans objet instruit un à un
   (#1430) ; `cell-writes.ts` fait passer `clear` par `current` (#1432) ; `reactivation.tsx` purge
-  `reported` à chaque génération (#901) ; `held()` partout (#781) ; `reference-form.tsx` reçoit une
-  prop `icon` et un libellé par cas, sans ternaire (#1384, point 2).
+  `reported` à chaque génération (#901) ; `held()` partout (#781), et l'entrée n° 25 de
+  `docs/dev/typescript.md` dit « avec `held(…)` quand la commande l'emploie » et la propriété qui
+  rend un fichier sans objet, à la place du renvoi à #1491 (#1500, décision de l'auteur du
+  2026-10-31) ; `reference-form.tsx` reçoit une prop `icon` et un libellé par cas, sans ternaire
+  (#1384, point 2) ; `structure-gestures.tsx` passe à `send` un libellé indéfini pour une ligne
+  créée sans nom, l'historique et le sujet d'un refus ne nommant plus la ligne active (#1701). Si
+  l'auteur retient la voie A de #1830, le test du succès de « Déclarer survenu » lit
+  `task_occurrence_succeeded` (#1384, point 3).
 - **US-0780, l'administration** : `user-dialogs.tsx` et les catalogues
   (`admin.users.anonymizationFinal`) pour #942 ; `user-cells.tsx` (`StateSwitch`) lit
   `writes.linking` pour #949 ; `UserWrites.run` dit le refus d'une ligne occupée (#941) ;
@@ -482,13 +587,27 @@ ses mesures par lots ; rien n'y est réécrit.
   du compte gardé avec les magasins) — (#1180) ; `maintenance.tsx` mène au journal (#1024) ;
   `restoration.tsx` ne rend pas « en attente » en phase `failed` (#1023) ; les tests et le parcours
   du service (#984, #847, #1021, #963, #967) ; `admin/users/page.tsx` renomme `PERIOD_REFUSED`
-  (#1012). Les aides de l'administration touchées suivent.
+  (#1012). `audit-cells.tsx` compose le `title` de la cellule de l'action instant de la sauvegarde
+  restaurée compris, posé seulement quand le texte est tronqué (#967), et passe `taken` après un
+  garde de type, sans repli `""` (#1673). `app/layout.tsx` lit la session une fois, dans une
+  variable réemployée, et le titre d'axe en devise de `curve-series-chart.tsx` et
+  `portfolio-charts.tsx` est éprouvé avec et sans devise (#1744). Les aides de l'administration
+  touchées suivent.
 - **US-0790** : `commands/object-commands.tsx` rend `declare_risk` par un `Link` vers
   `functionHref(functionOf("risks"), context)` quand il est disponible, indisponible sinon avec sa
   condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap sur le champ
   (`onKeyDown`, `event.preventDefault()` quand `query` n'est pas vide), avant que Radix ne le
   prenne (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
   `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` (#905) ; #846 et #888.
+  Les aides du devis, `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment la colonne
+  « Montant réestimé » et ne disent plus que le devis ne le montre pas (#1821) ; `messages/en.json`
+  rend chaque terme d'une seule façon et deux commandes distinctes par deux libellés, les pages de
+  `frontend/help/en/` qui les citent suivant (#1822, le test des libellés en gras de `help.test.ts`
+  les relève) ; `mockaudit.py`, `test_mockuniverse.py` et `test_mockhistory.py` lisent leurs
+  instants par `wftools.mockproject.moment` — la forme datée seule de `test_mockhistory.py` gardée
+  par un appel à part —, les exemples engendrés inchangés, `make mock-data-up-to-date` au vert
+  (#1819) ; `FBS-4.8.1.md`, dans les deux langues, reprend la formulation de WF-IND-0040 si l'auteur
+  l'a intégrée avant le lot, sinon #1804 reste ouvert à sa seule part de la spécification.
 - **US-0800** : la mesure se prend au Performance panel ou par `page.evaluate(performance.now)`
   autour de la navigation, sur le planning de mille tâches ; les pistes — le démontage de
   `DenseGrid` (mille lignes de cellules, chacune avec ses gestionnaires), le recalcul des styles au
@@ -540,7 +659,9 @@ commande se dérobe.
   durée du fichier avant et après (#784, point 2) ; les autres points de #784 sont corrigés, ou
   écrits dans « Ce que les tests ne prouvent pas » avec leur raison ;
 - propre à l'US : le focus d'une cellule refusée se distingue autrement que par la couleur (#819,
-  point 1).
+  point 1) ;
+- propre à l'US : `walkByTab` et `indicators.spec.ts` ne rattrapent que l'erreur de fermeture de la
+  page, ou disent dans le code pourquoi leur `catch` est sûr (#1808).
 
 **Notes de réalisation.** Le harnais est celui d'EP-14 (`accessibility.spec.ts`, `axe.ts`,
 `tab-walk.ts`, `focus-probe.ts`), que l'US étend sans le réécrire ; US-0590g (EP-16) y lit les
@@ -687,6 +808,9 @@ la zone que le serveur lui rend, **afin de** voir d'un coup d'œil où sont les 
 - propre à l'US : les trois mineurs de #1386 sont corrigés — le nom exact du bouton de fermeture
   dans le test du refus, l'ordre des imports, une fonction « écrire maintenant » de `useKeptWriter`
   à la place de `record` suivi de `flush` ;
+- propre à l'US : les libellés de la gravité, dans les réglages de la matrice et sur le graphique,
+  disent l'assiette du projet, en français et en anglais (#1781) ; la vue du portefeuille n'a plus
+  deux composants nommés `Amount` (#1729) ;
 - propre à l'US : l'aide de l'écran des risques et celle de la vue des risques du portefeuille
   décrivent la matrice ainsi.
 
@@ -740,14 +864,17 @@ sur ce qu'elle montre et lire un Gantt exporté sans l'écran à côté (#1397, 
 - écart : `WF-PRJ-0020-A` — « Un projet sans lotissement saisi présente un lot, un poste et aucun
   livrable. » : constaté par EP-15 (US-0450), inchangé ici ; EP-04 clôt.
 - propre à l'US : la légende des jours chômés du Gantt est tenue jusqu'à la mesure de l'axe, et non
-  un tick (#1421 ; #1539, s'il est tranché vers ce lot) ; la largeur mesurée de la barre des grilles
-  denses est éprouvée au redimensionnement, et la largeur minimale de la recherche comparée aux
-  minimales mesurées (#1144) ;
+  un tick, et le code dit qu'elle est rendue par le serveur (#1421, #1539) ; la largeur mesurée de
+  la barre des grilles denses est éprouvée au redimensionnement, et la largeur minimale de la
+  recherche comparée aux minimales mesurées (#1144) ;
 - propre à l'US : les mineurs du lotissement dans sa grille (#806, points 1 à 3, 5 à 10, 12, 13, 16)
   sont corrigés — une écriture dont l'élément visé manque à la lecture de départ n'est pas envoyée
   et le dit ; un refus pointé sur l'élément lui-même lui est attribué ; une suppression refusée est
   éprouvée ; un lotissement vide dit « Aucun poste » — et les mineurs des tests du planning et des
   chronologies (#819, points 13 et 14 ; #1424) ;
+- propre à l'US : la garde locale du collage ne refuse une colonne absente que si une cellule non
+  vide du bloc y tombe, éprouvé sur les colonnes de la grille de planning, `is_critical` comprise
+  (#1699, piste A) ;
 - propre à l'US : l'aide de la grille de planning et celle du Gantt décrivent l'export et la grille
   vide.
 
@@ -824,7 +951,13 @@ partout, **afin qu'**une réponse tardive n'efface pas ce que je saisis ni ne se
 - propre à l'US : `held()` remplace les cinq retenues faites à la main, et aucune autre ne reste
   dans `frontend/src` (#781) ;
 - propre à l'US : `ReferenceForm` dit « Réexaminer » par son libellé et une icône qui n'est pas
-  `Save`, sans quatrième branche au ternaire (#1384, point 2).
+  `Save`, sans quatrième branche au ternaire (#1384, point 2) ;
+- propre à l'US : une ligne de devis créée sans libellé est inscrite à l'historique des messages, et
+  nommée dans le sujet de son refus, sans le libellé de la ligne active (#1701) ;
+- propre à l'US : l'entrée n° 25 de `docs/dev/typescript.md` ne dit `held(…)` que là où la commande
+  l'emploie et nomme la propriété qui rend un fichier sans objet (#1500) ;
+- propre à l'US, si l'auteur retient la voie A de #1830 : le succès de « Déclarer survenu », son
+  message et `router.refresh`, est éprouvé sur `task_occurrence_succeeded` (#1384, point 3).
 
 **Notes de réalisation.** US-0590d (EP-16) a posé la forme des commandes en ligne — un état
 « occupé » local, levé dans la même mise à jour que la réponse (option B de #1491, défaut n° 25) —
@@ -879,8 +1012,10 @@ le journal nomme un auteur même sans ligne, et qu'une session finie n'en laisse
 - propre à l'US : le parcours du journal supprime le rôle qu'il crée, l'inscription
   `access_role_update` sans changement reçoit une phrase (#963), le parcours ne recopie pas les
   locales en dur et prend « aujourd'hui » à l'heure de l'inscription, le `title` d'une cellule n'est
-  posé que si le texte est tronqué (#967) ; la documentation de la page des comptes dit tout refus
-  422 (#1012) ;
+  posé que si le texte est tronqué (#967), et il porte alors l'instant de la sauvegarde restaurée
+  (#1673) ; la documentation de la page des comptes dit tout refus 422 (#1012) ;
+- propre à l'US : le layout lit la session une fois (#1744, point 1), et le titre d'axe en devise
+  des graphiques des indicateurs et du portefeuille est éprouvé, avec et sans devise (point 2) ;
 - propre à l'US : les aides de l'administration touchées (les comptes, le journal, les sauvegardes)
   sont retouchées.
 
@@ -921,7 +1056,15 @@ commande muette ni perdre le panneau d'un geste (#1438, #1481).
 - propre à l'US : `outcome-notice.dom.test.tsx` reçoit le routeur par une voie publique (#902) ; les
   espaces insécables des tests s'écrivent par leur échappement, et `no-irregular-whitespace` les
   relève dans les fichiers de tests (#905) ; le guide dit #836 confirmée (#846) ; les trois mineurs
-  de #888 sont corrigés.
+  de #888 sont corrigés ;
+- propre à l'US : l'aide du devis, en français et en anglais, nomme la colonne comme la grille,
+  « Montant réestimé », et ne dit plus que le devis ne le montre pas (#1821) ; le catalogue anglais
+  traduit chaque terme d'une seule façon et deux commandes distinctes par deux libellés distincts,
+  les aides anglaises qui les citent suivant (#1822) ;
+- propre à l'US : aucune copie de l'analyseur d'instants des exemples ne reste dans `tools/` hors de
+  `wftools.mockproject.moment`, et les exemples engendrés ne changent pas (#1819) ;
+- propre à l'US : si l'auteur a intégré la reformulation de WF-IND-0040 avant le lot, l'aide de
+  l'avancement financier la reprend, dans les deux langues (#1804).
 
 **Notes de réalisation.** Le panneau de l'aide est celui d'US-0670/L1 (`help-panel.tsx`, Radix) :
 Échap y est pris par le dialogue, et le champ doit le prendre avant.
