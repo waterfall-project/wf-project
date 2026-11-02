@@ -829,7 +829,7 @@ défaut) n'est pas ici : rendu à EP-16, parce que son point à trancher demande
 
 ## US-0730 — Le Kanban filtré, et sa carte annoncée
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : `WF-RAE-0030-A`, `WF-IHM-0070-A`, `WF-PLA-0040-A`
 - **opérations** : `listStartableTasks`, `listNodes` (la grille de reste à engager, US-0730b)
 - **issue** : #1550

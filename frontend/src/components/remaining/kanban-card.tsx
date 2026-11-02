@@ -13,6 +13,7 @@ import {
   Diamond,
   Ellipsis,
   Flag,
+  ListTodo,
   LoaderCircle,
   type LucideIcon,
   PenLine,
@@ -391,6 +392,12 @@ function CardTitle({ card }: { readonly card: KanbanCard }) {
         <p className="flex items-center gap-1.5 text-xs font-medium">
           <CircleCheck aria-hidden="true" className="size-3.5 shrink-0" />
           {t("readyToStart")}
+        </p>
+      ) : null}
+      {card.awaiting_own_lines ? (
+        <p className="flex items-center gap-1.5 text-xs font-medium">
+          <ListTodo aria-hidden="true" className="size-3.5 shrink-0" />
+          {t("ownLinesOpen")}
         </p>
       ) : null}
       {due ? (

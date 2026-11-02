@@ -196,6 +196,7 @@
       "scheduleIndex": "Indice de délai",
       "lastMarkedAt": "Dernière révision marquée",
       "finishOverdue": "Fin dépassée",
+      "ownLinesOpen": "Lignes propres ouvertes",
       "budgetedAmount": "Montant budgété",
       "previousQuantity": "Qté à la revue précédente",
       "previousHours": "Charge (h) à la revue précédente",
@@ -461,6 +462,7 @@
   },
   "remainingGrid": {
     "finishOverdue": "Tâche démarrée dont la fin est dépassée",
+    "ownLinesOpen": "Lignes propres ouvertes",
     "showNotStarted": "Montrer aussi les tâches non démarrées",
     "startedOnly": "Ne montrer que les tâches démarrées"
   },
@@ -821,6 +823,7 @@
     "empty": "Aucune tâche.",
     "milestone": "Jalon",
     "readyToStart": "Prête à démarrer",
+    "ownLinesOpen": "Lignes propres ouvertes",
     "filters": {
       "label": "Rechercher une tâche",
       "placeholder": "Rechercher un libellé",
@@ -1447,6 +1450,9 @@
       },
       "finishOverdue": {
         "help": "Marque une tâche dont la fin prévue est dépassée sans qu’elle soit terminée."
+      },
+      "ownLinesOpen": {
+        "help": "Marque une récapitulative dont toutes les subordonnées sont terminées et qui attend ses seules lignes propres, et ces lignes, hors provision, qui gardent un reste à engager."
       },
       "budgetedAmount": {
         "help": "Montant budgété de la ligne, tel que le budget de référence l’a figé."

@@ -21,6 +21,7 @@ import { useMemo } from "react";
 import { readNodeTotals, setLineRemaining } from "@/api/actions/nodes";
 
 import { DenseGrid } from "./dense-grid";
+import { OwnLinesOpen } from "./remaining-cells";
 import { nodeDependencies } from "./node-dependencies";
 import {
   type NodeFilters,
@@ -175,6 +176,7 @@ export function RemainingGrid({
       narrowing={nodeNarrowing(filters, SCOPE)}
       undoable={editable}
       commands={gestures}
+      around={(rows, grid) => <OwnLinesOpen rows={rows}>{grid}</OwnLinesOpen>}
     />
   );
 }

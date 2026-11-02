@@ -224,7 +224,7 @@ describe("the Kanban once a gesture is answered", () => {
     expect(status).toHaveTextContent("Réception usine : colonne « Terminées ».");
   });
 
-  it("keeps shown under the tasks ready the milestone just reopened, until the reading of the tasks brings its predecessors", async () => {
+  it("keeps shown under the tasks ready the milestone just reopened, until the reading of the tasks brings its predecessors [WF-RAE-0030-A]", async () => {
     // The answer of a gesture does not carry the predecessors of the task: the card stays shown
     // under « Tâches prêtes », rather than vanish under the hand that moved it (US-0730).
     serve({ [PROGRESS]: "milestone_reopened" });
@@ -273,6 +273,7 @@ describe("the Kanban once a gesture is answered", () => {
     expect(screen.getAllByRole("status")).toHaveLength(1);
     // The mark is told to assistive technology by that region, as the one not up to date is.
     expect(announcements()).toHaveTextContent(`${label} : mise à jour.`);
+    const told = within(announcements()).getByText(`${label} : mise à jour.`, { exact: false });
     expect(moved().queryByRole("button", { name: "Réessayer" })).toBeNull();
     // No other card is marked.
     expect(screen.getAllByText("Mise à jour…")).toHaveLength(1);
@@ -283,6 +284,9 @@ describe("the Kanban once a gesture is answered", () => {
     // Told in the permanent region, which the button of the retry is outside of, and the dash that
     // separated the text from the button is a spacing, which no screen reader reads.
     expect(announcements()).toHaveTextContent(`${label} : non à jour.`);
+    // The sentence is a new node of the region, not the old one re-texted: that is what a screen
+    // reader announces again (#1849).
+    expect(told.isConnected).toBe(false);
     expect(announcements()).not.toHaveTextContent(`${label} : mise à jour.`);
     expect(announcements()).not.toContainElement(retry);
     expect(moved().getByText("Non à jour").textContent).not.toContain("—");
