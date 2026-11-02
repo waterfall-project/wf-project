@@ -238,9 +238,15 @@ export async function checkOpened(
         .join(", ")}`,
     });
   }
-  // The tooltip of what has the focus closes on Escape first, as it must (WCAG 1.4.13).
+  // What has the focus may hold a tooltip, which opens on its focus — after a rest, in a menu —
+  // and closes on Escape first, as it must (WCAG 1.4.13): it is awaited, so that the Escape that
+  // follows is not taken by a tooltip opening meanwhile.
   const tooltip = page.getByRole("tooltip");
-  if ((await tooltip.count()) > 0) {
+  const tipped = await page.evaluate(
+    () => (document.activeElement?.closest('[data-slot="tooltip-trigger"]') ?? null) !== null,
+  );
+  if (tipped) {
+    await expect.soft(tooltip, `${named}: the tooltip of the focus shows`).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect.soft(tooltip, `${named}: Escape closes the tooltip first`).toHaveCount(0);
   }
