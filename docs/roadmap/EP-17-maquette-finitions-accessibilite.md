@@ -30,22 +30,32 @@ Cadré le 2026-10-28, par objet : une US par écran ou par famille de composants
 exigences de domaine dont une phrase de Vérif tient côté front (décision de l'auteur du 2026-10-28).
 
 - le harnais d'accessibilité étendu aux dialogues, aux menus et aux éditeurs de cellule (#782,
-  option A ; #784 ; #819, point 1), et les totaux gardés en vue à 911 points (#1209) — US-0710 ;
+  option A ; #784 ; #819, point 1 ; #1808), et les totaux gardés en vue à 911 points (#1209) —
+  US-0710 ;
 - l'écran d'un projet qui mène à sa révision (#1400) — US-0720 ;
 - le Kanban filtré par libellé et par tâches prêtes, et l'accessibilité de sa carte (#1396,
-  #1356) — US-0730 ;
+  #1356), et la récapitulative qui n'attend plus que ses lignes propres, signalée au Kanban et au
+  reste à engager (#1776) — US-0730 ;
 - la matrice des risques sur fond blanc, la couleur sur les bulles, les seuls risques identifiés,
-  pour sa part front (#1395), et les mineurs de la matrice repliable (#1386) — US-0740 ;
+  pour sa part front (#1395), les mineurs de la matrice repliable (#1386), les libellés de la
+  gravité (#1781) et le composant `Amount` de la vue du portefeuille (#1729) — US-0740 ;
 - les grilles du projet, le Gantt et les chronologies : la projection sur `kinds` (#1397), l'export
-  PNG du Gantt avec les noms des tâches (#1428), et leurs mineurs (#1421, #1144, #1424, #806, #819
-  points 4, 13, 14 et 15) — US-0750 ;
+  PNG du Gantt avec les noms des tâches (#1428), et leurs mineurs (#1421, #1539, #1144, #1424, #806,
+  #819 points 4, 13, 14 et 15, #1699), et les gestes indisponibles sous un jalon (#1773) —
+  US-0750 ;
 - ce que le faux back n'applique pas, dit dans le guide et à l'écran (#1399) — US-0760 ;
 - les commandes et les écritures retenues des composants partagés (#1364, #1377, #889, #1476,
-  #1430, #1432, #901, #781, et le point 2 de #1384) — US-0770 ;
+  #1430, #1432, #901, #781, #1701, #1500, et le point 2 de #1384, #1568) — US-0770 ;
 - l'administration, la session et le journal d'audit (#941, #942, #949, #951, #984, #990, #1005,
-  #1010, #1012, #1021, #1023, #1024, #1180, #847, #963, #967) — US-0780 ;
+  #1010, #1012, #1021, #1023, #1024, #1180, #847, #963, #967, #1673, #1744) — US-0780 ;
 - l'écran des révisions, le panneau de l'aide et l'outillage des tests (#1438, #1481, #902, #905,
-  #846, #888) — US-0790 ;
+  #846, #888, #1821, #1822, #1819, et la part de l'aide de #1804) — US-0790 ;
+- les écrans du référentiel : les désactivés demandés sous la seule permission de modification
+  (#1810), le plafond des colonnes conservées de la correspondance et son refus (#1567) — US-1010 ;
+- le registre des risques filtré sur chacune de ses colonnes (#1787), et les lignes issues d'un
+  risque survenu, filtrées, marquées et suivies jusqu'à la couverture (#1763) — US-1020 ;
+- l'accueil qui retient aussi les projets créés (#1748) — US-1030 ;
+- le compte rendu d'import qui lit ses commandes et présente l'état refusé (#1791) — US-1040 ;
 - la lenteur du navigateur à quitter une grille de mille tâches (#1230), une lenteur du
   produit — US-0800 ;
 - le cosmétique, chaque constat marqué comme tel dans « Constats reçus », corrigé par le lot de
@@ -73,8 +83,18 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
 - les navigateurs et les largeurs d'affichage de WF-CMP-0010 (US-0290, 1366 et 360 points) : EP-13.
   Les 911 points de #1209 ne sont pas une largeur d'US-0290 mais l'agrandissement de 150 % de
   WF-IHM-0100, et le constat reste ici (décision de l'auteur du 2026-10-28) ;
-- le point 1 de #1384 (les exemples du contrat) : EP-16, US-0640/L6 et US-0660/L3 ; ses points 2
-  et 3 viennent ici (« Constats reçus », US-0770) ;
+- le point 1 de #1384 (les exemples du contrat) : EP-16, US-0640/L6 et US-0660/L3 ; son point 2
+  vient ici (« Constats reçus », US-0770), et son point 3, suivi par #1830, part à EP-08 ;
+- toute écriture dans `docs/api`, même une remise en forme qui laisse le document lu identique : la
+  définition de fini l'interdit à la branche de l'EPIC. Deux constats reçus en demandaient une
+  (décisions du 2026-11-02, déléguées par l'auteur) : l'exemple `task_occurrence_succeeded` du point
+  3 de #1384, suivi par #1830, est reporté → EP-08, où le succès de « Déclarer survenu » s'éprouve
+  contre le service réel, comme #1714 ; le reflux des lignes longues du contrat (#1820) est écarté,
+  aucune règle outillée ne fixant la largeur de `docs/api` ;
+- ce que US-0704 (EP-16) a déjà fait des écrans de la revue du contrat : #1753 (les libellés de
+  `NodeChange.subproject` et `cost_category`, et le test de la comparaison) et #1784 (le détail du
+  risque écrit son identité et sa provision par `updateRisk` et `updateRiskProvision`,
+  `update_provision` gouvernant la seule provision) sont sans objet, fermés avec leur raison ;
 - le comportement réel des écrans : l'EPIC de leur domaine.
 
 ## Exigences réalisées
@@ -87,12 +107,18 @@ demandent le service sont des écarts, qui nomment l'EPIC qui les clôt.
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
 | `WF-RAE-0030-A` | Démarrage d’une tâche | début — close en EP-09 | US-0730 |
+| `WF-PLA-0040-A` | Hiérarchie des tâches | début — close en EP-06 | US-0730 |
 | `WF-RIS-0040-A` | Grille de suivi des risques | début — close en EP-08 | US-0740 |
 | `WF-PLA-0080-A` | Grille de planning | début — close en EP-06 | US-0750 |
 | `WF-PLA-0090-A` | Diagramme de Gantt | début — close en EP-06 | US-0750 |
+| `WF-PLA-0050-A` | Jalons | début — close en EP-06 | US-0750 |
 | `WF-PRJ-0020-A` | Lotissement | début — close en EP-04 | US-0750 |
 | `WF-ADM-0060-A` | Cycle de vie d’un compte | début — close en EP-04 | US-0780 |
 | `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0790 |
+| `WF-REF-0150-A` | Affichage des objets désactivés | début — close en EP-05 | US-1010 |
+| `WF-RIS-0020-A` | États d’un risque | début — close en EP-08 | US-1020 |
+| `WF-RIS-0050-A` | Réserve pour risques et couverture | début — close en EP-08 | US-1020 |
+| `WF-RIS-0060-A` | Survenance d’un risque | début — close en EP-08 | US-1020 |
 
 Les exigences déjà closes par un EPIC livré que ces travaux touchent restent closes, et leurs tests
 existants continuent de les citer ; trois d'entre elles sont citées par une US, avec tout leur
@@ -110,7 +136,12 @@ Aucune en propre : celles que les écrans touchés lisent déjà, sans en ajoute
 `listNodes` et `compareRevisions` (la projection sur `kinds`, US-0750), `getProject` et
 `listRevisions` (US-0720), `listStartableTasks` (US-0730), `getProjectRiskMatrix` et
 `getPortfolioRisks` (US-0740), `getUser` (US-0780), `deleteAccessRole` (le nettoyage d'un parcours
-du service, US-0780). Le diff de la branche de l'EPIC ne touche aucun fichier de `docs/api`.
+du service, US-0780) ; et, pour les écrans de ce que la revue du contrat du 2026-10-31 a changé, que
+US-0704 (EP-16) a écrit au contrat : `listNodes` (`awaiting_own_lines`, US-0730 ; `is_from_risk`,
+`origin_risk_ids`, US-1020), `listResourceRoles`, `listCostCategories` et `setActualCostMapping`
+(US-1010), `listRisks` et `getProjectRiskCoverage` (US-1020), `listProjects` (US-1030), `getImport`,
+`listImports`, `applyImport` et `abandonImport` (US-1040). Le diff de la branche de l'EPIC ne touche
+aucun fichier de `docs/api`.
 
 ## Préalables
 
@@ -149,7 +180,10 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   13 sont **cosmétiques** (rédaction du guide, de la note et d'un titre de test) ;
 - #819, point 1 — front : le focus d'une cellule refusée distingué par la seule couleur ;
 - #1209 — front : à 911 de large, replier les cartes ou plafonner la grille empilée pour garder les
-  totaux en vue (reçu d'EP-15 le 2026-10-20 ; gardé ici le 2026-10-28).
+  totaux en vue (reçu d'EP-15 le 2026-10-20 ; gardé ici le 2026-10-28) ;
+- #1808 — e2e : `tab-walk.ts` (le `finally` de `walkByTab`) et `indicators.spec.ts` avalent toute
+  erreur par un `catch` global (relevé hors lot en EP-16 ; reporté ici par décision de l'auteur du
+  2026-11-01 : aucune instabilité ne leur est attribuée, ce n'est pas un constat de stabilité).
 
 **US-0720 — l'écran d'un projet.**
 
@@ -163,13 +197,23 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   démarrer », le compteur de la colonne (validation du 2026-10-23) ; les filtres vivent dans
   l'adresse seule (décision de l'auteur du 2026-10-28) ;
 - #1356 — front : l'annonce et le tiret de la carte du Kanban en attente de relecture (reçu d'EP-15,
-  décision de l'auteur du 2026-10-23 ; titre `[EP-15]` à accorder).
+  décision de l'auteur du 2026-10-23 ; titre `[EP-15]` à accorder) ;
+- #1776 — front : signaler, au Kanban et dans la grille de reste à engager, la récapitulative qui
+  n'attend plus que ses lignes propres (`TaskFacet.awaiting_own_lines`, WF-PLA-0040 ; revue du
+  contrat du 2026-10-31, F-05, contrat #1774) ; la grille de reste à engager n'a pas d'US à elle, et
+  le Kanban porte la carte.
 
 **US-0740 — la matrice des risques.**
 
 - #1395 — front : la matrice des risques sur fond blanc, la couleur sur les bulles, les seuls
   risques identifiés ; sa part contrat (le décompte de `cells`) est écrite par EP-16 (US-0700) ;
-- #1386 — front : trois mineurs de la matrice repliable gardée ; son point 2 est **cosmétique**.
+- #1386 — front : trois mineurs de la matrice repliable gardée ; son point 2 est **cosmétique** ;
+- #1781 — front : les libellés de la gravité d'un risque, dans les réglages de la matrice et sur le
+  graphique, disent « budget de référence » au lieu de l'assiette du projet (WF-REF-0160 ; relevé
+  par US-0670/L3) ;
+- #1729 — front : deux composants « Amount » aux propriétés différentes (`portfolio-views.tsx`, qui
+  porte la vue des risques du portefeuille, et `components/amount.tsx`) ; reporté d'EP-16 à sa
+  livraison (décision de l'auteur du 2026-11-01).
 
 **US-0750 — les grilles du projet, le Gantt et les chronologies.**
 
@@ -179,14 +223,22 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   l'auteur, #1426) ;
 - #1421 — front : la tenue de la légende des jours chômés dure un tick ;
 - #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation et non
-  « for a tick at most » (US-0750/L1 #1560, décision de l'auteur du 2026-10-28) ;
+  « for a tick at most » ; aucun lot d'EP-16 n'a touché le Gantt, il revient donc à US-0750/L1 #1560
+  (décision de l'auteur du 2026-10-28), avec #1421, qui touche le même code ;
 - #1144 — front : la largeur mesurée de la barre des grilles denses n'est pas éprouvée au
   redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15) ;
 - #1424 — front : deux mineurs du test de provenance de l'écran des chronologies ;
 - #806 — front : les mineurs de la relecture 1 de L44c, le lotissement dans sa grille ; son point 14
   relève de #803, corrigé en EP-16 ; ses points 11 et 15 sont **cosmétiques** ;
 - #819, points 4, 13, 14 et 15 — front : la grille sous une recherche sans résultat, la lecture du
-  lotissement en série, l'attente d'une action serveur trop large ; le point 15 est **cosmétique**.
+  lotissement en série, l'attente d'une action serveur trop large ; le point 15 est **cosmétique** ;
+- #1699 — front : la garde locale du collage (`paste.ts`, `localRefusal`) refuserait en « colonne
+  absente » un bloc qui traverse `is_critical`, que la grille de planning ne montre pas ; piste A
+  retenue par l'auteur le 2026-10-31 — la garde ne refuse que si une cellule non vide du bloc tombe
+  sur la colonne absente ;
+- #1773 — front : « Indenter » sous un jalon et « Ajouter une sous-tâche » sur un jalon, présentés
+  indisponibles d'avance avec leur condition (WF-PLA-0050, WF-IHM-0090 ; revue du contrat, F-04,
+  contrat #1771). La grille ne les tente déjà plus (`structure-rules.ts`) : reste à les dire.
 
 **US-0760 — ce que le faux back n'applique pas.**
 
@@ -208,13 +260,17 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1384, points 2 et 3 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer »
   (#1568 reprend le point 2) ; le succès de « Déclarer survenu », son message et `router.refresh`,
   non testé faute d'un exemple `task_occurrence_succeeded` de `GET /tasks/{id}` (point 3, reporté
-  ici par décision de l'auteur du 2026-10-28). L'exemple modifie le contrat figé : il passe par une
-  issue « contrat » que l'auteur tranche (`docs/api/DECISIONS.md`). Le point 1 est corrigé en
-  EP-16 ; l'issue porte le label `EP-17` depuis le 2026-11-01 ;
+  ici par décision de l'auteur du 2026-10-28). L'exemple modifierait le contrat figé : le point 3
+  est suivi par l'issue « contrat » #1830, reportée → EP-08 le 2026-11-02 (voir « Ce qui n'en fait
+  pas partie »), et EP-17 n'en garde rien. Le point 1 est corrigé en EP-16 ; l'issue porte le label
+  `EP-17` depuis le 2026-11-01, et se ferme avec #1568 ;
 - #1701 — front : l'historique des messages nomme une ligne de devis créée sans libellé d'après la
-  ligne active (`structure-gestures.tsx`) ;
+  ligne active (`structure-gestures.tsx`), comme le sujet de son refus — le même objet de `say(...)`
+  que #1430 ;
 - #1500 — doc : l'entrée n° 25 de `docs/dev/typescript.md`, la parenthèse sur `held(…)` et le
-  renvoi à l'audit de #1491 ; **cosmétique**.
+  renvoi à l'audit de #1491 ; **cosmétique**. Sa correction par une pull request de documentation
+  vers `epic/EP-16` (décision de l'auteur du 2026-10-31) n'a pas été faite : `main` porte encore les
+  deux phrases.
 
 **US-0780 — l'administration, la session et le journal d'audit.**
 
@@ -235,9 +291,10 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   expirée ;
 - #847 — front : la source commune des rôles répondus n'est éprouvée que dans un sens ;
 - #1673 — front : l'infobulle d'une inscription du journal perd l'instant de la sauvegarde
-  restaurée (`audit-cells.tsx`) ;
+  restaurée (`audit-cells.tsx`) ; la même cellule que le `title` de #967, à corriger avec lui ;
 - #1744 — front : la lecture de la session répétée dans le layout, et le titre d'axe en devise des
-  graphiques sans test ;
+  graphiques des indicateurs et du portefeuille sans test ; son point 2 n'est pas de l'objet de
+  l'US, mais un test de deux options ECharts, pris avec le point 1 pour ne pas couper l'issue ;
 - **cosmétiques** : #963 — deux finitions de l'écran et du parcours du journal d'audit (son point 2
   reçoit une phrase, décision de l'auteur du 2026-10-28) ; #967 — deux finitions du parcours et de
   la cellule de l'action du journal ; #990 — « Adresse portée par le compte Compte anonymisé » ;
@@ -254,8 +311,17 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1821 — doc, front : `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment une colonne
   « Montant corrigé de l'inflation » que la grille de devis intitule « Montant réestimé », et
   `FBS-4.4.3.md` dit que le devis ne montre pas le montant réestimé (relevé par US-0670b #1811) ;
+  c'est l'aide qui suit la grille, dont l'intitulé est le terme de la spécification (§3.2.5) ;
 - #1822 — front : les incohérences du catalogue `en` — « Reste à engager », « Nouvelle nature »,
   « Cash-out by month », « Modify the schedule » (relevé par US-0670b #1811) ;
+- #1819 — outil : trois copies de l'analyseur d'instants des exemples (`mockaudit.py`,
+  `test_mockuniverse.py`, `test_mockhistory.py`) subsistent après #1708 (relevé par US-0640/L5
+  #1333, transféré d'EP-16 le 2026-11-02) ; de l'outillage des tests et des exemples, sans effet sur
+  le contrat : les exemples engendrés ne changent pas ;
+- #1804 — spec : WF-IND-0040, l'avancement financier n'est pas le seul indicateur indépendant de la
+  valeur acquise (reporté d'EP-16 à sa livraison, 2026-11-01). La modification de la spécification
+  est à l'auteur, que nul lot n'écrit ; l'US ne prend que sa suite, la formulation reportée dans
+  l'aide `FBS-4.8.1.md`, en français et en anglais, si l'auteur l'a intégrée avant le lot ;
 - **cosmétiques** : #905 — des espaces insécables littéraux dans les tests du front ; #846 — le
   guide dit encore à venir la confirmation de #836 ; #888 — trois mineurs du tour 3 d'US-0350/L5b.
 
@@ -266,39 +332,46 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
   2026-10-28).
 
 **Reportés d'EP-16 à sa livraison (2026-11-01)**, label et titre `EP-17`, décision de l'auteur
-du 2026-11-01, à ranger sous l'US qui les règle à l'ouverture des lots ; aucun ne touche le
-contrat :
+du 2026-11-01 : #1729 est rangé sous US-0740, #1804 sous US-0790, #1810 sous US-1010.
 
-- #1729 — front : deux composants « Amount » aux propriétés différentes (`portfolio-views.tsx` et
-  `components/amount.tsx`) ;
-- #1804 — spec : WF-IND-0040, l'avancement financier n'est pas le seul indicateur indépendant de la
-  valeur acquise ; une modification de la spécification, que l'auteur intègre, puis la formulation
-  reportée dans `FBS-4.8.1.md` ;
+**Décidés le 2026-11-02** (décisions déléguées par l'auteur) : #1830, le point 3 de #1384, reporté →
+EP-08 et noté dans son fichier ; #1820, le reflux des lignes longues de `docs/api`, écarté et fermé
+— aucune règle outillée ne fixe la largeur de ces fichiers, et le reflux toucherait `docs/api`, que
+la définition de fini ferme à la branche de l'EPIC.
+
+**US-1010 — les écrans du référentiel.**
+
 - #1810 — front : les désactivés du référentiel demandés sous la seule permission de consultation,
   quand le contrat les réserve à `*.write` (WF-REF-0150 ; relevé par US-0704 #1735, comme C-01
-  #1745).
+  #1745) — les écrans des ressources et des coûts du référentiel, et le devis ;
+- #1567 — front : la correspondance des coûts réels (`/reference/costs/actual-cost-mapping`) ne
+  plafonne pas les colonnes conservées aux 50 du contrat et ne dit pas leur refus `VALUE_TOO_LONG`
+  (relevé par US-0640/L2 ; reporté ici par décision de l'auteur du 2026-10-28).
 
 **La revue du contrat du 2026-10-31.** Les écrans de ce que la revue du contrat a changé, tranché
 par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), et les écrans viennent à
-EP-17 (décision de l'auteur du 2026-11-01). Sous-issues de #1547, chacune à ranger sous l'US qui la
-règle au cadrage.
+EP-17 (décision de l'auteur du 2026-11-01). Rangés le 2026-11-02 : chacun sous l'US qui porte déjà
+son écran, sinon sous une US nouvelle ; deux sont sans objet.
 
 - #1748 — le défaut de l'accueil retient aussi les projets créés : Créé, Chiffrage et En cours
-  (D-01 ; contrat #1747).
-- #1753 — les libellés de `NodeChange.subproject` et `cost_category` dans la comparaison (E-01 ;
-  contrat #1751).
+  (D-01 ; contrat #1747) — US-1030 ;
 - #1763 — les lignes issues d'un risque survenu : filtre, marque, et réestimé face au coût à la
-  survenance (E-04 ; contrat #1761).
+  survenance (E-04 ; contrat #1761) — US-1020 ;
 - #1773 — indenter ou créer une sous-tâche sous un jalon, indisponible d'avance (F-04 ; contrat
-  #1771).
+  #1771) — US-0750 ;
 - #1776 — signaler les lignes propres ouvertes d'une récapitulative, au reste à engager et au Kanban
-  (F-05 ; contrat #1774).
-- #1784 — le détail du risque écrit son identité et sa provision par deux opérations (H-02 ; contrat
-  #1782).
+  (F-05 ; contrat #1774) — US-0730 ;
 - #1787 — le registre des risques filtre chacune de ses colonnes depuis son adresse (H-01 ; contrat
-  #1785).
+  #1785) — US-1020 ;
 - #1791 — le compte rendu d'import lit ses commandes et présente l'état `refused` (I-01, I-02 ;
-  contrat #1789).
+  contrat #1789) — US-1040 ;
+- #1753 — les libellés de `NodeChange.subproject` et `cost_category` dans la comparaison (E-01 ;
+  contrat #1751) — **sans objet** : US-0704 a écrit les deux libellés, en français et en anglais, et
+  `comparison-grid.dom.test.tsx` lit la ligne « Câblage sur site » qui change de sous-projet ;
+- #1784 — le détail du risque écrit son identité et sa provision par deux opérations (H-02 ; contrat
+  #1782) — **sans objet** : `writeRisk` (`api/actions/risks.ts`) écrit l'identité par `updateRisk`
+  et la provision par `updateRiskProvision`, et `update_provision` gouverne la seule partie
+  provision du formulaire (`risk-form.tsx`), depuis US-0704.
 
 ## Conception
 
@@ -315,7 +388,8 @@ construction, et les décisions prises avec leur option écartée. Validée par 
   quatre US par nature — harnais, ajustements, mineurs, cosmétique —, dont chacune aurait cité
   toutes les exigences de tous les écrans, et dont les lots auraient touché les mêmes fichiers en
   même temps.
-- **Aucune exigence close** : sept lignes « début — close en EP-nn » au tableau, et trois exigences
+- **Aucune exigence close** : treize lignes « début — close en EP-nn » au tableau (sept au cadrage
+  du 2026-10-28, six aux écrans de la revue du contrat le 2026-11-02), et trois exigences
   déjà closes (WF-IHM-0100-A, WF-IHM-0010-A, WF-IHM-0070-A) citées par une US avec tout leur Vérif,
   sans ligne au tableau, parce que `make roadmap` ferme toute portée qui ne commence pas par
   « début » et refuse une exigence close par deux EPIC. L'écart d'EP-14 sous WF-IHM-0100-A est noté
@@ -366,6 +440,70 @@ construction, et les décisions prises avec leur option écartée. Validée par 
   l'auteur le passe `en cours` quand il tire `epic/EP-17`. Écarté : `en cours` dès le cadrage, qui
   ferait lire un EPIC en travail alors qu'aucun lot ne peut partir.
 
+**Les constats reçus après le cadrage** (reportés d'EP-16 du 2026-10-28 au 2026-11-02, rangés le
+2026-11-02, à valider par l'auteur avec la pull request qui les range) :
+
+- **Chacun sous l'US de son fichier**, dans un lot existant, sans lot nouveau : aucun ne fait passer
+  son lot au-delà de la taille visée. Écarté : un lot de mineurs à part, qui toucherait en fin
+  d'EPIC les fichiers des lots d'écran.
+- **#1539, le commentaire dit vrai** : la légende est rendue par le serveur et tenue jusqu'à la
+  mesure de l'axe, ce que #1421 fait tenir ; le commentaire de `GanttRows` le dit. Écarté : ne plus
+  rendre la légende au serveur, qui déplacerait la grille dans l'autre sens sur les projets qui la
+  gardent.
+- **#1699, la piste A dès maintenant**, sur la garde de `paste.ts`, éprouvée par un test de la
+  garde sur les colonnes de la grille de planning, sans câbler le collage sur cette grille. Écarté :
+  attendre le lot qui câblera ce collage, qui laisserait le constat ouvert à la livraison, contre
+  la définition de fini.
+- **#1821, l'aide suit la grille** : « Montant réestimé » est le terme de la spécification (§3.2.5).
+  Écarté : renommer la colonne d'après l'aide.
+- **#1822, un terme, une traduction** : pour chaque terme, le lot retient celui que le catalogue
+  emploie déjà le plus, et donne à deux commandes distinctes deux libellés distincts ; la pull
+  request dit chaque choix. Écarté : un glossaire anglais à part, qui n'existe pas et que rien ne
+  demande.
+- **#1744 entier sous US-0780** : son point 2, un test du titre d'axe de deux graphiques, est pris
+  avec le point 1. Écarté : couper l'issue entre deux US pour quelques lignes de test.
+- **#1830, reporté → EP-08** (décision du 2026-11-02, déléguée par l'auteur) : le succès de
+  « Déclarer survenu » s'éprouve contre le service réel, sans exemple ajouté au contrat figé, comme
+  #1714 l'a fait pour `completed`. Écartés : l'exemple ajouté sur `main` par une pull request de
+  contrat — une modification du contrat figé pour un seul test du front — ; une dérogation à la
+  définition de fini d'EP-17, qui ferme `docs/api` à sa branche pour qu'il avance en parallèle des
+  EPIC de domaine.
+- **#1820, écarté** (même décision) : aucune règle outillée ne fixe la largeur de `docs/api`, et un
+  reflux sans règle se défait au premier ajout. Écartés : un reflux sur `main` avec un contrôle de
+  largeur, une règle nouvelle que rien ne demande ; une dérogation à la définition de fini.
+
+**Les écrans de la revue du contrat du 2026-10-31** (rangés le 2026-11-02, décisions déléguées par
+l'auteur) :
+
+- **Sous l'US qui porte déjà l'écran, sinon une US nouvelle par écran** : #1773 sous US-0750 (la
+  grille de planning), #1776 sous US-0730 (le Kanban, qui porte la carte ; la grille de reste à
+  engager n'a pas d'US à elle) ; quatre US nouvelles — US-1010 le référentiel (#1810, #1567),
+  US-1020 le registre des risques et les lignes issues d'un risque survenu (#1787, #1763), US-1030
+  l'accueil (#1748), US-1040 le compte rendu d'import (#1791). Écartés : une US « de la revue du
+  contrat », qui grouperait par origine contre le découpage par objet ; #1810 et #1567 sous US-0790,
+  qui ne sont pas des mineurs sans écran ; les rendre à EP-05, contre le report décidé par l'auteur
+  ; #1748 sous US-0720, dont l'écran n'est pas l'accueil.
+- **#1753 et #1784, sans objet** : US-0704 les a faits en écrivant le contrat (le client régénéré
+  ne compilait pas sans eux) ; ils se ferment avec leur raison. Écarté : les garder ouverts jusqu'à
+  un lot qui n'aurait rien à y faire.
+- **#1776, une part détachée d'US-0730** (`[US-0730b]`) : le lot unique d'US-0730 vise déjà 1 000
+  lignes. Écarté : l'y ajouter, à 1 350 lignes, ou une US nouvelle pour une carte que le Kanban
+  porte déjà.
+- **#1763 et #1787, une US, deux lots** : le registre d'abord (ses filtres, dont les deux colonnes
+  des survenus), puis les grilles filtrées sur un risque, leur marque, le lien du registre vers
+  elles et la couverture. Écartés : un lot (environ 2 000 lignes) ; #1763 sous US-0750, dont les
+  deux lots sont pleins, et qui couperait le constat entre deux US.
+- **Le front trie ce que le contrat trie** : le registre trie par `severity`, `provision_amount` et
+  `occurrence_cost` (`sort_by`), et filtre toutes ses colonnes de nombres, réestimé des survenus
+  compris ; le réestimé n'est pas triable. Écarté : un tri du réestimé côté front sur la page lue,
+  faux dès la deuxième page (WF-ARC-0020).
+- **Les exigences citées** : WF-PLA-0040-A (US-0730), WF-PLA-0050-A (US-0750), WF-REF-0150-A
+  (US-1010), WF-RIS-0020-A, WF-RIS-0050-A et WF-RIS-0060-A (US-1020), chacune « début — close » par
+  l'EPIC de son domaine, la phrase qui tient côté front en critère, les autres en écart ;
+  WF-IHM-0090 et WF-IHM-0130, dont aucune phrase de Vérif ne porte sur ces écrans, sont nommées dans
+  les critères sans être citées. Écarté : citer WF-IHM-0090 (close par EP-02) pour US-1040, qui
+  demanderait d'y vérifier des phrases sans rapport avec le compte rendu.
+
 ### Le harnais (US-0710)
 
 Le harnais est celui d'EP-14 — `accessibility.spec.ts`, `axe.ts`, `tab-walk.ts`,
@@ -402,6 +540,10 @@ ses mesures par lots ; rien n'y est réécrit.
   10) ; les résultats « incomplete » des autres règles d'axe annotés (point 8) ; l'écran de panne
   (`error.tsx`, `global-error.tsx`) ajouté à la note (point 11) ; les points 5, 9 et 14 écrits
   dans la note ; les points 1, 4, 6, 7, 12 et 13, cosmétiques, corrigés en passant.
+- **#1808** : le `finally` de `walkByTab` ne rattrape que l'erreur de fermeture de la page, sous la
+  forme qu'a établie le correctif de #1720 (« Test ended. », « Test timeout of …ms exceeded. »), et
+  relance toute autre ; dans `indicators.spec.ts`, le `catch` qui évite un rejet non géré est gardé
+  si `opened` est attendu sur tous les chemins, et un commentaire le dit, ou il se retire.
 - **#819, point 1** : `dense-grid.tsx` distingue le focus d'une cellule refusée par un second
   trait — un anneau double, ou un contour en pointillé —, non par la seule couleur de l'anneau ; le
   parcours au Tab (`unmarked`) ne le juge pas, un test DOM le tient.
@@ -436,6 +578,12 @@ ses mesures par lots ; rien n'y est réécrit.
   `predecessors_completed`, à côté de celle du jalon. La sélection masquée est levée, `tabStop`
   revenant à la première carte visible. #1356 : le tiret de `CardReading` devient un espacement ;
   la région `status` est permanente, le bouton hors d'elle. L'aide FBS-4.5.3 décrit les filtres.
+  **US-0730b** (#1776) : `CardTitle` porte, pour une tâche dont la lecture dit
+  `awaiting_own_lines`, la marque « lignes propres ouvertes » de l'échelle commune (icône et texte,
+  WF-IHM-0070) ; la grille de reste à engager (`remaining/`) marque la tâche et ses lignes propres
+  hors provision de la même façon, une ligne de provision jamais ; le front ne déduit rien des
+  subordonnées (WF-ARC-0020) ; tests de la grille et du Kanban sur `nodes_awaiting_own_lines`, aides
+  FBS-4.5.2 et FBS-4.5.3.
 - **US-0740, la matrice** : `risk-bubble-chart.tsx` ne colore plus les seize `markArea` (fond de la
   charte), garde `ZONE_STROKE` et les noms ; `STATE_STYLE` disparaît au profit d'une forme par zone
   (`palette.zones[point.zone]` pour la couleur, un symbole par zone) ; `shownPoints` ne garde que
@@ -443,19 +591,32 @@ ses mesures par lots ; rien n'y est réécrit.
   (`risks/page.tsx`, `portfolio/risks/page.tsx`) passent la matrice telle quelle. #1386 : le test
   du refus nomme le bouton par le catalogue, l'import est rangé, `useKeptWriter` reçoit `writeNow`.
   Cette US attend US-0700/L2 (EP-16) fusionné, qui met `cells` au compte des seuls identifiés. Les
-  aides FBS-4.6 et celle de la vue des risques du portefeuille suivent.
+  aides FBS-4.6 et celle de la vue des risques du portefeuille suivent. #1781 : les libellés de la
+  gravité (`reference.riskMatrix.severity`, `reference.riskForm.severity`, ceux du graphique), en
+  français et en anglais, disent l'assiette du projet (WF-REF-0160), un test les tenant ; le front
+  ne calcule pas la gravité (WF-ARC-0020), il la lit. #1729 : le `Amount` local de
+  `portfolio-views.tsx` cède la place à `components/amount.tsx`, ou prend un autre nom si leurs
+  rendus diffèrent.
 - **US-0750, les grilles du projet** : `projectNodes` (`grid/nodes.tsx`) reçoit `kinds` et écarte
   les nœuds d'un autre type avant `projectNode`, appelé par `grid-screen.ts` pour toute lecture qui
   passe `kinds` — le planning, le planning d'un différentiel, la comparaison (`comparison-rows.ts`)
   —, un test de page donnant une réponse mêlée. `gantt-image.ts` dessine une colonne des noms à
   gauche (`ROW` par ligne, l'indentation par niveau, la largeur de la colonne mesurée au texte le
   plus long, bornée), comptée dans `sizeOf` et donc dans `ganttOverflow`. `gantt.tsx` tient la
-  légende jusqu'au signal de mesure de l'axe (#1421, et #1539 s'il y vient). `frame-width.ts` est
+  légende jusqu'au signal de mesure de l'axe (#1421), et le commentaire de `GanttRows` dit qu'elle
+  est rendue par le serveur et tenue jusque-là, hydratation comprise (#1539). `frame-width.ts` est
   éprouvé par un `setViewportSize` dans `grid-frame.spec.ts` (#1144). Le lotissement (#806) :
   `breakdown-edits.ts` n'envoie rien quand l'élément visé manque et le dit, attribue un refus pointé
   sur l'élément même ; `settings-grid.tsx` dit « Aucun poste » ; les tests manquants s'écrivent.
   #819 : la grille sous une recherche sans résultat (point 4), la lecture du lotissement dans le
-  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). Les aides FBS-4.3 et
+  `Promise.all` (13), le filtre de `waitForRequest` sur `next-action` (14). #1699 : `localRefusal`
+  (`paste.ts`) ne refuse « colonne absente » que si une cellule non vide du bloc tombe sur une
+  colonne que la grille ne configure pas, un test de la garde sur les colonnes de la grille de
+  planning (`is_critical` entre `total_float` et `started_on`). #1773 : `structure-rules.ts`, qui ne
+  place déjà rien sous un jalon (`byLevel`, `createdOn`), rend « Indenter » et « Ajouter une
+  sous-tâche » indisponibles avec leur condition au lieu de les taire, par la forme des gestes
+  indisponibles de la grille (WF-IHM-0090) ; le refus `MILESTONE_HAS_NO_SUBTASK`, déjà au
+  catalogue, est éprouvé sur un collage et dans un compte rendu d'import. Les aides FBS-4.3 et
   FBS-4.3.1 disent l'export.
 - **US-0760, le faux back dit** : `docs/dev/README.md` reçoit « Ce que le faux back ne fait pas »
   sous « Le faux back », et les mentions des lignes 984 et 1228 y renvoient. `MockupNotice` reçoit
@@ -470,8 +631,12 @@ ses mesures par lots ; rien n'y est réécrit.
   et l'écran revenu par « Suivant » ne le redit pas (#1476, point 1), le guide gagne sa phrase
   (point 2), `shell.spec.ts` son commentaire (point 3) ; `say(...)` sans objet instruit un à un
   (#1430) ; `cell-writes.ts` fait passer `clear` par `current` (#1432) ; `reactivation.tsx` purge
-  `reported` à chaque génération (#901) ; `held()` partout (#781) ; `reference-form.tsx` reçoit une
-  prop `icon` et un libellé par cas, sans ternaire (#1384, point 2).
+  `reported` à chaque génération (#901) ; `held()` partout (#781), et l'entrée n° 25 de
+  `docs/dev/typescript.md` dit « avec `held(…)` quand la commande l'emploie » et la propriété qui
+  rend un fichier sans objet, à la place du renvoi à #1491 (#1500, décision de l'auteur du
+  2026-10-31) ; `reference-form.tsx` reçoit une prop `icon` et un libellé par cas, sans ternaire
+  (#1384, point 2) ; `structure-gestures.tsx` passe à `send` un libellé indéfini pour une ligne
+  créée sans nom, l'historique et le sujet d'un refus ne nommant plus la ligne active (#1701).
 - **US-0780, l'administration** : `user-dialogs.tsx` et les catalogues
   (`admin.users.anonymizationFinal`) pour #942 ; `user-cells.tsx` (`StateSwitch`) lit
   `writes.linking` pour #949 ; `UserWrites.run` dit le refus d'une ligne occupée (#941) ;
@@ -482,13 +647,61 @@ ses mesures par lots ; rien n'y est réécrit.
   du compte gardé avec les magasins) — (#1180) ; `maintenance.tsx` mène au journal (#1024) ;
   `restoration.tsx` ne rend pas « en attente » en phase `failed` (#1023) ; les tests et le parcours
   du service (#984, #847, #1021, #963, #967) ; `admin/users/page.tsx` renomme `PERIOD_REFUSED`
-  (#1012). Les aides de l'administration touchées suivent.
+  (#1012). `audit-cells.tsx` compose le `title` de la cellule de l'action instant de la sauvegarde
+  restaurée compris, posé seulement quand le texte est tronqué (#967), et passe `taken` après un
+  garde de type, sans repli `""` (#1673). `app/layout.tsx` lit la session une fois, dans une
+  variable réemployée, et le titre d'axe en devise de `curve-series-chart.tsx` et
+  `portfolio-charts.tsx` est éprouvé avec et sans devise (#1744). Les aides de l'administration
+  touchées suivent.
 - **US-0790** : `commands/object-commands.tsx` rend `declare_risk` par un `Link` vers
   `functionHref(functionOf("risks"), context)` quand il est disponible, indisponible sinon avec sa
   condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap sur le champ
   (`onKeyDown`, `event.preventDefault()` quand `query` n'est pas vide), avant que Radix ne le
   prenne (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
   `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` (#905) ; #846 et #888.
+  Les aides du devis, `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment la colonne
+  « Montant réestimé » et ne disent plus que le devis ne le montre pas (#1821) ; `messages/en.json`
+  rend chaque terme d'une seule façon et deux commandes distinctes par deux libellés, les pages de
+  `frontend/help/en/` qui les citent suivant (#1822, le test des libellés en gras de `help.test.ts`
+  les relève) ; `mockaudit.py`, `test_mockuniverse.py` et `test_mockhistory.py` lisent leurs
+  instants par `wftools.mockproject.moment` — la forme datée seule de `test_mockhistory.py` gardée
+  par un appel à part —, les exemples engendrés inchangés, `make mock-data-up-to-date` au vert
+  (#1819) ; `FBS-4.8.1.md`, dans les deux langues, reprend la formulation de WF-IND-0040 si l'auteur
+  l'a intégrée avant le lot, sinon #1804 reste ouvert à sa seule part de la spécification.
+- **US-1010, le référentiel** : `inactiveQuery` (`reference/resources/page.tsx`,
+  `reference/costs/page.tsx`) et `referenceQuery` (le devis) demandent les désactivés sous
+  `resource_settings.write` et `cost_settings.write`, comme le contrat (C-01, #1745), et la case
+  « Afficher les désactivés » n'est pas présentée sans eux ; un test par écran avec un compte de
+  consultation seule. `actual-cost-mapping.tsx` lit le plafond des colonnes conservées de la
+  validation du contrat (`maxItems`, par le client engendré ou une constante qui cite le schéma,
+  éprouvée contre lui) et tient « Déclarer une colonne conservée » indisponible au-delà, avec sa
+  condition ; le refus `VALUE_TOO_LONG` sur `/kept_columns` se dit sous la liste, son test réécrit.
+  Aides FBS-3.1, FBS-3.1.3 et FBS-3.2.
+- **US-1020, le registre et les survenus.** L1 : `risks/address.ts` lit `zones`, les bornes
+  `<colonne>_min` et `<colonne>_max` de chaque colonne de nombres (probabilité, gravité, provision,
+  coût à la survenance, réestimé des survenus) et la période `last_review_on_from` /
+  `last_review_on_to`, par `boundNames` et `period-filter.tsx` comme les autres grilles ; le
+  registre (`risk-grid.tsx`) gagne la colonne du réestimé des survenus
+  (`occurred_reestimated_amount`) et ses filtres de colonne ; un raccourci « Non réexaminés depuis
+  le dernier marquage » pose `last_review_on_to` à la date du dernier marquage (WF-RIS-0020) ; aide
+  FBS-4.6.1. L2 : `grid-screen.ts` passe `is_from_risk` et `origin_risk_ids` de l'adresse à
+  `listNodes` pour le planning et le devis, un filtre « Issues d'un risque » et le choix d'un risque
+  survenu dans la barre de la grille ; une marque discrète sur une tâche ou une ligne dont la
+  lecture porte `origin_risk_id`, qui nomme le risque ; le registre mène d'un survenu à la grille
+  filtrée sur lui ; `risk-coverage.tsx` présente `occurred_reestimated` en regard de
+  `occurred_cost`, comme une information, hors de l'écart ; aides FBS-4.3, FBS-4.4, FBS-4.6.1 et
+  FBS-4.6.2.
+- **US-1030, l'accueil** : `DEFAULT_STATES` (`navigation/home.ts`) devient `["created", "pricing",
+  "in_progress"]`, dans l'ordre du contrat, sa docstring le dit ; un choix gardé (`filters.states`)
+  prime toujours ; les tests de l'accueil et le parcours qui l'ouvre attendent les trois états, et
+  le projet créé se lit par `projects_with_created`. Aide FBS-4 (l'accueil).
+- **US-1040, le compte rendu d'import** : `import-report.tsx` lit « Appliquer » et « Abandonner »
+  dans `Import.available_commands` (`findOffer`), indisponibles avec leur condition
+  (`import_awaiting_decision`, `import_not_applied`, déjà au catalogue) ; `IMPORT_STEPS` et
+  `stepsOf` (`offers.ts`) disparaissent, et leur commentaire avec ; l'état `refused` a son
+  explication (« refusé à l'application, le fichier est supprimé ; relancez l'import ») sur le
+  compte rendu et dans le journal des imports ; tests du compte rendu et du journal. Aide FBS-4.3.4
+  (imports et exports).
 - **US-0800** : la mesure se prend au Performance panel ou par `page.evaluate(performance.now)`
   autour de la navigation, sur le planning de mille tâches ; les pistes — le démontage de
   `DenseGrid` (mille lignes de cellules, chacune avec ses gestionnaires), le recalcul des styles au
@@ -504,7 +717,10 @@ ses mesures par lots ; rien n'y est réécrit.
    qui est acquis à la livraison d'EP-16), US-0750, US-0760, dans cet ordre, chacun sous le harnais.
 3. **Les mineurs** : US-0770 puis US-0780, qui touchent des composants partagés et des écrans que
    les lots précédents ne touchent pas ; US-0790 en parallèle.
-4. **US-0800 en dernier**, quand les grilles ne bougent plus, pour mesurer sur ce qui sera livré.
+4. **Les écrans de la revue du contrat** : US-0730b après US-0730 ; US-1010, US-1030 dès le
+   harnais ; US-1020/L1 après US-0740 (le même écran des risques), US-1020/L2 après US-1020/L1
+   et US-0750/L1 (`grid-screen.ts`) ; US-1040 après US-0720 (le renvoi de `?import=`).
+5. **US-0800 en dernier**, quand les grilles ne bougent plus, pour mesurer sur ce qui sera livré.
 
 ---
 
@@ -540,7 +756,9 @@ commande se dérobe.
   durée du fichier avant et après (#784, point 2) ; les autres points de #784 sont corrigés, ou
   écrits dans « Ce que les tests ne prouvent pas » avec leur raison ;
 - propre à l'US : le focus d'une cellule refusée se distingue autrement que par la couleur (#819,
-  point 1).
+  point 1) ;
+- propre à l'US : `walkByTab` et `indicators.spec.ts` ne rattrapent que l'erreur de fermeture de la
+  page, ou disent dans le code pourquoi leur `catch` est sûr (#1808).
 
 **Notes de réalisation.** Le harnais est celui d'EP-14 (`accessibility.spec.ts`, `axe.ts`,
 `tab-walk.ts`, `focus-probe.ts`), que l'US étend sans le réécrire ; US-0590g (EP-16) y lit les
@@ -594,8 +812,8 @@ défaut) n'est pas ici : rendu à EP-16, parce que son point à trancher demande
 ## US-0730 — Le Kanban filtré, et sa carte annoncée
 
 - **statut** : à faire
-- **exigences** : `WF-RAE-0030-A`, `WF-IHM-0070-A`
-- **opérations** : `listStartableTasks`
+- **exigences** : `WF-RAE-0030-A`, `WF-IHM-0070-A`, `WF-PLA-0040-A`
+- **opérations** : `listStartableTasks`, `listNodes` (la grille de reste à engager, US-0730b)
 - **issue** : #1550
 
 **En tant que** chef de projet, **je veux** retrouver une tâche du Kanban par son libellé, ne voir
@@ -638,11 +856,39 @@ prédécesseurs, **afin de** démarrer le travail du jour sans parcourir trois c
   perd la sélection, et le clavier reprend sur la première carte visible de sa colonne ;
 - propre à l'US : la région d'état de la lecture d'une carte est permanente, le bouton « Réessayer »
   hors d'elle (#1356, point 2), et le commentaire du test du chemin nominal est réécrit (point 3) ;
-- propre à l'US : l'aide du Kanban décrit les filtres et la marque.
+- propre à l'US : l'aide du Kanban décrit les filtres et la marque ;
+- écart : `WF-PLA-0040-A` — « Après déplacement d’une récapitulative portant deux niveaux de
+  subordonnées, les tâches et les lignes déplacées sont inchangées, et le devis totalise le même
+  montant. » : du service ; EP-06 clôt.
+- écart : `WF-PLA-0040-A` — « Les dates et l’état d’une récapitulative ne sont pas saisissables. » :
+  le refus est du service, et la grille de planning ne change pas ici ; EP-06 clôt.
+- écart : `WF-PLA-0040-A` — « Une récapitulative dont une subordonnée est démarrée est démarrée ;
+  elle n’est terminée qu’après la dernière. » : l'état est calculé par le service ; EP-06 clôt.
+- `WF-PLA-0040-A` — « Une récapitulative dont toutes les subordonnées sont terminées et dont une
+  ligne propre porte un reste à engager de 500 est démarrée et signalée ; la saisie d’un reste nul
+  sur cette ligne la termine. » : la carte du Kanban d'une tâche dont la lecture dit
+  `awaiting_own_lines`, et dans la grille de reste à engager la tâche et ses lignes propres hors
+  provision, portent la marque « lignes propres ouvertes » de l'échelle commune, lisible sans
+  couleur, sur l'exemple `nodes_awaiting_own_lines` ; le front ne la déduit pas des subordonnées
+  (WF-ARC-0020), et la terminaison par la saisie d'un reste nul est du service, EP-06 clôt (#1776) ;
+- écart : `WF-PLA-0040-A` — « La suppression de la seule subordonnée d’une récapitulative de dix
+  jours laisse une tâche feuille de dix jours, à laquelle une sous-tâche peut de nouveau être
+  ajoutée. » : du service ; EP-06 clôt.
+- `WF-PLA-0040-A` — « Une récapitulative dont toutes les subordonnées sont terminées et dont la
+  seule ligne propre est une provision de 40 est terminée et n’est pas signalée. » : une ligne de
+  provision n'est jamais marquée, et une tâche que la lecture ne dit pas `awaiting_own_lines` ne
+  l'est pas ; l'état est du service, EP-06 clôt (#1776) ;
+- écart : `WF-PLA-0040-A` — « Une récapitulative dont la seule subordonnée est un jalon terminé et
+  dont une ligne propre garde un reste à engager, privée de ce jalon, est une feuille démarrée d’un
+  jour, non un jalon. » : du service ; EP-06 clôt.
+- écart : `WF-PLA-0040-A` — « Une récapitulative terminée dont la seule subordonnée, un jalon, est
+  déplacée devient un jalon terminé. » : du service ; EP-06 clôt.
+- propre à l'US : les aides du reste à engager et du Kanban disent la marque (#1776).
 
 **Notes de réalisation.** Trois colonnes, les états d'une tâche : une quatrième colonne « Prêtes »
 est écartée par l'auteur (#1396). `predecessors_completed` est déjà rendu (`NotStartedTask`) ; le
-contrat ne change pas.
+contrat ne change pas. #1776, venu de la revue du contrat du 2026-10-31, se livre dans une part
+détachée, `[US-0730b]`, après le lot unique : celui-ci vise déjà 1 000 lignes.
 
 **Hors périmètre.** Un filtre gardé en préférence ou en session ; le glisser-déposer, inchangé.
 
@@ -687,6 +933,9 @@ la zone que le serveur lui rend, **afin de** voir d'un coup d'œil où sont les 
 - propre à l'US : les trois mineurs de #1386 sont corrigés — le nom exact du bouton de fermeture
   dans le test du refus, l'ordre des imports, une fonction « écrire maintenant » de `useKeptWriter`
   à la place de `record` suivi de `flush` ;
+- propre à l'US : les libellés de la gravité, dans les réglages de la matrice et sur le graphique,
+  disent l'assiette du projet, en français et en anglais (#1781) ; la vue du portefeuille n'a plus
+  deux composants nommés `Amount` (#1729) ;
 - propre à l'US : l'aide de l'écran des risques et celle de la vue des risques du portefeuille
   décrivent la matrice ainsi.
 
@@ -701,7 +950,7 @@ est partagé (`risk-bubble-chart.tsx`) entre les deux écrans. Cette US ne comme
 ## US-0750 — Les grilles du projet, le Gantt et les chronologies
 
 - **statut** : à faire
-- **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`
+- **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`, `WF-PLA-0050-A`
 - **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #1552
 
@@ -740,14 +989,31 @@ sur ce qu'elle montre et lire un Gantt exporté sans l'écran à côté (#1397, 
 - écart : `WF-PRJ-0020-A` — « Un projet sans lotissement saisi présente un lot, un poste et aucun
   livrable. » : constaté par EP-15 (US-0450), inchangé ici ; EP-04 clôt.
 - propre à l'US : la légende des jours chômés du Gantt est tenue jusqu'à la mesure de l'axe, et non
-  un tick (#1421 ; #1539, s'il est tranché vers ce lot) ; la largeur mesurée de la barre des grilles
-  denses est éprouvée au redimensionnement, et la largeur minimale de la recherche comparée aux
-  minimales mesurées (#1144) ;
+  un tick, et le code dit qu'elle est rendue par le serveur (#1421, #1539) ; la largeur mesurée de
+  la barre des grilles denses est éprouvée au redimensionnement, et la largeur minimale de la
+  recherche comparée aux minimales mesurées (#1144) ;
 - propre à l'US : les mineurs du lotissement dans sa grille (#806, points 1 à 3, 5 à 10, 12, 13, 16)
   sont corrigés — une écriture dont l'élément visé manque à la lecture de départ n'est pas envoyée
   et le dit ; un refus pointé sur l'élément lui-même lui est attribué ; une suppression refusée est
   éprouvée ; un lotissement vide dit « Aucun poste » — et les mineurs des tests du planning et des
   chronologies (#819, points 13 et 14 ; #1424) ;
+- propre à l'US : la garde locale du collage ne refuse une colonne absente que si une cellule non
+  vide du bloc y tombe, éprouvé sur les colonnes de la grille de planning, `is_critical` comprise
+  (#1699, piste A) ;
+- `WF-PLA-0050-A` — « Une tâche feuille de durée nulle ne peut recevoir de sous-tâche. » : la grille
+  de planning présente indisponibles, avec leur condition (WF-IHM-0090), « Indenter » quand la tâche
+  qui précède est un jalon et « Ajouter une sous-tâche » sur un jalon, d'après `is_milestone` que la
+  lecture rend ; le refus `MILESTONE_HAS_NO_SUBTASK` d'un collage ou d'un import dit son message
+  (#1773) ;
+- écart : `WF-PLA-0050-A` — « Une récapitulative dont la seule subordonnée est un jalon a une durée
+  nulle et reste une récapitulative. » : du service ; EP-06 clôt.
+- écart : `WF-PLA-0050-A` — « Un jalon portant une ligne de devis passe de non démarré à terminé par
+  la saisie d’un reste à engager nul ; un jalon sans ligne est terminé depuis le Kanban. » : la
+  transition est du service, et le Kanban ne change pas ici ; EP-06 clôt.
+- écart : `WF-PLA-0050-A` — « La terminaison depuis le Kanban d’un jalon portant une ligne est
+  refusée en renvoyant à la saisie de son reste à engager. » : le refus est du service ; EP-06 clôt.
+- écart : `WF-PLA-0050-A` — « Un jalon qui ne porte qu’une ligne de provision est terminé depuis le
+  Kanban. » : la transition est du service ; EP-06 clôt.
 - propre à l'US : l'aide de la grille de planning et celle du Gantt décrivent l'export et la grille
   vide.
 
@@ -824,7 +1090,11 @@ partout, **afin qu'**une réponse tardive n'efface pas ce que je saisis ni ne se
 - propre à l'US : `held()` remplace les cinq retenues faites à la main, et aucune autre ne reste
   dans `frontend/src` (#781) ;
 - propre à l'US : `ReferenceForm` dit « Réexaminer » par son libellé et une icône qui n'est pas
-  `Save`, sans quatrième branche au ternaire (#1384, point 2).
+  `Save`, sans quatrième branche au ternaire (#1384, point 2) ;
+- propre à l'US : une ligne de devis créée sans libellé est inscrite à l'historique des messages, et
+  nommée dans le sujet de son refus, sans le libellé de la ligne active (#1701) ;
+- propre à l'US : l'entrée n° 25 de `docs/dev/typescript.md` ne dit `held(…)` que là où la commande
+  l'emploie et nomme la propriété qui rend un fichier sans objet (#1500).
 
 **Notes de réalisation.** US-0590d (EP-16) a posé la forme des commandes en ligne — un état
 « occupé » local, levé dans la même mise à jour que la réponse (option B de #1491, défaut n° 25) —
@@ -879,8 +1149,10 @@ le journal nomme un auteur même sans ligne, et qu'une session finie n'en laisse
 - propre à l'US : le parcours du journal supprime le rôle qu'il crée, l'inscription
   `access_role_update` sans changement reçoit une phrase (#963), le parcours ne recopie pas les
   locales en dur et prend « aujourd'hui » à l'heure de l'inscription, le `title` d'une cellule n'est
-  posé que si le texte est tronqué (#967) ; la documentation de la page des comptes dit tout refus
-  422 (#1012) ;
+  posé que si le texte est tronqué (#967), et il porte alors l'instant de la sauvegarde restaurée
+  (#1673) ; la documentation de la page des comptes dit tout refus 422 (#1012) ;
+- propre à l'US : le layout lit la session une fois (#1744, point 1), et le titre d'axe en devise
+  des graphiques des indicateurs et du portefeuille est éprouvé, avec et sans devise (point 2) ;
 - propre à l'US : les aides de l'administration touchées (les comptes, le journal, les sauvegardes)
   sont retouchées.
 
@@ -921,12 +1193,206 @@ commande muette ni perdre le panneau d'un geste (#1438, #1481).
 - propre à l'US : `outcome-notice.dom.test.tsx` reçoit le routeur par une voie publique (#902) ; les
   espaces insécables des tests s'écrivent par leur échappement, et `no-irregular-whitespace` les
   relève dans les fichiers de tests (#905) ; le guide dit #836 confirmée (#846) ; les trois mineurs
-  de #888 sont corrigés.
+  de #888 sont corrigés ;
+- propre à l'US : l'aide du devis, en français et en anglais, nomme la colonne comme la grille,
+  « Montant réestimé », et ne dit plus que le devis ne le montre pas (#1821) ; le catalogue anglais
+  traduit chaque terme d'une seule façon et deux commandes distinctes par deux libellés distincts,
+  les aides anglaises qui les citent suivant (#1822) ;
+- propre à l'US : aucune copie de l'analyseur d'instants des exemples ne reste dans `tools/` hors de
+  `wftools.mockproject.moment`, et les exemples engendrés ne changent pas (#1819) ;
+- propre à l'US : si l'auteur a intégré la reformulation de WF-IND-0040 avant le lot, l'aide de
+  l'avancement financier la reprend, dans les deux langues (#1804).
 
 **Notes de réalisation.** Le panneau de l'aide est celui d'US-0670/L1 (`help-panel.tsx`, Radix) :
 Échap y est pris par le dialogue, et le champ doit le prendre avant.
 
 **Hors périmètre.** La rédaction des aides (US-0670, EP-16).
+
+---
+
+## US-1010 — Les écrans du référentiel demandent ce que le contrat leur accorde
+
+- **statut** : à faire
+- **exigences** : `WF-REF-0150-A`
+- **opérations** : `listResourceRoles`, `listCostCategories`, `getActualCostMapping`,
+  `setActualCostMapping`
+- **issue** : #1833
+
+**En tant qu'**administrateur du référentiel ou lecteur de ses listes, **je veux** que les écrans
+du référentiel ne demandent les objets désactivés que si j'ai le droit de les voir, et que la
+correspondance des coûts réels me dise d'avance combien de colonnes elle conserve, **afin de** ne
+pas tomber sur un refus que l'écran aurait pu éviter (#1810, #1567).
+
+**Critères d'acceptation.**
+
+- `WF-REF-0150-A` — « Un objet désactivé n’apparaît pas dans la liste par défaut, apparaît lorsque
+  l’affichage des objets désactivés est demandé, et peut y être réactivé. » : l'affichage des
+  désactivés n'est présenté et demandé qu'à un compte qui porte la permission de modification de la
+  fonction (`resource_settings.write`, `cost_settings.write`), comme le contrat le réserve (C-01,
+  #1745) ; un compte de consultation seule ne le demande ni sur l'écran des ressources, ni sur celui
+  des coûts, ni dans le devis, éprouvé par un test par écran (#1810) ; le service, qui filtre et
+  réactive, est d'EP-05, qui clôt ;
+- propre à l'US : la correspondance des coûts réels tient « Déclarer une colonne conservée »
+  indisponible, avec sa condition, au plafond que le contrat fixe (50, `maxItems`, lu du contrat et
+  non écrit en dur), et dit sous la liste le refus `VALUE_TOO_LONG` de `/kept_columns` ; le test qui
+  figeait la phrase de l'enveloppe est réécrit (#1567) ;
+- propre à l'US : les aides des paramètres de coûts, de la correspondance et des paramètres de
+  ressources sont retouchées.
+
+**Notes de réalisation.** Le défaut de #1810 est antérieur à US-0704, qui a écrit la règle au
+contrat ; le front ne fait que s'y tenir. Le faux back rend les désactivés quelle que soit la
+permission (US-0760) : les tests portent sur la requête que la page fait, non sur la réponse.
+
+**Hors périmètre.** Le filtrage et la réactivation par le service (EP-05).
+
+---
+
+## US-1020 — Le registre des risques filtré, et les lignes issues d'un risque survenu
+
+- **statut** : à faire
+- **exigences** : `WF-RIS-0020-A`, `WF-RIS-0050-A`, `WF-RIS-0060-A`
+- **opérations** : `listRisks`, `getProjectRiskCoverage`, `listNodes`
+- **issue** : #1834
+
+**En tant que** chef de projet, **je veux** filtrer le registre des risques sur chacune de ses
+colonnes, retrouver à la revue les risques que je n'ai pas réexaminés, et suivre un risque survenu
+jusqu'aux tâches et aux lignes qu'il a fait naître, **afin de** mesurer sa dérive sans recompter à
+la main (#1787, #1763).
+
+**Critères d'acceptation.**
+
+- écart : `WF-RIS-0020-A` — « Les transitions entre identifié et écarté sont possibles dans les deux
+  sens. » : constaté par EP-15 (US-0520), inchangé ici ; EP-08 clôt.
+- écart : `WF-RIS-0020-A` — « Toute transition depuis l’état survenu est refusée. » : idem ; EP-08
+  clôt.
+- écart : `WF-RIS-0020-A` — « La suppression d’un risque cité par une révision marquée est
+  refusée. » : idem ; EP-08 clôt.
+- `WF-RIS-0020-A` — « La revue périodique présente les risques dont la probabilité n’a pas été
+  réexaminée. » : un raccourci « Non réexaminés depuis le dernier marquage » du registre pose
+  `last_review_on_to` à la date du dernier marquage, dans l'adresse ; le serveur filtre (#1787) ;
+- écart : `WF-RIS-0020-A` — « Après abandon d’une révision en cours où un risque a été créé, un
+  autre réexaminé et un troisième déclaré survenu, le premier n’existe plus, le second présente la
+  probabilité et l’état de la dernière révision marquée, et le troisième est identifié, avec sa
+  provision et sans coût à la survenance. » : du service ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur un projet chiffré à 1 000 portant un risque de gravité 200 à 30 %,
+  le devis totalise 1 060, le budget de référence 1 000 et la réserve 60. » : du service ; EP-08
+  clôt.
+- écart : `WF-RIS-0050-A` — « Après survenance de ce risque, réévalué à 250, le budget de référence
+  vaut toujours 1 000, les provisions restantes 0, le coût des survenus 250, et l’écart de
+  couverture −190. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur le même projet, un second risque de provision 40 présent dans la
+  référence porte la réserve à 100 ; l’écarter fait passer les provisions restantes de 40 à 0 sans
+  toucher le budget de référence, et l’écart de couverture de −190 à −150. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur un projet dont la réserve est nulle et sans risque survenu, un
+  risque identifié après la référence, de provision 30, porte les provisions restantes à 30 et
+  l’écart de couverture à −30. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « La terminaison des tâches issues d’un risque survenu ne change ni le
+  coût des survenus ni l’écart de couverture. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0050-A` — « Sur le projet dont le risque est survenu à 250 : un avenant qui ne
+  touche pas aux risques laisse la réserve à 60 et l’écart de couverture à −190 ; un avenant qui
+  intègre au budget de référence les lignes de ce risque porte le budget de référence à 1 250 et
+  laisse la réserve à 60 et l’écart à −190 ; un avenant qui déclare un nouveau risque de provision
+  50 porte la réserve à 110 et les provisions restantes à 50, et laisse l’écart à −190. » : idem ;
+  EP-08 clôt.
+- `WF-RIS-0050-A` — « Sur le projet dont le risque est survenu à 250, la réestimation à 300 des
+  lignes qui en sont issues présente 300 en regard de 250, et laisse l’écart de couverture à
+  −190. » : le panneau de la couverture présente le réestimé des survenus (`occurred_reestimated`)
+  en regard de leur coût (`occurred_cost`), comme une information, hors de l'écart de couverture, et
+  le registre, pour chaque survenu, son réestimé (`occurred_reestimated_amount`) en regard de son
+  coût à la survenance ; les montants sont ceux que le serveur rend, que le front ne calcule pas
+  (WF-ARC-0020), et le calcul est d'EP-08, qui clôt (#1763) ;
+- écart : `WF-RIS-0060-A` — « Après déclaration de survenance d’un risque dont le devis propre porte
+  deux lignes de 120 et 80, ces lignes figurent dans la structure principale de la révision en cours
+  avec des montants budgétés nuls et des montants réestimés de 120 et 80 ; la ligne de provision a
+  disparu ; le budget de référence et la révision de référence sont inchangés ; le reste à engager a
+  augmenté de 200 moins la provision retirée ; la terminaison de ces tâches n’acquiert aucune
+  valeur. » : du service ; EP-08 clôt.
+- écart : `WF-RIS-0060-A` — « Les tâches fusionnées se trouvent sous la tâche qui portait la
+  provision, aux dates qu’elles avaient dans le devis propre ; le total du lot dont cette tâche
+  relève augmente de leur montant, moins la provision retirée ; une tâche fusionnée qui n’avait pas
+  de prédécesseur est en mode manuel. » : idem ; EP-08 clôt.
+- écart : `WF-RIS-0060-A` — « La survenance d’un risque dont la provision était portée par un jalon
+  place ses tâches après ce jalon, qui reste un jalon sans sous-tâche. » : idem ; EP-08 clôt.
+- `WF-RIS-0060-A` — « Une ligne fusionnée par la survenance d’un risque est encore désignée comme
+  issue de ce risque dans la révision suivante, et après son déplacement sous une autre tâche ; une
+  ligne ajoutée ensuite sous une tâche issue du risque ne l’est pas. » : les grilles de planning et
+  de devis marquent, discrètement et en nommant le risque, toute tâche et toute ligne dont la
+  lecture porte `origin_risk_id`, et aucune autre ; que la trace survive aux révisions et aux
+  déplacements est du service, EP-08 clôt (#1763) ;
+- `WF-RIS-0060-A` — « Les grilles de planning et de devis se filtrent sur les tâches et les lignes
+  issues d’un risque, ou d’un risque donné (WF-IHM-0130). » : un filtre « Issues d'un risque » et le
+  choix d'un risque survenu passent `is_from_risk` et `origin_risk_ids` par l'adresse, comme les
+  autres filtres des grilles, et le registre mène d'un risque survenu à la grille filtrée sur lui ;
+  le serveur filtre (#1763) ;
+- propre à l'US : le registre se filtre sur chacune de ses colonnes depuis son adresse, comme le
+  contrat le permet (WF-IHM-0130) — la zone par une liste, chaque colonne de nombres (probabilité,
+  gravité, provision, coût à la survenance, réestimé des survenus) par ses deux bornes, la date du
+  dernier réexamen par sa période — et se trie sur ce que le contrat trie (`severity`,
+  `provision_amount`, `occurrence_cost`) ; tests du registre (#1787) ;
+- propre à l'US : les aides de la planification, du devis, du registre et des provisions des risques
+  sont retouchées.
+
+**Notes de réalisation.** Le contrat est d'US-0704 (EP-16 : H-01 #1785, E-04 #1761). Les bornes
+des colonnes de nombres suivent `boundNames` et la période `period-filter.tsx`, comme les autres
+grilles. L1 fait le registre ; L2 les grilles, le lien du registre vers elles et la couverture.
+
+**Hors périmètre.** Le calcul des montants, la trace à travers les révisions, le filtrage par le
+service (EP-08) ; un tri du réestimé des survenus, que le contrat ne propose pas.
+
+---
+
+## US-1030 — L'accueil retient aussi les projets créés
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : `listProjects`
+- **issue** : #1835
+
+**En tant que** chef de projet, **je veux** retrouver sur l'accueil, sans lever de filtre, le projet
+que je viens de créer, **afin de** reprendre ce que je viens de faire (#1748).
+
+**Critères d'acceptation.**
+
+- propre à l'US : l'accueil retient par défaut les projets Créés, en Chiffrage et En cours, dans
+  l'ordre du contrat (`DEFAULT_STATES`, décision de l'auteur du 2026-11-01, D-01) ; un compte qui a
+  gardé un choix d'états (`filters.states`) le garde ; le projet créé aujourd'hui se lit sur
+  l'accueil par défaut (`projects_with_created`) ; les tests de l'accueil, de sa grille et le
+  parcours qui l'ouvre attendent les trois états ;
+- propre à l'US : l'aide de l'accueil dit le défaut.
+
+**Notes de réalisation.** Le choix gardé en préférence est celui de #1401 (EP-16, US-0660/L4) ; le
+contrat de #1747 est d'US-0704.
+
+**Hors périmètre.** Le filtrage par le service (EP-04).
+
+---
+
+## US-1040 — Le compte rendu d'import lit ses commandes
+
+- **statut** : à faire
+- **exigences** : aucune en propre
+- **opérations** : `getImport`, `listImports`, `applyImport`, `abandonImport`
+- **issue** : #1836
+
+**En tant que** chef de projet, **je veux** que le compte rendu d'un import m'offre « Appliquer » et
+« Abandonner » comme le serveur les liste, et me dise pourquoi un import a été refusé, **afin de**
+savoir quoi faire d'un import sans deviner (#1791).
+
+**Critères d'acceptation.**
+
+- propre à l'US : le compte rendu présente « Appliquer » et « Abandonner » selon
+  `Import.available_commands`, indisponibles avec leur condition (WF-IHM-0090 ;
+  `import_awaiting_decision`, `import_not_applied`), et ne les déduit plus de l'état de l'import ;
+- propre à l'US : l'état `refused` a son libellé et son explication — refusé à l'application, le
+  fichier supprimé, l'import à relancer — sur le compte rendu et dans le journal des imports, en
+  français et en anglais ;
+- propre à l'US : tests du compte rendu et du journal ; l'aide des imports et exports est retouchée.
+
+**Notes de réalisation.** Le contrat est d'US-0704 (I-01, I-02, #1789). `IMPORT_STEPS` et `stepsOf`
+(`exchanges/offers.ts`, `import-report.tsx`), qui suppléaient l'absence de commandes, disparaissent.
+
+**Hors périmètre.** L'application et l'abandon par le service (EP-06 pour MS Project, EP-07 pour le
+devis, EP-09 pour le reste à engager).
 
 ---
 

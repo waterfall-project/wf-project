@@ -122,6 +122,12 @@ suit une fois figé.
   limite d'un faux back sans état que le service des structures différentielles et des devis
   propres lève ici ; reportés d'EP-04 au cadrage du 2026-10-28 (décision de l'auteur).
 
+- #1830 — contrat : aucun exemple de `getBackgroundTask` ne montre une survenance aboutie
+  (`task_occurrence_succeeded`), si bien que le succès de « Déclarer survenu » — son message et le
+  `router.refresh` qui relit le risque survenu — n'est éprouvé par aucun test du front (point 3 de
+  #1384). Reporté d'EP-17 le 2026-11-02 (décision déléguée par l'auteur) : le succès s'éprouve ici,
+  contre le service réel, sans exemple ajouté au contrat figé, comme #1714 l'a fait pour EP-04.
+
 #763, les formulaires du risque, reporté ici par EP-14/L53, est ramené en EP-15 le
 2026-10-18 (décision de l'auteur) : le parcours du risque est montré dans la maquette pour
 validation (#1062, US-0520) ; le comportement réel — provision, réserve, fusion à la survenance —
