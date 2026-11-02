@@ -123,7 +123,7 @@ async function save(form: HTMLElement) {
 }
 
 const PROBABILITY = "Bornes de probabilité (%)";
-const SEVERITY = "Bornes de gravité (% du budget de référence)";
+const SEVERITY = "Bornes de gravité (% de l’assiette du projet)";
 const COST = "Indice de coût";
 const SCHEDULE = "Indice de délai";
 
@@ -171,8 +171,8 @@ describe("the form of the risk matrix", () => {
     const row = (axis: string) =>
       within(bounds).getByRole("rowheader", { name: axis }).closest("tr");
     expect(row("Probabilité")).toHaveTextContent("Probabilité10 %25 %50 %");
-    expect(row("Gravité, en pourcentage du budget de référence")).toHaveTextContent(
-      "Gravité, en pourcentage du budget de référence2 %5 %10 %",
+    expect(row("Gravité, en pourcentage de l’assiette du projet")).toHaveTextContent(
+      "Gravité, en pourcentage de l’assiette du projet2 %5 %10 %",
     );
     expect(screen.getByRole("button", { name: "Modifier la matrice de risques" })).toHaveFocus();
   });

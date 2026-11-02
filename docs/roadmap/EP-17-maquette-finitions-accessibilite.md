@@ -914,7 +914,7 @@ détachée, `[US-0730b]`, après le lot unique : celui-ci vise déjà 1 000 lign
 
 ## US-0740 — La matrice des risques sur fond blanc
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-RIS-0040-A`, `WF-IHM-0070-A`
 - **opérations** : `getProjectRiskMatrix`, `getPortfolioRisks`
 - **issue** : #1551

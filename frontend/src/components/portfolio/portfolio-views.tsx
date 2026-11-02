@@ -55,7 +55,7 @@ function PortfolioIndex({ name, index }: { readonly name: string; readonly index
 }
 
 /** An amount the server may leave out: marked computed, or nothing. */
-function Amount({ amount }: { readonly amount: string | null | undefined }) {
+function OptionalComputedAmount({ amount }: { readonly amount: string | null | undefined }) {
   return amount === null || amount === undefined ? null : <ComputedAmount amount={amount} />;
 }
 
@@ -100,13 +100,13 @@ export function PerformanceView({
               index={performance.schedule_index}
             />
             <Figure name={t("projectIndicators.figures.costVariance")}>
-              <Amount amount={performance.cost_variance} />
+              <OptionalComputedAmount amount={performance.cost_variance} />
             </Figure>
             <Figure name={t("projectIndicators.figures.scheduleVariance")}>
-              <Amount amount={performance.schedule_variance} />
+              <OptionalComputedAmount amount={performance.schedule_variance} />
             </Figure>
             <Figure name={t("projectIndicators.figures.referenceBudget")}>
-              <Amount amount={performance.reference_budget} />
+              <OptionalComputedAmount amount={performance.reference_budget} />
             </Figure>
           </FiguresList>
         </FiguresCard>
@@ -125,7 +125,7 @@ export function PerformanceView({
               <TableCell className={CELL}>{t(`portfolio.performance.${name}`)}</TableCell>
               <TableCell className={`${CELL} tabular-nums`}>{amount}</TableCell>
               <TableCell className={`${CELL} tabular-nums`}>
-                <Amount amount={variance} />
+                <OptionalComputedAmount amount={variance} />
               </TableCell>
             </TableRow>
           ))}

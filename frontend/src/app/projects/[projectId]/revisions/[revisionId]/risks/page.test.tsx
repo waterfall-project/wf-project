@@ -211,6 +211,15 @@ describe("the screen of the risks", () => {
     expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
   });
 
+  it("reads the matrix without the states of the filter, and shows the three distinct totals of the list [WF-RIS-0040-A]", async () => {
+    const page = await risksAt({ states: "occurred" });
+    expect(matrices.props).toHaveLength(1);
+    expect(Object.keys(matrices.props[0] ?? {})).not.toContain("states");
+    expect(text(page)).toContain(
+      "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
+    );
+  });
+
   it("starts the matrix as the account kept it, folded when it kept nothing", async () => {
     await risksAt();
     expect(matrices.props.map(({ folded }) => folded)).toEqual([true]);
@@ -357,11 +366,11 @@ describe("the screen of the risks", () => {
     // The table of the counts of the matrix, under the chart, named by its caption.
     const start = page.lastIndexOf(
       "<table",
-      page.indexOf("Count of the risks by cell of the matrix, all states together</caption>"),
+      page.indexOf("Count of the risks identified by cell of the matrix</caption>"),
     );
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(
-      "Probability Severity, as a share of the reference budget " +
+      "Probability Severity, as a share of the base of the project " +
         "0% to under 1% 1% to under 5% 5% to under 10% 10% and over",
     );
     // The highest probability at the top, its cells as the server classes them, counting only the identified risks (#1395).

@@ -7,7 +7,7 @@ The risks of the projects of the perimeter and their coverage. Under the title, 
 - **Risk provisions**: the total of the provisions of the identified risks, then, over the period, the provisions of the risks occurred and those of the risks dismissed.
 - **Risk coverage**: the reference reserve, against the remaining provisions and the cost of the risks occurred, and the coverage variance. It bears only on the projects in progress and completed: a project in pricing has no reference.
 - **Heaviest risks**: the identified risks, all projects together, ranked by provision amount, each with its project.
-- **Risk matrix**: a cloud of bubbles, the probability on the horizontal axis and the severity, as a share of the reference budget, on the vertical axis, each bubble as large as the severity in amount; under it, the count of the risks by cell.
+- **Risk matrix**: a cloud of bubbles, the probability on the horizontal axis and the severity, as a share of the base of the project, on the vertical axis, each bubble as large as the severity in amount, in the colour and the shape of its zone (circle, diamond, triangle), on a white ground; only the identified risks appear in it, and under it, the count of the identified risks by cell.
 
 A project in pricing, when it is retained, brings its identified risks and their provisions as they are, without weighting.
 
@@ -25,7 +25,7 @@ In the view:
 
 ## Its columns and computed values
 
-All the sums are calculated by the server and marked Σ. The provision of a risk is its severity weighted by its probability. A value the server cannot calculate says so, with its reason, and is never worth zero. A risk whose severity cannot be related to the budget is not plotted in the matrix, and the matrix says how many and why. The zone of a cell is read by its signal, never by the colour alone.
+All the sums are calculated by the server and marked Σ. The provision of a risk is its severity weighted by its probability. A value the server cannot calculate says so, with its reason, and is never worth zero. A risk whose severity cannot be related to the base of the project is not plotted in the matrix, and the matrix says how many and why. The zone of a cell is read by its signal, never by the colour alone.
 
 ## Keyboard gestures
 
