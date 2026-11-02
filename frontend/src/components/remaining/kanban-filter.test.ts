@@ -12,7 +12,7 @@ const COLUMNS = columnsOf(example("startable_tasks_milestone") as StartableTasks
 const NO_ONE = new Set<string>();
 
 describe("the filters of the Kanban in the address", () => {
-  it("reads the label and the tasks ready, `1` alone asking them [WF-RAE-0030-A]", () => {
+  it("reads the label and the tasks ready, `1` alone asking them", () => {
     expect(readKanbanFilters(new URLSearchParams("q=%20Mise%20&ready=1"))).toEqual({
       text: "Mise",
       ready: true,
@@ -24,7 +24,7 @@ describe("the filters of the Kanban in the address", () => {
     expect(readKanbanFilters(new URLSearchParams())).toEqual({ text: "", ready: false });
   });
 
-  it("writes one filter and keeps the rest of the query, lifting an empty one [WF-RAE-0030-A]", () => {
+  it("writes one filter and keeps the rest of the query, lifting an empty one", () => {
     const query = new URLSearchParams("subproject_id=s&ready=1");
     expect(kanbanFilterHref("/k", query, { text: "mise" })).toBe(
       "/k?subproject_id=s&ready=1&q=mise",
@@ -35,11 +35,11 @@ describe("the filters of the Kanban in the address", () => {
 });
 
 describe("what the Kanban keeps under its filters", () => {
-  it("folds the case, the accents, and the ligatures [WF-RAE-0030-A]", () => {
+  it("folds the case, the accents, and the ligatures", () => {
     expect(folded("Œuvre ÉTUDES Æ")).toBe("oeuvre etudes ae");
   });
 
-  it("filters the label in every column and the tasks ready in the column not started alone [WF-RAE-0030-A]", () => {
+  it("filters the label in every column and the tasks ready in the column not started alone", () => {
     const ready = filtered(COLUMNS, { text: "", ready: true }, NO_ONE);
     expect(ready.not_started.map((card) => card.label)).toEqual(["Réception usine"]);
     expect(ready.started).toEqual(COLUMNS.started);
@@ -47,7 +47,7 @@ describe("what the Kanban keeps under its filters", () => {
     expect(filtered(COLUMNS, { text: "etudes", ready: false }, NO_ONE).completed).toHaveLength(2);
   });
 
-  it("does not hide on the filter of the tasks ready a card whose predecessors are not read yet [WF-RAE-0030-A]", () => {
+  it("does not hide on the filter of the tasks ready a card whose predecessors are not read yet", () => {
     const [first] = COLUMNS.not_started.filter((card) => !card.predecessors_completed);
     if (first === undefined) {
       throw new Error("no task not started in the example");

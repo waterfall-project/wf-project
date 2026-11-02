@@ -92,7 +92,7 @@ beforeEach(() => {
 });
 
 describe("the filters of the Kanban", () => {
-  it("narrows the three columns to the label searched, whatever the case and the accents [WF-RAE-0030-A]", () => {
+  it("narrows the three columns to the label searched, whatever the case and the accents", () => {
     board({ text: "ETUDES", ready: false });
     expect(labels("Terminées")).toEqual(["Études de détail", "Réception des études"]);
     expect(labels("Non démarrées")).toEqual([]);
@@ -100,33 +100,33 @@ describe("the filters of the Kanban", () => {
     expect(screen.getAllByText("Aucune tâche ne correspond.")).toHaveLength(2);
   });
 
-  it("keeps among the tasks not started those the API says are ready, and leaves the other columns as they are [WF-RAE-0030-A]", () => {
+  it("keeps among the tasks not started those the API says are ready, and leaves the other columns as they are", () => {
     board({ text: "", ready: true });
     expect(labels("Non démarrées")).toEqual(["Réception usine", "Mise en service"]);
     expect(labels("Démarrées")).toHaveLength(4);
     expect(labels("Terminées")).toHaveLength(4);
   });
 
-  it("combines the label and the tasks ready, the label narrowing the other columns too [WF-RAE-0030-A]", () => {
+  it("combines the label and the tasks ready, the label narrowing the other columns too", () => {
     board({ text: "mise", ready: true });
     expect(labels("Non démarrées")).toEqual(["Mise en service"]);
     expect(labels("Démarrées")).toEqual([]);
   });
 
-  it("says in the name of a column how many of its cards are shown, and says nothing of one that shows all [WF-RAE-0030-A]", () => {
+  it("says in the name of a column how many of its cards are shown, and says nothing of one that shows all", () => {
     board({ text: "", ready: true });
     expect(screen.getByRole("heading", { name: "Non démarrées 2 sur 4" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Démarrées" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Terminées" })).toBeInTheDocument();
   });
 
-  it("counts the cards a label hides in every column [WF-RAE-0030-A]", () => {
+  it("counts the cards a label hides in every column", () => {
     board({ text: "études", ready: false });
     expect(screen.getByRole("heading", { name: "Terminées 2 sur 4" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Non démarrées 0 sur 4" })).toBeInTheDocument();
   });
 
-  it("shows every card again once the address names no filter [WF-RAE-0030-A]", () => {
+  it("shows every card again once the address names no filter", () => {
     const { again } = board({ text: "études", ready: true });
     again(NONE);
     expect(labels("Non démarrées")).toHaveLength(4);
@@ -168,7 +168,7 @@ describe("the mark of a task ready to start", () => {
 });
 
 describe("the choice of a card under a filter", () => {
-  it("is lost when a filter hides the card, the stop of Tab going to the first card shown of its column [WF-RAE-0030-A]", async () => {
+  it("is lost when a filter hides the card, the stop of Tab going to the first card shown of its column", async () => {
     const user = userEvent.setup();
     const { again } = board();
     await user.click(card("Montage des armoires sur site"));
@@ -195,7 +195,7 @@ describe("the choice of a card under a filter", () => {
 });
 
 describe("the bar of the filters", () => {
-  it("writes the label searched in the address, the rest of it kept, replacing the entry of the history [WF-RAE-0030-A]", async () => {
+  it("writes the label searched in the address, the rest of it kept, replacing the entry of the history", async () => {
     const user = userEvent.setup();
     board();
     await user.type(screen.getByRole("searchbox", { name: "Rechercher une tâche" }), "mise{Enter}");
@@ -208,7 +208,7 @@ describe("the bar of the filters", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("writes the tasks ready in the address, and lifts them [WF-RAE-0030-A]", async () => {
+  it("writes the tasks ready in the address, and lifts them", async () => {
     const user = userEvent.setup();
     const { again } = board();
     await user.click(screen.getByRole("checkbox", { name: "Tâches prêtes" }));
@@ -226,7 +226,7 @@ describe("the bar of the filters", () => {
     );
   });
 
-  it("shows the label and the box the address holds [WF-RAE-0030-A]", () => {
+  it("shows the label and the box the address holds", () => {
     board({ text: "mise", ready: true });
     expect(screen.getByRole("searchbox", { name: "Rechercher une tâche" })).toHaveValue("mise");
     expect(screen.getByRole("checkbox", { name: "Tâches prêtes" })).toBeChecked();

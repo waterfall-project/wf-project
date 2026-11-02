@@ -838,6 +838,7 @@
     "unplaced": "{label} : la réponse ne dit pas dans quelle colonne se trouve la tâche ; les tâches sont relues.",
     "updating": "Mise à jour…",
     "outdated": "Non à jour",
+    "updatingTold": "{label} : mise à jour.",
     "outdatedTold": "{label} : non à jour.",
     "retry": "Réessayer",
     "eventDate": "Date de l’événement",

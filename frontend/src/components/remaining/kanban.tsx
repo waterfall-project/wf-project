@@ -123,7 +123,9 @@ export function Kanban({
   const chosen = useRef<string>(undefined);
   const everyCard = useMemo(() => replaced(columns, answered), [columns, answered]);
   // The cards the filters keep; the ones a gesture answered keep under the tasks ready, their
-  // predecessors being read with the tasks anew.
+  // predecessors being read with the tasks anew: a milestone just reopened stays shown under
+  // « Tâches prêtes » until the reading brings its predecessors (decided on purpose, rather than
+  // seeing the card the user just moved vanish).
   const shown = useMemo(
     () => filtered(everyCard, filters, new Set(Object.keys(answered))),
     [everyCard, filters, answered],
@@ -143,9 +145,11 @@ export function Kanban({
     return all.find((card) => card.node_id === chosenNow)?.node_id ?? (own ?? all[0])?.node_id;
   }, [shown, chosenNow, hiddenFrom]);
 
-  // A card chosen that a filter hides loses the choice, for good: lifting the filter does not bring
-  // it back. Adjusted while rendering — the pattern React admits for a state drawn from what
-  // changed —, so that no render shows the card chosen and hidden.
+  // A card chosen that is no more shown loses the choice, for good: lifting the filter does not
+  // bring it back. It is no more shown because a filter hides it, or because a reading of the tasks
+  // took it away (the card of a task reopened or deleted elsewhere). Adjusted while rendering — the
+  // pattern React admits for a state drawn from what changed —, so that no render shows the card
+  // chosen and gone.
   if (selected !== undefined && chosenNow === undefined) {
     setHiddenFrom(
       COLUMNS.find(([state]) => everyCard[state].some((card) => card.node_id === selected))?.[0],
@@ -372,13 +376,15 @@ export function Kanban({
       <KanbanFilterBar filters={filters} />
       <p role="status" className="sr-only">
         {announced.count === 0 ? null : <span key={announced.count}>{announced.text}</span>}
-        {/* The cards a reading did not reach are told here too, in the one permanent region of the
-            board, not in a region of each card (#1356); the button of the retry is not in it. */}
-        {failed
-          ? Object.values(answered).map((each) => (
-              <span key={each.node_id}> {t("outdatedTold", { label: each.label })}</span>
-            ))
-          : null}
+        {/* The cards being updated, then those a reading did not reach, are told here too, in the
+            one permanent region of the board, not in a region of each card (#1356); the button of
+            the retry is not in it. */}
+        {Object.values(answered).map((each) => (
+          <span key={each.node_id}>
+            {" "}
+            {t(failed ? "outdatedTold" : "updatingTold", { label: each.label })}
+          </span>
+        ))}
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         {COLUMNS.map(([state, title]) => {

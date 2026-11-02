@@ -177,13 +177,20 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   });
   await expect(completed.getByRole("listitem")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible();
-  // The tasks ready narrow the tasks not started alone; the example has none ready, and the
-  // tasks started are searched by the label alone.
+  // The tasks ready narrow the tasks not started alone. The label lifted first, so that the count
+  // of the column not started holds to the filter of the tasks ready alone: the example has none
+  // ready (the factory acceptance waits for the wiring), so the 925 cards all go, and the tasks
+  // started and completed, which only the label narrows, are all shown again.
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).fill("");
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).press("Enter");
+  await expect(page).not.toHaveURL(/[?&]q=/, { timeout: WORKING });
   await main.getByRole("checkbox", { name: "Tâches prêtes" }).check();
   await expect(page).toHaveURL(/[?&]ready=1(&|$)/, { timeout: WORKING });
-  await expect(page.getByRole("heading", { name: /^Démarrées\s+0 sur 8$/ })).toBeVisible({
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible({
     timeout: WORKING,
   });
+  await expect(page.getByRole("heading", { name: "Démarrées", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Terminées", exact: true })).toBeVisible();
 });
 
 test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({

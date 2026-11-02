@@ -838,6 +838,7 @@
     "unplaced": "{label}: the answer does not say which column the task is in; the tasks are read again.",
     "updating": "Updating…",
     "outdated": "Not up to date",
+    "updatingTold": "{label}: updating.",
     "outdatedTold": "{label}: not up to date.",
     "retry": "Retry",
     "eventDate": "Date of the event",

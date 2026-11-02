@@ -1129,7 +1129,13 @@ take, and says that it restricts only the grid, its indicators being those of th
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
-(`predecessors_completed`, a text and an icon); no percentage. The page cuts out the cards
+(`predecessors_completed`, a text and an icon), and any non-started task whose predecessors are
+completed flagged "ready to start" in the same way; no percentage. Two filters, which live in the
+address alone (`q`, the label, regardless of case and accents; `ready`, `1`), are read through
+`remaining/address.ts` and written through `router.replace`: `Kanban` filters what the server
+renders (`kanban-filter.ts`) — the label in the three columns, the ready tasks in the Not started
+column alone —, the header of a column with hidden cards says "n of N", and a chosen card that a
+filter hides loses the choice. The page cuts out the cards
 (`kanban-cards.ts`: what the card shows and its gestures, never the whole node of a thousand
 tasks) and reads the main structure of the revision (`listCostStructures`), where the gestures are
 written. A card is chosen by click or by the arrows (up and down within the column, left and right

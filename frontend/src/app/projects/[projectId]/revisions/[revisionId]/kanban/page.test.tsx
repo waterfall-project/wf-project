@@ -170,7 +170,7 @@ describe("the Kanban of the start of the tasks", () => {
     expect(text(main)).not.toContain("%");
   });
 
-  it("narrows the cards to the label and the tasks ready the address names, from the one reading of the tasks, and counts what it hides [WF-RAE-0030-A]", async () => {
+  it("narrows the cards to the label and the tasks ready the address names, from the one reading of the tasks, and counts what it hides", async () => {
     server.answers = { ...server.answers, [STARTABLE]: "startable_tasks_milestone" };
     const all = example("startable_tasks_milestone") as StartableTasks;
     const page = await kanbanAt({ q: "RECEPTION", ready: "1" });
