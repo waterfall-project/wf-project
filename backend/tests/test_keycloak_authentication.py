@@ -621,8 +621,8 @@ def test_a_local_account_created_from_waterfall_exists_in_the_identity_provider(
     assert body["invitation_sent"] is True
     # Keycloak is asked with no connection of the database held (#669).
     assert keycloak_admin.held == [("create_account", 0), ("send_invitation", 0)]
-    # Roles sent in the body, which the contract does not declare, are ignored (#1732): the realm
-    # holds an account created with them as one created without, its roles and groups alike.
+    # Roles sent in the body are ignored (#1732), roles and groups alike. The caller holds
+    # access_roles.write; users.write alone: test_users_writes.py, who_changes_the_accounts_alone.
     given = role(database, "Administrateur", permissions=("users.write", "access_roles.write"))
     other = api.post(
         USERS, headers=administrator, json=jeanne(new_address(), access_role_ids=[str(given)])
