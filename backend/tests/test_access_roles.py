@@ -804,6 +804,16 @@ def test_a_role_deleted_without_a_valid_version_is_refused_on_it_and_kept(
     assert (kept(database, written).deleted_at, journal(database)) == (None, [])
 
 
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_unknown_role_deleted_without_a_version_is_refused_on_the_version(
+    api: ContractClient, headers: dict[str, str]
+) -> None:
+    # The request is validated before the handler looks the role up: 422 on the query, not 404.
+    refused = problem(api.delete(f"{ROLES}/{UNKNOWN}", headers=headers))
+    assert refused[:2] == (422, "VALIDATION_FAILED")
+    assert [field["pointer"] for field in refused[2]] == ["/query/lock_version"]
+
+
 @pytest.mark.requirement("WF-ADM-0090-A")
 def test_a_role_held_is_judged_stale_before_it_is_judged_held_and_held_when_read(
     api: ContractClient, database: Database, headers: dict[str, str]
