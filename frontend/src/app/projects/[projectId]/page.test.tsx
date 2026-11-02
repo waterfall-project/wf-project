@@ -221,7 +221,6 @@ describe("the screen of a project that has a revision leads to it", () => {
   });
 
   it("to the revisions when the revision chosen cannot be read by the session [WF-IHM-0010-A]", async () => {
-    // The contract lists no 403 for getRevision: the page leads away on it as on the 404 it lists.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": {
@@ -231,7 +230,23 @@ describe("the screen of a project that has a revision leads to it", () => {
     expect(await leadsTo()).toBe(`${WITNESS}/revisions`);
   });
 
-  it("sends the report of an import its address names to the exchanges of the revision, which shows it", async () => {
+  it("to the revisions when the project has some but none in progress, of reference or marked, the filters of the address kept [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_project_created",
+    };
+    expect(await leadsTo()).toBe(`${WITNESS}/revisions`);
+    expect(await leadsTo({ subproject_id: SUBPROJECT })).toBe(
+      `${WITNESS}/revisions?subproject_id=${SUBPROJECT}`,
+    );
+  });
+
+  it("to the revision in progress, not to the one the address names, which the path replaces [WF-IHM-0010-A]", async () => {
+    expect(await leadsTo({ revision_id: REFERENCE })).toBe(`${WITNESS}/revisions/${CURRENT}`);
+  });
+
+  it("sends the report of an import its address names to the exchanges of the revision, which shows it [WF-IHM-0010-A]", async () => {
     expect(await leadsTo({ import: IMPORT })).toBe(
       `${WITNESS}/revisions/${CURRENT}/exchanges?import=${IMPORT}`,
     );
@@ -240,7 +255,7 @@ describe("the screen of a project that has a revision leads to it", () => {
     );
   });
 
-  it("keeps the screen, its encart and its imports, of a project without a revision, and no list of revisions", async () => {
+  it("keeps the screen, its encart and its imports, of a project without a revision, and no list of revisions [WF-IHM-0010-A]", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_pricing",

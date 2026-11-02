@@ -5,7 +5,7 @@
  * revision, its screen is a way: the server leads to the revision the user works on — the one in
  * progress, else the reference, else the last one marked —, the reading context of the address and
  * its filters carried on (WF-IHM-0010); to the revisions, when that revision cannot be read by the
- * session. A report of an import the address names (`import`) follows to the screen of the
+ * session, or when the project has revisions but none of those. A report of an import the address names (`import`) follows to the screen of the
  * exchanges of that revision, which shows it — unless it is the import that creates the first
  * revision, which stays here.
  *
@@ -74,7 +74,8 @@ async function leadTo(
 ): Promise<void> {
   const projectPath = `/projects/${context.projectId}`;
   const answer = await readRevision(context.projectId, revisionId);
-  if (answer?.response.status === 403 || answer?.response.status === 404) {
+  // A read the session may not make answers 404 (WF-ADM-0110): the contract lists no 403.
+  if (answer?.response.status === 404) {
     redirect(`${projectPath}/revisions${contextQuery(context, false)}`);
   }
   const inRevision = { ...context, revisionId, revisionInPath: true };
@@ -107,6 +108,9 @@ export default async function ProjectPage(props: ProjectPageProps) {
   const opened = openedRevision(read.project, revisions);
   if (opened !== undefined) {
     await leadTo(opened, read.context, shown);
+  } else if (revisions.length > 0) {
+    // Revisions, but none in progress, of reference or marked: the way is their list.
+    redirect(contextAddress(`/projects/${address.projectId}/revisions`, read.context));
   }
   const offers = importOffers(read.project);
   // Only a project without a revision shows its imports here.
