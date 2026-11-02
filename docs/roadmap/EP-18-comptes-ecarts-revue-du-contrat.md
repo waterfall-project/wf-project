@@ -1,10 +1,10 @@
 ---
 id: EP-18
 titre: Le service des comptes et ses écrans suivent le contrat figé — un compte naît sans rôle, un rôle se supprime à sa version, un refus de longueur dit sa borne, le compte dit ses commandes du lien
-statut: prêt
+statut: en cours
 depend_de: EP-16
 famille: back, front
-issue: <numéro, rempli à l'ouverture des issues>
+issue: 1852
 ---
 
 # EP-18 — Comptes : écarts de la revue du contrat
@@ -214,7 +214,7 @@ toute fusion. EP-05 dépend d'EP-18 (`depend_de: EP-16, EP-18`). Décisions de l
 - **statut** : à faire
 - **exigences** : `WF-ADM-0070-A`, `WF-ADM-0090-A`, `WF-ADM-0100-A`
 - **opérations** : `createUser`, `setUserAccessRoles`
-- **issue** : <numéro, rempli à l'ouverture des issues>
+- **issue** : #1853
 
 **En tant qu'**administrateur, **je veux** qu'un compte créé depuis Waterfall naisse sans rôle,
 ses rôles ne lui étant donnés que par la gestion des rôles, **afin que** la seule gestion des
@@ -260,7 +260,7 @@ changer côté front.
 - **statut** : à faire
 - **exigences** : `WF-ADM-0090-A`, `WF-IHM-0110-A`, `WF-ARC-0110-A`
 - **opérations** : `deleteAccessRole`, `updateMyPreferences`, `createUser`
-- **issue** : <numéro, rempli à l'ouverture des issues>
+- **issue** : #1854
 
 **En tant qu'**administrateur, **je veux** que la suppression d'un rôle qu'un autre vient
 d'écrire me soit refusée jusqu'à ce que je l'aie relu, et que tout refus d'une valeur trop longue
@@ -314,7 +314,7 @@ phrase de l'écran qui citerait la borne.
 - **statut** : à faire
 - **exigences** : `WF-ADM-0140-A`, `WF-IHM-0090-A`, `WF-ARC-0020-A`, `WF-ADM-0060-A`
 - **opérations** : `listUsers`, `getUser`, `getMe`, `createPasswordSetupLink`, `resendInvitation`
-- **issue** : <numéro, rempli à l'ouverture des issues>
+- **issue** : #1855
 
 **En tant qu'**administrateur, **je veux** que le compte dise d'avance si son lien de fixation et
 le renvoi de son invitation sont disponibles, et pourquoi ils ne le sont pas, **afin que**
