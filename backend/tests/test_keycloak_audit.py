@@ -163,7 +163,7 @@ def act(api: ContractClient, headers: dict[str, str]) -> dict[str, str]:
                 json={"is_active": is_active, "lock_version": version},
             )
         )["lock_version"]
-    done(api.delete(f"{ROLES}/{pilot_id}", headers=headers), 204)
+    done(api.delete(f"{ROLES}/{pilot_id}", headers=headers, params={"lock_version": 1}), 204)
     return {"directory": directory["user_id"], "jeanne": user_id, "pilot": pilot_id}
 
 

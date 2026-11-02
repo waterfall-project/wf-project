@@ -135,6 +135,19 @@ def test_an_account_without_a_name_a_first_name_or_an_address_is_not_created(
     assert accounts(database) == ["camille.martin@example.org"]
 
 
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize("name", ["last_name", "first_name"])
+def test_a_name_of_a_hundred_and_one_characters_is_refused_saying_the_bound_of_a_hundred(
+    client: ContractClient, database: Database, headers: dict[str, str], name: str
+) -> None:
+    # « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. » — the refusal
+    # carries the bound, for the screen to word it.
+    response = client.post(USERS, headers=headers, json={**JEANNE, name: "x" * 101})
+    assert fields(response) == [("422", "VALIDATION_FAILED"), (f"/{name}", "VALUE_TOO_LONG")]
+    assert response.json()["fields"][0]["params"] == {"max_length": 100}
+    assert accounts(database) == ["camille.martin@example.org"]
+
+
 @pytest.mark.requirement("WF-ADM-0050-A")
 def test_an_account_whose_address_another_holds_whatever_its_case_is_not_created(
     client: ContractClient, database: Database, headers: dict[str, str], watching: Watching

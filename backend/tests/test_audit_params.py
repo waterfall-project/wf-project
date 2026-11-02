@@ -103,7 +103,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             pilot = create_role(session, RoleWrite("Pilote", ["planning.read"]), act)
         with database.transaction() as session:
             change = RoleWrite("Pilotage", ["users.read"])
-            update_role(session, pilot.access_role_id, change, pilot.lock_version, act)
+            updated = update_role(session, pilot.access_role_id, change, pilot.lock_version, act)
         with database.transaction() as session:
             identity = Identity("Montgolfier", "Jeanne", "jeanne@example.org")
             jeanne = create_local_account(session, identity, "kc-jeanne", act)
@@ -147,7 +147,7 @@ def write_every_action(database: Database, queue: TaskQueue) -> UUID:
             held = HeldAccount(attached.user_id, "kc-lea-2")
             assert deactivate_unheld(session, held, platform.at)
         with database.transaction() as session:
-            delete_role(session, pilot.access_role_id, act)
+            delete_role(session, pilot.access_role_id, updated.lock_version, act)
     for requested_by in (author, None):
         task_id = deposit(database, queue, "backup", requested_by)
         taken = TakenBackup(
