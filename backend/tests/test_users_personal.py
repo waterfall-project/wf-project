@@ -361,6 +361,44 @@ def test_preferences_that_pass_a_bound_are_refused_and_nothing_is_written(
     assert preferences_of(database, user_id) == {"theme": "dark"}
 
 
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(
+    ("sent", "bound"),
+    [
+        ({"grids": {f"g{rank}": None for rank in range(101)}}, 100),
+        ({"grids": {"users": {"hidden_columns": [f"c{rank}" for rank in range(65)]}}}, 64),
+        ({"grids": {"users": {"filters": {"search": "x" * 501}}}}, 500),
+        ({"grids": {LONG: None}}, 64),
+    ],
+)
+def test_every_refusal_of_a_length_says_the_bound_it_applies(
+    api: ContractClient, database: Database, realm: TestRealm, sent: dict[str, Any], bound: int
+) -> None:
+    # « Aucune réponse de l'API ne contient de phrase destinée à l'utilisateur. » — the screen
+    # words the refusal itself: a text, a list, an object or a name, each with the bound the
+    # fault carries.
+    user_id, headers = person(database, realm, display_preferences={"theme": "dark"})
+    response = api.patch(PREFERENCES, headers=headers, json=sent)
+    [field] = refusal(response)[2]
+    assert (field["code"], field["params"]) == ("VALUE_TOO_LONG", {"max_length": bound})
+    assert preferences_of(database, user_id) == {"theme": "dark"}
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_table_already_past_its_bound_is_refused_with_the_bound_it_holds_at_most() -> None:
+    # The bound judged is that which, kept, lets the write through: a table of 120 entries,
+    # older than the bound (#874), may not grow, and may stay as long.
+    held = {"timelines": {f"t{rank}": STEERING for rank in range(120)}}
+    with pytest.raises(UnprocessableError) as refused:
+        merged(held, {"timelines": {"t120": STEERING}})
+    assert [(fault.pointer, fault.params) for fault in refused.value.fields] == [
+        ("/timelines", {"max_length": 120})
+    ]
+    with pytest.raises(UnprocessableError) as from_empty:
+        merged({}, {"charts": {f"c{rank}": UNFOLDED for rank in range(101)}})
+    assert [fault.params for fault in from_empty.value.fields] == [{"max_length": 100}]
+
+
 @pytest.mark.parametrize("table", ["timelines", "grids", "charts"])
 def test_a_table_the_changes_would_take_past_a_hundred_entries_is_refused_and_kept(
     api: ContractClient, database: Database, realm: TestRealm, table: str

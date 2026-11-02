@@ -405,8 +405,11 @@ def update_role(
     return after
 
 
-def delete_role(session: Session, role_id: UUID, act: Act) -> None:
-    """Mark a role deleted, or refuse it while an account holds it (409).
+def delete_role(session: Session, role_id: UUID, lock_version: int, act: Act) -> None:
+    """Mark a role deleted, if its version is the one read (412), or refuse it while held (409).
+
+    The version is judged before the holders, as for any versioned write: a role another
+    contributor has just written is not deleted unseen, and read again it tells it is held.
 
     A role no account holds takes no permission from anyone: the guard of the last administrator
     has nothing to refuse, but its lock — which the attribution of roles takes too (US-0360) —
@@ -415,6 +418,10 @@ def delete_role(session: Session, role_id: UUID, act: Act) -> None:
     """
     with guard_last_administrator(session):
         role = _lock_role(session, role_id)
+        if role.lock_version != lock_version:
+            raise PreconditionFailedError(
+                STALE_LOCK_VERSION, {"expected_lock_version": role.lock_version}
+            )
         if _holder_count(session, role_id):
             raise ConflictError(ACCESS_ROLE_IN_USE)
         session.execute(

@@ -57,8 +57,11 @@ def merged(current: Mapping[str, Any], sent: Mapping[str, Any]) -> dict[str, Any
                     entries.pop(name, None)
                 else:
                     entries[name] = entry
-            if len(entries) > max(MOST_ENTRIES, len(before)):
-                faults.append(FieldError(f"/{table}", VALUE_TOO_LONG))
+            # The bound that, kept, lets the write through: a table already past the most
+            # entries (older than the bound, #874) may not grow, and may stay as long.
+            most = max(MOST_ENTRIES, len(before))
+            if len(entries) > most:
+                faults.append(FieldError(f"/{table}", VALUE_TOO_LONG, {"max_length": most}))
             preferences[table] = entries
     if faults:
         raise UnprocessableError(VALIDATION_FAILED, fields=tuple(faults))

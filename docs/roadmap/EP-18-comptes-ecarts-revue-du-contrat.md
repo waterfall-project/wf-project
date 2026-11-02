@@ -257,7 +257,7 @@ changer côté front.
 
 ## US-1060 — La suppression d'un rôle porte son compteur, un refus de longueur dit sa borne
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0090-A`, `WF-IHM-0110-A`, `WF-ARC-0110-A`
 - **opérations** : `deleteAccessRole`, `updateMyPreferences`, `createUser`
 - **issue** : #1854
