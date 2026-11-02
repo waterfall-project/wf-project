@@ -81,7 +81,12 @@ function serve(answers: FakeAnswers, hold?: Promise<unknown>): FakeClient {
 function board(columns: KanbanColumns = columnsOfExample("startable_tasks")) {
   const tree = (shown: KanbanColumns) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-      <Kanban columns={shown} structure={STRUCTURE} remaining={REMAINING} />
+      <Kanban
+        columns={shown}
+        structure={STRUCTURE}
+        remaining={REMAINING}
+        filters={{ text: "", ready: false }}
+      />
     </NextIntlClientProvider>
   );
   const rendered = render(tree(columns));

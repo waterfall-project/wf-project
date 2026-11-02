@@ -166,6 +166,24 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The only button in main is the help button of the screen header (WF-IHM-0140).
   await expect(main.getByRole("button")).toHaveCount(1);
   await expect(main.getByRole("button", { name: "Aide", exact: true })).toHaveCount(1);
+
+  // The filters live in the address: a label searched narrows the three columns, whatever the
+  // accents, and each column that hides cards says how many it shows [WF-RAE-0030-A].
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).fill("ETUDES");
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).press("Enter");
+  await expect(page).toHaveURL(/[?&]q=ETUDES(&|$)/, { timeout: WORKING });
+  await expect(page.getByRole("heading", { name: /^Terminées\s+2 sur 27$/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(completed.getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible();
+  // The tasks ready narrow the tasks not started alone; the example has none ready, and the
+  // tasks started are searched by the label alone.
+  await main.getByRole("checkbox", { name: "Tâches prêtes" }).check();
+  await expect(page).toHaveURL(/[?&]ready=1(&|$)/, { timeout: WORKING });
+  await expect(page.getByRole("heading", { name: /^Démarrées\s+0 sur 8$/ })).toBeVisible({
+    timeout: WORKING,
+  });
 });
 
 test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({

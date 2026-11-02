@@ -25,7 +25,9 @@ vi.mock("@/api/server", () => ({
 }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
-  useRouter: () => ({ refresh: () => undefined }),
+  useRouter: () => ({ refresh: () => undefined, replace: () => undefined }),
+  usePathname: () => "/projects/p/revisions/r/kanban",
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "accept-language": "en-GB" })),
@@ -151,7 +153,7 @@ describe("the Kanban of the start of the tasks", () => {
     server.answers = { ...server.answers, [STARTABLE]: "startable_tasks_milestone" };
     const page = await kanbanAt();
     expect(text(page)).toContain(
-      "Not started 13 Milestone Réception usine Finish on 30/06/2026 Its predecessors are completed: milestone to complete. 20 Montage des armoires sur site",
+      "Not started 13 Milestone Réception usine Finish on 30/06/2026 Ready to start Its predecessors are completed: milestone to complete. 20 Montage des armoires sur site",
     );
     // The milestone alone is signalled, not the tasks whose predecessors are not completed.
     expect(text(page).match(/milestone to complete/g)).toHaveLength(1);
@@ -160,10 +162,27 @@ describe("the Kanban of the start of the tasks", () => {
 
   it("offers no percentage to enter, and no gesture before a card is chosen: no field, no button, no figure (US-0230)", async () => {
     const page = await kanbanAt();
+    // Besides the filters above the board: a search field and a box, no figure to enter.
     const main = page.slice(page.indexOf("<main"));
-    expect(main).not.toMatch(/<(input|button|select|textarea)\b/);
+    const board = main.slice(main.indexOf('<section aria-label="Not started"'));
+    expect(board).not.toMatch(/<(input|button|select|textarea)\b/);
     expect(main).not.toMatch(/role="(slider|spinbutton|progressbar)"/);
     expect(text(main)).not.toContain("%");
+  });
+
+  it("narrows the cards to the label and the tasks ready the address names, from the one reading of the tasks, and counts what it hides [WF-RAE-0030-A]", async () => {
+    server.answers = { ...server.answers, [STARTABLE]: "startable_tasks_milestone" };
+    const all = example("startable_tasks_milestone") as StartableTasks;
+    const page = await kanbanAt({ q: "RECEPTION", ready: "1" });
+    expect(callsTo(STARTABLE)).toHaveLength(1);
+    expect(column(page, "Not started").match(/<li\b/g)).toHaveLength(1);
+    expect(text(column(page, "Not started"))).toContain("13 Milestone Réception usine");
+    expect(column(page, "Completed").match(/<li\b/g)).toHaveLength(1);
+    expect(text(column(page, "Completed"))).toContain("Réception des études");
+    expect(column(page, "Started").match(/<li\b/g)).toBeNull();
+    expect(text(page)).toContain(`Not started 1 of ${all.not_started.length.toString()}`);
+    expect(page).toContain('value="RECEPTION"');
+    expect(page).toMatch(/role="checkbox"[^>]*aria-checked="true"/);
   });
 
   it("shows no filter of the address in its banner, the Kanban reading none (#302)", async () => {

@@ -130,13 +130,18 @@ export function usePendingAddress() {
   const base = () => new URLSearchParams(underWay()?.query ?? shown);
   /**
    * Navigate to an address built from the query a change goes on from — saying a reading lifted,
-   * for a screen that keeps the filters of its grid —, and keep it as asked.
+   * for a screen that keeps the filters of its grid —, and keep it as asked. A filter that is no
+   * step of the user's way — the Kanban's — replaces the entry of the history instead of adding one.
    */
-  const request = (build: (query: URLSearchParams) => string) => {
+  const request = (build: (query: URLSearchParams) => string, how: "push" | "replace" = "push") => {
     const built = build(base());
     const href = kept === undefined ? built : spokenHref(built, kept);
     ask(href);
-    router.push(href, { scroll: false });
+    if (how === "replace") {
+      router.replace(href, { scroll: false });
+    } else {
+      router.push(href, { scroll: false });
+    }
   };
   return { base, request };
 }

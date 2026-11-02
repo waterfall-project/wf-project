@@ -820,6 +820,14 @@
     "completed": "Terminées",
     "empty": "Aucune tâche.",
     "milestone": "Jalon",
+    "readyToStart": "Prête à démarrer",
+    "filters": {
+      "label": "Rechercher une tâche",
+      "placeholder": "Rechercher un libellé",
+      "ready": "Tâches prêtes"
+    },
+    "count": "{shown} sur {total}",
+    "noMatch": "Aucune tâche ne correspond.",
     "milestoneDue": "Ses prédécesseurs sont terminés : jalon à terminer.",
     "finish": "Fin le {date}",
     "finishOverdue": "Fin dépassée",
@@ -830,6 +838,7 @@
     "unplaced": "{label} : la réponse ne dit pas dans quelle colonne se trouve la tâche ; les tâches sont relues.",
     "updating": "Mise à jour…",
     "outdated": "Non à jour",
+    "outdatedTold": "{label} : non à jour.",
     "retry": "Réessayer",
     "eventDate": "Date de l’événement",
     "dateRequired": "Saisissez la date de l’événement.",
