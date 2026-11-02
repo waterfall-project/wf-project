@@ -257,8 +257,8 @@ function readStructure(
  * The structure of a revision a grid reads (`readStructure`), and its nodes as the address asks
  * them: sorted, searched, restricted to the filtered sub-project and to the lot or the post
  * `breakdown` names, of the kinds the grid renders, the fields it reads alone — asked of the server
- * (`fields`), and projected (`projectNodes`), the server being free to render more than asked, as
- * the fake back does. A read the API refuses, or cannot answer, is thrown for the pages of the
+ * (`fields`, `kinds`), and projected (`projectNodes`), the server being free to render more than
+ * asked, as the fake back does. A read the API refuses, or cannot answer, is thrown for the pages of the
  * shell to say (`readOrFail`): a grid left empty would say the revision has nothing. The
  * structures are read at once; what is asked of the nodes waits for the session, whose
  * preferences may sort them.
@@ -324,7 +324,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     commands: new Set(
       read.available_commands.filter((offer) => offer.is_available).map(({ command }) => command),
     ),
-    nodes: projectNodes(answer, fields),
+    nodes: projectNodes(answer, fields, kinds),
     summaryDepth: answer.meta.summary_depth,
     scheduledAt: answer.meta.scheduled_at,
     filters,

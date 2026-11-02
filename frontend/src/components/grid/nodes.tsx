@@ -262,14 +262,29 @@ export function projectNode<
 
 /**
  * The rows of an answer of `listNodes` as a grid reads them, in the order of the answer, with its
- * totals: what a page hands its grid.
+ * totals: what a page hands its grid. A reading that asked for some kinds (`kinds`) keeps the
+ * nodes of these alone, the server being free to render more than asked as it is of the fields —
+ * the fake back renders its example whole, lines of an estimate under the tasks of a planning
+ * (#1397). Nothing is computed: a node is kept or left out, the totals are the server's. A node
+ * that does not say its kind is kept, being none the grid can tell from the ones it asked.
  */
 export function projectNodes<
   N extends NodeField,
   T extends keyof TaskFacet,
   L extends keyof EstimateLineFacet,
->(list: NodeList, fields: NodeFields<N, T, L>): NodeRows<NodeRow<N, T, L>> {
-  return { items: list.items.map((node) => projectNode(node, fields)), totals: list.totals };
+>(
+  list: NodeList,
+  fields: NodeFields<N, T, L>,
+  kinds?: readonly NodeKind[],
+): NodeRows<NodeRow<N, T, L>> {
+  const asked =
+    kinds === undefined ? list.items : list.items.filter((node) => isOfKind(node, kinds));
+  return { items: asked.map((node) => projectNode(node, fields)), totals: list.totals };
+}
+
+/** Whether a node is of one of the kinds a reading asked for, or says no kind. */
+export function isOfKind(node: { readonly kind?: NodeKind }, kinds: readonly NodeKind[]): boolean {
+  return node.kind === undefined || kinds.includes(node.kind);
 }
 
 /**

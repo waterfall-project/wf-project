@@ -46,7 +46,6 @@ import {
   type RefObject,
   use,
   useCallback,
-  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -68,7 +67,7 @@ import type { Locale } from "@/i18n/locale";
 import { axisWriter, labelsOf } from "./axis-labels";
 import { DAY_OFF_HATCH, dayOffBands, hasDaysOff, MIN_DAY_WIDTH } from "./days-off";
 import { GanttExportButton, GanttExportItem, GanttExportStatus, GanttProbes } from "./gantt-export";
-import { type GanttOverflow, ganttOverflow } from "./gantt-image";
+import { type GanttOverflow, ganttOverflow, namesWidth } from "./gantt-image";
 import {
   type GanttBar,
   ganttLayout,
@@ -193,6 +192,7 @@ function useExporting(
     () => rows.filter(({ task }) => task !== null && task !== undefined),
     [rows],
   );
+  const names = useMemo(() => namesWidth(tasks), [tasks]);
   const probes = useRef<HTMLSpanElement>(null);
   const [refusal, setRefusal] = useState<GanttRefusal | undefined>(undefined);
   const refuse = useCallback((overflow: GanttOverflow | undefined) => {
@@ -207,7 +207,7 @@ function useExporting(
           exported,
           rows: tasks,
           width,
-          overflow: ganttOverflow(width, tasks.length, tinted),
+          overflow: ganttOverflow(width, tasks.length, tinted, names),
           probes,
           refuse,
         },
@@ -232,7 +232,11 @@ function zoomByKey(event: KeyboardEvent, zoomTo: (step: 1 | -1) => void) {
  * Hand the cells of the Gantt the layout of the rows the grid shows — those of the answer, as
  * its writes left them —, computed again only when they change, and the level of its scale, kept
  * under a scope — the grid and the revision — for the session; without a scope, fitted to the
- * project, and nothing zooms. Given the hours of a day, its finest level is the worked hours; given
+ * project, and nothing zooms. The legend of the days off is rendered by the server, with the grid,
+ * and held — through the hydration, seconds under load — until the axis has measured its frame
+ * (`framed`): it then goes if the days are under a pixel, which moves the grid by its height, once
+ * (#1539). Not rendering it on the server until then is set aside: the grid would move as well.
+ * Given the hours of a day, its finest level is the worked hours; given
  * where it comes from, it is exported as an image.
  */
 export function GanttRows({
@@ -253,15 +257,21 @@ export function GanttRows({
   const levels = levelsWith(hoursPerDay);
   const [zoom, setZoom] = useKeptZoom(scope, levels);
   const [frame, setFrame] = useState(0);
-  // False until a tick after the mount: the time the axis, if drawn, has to measure its frame.
+  // Whether the legend of the days off may go: not before the axis has told the width of its frame
+  // (`framed`) — or, the commit of the mount over, no axis in it to tell it (#1421). A signal, not a
+  // duration: a tick would release it before an axis rendered a moment later had measured.
   const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    const tick = setTimeout(() => {
+  const axisSeen = useRef(false);
+  const tell = useCallback((width: number) => {
+    axisSeen.current = true;
+    setFrame(width);
+    setSettled(true);
+  }, []);
+  // The layout effects of the axis run before this one, in the same commit.
+  useLayoutEffect(() => {
+    if (!axisSeen.current) {
       setSettled(true);
-    }, 0);
-    return () => {
-      clearTimeout(tick);
-    };
+    }
   }, []);
   const [offset, setOffset] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
@@ -377,14 +387,15 @@ export function GanttRows({
     upper,
     scroller: attach,
     scrolled: setOffset,
-    framed: setFrame,
+    framed: tell,
     zoomTo,
     reveal,
     can: { in: level < levels - 1 || zoom === "fit", out: level > 0 || zoom === "fit" },
     dayWidth,
-    // Fitted and not yet measured, for a tick at most, the legend is held: it keeps its place, and
-    // the bands, which wait for the width of a day, come after the measure. The layout moves once
-    // only if the measure shows days under a pixel (the legend then goes), or if no axis is drawn.
+    // Fitted and not yet measured, the legend is held: rendered by the server, it keeps its place
+    // through the hydration, and the bands, which wait for the width of a day, come after the
+    // measure of the axis (#1539). The layout moves once only if the measure shows days under a
+    // pixel (the legend then goes), or if no axis is drawn.
     tinted,
     hoursPerDay,
     exporting,

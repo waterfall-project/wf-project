@@ -967,7 +967,7 @@ est partagé (`risk-bubble-chart.tsx`) entre les deux écrans. Cette US ne comme
 
 ## US-0750 — Les grilles du projet, le Gantt et les chronologies
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-PLA-0080-A`, `WF-PLA-0090-A`, `WF-PRJ-0020-A`, `WF-PLA-0050-A`
 - **opérations** : `listNodes`, `compareRevisions`
 - **issue** : #1552

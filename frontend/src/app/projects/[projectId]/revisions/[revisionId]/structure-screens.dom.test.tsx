@@ -306,8 +306,15 @@ describe("the marks of a difference", () => {
         await tree({ ...shown, nodes: "nodes_amendment" }, `structure=${AMENDMENT}`),
       );
       expect(screen.getAllByRole("columnheader")[0]).toHaveAccessibleName("Écart");
-      expect(cell(3, "diff_mark")).toHaveTextContent("-Retiré");
-      expect(cell(4, "diff_mark")).toHaveTextContent("+Ajouté");
+      // The rows of the grid are the nodes of the kinds it asks for: the planning, the tasks alone,
+      // whatever lines the answer holds besides — the line removed is not among them (#1397).
+      if (shown === PLANNING) {
+        expect(cell(2, "diff_mark")).toHaveTextContent("+Ajouté");
+        expect(screen.queryByText("Retiré")).not.toBeInTheDocument();
+      } else {
+        expect(cell(3, "diff_mark")).toHaveTextContent("-Retiré");
+        expect(cell(4, "diff_mark")).toHaveTextContent("+Ajouté");
+      }
       unmount();
       render(await tree({ ...shown, nodes: "nodes_amendment" }, ""));
       expect(screen.queryByRole("columnheader", { name: "Écart" })).not.toBeInTheDocument();

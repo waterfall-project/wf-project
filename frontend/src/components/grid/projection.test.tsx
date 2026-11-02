@@ -279,3 +279,35 @@ holdsWhatTheGridReads(
   REMAINING_FIELDS,
   0.7,
 );
+
+describe("the projection of an answer on the kinds a reading asked [WF-PLA-0080-A]", () => {
+  const list = answer("nodes");
+
+  it("keeps the nodes of the kind asked alone, in the order of the answer, the totals as they are", () => {
+    const projected = projectNodes(list, PLANNING_FIELDS, ["task"]);
+    expect(projected.items.map((row) => row.node_id)).toEqual(
+      list.items.filter((node) => node.kind === "task").map((node) => node.node_id),
+    );
+    expect(projected.items.length).toBeLessThan(list.items.length);
+    expect(projected.totals).toBe(list.totals);
+    expect(
+      projectNodes(list, ESTIMATE_FIELDS, ["estimate_line"]).items.map((row) => row.kind),
+    ).toEqual(["estimate_line"]);
+  });
+
+  it("keeps every node when the reading asked for no kind, as the grids of the estimate and of the remaining to commit read it", () => {
+    expect(projectNodes(list, ESTIMATE_FIELDS).items).toHaveLength(list.items.length);
+  });
+
+  it("keeps both kinds when both are asked, and a node that says none", () => {
+    expect(projectNodes(list, ESTIMATE_FIELDS, ["task", "estimate_line"]).items).toHaveLength(
+      list.items.length,
+    );
+    const [first] = list.items;
+    const unnamed = Object.fromEntries(
+      Object.entries(first ?? {}).filter(([key]) => key !== "kind"),
+    ) as NodeList["items"][number];
+    const nameless = { ...list, items: [unnamed] };
+    expect(projectNodes(nameless, PLANNING_FIELDS, ["estimate_line"]).items).toHaveLength(1);
+  });
+});

@@ -9,6 +9,7 @@
  * names. No module here is a client one: the page reads the fields, the grid reads the rows.
  */
 import type { components } from "@/api/generated/schema";
+import { isOfKind } from "@/components/grid/nodes";
 
 /** A node of the comparison, as `compareRevisions` renders it. */
 type ComparedNode = components["schemas"]["ComparedNodeRead"];
@@ -60,7 +61,16 @@ export function comparisonRow(node: ComparedNode): ComparisonRow {
   };
 }
 
-/** The nodes of a comparison as the grid reads them, in the order of the server. */
-export function comparisonRows(nodes: readonly ComparedNode[]): ComparisonRow[] {
-  return nodes.map(comparisonRow);
+/**
+ * The nodes of a comparison as the grid reads them, in the order of the server — those of the kinds
+ * the reading asked for (`kinds`) alone, when it asked for some: the server may render more than
+ * asked, as it does of the fields (#1397).
+ */
+export function comparisonRows(
+  nodes: readonly ComparedNode[],
+  kinds?: readonly components["schemas"]["NodeKind"][],
+): ComparisonRow[] {
+  return (kinds === undefined ? nodes : nodes.filter((node) => isOfKind(node, kinds))).map(
+    comparisonRow,
+  );
 }

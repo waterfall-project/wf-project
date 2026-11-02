@@ -260,6 +260,69 @@ export function gesturesOn(
   ];
 }
 
+/** Why a gesture the grid shows is unavailable: it rests on a milestone, which bears nothing. */
+export type MilestoneRefusal = "milestoneChild" | "afterMilestone";
+
+/** The order the gestures are offered in. */
+const ORDER: readonly Gesture[] = [
+  "first",
+  "below",
+  "child",
+  "line",
+  "indent",
+  "outdent",
+  "up",
+  "down",
+  "delete",
+];
+
+/**
+ * The gestures a row would take but for a milestone, which bears no sub-task (WF-PLA-0050): a
+ * sub-task of a milestone, an indentation under the task just above that is one. They are shown
+ * unavailable, with their condition, and not left out (WF-IHM-0090) — `gesturesOn` leaves them out,
+ * as the server refuses them (`MILESTONE_HAS_NO_SUBTASK`). Read from `is_milestone`, as the lecture
+ * renders it.
+ */
+export function refusalsOn(
+  row: GridNode | undefined,
+  scope: StructureGestures,
+  acted: readonly GridNode[] = row === undefined ? [] : [row],
+): Readonly<Partial<Record<Gesture, MilestoneRefusal>>> {
+  if (row === undefined || isRemoved(row)) {
+    return {};
+  }
+  const child = row.kind === "task" && scope.tasks && row.task?.is_milestone === true;
+  return {
+    ...(child ? { child: "milestoneChild" as const } : {}),
+    ...(indentsUnderMilestone(acted, scope) ? { indent: "afterMilestone" as const } : {}),
+  };
+}
+
+/** Whether an indentation of the rows acted on would put them under a milestone, shown just above. */
+function indentsUnderMilestone(acted: readonly GridNode[], scope: StructureGestures): boolean {
+  const tops = topsOf(acted, scope.rows);
+  const [first] = tops;
+  if (first?.kind !== "task" || !movable(tops, scope) || !inRun(tops)) {
+    return false;
+  }
+  const above = siblingAt(first, first.position - 1, scope.rows);
+  return above?.kind === "task" && above.task?.is_milestone === true && !isRemoved(above);
+}
+
+/**
+ * The gestures of a row to show — those it takes and those a milestone makes unavailable
+ * (`refusalsOn`) — in the order they are offered.
+ */
+export function shownOn(
+  row: GridNode | undefined,
+  scope: StructureGestures,
+  acted: readonly GridNode[] = row === undefined ? [] : [row],
+): readonly Gesture[] {
+  const taken = gesturesOn(row, scope, acted);
+  const refused = Object.keys(refusalsOn(row, scope, acted)) as Gesture[];
+  return ORDER.filter((gesture) => taken.includes(gesture) || refused.includes(gesture));
+}
+
 /**
  * The creations a row takes: a task a task below it, a sub-task unless it is a milestone, a line
  * unless it is a summary or a milestone; a line a line below it.

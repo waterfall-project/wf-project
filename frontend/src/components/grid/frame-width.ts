@@ -12,7 +12,10 @@ import { type RefObject, useLayoutEffect, useState } from "react";
 
 /**
  * The width of an element, in pixels, kept as it changes; none before it is measured, and none
- * where the browser does not lay out (a test without a layout reads zero).
+ * where the browser does not lay out (a test without a layout reads zero). The first render, on the
+ * server, has no width: the bar then takes that of the table and of its two borders
+ * (`barWidthOf`), which this layout effect corrects before the page is painted (#1144). The
+ * observer measures again at each resize of the frame (`grid-frame.spec.ts`).
  */
 export function useFrameWidth(frame: RefObject<HTMLElement | null>): number | undefined {
   const [width, setWidth] = useState<number | undefined>(undefined);

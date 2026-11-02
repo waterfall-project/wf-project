@@ -59,7 +59,15 @@ interface Measure {
   readonly frame: number;
   readonly bar: number;
   readonly barHeight: number;
-  readonly narrowBar: { readonly width: number; readonly height: number };
+  readonly narrowBar: {
+    readonly width: number;
+    readonly height: number;
+    /** The widths of the children of the bar, and the gap between them, as laid out when narrowed. */
+    readonly children: readonly number[];
+    readonly gap: number;
+    /** The width of the search, a child with the role of one, when the bar is narrowed. */
+    readonly search: number | undefined;
+  };
 }
 
 /** Measure every grid of the screen, in the page. */
@@ -99,7 +107,17 @@ function measureGrids(page: Page): Promise<Measure[]> {
       };
       // A table narrower than the bar: the bar keeps what it needs for one line.
       bar.style.width = "100px";
-      const narrowBar = { width: bar.offsetWidth, height: bar.offsetHeight };
+      const children = Array.from(bar.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement,
+      );
+      const searching = bar.querySelector("[role='search']");
+      const narrowBar = {
+        width: bar.offsetWidth,
+        height: bar.offsetHeight,
+        children: children.map((child) => child.offsetWidth),
+        gap: Number.parseFloat(getComputedStyle(bar).columnGap) || 0,
+        search: searching instanceof HTMLElement ? searching.offsetWidth : undefined,
+      };
       bar.style.width = "";
       return { ...measure, narrowBar };
     });
@@ -125,11 +143,47 @@ for (const address of SCREENS) {
           grid.narrowBar.height,
           `the narrowed bar of ${where} on one line`,
         ).toBeLessThanOrEqual(ONE_LINE);
+        // The bar narrowed is the sum of the least its children take, gaps included (`min-w-min`):
+        // none is squeezed under its own minimum, the search keeping its `min-w-24` (96 points).
+        const { children, gap, width } = grid.narrowBar;
+        const least = children.reduce((sum, each) => sum + each, 0) + gap * (children.length - 1);
         expect(
-          grid.narrowBar.width,
-          `the narrowed bar of ${where} keeps its search`,
-        ).toBeGreaterThan(100);
+          width,
+          `the narrowed bar of ${where} holds its children at their least`,
+        ).toBeGreaterThanOrEqual(least - 1);
+        if (grid.narrowBar.search !== undefined) {
+          expect(
+            grid.narrowBar.search,
+            `the narrowed search of ${where} keeps its minimal width`,
+          ).toBeGreaterThanOrEqual(95);
+        }
       }
+    }
+  });
+}
+
+/** The screens whose frame is measured again after the window is resized, with no new load. */
+const RESIZED = ["/admin/users", path(`${REVISION}/planning`)] as const;
+
+for (const address of RESIZED) {
+  test(`${address}: the bar follows the frame when the window is resized, with no new load (#1144)`, async ({
+    page,
+  }) => {
+    await compile(page.request, address);
+    const [wide, narrow] = WINDOWS;
+    await open(page, address, wide);
+    for (const size of [narrow, wide]) {
+      // The observer of the frame measures it again: only the window changes, the page stays.
+      await page.setViewportSize(size);
+      await expect
+        .poll(
+          async () => {
+            const grids = await measureGrids(page);
+            return grids.every((grid) => Math.abs(grid.bar - grid.frame) <= 1);
+          },
+          { message: `the bar of ${address} is as wide as its frame at ${String(size.width)}` },
+        )
+        .toBe(true);
     }
   });
 }

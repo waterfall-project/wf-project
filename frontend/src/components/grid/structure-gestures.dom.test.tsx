@@ -844,6 +844,47 @@ describe("the grids that offer no gesture", () => {
   });
 });
 
+describe("the gestures a milestone makes unavailable [WF-PLA-0050-A]", () => {
+  // « Réception des études », a milestone, and « Dossier de conception », the task just under it.
+  const MILESTONE = planning.items.findIndex((each) => each.task?.is_milestone === true);
+  const AFTER = MILESTONE + 1;
+
+  it("shows a sub-task of a milestone unavailable, with its condition, and creates nothing", async () => {
+    const client = serve({});
+    render(planningGrid(planning, true));
+    const menu = await openMenu(MILESTONE);
+    const item = within(menu).getByRole("menuitem", { name: /Insérer une sous-tâche/ });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(item);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    await activate(MILESTONE);
+    await userEvent.keyboard("{Alt>}{Insert}{/Alt}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+  });
+
+  it("shows an indentation under a milestone unavailable, and moves nothing", async () => {
+    const client = serve({});
+    render(planningGrid(planning, true));
+    const menu = await openMenu(AFTER);
+    const item = within(menu).getByRole("menuitem", { name: /Indenter/ });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(item);
+    await userEvent.keyboard("{Escape}");
+    await activate(AFTER);
+    await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+    expect(client.calls).toEqual([]);
+    // The task above the one that follows a task is indented as before.
+    const other = await openMenu(AFTER - 1);
+    expect(within(other).getByRole("menuitem", { name: /Indenter/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+});
+
 describe("the nodes a differential removes", () => {
   // The installation on site read on the amendment 2 (`nodes_amendment`): the line « Assistance aux
   // essais de câblage » is removed, read in its place; the line before it is unchanged.

@@ -7,7 +7,9 @@
  * `dayOffBands`), the months, the links, the bars —, a row for each task the grid shows, folded as
  * it is. Its title and its provenance at its head, as every exported chart has them
  * (`useProvenance`), the legend of the days off under it when the Gantt tints them, on the
- * background of the charter, in the colours the document shows.
+ * background of the charter, in the colours the document shows. To the left of the bars, a column
+ * of the names of the tasks, indented by their level (`namesWidth`): a picture of hundreds of bars
+ * says nothing without them (#1428).
  *
  * A canvas has bounds that browsers do not pass (`CANVAS_LIMITS`): the image is drawn twice as
  * dense as the screen when it holds in them, as dense as the screen otherwise, and not at all when
@@ -36,6 +38,19 @@ const AXIS = 36;
 const MARGIN = 16;
 const LEGEND = 24;
 const NARROWEST = 640;
+
+/**
+ * The column of the names: the room of an indent a level, of a character, and of the edges, as a
+ * size of text of the image takes; narrowest and widest, a longer name being cut with an ellipsis.
+ */
+const NAMES = {
+  indent: 12,
+  character: 6,
+  edges: 12,
+  narrowest: 96,
+  widest: 320,
+  size: 11,
+} as const;
 
 /** The room the head of an image takes at most, when it is judged before it is written. */
 const HEAD_ROOM = 120;
@@ -100,10 +115,30 @@ export interface GanttDrawing {
   readonly legend: string | undefined;
 }
 
-/** The size of the image over a drawing and a head of some height. */
-function sizeOf(width: number, rows: number, legend: boolean, head: number) {
+/**
+ * The width of the column of the names of some rows: that of the longest, indented by its level,
+ * between the bounds of the column; none when no row is named. It counts in the width of the image
+ * (`sizeOf`), so in the bound a canvas passes (`ganttOverflow`).
+ */
+export function namesWidth(rows: readonly GanttRow[]): number {
+  let longest = -1;
+  for (const row of rows) {
+    const label = row.task?.label;
+    if (label !== undefined) {
+      const indent = Math.max((row.level ?? 1) - 1, 0) * NAMES.indent;
+      longest = Math.max(longest, indent + label.length * NAMES.character);
+    }
+  }
+  if (longest < 0) {
+    return 0;
+  }
+  return Math.min(Math.max(longest + NAMES.edges, NAMES.narrowest), NAMES.widest);
+}
+
+/** The size of the image over a drawing, a column of names, and a head of some height. */
+function sizeOf(width: number, rows: number, legend: boolean, head: number, names: number) {
   return {
-    width: Math.max(width + 2 * MARGIN, NARROWEST),
+    width: Math.max(names + width + 2 * MARGIN, NARROWEST),
     height: head + AXIS + rows * ROW + (legend ? LEGEND : 0) + MARGIN,
   };
 }
@@ -129,14 +164,15 @@ function overflowOf(
 /**
  * The bound the image of a drawing so wide, of so many rows, passes at the density of the screen,
  * if any: the command says which, for the remedy differs — zoom out for the width, fold summaries
- * for the height. The head is judged at its usual height (`HEAD_ROOM`); the export measures it.
+ * for the height; `names` is the width of the column of the names (`namesWidth`). The head is judged at its usual height (`HEAD_ROOM`); the export measures it.
  */
 export function ganttOverflow(
   width: number,
   rows: number,
   legend: boolean,
+  names = 0,
 ): GanttOverflow | undefined {
-  return overflowOf(sizeOf(width, rows, legend, HEAD_ROOM), 1);
+  return overflowOf(sizeOf(width, rows, legend, HEAD_ROOM, names), 1);
 }
 
 /** The hatching of the days off as a pattern of the canvas: the tile, its stroke, turned. */
@@ -247,14 +283,15 @@ function axis(
   top: number,
   colours: GanttColours,
 ) {
-  const x = (share: number) => MARGIN + share * drawing.width;
+  const origin = MARGIN + namesWidth(drawing.rows);
+  const x = (share: number) => origin + share * drawing.width;
   context.strokeStyle = colours.grid;
   context.lineWidth = 1;
   for (const tick of drawing.upper.slice(1, -1)) {
     line(context, [x(drawing.layout.at(tick)), top], [x(drawing.layout.at(tick)), top + AXIS / 2]);
   }
-  line(context, [MARGIN, top + AXIS / 2], [MARGIN + drawing.width, top + AXIS / 2]);
-  line(context, [MARGIN, top + AXIS], [MARGIN + drawing.width, top + AXIS]);
+  line(context, [origin, top + AXIS / 2], [origin + drawing.width, top + AXIS / 2]);
+  line(context, [origin, top + AXIS], [origin + drawing.width, top + AXIS]);
   context.fillStyle = colours.text;
   context.font = `10px ${colours.font}`;
   for (const [row, y] of [
@@ -262,9 +299,35 @@ function axis(
     [drawing.labels.lower, 0.88],
   ] as const) {
     for (const [at, text] of row) {
-      context.fillText(text, MARGIN + at + 2, top + y * AXIS);
+      context.fillText(text, origin + at + 2, top + y * AXIS);
     }
   }
+}
+
+/** The names of the tasks, one a row, indented by their level, cut to the column that holds them. */
+function names(
+  context: CanvasRenderingContext2D,
+  rows: readonly GanttRow[],
+  top: number,
+  colours: GanttColours,
+) {
+  const room = namesWidth(rows);
+  context.fillStyle = colours.text;
+  context.font = `${String(NAMES.size)}px ${colours.font}`;
+  rows.forEach((row, index) => {
+    const label = row.task?.label;
+    if (label === undefined) {
+      return;
+    }
+    const indent = Math.max((row.level ?? 1) - 1, 0) * NAMES.indent;
+    const left = MARGIN + indent;
+    const fits = (text: string) => left + context.measureText(text).width <= MARGIN + room - 4;
+    let written = label;
+    while (written.length > 1 && !fits(`${written}…`) && !fits(written)) {
+      written = written.slice(0, -1);
+    }
+    context.fillText(fits(label) ? label : `${written}…`, left, top + index * ROW + ROW / 2 + 4);
+  });
 }
 
 /** The rows of the tasks: their days off, the months across, the links, the bars. */
@@ -275,7 +338,7 @@ function tasks(
   colours: GanttColours,
 ) {
   const { layout, rows } = drawing;
-  const x = (share: number) => MARGIN + share * drawing.width;
+  const x = (share: number) => MARGIN + namesWidth(rows) + share * drawing.width;
   const extent = { from: layout.ticks[0] ?? 0, to: layout.ticks.at(-1) ?? 0 };
   const bottom = top + rows.length * ROW;
   if (drawing.legend !== undefined) {
@@ -381,9 +444,10 @@ export function exportGanttPng(
     return "unsupported";
   }
   const legendShown = drawing.legend !== undefined;
-  const width = sizeOf(drawing.width, drawing.rows.length, legendShown, 0).width;
+  const room = namesWidth(drawing.rows);
+  const width = sizeOf(drawing.width, drawing.rows.length, legendShown, 0, room).width;
   const written = head(context, image, width, colours.font);
-  const size = sizeOf(drawing.width, drawing.rows.length, legendShown, written.height);
+  const size = sizeOf(drawing.width, drawing.rows.length, legendShown, written.height, room);
   const passed = overflowOf(size, 1);
   if (passed !== undefined) {
     return passed;
@@ -404,6 +468,7 @@ export function exportGanttPng(
     colours.font,
   );
   axis(context, drawing, written.height, colours);
+  names(context, drawing.rows, written.height + AXIS, colours);
   tasks(context, drawing, written.height + AXIS, colours);
   if (drawing.legend !== undefined) {
     legend(context, drawing.legend, written.height + AXIS + drawing.rows.length * ROW, colours);

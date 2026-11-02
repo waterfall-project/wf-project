@@ -13,7 +13,7 @@ Dans le coin de l’en-tête du Gantt :
 - **Zoom avant** (`Ctrl++`) resserre l’échelle, jusqu’aux heures travaillées d’une journée ; indisponible quand le zoom est à son plus fort.
 - **Zoom arrière** (`Ctrl+-`) élargit l’échelle ; indisponible quand le zoom est à son plus faible.
 - **Ajuster au projet** règle l’échelle pour montrer le projet entier ; indisponible quand elle le montre déjà.
-- **Exporter en PNG** enregistre le Gantt en image, sur toute son étendue au niveau de zoom choisi, une ligne par tâche montrée, avec le projet, la révision et la date de calcul. Indisponible quand l’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives.
+- **Exporter en PNG** enregistre le Gantt en image, sur toute son étendue au niveau de zoom choisi, une ligne par tâche montrée, ses noms à gauche des barres, indentés selon leur niveau (la colonne élargit l’image), avec le projet, la révision et la date de calcul. Indisponible quand l’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives.
 
 Le zoom et l’export se trouvent aussi au menu d’une cellule du Gantt. Sur un Mac, `⌘` tient lieu de `Ctrl`.
 

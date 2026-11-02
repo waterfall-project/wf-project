@@ -98,9 +98,12 @@ import {
   gestureOfKey,
   gesturesOn,
   labelOf,
+  type MilestoneRefusal,
   moveOf,
   type Moving,
   moves,
+  refusalsOn,
+  shownOn,
   type StructureGestures,
   topsOf,
 } from "./structure-rules";
@@ -385,6 +388,8 @@ export function useStructureGestures<Row extends GridNode>(
     down: t("down"),
     delete: t("delete"),
   };
+  /** The condition a gesture lacks, said where it is shown unavailable. */
+  const refusal = (why: MilestoneRefusal | undefined) => (why === undefined ? undefined : t(why));
   /** Send a write, and take its answer: the grid read anew when done, the refusal told otherwise. */
   const send = (
     call: () => Promise<Outcome<NodesWritten>>,
@@ -606,7 +611,8 @@ export function useStructureGestures<Row extends GridNode>(
         </CommandTooltip>
       ),
     menu: (row, { cell, took, rows, applied }) => {
-      const gestures = gesturesOn(row, scope, rows);
+      const gestures = shownOn(row, scope, rows);
+      const refused = refusalsOn(row, scope, rows);
       return (
         <>
           {gestures.map((gesture) => (
@@ -616,13 +622,13 @@ export function useStructureGestures<Row extends GridNode>(
               label={names[gesture]}
               help={helps(`${HELPS[gesture]}.help`)}
               keys={GESTURE_KEYS[gesture]}
-              unavailable={busy ? t("busy") : undefined}
+              unavailable={refusal(refused[gesture]) ?? (busy ? t("busy") : undefined)}
               icon={ICONS[gesture]}
               className={UNAVAILABLE}
               onSelect={(event) => {
-                // Pressed while a write or its reading is under way, it does nothing, and the
-                // menu stays open.
-                if (busy) {
+                // Pressed while a write or its reading is under way, or unavailable by its
+                // condition, it does nothing, and the menu stays open.
+                if (busy || refused[gesture] !== undefined) {
                   event.preventDefault();
                   return;
                 }
@@ -662,7 +668,8 @@ export function useStructureGestures<Row extends GridNode>(
       // A move not offered on a row — the first of its siblings asked up — is taken, and does
       // nothing: Alt, Shift and an arrow would otherwise move the active cell as the arrow alone does.
       if (!gesturesOn(row, scope, rows).includes(gesture)) {
-        return row !== undefined && moves(gesture);
+        // A gesture a milestone makes unavailable is taken likewise, as the menu shows it so.
+        return row !== undefined && (moves(gesture) || gesture in refusalsOn(row, scope, rows));
       }
       open(gesture, row, rows, event.target instanceof HTMLElement ? event.target : undefined);
       return true;

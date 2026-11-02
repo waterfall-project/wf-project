@@ -13,7 +13,7 @@ In the corner of the header of the Gantt:
 - **Zoom in** (`Ctrl++`) tightens the scale, down to the worked hours of a day; unavailable when the zoom is at its strongest.
 - **Zoom out** (`Ctrl+-`) widens the scale; unavailable when the zoom is at its weakest.
 - **Fit to project** sets the scale to show the whole project; unavailable when it already shows it.
-- **Export as PNG** saves the Gantt as an image, over its whole extent at the zoom level chosen, a row per task shown, with the project, the revision and the date of calculation. Unavailable when the image would be too large for the browser: zoom out, or fold summary tasks.
+- **Export as PNG** saves the Gantt as an image, over its whole extent at the zoom level chosen, a row per task shown, the names of the tasks to the left of the bars, indented by their level (the column widens the image), with the project, the revision and the date of calculation. Unavailable when the image would be too large for the browser: zoom out, or fold summary tasks.
 
 The zoom and the export are also found in the menu of a cell of the Gantt. On a Mac, `⌘` stands for `Ctrl`.
 

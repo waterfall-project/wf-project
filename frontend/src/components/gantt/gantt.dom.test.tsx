@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { createRoot } from "react-dom/client";
@@ -311,7 +311,7 @@ describe("the Gantt of the planning", () => {
     expect(screen.getByRole("group", { name: "Gantt legend" })).toHaveTextContent("Day off");
   });
 
-  it("holds its legend only until the frame is measured, and tints only the days of a pixel or more [WF-PLA-0090-A]", async () => {
+  it("holds its legend only until the frame is measured, and tints only the days of a pixel or more [WF-PLA-0090-A]", () => {
     const rows = planning.items;
     const row = rows.find((item) => item.task !== null && item.task !== undefined) ?? {
       node_id: "none",
@@ -330,18 +330,24 @@ describe("the Gantt of the planning", () => {
     first.innerHTML = renderToString(drawing(400));
     expect(first.querySelector("[role=group]")).not.toBeNull();
     expect(first.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
+    // The timers never run: the legend goes on the signal of the measure, not on a tick (#1421).
+    vi.useFakeTimers();
     // A frame measured too narrow, the days under a pixel: neither legend nor band.
     const narrow = render(drawing(10));
     expect(narrow.container.querySelectorAll("rect[data-day-off]")).toHaveLength(0);
-    await waitFor(() => {
-      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
-    });
+    expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
     narrow.unmount();
-    // A Gantt not drawn, no axis to measure: no legend once the tick of the mount is over.
-    render(drawing(undefined));
-    await waitFor(() => {
-      expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    // A frame measured wide: the legend stays, with its bands, whatever the time that passes.
+    const wide = render(drawing(4000));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
     });
+    expect(screen.getByRole("group", { name: "Légende du Gantt" })).toBeInTheDocument();
+    wide.unmount();
+    // A Gantt not drawn, no axis to measure: no legend once the commit of the mount is over.
+    render(drawing(undefined));
+    expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
+    vi.useRealTimers();
   });
 
   // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au
