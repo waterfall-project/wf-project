@@ -3683,8 +3683,8 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
   atteint — un refus affiché, une adresse `?import=` — : le harnais ouvre chaque écran à son
   adresse, et n'y joue que les déclencheurs ;
-- l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre : ses tests de
-  composants le tiennent ;
+- l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre : seuls ses tests
+  le rendent (`system-pages.test.tsx`, et `expectAccessible` dans `system.dom.test.tsx`) ;
 - dans un widget qui déplace lui-même le focus, l'entrée seule est vérifiée : atteindre chacun de
   ses éléments aux flèches reste aux tests de composants (#784) ;
 - les textes qu'axe ne mesure pas : posés sur le dessin d'une courbe, du Gantt ou d'une chronologie

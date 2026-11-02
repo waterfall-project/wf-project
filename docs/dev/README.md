@@ -3660,8 +3660,8 @@ US-0200 in the file of EP-14 says it too):
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture
   reaches — a refusal shown, an address `?import=` —: the harness opens each screen at its address,
   and plays only the triggers there;
-- the failure screen (`error.tsx`, `global-error.tsx`), which no address opens: its component tests
-  hold it;
+- the failure screen (`error.tsx`, `global-error.tsx`), which no address opens: only its tests
+  render it (`system-pages.test.tsx`, and `expectAccessible` in `system.dom.test.tsx`);
 - in a widget that moves the focus itself, only the entry is checked: reaching each of its elements
   with the arrows stays with the component tests (#784);
 - the texts axe does not measure: laid on the drawing of a curve, of the Gantt or of a timeline —
