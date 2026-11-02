@@ -211,7 +211,7 @@ describe("the screen of the risks", () => {
     expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
   });
 
-  it("hands the matrix over as the server gave it, whatever the state the grid is filtered on, the three totals of the provisions staying [WF-RIS-0040-A]", async () => {
+  it("reads the matrix without the states of the filter, and shows the three distinct totals of the list beside a chart that draws the risks identified alone [WF-RIS-0040-A]", async () => {
     const page = await risksAt({ states: "occurred" });
     expect(matrices.props).toHaveLength(1);
     expect(Object.keys(matrices.props[0] ?? {})).not.toContain("states");

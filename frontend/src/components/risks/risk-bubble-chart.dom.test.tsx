@@ -208,7 +208,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(tooltip.formatter({ data: { id: AUTOMATON } })).toBe("");
   });
 
-  it("sizes a bubble by the severity in amount, within bounds, the heaviest risk the largest bubble", () => {
+  it("sizes a bubble by the severity in amount, within bounds, the heaviest risk the largest bubble [WF-RIS-0040-A]", () => {
     project(IDENTIFIED);
     const sizes = drawn().bubbles.flatMap((each) =>
       (each.data as { symbolSize: number }[]).map(({ symbolSize }) => symbolSize),
@@ -310,6 +310,20 @@ describe("the risk matrix as a bubble chart", () => {
     expect(total).toBe(1);
   });
 
+  it("does not let a risk dismissed, of a ratio above the identified one, raise the top of the axis [WF-RIS-0040-A]", () => {
+    const identifiedOnly = {
+      ...MATRIX,
+      points: MATRIX.points.filter((point) => point.state === "identified"),
+    };
+    project(identifiedOnly);
+    const alone = (drawn().option?.yAxis as { max: number }).max;
+    // The dismissed risk of the example would set the top higher, were it counted (0.1758 × 1.15).
+    const dismissed = MATRIX.points.find((point) => point.state === "dismissed");
+    expect(Number(dismissed === undefined ? 0 : ratioOf(dismissed)) * 1.15).toBeGreaterThan(alone);
+    project();
+    expect((drawn().option?.yAxis as { max: number }).max).toBe(alone);
+  });
+
   it("leaves a ratio it cannot read out of the top of the axis, which stays a number", () => {
     project();
     const reference = (drawn().option?.yAxis as { max: number }).max;
@@ -352,7 +366,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect((option?.yAxis as { max: number }).max).toBeCloseTo(0.15);
   });
 
-  it("says how many risks have no bubble, and why, and no more once every risk has a share", () => {
+  it("says how many risks have no bubble, and why, and no more once every risk has a share [WF-RIS-0040-A]", () => {
     project(example("risk_matrix_no_basis") as RiskMatrix);
     expect(
       screen.getByText(
@@ -364,7 +378,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(screen.queryByText(/are not drawn|is not drawn/)).not.toBeInTheDocument();
   });
 
-  it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart", () => {
+  it("keeps the bubble of a risk with a share beside a risk without one, which it counts apart [WF-RIS-0040-A]", () => {
     const top = THREE.points.reduce((a, b) => (Number(ratioOf(b)) > Number(ratioOf(a)) ? b : a));
     // Before it loses its share, the risk of the highest ratio sets the top of the axis, above the
     // last level's: the fall back below is the removal's, not the matrix's.
@@ -442,7 +456,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(tooltip.formatter({ data: { id: "other" } })).toBe("");
   });
 
-  it("leads a click on a bubble to the detail of its risk, from the address asked", () => {
+  it("leads a click on a bubble to the detail of its risk, from the address asked [WF-RIS-0040-A]", () => {
     project();
     const { onPoint } = charts.props.at(-1) ?? {};
     act(() => {
@@ -486,7 +500,7 @@ describe("the risk matrix as a bubble chart", () => {
     expect(instances.disposed).toBe(1);
   });
 
-  it("starts unfolded when the account kept it so, and folded when it kept nothing: the state read is the one drawn", () => {
+  it("starts unfolded when the account kept it so, and folded when it kept nothing: the state read is the one drawn [WF-RIS-0040-A]", () => {
     project(MATRIX, false);
     expect(screen.getByRole("button", { name: "Chart" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("img", { name: /^Bubble chart of the risks/ })).toBeInTheDocument();

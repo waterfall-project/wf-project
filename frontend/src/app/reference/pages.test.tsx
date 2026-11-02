@@ -530,7 +530,7 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the risks and of the indicators", () => {
-  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the base of the project", async () => {
+  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the base of the project [WF-REF-0160-A]", async () => {
     const page = rendered(await RiskSettingsPage());
     expect(rows(page, "Bornes de la matrice de risques")).toEqual([
       "Axe Première borne Deuxième borne Troisième borne",
