@@ -174,7 +174,7 @@ test("creates a project from the home, then modifies the identity of a project o
   page,
 }) => {
   test.slow();
-  await compile(page.request, `${CREATED}/revisions/${CURRENT}/planning`);
+  await compile(page.request, CREATED);
   await page.goto("/");
   const main = page.getByRole("main");
   await expect(main.getByRole("note")).toContainText("le service simulé répond");
@@ -193,9 +193,13 @@ test("creates a project from the home, then modifies the identity of a project o
   await expect(creation.getByRole("textbox", { name: "Libellé" })).toBeFocused();
   await creation.getByRole("textbox", { name: "Libellé" }).fill("Rénovation du poste de livraison");
   await creation.getByRole("button", { name: "Créer" }).click();
-  // The screen of the project the server created leads to its revision, which the fake back serves
-  // as the witness's; the encart that starts a project without one is held by the tests of the page.
-  await expect(page).toHaveURL(`${CREATED}/revisions/${CURRENT}/planning`, { timeout: WORKING });
+  // The screen of the project the server created — which the fake back serves as the witness. It
+  // has no revision yet: the screen stays, with the encart that starts the planning (#1358).
+  await expect(page).toHaveURL(CREATED, { timeout: WORKING });
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Rénovation du poste de livraison",
+  );
+  await expect(main.getByRole("region", { name: "Démarrer le projet" })).toBeVisible();
 
   // The modification is played on the witness: the fake back keeps nothing of what is written.
   await openHydrated(page, `${PROJECT}/settings`);

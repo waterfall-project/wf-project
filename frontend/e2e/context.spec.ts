@@ -43,11 +43,12 @@ test("each screen of the data of a project names the project and the revision sh
   await expect(banner(page)).toContainText("Modernisation du poste de commande");
   await expect(banner(page)).toContainText("Révision en cours");
 
-  // The page of the project itself names it too.
+  // The page of the project itself leads to its revision in progress, which names it too (US-0720).
   await page.goto(`/projects/${PROJECT}`);
-  await expect(banner(page).getByRole("definition")).toHaveText([
+  await expect(page).toHaveURL(`${IN_REVISION}/planning`);
+  await expect(banner(page).getByRole("definition").first()).toHaveText(
     "Modernisation du poste de commande",
-  ]);
+  );
 });
 
 test("an active filter is visible without opening the panel of filters [WF-IHM-0020-A]", async ({
