@@ -1,7 +1,7 @@
 ---
 id: EP-17
 titre: La maquette finie hors contrat — accessibilité des dialogues, mineurs des écrans, lenteur du navigateur, cosmétique
-statut: prêt
+statut: en cours
 depend_de: EP-16
 famille: front
 issue: 1547
@@ -726,7 +726,7 @@ ses mesures par lots ; rien n'y est réécrit.
 
 ## US-0710 — Le harnais d'accessibilité parcourt les dialogues, les menus et les éditeurs
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1548
@@ -766,6 +766,14 @@ mesures par lots avant que cette US ne commence. Les popovers de refus, les `<de
 les états atteints par un geste (`?import=`) restent aux tests de composants et s'écrivent dans la
 note du guide (décision de l'auteur du 2026-10-28). Le coût de chaîne se mesure contre la règle
 d'US-0590d : une étape qui dépasserait 10 % du chemin critique se dit dans la pull request.
+- L1 (#1558) : les dialogues du front s'ouvrent par un état, non par un `DialogTrigger` ; chaque
+  commande qui en ouvre un pose donc elle-même `aria-haspopup="dialog"`, que le harnais lit. Ce
+  qu'un geste ouvre est audité par axe en lui-même, et le reste de la page par `aria-hidden-focus`
+  seule : la page entière auditée à chaque ouverture dépassait le délai d'un test sur le Kanban et
+  le référentiel (huit secondes l'audit). Les écarts relevés et corrigés : les menus déroulants
+  modaux (`aria-hidden-focus`, rendus non modaux), le dialogue d'alerte qui ne se disait pas modal
+  (`aria-modal`), le premier champ d'un dialogue long atteint hors de la vue (WCAG 2.4.11, le
+  dialogue défile au focus), la cellule en saisie restée cible autour de son champ (`target-size`).
 
 **Hors périmètre.** Les navigateurs et 360 points (US-0290, EP-13) ; une conformité déclarée (§2.2).
 

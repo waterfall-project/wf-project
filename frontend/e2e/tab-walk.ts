@@ -6,15 +6,16 @@
  * measuring each element as the focus reaches it (`focus-probe.ts`):
  *
  * - each element the focus reaches is seen: it is shown, not transparent, and the middle of what is
- *   left of it once the window and the padding box of every box that clips it have cut it is the
- *   element itself — nothing that paints is drawn over it, a layer the pointer passes through
- *   included; and nothing takes the pointer there instead of it, a transparent layer that catches
- *   the clicks included;
+ *   left of it — of its first box, for a link wrapped over lines — once the window and the padding
+ *   box of every box that clips it have cut it is the element itself — nothing that paints is
+ *   drawn over it, a layer the pointer passes through included; and nothing takes the pointer
+ *   there instead of it, a transparent layer that catches the clicks included;
  * - each wears an indicator of its focus: an outline or a shadow it did not wear before the walk —
  *   when nothing had the focus —, or wears no more once the focus left it, which is not
- *   transparent, not cut by a box that clips it, nor, inside it, under what paints over it — what it
- *   holds, for an inset shadow, a positioned element, for an outline; an element born during the
- *   walk and gone once left cannot be judged, and is said so;
+ *   transparent, a side of it at least out of what the boxes that clip it cut away — one side is
+ *   enough: the others may be cut —, nor, inside it, under what paints over it — what it holds,
+ *   for an inset shadow, a positioned element, for an outline; an element born during the walk and
+ *   gone once left cannot be judged, and is said so;
  * - no element is reached twice before the first again: that would be a loop the focus cannot
  *   leave, a trap; a field made of fields — the day, the month and the year of a date — keeps the
  *   focus from one to the next, which is no trap unless it keeps it longer than any could;
@@ -23,7 +24,14 @@
  *   focus lands in it; every such widget is entered; none lies wholly beyond the edge of a box that
  *   hides what overflows it, which the browser scrolls to the focus but a pointer never reaches — a
  *   box the user scrolls is no such edge for what it scrolls to;
- * - no link nor button is taken out of the order of the keyboard, but in such a widget.
+ * - no link nor button — nor anything that says it is one, or a box to check — is taken out of the
+ *   order of the keyboard, but in such a widget.
+ *
+ * Walked within what a gesture opened — a dialog (`opened.ts`) —, the walk judges only what that
+ * holds: what Tab may reach in it, its widgets, its edges; and it names each element it reached
+ * outside it (`escaped`). A modal dialog keeps the focus by bringing it back to its first element,
+ * which is how the walk ends: the trap it wants — one that holds a single element keeps the focus
+ * on it, longer than a field made of fields would.
  *
  * What it reached is said by role and name, in order: the same page walked in a narrower window
  * must reach all of it again (`lost`). Leaving the last element, the focus leaves the document a
@@ -36,9 +44,10 @@
  * past a trap is left unread: the presses left of the last batch change nothing of what the walk
  * says.
  */
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { finishWalk, type Focus, readWalk, startWalk } from "./focus-probe";
+import { closedByTheTest } from "./hydration";
 
 /** What a walk saw, each element said by its role and its name. */
 export interface Walk {
@@ -62,6 +71,8 @@ export interface Walk {
   readonly clipped: readonly string[];
   /** The links and buttons out of the order of the keyboard, in no widget that moves the focus. */
   readonly untabbable: readonly string[];
+  /** The elements reached outside what the walk was bounded to, if it was bounded. */
+  readonly escaped: readonly string[];
 }
 
 /**
@@ -89,7 +100,10 @@ interface Tally {
   readonly covered: string[];
   readonly unmarked: string[];
   readonly unjudged: string[];
+  readonly escaped: string[];
   readonly visited: Set<number>;
+  /** Whether the walk is bounded to what a gesture opened. */
+  readonly bounded: boolean;
   first: number | undefined;
   previous: number | undefined;
   held: number;
@@ -119,7 +133,15 @@ function take(tally: Tally, focus: Focus): void {
   }
   if (focus.id === tally.previous) {
     tally.held += 1;
-    tally.trapped = tally.held < FIELDS ? undefined : `${focus.said}, holding the focus`;
+    if (tally.held < FIELDS) {
+      return;
+    }
+    // A dialog that holds a single element brings the focus back to it by keeping it there.
+    if (tally.bounded && focus.id === tally.first && tally.reached.length === 1) {
+      tally.back = true;
+      return;
+    }
+    tally.trapped = `${focus.said}, holding the focus`;
     return;
   }
   tally.held = 0;
@@ -144,6 +166,9 @@ function take(tally: Tally, focus: Focus): void {
       list.push(`${focus.said}, ${why}`);
     }
   }
+  if (focus.escaped) {
+    tally.escaped.push(focus.said);
+  }
   if (focus.marked === false) {
     tally.unmarked.push(focus.said);
   }
@@ -151,17 +176,22 @@ function take(tally: Tally, focus: Focus): void {
 
 /**
  * Walk the page by Tab from where the focus is, until it comes back to the first element it
- * reached, and say what the walk saw.
+ * reached, and say what the walk saw: of the whole page, or of what `within` holds alone — a
+ * dialog open, which the walk judges as it judges a page.
  */
-export async function walkByTab(page: Page): Promise<Walk> {
-  const { clipped, untabbable } = await startWalk(page);
+export async function walkByTab(page: Page, within?: Locator): Promise<Walk> {
+  const scope = within === undefined ? undefined : await within.elementHandle();
+  const { clipped, untabbable } = await startWalk(page, scope ?? undefined);
+  await scope?.dispose();
   const tally: Tally = {
     reached: [],
     unseen: [],
     covered: [],
     unmarked: [],
     unjudged: [],
+    escaped: [],
     visited: new Set(),
+    bounded: scope !== undefined,
     first: undefined,
     previous: undefined,
     held: 0,
@@ -171,8 +201,6 @@ export async function walkByTab(page: Page): Promise<Walk> {
   let pressed = 0;
   let taken = 0;
   const going = () => !tally.back && tally.trapped === undefined;
-  let ended = false;
-  let end: Awaited<ReturnType<typeof finishWalk>>;
   try {
     while (pressed < PRESSES && going()) {
       const batch = Math.min(BATCH, PRESSES - pressed);
@@ -188,20 +216,14 @@ export async function walkByTab(page: Page): Promise<Walk> {
         taken += 1;
       }
     }
-    if (!tally.back) {
-      tally.trapped ??= `no way back to the first element after ${String(PRESSES)} presses`;
-    }
-    ended = true;
-    end = await finishWalk(page, taken);
-  } finally {
-    // A walk cut short (a read that failed, a key that could not be pressed) must not leave the
-    // probe walking: it would swallow every Tab of what comes next.
-    if (!ended) {
-      await finishWalk(page, 0).catch(() => undefined);
-    }
+  } catch (error) {
+    await abandon(page, error);
   }
-  const { missed, stopless } = end;
-  const { reached, unseen, covered, unmarked, unjudged, trapped } = tally;
+  if (!tally.back) {
+    tally.trapped ??= `no way back to the first element after ${String(PRESSES)} presses`;
+  }
+  const { missed, stopless } = await finishWalk(page, taken);
+  const { reached, unseen, covered, unmarked, unjudged, escaped, trapped } = tally;
   return {
     reached,
     unseen,
@@ -213,8 +235,71 @@ export async function walkByTab(page: Page): Promise<Walk> {
     stopless,
     clipped,
     untabbable,
+    escaped,
   };
 }
+
+/**
+ * End the walk of the probe after a walk cut short — a read that failed, a key that could not be
+ * pressed —, which would otherwise swallow every Tab of what comes next, then throw what cut it.
+ * The page closed under the probe as the test ended is the one failure of that end that the error
+ * of the walk explains — the test over, or out of its time, which is what cut the walk —, and only
+ * it is let go (#1808), by the message Playwright gives it (`closedByTheTest`). Any other failure
+ * is thrown, and says what cut the walk.
+ */
+async function abandon(page: Page, cut: unknown): Promise<never> {
+  try {
+    await finishWalk(page, 0);
+  } catch (failure) {
+    if (!closedByTheTest(failure)) {
+      throw new Error(
+        `the probe could not end a walk cut short by « ${said(cut)} »: ${said(failure)}`,
+        { cause: cut },
+      );
+    }
+  }
+  throw cut;
+}
+
+/** What an error says, whatever was thrown. */
+function said(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** What a walk saw that it should not have: all it says but the elements it reached. */
+export type Faults = Omit<Walk, "reached">;
+
+/** What a walk saw that it should not have, the elements it reached left aside. */
+export function faults(walk: Walk): Faults {
+  const { unseen, covered, unmarked, unjudged, trapped, missed, stopless, clipped } = walk;
+  const { untabbable, escaped } = walk;
+  return {
+    unseen,
+    covered,
+    unmarked,
+    unjudged,
+    trapped,
+    missed,
+    stopless,
+    clipped,
+    untabbable,
+    escaped,
+  };
+}
+
+/** What a walk that saw nothing it should not have says (`faults`). */
+export const NO_FAULTS: Faults = {
+  unseen: [],
+  covered: [],
+  unmarked: [],
+  unjudged: [],
+  trapped: undefined,
+  missed: [],
+  stopless: [],
+  clipped: [],
+  untabbable: [],
+  escaped: [],
+};
 
 /**
  * What a walk reached that another no longer reaches, element by element, an element reached

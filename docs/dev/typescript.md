@@ -137,16 +137,21 @@ dont les cellules ne prennent pas le focus a la boîte où elle défile dans l'o
 groupe nommé comme elle, son focus un contour tracé à l'intérieur de son bord (`list` de `Table`,
 que `ListTable` et la lecture en table d'une chronologie (`TimelineChart`) posent ; `scrollingList` pour une autre boîte, les valeurs d'une
 courbe) : plus large que sa boîte, elle défile alors aux flèches dans tous les navigateurs — Safari
-ne rend pas focalisable de lui-même un conteneur qui défile.
+ne rend pas focalisable de lui-même un conteneur qui défile. Un bouton qui ouvre un dialogue le dit,
+`aria-haspopup="dialog"`, comme le déclencheur d'un dialogue de Radix (`DialogTrigger`), même quand
+le dialogue s'ouvre par un état : un lecteur d'écran l'annonce, et le harnais n'ouvre que ce qui le
+dit (US-0710). Un menu déroulant n'est pas modal (`DropdownMenu`) : modal, Radix cache le reste de la
+page au lecteur d'écran sans le sortir de l'ordre du clavier.
 
 *Pourquoi* : l'accessibilité minimale de la spécification (§3.6), et des parcours qui
 trouvent les éléments comme un utilisateur. *Contrôle* : les quelques règles `jsx-a11y`
 qu'active la configuration de Next.js ; les parcours de bout en bout, par `getByRole` ; sur
-chaque écran de l'application, tel qu'il s'ouvre, `e2e/accessibility.spec.ts` (`make e2e`) : les
-règles d'axe pour WCAG A et AA, en clair et en sombre, les libellés et les descriptions, et le parcours
-au clavier, à 1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible`
-dans les tests des composants, pour une partie des dialogues, des menus et des formulaires que le
-harnais n'ouvre pas (#782 pour le reste) ; le reste, la revue.
+chaque écran de l'application, tel qu'il s'ouvre et avec ce qu'un geste y ouvre — un dialogue, un
+menu, l'éditeur d'une cellule —, `e2e/accessibility.spec.ts` (`make e2e`) : les règles d'axe pour
+WCAG A et AA, les libellés et les descriptions, et le parcours au clavier, en clair et en sombre, à
+1366 et à 911 points (guide, « Un parcours de bout en bout ») ; `expectAccessible` dans les tests
+des composants, pour ce que le harnais n'ouvre pas — un refus, ce qu'ouvre un menu — ; le reste, et
+qu'un bouton qui ouvre un dialogue le dise, la revue.
 
 ### Les tests
 

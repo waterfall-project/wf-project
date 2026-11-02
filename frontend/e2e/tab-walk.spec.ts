@@ -7,7 +7,7 @@
  */
 import { expect, type Page, test } from "@playwright/test";
 
-import { readInPage } from "./focus-probe";
+import { finishInPage, readInPage } from "./focus-probe";
 import { BATCH, lost, walkByTab } from "./tab-walk";
 
 /** A page of its own, written in the window of the harness. */
@@ -209,6 +209,23 @@ test("sees an element only when nothing hides it: a transparent ancestor, a laye
   ]);
 });
 
+test("sees a link wrapped over two lines by its first line, not by the middle of the box around both", async ({
+  page,
+}) => {
+  // The middle of the box around both lines falls between them, where the paragraph is alone: the
+  // lines are far taller than the text of the link (#784).
+  await write(
+    page,
+    `<p style="width: 200px; margin: 0; line-height: 40px">
+       Un texte assez long, avant <a href="#">un lien replié sur deux lignes</a>.
+     </p>`,
+  );
+  const walk = await walkByTab(page);
+  expect(walk.reached).toEqual(["a « un lien replié sur deux lignes »"]);
+  expect(walk.unseen).toEqual([]);
+  expect(walk.covered).toEqual([]);
+});
+
 test("names a transparent layer that takes the pointer from an element, not one it passes through", async ({
   page,
 }) => {
@@ -226,7 +243,7 @@ test("names a transparent layer that takes the pointer from an element, not one 
   expect(walk.covered).toEqual(["button « Capté », under div «  »"]);
 });
 
-test("names what lies beyond the edge of a box that hides it, and the links and buttons out of the order of the keyboard but in a widget of their own", async ({
+test("names what lies beyond the edge of a box that hides it, and the links, buttons and boxes to check — elements or roles — out of the order of the keyboard but in a widget of their own", async ({
   page,
 }) => {
   await write(
@@ -244,6 +261,8 @@ test("names what lies beyond the edge of a box that hides it, and the links and 
        </div>
      </div>
      <button tabindex="-1">Hors du clavier</button>
+     <div role="button" aria-label="Rôle de bouton"></div>
+     <span role="checkbox" aria-checked="false" aria-label="Case"></span>
      <div role="toolbar" aria-label="Outils"><button>Un</button><button tabindex="-1">Deux</button></div>
      <div role="toolbar" aria-label="Sans arrêt">
        <button tabindex="-1">Trois</button><button tabindex="-1">Quatre</button>
@@ -256,7 +275,11 @@ test("names what lies beyond the edge of a box that hides it, and the links and 
   // Scrolled before the walk, the box of « Loin » still shows it where its edge would cut it.
   const walk = await walkByTab(page);
   expect(walk.clipped).toEqual(["button « Au-delà »", "button « Loin »"]);
-  expect(walk.untabbable).toEqual(["button « Hors du clavier »"]);
+  expect(walk.untabbable).toEqual([
+    "button « Hors du clavier »",
+    "button « Rôle de bouton »",
+    "checkbox « Case »",
+  ]);
   expect(walk.stopless).toEqual(["toolbar « Sans arrêt »"]);
 });
 
@@ -382,4 +405,89 @@ test("ends the walk of the probe when a read fails, so that Tab moves the focus 
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B0");
   await page.keyboard.press("Tab");
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe("B1");
+});
+
+test("walks what a dialog holds alone, its return to its first element the end of the walk — its one element kept, for a dialog that holds no other —, and names what it reached outside it", async ({
+  page,
+}) => {
+  // A dialog that brings the focus back into itself, as a modal dialog of Radix does, and a page
+  // around it the walk does not judge.
+  await write(
+    page,
+    `<button>Dehors</button><button tabindex="-1">Hors du clavier, dehors</button>
+     <div role="dialog" aria-label="Boîte" id="kept">
+       <button>Un</button><button>Deux</button><button disabled>Inactif</button>
+     </div>
+     <div role="dialog" aria-label="Ouverte" id="open"><button>Trois</button></div>
+     <button>Après</button>
+     <script>
+       const kept = document.getElementById("kept");
+       document.addEventListener("focusin", (event) => {
+         if (window.trapping && !kept.contains(event.target)) {
+           kept.querySelector("button").focus();
+         }
+       });
+     </script>`,
+  );
+  await page.evaluate(() => {
+    (window as unknown as { trapping: boolean }).trapping = true;
+  });
+  const kept = await walkByTab(page, page.getByRole("dialog", { name: "Boîte" }));
+  expect(kept.reached).toEqual(["button « Un »", "button « Deux »"]);
+  expect(kept.trapped).toBeUndefined();
+  expect(kept.missed).toEqual([]);
+  expect(kept.untabbable).toEqual([]);
+  expect(kept.escaped).toEqual([]);
+  // A dialog that holds a single element keeps the focus on it: the walk is back, not trapped.
+  await page.evaluate(() => {
+    const kept = document.getElementById("kept");
+    kept?.replaceChildren(...[...kept.children].slice(0, 1));
+  });
+  const single = await walkByTab(page, page.getByRole("dialog", { name: "Boîte" }));
+  expect(single.reached).toEqual(["button « Un »"]);
+  expect(single.trapped).toBeUndefined();
+  await page.evaluate(() => {
+    (window as unknown as { trapping: boolean }).trapping = false;
+  });
+  // From « Un », where the walk before came back: Tab goes on from the element it left.
+  const open = await walkByTab(page, page.getByRole("dialog", { name: "Ouverte" }));
+  expect(open.reached).toContain("button « Trois »");
+  expect(open.escaped).toEqual(["button « Après »", "button « Dehors »", "button « Un »"]);
+});
+
+/** The page, its read of the readings failing, and its end of the walk failing as `ended` says. */
+function failingEnd(page: Page, ended: Error): Page {
+  return new Proxy(page, {
+    get(target, key) {
+      const value: unknown = Reflect.get(target, key, target);
+      if (key === "evaluate") {
+        return (...args: Parameters<Page["evaluate"]>) => {
+          if (args[0] === readInPage) {
+            return Promise.reject(new Error("read failed"));
+          }
+          if ((args[0] as unknown) === finishInPage) {
+            return Promise.reject(ended);
+          }
+          return target.evaluate(...args);
+        };
+      }
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+}
+
+test("lets go of the end of a walk cut short only when the page closed as the test ended, and says any other failure with what cut the walk (#1808)", async ({
+  page,
+}) => {
+  await write(page, "<button>B0</button><button>B1</button>");
+  for (const ended of ["Test ended.", "Test timeout of 90000ms exceeded."]) {
+    await expect(walkByTab(failingEnd(page, new Error(`page.evaluate: ${ended}`)))).rejects.toThrow(
+      /^read failed$/,
+    );
+  }
+  await expect(walkByTab(failingEnd(page, new Error("probe lost")))).rejects.toThrow(
+    "the probe could not end a walk cut short by « read failed »: probe lost",
+  );
 });

@@ -17,15 +17,21 @@
  *   noted, reason by reason;
  * - Tab, from where the focus is, reaches every element it may reach, each seen in the window and
  *   wearing its indicator of the focus, comes back to the first without being caught on the way
- *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`).
+ *   (`walkByTab`), and reaches at 911 points every element it reached at 1366 (`lost`), in both
+ *   modes, the indicator of the focus painted in each (#784);
+ * - what a gesture opens, in both modes (US-0710, `opened.ts`): each dialog and each menu opened by
+ *   Enter on its trigger, the editor of the first cell of each grid that takes an entry opened by
+ *   F2; a dialog walked by Tab within itself, the focus seen entering a menu or an editor; the page
+ *   audited by axe with it open; Escape closing it, the focus back on the trigger or the cell.
  *
  * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
  * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
  * (US-0580), and the planning with the panel of its help open by F1 — in French, and in English
  * (US-0670b).
  *
- * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
- * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
+ * What these tests leave unproven is written in the note of US-0200 (EP-14) and in the guide: the
+ * popover of a refusal, what a closed `details` holds, a state a gesture reaches, the screen of a
+ * failure.
  *
  * Each test is a screen and a check: they are spread one by one over the workers and over the
  * parts of the chain, not as a file. The session of the fake back grants the whole catalogue of
@@ -35,10 +41,11 @@ import path from "node:path";
 
 import { expect, type Page, type PlaywrightWorkerOptions, test } from "@playwright/test";
 
-import { type AxeBreach, axeAudit } from "./axe";
+import { type AxeAudit, type AxeBreach, axeAudit } from "./axe";
 import { untilHydrated, WORKING } from "./hydration";
 import { type AppScreen, DIFFERENTIAL_SCREENS, OTHER_SCREENS, tableScreens } from "./routes";
-import { lost, type Walk, walkByTab } from "./tab-walk";
+import { checkOpened, openers } from "./opened";
+import { faults, lost, NO_FAULTS, type Walk, walkByTab } from "./tab-walk";
 
 test.describe.configure({ mode: "parallel" });
 // Each test opens a screen cold — compiling it, on the first visit to the development server —,
@@ -145,20 +152,22 @@ function labels(breaches: readonly AxeBreach[], wanted: boolean): AxeBreach[] {
   return breaches.filter((breach) => LABELS.includes(breach.rule) === wanted);
 }
 
-/** What a walk saw that it should not have, the elements it reached left aside. */
-function faults(walk: Walk) {
-  const { unseen, covered, unmarked, unjudged, trapped, missed, stopless, clipped } = walk;
-  return {
-    unseen,
-    covered,
-    unmarked,
-    unjudged,
-    trapped,
-    missed,
-    stopless,
-    clipped,
-    untabbable: walk.untabbable,
-  };
+/** Note what axe left without a verdict at a width: the contrasts by reason, the rules by name. */
+function noteUndecided(
+  width: string,
+  { unmeasured, undecided }: Pick<AxeAudit, "unmeasured" | "undecided">,
+): void {
+  const notes = [
+    ["contrast left unmeasured by axe", unmeasured],
+    ["other rules left incomplete by axe", undecided],
+  ] as const;
+  for (const [type, counts] of notes) {
+    const said = Object.entries(counts).map(([why, count]) => `${why}: ${String(count)}`);
+    test.info().annotations.push({
+      type,
+      description: `${width}: ${said.length === 0 ? "none" : said.join(", ")}`,
+    });
+  }
 }
 
 for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS]) {
@@ -168,7 +177,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
 
       const named =
         mode === "light" ? "; every field labelled and every image described, at both widths" : "";
-      test(`${screen.code} ${screen.route}, in ${mode} mode: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]${named}`, async ({
+      test(`${screen.code} ${screen.route}, in ${mode} mode: no contrast measured below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]${named}`, async ({
         page,
       }) => {
         await open(page, screen);
@@ -178,14 +187,9 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
         for (const size of WINDOWS) {
           await resize(page, size);
           const width = `${String(size.width)} points`;
-          const { breaches, unmeasured } = await axeAudit(page);
-          const reasons = Object.entries(unmeasured).map(
-            ([reason, count]) => `${reason}: ${String(count)}`,
-          );
-          test.info().annotations.push({
-            type: "contrast left unmeasured by axe",
-            description: `${width}: ${reasons.length === 0 ? "none" : reasons.join(", ")}`,
-          });
+          const audit = await axeAudit(page);
+          const { breaches } = audit;
+          noteUndecided(width, audit);
           if (mode === "light") {
             expect.soft(labels(breaches, true), `${width}: labels and descriptions`).toEqual([]);
             expect
@@ -206,7 +210,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
       test.describe(`a workstation in ${mode} mode, a tooltip open`, () => {
         test.use({ colorScheme: mode });
 
-        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys and its condition shown: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the tooltip of Undo open on its focus, its keys and its condition shown: no contrast measured below AA, nor any other breach of axe's rules for WCAG A and AA [WF-IHM-0100-A]`, async ({
           page,
         }) => {
           await open(page, screen);
@@ -240,7 +244,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
       test.describe(`a workstation in ${mode} mode, the matrix unfolded`, () => {
         test.use({ colorScheme: mode });
 
-        test(`${screen.code} ${screen.route}, in ${mode} mode, the matrix of the risks unfolded: no contrast below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]`, async ({
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the matrix of the risks unfolded: no contrast measured below AA, nor any other breach of axe's rules for WCAG A and AA, at 1366 and at 911 points [WF-IHM-0100-A]`, async ({
           page,
         }) => {
           await open(page, screen);
@@ -256,14 +260,9 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
           ).toBeVisible();
           for (const size of WINDOWS) {
             await resize(page, size);
-            const { breaches, unmeasured } = await axeAudit(page);
-            const reasons = Object.entries(unmeasured).map(
-              ([reason, count]) => `${reason}: ${String(count)}`,
-            );
-            test.info().annotations.push({
-              type: "contrast left unmeasured by axe",
-              description: `${String(size.width)} points: ${reasons.length === 0 ? "none" : reasons.join(", ")}`,
-            });
+            const audit = await axeAudit(page);
+            const { breaches } = audit;
+            noteUndecided(`${String(size.width)} points`, audit);
             expect
               .soft(breaches, `${String(size.width)} points: axe's rules for WCAG A and AA`)
               .toEqual([]);
@@ -280,7 +279,7 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
       test.describe(`a workstation in ${mode} mode, the help open`, () => {
         test.use({ colorScheme: mode });
 
-        test(`${screen.code} ${screen.route}, in ${mode} mode, the panel of the help open by F1: named by its title, the focus held in it, no contrast below AA nor any other breach of axe's rules for WCAG A and AA, Escape giving the focus back [WF-IHM-0140-A]`, async ({
+        test(`${screen.code} ${screen.route}, in ${mode} mode, the panel of the help open by F1: named by its title, the focus held in it, no contrast measured below AA nor any other breach of axe's rules for WCAG A and AA, Escape giving the focus back [WF-IHM-0140-A]`, async ({
           page,
         }) => {
           await open(page, screen);
@@ -341,34 +340,60 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
     });
   }
 
-  test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
-    page,
-    trace,
-  }) => {
-    await withoutSnapshots(page, trace);
-    await open(page, screen);
-    const walks: Walk[] = [];
-    for (const size of WINDOWS) {
-      await resize(page, size);
-      const walk = await walkByTab(page);
-      const width = `${String(size.width)} points`;
-      expect.soft(walk.reached.length, `${width}: elements reached`).toBeGreaterThan(0);
-      expect.soft(faults(walk), width).toEqual({
-        unseen: [],
-        covered: [],
-        unmarked: [],
-        unjudged: [],
-        trapped: undefined,
-        missed: [],
-        stopless: [],
-        clipped: [],
-        untabbable: [],
+  for (const mode of ["light", "dark"] as const) {
+    test.describe(`a workstation in ${mode} mode, walked by Tab`, () => {
+      test.use({ colorScheme: mode });
+
+      test(`${screen.code} ${screen.route}, in ${mode} mode: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
+        page,
+        trace,
+      }) => {
+        await withoutSnapshots(page, trace);
+        await open(page, screen);
+        await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+        const walks: Walk[] = [];
+        for (const size of WINDOWS) {
+          await resize(page, size);
+          const walk = await walkByTab(page);
+          const width = `${String(size.width)} points`;
+          expect.soft(walk.reached.length, `${width}: elements reached`).toBeGreaterThan(0);
+          expect.soft(faults(walk), width).toEqual(NO_FAULTS);
+          walks.push(walk);
+        }
+        const [wide, narrow] = walks;
+        expect
+          .soft(lost(wide?.reached ?? [], narrow?.reached ?? []), "reached at 1366, lost at 911")
+          .toEqual([]);
       });
-      walks.push(walk);
-    }
-    const [wide, narrow] = walks;
-    expect
-      .soft(lost(wide?.reached ?? [], narrow?.reached ?? []), "reached at 1366, lost at 911")
-      .toEqual([]);
-  });
+    });
+
+    test.describe(`a workstation in ${mode} mode, what a gesture opens`, () => {
+      test.use({ colorScheme: mode });
+
+      test(`${screen.code} ${screen.route}, in ${mode} mode, what a gesture opens — each dialog and each menu by Enter on its trigger, the editor of a cell by F2 —: a dialog walked by Tab without a trap but its own, each control seen with its focus shown, the focus entering a menu or an editor, no contrast measured below AA nor any other breach of axe's rules for WCAG A and AA, and Escape closing it, the focus back on the trigger or the cell, at 1366 points and at 911 [WF-IHM-0100-A]`, async ({
+        page,
+        trace,
+      }) => {
+        await withoutSnapshots(page, trace);
+        await open(page, screen);
+        await expect(page.locator("body")).toHaveCSS("background-color", BACKGROUNDS[mode]);
+        for (const size of WINDOWS) {
+          const width = `${String(size.width)} points`;
+          const reopen = async (): Promise<void> => {
+            await open(page, screen);
+            await resize(page, size);
+          };
+          await resize(page, size);
+          const found = await openers(page);
+          test.info().annotations.push({
+            type: "opened by a gesture",
+            description: `${width}: ${found.length === 0 ? "nothing" : found.map(({ said }) => said).join("; ")}`,
+          });
+          for (const opener of found) {
+            await checkOpened(page, opener, width, reopen);
+          }
+        }
+      });
+    });
+  }
 }
