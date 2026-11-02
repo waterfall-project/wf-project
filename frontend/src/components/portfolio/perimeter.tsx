@@ -269,7 +269,18 @@ export interface PerimeterBarProps {
   readonly view?: ViewParameters;
   /** The sides of the period the server refused (422), the view then unread; none when read. */
   readonly refused?: PeriodRefusals | undefined;
+  /**
+   * The view on which a project completed has no effect (WF-PTF-0060, WF-PTF-0110), which says so
+   * once the server retains `completed`; none for a view where completed projects count.
+   */
+  readonly completedWithoutEffect?: "workload" | "pilotHealth";
 }
+
+/** The sentence of the catalogue that says, by view, that a project completed has no effect. */
+const NO_EFFECT = {
+  workload: "completedWithoutEffect.workload",
+  pilotHealth: "completedWithoutEffect.pilotHealth",
+} as const;
 
 /** Render the perimeter of a view of the portfolio, as the address asks it. */
 export function PerimeterBar({
@@ -279,6 +290,7 @@ export function PerimeterBar({
   nodes = [],
   view,
   refused,
+  completedWithoutEffect,
 }: PerimeterBarProps) {
   const t = useTranslations("portfolio.perimeter");
   const locale = useLocale();
@@ -330,6 +342,13 @@ export function PerimeterBar({
             chosen={view.threshold}
             page={OFFSET}
           />
+        ) : null}
+        {/* Read from the states the server retained, never from the address, which may name none:
+          the server then chooses, and the front assumes no default of its own. */}
+        {completedWithoutEffect !== undefined && retained?.includes("completed") ? (
+          <p role="note" className="basis-full text-sm text-muted-foreground">
+            {t(NO_EFFECT[completedWithoutEffect])}
+          </p>
         ) : null}
       </section>
     </PendingAddress>

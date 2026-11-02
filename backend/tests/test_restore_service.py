@@ -111,7 +111,9 @@ def kept_as(steps: list[str], name: str, done: Any) -> Any:
 def taken(installation: Installation) -> dict[str, str]:
     """Give the identifier and the date of the latest backup, as the list says them."""
     with installation.database.transaction() as session:
-        backup = session.scalars(select(Backup).order_by(Backup.taken_at.desc()).limit(1)).one()
+        backup = session.scalars(
+            select(Backup).order_by(Backup.taken_at.desc(), Backup.id.desc()).limit(1)
+        ).one()
     return {"backup_id": str(backup.id), "taken_at": iso(backup)}
 
 
@@ -229,6 +231,31 @@ def test_the_confirmation_names_the_date_of_the_backup_another_date_is_refused(
     )
     assert answer.status_code == 400
     assert answer.json()["code"] == "CONFIRMATION_REQUIRED"
+    assert not queue.restores().waiting()
+
+
+@pytest.mark.requirement("WF-ADM-0160-A")
+@pytest.mark.parametrize("confirmation", [{"confirmed": False}, {}])
+def test_a_restoration_without_its_confirmation_is_refused_by_the_guard(
+    installation: Installation,
+    take: Take,
+    service: Service,
+    queue: TaskQueue,
+    confirmation: dict[str, bool],
+) -> None:
+    # « n’est appliquée qu’après une confirmation » (WF-ADM-0160) : `confirmed` false or absent
+    # is the 400 of the guard, not a 422 of the body — the schema leaves it to the guard
+    # (US-0702/L3, #1664) —, and nothing is deposited.
+    take()
+    backup = taken(installation)
+    sent = {key: value for key, value in asked(backup).items() if key != "confirmed"}
+    answer = service.api.post(RESTORES, json={**sent, **confirmation}, headers=service.headers)
+    assert answer.status_code == 400
+    assert answer.json() == {
+        "code": "CONFIRMATION_REQUIRED",
+        "status": 400,
+        "correlation_id": answer.json()["correlation_id"],
+    }
     assert not queue.restores().waiting()
 
 

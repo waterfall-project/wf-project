@@ -174,13 +174,16 @@ def test_a_line_drawn_is_priced_exactly_and_paid_by_its_nature(items: list[Node]
     for node in drawn(lines(items)):
         line = node["estimate_line"]
         assert MONEY.match(line["base_amount"])
-        assert line["base_amount"] == line["reestimated_amount"]
+        # Re-estimated inflation included, on the year of its task (WF-DEV-0020).
+        assert line["reestimated_amount"] == mockstructure.money(
+            mockstructure.inflated(Decimal(line["base_amount"]), line["consumption_year"])
+        )
         if line["hours"] is None:
             expected = Decimal(line["quantity"]) * Decimal(line["unit_disbursement"])
             # The other lines are paid a month after their work, labour as it is worked; their
-            # budget is their amount.
+            # budget is their amount, projected on the year the reference consumed them, theirs.
             assert line["payment_delay_days"] == mockwitness.PAYMENT_DELAY
-            assert line["budgeted_amount"] == line["base_amount"]
+            assert line["budgeted_amount"] == line["reestimated_amount"]
         else:
             assert line["resource_role_id"] is not None
             rate = mockstructure.LABOUR_RATES[line["cost_category_id"]]
@@ -197,7 +200,8 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
 ) -> None:
     # WF-REV-0050, #467: the amendment 1 designated no drawn line, so a labour line keeps in the
     # reference the budget the offer fixed, its hours at the rate of 2025 of its category, and is
-    # re-estimated at the one rate of 2026 — as the two lines of the core the amendment did not
+    # re-estimated at the one rate of 2026 (the offer, projected from 2026 too, is a declared
+    # simplification left to the author, #1628) — as the two lines of the core the amendment did not
     # designate (EP-14/L45a). The offer, read at its marking, gives that very amount.
     offered = {
         row.number: row.amounts.base
@@ -210,17 +214,16 @@ def test_a_drawn_labour_line_keeps_the_budget_the_offer_fixed_at_the_rates_of_20
         line = node["estimate_line"]
         rate = mockstructure.hourly_rate(mockstructure.LABOUR_RATES[line["cost_category_id"]], 2025)
         budgeted = Decimal(line["quantity"]) * Decimal(line["hours"]) * rate
-        assert Decimal(line["budgeted_amount"]) == budgeted, node["node_id"]
-        assert Decimal(line["budgeted_amount"]) < Decimal(line["base_amount"])
+        year = line["consumption_year"]
+        assert Decimal(line["budgeted_amount"]) == mockstructure.inflated(budgeted, year)
+        assert Decimal(line["budgeted_amount"]) < Decimal(line["reestimated_amount"])
         assert offered[GENERATED + int(node["node_id"].removeprefix(PREFIX + "0001"))] == budgeted
     assert mockstructure.offer_budget(Decimal(10), mockwitness.ELECTRICAL_ENGINEERING) == Decimal(
         "785.00"
     )
 
 
-@pytest.mark.parametrize(
-    "amount", ["base_amount", "budgeted_amount", "reestimated_amount", "inflated_amount"]
-)
+@pytest.mark.parametrize("amount", ["base_amount", "budgeted_amount", "reestimated_amount"])
 def test_a_task_sums_the_lines_under_it_and_the_totals_all_of_them(
     answer: dict[str, Any], items: list[Node], amount: str
 ) -> None:
@@ -293,7 +296,13 @@ def test_a_summary_spans_its_subordinates(items: list[Node]) -> None:
         below = [child["task"] for child in children(items, node) if child["kind"] == "task"]
         assert instant(task["start"]) == min(instant(child["start"]) for child in below)
         assert instant(task["finish"]) == max(instant(child["finish"]) for child in below)
-        assert "total_float" not in task
+        # Its float, the smallest of its subordinates', nil when none bears one (WF-PLA-0100).
+        floats = [Decimal(child["total_float"]["value"]) for child in below if child["total_float"]]
+        if floats:
+            assert Decimal(task["total_float"]["value"]) == min(floats)
+        else:
+            assert task["total_float"] is None
+        assert task["is_critical"] == any(child["is_critical"] for child in below)
         # Its physical progress, as the core's summaries give it (WF-IND-0060, #370).
         assert "physical_progress" in task
 
@@ -339,8 +348,10 @@ def test_progress_is_that_of_today_and_nothing_completes_by_itself(items: list[N
     assert states == {"not_started": 955, "completed": 21, "started": 9}
     for node in lines(items):
         completed = nodes[node["parent_id"]]["task"]["progress"] == "completed"
+        provision = node["estimate_line"]["is_computed"]
         entry = node["estimate_line"]["remaining_entry"]
-        assert entry["is_available"] is not completed
+        # A line of a completed task, or of provision, takes no re-estimate (WF-RAE-0040, F-10).
+        assert entry["is_available"] is not (completed or provision)
 
 
 def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> None:
@@ -348,10 +359,12 @@ def test_a_line_is_projected_on_the_year_its_task_starts(items: list[Node]) -> N
     for node in lines(items):
         line = node["estimate_line"]
         start = nodes[node["parent_id"]]["task"]["start"]["date"]
-        assert line["consumption_year"] == int(start[:4])
-        assert line["inflated_amount"] == mockstructure.money(
-            mockstructure.inflated(Decimal(line["base_amount"]), line["consumption_year"])
-        )
+        start_year = int(start[:4])
+        assert line["consumption_year"] == start_year
+        base = Decimal(line["base_amount"])
+        # A line of provision is not projected (WF-DEV-0030): the others are, from 2026.
+        projected = base if line["is_computed"] else mockstructure.inflated(base, start_year)
+        assert line["reestimated_amount"] == mockstructure.money(projected)
 
 
 def test_the_one_provision_is_that_of_the_risk_identified(items: list[Node]) -> None:
@@ -393,9 +406,8 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "estimate_line_count": 5_000,
         "hours": "116270",
         "base_amount": "66105223.89",
-        "budgeted_amount": "65680697.64",
-        "reestimated_amount": "66105223.89",
-        "inflated_amount": "68923691.06",
+        "budgeted_amount": "68491568.05",
+        "reestimated_amount": "68923691.06",
     }
 
     def row(number: int) -> Node:
@@ -432,27 +444,28 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (line(10)["label"], line(10)["hours"]) == ("Raccordement des borniers", "12.5")
     assert line(12)["is_computed"] is True
     assert row(12)["editable_fields"] == ["estimate_line.label"]
-    # Row 13, a summary of the second level, folds over rows 14 to 17, before the milestone of row
-    # 18; row 14, a task of the third level with its dates, over its line, row 15, before its
-    # sibling of row 16.
+    # Row 13, the milestone of the control station, after its wiring; row 14, a summary of the
+    # second level, the last under the task that bore the provision of 752 (WF-RIS-0060), folds
+    # over rows 15 to 18; row 15, a task of the third level with its dates, over its line, row 16,
+    # before its sibling of row 17.
     assert [
         (row(n)["level"], (row(n).get("task") or row(n)["estimate_line"])["label"])
-        for n in (13, 14, 15, 16, 18)
+        for n in (13, 14, 15, 16, 17)
     ] == [
-        (2, "Risque survenu — Retard de livraison des armoires"),
+        (2, "Réception usine"),
+        (2, "Retard de livraison des armoires"),
         (3, "Relance du fournisseur"),
         (4, "Frais de relance"),
         (3, "Transport exceptionnel"),
-        (2, "Réception usine"),
     ]
-    assert task(13)["is_summary"] is True
-    assert task(14)["start"] is not None
+    assert task(14)["is_summary"] is True
+    assert task(15)["start"] is not None
     assert [row(n)["parent_id"] for n in (14, 15, 16, 17, 18)] == [
-        row(13)["node_id"],
+        row(8)["node_id"],
         row(14)["node_id"],
-        row(13)["node_id"],
-        row(16)["node_id"],
-        row(13)["parent_id"],
+        row(15)["node_id"],
+        row(14)["node_id"],
+        row(17)["node_id"],
     ]
     # Row 25, the first phase drawn; rows 28 to 30, the first lines drawn, where a label is
     # entered and a block pasted.
@@ -476,22 +489,23 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
         "Ingénierie électrique",
         "Ingénieur électricien",
     )
+    assert row(28)["computed_fields"] == ["estimate_line.cost_category_id"]
     assert row(28)["editable_fields"] == [
         "estimate_line.label",
-        "estimate_line.cost_category_id",
         "estimate_line.resource_role_id",
         "estimate_line.quantity",
         "estimate_line.hours",
+        "estimate_line.payment_delay_days",
         "estimate_line.subproject_id",
     ]
-    # Row 39, of the critical path, not started, after the factory acceptance of row 18; row 311,
+    # Row 39, of the critical path, not started, after the factory acceptance of row 13; row 311,
     # started, after row 291.
     assert (task(39)["label"], task(39)["progress"], task(39)["is_critical"]) == (
         "Revue 1.1.3",
         "not_started",
         True,
     )
-    assert [link["predecessor_row_number"] for link in row(39)["predecessors"]] == [18]
+    assert [link["predecessor_row_number"] for link in row(39)["predecessors"]] == [13]
     assert (task(39)["start"]["date"], task(39)["finish"]["date"]) == ("2026-07-01", "2026-07-16")
     assert (task(311)["label"], task(311)["progress"]) == ("Revue 1.2.11", "started")
     assert [link["predecessor_row_number"] for link in row(311)["predecessors"]] == [291]

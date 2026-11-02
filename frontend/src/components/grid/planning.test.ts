@@ -23,6 +23,7 @@ function writesOf(task: PlanningWrites["task"]): PlanningWrites {
       code: (link) => link,
       suffix: (unit) => unit,
       resolve: () => undefined,
+      ask: () => Promise.resolve(),
       write: vi.fn<PlanningWrites["predecessors"]["write"]>(),
     },
   };

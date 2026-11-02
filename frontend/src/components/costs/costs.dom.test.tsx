@@ -116,6 +116,7 @@ describe("the grid of the actual costs", () => {
         .map((header) => header.textContent),
     ).toEqual([
       "N° de pièce",
+      "Poste",
       "Date de pièce",
       "Montant",
       "Sous-projet",
@@ -123,22 +124,33 @@ describe("the grid of the actual costs", () => {
       "Motif de l’exclusion",
       "Fournisseur",
       "Texte de commande",
-      "Élément d'OTP",
     ]);
     const cells = cellsOf("FA-2026-0412");
-    expect(cells.slice(0, 5).map((each) => each.textContent)).toEqual([
+    expect(cells.slice(0, 6).map((each) => each.textContent)).toEqual([
       "FA-2026-0412",
+      "10",
       "21/04/2026",
       `1${NARROW}800,00`,
       "Hors sous-projetSP-CAB",
       "Suivie",
     ]);
     // Each column kept from the file, under the name the file gives it, as imported.
-    expect(cells.slice(6, 9).map((each) => each.textContent)).toEqual([
+    expect(cells.slice(7, 9).map((each) => each.textContent)).toEqual([
       "Câbles du Rhône",
       "Câbles de commande du pupitre",
-      "WF.PRJ-001/SP-CAB",
     ]);
+  });
+
+  it("shows the item of a line next to its document number, and nothing for a line the extraction gave none [WF-CRE-0040-A]", () => {
+    // FA-2026-0301 is split into two items (US-0630); the credit note has none.
+    render(costsGrid(costsOf("actual_costs")));
+    const items = within(grid())
+      .getAllByRole("row")
+      .map((row) => [...row.querySelectorAll("td")].slice(0, 2))
+      .filter((cells) => cells[0]?.textContent === "FA-2026-0301")
+      .map((cells) => cells[1]?.textContent);
+    expect(items).toEqual(["10", "20"]);
+    expect(cellsOf("AV-2026-0388")[1]?.textContent).toBe("");
   });
 
   it("presents the lines in a grid a screen reader reads as such", async () => {
@@ -161,13 +173,13 @@ describe("the grid of the actual costs", () => {
       within(grid())
         .getAllByRole("columnheader")
         .map((header) => header.textContent)
-        .slice(6),
-    ).toEqual(["Fournisseur", "Texte de commande", "Élément d'OTP"]);
+        .slice(7),
+    ).toEqual(["Fournisseur", "Texte de commande"]);
   });
 
   it("accepts a line of negative amount, which lessens the actual cost [WF-CRE-0010-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
-    expect(cellsOf("AV-2026-0388")[2]).toHaveTextContent("-200,00");
+    expect(cellsOf("AV-2026-0388")[3]).toHaveTextContent("-200,00");
   });
 
   it("shows a line whose sub-project is unknown as charged to the project alone, with the code its OTP element gave [WF-CRE-0020-A]", () => {
@@ -179,20 +191,20 @@ describe("the grid of the actual costs", () => {
       ["FA-2026-0295", "SP-REC"],
     ];
     for (const [number, code] of codes) {
-      expect(cellsOf(number)[3]).toHaveTextContent(`Hors sous-projet${code}`);
+      expect(cellsOf(number)[4]).toHaveTextContent(`Hors sous-projet${code}`);
     }
   });
 
   it("names the sub-project of a line by its code and its label, as the server resolves them [WF-CRE-0020-A]", () => {
     render(costsGrid(costsOf("actual_costs_subproject")));
-    expect(cellsOf("FA-2026-0521")[3]).toHaveTextContent("SP-CMDPoste de commande");
+    expect(cellsOf("FA-2026-0521")[4]).toHaveTextContent("SP-CMDPoste de commande");
   });
 
   it("keeps an excluded line visible, said excluded in words, with the reason of its exclusion [WF-CRE-0030-A]", () => {
     render(costsGrid(costsOf("actual_costs")));
     const cells = cellsOf("FA-2026-0295");
-    expect(cells[4]).toHaveTextContent("Exclue");
-    expect(cells[5]).toHaveTextContent("Réception du client, non budgétée");
+    expect(cells[5]).toHaveTextContent("Exclue");
+    expect(cells[6]).toHaveTextContent("Réception du client, non budgétée");
   });
 
   it("shows in its totals row the general total of the lines retained the server gives, never a sum of the page [WF-CRE-0040-A]", () => {
@@ -222,15 +234,36 @@ describe("the grid of the actual costs", () => {
         expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?${asked}`, { scroll: false });
       });
     };
+    await sortBy("Poste", "sort_by=document_item&sort_order=asc");
     await sortBy("Périmètre suivi", "sort_by=in_tracked_scope&sort_order=asc");
     await sortBy("Motif de l’exclusion", "sort_by=excluded_reason&sort_order=asc");
     await sortBy("Fournisseur", "sort_by=passthrough.Fournisseur&sort_order=asc");
+    // A column kept is named by the file: one with an accent and an apostrophe is encoded in the
+    // address. The example, with "Texte de commande" renamed in the meta and in every line.
+    const OLD = "Texte de commande";
+    const NAME = "Élément d'OTP";
+    const list = listOf("actual_costs");
+    const renamed: CostRows = {
+      items: list.items.map((line) =>
+        costRow({
+          ...line,
+          passthrough: Object.fromEntries(
+            Object.entries(line.passthrough).map(([key, value]) => [
+              key === OLD ? NAME : key,
+              value,
+            ]),
+          ),
+        }),
+      ),
+      totals: list.totals,
+      kept: list.meta.passthrough_columns.map((column) => (column === OLD ? NAME : column)),
+    };
+    rerender(costsGrid(renamed));
+    await sortBy(NAME, "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=asc");
     // Sorted ascending by a column kept, the address asks it descending.
-    const ascending = { column: "passthrough.Élément d'OTP", order: "asc" } as const;
-    rerender(
-      costsGrid(costsOf("actual_costs"), { sort: ascending, search: undefined, size: undefined }),
-    );
-    await sortBy("Élément d'OTP", "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
+    const ascending = { column: `passthrough.${NAME}`, order: "asc" } as const;
+    rerender(costsGrid(renamed, { sort: ascending, search: undefined, size: undefined }));
+    await sortBy(NAME, "sort_by=passthrough.%C3%89l%C3%A9ment+d%27OTP&sort_order=desc");
   });
 
   it("is named and headed in English too", () => {
@@ -242,7 +275,7 @@ describe("the grid of the actual costs", () => {
     );
     const english = screen.getByRole("grid", { name: "Actual costs" });
     expect(within(english).getByRole("columnheader", { name: /Document no\./ })).toBeVisible();
-    expect(within(english).getAllByText("No subproject")).toHaveLength(14);
+    expect(within(english).getAllByText("No subproject")).toHaveLength(15);
     expect(within(english).getByText("Excluded")).toBeVisible();
   });
 });
@@ -708,7 +741,11 @@ describe("the pages of a list the server pages", () => {
       ),
     );
     const [first] = list.items;
-    await userEvent.click(within(grid()).getByRole("link", { name: first?.document_number ?? "" }));
+    await userEvent.click(
+      within(grid()).getByRole("link", {
+        name: `${first?.document_number ?? ""}, poste ${first?.document_item ?? ""}`,
+      }),
+    );
     const shown = `line=${first?.cost_line_id ?? ""}`;
     expect(router.push).toHaveBeenLastCalledWith(`${PATHNAME}?offset=1&${shown}`, {
       scroll: false,
@@ -728,7 +765,7 @@ describe("the journal of the imports", () => {
     return example(name) as { readonly items: CostImport[]; readonly meta: ListPage };
   }
 
-  it("presents each import with its date, its author, the period extracted and its counts of lines [WF-CRE-0050-A]", async () => {
+  it("presents each import with its date, its author, the period extracted and its counts of lines created, updated, unchanged and rejected [WF-CRE-0050-A]", async () => {
     const journal = journalOf("cost_imports");
     const { container } = render(
       inLanguage(<ImportJournal imports={journal.items} page={journal.meta} />),
@@ -736,12 +773,12 @@ describe("the journal of the imports", () => {
     const table = screen.getByRole("table", { name: "Journal des imports" });
     const rows = within(table).getAllByRole("row");
     expect(rows.map((row) => row.textContent)).toEqual([
-      "DateParPériode extraiteCrééesMises à jourIgnorées",
-      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/20262200$/),
-      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/20260512\s345$/),
-      expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée0037$/),
-      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/2026301$/),
-      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/2026200$/),
+      "DateParPériode extraiteCrééesMises à jourInchangéesRejetées",
+      expect.stringMatching(/^3 juin 2026.*Camille Martinà partir du 01\/05\/202622000$/),
+      expect.stringMatching(/^11 mai 2026.*Camille Martinjusqu’au 30\/04\/202606012\s345$/),
+      expect.stringMatching(/^6 mai 2026.*Camille MartinNon renseignée00637$/),
+      expect.stringMatching(/^4 mai 2026.*Camille Martindu 01\/04\/2026 au 30\/04\/20263001$/),
+      expect.stringMatching(/^3 avr\. 2026.*Camille Martindu 01\/03\/2026 au 31\/03\/20263000$/),
     ]);
     await expectAccessible(container);
   });
@@ -754,7 +791,9 @@ describe("the journal of the imports", () => {
       .slice(1);
     expect(within(rows[0] ?? document.body).getByText("à partir du 01/05/2026")).toBeVisible();
     expect(within(rows[1] ?? document.body).getByText("jusqu’au 30/04/2026")).toBeVisible();
-    expect(rows[1]?.querySelectorAll("td")[5]).toHaveTextContent(/^12\s345$/);
+    expect(rows[1]?.querySelectorAll("td")[6]).toHaveTextContent(/^12\s345$/);
+    // The lines the file carries as they were imported, counted apart from the rejected.
+    expect(rows[2]?.querySelectorAll("td")[5]).toHaveTextContent(/^6$/);
     expect(within(rows[2] ?? document.body).getByText("Non renseignée")).toBeVisible();
   });
 

@@ -8,6 +8,11 @@
       "dismissed": "0.00",
       "total": "0.00",
       "reserve": "0.00"
+    },
+    "meta": {
+      "limit": 50,
+      "offset": 0,
+      "total": 0
     }
   }
 }

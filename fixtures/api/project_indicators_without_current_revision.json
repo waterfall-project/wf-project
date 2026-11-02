@@ -1,0 +1,20 @@
+{
+  "summary": "Variante contrefactuelle : les indicateurs du projet au 3 juin 2026 s'il n'avait pas de révision en cours — la révision 102 abandonnée ce matin, ses saisies défaites, les terminaisons comprises —, calculés à la demande sur sa dernière révision marquée, « Référence », avec le coût réel du jour, 1 412 970,20, et non conservés : la valeur planifiée de 1 671 458,13 sur les dates de la référence ; aucune valeur acquise, aucune tâche n'y étant terminée, d'où un indice de coût nul et une projection au rythme constaté non calculable ; le reste à engager de 69 273 551,06 qu'elle porte. Ses indicateurs conservés à son marquage du 1er février 2026 ne changent pas : ce sont ceux de project_indicators_marked (WF-IND-0010, WF-DAT-0040).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "context": {"revision_id":"01926f3a-7c00-7000-8000-000000000101","revision_status":"marked","computed_at":"2026-06-03T14:05:00Z","scope":"project","is_stored":false},
+    "reference_budget": "68241568.05",
+    "planned_value": "1671458.13",
+    "earned_value": "0.00",
+    "actual_cost": "1412970.20",
+    "remaining": "69273551.06",
+    "financial_progress": {"is_computable":true,"value":"0.02","reason":null},
+    "budget_consumption": {"is_computable":true,"value":"0.0207","reason":null},
+    "physical_progress": {"is_computable":true,"value":"0","reason":null},
+    "cost_index": {"value":{"is_computable":true,"value":"0","reason":null},"zone":"alert"},
+    "schedule_index": {"value":{"is_computable":true,"value":"0","reason":null},"zone":"alert"},
+    "cost_variance": "-1412970.20",
+    "schedule_variance": "-1671458.13",
+    "projections": {"at_budget":"69654538.25","project_manager":"70686521.26","at_observed_rate":{"is_computable":false,"value":null,"reason":"no_earned_value"},"variance_at_budget":"1412970.20","variance_project_manager":"2444953.21","variance_at_observed_rate":null}
+  }
+}

@@ -51,6 +51,7 @@ export type ListTexts =
   | "actualCosts.pages.imports"
   | "actualCosts.pages.exchanges"
   | "portfolio.pages"
+  | "risks.pages"
   | "admin.pages";
 
 /** The texts of the pages of a list among several of the reference data, named after its title. */

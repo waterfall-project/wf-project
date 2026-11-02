@@ -9,13 +9,16 @@
  * sorted and searched — on the label and the code — as the address asks, under the names of the
  * contract (`states`, `from`, `to`, `sort_by`, `sort_order`, `search`), the server filtering,
  * sorting and searching; the page after the first asked by its `offset`, and a page beyond the end
- * of the list leading back into it. An address that names no state asks every state, and the filter
- * by state shows every state pressed: the address is the truth of the filter. A period the server
- * refuses (422) — an end before the start — is said at its field, the list unread, the filters kept
- * to be changed. The projects show in the dense grid, its columns, widths and sort kept in the
- * settings of the account (WF-ADM-0040). Above the list, in every case, the prerequisites the
- * minimum reference data lacks, which forbid creating a project (WF-CYC-0120); and, when the list
- * holds no project, that it is. A session that holds the permission to create a project is offered
+ * of the list leading back into it. An address that names no state asks the states by default,
+ * Chiffrage and En cours, said as the filter of the contributor is, or those the account kept; it
+ * asks every state by `states=all`, and the filter by state shows pressed the states retained.
+ * A period the server refuses (422) — an end before the start — is said at its field, the list
+ * unread, the filters kept to be changed. The projects show in the dense grid, its columns,
+ * widths and sort kept in the settings of the account (WF-ADM-0040). Above the list, in every
+ * case, the prerequisites the minimum reference data lacks, which forbid creating a project
+ * (WF-CYC-0120); and, when the list holds no project and nothing narrows it, that it is — the
+ * states by default count as a filter, so a home whose default states retain no project shows an
+ * empty grid, not that notice. A session that holds the permission to create a project is offered
  * its creation in the header (`CreateProject`, WF-ADM-0100), the screen saying that the fake back
  * keeps nothing (`MockupNotice`); no other session is.
  */
@@ -26,7 +29,6 @@ import type { ReactNode } from "react";
 import type { ApiClient } from "@/api/client";
 import { readOrFail, readOrRefused } from "@/api/problem";
 import { serverClient } from "@/api/server";
-import { readValues } from "@/components/grid/filters";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { readPeriod, refusedPeriod } from "@/components/grid/period";
 import { CONTRACT_ADDRESS, readGridQuery } from "@/components/grid/query";
@@ -36,6 +38,7 @@ import { homeQuery } from "@/components/projects/home-list";
 import { CreateProject } from "@/components/projects/project-form";
 import {
   ContributorFilter,
+  DefaultStatesFilter,
   ProjectList,
   ProjectsRefused,
 } from "@/components/projects/project-list";
@@ -52,8 +55,9 @@ import { ReferenceIncomplete } from "@/components/system/empty-states";
 import { type PageSearchParams, pageSearch, searchQuery } from "@/navigation/context";
 import {
   isContributorFiltered,
+  isDefaultStates,
   mayLiftContributorFilter,
-  PROJECT_STATES,
+  readHomeStates,
   STATES_PARAMETER,
 } from "@/navigation/home";
 import { OFFSET_PARAMETER, offsetOf } from "@/navigation/pages";
@@ -123,7 +127,8 @@ function ProjectsShown({
   readonly preferences: GridPreferences | undefined;
 }) {
   const { states, period, query } = asked;
-  // Narrowed by what the address asks besides its filter: an empty list keeps its grid.
+  // Narrowed by what the address asks besides its filter, the states by default included: an
+  // empty list so narrowed keeps its grid.
   const narrowed =
     states.length > 0 ||
     period.from !== undefined ||
@@ -132,6 +137,7 @@ function ProjectsShown({
   return (
     <>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+        {isDefaultStates(states) ? <DefaultStatesFilter /> : null}
         <ProjectStateFilter states={states} />
         <ProjectPeriodFilter
           period={period}
@@ -175,7 +181,7 @@ export default async function HomePage({
   const kept = session?.display_preferences?.grids?.[PROJECT_LIST_GRID.key] ?? undefined;
   const asked = {
     filtered,
-    states: readValues(search, STATES_PARAMETER, PROJECT_STATES),
+    states: readHomeStates(search, kept?.filters?.[STATES_PARAMETER]),
     period: readPeriod(search, "day"),
     query: readGridQuery(
       search,

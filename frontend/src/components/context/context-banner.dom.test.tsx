@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
@@ -99,6 +99,37 @@ describe("the banner of the reading context", () => {
       }),
     ).toBeInTheDocument();
     await expectAccessible(container);
+  });
+
+  it("names the revision the current revision is a copy of, and that of a revision marked, none for the first [WF-IHM-0020-A]", () => {
+    // Tout écran nomme la révision source avec la révision en cours.
+    const { unmount } = banner(reading(REMAINING, "revision"));
+    const region = () => screen.getByRole("region");
+    const source = within(region()).getByText("Copie de « Référence »");
+    expect(source).toBeInTheDocument();
+    // The source is shown at every width: neither it nor an ancestor in the banner is `sr-only` or
+    // `hidden`, whatever the breakpoint variant.
+    for (let node: Element | null = source; node !== null; node = node.parentElement) {
+      expect(node.className).not.toMatch(/(^|\s|:)(sr-only|hidden)(\s|$)/);
+      if (node === region()) {
+        break;
+      }
+    }
+    unmount();
+    banner(reading(REMAINING, "revision_marked"), "en");
+    expect(within(region()).getByText("Copy of “Offre v1.0”")).toBeInTheDocument();
+    cleanup();
+    // The first revision of a project copies none: the banner says nothing of a source.
+    const first = reading(REMAINING, "revision");
+    banner({
+      ...first,
+      revision: first.revision && {
+        ...first.revision,
+        source_revision_id: null,
+        source_version_name: null,
+      },
+    });
+    expect(within(region()).queryByText(/^Copie de/)).toBeNull();
   });
 
   it("presents as read only a draft the caller may modify nothing of", () => {

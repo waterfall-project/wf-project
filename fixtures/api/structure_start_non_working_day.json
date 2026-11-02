@@ -1,0 +1,12 @@
+{
+  "summary": "La date de début de planning de la structure principale du projet témoin envoyée le samedi 19 décembre 2026 : la structure n'a pas de calendrier propre, et le calendrier par défaut, celui d'une tâche sans ligne de main-d'œuvre, n'accorde aucune heure ce jour-là. La date est refusée sur son champ, comme une date saisie (task_date_non_working_day), et le refus nomme le jour travaillé suivant, le lundi 21 décembre 2026 ; rien n'est écrit (WF-PLA-0020, WF-PLA-0010).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/planning_start_on","code":"NON_WORKING_DAY","params":{"date":"2026-12-19","next_working_day":"2026-12-21"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001593"
+  }
+}

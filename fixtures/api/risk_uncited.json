@@ -1,0 +1,39 @@
+{
+  "summary": "Variante contrefactuelle : « Risque de reprise du câblage », identifié, tel que le registre le lit, qu'aucune révision marquée ne citerait : sa suppression est disponible, rien ne lui manquant, et emporterait son devis propre et sa ligne de provision (WF-RIS-0020, #1384). Le témoin le cite depuis le marquage de la référence.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "risk_id": "01926f3a-7c00-7000-8000-000000000751",
+    "label": "Risque de reprise du câblage",
+    "description": "Les essais de l'armoire de commande peuvent révéler des défauts de câblage à reprendre sur site.",
+    "mitigation_notes": "Contrôle du câblage en atelier avant expédition ; essais de continuité systématiques.",
+    "probability": "0.4",
+    "severity": "1250000.00",
+    "provision_amount": "500000.00",
+    "occurrence_cost": null,
+    "occurred_reestimated_amount": null,
+    "state": "identified",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000204",
+    "provision_node_id": "01926f3a-7c00-7000-8000-000000000555",
+    "provision_cost_category_id": "01926f3a-7c00-7000-8000-000000000404",
+    "provision_cost_category_label": "Provisions pour risques",
+    "provision_cost_category_is_active": true,
+    "provision_subproject_id": null,
+    "provision_subproject_label": null,
+    "provision_task": {"node_id":"01926f3a-7c00-7000-8000-000000000552","label":"Câblage des armoires"},
+    "matrix_cell": {"probability_level":3,"severity_level":2,"zone":"watch"},
+    "last_review_on": "2026-03-02",
+    "computed_fields": [
+      {"field":"severity","dependencies":["own_estimate"]},
+      {"field":"provision_amount","dependencies":["severity_and_probability"]}
+    ],
+    "available_commands": [
+      {"command":"update","is_available":true,"missing_conditions":[]},
+      {"command":"update_provision","is_available":true,"missing_conditions":[]},
+      {"command":"review","is_available":true,"missing_conditions":[]},
+      {"command":"declare_occurrence","is_available":true,"missing_conditions":[]},
+      {"command":"delete","is_available":true,"missing_conditions":[]}
+    ],
+    "audit": {"created_at":"2026-01-12T10:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-03-02T09:15:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 4
+  }
+}

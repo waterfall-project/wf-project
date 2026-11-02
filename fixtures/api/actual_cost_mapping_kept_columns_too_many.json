@@ -1,0 +1,17 @@
+{
+  "summary": "La correspondance du témoin envoyée aujourd'hui avec cinquante et une colonnes conservées, une de plus que les cinquante admises : refusée, le refus désignant la liste elle-même (/kept_columns), qu'aucune ligne du formulaire ne présente seule, et non l'une de ses colonnes. Rien n'est écrit (WF-REF-0190 ; #1514).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/kept_columns",
+        "code": "VALUE_TOO_LONG",
+        "params": {
+          "max_length": 50
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001560"
+  }
+}

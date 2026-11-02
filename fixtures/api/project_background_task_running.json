@@ -1,0 +1,35 @@
+{
+  "summary": "Le projet témoin lu pendant que court le marquage de sa révision en cours, la 102 (revision_marking) : les commandes que ce traitement de fond rendrait caduques — la saisie du lotissement, qui retirerait le rattachement de tâches que le marquage fige, les sorties, dont le sort marquerait ou abandonnerait la révision, la déclaration d'un risque survenu et les imports, qui y écriraient — sont présentées indisponibles en nommant la condition manquante, aucun traitement de fond en cours, après leurs conditions d'état ; ses attributs, ses contributeurs, ses chronologies et ses coûts réels restent disponibles, et la saisie du lotissement aboutit une fois le marquage fini (WF-IHM-0090, WF-PLA-0170, WF-CYC-0090, WF-IHM-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "project_id": "01926f3a-7c00-7000-8000-000000000001",
+    "label": "Modernisation du poste de commande",
+    "code": "PRJ-001",
+    "description": null,
+    "client": "Papeteries de la Vienne",
+    "state": "in_progress",
+    "inflation_rate": "0.03",
+    "win_probability": "1",
+    "order_received_on": "2026-01-15",
+    "reference_revision_id": "01926f3a-7c00-7000-8000-000000000101",
+    "current_revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "available_commands": [
+      {"command":"update","is_available":true,"missing_conditions":[]},
+      {"command":"update_win_probability","is_available":false,"missing_conditions":["project_before_in_progress"]},
+      {"command":"update_work_breakdown","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"manage_contributors","is_available":true,"missing_conditions":[]},
+      {"command":"manage_timelines","is_available":true,"missing_conditions":[]},
+      {"command":"create_revision","is_available":false,"missing_conditions":["no_current_revision"]},
+      {"command":"complete","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"abandon","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"declare_risk_occurrence","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"import_actual_costs","is_available":true,"missing_conditions":[]},
+      {"command":"exclude_cost_lines","is_available":true,"missing_conditions":[]},
+      {"command":"import_planning","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"import_estimate","is_available":false,"missing_conditions":["no_background_task_running"]},
+      {"command":"import_remaining","is_available":false,"missing_conditions":["no_background_task_running"]}
+    ],
+    "audit": {"created_at":"2025-10-06T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-02-02T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},
+    "lock_version": 7
+  }
+}

@@ -2,7 +2,7 @@
 
 ## Ce que dit le glossaire
 
-> **Valeur planifiée** — Désigne la part du budget de référence qui aurait dû être acquise à une date donnée, d’après les dates de la révision de référence (WF-DEV-0080).
+> **Valeur planifiée** — Désigne la part du budget de référence qui aurait dû être acquise à une date donnée, d’après les dates de la révision de référence.
 
 ## Dans Waterfall
 

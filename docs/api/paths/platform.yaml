@@ -125,6 +125,7 @@
             examples:
               period_inverted: { $ref: ../../../fixtures/api/backups_period_inverted.json }
               bounds_inverted: { $ref: ../../../fixtures/api/backups_bounds_inverted.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   post:
     operationId: startBackup
@@ -164,6 +165,7 @@
             examples:
               backup_running: { $ref: ../../../fixtures/api/backup_start_refused.json }
               restore_running: { $ref: ../../../fixtures/api/backup_start_during_restore_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}:
@@ -172,7 +174,8 @@
     summary: Une sauvegarde
     description: >-
       État, date et taille d'une sauvegarde (WF-ADM-0150), et les commandes que l'appelant peut
-      exercer sur elle (`available_commands`, WF-IHM-0090).
+      exercer sur elle (`available_commands`, WF-IHM-0090). Lisible sous la permission de
+      consulter les sauvegardes (`backups.read`, WF-ADM-0100).
     tags: [platform]
     parameters:
       - $ref: ../components/parameters.yaml#/BackupId
@@ -187,6 +190,7 @@
               pending: { $ref: ../../../fixtures/api/backup_pending.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   patch:
     operationId: retainBackup
@@ -228,6 +232,7 @@
             examples:
               restore_running: { $ref: ../../../fixtures/api/backup_retain_refused.json }
       '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backups/{backup_id}/content:
@@ -292,6 +297,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               unverified: { $ref: ../../../fixtures/api/backup_download_refused.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /backup-schedule:
@@ -302,7 +308,11 @@
     description: >-
       Fréquence, heure et nombre de sauvegardes conservées, et la copie automatique de
       chaque sauvegarde planifiée vers un emplacement externe déclaré par l'installation
-      (WF-ADM-0170).
+      (WF-ADM-0170). Une installation neuve lit la planification livrée, quotidienne
+      (`BackupSchedule`, WF-EXP-0050) : le 404 ne dit que la lecture refusée. Lisible sous la
+      permission de consulter les sauvegardes (`backups.read`, WF-ADM-0100). Une restauration
+      ne la change pas : elle la conserve, comme la liste des sauvegardes (`startRestore`,
+      #1742).
     responses:
       '200':
         description: Planification courante (WF-ADM-0170).
@@ -315,18 +325,26 @@
               disabled: { $ref: ../../../fixtures/api/backup_schedule_disabled.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
   put:
     operationId: setBackupSchedule
     tags: [platform]
     summary: Régler la planification et la rétention
     description: >-
-      Au-delà du nombre conservé, les plus anciennes sont supprimées, sauf celles
-      marquées à conserver. La copie externe, si elle est réglée, nomme un emplacement que
+      Fréquence, heure et rétention, toutes trois exigées, le jour pour une planification
+      hebdomadaire seulement (WF-ADM-0170). Au-delà du nombre conservé, les plus anciennes
+      sauvegardes non marquées, manuelles ou planifiées, sont supprimées ; celles qui sont
+      marquées à conserver ne sont ni comptées ni supprimées. La copie externe, si elle est réglée, nomme un emplacement que
       l'installation déclare et un dossier relatif dans cet emplacement, et garde au moins
       autant de copies que la plateforme garde de sauvegardes (WF-EXP-0050). Un échec, de la
       sauvegarde ou de sa copie, est signalé sur l'écran d'état (WF-ADM-0170, WF-OBS-0030).
-      Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100).
+      Sous la permission de modifier les sauvegardes (`backups.write`, WF-ADM-0100). Refusé
+      pendant qu'une restauration s'exécute, comme toute autre écriture des sauvegardes
+      (`startRestore`) : la restauration conserve la planification, la rétention et la copie
+      externe, qu'elle relit avant le remplacement des bases et réécrit après lui, et un réglage
+      fait entre-temps serait perdu (WF-ADM-0160, WF-EXP-0040 ; décision de l'auteur du
+      2026-11-01, #1742).
     requestBody:
       required: true
       content:
@@ -343,6 +361,16 @@
       '400': { $ref: ../components/responses.yaml#/BadRequest }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '403': { $ref: ../components/responses.yaml#/Forbidden }
+      '409':
+        description: >-
+          Une restauration s'exécute, qui relit la planification avant de remplacer les bases et
+          la réécrit après : `STATE_FORBIDS_OPERATION`, `params.missing_condition` nommant
+          `no_restore_running` ; rien n'est écrit (WF-ADM-0160, WF-EXP-0040).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              restore_running: { $ref: ../../../fixtures/api/backup_schedule_refused_during_restore.json }
       '412': { $ref: ../components/responses.yaml#/PreconditionFailed }
       '422':
         description: >-
@@ -350,7 +378,9 @@
           défaut : une rétention hors de 1 à 365, sur la plateforme (`/retained_count`) ou sur
           l'emplacement (`/external_copy/retained_count`), ou un jour hors de 1 à 7
           (`/weekday`), `VALUE_OUT_OF_RANGE`, `params.minimum` ou `maximum` la seule borne
-          franchie (WF-ADM-0170) ; et, pour la
+          franchie (WF-ADM-0170) ; un jour nul pour une planification hebdomadaire, `/weekday`
+          par `VALUE_REQUIRED`, ou donné à une quotidienne, `/weekday` par le motif
+          `VALIDATION_FAILED` ; et, pour la
           copie externe, un emplacement que l'installation ne déclare pas
           (`/external_copy/location`, `UNKNOWN_EXTERNAL_BACKUP_LOCATION`), un chemin qui n'est
           pas relatif ou qui sort du dossier (`/external_copy/path`, `PATH_INVALID`), une
@@ -365,6 +395,8 @@
               retention_too_short: { $ref: ../../../fixtures/api/backup_schedule_retention_too_short.json }
               retention_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_retention_out_of_range.json }
               weekday_out_of_range: { $ref: ../../../fixtures/api/backup_schedule_weekday_out_of_range.json }
+              weekday_missing: { $ref: ../../../fixtures/api/backup_schedule_weekday_missing.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations:
@@ -392,6 +424,7 @@
               none: { $ref: ../../../fixtures/api/external_backup_locations_none.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /external-backup-locations/{location_name}/test:
@@ -442,6 +475,7 @@
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               path_invalid: { $ref: ../../../fixtures/api/external_backup_location_test_path_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /restores:
@@ -483,15 +517,20 @@
       sauvegarde de la liste que sa commande `restore` dit indisponible, 409
       `STATE_FORBIDS_OPERATION`. Pendant qu'une restauration s'exécute, de sa mise en file à la
       mise en maintenance, toute autre écriture des sauvegardes est refusée de même par 409 — en
-      déclencher une (`startBackup`), en marquer une (`retainBackup`), en restaurer une autre — ;
+      déclencher une (`startBackup`), en marquer une (`retainBackup`), en régler la
+      planification (`setBackupSchedule`), en restaurer une autre — ;
       le téléchargement d'une sauvegarde vérifiée (`downloadBackup`) reste possible. Les tâches
       restaurées encore en file ou
       en cours échouent par `TASK_INTERRUPTED_BY_RESTORE`, sans reprendre (#892), sauf celles que
       la restauration garde — la sienne, celles des sauvegardes —, qui reprennent l'état gardé
       (#987) ; la liste des
       sauvegardes et le journal d'audit gardent ce qu'ils tenaient avant la restauration (#893,
-      #894). Le royaume du fournisseur d'identité garde la configuration de l'installation qui
-      restaure — ses clients et ses adresses — ; ses comptes et leurs mots de passe sont ceux de
+      #894), et de même la planification, la rétention et la copie externe qui gouvernent la
+      liste, relues avant le remplacement des bases et réécrites après lui : `getBackupSchedule`
+      lit après la restauration la planification d'avant (WF-ADM-0160 ; décision de l'auteur du
+      2026-11-01, #1742). Le royaume du fournisseur d'identité garde la configuration de
+      l'installation qui restaure — ses clients et ses adresses — ; ses comptes et leurs mots de
+      passe sont ceux de
       la sauvegarde (#955).
     requestBody:
       required: true
@@ -508,9 +547,11 @@
               queued: { $ref: ../../../fixtures/api/task_restore_queued.json }
       '400':
         description: >-
-          Requête mal formée (`MALFORMED_REQUEST`), ou une confirmation qui ne nomme pas la date
-          de la sauvegarde désignée (`CONFIRMATION_REQUIRED`, WF-ADM-0160) : de la liste
-          (`Backup.taken_at`) ou déposée (`FileUpload.backup_taken_at`). Rien n'est mis en file.
+          Requête mal formée (`MALFORMED_REQUEST`), ou une restauration non confirmée
+          (`CONFIRMATION_REQUIRED`, WF-ADM-0160) : `confirmed` absent ou faux, ou une confirmation
+          qui ne nomme pas la date de la sauvegarde désignée, de la liste (`Backup.taken_at`) ou
+          déposée (`FileUpload.backup_taken_at`) — la confirmation est une seule chose. Rien n'est
+          mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
@@ -553,10 +594,13 @@
           (`FileUploadPurpose`) — : `VALIDATION_FAILED`, `fields` désignant
           `/external_backup_upload_id` par `UPLOAD_PURPOSE_MISMATCH`, seul : la date ne se
           compare qu'à un dépôt de sauvegarde, le dépôt d'un import n'en ayant pas
-          (`backup_taken_at` nul). Rien n'est mis en file.
+          (`backup_taken_at` nul). Une requête qui désigne deux sauvegardes, de la liste et
+          déposée, `/external_backup_upload_id` par le motif `VALIDATION_FAILED` ; qui n'en désigne
+          aucune, `/backup_id` par `VALUE_REQUIRED` (`RestoreRequest`). Rien n'est mis en file.
         content:
           application/problem+json:
             schema: { $ref: ../components/common.yaml#/Problem }
             examples:
               purpose_mismatch: { $ref: ../../../fixtures/api/restore_upload_purpose_mismatch.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

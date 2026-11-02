@@ -22,7 +22,7 @@
  * address, and an object that lives in a revision, in the revision the inscription names
  * (`AuditObject.revision`) — a risk, in the risks of the revision, its detail open; the import of a
  * planning, an estimate or a remaining to commit, in its exchanges, its report shown; the
- * differential of an amendment, among the cost structures the screen of the revisions shows of the
+ * merged differential structure, among the cost structures the screen of the revisions shows of the
  * revision —; a line of actual cost and the import of actual costs
  * belong to the project and to no revision, and an account, a role or a backup has no screen of its
  * own: their names stand alone. The correlation is a link to the inscriptions of its request alone.
@@ -75,34 +75,32 @@ export const NEWEST_FIRST: GridSort<AuditSort> = { column: "occurred_at", order:
  * address of a revision leads to.
  */
 export interface AuditReach {
-  readonly openable: readonly string[];
   readonly functions: readonly FunctionPermission[];
   readonly revision: boolean;
 }
 
 /** What a session of these permissions may read of a project, given the projects it may open. */
-export function auditReach(
-  permissions: readonly PermissionCode[],
-  openable: readonly string[],
-): AuditReach {
+export function auditReach(permissions: readonly PermissionCode[]): AuditReach {
   const readable = readableGroups(permissions).flatMap((group) => group.functions);
   return {
-    openable,
     functions: [...new Set(readable.map((fn) => fn.permission))],
     revision: readable.some((fn) => fn.scope === "revision"),
   };
 }
 
-/** The address of a project the session may open, or none. */
-function projectHref(projectId: string, reach: AuditReach): string | undefined {
-  return reach.openable.includes(projectId) ? `/projects/${projectId}` : undefined;
+/**
+ * The address of a project the session may open, or none: the server says it (`AuditProject.can_open`),
+ * the front deduces nothing from the permissions of the session (WF-ADM-0110).
+ */
+function projectHref(project: NonNullable<AuditEvent["project"]>): string | undefined {
+  return project.can_open ? `/projects/${project.project_id}` : undefined;
 }
 
 /**
  * The screen of an object that lives in a revision, in that revision, where the session may read its
  * function: a risk, in the risks of the revision, its detail open (`risks.read`); the import of a
  * planning, an estimate or a remaining to commit, in the exchanges of the revision, its report shown
- * (`planning.read`); the differential of an amendment, among the cost structures of the revision, on
+ * (`planning.read`); the merged differential structure, among the cost structures of the revision, on
  * the screen of the revisions read in it (`revisions.read`). Otherwise the revision itself, which
  * leads to the first of its functions the session may read; none when it may read none.
  */
@@ -133,11 +131,11 @@ function inRevision(
  */
 function objectHref(event: AuditEvent, reach: AuditReach): string | undefined {
   const { object, project } = event;
-  if (object.kind === "project") {
-    return projectHref(object.object_id, reach);
-  }
-  if (project === null || !reach.openable.includes(project.project_id)) {
+  if (!project?.can_open) {
     return undefined;
+  }
+  if (object.kind === "project") {
+    return projectHref(project);
   }
   if (object.kind === "revision") {
     return reach.revision
@@ -162,6 +160,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "occurred_at",
         label: "occurredAt",
+        help: "auditLog.occurredAt",
         format: "text",
         width: 180,
         pinned: true,
@@ -173,6 +172,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "actor",
         label: "author",
+        help: "auditLog.author",
         format: "text",
         width: 180,
         contract: "actor",
@@ -182,6 +182,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "action",
         label: "auditAction",
+        help: "auditLog.action",
         format: "text",
         width: 320,
         contract: "action",
@@ -191,6 +192,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "object_kind",
         label: "objectKind",
+        help: "auditLog.objectKind",
         format: "text",
         width: 170,
         contract: "object_kind",
@@ -200,6 +202,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "object",
         label: "auditObject",
+        help: "auditLog.object",
         format: "text",
         width: 260,
         contract: "object_label",
@@ -209,6 +212,7 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "history",
         label: "objectHistory",
+        help: "auditLog.objectHistory",
         format: "text",
         align: "center",
         width: 56,
@@ -219,20 +223,24 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
       {
         key: "project",
         label: "project",
+        help: "auditLog.project",
         format: "text",
         width: 300,
         contract: "project",
-        value: (event) => event.project?.code,
+        // Without a code, the label the cell shows alone: copied and exported alike, never null.
+        value: (event) =>
+          event.project === null ? null : (event.project.code ?? event.project.label),
         render: (event) => (
           <ProjectCell
             project={event.project}
-            href={event.project === null ? undefined : projectHref(event.project.project_id, reach)}
+            href={event.project === null ? undefined : projectHref(event.project)}
           />
         ),
       },
       {
         key: "correlation",
         label: "correlation",
+        help: "auditLog.correlation",
         format: "text",
         width: 300,
         contract: "correlation_id",
@@ -244,4 +252,4 @@ export function auditGrid(reach: AuditReach): GridConfig<AuditEvent, AuditSort, 
 }
 
 /** The columns of the contract the server sorts the journal by. */
-export const AUDIT_SORTS = sortColumns(auditGrid({ openable: [], functions: [], revision: false }));
+export const AUDIT_SORTS = sortColumns(auditGrid({ functions: [], revision: false }));

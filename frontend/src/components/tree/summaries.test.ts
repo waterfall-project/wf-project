@@ -47,7 +47,7 @@ describe("the task tree", () => {
       ["Installation sur site", ["Poste de commande"]],
     ]);
     const deeper = JSON.stringify(summaryTree(nested, 4));
-    expect(deeper).toContain("Risque survenu");
+    expect(deeper).toContain("Retard de livraison des armoires");
     for (const absent of ["Relance du fournisseur", "Réception usine", "Câblage des armoires"]) {
       expect(deeper).not.toContain(absent);
     }

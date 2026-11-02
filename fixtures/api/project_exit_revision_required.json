@@ -1,0 +1,12 @@
+{
+  "summary": "La sortie du projet témoin vers Terminé, confirmée sans le sort de sa révision en cours : refusée, le champ désigné, la sortie n'étant appliquée qu'avec le choix de la marquer ou de l'abandonner ; rien n'est écrit (WF-CYC-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/current_revision","code":"VALUE_REQUIRED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001606"
+  }
+}

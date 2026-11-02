@@ -310,3 +310,49 @@ describe("the Kanban once a gesture is answered", () => {
     expect(within(card(reached)).queryByText("Mise à jour…")).toBeNull();
   });
 });
+
+describe("the gestures of a card, commands of a menu", () => {
+  /** Choose a card and open the menu of its gestures, by the keyboard on its first. */
+  async function menuOf(label: string) {
+    const user = userEvent.setup();
+    await user.click(card(label));
+    await user.click(
+      within(card(label)).getByRole("button", { name: `Gestes de la tâche ${label}` }),
+    );
+    await user.keyboard("{ArrowDown}");
+    return { user, menu: screen.getByRole("menu", { name: `Gestes de la tâche ${label}` }) };
+  }
+
+  const helps = CATALOGUES.fr.commands;
+
+  it("says, in the tooltip of each gesture of a card not started, what it does, and, unavailable, what it lacks; the remaining to commit a link to the grid on the task [WF-IHM-0140-A]", async () => {
+    // #1435: the gestures of a card are commands of a menu (`MenuCommand`), each with its help.
+    serve({});
+    board();
+    const { user, menu } = await menuOf("Montage des armoires sur site");
+    expect(within(menu).getByRole("menuitem", { name: "Démarrer" })).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(helps.startTask.help);
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("tooltip", { name: helps.completeTask.help })).toBeVisible();
+    // Unavailable, it is described by the conditions it lacks, said under its name.
+    expect(within(menu).getByRole("menuitem", { name: /^Terminer/ })).toHaveAccessibleDescription(
+      /^Conditions non remplies/,
+    );
+    await user.keyboard("{ArrowDown}");
+    expect(await screen.findByRole("tooltip", { name: helps.enterRemaining.help })).toBeVisible();
+    const entry = within(menu).getByRole("menuitem", { name: "Saisir le reste à engager" });
+    expect(entry.tagName).toBe("A");
+    expect(entry).toHaveAttribute(
+      "href",
+      `${REMAINING}?search=Montage+des+armoires+sur+site&progress=not_started%2Cstarted`,
+    );
+  });
+
+  it("says, in the tooltip of the reopening of a card completed, what it does [WF-IHM-0140-A]", async () => {
+    serve({});
+    board();
+    const { menu } = await menuOf("Études de détail");
+    expect(within(menu).getByRole("menuitem", { name: "Rouvrir" })).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(helps.reopenTask.help);
+  });
+});

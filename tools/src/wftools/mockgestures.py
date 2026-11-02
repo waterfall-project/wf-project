@@ -118,6 +118,25 @@ def node_created_child() -> JsonObject:
     return core_write(after, [CREATED_CHILD], following=before)
 
 
+def node_summary_emptied() -> JsonObject:
+    """Return what deleteNode answers to the one subordinate of a summary, the one created under it.
+
+    It follows ``node_created_child`` (#421): the summary loses its only subordinate and becomes
+    the leaf it was before, in automatic mode, of the duration it computed (WF-PLA-0040). The
+    structure is one version further than that creation.
+    """
+    summary = replace(SIBLING, children=(CHILD,))
+    before = mockcore.current(described(amended(CORE, added(N.STUDIES, child=summary))))
+    after = mockcore.current(described(amended(CORE, added(N.STUDIES, child=SIBLING))))
+    return written(
+        mockcore.whole(before),
+        mockcore.whole(after),
+        [],
+        deleted=[universe(CREATED_CHILD)],
+        structure_version=4,
+    )
+
+
 def network_task(label: str) -> Task:
     """Return a task drawn about the core, by its label."""
     [task] = [each for each in mockdating.tasks_in_order(NETWORK) if each.label == label]
@@ -195,6 +214,33 @@ def task_dates_entered() -> JsonObject:
         amended(CORE, on_task(N.COMMISSIONING, manual=ENTERED_DATES)),
         [N.COMMISSIONING],
         following=amended(CORE, made_manual()),
+    )
+
+
+CONFLICTING_TASK = "Préparation 1.2.17"
+CONFLICTING_DATES = (date(2026, 6, 16), date(2026, 7, 8))
+"""A task drawn about the core, with float, put in manual mode at dates entered before its
+predecessor in automatic mode can finish: the link between them is a conflict (WF-PLA-0020). No
+other write renders it (#421)."""
+
+
+def conflicting_predecessor() -> tuple[str, date]:
+    """Return the label of the predecessor of CONFLICTING_TASK and the day it finishes."""
+    [link] = network_task(CONFLICTING_TASK).links
+    placed = mockdating.schedule(described())[link.predecessor]
+    return placed.task.label, placed.finish.day
+
+
+def task_dates_conflicting() -> JsonObject:
+    """Return what updateTaskFacet answers to the mode and the dates entered before the predecessor.
+
+    One write, the mode and both dates sent together: the acceptance, which cannot be reached
+    before the dates entered, bears a negative float and is critical, and both tasks name the link
+    (WF-PLA-0020, WF-PLA-0100).
+    """
+    task = network_task(CONFLICTING_TASK)
+    return volume_write(
+        amended(described(), on_task(task.number, manual=CONFLICTING_DATES)), [task.number]
     )
 
 
@@ -640,6 +686,12 @@ def examples() -> dict[str, JsonObject]:
 def _structure_examples() -> dict[str, JsonObject]:
     created, child = node_created(), node_created_child()
     indented, deleted = nodes_indented(), node_summary_deleted()
+    emptied = node_summary_emptied()
+    [leaf] = [
+        node["task"]
+        for node in _nodes(emptied, "ancestors")
+        if node["node_id"] == universe(CREATED)
+    ]
     rows = {row.number: row for row in mockcore.current()}
     created_task = _task(created)
     [child_parent] = [
@@ -686,11 +738,23 @@ def _structure_examples() -> dict[str, JsonObject]:
             f"{mocktext.amount(removed)} — ; {_version(deleted)} (WF-PLA-0070, WF-DAT-0090).",
             deleted,
         ),
+        "node_summary_emptied.json": mocktext.example(
+            f"La tâche « {CHILD.label} », seule subordonnée de « {SIBLING.label} », que la "
+            f"création précédente a faite récapitulative (node_created_child), supprimée : la "
+            f"récapitulative redevient une feuille en mode automatique de la durée qu'elle "
+            f"calculait, {mocktext.span(leaf)}, et accepte de nouveau son mode et sa durée "
+            f"(editable_fields). Elle est rendue dans les ancêtres telle qu'elle devient, avec "
+            f"« {rows[N.STUDIES].label} » : {_redated(emptied)} ; {totals_said(emptied)}, "
+            f"inchangés ; {_version(emptied)} (WF-PLA-0040, WF-PLA-0070).",
+            emptied,
+        ),
     }
 
 
 def _entry_examples() -> dict[str, JsonObject]:
     manual, dated = task_mode_changed(), task_dates_entered()
+    conflicting = task_dates_conflicting()
+    before, due = conflicting_predecessor()
     duration, described_ = task_duration_entered(), task_description_entered()
     rows = {row.number: row for row in mockcore.current()}
     commissioning = cast("Node", rows[N.COMMISSIONING].node["task"])
@@ -710,10 +774,23 @@ def _entry_examples() -> dict[str, JsonObject]:
             f"(task_mode_changed), saisies {mocktext.span(_task(dated))}, où elles étaient "
             f"{mocktext.span(commissioning)} : la version que le changement de mode lui laissait "
             f"plus un, et {_version(dated)}. Consommée en {ENTERED_DATES[0].year}, sa ligne est "
-            f"corrigée de l'inflation (reinflated) ; son prédécesseur retrouve de la marge, "
+            f"réestimée inflation comprise (reinflated) ; son prédécesseur retrouve de la marge, "
             f"{_redated(dated)}. Avec elle, sa récapitulative et {totals_said(dated)} "
             f"(WF-PLA-0020, WF-DEV-0040).",
             dated,
+        ),
+        "task_dates_conflicting.json": mocktext.example(
+            f"« {CONFLICTING_TASK} », tâche tirée autour du cœur, passée en mode manuel en une "
+            f"écriture, ses dates saisies {mocktext.span(_task(conflicting))}, avant que son "
+            f"prédécesseur, « {before} », en mode automatique, puisse finir, le "
+            f"{mocktext.day(due)} : la liaison fin à début ne peut pas être satisfaite. La tâche "
+            f"manuelle et son "
+            f"prédécesseur la nomment l'un et l'autre (link_conflicts) ; le prédécesseur porte "
+            f"une marge négative et est critique, comme les tâches qui le précèdent, "
+            f"{_redated(conflicting)} ; le signalement disparaît dès que les dates le permettent. "
+            f"Une version de plus ; avec elle, ses récapitulatives et {totals_said(conflicting)} "
+            f"(WF-PLA-0020, WF-PLA-0100).",
+            conflicting,
         ),
         "task_dates_sent.json": mocktext.example(
             f"Les dates de la « {rows[N.COMMISSIONING].label} », en mode manuel "

@@ -17,6 +17,7 @@ import type { GridPreferences } from "@/components/grid/settings";
 import { CATALOGUES } from "@/i18n/catalogues";
 
 import { example, type FakeClient } from "./fixtures";
+import { SHOWN } from "./grid-preferences";
 import { estimateReference } from "./reference";
 
 export const PREVIEW =
@@ -88,7 +89,7 @@ export function renderGrid(editable = true, preferences?: GridPreferences, readi
         editable={editable}
         tasksEditable
         query={{ sort: reading?.sort, search, size: undefined }}
-        preferences={preferences ?? { hidden_columns: [] }}
+        preferences={preferences ?? SHOWN}
       />
     </NextIntlClientProvider>,
   );

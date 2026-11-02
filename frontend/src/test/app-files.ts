@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The files of the routes of the application, as the tests that hold them to the paths read them:
- * its pages (`src/app/screens.test.ts`) and its route handlers (`src/app/route-handlers.test.ts`).
+ * its pages (`src/app/screens.test.ts`).
  */
 import { readdirSync } from "node:fs";
 import { join, sep } from "node:path";

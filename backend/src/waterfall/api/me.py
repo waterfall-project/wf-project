@@ -46,7 +46,7 @@ NEVER_NULL = (
     "timelines",
     "charts",
 )
-NEVER_NULL_IN_A_GRID = ("hidden_columns", "column_widths", "filters", "page_size")
+NEVER_NULL_IN_A_GRID = ("hidden_columns", "known_columns", "column_widths", "filters", "page_size")
 
 
 def user_self(

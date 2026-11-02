@@ -7,11 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import type { CommandOffer } from "@/components/commands/offer";
+import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit, atFocus } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
@@ -56,6 +57,7 @@ vi.mock("next/navigation", async (original) => ({
 }));
 
 type Problem = components["schemas"]["Problem"];
+type Project = components["schemas"]["Project"];
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const SET = "PUT /projects/{project_id}/work-breakdown";
@@ -342,17 +344,18 @@ describe("the work breakdown edited in its grid", () => {
       await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
       const dialog = await enter(ADDED);
       const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+      // The focus comes after the commit that says the refusal at the field (#1484).
       await vi.waitFor(() => {
-        expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(field).toHaveFocus();
       });
+      expect(field).toHaveAttribute("aria-invalid", "true");
       expect(field).toHaveAccessibleDescription(sentence);
-      expect(field).toHaveFocus();
       expect(within(dialog).queryByRole("alert")).toBeNull();
       expect(refresh).not.toHaveBeenCalled();
     },
   );
 
-  it("notes once a refusal said at the field of the dialog, its rest told under it", async () => {
+  it("notes once a refusal said at the field of the dialog, its rest told under it, the field described by its refusal as it takes the focus", async () => {
     serve({
       [SET]: {
         problem: {
@@ -367,11 +370,17 @@ describe("the work breakdown edited in its grid", () => {
     });
     render(list());
     await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
-    const dialog = await enter(ADDED);
+    const dialog = screen.getByRole("dialog");
     const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    await userEvent.type(field, ADDED);
+    // Described by its refusal as it takes the focus, never before the commit that says it (#1484).
+    const focusing = atFocus(field);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Créer" }));
     await vi.waitFor(() => {
-      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveFocus();
     });
+    expect(focusing.stop()).toEqual(["Une valeur est requise."]);
+    expect(field).toHaveAttribute("aria-invalid", "true");
     expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );
@@ -413,14 +422,26 @@ describe("the work breakdown edited in its grid", () => {
     );
   });
 
-  it("says under the dialog a write the server refuses while a background task runs, naming the condition", async () => {
+  it("says under the dialog a write the server refuses while a background task runs, naming the condition [WF-IHM-0090-A]", async () => {
+    // No Vérif carries this case: the body of WF-IHM-0090-A does, for a command a state of the
+    // project makes momentarily impossible (the gap is open in #1687).
     serve({
       [SET]: { problem: example("work_breakdown_background_task") as Problem & { status: 409 } },
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
+    // Whether the dialog was still busy in the commit that told the refusal: the request over,
+    // never while it holds a press (#1484).
+    const opened = screen.getByRole("dialog");
+    const busyWhenTold = atCommit(
+      opened,
+      () => within(opened).queryByRole("alert") !== null,
+      () => opened.querySelector('button[type="submit"]')?.getAttribute("aria-busy") ?? null,
+    );
     const dialog = await enter("Études");
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    expect(busyWhenTold.stop()).toEqual(["false"]);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
       "L’état actuel ne permet pas cette opération. Condition non remplie : aucun traitement de fond en cours sur l’objet.",
     );
     expect(screen.getByRole("dialog")).toBe(dialog);
@@ -428,9 +449,7 @@ describe("the work breakdown edited in its grid", () => {
 
   it("says the version stale under the dialog, with the offer to read the page anew", async () => {
     serve({
-      [SET]: {
-        problem: { code: "STALE_LOCK_VERSION", status: 412, params: { expected_lock_version: 2 } },
-      },
+      [SET]: { problem: example("work_breakdown_stale") as Problem & { status: 412 } },
     });
     render(list());
     await userEvent.click(screen.getByRole("button", { name: "Nouveau lot" }));
@@ -532,27 +551,37 @@ describe("the work breakdown edited in its grid", () => {
     },
   );
 
-  it.each([
-    // As `project_completed` lists it.
-    ["project_not_terminal", "projet non clos"],
-    // A declared variant: the offer of `project`, lacking the one condition a background task
-    // takes away — no example of the contract lists it so.
-    ["no_background_task_running", "aucun traitement de fond en cours sur l’objet"],
-  ] as const)(
-    "presents its commands unavailable without %s, in the bar and the menu, and opens nothing",
-    async (condition, said) => {
-      serve();
-      render(list({ is_available: false, missing_conditions: [condition] }));
-      const create = screen.getByRole("button", { name: "Nouveau lot" });
-      expect(create).toHaveAttribute("aria-disabled", "true");
-      expect(create).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
-      await userEvent.click(create);
-      expect(screen.queryByRole("dialog")).toBeNull();
-      await fromMenu(PACKAGE, `Supprimer le lot ${quoted(PACKAGE)}`);
-      const item = screen.getByRole("menuitem", { name: `Supprimer le lot ${quoted(PACKAGE)}` });
-      expect(item).toHaveAttribute("aria-disabled", "true");
-      expect(item).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
-      expect(screen.queryByRole("dialog")).toBeNull();
-    },
-  );
+  /** Check the bar and the menu present their commands unavailable, saying `said`, and open nothing. */
+  async function expectUnavailable(said: string) {
+    const create = screen.getByRole("button", { name: "Nouveau lot" });
+    expect(create).toHaveAttribute("aria-disabled", "true");
+    expect(create).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
+    await userEvent.click(create);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await fromMenu(PACKAGE, `Supprimer le lot ${quoted(PACKAGE)}`);
+    const item = screen.getByRole("menuitem", { name: `Supprimer le lot ${quoted(PACKAGE)}` });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(item).toHaveAccessibleDescription(`Condition non remplie\u00a0: ${said}.`);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  }
+
+  // As `project_completed` lists it; not carried by another test of this file.
+  it("presents its commands unavailable without project_not_terminal, in the bar and the menu, and opens nothing", async () => {
+    serve();
+    render(list({ is_available: false, missing_conditions: ["project_not_terminal"] }));
+    await expectUnavailable("projet non clos");
+  });
+
+  it("presents its commands unavailable while a background task runs, as the project read then lists them [WF-IHM-0090-A]", async () => {
+    // No Vérif carries this case: the body of WF-IHM-0090-A does (the gap is open in #1687).
+    const project = example("project_background_task_running") as Project;
+    const offer = findOffer(project.available_commands, "update_work_breakdown");
+    expect(offer).toMatchObject({
+      is_available: false,
+      missing_conditions: ["no_background_task_running"],
+    });
+    serve();
+    render(list(offer));
+    await expectUnavailable("aucun traitement de fond en cours sur l’objet");
+  });
 });

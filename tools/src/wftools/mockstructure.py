@@ -127,13 +127,33 @@ def money(value: Decimal) -> str:
     return str(value.quantize(CENT))
 
 
-def inflated(amount: Decimal, year: int) -> Decimal:
-    """Return an amount projected on a year, at the inflation rate of the witness project.
+@dataclass(frozen=True, slots=True)
+class Projection:
+    """How a revision projects an amount on its year of consumption (WF-DEV-0030, WF-PRJ-0040).
 
-    A simplification of WF-DEV-0040: the whole line is projected on the year its task starts,
-    not split across the years the task spans in proportion to its hours of work.
+    Compounded at the inflation rate of the project, once a year elapsed since the reference
+    year of the revision: the witness's, 3 % from 2026, by default. Every revision of the witness
+    is projected from 2026, the offer of 2025 included: a declared simplification, for the author
+    to settle (#1628). A simplification of
+    WF-DEV-0040: the whole line is projected on the year its task starts, not split across the
+    years the task spans in proportion to its hours of work.
     """
-    return (amount * (1 + INFLATION_RATE) ** (year - REFERENCE_YEAR)).quantize(CENT)
+
+    reference_year: int = REFERENCE_YEAR
+    rate: Decimal = INFLATION_RATE
+
+    def __call__(self, amount: Decimal, year: int) -> Decimal:
+        """Return an amount projected on a year."""
+        return (amount * (1 + self.rate) ** (year - self.reference_year)).quantize(CENT)
+
+
+WITNESS = Projection()
+"""The projection of the revisions of the witness of reference year 2026, at its 3 %."""
+
+
+def inflated(amount: Decimal, year: int) -> Decimal:
+    """Return an amount projected on a year, as the witness projects it (``Projection``)."""
+    return WITNESS(amount, year)
 
 
 def share(value: Decimal) -> Decimal:
@@ -157,8 +177,7 @@ def partition(amounts: Sequence[Decimal], total: Decimal) -> Sequence[Decimal | 
     one exactly (WF-DEV-0060, WF-PTF-0080): that part may bear more than four places —
     1 - 0.00000003 is 0.99999997 (EP-14/L42o, review 1). A partition without a part has no share;
     the parts of a nil total have none either, ``None`` each, so that the tool no longer raises
-    (EP-14/L55, #718). Provisional: no example has a nil total, and what the contract gives for it,
-    which WF-IND-0010 wants not computable, is for L42t to say (#774).
+    (EP-14/L55, #718); ``part_share`` says what the contract gives for it.
     """
     if not amounts or not total:
         return [None for _ in amounts]
@@ -166,6 +185,21 @@ def partition(amounts: Sequence[Decimal], total: Decimal) -> Sequence[Decimal | 
     largest = max(range(len(amounts)), key=lambda rank: amounts[rank])
     found[largest] += 1 - sum(found)
     return found
+
+
+NO_TOTAL = "no_total"
+"""The reason a share is not computable: the total it is a share of is nil (WF-IND-0010, #1633)."""
+
+
+def part_share(part: Decimal | None) -> JsonObject:
+    """Return the share of a part as the contract gives it, always: a ``Computable``.
+
+    A share ``partition`` or ``share`` found is computable; none found, the total being nil, the
+    share is not computable rather than left out (WF-IND-0010; G-02, #1633).
+    """
+    if part is None:
+        return {"is_computable": False, "value": None, "reason": NO_TOTAL}
+    return {"is_computable": True, "value": decimal(part), "reason": None}
 
 
 def decimal(value: Decimal) -> str:
@@ -400,9 +434,10 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     """Return what a task computes and what it accepts (WF-PLA-0130).
 
     A task in automatic mode computes its dates; one in manual mode enters them, and computes
-    nothing. A summary computes its duration and its progress too, and accepts its label and its
-    description; a milestone has no duration to enter. Every task, summary, leaf or milestone,
-    accepts its predecessors, after its other fields of planning: a link is refused only by what it
+    nothing. A summary computes its mode — always automatic —, its duration and its progress too,
+    and accepts its label and its description (WF-PLA-0040); a milestone has no duration to enter.
+    Every task, summary, leaf or milestone, accepts its predecessors, after its other fields of
+    planning: a link is refused only by what it
     links, as it is entered (WF-PLA-0030, WF-PLA-0040, #1257). Every task of the main structure
     accepts its attachment to an order item or a work package (WF-PLA-0130), then its
     inscriptions to the timelines and to the time/time tracking, last (WF-PLA-0060, #1065): every
@@ -413,7 +448,7 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     main_only: list[JsonValue] = ["task.order_item_id", "task.work_package_id", "task.tracking"]
     if is_summary:
         return Fields(
-            ["task.duration", *dates, "task.progress"],
+            ["task.scheduling_mode", "task.duration", *dates, "task.progress"],
             [*editable, "task.predecessors", *main_only],
         )
     editable.append("task.scheduling_mode")
@@ -426,11 +461,15 @@ def task_fields(*, is_summary: bool, is_milestone: bool, is_manual: bool = False
     return Fields(dates, [*editable, *main_only])
 
 
-def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -> Fields:
+def line_fields(
+    *, is_labour: bool, is_provision: bool, is_held: bool = False, is_closed: bool = False
+) -> Fields:
     """Return what a line computes and what it accepts (WF-DEV-0020).
 
-    A labour line takes its role and its hours, and no payment delay, nil for labour (§3.2.5);
-    another takes its unit disbursement and its payment delay; a provision computes its
+    A labour line takes its role and its hours, its category being its role's, computed (Vérif of
+    WF-DEV-0020); another takes its category and its unit disbursement; both take their
+    payment delay, nought by default for labour and « saisissable sur toute ligne autre qu'une
+    ligne de provision » (WF-DEV-0020, WF-IND-0100, #785); a provision computes its
     quantity and its unit disbursement from its risk, and takes neither, nor its category
     (WF-RIS-0010): neither of its amounts, nor its nature, is ever entered. Its subproject is the
     one its risk designates, computed too: the line does not rewrite the designation of the risk,
@@ -438,32 +477,38 @@ def line_fields(*, is_labour: bool, is_provision: bool, is_held: bool = False) -
     a payment delay, which it does not carry (WF-DEV-0020; EP-14/L42s). A line held by its
     subproject — its task started or completed, the subproject charged with actual costs — does
     not take it either: it may not leave it, a share of those costs being its own, and its
-    subproject is not computed for all that (WF-PRJ-0050, #1066).
+    subproject is not computed for all that (WF-PRJ-0050, #1066). A line closed — of the main
+    structure, its task completed — takes nothing, not even its label: it is not modified until
+    its task is reopened from the Kanban (WF-RAE-0040, WF-DEV-0050), and what it computes is
+    unchanged; on a differential, its fields stay open, for the amendment to rebudget it
+    (WF-REV-0050; F-01, #1766).
     """
     editable: list[JsonValue] = ["estimate_line.label"]
     if is_provision:
-        computed: list[JsonValue] = [
+        provision: list[JsonValue] = [
             "estimate_line.quantity",
             "estimate_line.unit_disbursement",
             "estimate_line.subproject_id",
         ]
-        return Fields(computed, editable)
-    editable.append("estimate_line.cost_category_id")
+        return Fields(provision, [] if is_closed else editable)
+    computed: list[JsonValue] = []
     if is_labour:
+        computed.append("estimate_line.cost_category_id")
         editable.extend(
             ["estimate_line.resource_role_id", "estimate_line.quantity", "estimate_line.hours"]
         )
     else:
         editable.extend(
             [
+                "estimate_line.cost_category_id",
                 "estimate_line.quantity",
                 "estimate_line.unit_disbursement",
-                "estimate_line.payment_delay_days",
             ]
         )
+    editable.append("estimate_line.payment_delay_days")
     if not is_held:
         editable.append("estimate_line.subproject_id")
-    return Fields([], editable)
+    return Fields(computed, [] if is_closed else editable)
 
 
 def computable(value: str) -> JsonObject:

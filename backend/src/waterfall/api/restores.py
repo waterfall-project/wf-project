@@ -73,9 +73,12 @@ def post_restore(
     The date of a deposit is the one its manifest says, read at its completion, which refuses a
     deposit whose manifest says none; one without a date is one no confirmation names (400). The
     task carries the date confirmed, which the manifest read whole must say, before the
-    maintenance.
+    maintenance. A confirmation absent or false is refused alike (400), before anything is read:
+    the schema leaves it to this guard (US-0702/L3).
     """
     asked = request.root
+    if not asked.confirmed:
+        raise BadRequestError(CONFIRMATION_REQUIRED)
     if asked.backup_id is not None:
         require(actor, CONSULTATION)
         backup = read_backup(session, asked.backup_id.root)

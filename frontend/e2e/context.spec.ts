@@ -31,6 +31,7 @@ test("each screen of the data of a project names the project and the revision sh
     "Modernisation du poste de commande",
     "Révision en cours",
     "En cours d’élaboration",
+    "Copie de « Référence »",
   ]);
 
   // From one function of the revision to the next, the banner names the same context.

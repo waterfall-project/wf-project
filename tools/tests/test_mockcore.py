@@ -47,11 +47,14 @@ from wftools import (
     mockcore,
     mockdata,
     mockids,
+    mockreview,
+    mockriskwrites,
     mocktext,
     mockwitness,
     mockwitnessrisks,
 )
 from wftools.mockids import universe
+from wftools.mockstructure import described
 from wftools.mockwitness import TODAY, Line, N, Task
 
 
@@ -110,11 +113,10 @@ def test_a_task_sums_its_lines_and_its_subordinates_and_the_totals_sum_the_lines
         "base_amount": "502434.56",
         "budgeted_amount": "252234.56",
         "reestimated_amount": "502434.56",
-        "inflated_amount": "502434.56",
     }
-    # Read in the reference year, a line is not corrected: its amounts agree (WF-DEV-0030).
+    # Read in the reference year, a line is not projected: its amounts agree (WF-DEV-0030).
     for node in estimate.values():
-        assert facet(node)["inflated_amount"] == facet(node)["base_amount"]
+        assert facet(node)["reestimated_amount"] == facet(node)["base_amount"]
 
 
 def test_the_lines_merged_by_the_occurrence_are_budgeted_nothing_in_the_same_tree(
@@ -138,7 +140,6 @@ def test_the_lines_merged_by_the_occurrence_are_budgeted_nothing_in_the_same_tre
         "base_amount": "200.00",
         "budgeted_amount": "0.00",
         "reestimated_amount": "200.00",
-        "inflated_amount": "200.00",
     }
     assert mockwitness.RISK_752_OCCURRED.on < mockwitness.STUDIES_STARTED.on
 
@@ -176,7 +177,9 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
     assert facet(estimate[OCCURRED])["progress"] == "completed"
     assert facet(estimate[CONTROL_STATION])["progress"] == "started"
     for summary in (planning[STUDIES], estimate[CONTROL_STATION], estimate[OCCURRED]):
+        # Its mode is always automatic, computed, and not entered (WF-PLA-0040, F-14).
         assert summary["computed_fields"] == [
+            "task.scheduling_mode",
             "task.duration",
             "task.start",
             "task.finish",
@@ -193,7 +196,7 @@ def test_a_summary_is_started_with_one_subordinate_and_completed_after_the_last(
             "task.work_package_id",
             "task.tracking",
         ]
-        assert "total_float" not in facet(summary)
+        assert facet(summary)["link_conflicts"] == []
     # Its dates of progress are its subordinates': started with the first, completed with the
     # last — the studies are not completed, the occurrence is.
     assert facet(planning[STUDIES])["started_on"] == "2026-03-02"
@@ -214,10 +217,12 @@ def test_a_milestone_is_a_task_of_no_duration_at_one_instant(readings: dict[str,
         assert task["start"] == task["finish"]
         assert "task.duration" not in node["editable_fields"]
     # Where its predecessors finish: the Friday at 8 hours, not the Monday after. Completed, a
-    # milestone never started: it goes from not started to completed.
+    # milestone goes from not started to completed, and « une tâche terminée sans avoir été
+    # démarrée prend pour date de démarrage celle de sa terminaison » (WF-PLA-0130, F-13); not
+    # completed, it bears neither.
     assert facet(planning[ACCEPTANCE])["finish"] == {"date": "2026-04-24", "hours": "8"}
     assert facet(planning[ACCEPTANCE])["completed_on"] == "2026-04-24"
-    assert "started_on" not in facet(planning[ACCEPTANCE])
+    assert facet(planning[ACCEPTANCE])["started_on"] == "2026-04-24"
     assert "started_on" not in facet(milestone[MILESTONE])
     assert planning[ACCEPTANCE]["predecessors"] == [
         {
@@ -245,7 +250,7 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     assert numbers("nodes.json") == [1, 2, 3, 4, 5, 6, 7]
     assert numbers("nodes_planning.json") == [1, 2, 4, 5, 6, 7]
     assert numbers("nodes_estimate.json") == list(range(8, 19))
-    assert numbers("nodes_risk_occurred.json") == [13, 14, 15, 16, 17]
+    assert numbers("nodes_risk_occurred.json") == [14, 15, 16, 17, 18]
     assert [node["level"] for node in readings["nodes_risk_occurred.json"]["items"]] == [
         2,
         3,
@@ -257,7 +262,7 @@ def test_a_reading_numbers_its_rows_in_the_whole_structure_and_sums_what_it_reta
     wiring = nodes(readings["nodes_estimate.json"])[WIRING]
     assert wiring["predecessors"][0]["predecessor_row_number"] == 6
     # A search renders the ancestors of what it finds, and counts them in no total.
-    assert numbers("nodes_milestone.json") == [8, 18]
+    assert numbers("nodes_milestone.json") == [8, 13]
     assert readings["nodes_milestone.json"]["totals"]["task_count"] == 1
     assert readings["nodes_milestone.json"]["totals"]["estimate_line_count"] == 0
     # The tasks alone have the totals of the full reading: `kinds` renders, never sums (#487).
@@ -308,15 +313,41 @@ def test_the_dependencies_name_the_rows_of_the_tree_by_their_number_and_label(
         ("dependencies_labour.json", LABOUR, "estimate_line.base_amount", "hourly_rate"),
         ("dependencies_provision.json", PROVISION, "estimate_line.quantity", "risk"),
         ("dependencies_manual_float.json", DESKS, "task.total_float", "manual_mode"),
+        # The subproject of a line of provision is its risk's, computed since EP-14/L42p (#764).
+        (
+            "dependencies_provision_subproject.json",
+            PROVISION,
+            "estimate_line.subproject_id",
+            "risk",
+        ),
     ):
         answer = readings[name]
         assert (answer["node_id"], answer["field"]) == (universe(number), field)
         assert (answer["depends_on"], answer["rows"]) == ([rule], [])
+    [provision] = [row.node for row in rows if row.number == PROVISION]
+    assert "estimate_line.subproject_id" in cast("list[str]", provision["computed_fields"])
     assert mockcore.dependencies(rows, BLOCKS, "estimate_line.base_amount")["depends_on"] == [
         "unit_disbursement"
     ]
     with pytest.raises(ValueError, match=r"task\.label of Études is not a computed value"):
         mockcore.dependencies(rows, STUDIES, "task.label")
+
+
+@pytest.mark.requirement("WF-PLA-0100-A")
+def test_the_float_of_a_summary_depends_on_its_subordinates_not_on_a_mode(
+    rows: list[mockcore.Row],
+) -> None:
+    # « Une récapitulative dont une subordonnée est critique est critique et affiche la marge de
+    # cette subordonnée » : the float of a summary is drawn from its direct subordinates.
+    summary = mockcore.dependencies(rows, STUDIES, "task.total_float")
+    assert summary["depends_on"] == ["subordinates"]
+    children = [row for row in rows if row.parent == STUDIES and row.kind == mockcore.TASK]
+    assert children
+    assert [row["node_id"] for row in cast("list[dict[str, Any]]", summary["rows"])] == [
+        universe(row.number) for row in children
+    ]
+    manual = mockcore.dependencies(rows, DESKS, "task.total_float")
+    assert (manual["depends_on"], manual["rows"]) == (["manual_mode"], [])
 
 
 _STRUCTURE_NODES = next(f for f in mockids.IDENTIFIERS if f.what == "nœuds de la structure")
@@ -334,11 +365,17 @@ _RENAMED = {
         ("paste_applied_amendment_skipping.json", identifier)
         for identifier in (mockamendment.own_id(N.SITE_TESTS), mockcore.lineage(N.SITE_TESTS))
     ),
+    *(
+        ("nodes_risk_estimate_occurred.json", identifier)
+        for row in mockreview.delivery_delay_rows()
+        for identifier in (universe(row.number), mockcore.lineage(row.number))
+    ),
 }
 """The nodes a write renames, by their node and their lineage, in the fixture that answers it:
 the wiring of the cabinets (``wftools.mockwrites``), the three rows the block pasted on the
 amendment 2 relabels (``wftools.mockamendmentwrites``, #1277), and the trials on site the block
-that skips the line withdrawn relabels (#1278)."""
+that skips the line withdrawn relabels (#1278); and the own estimate of the risk 752 as the
+reference 101 froze it, whose nodes the occurrence merged as nodes of the core (#1788)."""
 
 
 def _named(value: Any, found: list[tuple[str, str, str]]) -> None:
@@ -521,7 +558,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
     # whatever it retains — a filter, a search, a timeline, `kinds`, the level asked.
     contract = (REPOSITORY / "docs/api/paths/revisions.yaml").read_text(encoding="utf-8")
     block = contract[contract.index("operationId: listNodes") :]
-    block = block[: block.index("'400'")]
+    block = block[: block.index("'401'")]
     cited = set(re.findall(r"fixtures/api/(\S+)\.json", block))
     current, alone = mockcore.current(), mockcore.alone()
     nested = mockcore.alone(mockdata.nested())
@@ -532,6 +569,7 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_estimate": current,
         "nodes_estimate_sorted": current,
         "nodes_estimate_hours": current,
+        "nodes_estimate_filtered": current,
         "nodes_installation": current,
         "nodes_planning": current,
         "nodes_risk_occurred": current,
@@ -540,6 +578,11 @@ def test_a_reading_says_the_level_of_the_deepest_summary_of_its_structure_whatev
         "nodes_nested": nested,
         "nodes_summaries": nested,
         "nodes_amendment": mockamendment.rows(),
+        "nodes_amendment_differences": mockamendment.rows(),
+        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
+        "nodes_awaiting_own_lines": mockcore.current(described(mockreview.awaiting_roots())),
+        "nodes_from_risk": current,
+        "nodes_risk_estimate_occurred": mockreview.delivery_delay_rows(),
     }
     depths = {name: mockcore.summary_depth(rows) for name, rows in structures.items()}
     depths["nodes_summaries_leaves"] = 0
@@ -574,7 +617,13 @@ def test_every_reading_of_nodes_says_when_its_structure_was_last_dated() -> None
             read = cast("dict[str, str]", meta)
             assert set(read) == {"summary_depth", "scheduled_at"}, path.name
             said[path.stem] = read["scheduled_at"]
-    marked = {"comparison", "comparison_moved", "comparison_volume", "comparison_identical"}
+    marked = {
+        "comparison",
+        "comparison_differences",
+        "comparison_moved",
+        "comparison_volume",
+        "comparison_identical",
+    }
     assert marked <= set(said)
     for name, at in said.items():
         if name == "comparison_identical":
@@ -611,6 +660,7 @@ def test_each_task_read_bears_the_fewest_hours_of_the_calendars_of_its_labour_li
         "nodes_core": mockcore.alone(),
         "nodes_nested": mockcore.alone(mockdata.nested()),
         "nodes_amendment": mockamendment.rows(),
+        "nodes_risk_estimate": mockriskwrites.risk_estimate(),
     }
     for name, rows in structures.items():
         borne: dict[str, list[str]] = {}

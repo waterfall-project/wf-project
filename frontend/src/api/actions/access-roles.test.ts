@@ -70,17 +70,19 @@ describe("the server actions of the access roles", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("delete a role, and read the page anew", async () => {
+  it("delete a role from the version read, and read the page anew", async () => {
     const client = serve({ "DELETE /access-roles/{access_role_id}": { status: 204 } });
-    expect(await deleteAccessRole(ROLE)).toEqual({ kind: "done", data: null });
-    expect(client.calls.map(({ path }) => path)).toEqual([`/access-roles/${ROLE}`]);
+    expect(await deleteAccessRole(ROLE, 3)).toEqual({ kind: "done", data: null });
+    expect(client.calls.map(({ path, query }) => [path, query.get("lock_version")])).toEqual([
+      [`/access-roles/${ROLE}`, "3"],
+    ]);
     expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("tell the role an account holds, which the API refuses to delete, and read nothing anew", async () => {
     const inUse = { code: "ACCESS_ROLE_IN_USE", status: 409 } as const;
     serve({ "DELETE /access-roles/{access_role_id}": { problem: inUse } });
-    expect(await deleteAccessRole(ROLE)).toMatchObject({ kind: "conflict", problem: inUse });
+    expect(await deleteAccessRole(ROLE, 3)).toMatchObject({ kind: "conflict", problem: inUse });
     expect(refresh).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,12 @@
+{
+  "summary": "Les tâches de la structure demandées le 3 juin 2026 par la période de leur début, du 1er mai 2026 au 1er avril 2026 (start_from, start_to) : la fin de la période précède son début, et le paramètre start_to est refusé, désigné par /query/start_to, le début nommé (README du contrat, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/query/start_to","code":"VALUE_OUT_OF_RANGE","params":{"minimum":"2026-05-01"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001075"
+  }
+}

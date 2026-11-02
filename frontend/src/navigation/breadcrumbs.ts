@@ -64,6 +64,22 @@ function blockOf(fn: NavigationFunction): FunctionGroup | undefined {
 }
 
 /**
+ * The step of the function a leaf belongs to: a link to its screen in the context given for a
+ * session that may read it, its name alone otherwise; none for a function with no parent.
+ */
+function parentStep(
+  parent: NavigationFunction | undefined,
+  context: ProjectContext | undefined,
+  permissions: readonly PermissionCode[],
+): Crumb[] {
+  if (parent === undefined) {
+    return [];
+  }
+  const readable = new Set<string>(permissions).has(`${parent.permission}.read`);
+  return [label(parent.label, readable ? functionHref(parent, context) : undefined)];
+}
+
+/**
  * The steps of the screen of a function, a leaf after the function it is a leaf of, a link to its
  * screen in the same context for a session that may read it, its name alone otherwise.
  */
@@ -73,17 +89,13 @@ function functionSteps(
   context: ProjectContext | undefined,
   permissions: readonly PermissionCode[],
 ): Crumb[] {
+  const above = parentStep(parent, context, permissions);
   if (fn.scope !== "platform" && context !== undefined) {
-    const granted = new Set<string>(permissions);
-    const readable = (above: NavigationFunction) => granted.has(`${above.permission}.read`);
-    const above =
-      parent === undefined
-        ? []
-        : [label(parent.label, readable(parent) ? functionHref(parent, context) : undefined)];
     return [PROJECTS_STEP, projectStep(context), ...above, label(fn.label)];
   }
-  const block = blockOf(fn);
-  return block === undefined ? [label(fn.label)] : [label(block.label), label(fn.label)];
+  // A platform leaf sits after its function, under the block of the FBS it belongs to.
+  const block = blockOf(parent ?? fn);
+  return [...(block === undefined ? [] : [label(block.label)]), ...above, label(fn.label)];
 }
 
 /** The steps of the page of a project, or of a revision of it, which are no function. */

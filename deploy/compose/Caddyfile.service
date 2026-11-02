@@ -5,7 +5,7 @@
 # for the browser and for the server of Next alike, back channel included — openid-client admits
 # no address in HTTP. The certificates come from Caddy's own authority (`tls internal`), whose
 # root, kept in the volume of Caddy, is what the front (NODE_EXTRA_CA_CERTS) and the tests of the
-# platform (SSL_CERT_FILE) trust: `make service-up` copies it out (docs/dev/README.md, « Commandes »).
+# platform (SSL_CERT_FILE) trust: `make service-up` copies it out (docs/dev/README.md, « Commands »).
 {
 	# The root is handed to whoever must trust it; the store of the container has no use for it.
 	skip_install_trust

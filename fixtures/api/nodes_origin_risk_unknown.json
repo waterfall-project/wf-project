@@ -1,0 +1,12 @@
+{
+  "summary": "La structure principale lue aujourd'hui avec origin_risk_ids nommant « Retard de livraison des armoires », survenu, puis le risque de reprise du câblage, encore identifié : sa survenance n'a rien fusionné, et le second est refusé, par son rang dans la liste envoyée ; rien n'est lu (WF-RIS-0060, #1761).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/query/origin_risk_ids/1","code":"UNKNOWN_RISK"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001676"
+  }
+}

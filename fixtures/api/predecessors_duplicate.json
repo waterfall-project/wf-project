@@ -1,0 +1,12 @@
+{
+  "summary": "La « Mise en service » donnée à suivre deux fois le « Montage des armoires sur site », une fin-début et une début-début : deux tâches ne sont reliées que par une liaison au plus ; la seconde est refusée sur son champ, à son rang ; rien n'est écrit (WF-PLA-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/predecessors/1/predecessor_node_id","code":"DUPLICATE_PREDECESSOR"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001647"
+  }
+}

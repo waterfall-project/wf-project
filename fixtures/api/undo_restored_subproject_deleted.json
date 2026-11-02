@@ -1,0 +1,11 @@
+{
+  "summary": "L'annulation de la saisie qui a passé une ligne de devis du sous-projet « Essais et mise en service » au « Poste de commande », alors que le premier a été supprimé depuis : elle rendrait la ligne à un sous-projet qui n'est plus ; refusée, la condition manquante nommée — le sous-projet que l'annulation rendrait encore existant ; rien n'est défait. Une variante contrefactuelle : le témoin n'annule rien et ne supprime aucun sous-projet (WF-PRJ-0050, WF-IHM-0110, #732, #1531).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "restored_subproject_exists"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001567"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "summary": "La « Mise en service » déplacée sous la « Réception usine », un jalon : il ne devient pas une récapitulative, un jalon ne portant pas de sous-tâches. Le déplacement est refusé sur le parent visé, le jalon nommé ; rien ne bouge (WF-PLA-0050, #1771).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/parent_id","code":"MILESTONE_HAS_NO_SUBTASK","params":{"node_id":"01926f3a-7c00-7000-8000-000000000556","label":"Réception usine"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001672"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "summary": "La confirmation de la survenance de « Risque de reprise du câblage », après son compte rendu (risk_occurrence_report) : elle renvoie ce qu'il a lu, tel quel — le compteur de la structure principale, 1, celui du risque, 4, et creates_current_revision faux, le projet ayant une révision en cours, que la survenance ne crée donc pas. Lu vrai, faute de révision en cours, il ferait refuser la confirmation par 412 si une révision en cours était née depuis la lecture (WF-RIS-0060, WF-REV-0010, WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "confirmed": true,
+    "main_structure_lock_version": 1,
+    "risk_lock_version": 4,
+    "creates_current_revision": false
+  }
+}

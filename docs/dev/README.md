@@ -1,2848 +1,2961 @@
-# Guide de développement
+# Development guide
 
-Ce guide fixe ce qui doit se ressembler d'un lot à l'autre, qu'une personne ou un agent
-l'ait écrit : où chaque chose vit, comment elle se nomme, et la forme des pièces qui se
-répètent. Il ne recopie ni la spécification (`docs/spec`), ni le contrat (`docs/api`), ni
-[CONTRIBUTING](../../CONTRIBUTING.md), ni la [roadmap](../roadmap/README.md) : il y renvoie.
+> This is the English version of [README-fr.md](README-fr.md); when the two differ, the French text
+> is the reference.
 
-Chaque règle qu'un outil peut contrôler l'est, et la règle nomme son contrôle ; une règle
-que rien ne contrôle le dit. Le guide s'écrit en même temps que le socle (EP-01) : chaque US
-y ajoute la section qu'elle établit, et une section encore vide nomme celle qui l'écrira.
+This guide fixes what must look alike from one lot to the next, whether a person or an agent
+wrote it: where each thing lives, how it is named, and the shape of the pieces that repeat. It
+copies neither the specification (`docs/spec`), nor the contract (`docs/api`), nor
+[CONTRIBUTING](../../CONTRIBUTING.md), nor the [roadmap](../roadmap/README.md): it refers to them.
 
-## Arborescence
+Every rule a tool can check is checked, and the rule names its check; a rule that nothing checks
+says so. The guide is written at the same time as the foundation (EP-01): each story adds the
+section it establishes, and a section still empty names the one that will write it.
 
-| Chemin                                     | Contenu                                                                                                                                                                                                       | PBS     |
+## Tree
+
+| Path                                       | Contents                                                                                                                                                                                                      | PBS     |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `backend/`                                 | un seul projet Python, un seul paquet `waterfall` : le noyau (`core/`, un sous-paquet par module, calqué sur un bloc FBS), le service d'API (`api/`), le worker (`worker/`) ; les tests dans `backend/tests/` | PBS-2   |
-| `frontend/`                                | l'application Next.js ; le client engendré dans `frontend/src/api/` ; les parcours de bout en bout dans `frontend/e2e/`                                                                                       | PBS-1   |
-| `fixtures/`                                | le relevé engendré des exemples chiffrés des Vérif, et les fixtures qui s'y rattachent                                                                                                                        | —       |
-| `tools/`                                   | les outils du dépôt, un seul paquet Python, `wftools`, et leurs tests                                                                                                                                         | PBS-5.2 |
-| `deploy/compose/`, `deploy/helm/`          | l'empaquetage : Compose, puis le chart Helm en EP-13                                                                                                                                                          | PBS-5.1 |
-| `deploy/keycloak/`                         | l'image de Keycloak : l'extension Java (`extension/`), les thèmes, le royaume `waterfall` (`realm/`), et ce que la plateforme de développement lui ajoute (`development/`)                                    | PBS-5.4 |
-| `.github/workflows/`                       | la chaîne                                                                                                                                                                                                     | PBS-5.2 |
-| `docs/spec/`, `docs/api/`, `docs/roadmap/` | la spécification, le contrat, la roadmap                                                                                                                                                                      | —       |
-| `docs/dev/`                                | ce guide, et les règles de codage par langage                                                                                                                                                                 | —       |
-| `LICENSES/`, `REUSE.toml`                  | les textes des licences, et la licence des fichiers qui ne portent pas d'en-tête                                                                                                                              | —       |
-| `docs/legal/`                              | l'accord de licence de contribution, et les engagements envers l'édition communautaire                                                                                                                        | —       |
+| `backend/`                                 | a single Python project, a single package `waterfall`: the core (`core/`, one sub-package per module, modelled on an FBS block), the API service (`api/`), the worker (`worker/`); the tests in `backend/tests/` | PBS-2   |
+| `frontend/`                                | the Next.js application; the generated client in `frontend/src/api/`; the end-to-end paths in `frontend/e2e/`                                                                                                 | PBS-1   |
+| `fixtures/`                                | the generated report of the numeric examples of the Vérif, and the fixtures attached to it                                                                                                                    | —       |
+| `tools/`                                   | the repository tools, a single Python package, `wftools`, and their tests                                                                                                                                     | PBS-5.2 |
+| `deploy/compose/`, `deploy/helm/`          | the packaging: Compose, then the Helm chart in EP-13                                                                                                                                                          | PBS-5.1 |
+| `deploy/keycloak/`                         | the Keycloak image: the Java extension (`extension/`), the themes, the `waterfall` realm (`realm/`), and what the development platform adds to it (`development/`)                                            | PBS-5.4 |
+| `.github/workflows/`                       | the chain                                                                                                                                                                                                     | PBS-5.2 |
+| `docs/spec/`, `docs/api/`, `docs/roadmap/` | the specification, the contract, the roadmap                                                                                                                                                                  | —       |
+| `docs/dev/`                                | this guide, and the coding rules per language                                                                                                                                                                 | —       |
+| `LICENSES/`, `REUSE.toml`                  | the texts of the licences, and the licence of the files that carry no header                                                                                                                                  | —       |
+| `docs/legal/`                              | the contribution licence agreement, and the commitments towards the community edition                                                                                                                         | —       |
 
-Un répertoire naît avec le lot qui y met le premier fichier : `backend/`, `frontend/`,
-`fixtures/` et `deploy/` n'existent pas encore tous. La conception d'EP-01 dit pourquoi
-chaque chose est là (`docs/roadmap/EP-01-socle-de-developpement.md`, « Conception »).
+A directory is born with the lot that puts the first file in it: `backend/`, `frontend/`,
+`fixtures/` and `deploy/` do not all exist yet. The design of EP-01 says why each thing is
+there (`docs/roadmap/EP-01-socle-de-developpement.md`, « Conception »).
 
-## Le back et les frontières du noyau
+## The back and the boundaries of the core
 
-Le back est un seul paquet, `waterfall`, et deux processus : `waterfall-api` et
-`waterfall-worker`, deux points d'entrée d'une même distribution. Ils portent donc la même
-version par construction, celle de `backend/pyproject.toml` (WF-ARC-0010).
-Une troisième commande de la même distribution, `waterfall-migrate`, applique les migrations de
-la base (voir « Migrations ») et s'arrête : ce n'est pas un processus du service, mais elle
-porte la même version et se lance avec la même image.
-Une quatrième, `waterfall-restore`, est le service de la restauration (US-0440, #953) : seul
-lecteur du flux des restaurations, seul à tenir les propriétaires des deux bases, il applique les
-migrations comme l'amorçage, et son module, `waterfall.restore`, est comme lui au sommet des
-couches, importé par aucun.
+The back is a single package, `waterfall`, and two processes: `waterfall-api` and
+`waterfall-worker`, two entry points of one distribution. They therefore carry the same
+version by construction, that of `backend/pyproject.toml` (WF-ARC-0010).
+A third command of the same distribution, `waterfall-migrate`, applies the migrations of the
+database (see « Migrations ») and stops: it is not a process of the service, but it carries
+the same version and is launched with the same image.
+A fourth, `waterfall-restore`, is the restore service (US-0440, #953): the only reader of the
+stream of restores, the only one to hold the owners of the two databases, it applies the
+migrations like the bootstrap, and its module, `waterfall.restore`, is like it at the top of the
+layers, imported by none.
 
-Le noyau, `waterfall.core`, a un sous-paquet par module, nommé d'après son bloc FBS de
-second niveau, en anglais. Un module expose ce que les autres peuvent utiliser dans son
-module `interface`, et rien d'autre : ses tables et son accès aux données lui sont privés.
-Un module en importe un autre par `waterfall.core.<module>.interface`, jamais par ses
-tables. Le noyau n'importe ni l'API ni le worker, qui ne s'importent pas l'un l'autre.
+The core, `waterfall.core`, has one sub-package per module, named after its second-level FBS
+block, in English. A module exposes what the others may use in its `interface` module, and
+nothing else: its tables and its data access are private to it.
+A module imports another through `waterfall.core.<module>.interface`, never through its
+tables. The core imports neither the API nor the worker, which do not import each other.
 
-Ce qui n'est pas une fonction du métier — réglages et secrets, journaux, corrélation, exceptions
-typées — vit dans `waterfall.platform`, sous le noyau : le noyau, l'API et le worker l'importent,
-il n'importe aucun d'eux, et aucun de ses modules ne connaît une table du noyau. Le contrat de
-couches de `backend/pyproject.toml` le garde.
+What is not a business function — settings and secrets, logs, correlation, typed exceptions
+— lives in `waterfall.platform`, below the core: the core, the API and the worker import it,
+it imports none of them, and none of its modules knows a table of the core. The layer contract
+of `backend/pyproject.toml` guards it.
 
-_Contrôle_ : `make imports-back` (import-linter, contrats dans `backend/pyproject.toml`) ;
-un test les éprouve sur un paquet d'essai (`backend/tests/test_boundaries.py`). Une requête
-SQL écrite en texte, qui nommerait la table d'un autre module, échappe à l'analyse des
-imports : elle relève des règles SQL d'EP-03 et de la revue.
+_Check_: `make imports-back` (import-linter, contracts in `backend/pyproject.toml`); a test
+exercises them on a trial package (`backend/tests/test_boundaries.py`). An SQL query written
+as text, which would name the table of another module, escapes the analysis of the imports:
+it falls under the SQL rules of EP-03 and under review.
 
-**Les tâches de fond** (WF-ARC-0090). Une tâche vit dans la table `background_task`
-(`waterfall.platform.tasks`), qui fait foi ; le flux Redis (`waterfall.platform.queue`) n'en porte
-que l'identifiant. Une route la dépose par `submit(session, queue, genre, demandeur)`, dans sa
-transaction, sous la corrélation de la requête : le dépôt dans le flux suit la validation, et une
-tâche dont le dépôt s'est perdu reste `queued`, que le worker redépose au démarrage puis
-périodiquement. Le worker (`waterfall.worker.runner`) exécute la tâche dans une seule transaction,
-sous un verrou consultatif qui lui est propre, par le traitement de son genre — une fonction
-`(session, tâche)` que `handlers(réglages)` (`waterfall.worker.main`) enregistre, et qui refuse par une
-exception typée du noyau, dont le code devient le motif de l'échec. Arrêté pendant une tâche, il
-ne laisse rien de son travail : un autre la reprend depuis le début, et elle échoue après trois
-tentatives ; une tâche d'un genre qu'aucun traitement n'exécute échoue sans s'exécuter. Une
-restauration (`restore`) n'est jamais celle du worker : `startRestore` la dépose dans un second
-flux, `waterfall:tasks:restores`, que le service de la restauration lit seul, dans son groupe de
-consommateurs ; il pose la maintenance, une clé de Redis à côté du flux du worker que l'API lit
-(503 sauf la sonde de vie), et le worker n'exécute rien tant qu'elle y est (EP-03, « Sauvegarde et
-restauration »). Les
-tâches planifiées se déposent par `waterfall-worker enqueue <genre>`, qui n'en dépose pas une
-quand une tâche du même genre est en file ou en cours : le service `scheduler` de Compose
-l'appelle à l'intervalle de `WATERFALL_IDENTITY_SYNC_INTERVAL`, en secondes, un jour par défaut.
-Qui ouvre la file dit combien il attend Redis : une requête ou le planificateur
-`TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, une seconde, pour qu'un Redis muet ne
-retienne pas la réponse ; le worker `WORKER_TIMEOUT`, plus long que chacune de ses lectures. Une
-erreur que le worker n'attend pas — Redis ou PostgreSQL hors d'atteinte — l'arrête en échec (1),
-dite dans ses journaux par `worker.failed`, secrets masqués.
+**Background tasks** (WF-ARC-0090). A task lives in the `background_task` table
+(`waterfall.platform.tasks`), which is authoritative; the Redis stream (`waterfall.platform.queue`)
+carries only its identifier. A route submits it by `submit(session, queue, genre, demandeur)`, in
+its transaction, under the correlation of the request: the deposit in the stream follows the
+commit, and a task whose deposit was lost stays `queued`, which the worker re-deposits at start-up
+and then periodically. The worker (`waterfall.worker.runner`) runs the task in a single transaction,
+under an advisory lock of its own, through the handler of its kind — a function
+`(session, tâche)` that `handlers(réglages)` (`waterfall.worker.main`) registers, and which refuses
+by a typed exception of the core, whose code becomes the reason of the failure. Stopped during a
+task, it leaves nothing of its work: another takes it up from the start, and it fails after three
+attempts; a task of a kind that no handler runs fails without running. A restore (`restore`) is
+never the worker's: `startRestore` deposits it in a second stream, `waterfall:tasks:restores`,
+which the restore service alone reads, in its consumer group; it sets the maintenance, a Redis key
+beside the worker's stream that the API reads (503 except the liveness probe), and the worker runs
+nothing while it is there (EP-03, « Sauvegarde et
+restauration »). Scheduled
+tasks are deposited by `waterfall-worker enqueue <genre>`, which deposits none when a task of the
+same kind is queued or running: the `scheduler` service of Compose calls it at the interval of
+`WATERFALL_IDENTITY_SYNC_INTERVAL`, in seconds, one day by default.
+Whoever opens the queue says how long it waits for Redis: a request or the scheduler
+`TaskQueue.connect(adresse, timeout=DEPOSIT_TIMEOUT)`, one second, so that a mute Redis does not
+hold back the response; the worker `WORKER_TIMEOUT`, longer than each of its reads. An error the
+worker does not expect — Redis or PostgreSQL out of reach — stops it in failure (1), said in its
+logs by `worker.failed`, secrets masked.
 
-Toute opération servie que le contrat garde déclare, sur sa route, les permissions qu'elle demande :
-`dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), évaluées avant la
-validation des paramètres et du corps, après sa lecture : un corps illisible est refusé d'abord
-(400). La permission de consulter vient la première — sans elle, l'objet n'existe pas pour
-l'appelant, 404 `NOT_FOUND` ; sans une autre, 403 `PERMISSION_MISSING`, `params.missing_permission` la
-nommant (WF-ADM-0110). L'évaluation elle-même, `require(actor, permission)`, est celle du module
-`waterfall.core.access_roles`, que les EPIC suivants complètent (la qualité de contributeur en
-EP-04). _Contrôle_ : `backend/tests/test_access_evaluation.py` liste les permissions de chaque
-opération servie et vérifie que le contrat déclare le refus qu'elles peuvent donner — une route
-nouvelle s'y ajoute.
+Every served operation the contract keeps declares, on its route, the permissions it requires:
+`dependencies=[Depends(Requires(...))]` (`waterfall.api.evaluation`), evaluated before the
+validation of the parameters and of the body, after it is read: an unreadable body is refused
+first (400). The permission to view comes first — without it, the object does not exist for the
+caller, 404 `NOT_FOUND`; without another, 403 `PERMISSION_MISSING`, `params.missing_permission`
+naming it (WF-ADM-0110). The evaluation itself, `require(actor, permission)`, is that of the module
+`waterfall.core.access_roles`, which the following epics complete (the status of contributor in
+EP-04). _Check_: `backend/tests/test_access_evaluation.py` lists the permissions of every served
+operation and checks that the contract declares the refusal they can give — a new route is added
+to it.
 
-## Le front
+## The front
 
-### L'outillage : Next, pnpm et Vitest
+### The tooling: Next, pnpm and Vitest
 
-Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
-`noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
-à la version que nomme `packageManager` dans `package.json`, lancée par corepack
-(`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
-avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
-à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`),
-que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
-et les composants serveur de `src/app/`, qui se rendent sans document comme en production —,
-`dom` pour les `*.dom.test.ts` et `*.dom.test.tsx` — les composants client, que Testing
-Library rend dans le document de happy-dom. Un `*.dom.test.tsx` peut vivre sous `src/app/` quand
-il éprouve ce qu'une page compose avec ses composants client : la page se lit comme en production,
-sur le serveur, et l'arbre qu'elle rend se monte dans un document, où seul un rendu montre ce que
-la bannière et la grille partagent (`structure-screens.dom.test.tsx`). Un tel test n'éprouve pas
-le Vérif d'une exigence et n'en cite pas : il tient en non-régression le défaut n° 20 de
-`typescript.md` et #819.3, les mêmes écrans ayant leurs parcours sous `e2e/`. Un test du projet
-`dom` qui écrit sur la sortie d'erreur — `console.error`, `console.warn`, `console.trace` —
-échoue une fois son document nettoyé (`frontend/src/test/stderr.ts`, appelé par `setup-dom.ts`) :
-un avertissement de React ou d'ECharts, une réponse que le faux back n'a pas, sont des défauts du
-test ou du code, pas un bruit à lire en passant. Un test qui prouve qu'une erreur se dit sur la
-console la fait taire lui-même par un espion (`vi.spyOn(console, "error")`), et vérifie ce qui fut
-dit. happy-dom ne mesure rien : un test qui monte une courbe donne à son dessin la place qu'une
-page lui donne (`roomForCharts`, `frontend/src/test/chart-room.ts`), faute de quoi ECharts avertit
-qu'il n'a ni largeur ni hauteur (EP-02/L37).
+The front is a Next.js application in strict TypeScript (`frontend/tsconfig.json`, with
+`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`). pnpm manages its dependencies,
+at the version `packageManager` names in `package.json`, launched by corepack
+(`corepack enable pnpm`); the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
+with `--frozen-lockfile`. The unit tests are `*.test.ts` or `*.test.tsx` files next to the code
+they exercise, run by Vitest in two projects (`vitest.config.ts`), which the file name decides
+between: `node` for the `*.test.ts` and `*.test.tsx` — the logic, and the server components of
+`src/app/`, which render without a document as in production —, `dom` for the `*.dom.test.ts`
+and `*.dom.test.tsx` — the client components, which Testing Library renders in the document of
+happy-dom. A `*.dom.test.tsx` may live under `src/app/` when it exercises what a page composes with
+its client components: the page is read as in production, on the server, and the tree it renders
+is mounted in a document, where only a render shows what the banner and the grid share
+(`structure-screens.dom.test.tsx`). Such a test does not exercise the Vérif of a requirement and
+cites none: it holds in non-regression defect no. 20 of `typescript.md` and #819.3, the same
+screens having their paths under `e2e/`. A test of the `dom` project that writes to the error
+output — `console.error`, `console.warn`, `console.trace` — fails once its document is cleaned up
+(`frontend/src/test/stderr.ts`, called by `setup-dom.ts`): a warning from React or ECharts, a
+response the fake back does not have, are defects of the test or of the code, not noise to read in
+passing. A test that proves an error is said on the console silences it itself with a spy
+(`vi.spyOn(console, "error")`), and checks what was said. happy-dom measures nothing: a test that
+mounts a curve gives its drawing the room a page gives it (`roomForCharts`,
+`frontend/src/test/chart-room.ts`), failing which ECharts warns that it has neither width nor
+height (EP-02/L37).
 
-### La navigation : la table des fonctions et ses routes
+### Navigation: the table of functions and its routes
 
-La coquille (`frontend/src/components/shell/`) tire sa navigation de
-`frontend/src/navigation/functions.json` : pour chaque fonction de second niveau de la FBS,
-son code, la clé de son libellé, sa route, sa portée et la permission qui la laisse
-consulter ; une fonction dont la session n'a pas la permission `<fonction>.read` n'y figure
-pas. La table porte aussi les feuilles de la FBS, chacune adressée de l'une de deux façons. Une
-feuille qui a son propre écran est une feuille (`leaves`) de sa fonction, de même portée et de même
-permission : les chronologies, FBS-4.3.1, les imports et exports, FBS-4.3.4, et l'arborescence de
-tâches, FBS-4.3.5, sous le planning (`/projects/[projectId]/revisions/[revisionId]/timelines`,
-`…/exchanges`, `…/task-tree`), le plan de charge du projet,
-FBS-4.4.4, sous le devis (`…/workload`), et le Kanban, FBS-4.5.3, sous le reste à engager
-(`…/kanban`). La navigation la montre, en retrait sous sa
-fonction, dans une liste imbriquée dans l'élément de celle-ci, avec la garde de la feuille et dans le
-même contexte ; l'écran de sa fonction y mène aussi. Le lien courant, `aria-current="page"`, est celui de la
-feuille ; sa fonction, qui est le chemin, porte `aria-current="true"`. Repliée en icônes, la barre ne
-montre que la fonction, marquée ainsi quand la page est l'une de ses feuilles. `readContext` la lit
-comme sa fonction, et le fil d'Ariane la place après elle. Une feuille
-que l'écran de sa fonction montre lui-même, là où l'ergonomie l'a rangée, est une section
-(`sections`) de sa fonction, adressée par la route de celle-ci : son `code`, le rôle de ce qui la
-montre (`role` : `region`, `grid`, `treegrid`, `columnheader` ou `heading`) et la clé de son nom
-(`name`) — le lotissement, FBS-4.2.1, est la région « Lotissement » des paramètres du projet ; le
-Gantt, FBS-4.3.3, la colonne « Gantt » de la grille de planning ; l'avancement financier,
-FBS-4.8.1, le titre de sa carte. Seul un fait d'une liste nommée se passe de rôle — un terme ne
-prend pas son nom de ce qu'il dit — : il se trouve par son texte dans la liste que nomme la clé
-`within`, comme le taux d'inflation, FBS-4.2.2, dans les « Paramètres du projet » ;
-`functions.test.ts` refuse toute autre section sans rôle.
+The shell (`frontend/src/components/shell/`) draws its navigation from
+`frontend/src/navigation/functions.json`: for each second-level function of the FBS, its code,
+the key of its label, its route, its scope and the permission that lets it be viewed; a
+function for which the session lacks the `<fonction>.read` permission does not appear in it.
+The table also carries the leaves of the FBS, each addressed in one of two ways. A leaf that has
+its own screen is a leaf (`leaves`) of its function, of the same scope and the same permission:
+the mapping of the extraction of actual costs, FBS-3.1.3, under the cost settings
+(`/reference/costs/actual-cost-mapping`, US-0620), the timelines, FBS-4.3.1, the imports and
+exports, FBS-4.3.4, and the task tree, FBS-4.3.5, under the planning
+(`/projects/[projectId]/revisions/[revisionId]/timelines`, `…/exchanges`, `…/task-tree`), the
+workload plan of the project, FBS-4.4.4, under the estimate (`…/workload`), and the Kanban,
+FBS-4.5.3, under the remaining to commit (`…/kanban`). The navigation shows it, indented under its
+function, in a list nested in the element of that function, with the guard of the leaf and in the
+same context; the screen of its function leads to it too. The platform menu renders the leaves of
+its functions the same way, the current leaf marked `aria-current`. The current link,
+`aria-current="page"`, is that of the leaf; its function, which is the path, carries
+`aria-current="true"`. Folded to icons, the bar shows only the function, marked so when the page is
+one of its leaves. `readContext` reads it as its function, and the breadcrumb places it after it,
+including a leaf of scope `platform`, in its FBS block. A leaf
+that the screen of its function shows itself, where the ergonomics put it, is a section
+(`sections`) of its function, addressed by the route of that function: its `code`, the role of what
+shows it (`role`: `region`, `grid`, `treegrid`, `columnheader` or `heading`) and the key of its name
+(`name`) — the work breakdown, FBS-4.2.1, is the « Work breakdown » region of the project
+settings; the Gantt, FBS-4.3.3, the « Gantt » column of the planning grid; the financial progress,
+FBS-4.8.1, the title of its card. Only a fact of a named list does without a role — a term does
+not take its name from what it says —: it is found by its text in the list the `within` key names,
+like the inflation rate, FBS-4.2.2, in the « Project settings »;
+`functions.test.ts` refuses any other section without a role.
 
-_Contrôle_ : `make screens` (`wftools.screens`, famille `repo`, qui s'exécute sur toute
-modification, puisqu'il lit la projection comme le front) confronte la table aux fonctions de
-la FBS de la projection — les boîtes des figures de l'arborescence et de chaque bloc, qui les
-nomment toutes, et les titres de leurs paragraphes, lus en protection ; une flèche dont l'enfant ne
-prolonge pas le code de son parent fait échouer la lecture — et aux pages de `frontend/src/app` ; il
-échoue, en nommant la feuille ou la route, sur une feuille sans route dans la table, sur un code
-de la table qui n'est pas une fonction de la FBS ou une feuille rangée sous une autre fonction que
-la sienne, sur une route à laquelle aucune page ne répond — la page de `[...path]`, qui dit
-« introuvable », ne répond à aucune —, et sur une feuille à écran propre que la page de sa
-fonction ne nomme pas par `leafOf("FBS-…")`, et ne peut donc pas mener. Une feuille qui n'a pas
-encore d'écran se déclarerait, avec sa raison et l'issue qui la suit, dans `WITHOUT_SCREEN` de
-`tools/src/wftools/screens.py`, vide aujourd'hui ; la déclaration échoue dès que la table adresse
-la feuille. Le parcours `frontend/e2e/screens.spec.ts` (`make e2e`, palier complet) prouve les liens
-dans un navigateur, un parcours par route, tiré de la table : une fonction s'atteint par un clic sur
-un lien de la navigation — depuis l'écran d'une autre fonction de son bloc, ou d'une révision pour
-une fonction d'un projet —, une feuille à écran propre par un clic sur un lien de l'écran de sa
-fonction ; le lien doit être visible, la route est compilée d'avance (`compile`), et un écran de
-projet de départ s'ouvre hydraté (`openHydrated`). Chaque écran atteint nomme sa fonction et montre
-ses sections. Une route ajoutée à la table a donc son parcours.
-Trois portées : hors projet ; `project`, les fonctions du projet lui-même — révisions,
-paramètres, cycle de vie —, sous `/projects/[projectId]/…`,
-qu'un projet sans révision offre ; `revision`, les autres, sous
-`/projects/[projectId]/revisions/[revisionId]/…`. Le contexte de lecture est dans l'adresse :
-le projet dans le chemin, la révision dans le chemin ou, sur une fonction du projet, en
-paramètre `revision_id` ; sous-projet filtré et date de calcul en paramètres, `subproject_id`
-et `as_of`, comme le contrat les nomme. Les liens entre fonctions d'un projet les reportent,
-et un témoin du front, `wf_last_project`, garde le dernier, dont la coquille tire le « retour
-au projet » (WF-IHM-0010) ; il ne ramène qu'à un écran de projet de la table, fonction ou feuille
-qui a son écran. Chaque route
-de la table a sa page, ce que `frontend/src/app/[...path]/page.test.tsx` vérifie ; toute autre
-adresse mène, par `frontend/src/app/[...path]/page.tsx`, à l'écran « introuvable ». Les pages du compte
-(`/account`, `/account/avatar`, `frontend/src/navigation/account.ts`)
-ont leurs écrans (US-0320) : les informations du compte et ses préférences d'affichage — la
-langue et le mode, les mêmes champs que le menu du compte écrit, enregistrés ensemble — et
-l'avatar. Aucun écran de Waterfall ne demande, n'affiche ni ne change un mot de passe : le
-fournisseur d'identité les tient (WF-ADM-0140), et l'écran du compte mène un compte local à sa page
-du compte du royaume (`realmAccountPage`, `src/session/settings.ts`), dans un autre onglet ; un compte
-de l'annuaire ou d'un fournisseur externe n'y a pas de mot de passe, ni le faux back de royaume. Il
-n'envoie la langue que si elle a changé : l'API la reporte au fournisseur d'identité, et un changement
-du seul mode n'attend pas Keycloak (#877). L'image de l'avatar,
-servie par l'API seule, est lue par le serveur de Next en rendant la page et écrite dans la
-page en adresse `data:` (`avatar-source.ts`) : ni appel du navigateur à l'API, ni relais ;
-l'écran de l'avatar seul la montre, le menu du compte garde les initiales.
+_Check_: `make screens` (`wftools.screens`, family `repo`, which runs on every change, since it
+reads the projection like the front) confronts the table with the functions of the FBS of the
+projection — the boxes of the figures of the tree and of each block, which name them all, and the
+titles of their paragraphs, read as a safeguard; an arrow whose child does not extend the code of
+its parent makes the reading fail — and with the pages of `frontend/src/app`; it fails, naming the
+leaf or the route, on a leaf without a route in the table, on a code of the table that is not a
+function of the FBS or a leaf filed under another function than its own, on a route to which no
+page answers — the page of `[...path]`, which says « not found », answers none —, and on a leaf
+with its own screen that the page of its function does not name by `leafOf("FBS-…")`, and so
+cannot lead to. A leaf that has no screen yet would be declared, with its reason and the issue
+that follows it, in `WITHOUT_SCREEN` of `tools/src/wftools/screens.py`, empty today; the
+declaration fails as soon as the table addresses the leaf. The path `frontend/e2e/screens.spec.ts`
+(`make e2e`, full tier) proves the links in a browser, one path per route, drawn from the table: a
+function is reached by a click on a link of the navigation — from the screen of another function
+of its block, or of a revision for a function of a project —, a leaf with its own screen by a click
+on a link of the screen of its function; the link must be visible, the route is compiled in
+advance (`compile`), and a starting project screen opens hydrated (`openHydrated`). Each screen
+reached names its function and shows its sections. A route added to the table therefore has its
+path.
+Three scopes: outside a project; `project`, the functions of the project itself — revisions,
+settings, lifecycle —, under `/projects/[projectId]/…`,
+which a project without a revision offers; `revision`, the others, under
+`/projects/[projectId]/revisions/[revisionId]/…`. The reading context is in the address: the
+project in the path, the revision in the path or, on a function of the project, as the
+`revision_id` parameter; filtered subproject and calculation date as parameters, `subproject_id`
+and `as_of`, as the contract names them. The links between functions of a project carry them
+over, and a cookie of the front, `wf_last_project`, keeps the last one, from which the shell draws
+the « Back to the project » (WF-IHM-0010); it leads back only to a project screen of the table,
+function or leaf that has its screen. Each route
+of the table has its page, which `frontend/src/app/[...path]/page.test.tsx` checks; any other
+address leads, through `frontend/src/app/[...path]/page.tsx`, to the « not found » screen. The
+account pages (`/account`, `/account/avatar`, `frontend/src/navigation/account.ts`)
+have their screens (US-0320): the information of the account and its display preferences — the
+language and the mode, the same fields the account menu writes, saved together — and the avatar.
+No screen of Waterfall asks for, displays or changes a password: the identity provider holds them
+(WF-ADM-0140), and the account screen leads a local account to its account page of the realm
+(`realmAccountPage`, `src/session/settings.ts`), in another tab; an account of the directory or of
+an external provider has no password there, nor does the fake realm back. It sends the language
+only if it has changed: the API passes it on to the identity provider, and a change of the mode
+alone does not wait for Keycloak (#877). The image of the avatar, served by the API alone, is read
+by the Next server while rendering the page and written into the page as a `data:` address
+(`avatar-source.ts`): neither a call from the browser to the API, nor a relay; the avatar screen
+alone shows it, the account menu keeps the initials.
 
-### Le nom d'un compte
+### The name of an account
 
-Un nom de compte ne s'affiche que par `useAccountNaming`
-(`frontend/src/components/account/account-name.ts`) : `person` pour un compte par ses prénom et
-nom, `kept` pour le nom qu'une réponse a gardé de lui — l'auteur et l'objet d'une inscription du
-journal, l'auteur d'une transition, les colonnes d'audit d'un objet. L'API rend nuls les noms
-d'un compte anonymisé, sans phrase à leur place (WF-ADM-0060, WF-ARC-0110) : un nom nul se dit
-par le libellé neutre du catalogue (`accountName.anonymized`, « Compte anonymisé »), jamais par
-un vide ni par l'identifiant du compte. Dans une cellule, ce libellé a un seul rendu,
-`AnonymizedName` (`KeptName` pour un nom gardé qui peut être nul, dans `anonymized-name.tsx`),
-grisé et marqué `data-anonymized` ; une option de `<select>`, qui ne porte que du texte, prend
-`kept(null)`.
+The name of an account is displayed only through `useAccountNaming`
+(`frontend/src/components/account/account-name.ts`): `person` for an account by its first name
+and last name, `kept` for the name a response kept of it — the author and the object of an entry
+of the log, the author of a transition, the audit columns of an object. The API renders the names
+of an anonymised account as null, with no sentence in their place (WF-ADM-0060, WF-ARC-0110): a
+null name is said by the neutral label of the catalogue (`accountName.anonymized`, « Anonymised
+account »), never by a blank nor by the identifier of the account. In a cell, this label has a
+single rendering, `AnonymizedName` (`KeptName` for a kept name that may be null, in
+`anonymized-name.tsx`), greyed out and marked `data-anonymized`; an option of a `<select>`, which
+carries only text, takes `kept(null)`.
 
-### La coquille : barre latérale, barre du haut et menu du compte
+### The shell: sidebar, top bar and account menu
 
-La coquille se compose ainsi (`shell.tsx`, mise en page de la charte) : à gauche la barre
-latérale (`navigation.tsx`), le logo et le choix du projet en tête, les fonctions en trois
-groupes — la plateforme, par bloc de la FBS repliable ; le projet, avec la liste des projets et
-le « retour au projet » ; la révision lue —, le bouton qui la replie au pied ; au-dessus de la
-page, la barre (`top-bar.tsx`) : le bouton qui replie la barre latérale, le fil d'Ariane
-(`frontend/src/navigation/breadcrumbs.ts`), la recherche — en place, sans fonction encore —, le
-bouton du panneau des tâches et des messages et le menu du compte. La barre latérale repliée garde son état dans
-un témoin du front, `wf_sidebar_state`, que le layout racine lit pour la rendre telle
-côté serveur. Le layout, rendu une fois, ne connaît pas l'adresse : le libellé du projet vient
-de l'écran, qui l'a déjà lu pour son bandeau — `ContextBanner` le remet à la coquille par
-`ShowProject` (`shown-project.tsx`), qui ne le nomme que tant que l'adresse montre ce même
-projet. Le menu du compte (`account-menu.tsx`) porte les préférences d'affichage — langue et
-mode, chacune un choix dans un sous-menu, écrit au compte à la sélection, le parcours au
-clavier n'envoyant rien —, les pages du compte et la déconnexion. La déconnexion
-(`closeMySessions`, qui ferme toutes les sessions du compte ; un 401 valant session déjà close,
-le compte désactivé ou non admis compris) oublie ce que le navigateur gardait de la session — le
-témoin `wf_last_project`, les tâches du stockage `wf_background_tasks` et du suivi, l'historique des
-messages (`wf_messages`) — puis charge en
-document entier l'adresse que rend l'action : `/login`, d'ordinaire. `/login?next=…` est un
-gestionnaire de route (`src/app/login/route.ts`), non une page : Waterfall n'a ni formulaire de
-connexion, ni liste de fournisseurs, ni mot de passe oublié, le fournisseur d'identité tenant ses
-écrans. Sur le faux back (`WATERFALL_AUTH=mock`), qui accorde la session, il mène droit à l'écran
-visé (`returnTarget(next)`, `frontend/src/navigation/login.ts`) — sans lui, ou hors du front,
-l'accueil — : le layout relit la session, et le suivi reprend les tâches qu'une session perdue avait
-interrompues. Hors de ce mode, il démarre le flux du code d'autorisation du royaume `waterfall`
-(US-0350) — voir « La session du front » ci-dessous. La session est `getMe`
-(`src/session/request.ts`) : le compte à plat, ses préférences d'affichage et ses permissions. Un
-401 `ACCOUNT_DEACTIVATED` ou `ACCOUNT_NOT_ADMITTED` n'est pas une session absente : l'écran le dit
-(la panne `failure.deactivated` ou `failure.notAdmitted`, le refus d'une action), et ne renvoie pas
-à la connexion, qui bouclerait (#664). Sans compte (401), il n'y a ni menu du compte ni barre
-latérale ; quand la session est illisible, la barre latérale est rendue avec l'écran d'état seul,
-son bloc ouvert, et sans menu du compte. La barre latérale est un repère (`<aside>` nommé) ; sur
-écran étroit, c'est une feuille modale qui se ferme dès que l'adresse change ; Ctrl+B ne la plie que
-si elle est rendue, et la plier rend le focus de ce que le rail cache au bouton du bloc ou au
-déclencheur.
+The shell is composed thus (`shell.tsx`, layout of the visual identity): on the left the sidebar
+(`navigation.tsx`), the logo and the choice of the project at the head, the functions in three
+groups — the platform, by foldable FBS block; the project, with the list of projects and the
+« Back to the project »; the revision read —, the button that folds it at the foot; above the
+page, the bar (`top-bar.tsx`): the button that folds the sidebar, the breadcrumb
+(`frontend/src/navigation/breadcrumbs.ts`), the search — in place, without a function yet —, the
+button of the panel of tasks and messages and the account menu. The folded sidebar keeps its state in
+a cookie of the front, `wf_sidebar_state`, which the root layout reads to render it so
+server-side. The layout, rendered once, does not know the address: the label of the project comes
+from the screen, which has already read it for its banner — `ContextBanner` hands it back to the
+shell through `ShowProject` (`shown-project.tsx`), which names it only as long as the address shows
+that same project. The account menu (`account-menu.tsx`) carries the display preferences —
+language and mode, each a choice in a sub-menu, written to the account on selection, the keyboard
+traversal sending nothing —, the account pages and the sign-out. The sign-out
+(`closeMySessions`, which closes every session of the account; a 401 counting as a session already
+closed, the deactivated or not admitted account included) forgets what the browser kept of the
+session — the `wf_last_project` cookie, the tasks of the `wf_background_tasks` storage and of the
+tracking, the message history (`wf_messages`) — then loads as a
+whole document the address the action renders: `/login`, usually. `/login?next=…` is a route
+handler (`src/app/login/route.ts`), not a page: Waterfall has neither a sign-in form, nor a list
+of providers, nor a forgotten password, the identity provider holding its screens. On the fake
+back (`WATERFALL_AUTH=mock`), which grants the session, it leads straight to the target screen
+(`returnTarget(next)`, `frontend/src/navigation/login.ts`) — without one, or outside the front,
+the home page —: the layout re-reads the session, and the tracking takes up the tasks a lost
+session had interrupted. Outside this mode, it starts the authorisation code flow of the
+`waterfall` realm (US-0350) — see « The session of the front » below. The session is `getMe`
+(`src/session/request.ts`): the account flattened, its display preferences and its permissions. A
+401 `ACCOUNT_DEACTIVATED` or `ACCOUNT_NOT_ADMITTED` is not an absent session: the screen says so
+(the failure `failure.deactivated` or `failure.notAdmitted`, the refusal of an action), and does
+not send back to the sign-in, which would loop (#664). Without an account (401), there is neither
+account menu nor sidebar; when the session is unreadable, the sidebar is rendered with the status
+screen alone, its block open, and without an account menu. The sidebar is a landmark (a named
+`<aside>`); on a narrow screen, it is a modal sheet that closes as soon as the address changes;
+Ctrl+B folds it only if it is rendered, and folding it gives the focus of what the rail hides to
+the button of the block or to the trigger.
 
-### La session du front
+### The session of the front
 
-**La session du front** (US-0350, `frontend/src/session/`). Le navigateur ne détient aucun jeton
-(WF-ARC-0030) : le serveur de Next les tient dans Redis, sous un identifiant opaque que le témoin
-`__Host-wf_session` porte seul (`HttpOnly`, `Secure`, `Path=/`, sans `Domain`, `SameSite=Lax`,
-sans échéance) : son préfixe empêche un sous-domaine voisin d'en poser un à lui, que `/login` lirait
-le premier (#887) ; le navigateur le prend aussi de `http://localhost` ou `http://127.0.0.1`, où
-tournent les parcours et le poste, comme tout témoin `Secure`. `/login?next=…`
-tire un `state`, un nonce et un vérificateur PKCE (S256), les garde dans Redis avec l'écran visé
-— déjà passé par `returnTarget` — quinze minutes au plus, donne au navigateur un témoin lié à ce
-`state` (`wf_sign_in_<state>`, limité à `/auth/callback`, quinze minutes), et l'envoie à la page
-de connexion de Keycloak. `/auth/callback` exige ce témoin — un retour porté à un autre
-navigateur n'y ouvre aucune session et recommence la connexion, sans toucher à la demande (RFC
-9700, §4.7) —, reprend la demande par son `state`, une seule fois, échange le code, vérifie le
-nonce du jeton d'identité, ouvre la session — ses jetons dans Redis pour la durée que Keycloak
-donne à sa session, `refresh_expires_in` — et mène à l'écran visé, son adresse entière ; un
-`state` inconnu, déjà employé ou trop vieux recommence la connexion ; une connexion que le
-royaume refuse — une erreur au retour, un code refusé, un nonce faux — mène à l'accueil sans
-session, jamais à `/login`, que la session de Keycloak bouclerait. Keycloak ou Redis injoignable,
-ou Keycloak muet au-delà du délai, `/login` et `/auth/callback` mènent à `/login/unavailable` en
-oubliant le témoin `__Host-wf_session` — la page relirait sinon Redis pour lui —, qui
-dit le service injoignable et offre de recommencer vers l'écran visé, jamais à une erreur 500 nue
-(#687). `/login` efface aussi le témoin `__Host-wf_session` : la déconnexion y mène sans y toucher (#724).
-`serverClient()` est le seul endroit qui porte le jeton à l'API (`src/session/tokens.ts`) : à
-chaque requête, il lit la session du témoin et rafraîchit un jeton d'accès qui expire dans moins
-de trente secondes, sous un verrou Redis par session qui vit deux fois le délai d'une requête au
-royaume (`REFRESH_TIMEOUT`, cinq secondes), pour que deux requêtes ne présentent jamais le même
-jeton de rafraîchissement. Un rafraîchissement qui échoue une fois parti — refusé, sans réponse
-dans ce délai, la connexion coupée pendant la réponse, un mandataire qui répond à sa place — ferme
-la session : Keycloak a pu prendre le jeton, qui n'est jamais présenté deux fois (#687). Seule une
-requête qui n'a pu partir (Keycloak injoignable : connexion refusée, hôte
-inconnu ou hors d'atteinte, certificat refusé) ne la ferme pas : le jeton d'accès sert tant qu'il vit, puis la requête est le service injoignable
-(`Unreachable`), que l'écran dit comme tel. Redis injoignable pendant une requête ordinaire l'est
-de même, un composant de la plateforme hors d'atteinte (WF-EXP-0040) : `requestBearer` change le
-`StoreUnreachable` du magasin en `Unreachable`, et l'écran dit le service injoignable, jamais une
-erreur inattendue (#861). Quand la session que nomme le témoin ne vit plus, la
-requête ne part pas (`SessionLost`) : une lecture mène à la connexion aussitôt, sans clic — l'écran
-de panne charge `/login?next=<écran>` —, une écriture n'est pas appliquée, et l'écran le dit avant
-d'y mener par un lien (`decode`). Sans témoin, la requête part sans jeton, et un 401 de l'API
-(`SignedOut`), comme le refus d'un jeton vivant, offre la connexion par un lien sans y mener seul :
-une connexion refusée revient sans témoin, et y mener bouclerait. Sur un 401 `SESSION_REVOKED`
-seulement — un jeton d'une connexion antérieure à la fermeture des sessions du compte —, ce lien,
-l'écran de panne (`failure.revoked`) comme l'avis d'une action, mène à
-`/login?next=…&reauthenticate=1`, que `/login` envoie au royaume avec `prompt=login` : Keycloak,
-dont la session a pu survivre à une fermeture manquée, redemande les identifiants et renouvelle
-`auth_time` ; un `SESSION_EXPIRED` ne les redemande pas (#855). La déconnexion (`signOut`) ferme
-les sessions du compte par `closeMySessions`, puis efface celles que le front garde de ce compte,
-sans attendre Keycloak — l'API d'administration ferme aussi la session de Keycloak du navigateur, et
-`/login` redemande les identifiants. Elle ne touche pas au témoin : une action serveur qui change un
-témoin fait rendre à nouveau la page dans sa réponse, qui lirait l'API sans session (#724) ;
-`/login` l'efface. Un compte non admis garde une session de Keycloak que l'API ne ferme pas : le
-navigateur va au point de déconnexion du royaume. La coquille ne lui offre ni barre ni menu du
-compte : la panne `failure.notAdmitted` offre « Se déconnecter », un lien vers `/auth/sign-out`,
-qui mène au même point (`signOutAddress`) ; le royaume, sans jeton d'identité, demande de
-confirmer, puis mène à `/login`, qui redemande les identifiants (#664). Quand la session que nomme le témoin ne vit plus,
-la requête ne part pas, et le navigateur passe par une connexion silencieuse
-(`/login?sign_out=<ticket>`, `prompt=none`). Seule l'action `signOut` l'arme : un ticket tiré au
-hasard, gardé une minute dans Redis et lié à l'identifiant que porte le témoin `__Host-wf_session` de la
-requête, sans toucher au témoin (`armRequestSignOut`, `armSignOut`) ; `/login` ne le prend, une
-seule fois, que si le témoin du navigateur porte ce même identifiant (`takeSignOut`). Un ticket
-inconnu, déjà pris ou trop vieux — un lien d'un autre site, qu'une navigation de premier niveau
-envoie avec le témoin `SameSite=Lax` —, ou lié à un autre témoin, ou un navigateur sans témoin,
-font une connexion ordinaire, qui ne ferme rien et laisse le ticket : l'identifiant de l'action est
-public, et un tiers qui l'appelle depuis son serveur, avec un témoin à lui, obtient un ticket qui ne
-déconnecte que ce témoin. Son retour ferme les sessions du compte par `closeMySessions`, avec le jeton
-qu'elle a obtenu (`tokenClient`), sur tous ses postes, puis mène à `/login` ; sans session de
-Keycloak non plus, il n'y a plus de poste à fermer (#689). Un jeton que l'API refuse alors par
-`SESSION_REVOKED` — la session de Keycloak a survécu à une fermeture manquée — mène, comme le refus
-de `closeMySessions` par ce code dans `signOut`, à `/login?…&reauthenticate=1`, qui redemande les
-identifiants : jamais une nouvelle connexion silencieuse, qui ramènerait le même refus (#855). Un clic sur un lien du front attend les
-écritures de la page (`holdNavigation`, `useNavigationHold`) : une cellule validée, un collage
-appliqué, une commande — le bouton d'une commande (`Command`), d'une liste ou d'un formulaire du
-référentiel, l'enregistrement des préférences, l'envoi ou le retrait de l'avatar, la demande d'un
-export, la relance d'une tâche, l'envoi d'un fichier à importer, qui passent tous par
-`useHeldCommand` (`components/commands/held.ts`) ; une refusée — la session perdue comprise —, la
-navigation n'a pas lieu, et l'écran dit le refus là où l'écriture a été faite (#688). La retenue
-appartient à qui dit le refus : un formulaire ou une ligne d'une liste du référentiel prend celle de
-la liste (`held` de `useListReport`), qui dit au-dessus d'elle le refus d'un dialogue fermé pendant
-l'envoi ; fermer le dialogue ne libère donc pas son écriture. La liste ne dit un refus que sur la
-lecture d'où il est parti : lue autrement — une recherche, un filtre d'état —, elle libère ses
-écritures, dont le refus n'est plus dit par la liste, ni au retour sur cette lecture, dont les clics
-ne sont plus retenus — une lecture quittée puis retrouvée en est une autre
-(`useHeldCommand(generation)`) ; encore en route et refusées ensuite, l'avis de la barre les dit,
-comme celles d'un écran quitté (ci-dessous). Tout refus retient le clic, même dit ailleurs que sur l'écran
-quitté : la relance d'une tâche refusée retient la navigation, bien que son refus soit dit dans le
-panneau des tâches de la coquille, qui survit à l'écran — une règle sans exception plutôt qu'une
-écriture à juger une à une. Le clic se
-juge par son geste, qui commence quand le pointeur descend ou qu'une touche est pressée : il attend
-les écritures encore en cours et celles parties depuis le début du geste, même déjà répondues — la
-cellule validée quand le pointeur descend sur le lien, dont la session perdue répond avant le clic,
-retient ce clic. Seul le dernier clic retenu est refait ; un écran quitté libère ses écritures, qui
-ne retiennent rien de l'écran suivant. Ne sont pas retenus : une navigation programmatique
-(`router.push`), « Précédent » et « Suivant » du navigateur, un lien qui ouvre ailleurs —
-autre onglet, touche de modification, téléchargement, autre site. Une écriture encore en route quand
-son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
-survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
-`held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran
-d'où elle était partie ; une écriture refusée avant le départ de son écran y a été dite, et ne
-l'est pas deux fois.
-Keycloak, lui, notifie la fermeture des sessions d'un compte — déconnexion, désactivation, retrait
-des rôles — par le canal de retour, `/auth/backchannel-logout`, une route du front et non une
-opération de l'API, qui vérifie le jeton de déconnexion par les clés du royaume et efface les
-sessions Redis du compte qu'il nomme. Seuls `src/session/provider.ts` (`openid-client`, `jose`) et
-`src/session/store.ts` (`@redis/client`) atteignent Keycloak et Redis, chacun les siennes seulement
-: ESLint refuse ces bibliothèques ailleurs, et chacun des deux modules celles de l'autre
+**The session of the front** (US-0350, `frontend/src/session/`). The browser holds no token
+(WF-ARC-0030): the Next server holds them in Redis, under an opaque identifier that the
+`__Host-wf_session` cookie alone carries (`HttpOnly`, `Secure`, `Path=/`, without `Domain`,
+`SameSite=Lax`, without expiry): its prefix prevents a neighbouring subdomain from setting one of
+its own, which `/login` would read first (#887); the browser also takes it from `http://localhost`
+or `http://127.0.0.1`, where the paths and the workstation run, like any `Secure` cookie.
+`/login?next=…` draws a `state`, a nonce and a PKCE verifier (S256), keeps them in Redis with the
+target screen — already passed through `returnTarget` — for fifteen minutes at most, gives the
+browser a cookie bound to this `state` (`wf_sign_in_<state>`, limited to `/auth/callback`, fifteen
+minutes), and sends it to the sign-in page of Keycloak. `/auth/callback` requires this cookie — a
+return carried to another browser opens no session there and starts the sign-in again, without
+touching the request (RFC 9700, §4.7) —, takes up the request by its `state`, once only, exchanges
+the code, checks the nonce of the identity token, opens the session — its tokens in Redis for the
+duration Keycloak gives its session, `refresh_expires_in` — and leads to the target screen, its
+whole address; an unknown `state`, already used or too old, starts the sign-in again; a sign-in
+the realm refuses — an error on return, a refused code, a wrong nonce — leads to the home page
+without a session, never to `/login`, which the Keycloak session would loop. Keycloak or Redis
+unreachable, or Keycloak mute beyond the timeout, `/login` and `/auth/callback` lead to
+`/login/unavailable`, forgetting the `__Host-wf_session` cookie — the page would otherwise re-read
+Redis for it —, which says the service is unreachable and offers to start again towards the target
+screen, never a bare 500 error (#687). `/login` also clears the `__Host-wf_session` cookie: the
+sign-out leads there without touching it (#724).
+`serverClient()` is the only place that carries the token to the API (`src/session/tokens.ts`): on
+each request, it reads the session from the cookie and refreshes an access token that expires in
+less than thirty seconds, under a Redis lock per session that lives twice the timeout of a request
+to the realm (`REFRESH_TIMEOUT`, five seconds), so that two requests never present the same
+refresh token. A refresh that fails once sent — refused, no response within this timeout, the
+connection cut during the response, a proxy answering in its place — closes the session: Keycloak
+may have taken the token, which is never presented twice (#687). Only a request that could not
+leave (Keycloak unreachable: connection refused, unknown host or out of reach, certificate
+refused) does not close it: the access token serves as long as it lives, then the request is the
+service unreachable (`Unreachable`), which the screen says as such. Redis unreachable during an
+ordinary request is the same, a component of the platform out of reach (WF-EXP-0040):
+`requestBearer` turns the `StoreUnreachable` of the store into `Unreachable`, and the screen says
+the service is unreachable, never an unexpected error (#861). When the session the cookie names no
+longer lives, the request does not leave (`SessionLost`): a read leads to the sign-in at once,
+without a click — the failure screen loads `/login?next=<écran>` —, a write is not applied, and the
+screen says so before leading there by a link (`decode`). Without a cookie, the request leaves
+without a token, and a 401 from the API (`SignedOut`), like the refusal of a living token, offers
+the sign-in by a link without leading there by itself: a refused sign-in comes back without a
+cookie, and leading there would loop. On a 401 `SESSION_REVOKED` only — a token of a sign-in
+earlier than the closing of the sessions of the account —, this link, the failure screen
+(`failure.revoked`) as well as the notice of an action, leads to
+`/login?next=…&reauthenticate=1`, which `/login` sends to the realm with `prompt=login`: Keycloak,
+whose session may have survived a missed closing, asks for the credentials again and renews
+`auth_time`; a `SESSION_EXPIRED` does not ask for them again (#855). The sign-out (`signOut`)
+closes the sessions of the account by `closeMySessions`, then clears those the front keeps of
+this account, without waiting for Keycloak — the administration API also closes the Keycloak
+session of the browser, and `/login` asks for the credentials again. It does not touch the cookie:
+a server action that changes a cookie makes the page render again in its response, which would
+read the API without a session (#724); `/login` clears it. A not admitted account keeps a Keycloak
+session the API does not close: the browser goes to the sign-out endpoint of the realm. The shell
+offers it neither bar nor account menu: the failure `failure.notAdmitted` offers « Sign out », a
+link to `/auth/sign-out`, which leads to the same endpoint (`signOutAddress`); the realm, without
+an identity token, asks to confirm, then leads to `/login`, which asks for the credentials again
+(#664). When the session the cookie names no longer lives,
+the request does not leave, and the browser goes through a silent sign-in
+(`/login?sign_out=<ticket>`, `prompt=none`). Only the `signOut` action arms it: a ticket drawn at
+random, kept one minute in Redis and bound to the identifier the `__Host-wf_session` cookie of the
+request carries, without touching the cookie (`armRequestSignOut`, `armSignOut`); `/login` takes
+it, once only, only if the cookie of the browser carries that same identifier (`takeSignOut`). An
+unknown ticket, already taken or too old — a link from another site, which a top-level navigation
+sends with the `SameSite=Lax` cookie —, or bound to another cookie, or a browser without a cookie,
+make an ordinary sign-in, which closes nothing and leaves the ticket: the identifier of the action
+is public, and a third party who calls it from its server, with a cookie of its own, obtains a
+ticket that signs out only that cookie. Its return closes the sessions of the account by
+`closeMySessions`, with the token it obtained (`tokenClient`), on all its workstations, then leads
+to `/login`; without a Keycloak session either, there is no workstation left to close (#689). A
+token the API then refuses by `SESSION_REVOKED` — the Keycloak session survived a missed closing —
+leads, like the refusal of `closeMySessions` by this code in `signOut`, to
+`/login?…&reauthenticate=1`, which asks for the credentials again: never a new silent sign-in,
+which would bring back the same refusal (#855). A click on a link of the front waits for the
+writes of the page (`holdNavigation`, `useNavigationHold`): a committed cell, an applied paste, a
+command — the button of a command (`Command`), of a list or of a form of the reference data, the
+saving of the preferences, the sending or the removal of the avatar, the request of an export, the
+retry of a task, the sending of a file to import, which all go through `useHeldCommand`
+(`components/commands/held.ts`); one refused — the lost session included —, the navigation does
+not take place, and the screen says the refusal where the write was made (#688). The hold belongs
+to whoever says the refusal: a form or a row of a list of the reference data takes that of the
+list (`held` of `useListReport`), which says above itself the refusal of a dialog closed during
+the sending; closing the dialog therefore does not release its write. The list says a refusal only
+on the reading from which it left: read otherwise — a search, a state filter —, it releases its
+writes, whose refusal is no longer said by the list, nor on return to that reading, whose clicks
+are no longer held — a reading left and then found again is another one
+(`useHeldCommand(generation)`); still under way and refused afterwards, the notice of the bar says
+them, like those of a screen left (below). Every refusal holds the click, even said elsewhere than
+on the screen left: the retry of a refused task holds the navigation, although its refusal is said
+in the tasks panel of the shell, which outlives the screen — a rule without exception rather than a
+write to judge one by one. The click is
+judged by its gesture, which begins when the pointer goes down or a key is pressed: it waits for
+the writes still under way and for those that left since the start of the gesture, even already
+answered — the cell committed when the pointer goes down on the link, whose lost session answers
+before the click, holds that click. Only the last held click is redone; a screen left releases its
+writes, which hold nothing of the next screen. Not held: a programmatic navigation
+(`router.push`), « Back » and « Forward » of the browser, a link that opens elsewhere — another
+tab, modifier key, download, another site. « Back » and « Forward » change the address at once,
+but since Next 16.4 the router shows the entry found again only once the action under way has
+answered (vercel/next.js#99612, entry of 16.4.0): `runAction`
+(`next/dist/client/components/app-router-instance.js`) now applies the state of the traversal in
+the transition that `traverse` opens, where 16.3 applied it a microtask later, outside it; and
+React gives a transition requested during an asynchronous action the lane of that action
+(`requestTransitionLane`, `currentEntangledLane` of `react-dom`), which commits only on its
+response — here the write awaited in `startTransition(async …)`. The screen left therefore stays
+displayed until the response, and a write refused while it is left for another path — made before
+the traversal or after — goes to the bar, even when what requested it says it still says it
+(`told`), since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought
+back to its path before the refusal, the screen says it itself. This holds as long as the router
+keeps this order, perhaps an upstream defect. A write still under way when
+its screen goes away, and refused afterwards, is said by no screen: the bar of the shell, which
+outlives each of them, says it by a notice one closes (`LeftRefusals`, `refusedLeft` of
+`held-writes.ts`, #863), and records it in the message history with its refusal and the screen it
+had left from; a write refused before its screen left was said there, and is not said twice.
+Keycloak, for its part, notifies the closing of the sessions of an account — sign-out,
+deactivation, withdrawal of roles — through the back channel, `/auth/backchannel-logout`, a route
+of the front and not an operation of the API, which checks the logout token with the keys of the
+realm and clears the Redis sessions of the account it names. Only `src/session/provider.ts`
+(`openid-client`, `jose`) and `src/session/store.ts` (`@redis/client`) reach Keycloak and Redis,
+each only its own
+: ESLint refuses these libraries elsewhere, and each of the two modules those of the other
 (`src/api/network-guard.test.ts`).
 
-Le front, hors du mode `mock`, lit : `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse de Keycloak pour le
-navigateur, dont relève l'émetteur des jetons (`https://<hôte>/auth`) ;
-`WATERFALL_KEYCLOAK_BACKCHANNEL`, celle par laquelle le serveur de Next l'atteint, la même par
-défaut ; `WATERFALL_FRONT_ADDRESS`, l'adresse du front, sous laquelle est l'adresse de retour ;
-`WATERFALL_FRONT_CLIENT_SECRET`, le secret du client `waterfall-front` ; `WATERFALL_REDIS_URL`,
-le Redis des sessions. Une variable qui manque fait échouer la première connexion, en la nommant ;
-`next build` et le mode `mock` n'en lisent aucune. `openid-client` refuse toute adresse de
-Keycloak qui n'est pas en HTTPS, celle de la page de connexion comprise : sur la plateforme de
-service, Keycloak est servi en HTTPS par un frontal à autorité locale, à laquelle le front se fie
-par `NODE_EXTRA_CA_CERTS` (« Commandes », #680).
+The front, outside the `mock` mode, reads: `WATERFALL_KEYCLOAK_ADDRESS`, the address of Keycloak
+for the browser, under which the issuer of the tokens falls (`https://<hôte>/auth`);
+`WATERFALL_KEYCLOAK_BACKCHANNEL`, the one through which the Next server reaches it, the same by
+default; `WATERFALL_FRONT_ADDRESS`, the address of the front, under which the return address is;
+`WATERFALL_FRONT_CLIENT_SECRET`, the secret of the `waterfall-front` client; `WATERFALL_REDIS_URL`,
+the Redis of the sessions. A missing variable makes the first sign-in fail, naming it;
+`next build` and the `mock` mode read none. `openid-client` refuses any address of Keycloak that
+is not in HTTPS, that of the sign-in page included: on the service platform, Keycloak is served in
+HTTPS by a front end with a local authority, which the front trusts through `NODE_EXTRA_CA_CERTS`
+(« Commands », #680).
 
-### Les pages système : lecture, panne et « introuvable »
+### The system pages: loading, failure and « not found »
 
-Les pages système sont des pièces de la coquille (`frontend/src/app/`,
-`frontend/src/components/system/`). Une lecture dont un écran ne peut se passer passe par
-`readOrFail` de `frontend/src/api/problem.ts`, qui rend ses données ou lève : un 404 mène à
-l'écran « introuvable » unique (`not-found.tsx`), qu'une adresse inexistante et une lecture
-refusée atteignent sans distinction (WF-ADM-0110) ; l'API injoignable lève `Unreachable`, et
-toute autre réponse `UnexpectedAnswer`. Une lecture dont l'écran se passe passe par
-`readUnlessRefused`, à côté : elle ne rend rien sur les refus qu'il attend — un statut, et
-le `code` de l'enveloppe quand le statut ne dit pas lequel —, et suit la même règle pour le
-reste. L'écran de panne (`error.tsx` dans la coquille, `global-error.tsx` quand le layout
-racine échoue) ne reçoit en production que le `digest` de l'erreur levée côté serveur :
-`Unreachable` porte `UNREACHABLE_DIGEST`, qu'il annonce comme tel, `SessionLost`
-`SESSION_LOST_DIGEST`, qui mène à la connexion sans clic, `SignedOut` (un 401)
-`SESSION_REQUIRED_DIGEST`, qui y mène par un lien (`loginHref`), `UnexpectedAnswer`
-l'identifiant de corrélation de l'enveloppe, préfixé de `WATERFALL_CORRELATION;` pour
-qu'aucune valeur de l'API ne prenne un sens pour Next (`NEXT_REDIRECT;…`), et qu'il affiche
-en référence sans le préfixe (`failure.ts`). Sans enveloppe, ou sans `correlation_id`, la
-référence affichée est le digest que Next calcule, celui de ses propres journaux. Un écran
-ne dit jamais « vide » sur une réponse qu'il n'a pas lue. Quand la session est illisible, la
-navigation garde l'écran d'état (WF-ADM-0130).
-Chaque segment qui lit l'API a son `loading.tsx`, le squelette `ScreenSkeleton`, qui
-porte un `role="status"` nommé — un lecteur d'écran ne l'annonce pas toujours ; la réponse est alors diffusée, et « introuvable » répond
-200 et non 404 — un 404 doux, que Next marque `noindex` : le statut part avec le squelette,
-avant que la page sache l'objet introuvable. Il est le même pour toute adresse introuvable,
-ce qui compte ici. Chaque état vide — aucun projet, projet sans révision, référentiel
-incomplet — se montre sur un exemple nommé du contrat (`empty`, `incomplete`).
+The system pages are pieces of the shell (`frontend/src/app/`,
+`frontend/src/components/system/`). A read a screen cannot do without goes through
+`readOrFail` of `frontend/src/api/problem.ts`, which renders its data or throws: a 404 leads to
+the single « not found » screen (`not-found.tsx`), which a non-existent address and a refused
+read reach without distinction (WF-ADM-0110); the API unreachable throws `Unreachable`, and
+any other response `UnexpectedAnswer`. A read a screen can do without goes through
+`readUnlessRefused`, next to it: it renders nothing on the refusals it expects — a status, and
+the `code` of the envelope when the status does not say which —, and follows the same rule for
+the rest. The failure screen (`error.tsx` in the shell, `global-error.tsx` when the root layout
+fails) receives in production only the `digest` of the error thrown server-side:
+`Unreachable` carries `UNREACHABLE_DIGEST`, which it announces as such, `SessionLost`
+`SESSION_LOST_DIGEST`, which leads to the sign-in without a click, `SignedOut` (a 401)
+`SESSION_REQUIRED_DIGEST`, which leads there by a link (`loginHref`), `UnexpectedAnswer`
+the correlation identifier of the envelope, prefixed with `WATERFALL_CORRELATION;` so
+that no value from the API takes on a meaning for Next (`NEXT_REDIRECT;…`), and which it
+displays as a reference without the prefix (`failure.ts`). Without an envelope, or without a
+`correlation_id`, the reference displayed is the digest Next computes, that of its own logs. A
+screen never says « empty » on a response it has not read. When the session is unreadable, the
+navigation keeps the status screen (WF-ADM-0130).
+Each segment that reads the API has its `loading.tsx`, the `ScreenSkeleton` skeleton, which
+carries a named `role="status"` — a screen reader does not always announce it; the response is then streamed, and « not found » answers
+200 and not 404 — a soft 404, which Next marks `noindex`: the status leaves with the skeleton,
+before the page knows the object is not found. It is the same for every address not found,
+which is what counts here. Each empty state — no project, project without a revision, incomplete
+reference data — is shown on a named example of the contract (`empty`, `incomplete`).
 
-### L'accueil : la liste des projets
+### The home page: the list of projects
 
-L'accueil, `/`, est la liste des projets (`frontend/src/app/(home)/`, un groupe de routes pour qu'il
-ait son squelette sans en donner un à toutes les pages) : filtrée par défaut sur les projets dont
-l'utilisateur est contributeur, par le filtre du contrat (`is_contributor`), que l'écran montre et
-qu'un lien lève — `?is_contributor=false`, sous le nom du contrat
-(`frontend/src/navigation/home.ts`) — : un filtre, jamais une restriction de lecture (WF-PRJ-0060).
-Le lien qui le lève n'est offert qu'à une session qui porte `all_projects_read` (WF-ADM-0110) : levé
-pour un autre, le filtre rendrait la même liste, et le lien promettrait ce qu'il ne fait pas
-(WF-IHM-0090, #522) ; sans cette permission, l'accueil reste filtré quoi que dise l'adresse —
-`?is_contributor=false` compris, la page demandant `is_contributor=true` —, le badge « Mes projets »
-affiché sans aucun lien, et le choix du projet mène à l'accueil plutôt qu'à la liste levée. La barre
-latérale et le fil d'Ariane mènent à la liste filtrée, le choix du projet à la liste levée, « Tous
-les projets » ; `/projects`, l'ancienne adresse, renvoie à l'accueil. Les projets sont une
-configuration de plus de la grille dense (`project-list-grid.tsx`, préférences sous la clé
-`projects`) : le libellé, lien qui ouvre le projet, le code, l'état par sa pastille et la date de
-modification, chaque colonne triée par le serveur (`sort_by`), cherchée par lui sur le libellé et le
-code (`search`), filtrée par état — des boutons pressés qui n'écrivent que l'adresse (`states`) — et
-par période sur la dernière modification (`from`, `to`, EP-02/L42e) : deux jours saisis dans l'heure
-locale du lecteur, envoyés comme les instants du début du premier et du début du lendemain du
-dernier, la fin exclue. Une adresse qui ne nomme aucun état demande les six, l'accueil montrant tout
-ce que l'utilisateur peut ouvrir, là où le contrat, sans `states`, ne rendrait que les projets en
-cours (WF-PTF-0010) ; les boutons pressés sont les états que l'adresse nomme, « Tous les états »
-quand elle n'en nomme aucun : l'adresse fait foi. Une période que le serveur refuse — une fin qui
-précède le début, 422 `VALUE_OUT_OF_RANGE` sur `/query/to`, `params.minimum` le début donné — est
-dite à son champ, le début nommé par son jour local, qui prend le focus chaque fois que la liste
-revient refusée, comme une borne d'une colonne de nombres (`range-filter.tsx`) ; la liste n'est pas
-lue, et une phrase tient la place de la grille. Sa ligne de totaux dit combien de projets le serveur
-retient, et elle mène aux autres pages par `ListPages` ; une page demandée au-delà de sa fin le dit,
-et ramène à sa dernière page : seule une liste qui ne tient aucun projet, sans état, période ni
-recherche, se dit vide. Les écrans du projet lui-même — le projet, ses paramètres avec ses
-sous-projets et ses contributeurs, son cycle de vie — exercent la sortie du cycle de vie
-(`ExitCommand`), irréversible, confirmée dans la page avant que son action serveur ne la demande, la
-modification du projet, sur ses paramètres (EP-02/L44a, plus bas), et, sur ses paramètres encore, les
-commandes de ses sous-projets et de ses contributeurs (EP-02/L44b, plus bas). Les tables de données des
-paramètres sont trois grilles denses (#301,
-`settings-grids.tsx`), chacune avec sa clé de préférences et ses noms dans l'adresse (`breakdown_`,
-`subproject_`, `contributor_`) : le lotissement, une grille arborescente — chaque lot, ses postes
-sous lui, leurs livrables sous eux —, dans l'ordre saisi, qui ne se trie pas et se plie, cherchée
-par le serveur sur ses libellés (`breakdown_search`) et filtrée par nature (`breakdown_kinds`,
-EP-02/L42f) — lue ainsi, sans compteur (`lock_version` nul, `WorkBreakdownReading`), ses lots et
-ses postes ne montrent que ce qui est retenu, ce qu'elle dit, et une telle lecture ne se renvoie jamais
-à `setWorkBreakdown` ; sa ligne de totaux compte les seuls éléments retenus, par nature (`is_match`,
-#574), et il se saisit dans sa grille comme le projet liste `update_work_breakdown`, indisponible
-aussi pendant un traitement de fond (EP-14/L42s ; `breakdown-commands.tsx`, EP-14/L44c) : chaque
-geste — un élément ajouté, renommé ou supprimé, du menu d'une cellule sur sa ligne ou de la barre
-sur la ligne de la cellule active (`RowCommands` de `DenseGrid`) — envoie le lotissement entier
-depuis sa lecture entière, que la page relit quand la grille le lit filtré, l'élément ajouté sans
-identifiant ; une suppression se confirme, celle d'un lot ou d'un poste en disant que les tâches qui
-le portent restent et perdent leur rattachement (WF-PLA-0170) ; un refus par champ qui vise
-l'élément du dialogue est dit à son champ, celui qui en vise un autre le nomme ; les
-sous-projets, cherchés par le serveur sur leur code et leur libellé (`subproject_search`), triés par
-lui sur chaque colonne (`subproject_sort_by`) et filtrés sur leurs coûts réels
-(`subproject_has_actual_costs`) ; les contributeurs, cherchés par le serveur sur le nom du compte
-(`contributor_search`), triés par lui sur chaque colonne (`contributor_sort_by`), filtrés sur leur
-qualité (`contributor_kinds`, `kinds` du contrat), un bouton pressé par qualité (`ValuesFilter`,
-`filters.ts`), et sur l'état du compte (`contributor_is_active`) — une colonne booléenne se filtre
-par un choix (`ChoiceFilter`), `true` ou `false`, aucun retenant toutes les lignes (`readBoolean`) ;
-chaque table plate se filtre ainsi sur chacune de ses colonnes (WF-IHM-0130, EP-02/L42e). Les
-volumes du §4.6.2 — dix sous-projets, cinquante contributeurs par projet — tiennent en une page.
-L'historique des états, une liste de lecture, reste une table simple. Les sous-projets offrent leurs
-commandes comme le projet liste `update` (`subproject-commands.tsx`) — absente, rien ; indisponible,
-« Nouveau sous-projet » présenté `aria-disabled` avec ses conditions ; disponible ou non, sur chaque
-ligne, la modification et la suppression comme la ligne les liste (`Subproject.available_commands`,
-EP-14/L44e) — absente, rien ; indisponible, présentée `aria-disabled`, décrite par ses conditions, et
-un appui les dit dans la région de la liste (`UnavailableCellCommand`) : sur un projet clos, chacune
-nomme `project_not_terminal` (WF-IHM-0090). La création et la modification ouvrent le formulaire du
-référentiel (`ReferenceForm`), le code et le libellé exigés, un code déjà porté (409 `ALREADY_EXISTS`,
-`fields[]`) dit au champ, son porteur nommé par le libellé que le refus donne
-(`conflicting_object_label`) ; la suppression, confirmée dans la page, est indisponible — ou refusée
-par le serveur, 409 `STATE_FORBIDS_OPERATION` nommant la première condition qui manque, dit au-dessus
-de la liste (`Reactivations`) — pour un sous-projet qu'une révision marquée cite
-(`subproject_not_cited`, §4.4.1), auquel des coûts réels sont imputés
-(`subproject_without_actual_costs`, WF-PRJ-0050) ou que portent des lignes de devis de la révision en
-cours (`subproject_without_estimate_lines`, EP-14/L42q) ; l'écran n'en déduit rien de
-`has_actual_costs`. Lue indisponible faute de cette seule dernière condition — `project_not_terminal`
-mise à part —, la suppression mène de plus, à une session qui lit le devis, au devis de la révision en
-cours filtré sur le sous-projet (`subproject_id`, `leadsToEstimate`), le lien dit dans la région de la
-liste avec ses conditions ; il n'est pas offert quand manque aussi la citation ou les coûts, qu'aucune
-ligne déplacée ne lève. Il atteint les lignes de la structure principale, jamais celles d'une autre
-structure, la structure propre d'un risque.
-Les lignes ne sont nommées une à une que lorsque le serveur refuse une suppression lue disponible
-(`params.estimate_lines`) : chacune par son numéro dans sa structure, tel que la grille le montre, et
-son libellé, dans la phrase jusqu'à cinq, en liste sous elle au-delà, une liste nommée qui défile,
-hors de l'alerte, qui la lirait d'un trait, et décrite par sa phrase (`LINES_IN_SENTENCE`,
-`OutcomeNotice`, #765), et le refus rappelle qu'une ligne de provision change de
-sous-projet par son risque (`problemMessage`, WF-DAT-0080) ; le refus donne la structure d'une ligne
-par son identifiant (`structure_id`), non par son libellé, que l'écran ne lit pas (`structure_label`,
-demandé dans #764). Les
-contributeurs, comme le projet liste `manage_contributors` (`contributor-commands.tsx`), se modifient
-en une liste entière dans un dialogue (`setContributors`) : la qualité de chacun, son retrait, et
-l'inscription, une à une, des propositions du serveur (`listContributorSuggestions`, WF-PRJ-0070),
-chacune avec le nœud et les rôles qui la font proposer (`org_node_label`, `resource_role_labels`),
-inscrite active comme le serveur le dit (`is_active`), rien n'étant écrit avant l'enregistrement ; une
-liste sans chef de projet est refusée avant toute demande (WF-PRJ-0060), un refus par champ
-(`/contributors/<n>/…`) — un compte inconnu (`UNKNOWN_USER`) ou désactivé (`USER_INACTIVE`) — dit à la
-ligne du compte qu'il désigne, en le nommant. L'écriture part d'une
-lecture entière, avec son compteur : quand la grille lit la liste filtrée, la page la relit entière
-pour le dialogue, et la grille garde ce que sa lecture retient. Une modification répondue remplace sa
-ligne, une suppression l'ôte, une liste répondue remplace celle d'une lecture entière, tant que leur
-compteur est plus récent — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, sous
-l'en-tête) ; une création n'ajoute aucune ligne, la page relue la range. Une réponse ne ferme que le
-formulaire, la confirmation ou le dialogue d'où elle est partie, jamais un autre ouvert depuis
-(compteur d'ouvertures, `key`, #672). La commande qui ouvre une modification attend, inactive,
-`aria-busy` et décrite par « Enregistrement en cours… », la réponse d'une écriture du dialogue fermé,
-quelle qu'elle soit, pour que le dialogue s'ouvre sur la version qu'elle apporte (#661, #734) : celle
-d'un sous-projet tant que la modification de ce sous-projet est en route, les autres lignes restant
-offertes (`onWriting` de `ReferenceForm`, `writing` de `SubprojectCommands`, la description cachée
-mais pour un lecteur d'écran dans la cellule, son titre la disant à l'œil) ; celle des contributeurs
-tant que la liste s'écrit — le compteur d'ouvertures y reste en garde-fou. Les pièces communes du
-référentiel (`CommandedList`, `useAnswered`) étant liées à ses natures d'objet, ces deux listes ont
-les leurs, sur les mêmes pièces : le formulaire, la commande d'une cellule, la région des refus.
+The home page, `/`, is the list of projects (`frontend/src/app/(home)/`, a route group so that it
+has its skeleton without giving one to every page): filtered by default on the projects of which
+the user is a contributor, by the filter of the contract (`is_contributor`), which the screen shows
+and which a link lifts — `?is_contributor=false`, under the name of the contract
+(`frontend/src/navigation/home.ts`) —: a filter, never a restriction of reading (WF-PRJ-0060).
+The link that lifts it is offered only to a session that carries `all_projects_read` (WF-ADM-0110):
+lifted for another, the filter would render the same list, and the link would promise what it does
+not do (WF-IHM-0090, #522); without this permission, the home page stays filtered whatever the
+address says — `?is_contributor=false` included, the page asking for `is_contributor=true` —, the
+« My projects » badge displayed without any link, and the choice of the project leads to the home
+page rather than to the lifted list. The sidebar and the breadcrumb lead to the filtered list, the
+choice of the project to the lifted list, « All projects »; `/projects`, the former address,
+redirects to the home page. The projects are one more configuration of the dense grid
+(`project-list-grid.tsx`, preferences under the `projects` key): the label, a link that opens the
+project, the code, the state by its badge and the date of modification, each column sorted by the
+server (`sort_by`), searched by it on the label and the code (`search`), filtered by state —
+pressed buttons that write only the address (`states`) — and by period on the last modification
+(`from`, `to`, EP-02/L42e): two days entered in the local time of the reader, sent as the instants
+of the start of the first and of the start of the day after the last, the end excluded. An address
+that names no state asks for all six, the home page showing everything the user may open, where
+the contract, without `states`, would render only the projects in progress (WF-PTF-0010); the
+pressed buttons are the states the address names, « Every state » when it names none: the address
+is authoritative. A period the server refuses — an end before the start, 422 `VALUE_OUT_OF_RANGE`
+on `/query/to`, `params.minimum` the start given — is said at its field, the start named by its
+local day, which takes the focus each time the list comes back refused, like a bound of a column
+of numbers (`range-filter.tsx`); the list is not read, and a sentence holds the place of the grid.
+Its totals row says how many projects the server retains, and it leads to the other pages by
+`ListPages`; a page asked for beyond its end says so, and brings back to its last page: only a
+list that holds no project, without state, period or search, says it is empty. The screens of the
+project itself — the project, its settings with its subprojects and its contributors, its
+lifecycle — exercise the exit from the lifecycle (`ExitCommand`), irreversible, confirmed in the
+page before its server action requests it, the editing of the project, on its settings
+(EP-02/L44a, further down), and, on its settings again, the commands of its subprojects and of its
+contributors (EP-02/L44b, further down). The data tables of the settings are three dense grids
+(#301,
+`settings-grids.tsx`), each with its preferences key and its names in the address (`breakdown_`,
+`subproject_`, `contributor_`): the work breakdown, a tree grid — each work package, its work
+items under it, their deliverables under them —, in the order entered, which does not sort and
+folds, searched by the server on its labels (`breakdown_search`) and filtered by nature
+(`breakdown_kinds`, EP-02/L42f) — read so, without a counter (`lock_version` null,
+`WorkBreakdownReading`), its work packages and work items show only what is retained, which it
+says, and such a read is never sent back to `setWorkBreakdown`; its totals row counts only the
+elements retained, by nature (`is_match`, #574), and it is entered in its grid as the project
+lists `update_work_breakdown`, unavailable also during a background processing (EP-14/L42s;
+`breakdown-commands.tsx`, EP-14/L44c): each gesture — an element added, renamed or deleted, from
+the menu of a cell on its row or from the bar on the row of the active cell (`RowCommands` of
+`DenseGrid`) — sends the whole work breakdown from its whole read, which the page re-reads when
+the grid reads it filtered, the added element without an identifier; a deletion is confirmed, that
+of a work package or a work item saying that the tasks that carry it remain and lose their
+attachment (WF-PLA-0170); a refusal by field that targets the element of the dialog is said at its
+field, one that targets another names it; the subprojects, searched by the server on their code
+and their label (`subproject_search`), sorted by it on each column (`subproject_sort_by`) and
+filtered on their actual costs (`subproject_has_actual_costs`); the contributors, searched by the
+server on the name of the account (`contributor_search`), sorted by it on each column
+(`contributor_sort_by`), filtered on their status (`contributor_kinds`, `kinds` of the contract),
+one pressed button per status (`ValuesFilter`, `filters.ts`), and on the state of the account
+(`contributor_is_active`) — a boolean column is filtered by a choice (`ChoiceFilter`), `true` or
+`false`, none retaining every row (`readBoolean`); each flat table is filtered so on each of its
+columns (WF-IHM-0130, EP-02/L42e). The volumes of §4.6.2 — ten subprojects, fifty contributors per
+project — fit in one page. The history of the states, a read-only list, remains a simple table.
+The subprojects offer their commands as the project lists `update` (`subproject-commands.tsx`) —
+absent, nothing; unavailable, « New subproject » presented `aria-disabled` with its conditions;
+available or not, on each row, the editing and the deletion as the row lists them
+(`Subproject.available_commands`, EP-14/L44e) — absent, nothing; unavailable, presented
+`aria-disabled`, described by its conditions, and a press says them in the region of the list
+(`UnavailableCellCommand`): a closed project no longer lists any command, neither its own nor
+those of its rows (US-0702/L3), and the screen presents none; the refusal of a direct call,
+`project_not_terminal`, stays with the server (WF-IHM-0090). The creation and the editing open the
+form of the reference data (`ReferenceForm`), the code and the label required, a code already
+carried (409 `ALREADY_EXISTS`, `fields[]`) said at the field, its carrier named by the label the
+refusal gives
+(`conflicting_object_label`); the deletion, confirmed in the page, is unavailable — or refused by
+the server, 409 `STATE_FORBIDS_OPERATION` naming the first condition that is missing, said above
+the list (`Reactivations`) — for a subproject that a marked revision cites
+(`subproject_not_cited`, §4.4.1), to which actual costs are charged
+(`subproject_without_actual_costs`, WF-PRJ-0050) or which estimate lines of the current revision
+carry (`subproject_without_estimate_lines`, EP-14/L42q); the screen deduces nothing of it from
+`has_actual_costs`. Read unavailable for want of this last condition alone, the deletion leads in
+addition, for a session that reads the estimate, to the estimate of the current revision filtered
+on the subproject (`subproject_id`, `leadsToEstimate`), the link said in the region of the list
+with its conditions; it is not offered when the citation or the costs are missing too, which no
+moved line lifts. It reaches the lines of the main structure, never those of another structure,
+the own structure of a risk. The lines are named one by one only when the server refuses a
+deletion read available (`params.estimate_lines`): each by its number in its structure, as the
+grid shows it, and its label, in the sentence up to five, in a list below it beyond, a named list
+that scrolls, outside the alert, which would read it in one go, and described by its sentence
+(`LINES_IN_SENTENCE`, `OutcomeNotice`, #765), and the refusal recalls that a provision line
+changes subproject through its risk (`problemMessage`, WF-DAT-0080); the refusal gives the
+structure of a line by its identifier (`structure_id`), not by its label, which the screen does
+not read (`structure_label`, requested in #764). The contributors, as the project lists
+`manage_contributors` (`contributor-commands.tsx`), are edited as a whole list in a dialog
+(`setContributors`): the status of each, their removal, and the enrolment, one by one, of the
+suggestions of the server (`listContributorSuggestions`, WF-PRJ-0070), each with the node and the
+roles that make it suggested (`org_node_label`, `resource_role_labels`), enrolled active as the
+server says (`is_active`), nothing being written before the save; a list without a project
+manager is refused before any request (WF-PRJ-0060), a refusal by field (`/contributors/<n>/…`) —
+an unknown account (`UNKNOWN_USER`) or a deactivated one (`USER_INACTIVE`) — said at the row of
+the account it designates, naming it. The write leaves from a whole read, with its counter: when
+the grid reads the filtered list, the page re-reads it whole for the dialog, and the grid keeps
+what its read retains. An answered edit replaces its row, a deletion removes it, an answered list
+replaces that of a whole read, as long as their counter is more recent — against the fake back, as
+long as the screen stays open (`MockupNotice`, under the header); a creation adds no row, the
+re-read page files it. A response closes only the form, the confirmation or the dialog it left
+from, never another opened since (openings counter, `key`, #672). The command that opens an edit
+waits, inactive, `aria-busy` and described by « Saving in progress… », for the response of a
+write of the closed dialog, whatever it is, so that the dialog opens on the version it brings
+(#661, #734): that of a subproject as long as the edit of that subproject is under way, the other
+rows remaining offered (`onWriting` of `ReferenceForm`, `writing` of `SubprojectCommands`, the
+description hidden but for a screen reader in the cell, its title saying it to the eye); that of
+the contributors as long as the list is being written — the openings counter remains there as a
+safeguard. The common pieces of the reference data (`CommandedList`, `useAnswered`) being bound to
+its kinds of object, these two lists have their own, on the same pieces: the form, the command of
+a cell, the region of the refusals.
 
-### La création et la modification du projet
+### Creating and editing a project
 
-Le projet se crée et se modifie dans la maquette (EP-02/L44a, décision de l'auteur du 2026-10-08,
-#513, #524 ; `project-form.tsx`), par le formulaire du référentiel (`ReferenceForm`, qui écrit aussi
-un autre objet que ceux du référentiel et saisit une date de planning). L'accueil offre « Créer un
-projet » à une session qui porte la permission de le créer (`project_create`, `platformOffer`,
-WF-ADM-0100), indisponible, décrite par le refus qu'elle rencontrerait, tant que le référentiel
-minimal est incomplet (`getReferenceReadiness`, WF-CYC-0120) — l'accueil nomme chaque prérequis
-manquant, la catégorie de main-d'œuvre active et, depuis EP-14/L42p, la catégorie de provision pour
-risques active (`active_provision_category`) comprises, et mène aux paramètres de coûts, comme le
-refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
-`ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
-(WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
-sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
-qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
-dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
-succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
-taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
-de réception de la commande, la description, le taux d'inflation et la probabilité de gain — et leur
-modification (`updateProject`) comme le projet liste sa commande (`update`) : absente, disponible,
-ou indisponible avec ses conditions — un projet terminal (WF-CYC-0100). Les deux taux se saisissent
-en pourcentages et partent en rapports du contrat, la virgule déplacée sans flottant
-(`editablePercent`, `percentRatio`) ; la probabilité de gain suit sa propre commande
-(`update_win_probability`, EP-14/L44e) : indisponible — à partir de En cours,
-`project_before_in_progress` manquante (WF-PRJ-0090) —, elle est montrée figée (`control: "fixed"`),
-ses conditions dites sous elle, et n'est pas envoyée ; une date ou un texte laissés vides partent
-nuls, une date à moitié saisie, que son champ rend vide (`validity.badInput`), est refusée avant
-tout appel. Une réponse ne ferme que l'ouverture du formulaire d'où elle est partie : arrivée après
-que le dialogue a été fermé puis rouvert, elle s'affiche et laisse le nouveau dialogue ouvert
-(#660) ; et tant qu'une modification envoyée d'un dialogue fermé est en route, « Modifier le projet »
-est inactive (`aria-disabled`, `aria-busy`, décrite par « Enregistrement en cours… », `WritingNote` ;
-`onWriting` du formulaire) : rouvert, le formulaire écrirait depuis la version que sa propre réponse
-remplace, et le serveur le refuserait (412) — il s'ouvre sur la version qu'elle apporte (#661, #673).
-Elle se libère à la réponse, quelle qu'elle soit — un succès, un refus, une action serveur rejetée,
-l'API injoignable — ; une action serveur qui ne répond jamais la laisse inactive jusqu'au
-rechargement de la page. Le compteur d'ouvertures reste, en garde-fou : la commande attendant
-l'écriture, aucune autre ouverture ne vient avant la réponse. La réponse prend la place des faits lus tant qu'elle est plus récente que le projet lu
-(`lock_version`) — face au faux back, tant que l'écran reste ouvert (`MockupNotice`, dit tant que la
-modification est disponible) —, la page relue ; la section est remontée quand l'écran montre un
-autre projet. Un refus par champ se dit au champ, tout autre sous le formulaire — la probabilité
-figée entre-temps (409 `STATE_FORBIDS_OPERATION`, la condition nommée), la version périmée avec
-l'offre de relire ; un taux hors de ses bornes (422 `VALUE_OUT_OF_RANGE`, `params.minimum` ou
-`maximum`, en rapports) se dit au champ, la borne en pourcentage comme le champ la saisit
-(`ratioPercent`) ; le code déjà porté par un autre projet (409 `ALREADY_EXISTS`, `fields[]`) se dit
-au champ, le projet qui le porte nommé par le libellé que le refus donne
-(`conflicting_object_label`), l'écran ne montrant pas les autres projets — génériquement sans lui
-(`kind="project"`, EP-02/L42g). Le cycle de vie dit le prochain état du projet, son déclencheur et
-les conditions qui lui restent, une par une (`getProjectNextState`, `NextStateFacts`, WF-CYC-0050),
-qu'aucune commande ne mène à Chiffrage ni à En cours (WF-CYC-0020) ; le déclencheur est l'un des
-deux faits que le contrat énumère (`LifecycleTrigger`), dit par son catalogue
-(`enums.LifecycleTrigger`). Un projet qu'aucun fait ne mène plus loin — le serveur répond sans
-prochain état ni déclencheur — le dit : en cours, seules ses sorties restent ; terminal — un état où
-mène une sortie (`EXIT_STATES`) —, il est clos, et aucun état ne le suit (WF-CYC-0080).
+The project is created and edited in the mockup (EP-02/L44a, decision of the author of 2026-10-08,
+#513, #524; `project-form.tsx`), through the form of the reference data (`ReferenceForm`, which
+also writes an object other than those of the reference data and enters a planning date). The
+home page offers « Create a project » to a session that carries the permission to create one
+(`project_create`, `platformOffer`, WF-ADM-0100), unavailable, described by the refusal it would
+meet, as long as the minimal reference data is incomplete (`getReferenceReadiness`, WF-CYC-0120)
+— the home page names each missing prerequisite, the active labour category and, since
+EP-14/L42p, the active risk provision category (`active_provision_category`) included, and leads
+to the cost settings, as the `REFERENCE_INCOMPLETE` refusal names them under the form; the form
+takes what `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for
+the order (WF-PRJ-0010), the description — and leads to the screen of the project the server
+created, which the fake back serves in the guise of the witness, as long as the home page is still
+shown: a response that arrives after one has left it does not replace the chosen navigation. A
+response that arrives after « Cancel », the dialog closed but the home page still shown, leads
+there all the same: it is the only way to say the success, which the simulated list does not show,
+and closed during the wait, the dialog silences nothing. The project settings present its identity
+and its facts — the label, the code, the date of receipt of the order, the description, the
+inflation rate and the win probability — and their editing (`updateProject`) as the project lists
+its command (`update`): absent, available, or unavailable with its conditions — a terminal project
+(WF-CYC-0100). The two rates are entered as percentages and leave as ratios of the contract, the
+comma moved without a float (`editablePercent`, `percentRatio`); the win probability follows its
+own command (`update_win_probability`, EP-14/L44e): unavailable — from In progress on,
+`project_before_in_progress` missing (WF-PRJ-0090) —, it is shown fixed (`control: "fixed"`), its
+conditions said under it, and is not sent; a date or a text left empty leave null, a half-entered
+date, which its field renders empty (`validity.badInput`), is refused before any call. A response
+closes only the opening of the form it left from: arrived after the dialog has been closed and
+then reopened, it is displayed and leaves the new dialog open (#660); and as long as an edit sent
+from a closed dialog is under way, « Edit the project » is inactive (`aria-disabled`, `aria-busy`,
+described by « Saving in progress… », `WritingNote`; `onWriting` of the form): reopened, the form
+would write from the version its own response replaces, and the server would refuse it (412) — it
+opens on the version it brings (#661, #673). It is released on the response, whatever it is — a
+success, a refusal, a rejected server action, the API unreachable —; a server action that never
+answers leaves it inactive until the page is reloaded. The openings counter remains, as a
+safeguard: the command awaiting the write, no other opening comes before the response. The
+response takes the place of the facts read as long as it is more recent than the project read
+(`lock_version`) — against the fake back, as long as the screen stays open (`MockupNotice`, said
+as long as the edit is available) —, the page re-read; the section is remounted when the screen
+shows another project. A refusal by field is said at the field, any other under the form — the
+probability fixed in the meantime (409 `STATE_FORBIDS_OPERATION`, the condition named), the stale
+version with the offer to re-read; a rate outside its bounds (422 `VALUE_OUT_OF_RANGE`,
+`params.minimum` or `maximum`, as ratios) is said at the field, the bound as a percentage as the
+field enters it (`ratioPercent`); the code already carried by another project (409
+`ALREADY_EXISTS`, `fields[]`) is said at the field, the project that carries it named by the label
+the refusal gives (`conflicting_object_label`), the screen not showing the other projects —
+generically without it (`kind="project"`, EP-02/L42g). The lifecycle says the next state of the
+project, its trigger and the conditions it still lacks, one by one (`getProjectNextState`,
+`NextStateFacts`, WF-CYC-0050), as no command leads to Pricing or to In progress (WF-CYC-0020); the
+trigger is one of the two facts the contract enumerates (`LifecycleTrigger`), said by its
+catalogue (`enums.LifecycleTrigger`). A project that no fact leads any further — the server
+answers without a next state or a trigger — says so: in progress, only its exits remain; terminal
+— a state an exit leads to (`EXIT_STATES`) —, it is closed, and no state follows it (WF-CYC-0080).
 
-### Les périodes d'une liste
+### The periods of a list
 
-Une période d'une liste prend l'une des trois formes du contrat (`period.ts`), toutes saisies dans
-le même filtre (`PeriodFilter` de `frontend/src/components/grid/`) : deux jours de planning, bornes
-incluses, que le serveur reçoit tels quels — les pièces des coûts réels — ; deux jours locaux tirés
-en instants, la fin exclue — l'accueil — ; deux instants saisis à la minute en heure locale, la fin
-exclue — le journal d'audit. Seul le navigateur connaît son fuseau : les champs d'instants montrent
-l'adresse, et le bouton envoie, une fois la page hydratée ; un côté laissé intact part tel que
-l'adresse le nomme. Le refus d'une période inversée, la règle de toute période du contrat, est dit
-au champ de la fin, le début nommé tel que son champ le montre.
+A period of a list takes one of the three forms of the contract (`period.ts`), all entered in the
+same filter (`PeriodFilter` of `frontend/src/components/grid/`): two planning days, bounds
+included, which the server receives as they are — the actual cost documents —; two local days
+turned into instants, the end excluded — the home page —; two instants entered to the minute in
+local time, the end excluded — the audit log. Only the browser knows its time zone: the instant
+fields show the address, and the button sends, once the page is hydrated; a side left untouched
+leaves as the address names it. The refusal of an inverted period, the rule of every period of the
+contract, is said at the field of the end, the start named as its field shows it.
 
-### Le contexte d'un écran de projet
+### The context of a project screen
 
-Un écran de données de projet lit son contexte par `readAddress` de
-`frontend/src/components/context/reading.ts` — projet, révision, filtres actifs, lus une
-fois par requête — et le montre par `ContextBanner`, au-dessus de son `<main>`
-(WF-IHM-0020). La lecture porte `edits`, les commandes `edit_*` de la révision que
-l'appelant peut exercer (`read-only.ts`), qu'un écran reçoit plutôt que de les déduire. Ce qu'une
-grille offre — la saisie, les gestes, le collage — ne se lit pourtant pas là, mais dans la
-structure qu'elle lit (`screen.commands`, de `grid-screen.ts`, d'après
-`available_commands`) : sa propre commande — `edit_planning` pour le planning —, car la phase du
-projet n'est pas celle de la révision (le devis de la principale d'un projet En cours est en
-lecture seule, le reste à engager non, le devis d'un différentiel ou d'un risque non plus) et qu'un
-chiffreur peut saisir le devis sans toucher au planning. Le planning et le devis lisent la
-structure que nomme l'adresse (`structure`, `components/context/structure.ts`) — la principale
-par défaut, un différentiel d'avenant, le devis propre d'un risque —, que la révision liste
-(`listCostStructures`), une autre étant introuvable ; le reste à engager, les chronologies et
-l'arborescence, la seule principale (`GridReading.chooses`). Le bandeau nomme la structure lue,
-sa nature quand ce n'est pas la principale, et offre les autres de la révision
-(`StructureChoice`) ; ce paramètre est celui de la grille : les liens entre fonctions ne le portent
-que du planning au devis et du devis au planning, qui lisent la même structure, et jamais vers un
-autre écran, qui retombe sur la principale (`readsStructure`, `navigation/context.ts`, #1220). La
-grille se monte par structure (`key`), et le squelette ne s'offre que sur la principale
-(US-0500). `readOnly` —
-révision marquée, ou aucune commande `edit_*` disponible — ne sert qu'à l'avis du bandeau. Une
-valeur sous enveloppe `Computable` s'affiche par `ComputedIndicator`, jamais sans la date de son
-`CalculationContext`, et non calculable avec son motif, un code que le catalogue rend
+A project data screen reads its context through `readAddress` of
+`frontend/src/components/context/reading.ts` — project, revision, active filters, read once per
+request — and shows it through `ContextBanner`, above its `<main>` (WF-IHM-0020). The read
+carries `edits`, the `edit_*` commands of the revision the caller may exercise (`read-only.ts`),
+which a screen receives rather than deducing them. What a grid offers — the entry, the gestures,
+the paste — is however not read there, but in the structure it reads (`screen.commands`, of
+`grid-screen.ts`, from `available_commands`): its own command — `edit_planning` for the planning
+—, because the phase of the project is not that of the revision (the estimate of the main
+structure of a project In progress is read-only, the remaining to commit is not, nor is the
+estimate of a differential or of a risk) and because an estimator may enter the estimate without
+touching the planning. The planning and the estimate read the structure the address names
+(`structure`, `components/context/structure.ts`) — the main one by default, a differential of an
+amendment, the own estimate of a risk —, which the revision lists (`listCostStructures`), another
+one being not found; the remaining to commit, the timelines and the tree, the main one only
+(`GridReading.chooses`). The banner names the structure read, its nature when it is not the main
+one, and offers the others of the revision (`StructureChoice`); this parameter is that of the
+grid: the links between functions carry it only from the planning to the estimate and from the
+estimate to the planning, which read the same structure, and never towards another screen, which
+falls back on the main one (`readsStructure`, `navigation/context.ts`, #1220). The grid is mounted
+per structure (`key`), and the skeleton is offered only on the main one (US-0500). `readOnly` —
+marked revision, or no `edit_*` command available — serves only the notice of the banner. A value
+under a `Computable` envelope is displayed through `ComputedIndicator`, never without the date of
+its `CalculationContext`, and when not computable with its reason, a code the catalogue renders
 (`enums.NotComputableReason.*`, `indicator.tsx`).
 
-### Les courbes
+### Curves
 
-Une courbe est une figure de `Chart` (`frontend/src/components/chart/`, US-0240) : Apache
-ECharts, importé pièce à pièce et dessiné en SVG, son option `aria` active ; sa légende la
-nomme, le dessin est une image que décrit une phrase du catalogue, et ses valeurs sont un
-tableau sous lui, l'alternative textuelle (WF-IHM-0100). Le composant client propre à la courbe
-(`index-chart.tsx`, `milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) lui
-remet son option, construite dans une palette : ECharts écrit ses couleurs dans les attributs de
-son SVG, où une variable CSS n'atteint pas, et les jetons `--chart-1` à `--chart-4`,
-`--muted-foreground`, `--foreground`, `--input`, `--border` et `--background` y arrivent par
-des sondes cachées que le navigateur peint dans le mode affiché ; un changement de
-mode, du poste ou forcé par le compte (`data-theme`), redessine la courbe. Elle se dessine d'un
-coup, sans animation, et une légende y est inerte : un clic, à la souris seule, ne cache aucune
-série. `curve` nomme chaque courbe à son dernier point tracé, quel que soit leur nombre — pas de
-légende, qu'une entrée par sous-projet ferait déborder sur le tracé —, les noms qui se
-chevaucheraient écartés, et la distingue aussi par sa couleur, son symbole et son trait ; un plan de
-charge est un histogramme empilé (`stackedRoles` de `workload/stacked-load.ts` : une barre par mois,
-divisée par rôle, les motifs gardés), dont l'infobulle d'un mois liste les rôles et leurs heures
-(`monthTooltip`, libellés échappés) ; celui du projet n'a pas de droite de capacité (#375) mais porte au sommet
-de chaque barre le total du mois que le serveur rend (`monthly_totals`, `monthTotals`), comme celui
-du portefeuille qui porte aussi, en pointillés, la capacité
-du périmètre (`capacity_monthly_hours`), la table des rôles, de leur taux et de leurs signaux étant
-sous le graphique ; les liens vers le plan de charge ouvrent une base (`basis`,
-`workload/workload-basis.ts`) : le reste à engager `current_remaining`, le devis `reference_budget`
-d'un projet en cours ou terminé qui a une référence, `current_remaining` sinon ; le lien du reste à
-engager vers ce plan est une icône seule (`aria-label`, `title`), le titre de l'écran et les totaux
-de sa grille ne tenant dans la fenêtre de 1280 points qu'à ce prix (`remaining.spec.ts`) ; une
-courbe sans point tracé n'a pas de nom sur le dessin, son tableau la nomme ; une série de barres
-(`bars`) se distingue aussi par le motif du symbole de son rang, que la légende montre ;
-`timeAxis` gradue un axe de temps au premier de chaque mois que `monthTicks` tire des instants
-qu'il montre — tous les deux, trois, six mois ou chaque année sur une longue plage, l'année seule
-alors, ou tous les deux, cinq, dix ans, sur les années multiples du pas (#415) —, écrits
-dans la langue du poste, dans son fuseau ou en UTC pour un axe de dates de planning, que
-`planningInstant` place à leur minuit UTC, l'option de la figure disant alors `useUTC`. Une
-courbe trace les chaînes de l'API telles quelles — ECharts en tire une position —, une valeur
-non calculable étant un trou, un cumul d'événements datés — valeur acquise, coût réel — en
-escalier (`step`), une marche verticale par deux points à la même date, et le tableau les écrit
-par `src/i18n/format.ts`, les zones par `Signal`. La matrice des risques est un nuage de bulles
-(`risks/risk-bubble-chart.tsx`, `RiskBubbleChart`, partagé par le projet et le portefeuille) : un
-`scatter` par état de risque — le cercle, le losange, le triangle, que la légende montre —, sur
-seize `markArea` d'une série à part, une par case, que `ChartPalette.zones` colore des jetons des
-zones (`ZoneProbes` de `signal/signal.tsx`, le seul fichier qui nomme ces jetons) ; une zone
-se nomme dans son aire quand sa bande a la place d'une ligne, et son bord a un trait à elle (plein,
-tireté, pointillé), la couleur ne la portant jamais seule. Les axes vont du zéro à la fin du dernier
-niveau — que le serveur laisse sans borne haute, et qu'ECharts ne prolonge pas pour une aire —, à
-la bulle la plus haute près ; une bulle est à la probabilité et à la part de gravité exactes de son
-point, et sa taille, bornée, suit la gravité en montant ; l'infobulle dit le risque, son projet au
-portefeuille, et le clic (`onPoint` de `Chart`, par l'`id` de la donnée) ouvre le détail du risque
-dans l'adresse d'un projet, ou le projet d'un point que `can_open` permet d'ouvrir. La table du
-décompte par case (`RiskCountsTable`, `cells`) est celle des valeurs de la figure. Aucune bulle
-n'est atteignable au clavier, et c'est dit : la grille des risques, sur le même écran (projet),
-donne au clavier l'accès aux mêmes données, par le lien du libellé de chaque ligne, et au
-portefeuille le tableau des plus lourds et `/portfolio/projects` y suffisent (#1253). Les axes
-restent linéaires, aux valeurs exactes (WF-IHM-0100), même si la bande de 0 à 1 % de gravité n'y
-mesure qu'une quinzaine de points : une échelle par morceaux fausserait la lecture des positions.
-`folded` de `Chart` ne vaut que pour l'état initial du dessin — un bouton l'affiche et le replie
-ensuite —, et un changement ultérieur de la prop ne le plie ni ne le déplie. Une figure qui reçoit
-`exported` offre la commande « Exporter en PNG » (WF-IHM-0130) : `exportPng` la redessine dans une
-instance hors écran, en rendu canvas, à la taille d'une image, son titre et sa provenance
-(`useProvenance`) — projet, révision du calcul, ce sur quoi la figure est calculée par ailleurs
-(`detail` : la base et le nœud d'organisation filtré du plan de charge), date de calcul, écrite dans
-l'heure du poste au moment de l'export — en tête, repliés à la largeur de l'image (`wrapLines`), la
-figure descendue de la hauteur de leurs lignes, sur le fond de la charte, puis libère l'instance. Un
-choix qui change ce qu'une courbe lit — les délais de paiement, la base et le nœud d'organisation du
-plan de charge — est un paramètre de l'adresse, que le serveur envoie à l'API : le front ne filtre
-ni ne décale rien.
+A curve is a figure of `Chart` (`frontend/src/components/chart/`, US-0240): Apache ECharts,
+imported piece by piece and drawn in SVG, its `aria` option on; its legend names it, the drawing
+is an image a sentence of the catalogue describes, and its values are a table under it, the
+textual alternative (WF-IHM-0100). The client component of the curve's own (`index-chart.tsx`,
+`milestone-chart.tsx`, `curve-series-chart.tsx`, `workload-chart.tsx`) hands it its option, built
+in a palette: ECharts writes its colours in the attributes of its SVG, where a CSS variable does
+not reach, and the tokens `--chart-1` to `--chart-4`, `--muted-foreground`, `--foreground`,
+`--input`, `--border` and `--background` get there through hidden probes the browser paints in the
+displayed mode; a change of mode, from the workstation or forced by the account (`data-theme`),
+redraws the curve. It is drawn in one go, without animation, and a legend is inert there: a
+click, with the mouse alone, hides no series. `curve` names each curve at its last plotted point,
+whatever their number — no legend, which one entry per subproject would make overflow onto the
+plot —, the names that would overlap set aside, and distinguishes it also by its colour, its symbol
+and its stroke; a workload plan is a stacked histogram (`stackedRoles` of
+`workload/stacked-load.ts`: one bar per month, divided by role, the patterns kept), whose tooltip
+for a month lists the roles and their hours (`monthTooltip`, labels escaped); that of the project
+has no capacity line (#375) but carries at the top of each bar the total of the month the server
+renders (`monthly_totals`, `monthTotals`), like that of the portfolio, which also carries, dotted,
+the capacity of the perimeter (`capacity_monthly_hours`), the table of the roles, their rate and
+their signals being under the chart; the links to the workload plan open a basis (`basis`,
+`workload/workload-basis.ts`): the remaining to commit `current_remaining`, the estimate
+`reference_budget` for a project in progress or completed that has a reference, `current_remaining`
+otherwise; the link from the remaining to commit to this plan is an icon alone (`aria-label`,
+`title`), the title of the screen and the totals of its grid fitting in the 1280-point window only
+at that price (`remaining.spec.ts`); a curve without a plotted point has no name on the drawing,
+its table names it; a series of bars (`bars`) is also distinguished by the pattern of the symbol of
+its rank, which the legend shows; `timeAxis` graduates a time axis at the first of each month that
+`monthTicks` draws from the instants it shows — every two, three, six months or every year over a
+long range, the year alone then, or every two, five, ten years, on the years that are multiples of
+the step (#415) —, written in the language of the workstation, in its time zone or in UTC for an
+axis of planning dates, which `planningInstant` places at their UTC midnight, the option of the
+figure then saying `useUTC`. A curve plots the strings of the API as they are — ECharts draws a
+position from them —, a non-computable value being a gap, a cumulation of dated events — earned
+value, actual cost — as a staircase (`step`), one vertical step by two points at the same date,
+and the table writes them through `src/i18n/format.ts`, the zones through `Signal`. The risk
+matrix is a bubble cloud (`risks/risk-bubble-chart.tsx`, `RiskBubbleChart`, shared by the project
+and the portfolio): one `scatter` per risk state — the circle, the diamond, the triangle, which
+the legend shows —, over sixteen `markArea` of a separate series, one per cell, which
+`ChartPalette.zones` colours with the tokens of the zones (`ZoneProbes` of `signal/signal.tsx`,
+the only file that names these tokens); a zone is named in its area when its band has room for a
+line, and its edge has a stroke of its own (solid, dashed, dotted), the colour never carrying it
+alone. The axes run from zero to the end of the last level — which the server leaves without an
+upper bound, and which ECharts does not extend for an area —, to the highest bubble at most; a
+bubble is at the exact probability and share of severity of its point, and its size, bounded,
+follows the severity upwards; the tooltip says the risk, its project in the portfolio, and the
+click (`onPoint` of `Chart`, by the `id` of the datum) opens the detail of the risk in the address
+of a project, or the project of a point that `can_open` allows to open. The table of the count per
+cell (`RiskCountsTable`, `cells`) is that of the values of the figure. No bubble is reachable by
+keyboard, and it is said: the risks grid, on the same screen (project), gives the keyboard access
+to the same data, through the link of the label of each row, and in the portfolio the table of the
+heaviest and `/portfolio/projects` suffice for it (#1253). The axes stay linear, at the exact
+values (WF-IHM-0100), even if the band from 0 to 1 % of severity measures only some fifteen points
+there: a piecewise scale would distort the reading of the positions. `folded` of `Chart` holds
+only for the initial state of the drawing — a button shows it and folds it thereafter —, and a
+later change of the prop neither folds nor unfolds it. A figure that receives `exported` offers
+the « Export as PNG » command (WF-IHM-0130): `exportPng` redraws it in an off-screen instance, in
+canvas rendering, at the size of an image, its title and its provenance (`useProvenance`) —
+project, revision of the calculation, what the figure is otherwise calculated on (`detail`: the
+basis and the filtered organisation node of the workload plan), calculation date, written in the
+time of the workstation at the moment of the export — at the head, wrapped to the width of the
+image (`wrapLines`), the figure moved down by the height of their lines, on the background of the
+visual identity, then releases the instance. A choice that changes what a curve reads — the
+payment terms, the basis and the organisation node of the workload plan — is a parameter of the
+address, which the server sends to the API: the front neither filters nor shifts anything.
 
-### L'écran des indicateurs
+### The indicators screen
 
-L'écran des indicateurs d'un projet lit ses indicateurs et ses courbes dans la révision de sa route
-(`revision_id`) — ceux d'une révision marquée tels que son marquage les a conservés —, ou à la date
-que l'adresse demande (`as_of`), jamais les deux, que l'API refuse ensemble ; une offre marquée
-avant l'état En cours, qui n'en a conservé aucun, est refusée comme un projet qui n'est pas en
-cours, et l'écran le dit. Un avis en tête nomme, des indicateurs et de l'évolution des indices,
-celui qui est calculé sur une autre révision que celle du bandeau, et laquelle — l'évolution,
-toujours au jour sur la révision en cours (`ComputedElsewhere`) ; une courbe nomme la sienne dans
-l'image qu'elle exporte. Le sous-projet de l'adresse, celui que le bandeau montre (WF-IHM-0020),
-restreint ce que l'API lit pour lui (`scope`, WF-IND-0020) — les indicateurs, l'évolution des
-indices, les coûts cumulés et les courbes de valeur acquise (EP-02/L42e) —, sauf le diagramme
-temps/temps, calculé pour le seul projet : il suit des jalons, qu'un sous-projet n'a pas
-(WF-IND-0020). La pastille du bandeau le dit (`restricts` de `ContextBanner`, comme pour la grille
-du reste à engager, #459), et le suivi des jalons dit qu'il porte sur le projet entier
-(`WholeProject`). Un sous-projet que le projet n'a pas, refusé par 422 `UNKNOWN_SUBPROJECT` sur
-`/query/scope`, est dit comme les indicateurs d'un projet qui n'est pas en cours, jamais lu comme
-des indicateurs nuls ; une courbe sans point dit qu'elle n'a rien à tracer plutôt que de tracer un
-zéro, et une série sans point parmi d'autres qui en ont le dit sous le graphique — le budget de
-référence d'une maille qu'aucune référence ne budgète — ; une courbe vide non décalée n'offre pas de
-la décaler, et, décalée, garde la commande qui retire le décalage.
+The indicators screen of a project reads its indicators and its curves in the revision of its
+route (`revision_id`) — those of a marked revision as its marking preserved them —, or at the date
+the address asks for (`as_of`), never both, which the API refuses together; an offer marked before
+the In progress state, which preserved none, is refused like a project that is not in progress,
+and the screen says so. A notice at the head names, among the indicators and the evolution of the
+indices, the one that is calculated on another revision than that of the banner, and which — the
+evolution, always to the day on the current revision (`ComputedElsewhere`); a curve names its own
+in the image it exports. The subproject of the address, the one the banner shows (WF-IHM-0020),
+restricts what the API reads for it (`scope`, WF-IND-0020) — the indicators, the evolution of the
+indices, the cumulated costs and the earned value curves (EP-02/L42e) —, except the time/time
+diagram, calculated for the project alone: it follows milestones, which a subproject does not have
+(WF-IND-0020). The badge of the banner says so (`restricts` of `ContextBanner`, as for the grid of
+the remaining to commit, #459), and the milestone tracking says that it covers the whole project
+(`WholeProject`). A subproject the project does not have, refused by 422 `UNKNOWN_SUBPROJECT` on
+`/query/scope`, is said like the indicators of a project that is not in progress, never read as
+null indicators; a curve without a point says it has nothing to plot rather than plotting a zero,
+and a series without a point among others that have some says so under the chart — the reference
+budget of a mesh that no reference budgets —; an empty curve not shifted does not offer to shift
+it, and, shifted, keeps the command that removes the shift.
 
-### Les chiffres clés en cartes
+### Key figures as cards
 
-Les chiffres clés d'un écran se présentent par `FiguresCard` (`src/components/figures-card.tsx`),
-jamais en ligne dans un `<dl className="flex …">` posé sur la page : une carte est une région
-nommée par son titre (`role="region"`, `aria-label` du titre), qui porte la date de calcul quand la
-réponse a un contexte (`context`, `CalculationDate`, WF-IHM-0020) et ses chiffres dans une liste de
-termes (`FiguresList`, un `dl`) — le nom, puis la valeur, pour un lecteur d'écran. Les cartes d'un
-écran sont rangées dans `FiguresGrid`, qui passe à la ligne selon la largeur ; les cartes y
-partagent la largeur, et une carte seule s'étire sur toute la rangée. La date de calcul se répète sur chaque
-carte d'une réponse qui en a une : chaque région se lit seule, avec son titre et sa date, sans
-qu'il faille remonter à une autre. Elle se place sous le titre, jamais à sa suite sur la
-même ligne : écrite après l'hydratation (`LocalTime`), elle ferait sauter la carte d'une ligne. Une carte porte un bloc de chiffres qui se lit ensemble — les
-totaux, une ventilation en liste, la couverture des risques —, jamais la page entière. Les valeurs,
-leur format et leurs signaux (`Signal`, WF-IHM-0070) sont ceux que l'écran avait : la carte
-n'ajoute que l'encadré. `IndicatorCard` (écran des indicateurs) la réemploie en gardant son aspect d'avant (`spacious`), les courbes et les tableaux qu'elle porte ayant besoin de la place ; les autres cartes sont compactes, pour que la grille garde ses totaux dans la fenêtre. Les six écrans qui
-la suivent sont les risques, le devis, le reste à engager, les coûts réels et les deux vues du
-portefeuille, performance et risques d'une part, valeur de l'autre ; le bandeau du contexte de
-lecture, une bande d'information, n'en est pas. Sur un écran rempli (`Screen fill`), la ligne des
-totaux de la grille reste dans la fenêtre sous les cartes, à 1366 et à 911 de large sur 768 de
-haut : `e2e/grid-frame.spec.ts` le vérifie, risques compris : le graphique de leur matrice, entre les
-cartes et la grille, démarre replié (`folded` de `Chart`), un bouton l'affiche et le replie, car dépliée
-sa hauteur (288 points, `h-72`) ne laisse pas les totaux dans la fenêtre à 768 de haut (#1252). _Contrôle_ : la revue ;
+The key figures of a screen are presented through `FiguresCard` (`src/components/figures-card.tsx`),
+never inline in a `<dl className="flex …">` laid on the page: a card is a region named by its
+title (`role="region"`, `aria-label` of the title), which carries the calculation date when the
+response has a context (`context`, `CalculationDate`, WF-IHM-0020) and its figures in a list of
+terms (`FiguresList`, a `dl`) — the name, then the value, for a screen reader. The cards of a
+screen are arranged in `FiguresGrid`, which wraps according to the width; the cards share the
+width there, and a card alone stretches over the whole row. The calculation date is repeated on each
+card of a response that has one: each region is read alone, with its title and its date, without
+having to go back up to another. It is placed under the title, never after it on the
+same line: written after hydration (`LocalTime`), it would make the card jump by a line. A card carries a block of figures that is read together — the
+totals, a breakdown as a list, the risk coverage —, never the whole page. The values, their
+format and their signals (`Signal`, WF-IHM-0070) are those the screen had: the card adds only the
+frame. `IndicatorCard` (indicators screen) reuses it while keeping its former look (`spacious`), the curves and the tables it carries needing the room; the other cards are compact, so that the grid keeps its totals in the window. The six screens that
+follow it are the risks, the estimate, the remaining to commit, the actual costs and the two views
+of the portfolio, performance and risks on one hand, value on the other; the banner of the reading
+context, an information band, is not one. On a filled screen (`Screen fill`), the totals row of
+the grid stays in the window under the cards, at 1366 and at 911 wide by 768 high:
+`e2e/grid-frame.spec.ts` checks it, risks included: the chart of their matrix, between the cards
+and the grid, starts folded (`folded` of `Chart`), a button shows it and folds it, because unfolded
+its height (288 points, `h-72`) does not leave the totals in the window at 768 high (#1252). _Check_: review;
 `src/components/figures-card.dom.test.tsx`, `e2e/accessibility.spec.ts`.
 
-### Les grilles
-
-Une grille est la grille dense de `frontend/src/components/grid/` (US-0110), configurée par
-écran : une `GridConfig` (`columns.ts`) nomme la clé de ses préférences, stable, ses colonnes
-— clé, libellé du catalogue (`grid.columns.*`), format, alignement, largeur par défaut,
-celles de ses cellules que le serveur calcule, figée ou non, la colonne du contrat qu'elle montre
-(`contract`) — celle par laquelle le serveur la trie et sur laquelle un collage la vise —, et,
-pour une colonne étroite, l'icône qui tient lieu d'en-tête et que son libellé nomme, ou ce que
-rend sa cellule en place de la valeur formatée (`render`) — et, s'il y en a un, son arbre
-(niveau, icône de nature par `RowNatureIcon`). Trier est d'abord l'affaire de la grille : une
-grille arborescente dont les lignes gardent l'ordre du plan n'en trie aucune (`sorts: false`), et
-son adresse n'en demande aucun — le planning (§3.4, WF-IHM-0060, #525). Le devis et le reste à
-engager, dont le serveur ne trie que les lignes sous chaque tâche, les tâches gardant l'ordre de
-l'arbre (WF-IHM-0060, #526), ne trient pas par une colonne de la seule tâche, que le contrat
-accepte mais dont le tri ne changerait rien : la colonne le dit elle-même
-(`GridColumn.sorts: false`), en gardant sa colonne du contrat, que vise un collage là où la grille
-en prend un (le planning, le devis) — l'avancement et la fin au reste à engager, qui n'offre ainsi
-que ce qui agit (dans l'esprit de WF-IHM-0090). Ni son en-tête ni l'adresse n'en
-offrent le tri, et un tri par elle, dans l'adresse ou gardé par le compte, est ignoré comme un tri
-inconnu (`sortColumns`). La
-configuration lit les lignes par des
-fonctions : elle se remet à `DenseGrid` dans un composant client propre à l'écran
-(`estimate-grid.tsx`, `planning-grid.tsx`), et la page, serveur, ne lui passe que des données —
-la structure lue et, de chaque nœud, les seuls champs que la grille lit : ceux de toute grille
-(identité, version, champs calculés, numéro, niveau, parent, nature, libellé) et ceux de ses colonnes,
-que nomme sa configuration (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). La page les demande à
-`listNodes` (`fields`, `nodeFieldNames` : un champ d'une facette sous son nom, `task.label`) et
-les projette encore (`projectNodes`) : un serveur peut rendre plus qu'on ne lui demande — le faux
-back rend son exemple entier —, et les six mille nœuds entiers pèsent six mégaoctets et demi dans
-la page, projetés, de quarante-huit à soixante-cinq pour cent — le parent, par lequel l'arbre se
-plie, y a ajouté quatre points ; la lecture de l'écran
-(`readGridScreen`) ne rend que les lignes projetées et les totaux, jamais la réponse entière. Un
-champ d'une ligne qui ne dit rien — nul, ou faux pour un drapeau (`SPARSE_LINE_FIELDS`) — ne
-traverse pas, la cellule le lisant comme nul, et l'identifiant du sous-projet d'une ligne ne
-traverse que vers une grille qui le saisit (`withoutSubprojectIds`). Une colonne qui lit un champ
-nouveau l'ajoute à cette liste : le typage de la ligne le demande, et `projection.test.tsx`
-vérifie que la grille lit la même chose de la ligne projetée que du nœud entier, et que la page
-demande ce qu'elle projette. Le calculé se lit cellule par cellule (WF-IHM-0030,
-`computed-nodes.ts`) : un champ qu'aucune écriture ne
-porte — les montants, la marge — l'est dans chaque ligne qui le porte, et sa colonne a Σ en
-en-tête ; un champ saisissable l'est là où le nœud le nomme dans `computed_fields`, jamais
-d'après son mode ni sa nature. Une cellule calculée est grisée, marquée Σ et nommée « Calculé »
-— la marque se lit sans la couleur — ; c'est un bouton qui, cliqué ou pressé au clavier, refuse
-la saisie dans un Popover (`ComputedCell`, `ComputedRefusal`) en disant ce dont sa valeur
-dépend, que le serveur dit : chaque colonne calculée nomme le champ du contrat de chacune de ses
-cellules, et le refus appelle `getComputedValueDependencies` pour le nœud et ce champ, par une
-action serveur (`readComputedDependencies`) que la grille reçoit de son écran
-(`nodeDependencies`, un lecteur par lecture de la page) — tant qu'il est ouvert seulement, et
-une fois par question : la lecture de la page, le nœud et le champ. Un refus fermé ne demande
-rien ; rouvert après une relecture de la page, il redemande, car les lignes qu'il nomme ont pu
-changer de numéro ou de libellé sans que le nœud change de version ; un échec se redemande à
-l'ouverture suivante, seule une réponse est gardée. Dans une seule région annoncée
-(`role="status"`, `aria-live="polite"`), présente dès l'ouverture et `aria-busy` pendant la
-lecture, il dit qu'il la lit, puis les règles qui la calculent (`enums.ComputedDependency.*`) et
-les lignes dont elle vient, nommées par leur numéro et leur libellé, que la grille les montre ou
-non ; un refus du serveur, ou l'API injoignable, se disent par `OutcomeNotice`. Une ligne qui dit
-elle-même ce dont sa valeur dépend — un risque, sa gravité et sa provision (`Risk.computed_fields`)
-— le donne à sa colonne (`dependsOn`), et le refus en nomme les règles d'emblée, sans rien
-demander. Le front ne lit aucune règle du
-noyau. Le Popover ne se monte
-qu'au premier essai : une racine de Radix par cellule calculée alourdirait l'hydratation du
-premier écran. La grille de planning
-et celle de devis sont deux configurations de ce seul composant (`planning.tsx`,
-`estimate.ts`), qui partagent l'arbre, le numéro et le libellé d'un nœud (`nodes.tsx`) et la
-lecture de la structure que nomme l'adresse (`grid-screen.ts`) ; le planning demande au serveur les
-seules tâches (`kinds=task`). Le devis présente, d'une ligne comme d'une tâche, récapitulative
-comprise, et en total, le montant à l'année de référence (`base_amount`) et le montant corrigé de
-l'inflation, tels que le serveur les rend, jamais le budgété ni le réestimé (WF-DEV-0050) ; il
-nomme la catégorie et le rôle d'une ligne par les libellés que le serveur résout, l'objet actif ou
-désactivé (`cost_category_label`, `resource_role_label`, #305) ; le sous-projet d'une ligne de
-provision, celui que son risque désigne, y est une cellule calculée, que le nœud nomme
-(`estimate_line.subproject_id` de `computed_fields`, EP-14/L42p), et son refus demande au serveur
-ce dont il dépend, comme ses grandeurs — les listes du référentiel ne
-servent qu'au choix d'une saisie, offerte seulement sur un objet qu'elles connaissent ; elles ne
-demandent les objets désactivés (`include_inactive`) qu'à une session qui porte la permission de
-lecture de leur partie du référentiel, que le contrat exige, et un chiffreur sans elle saisit sur
-les objets actifs (#351). Ce qu'une écriture rend se lit comme la grille le lit (`nodesWritten`) :
-les nœuds écrits et leurs ancêtres entiers, des tâches redatées la part de leur calendrier qu'elle
-montre (`rescheduled`), des lignes
-et des tâches déplacées dans le temps la part de leurs montants qu'elle montre (`reinflated`) —
-chaque part ne pose que ses champs : celles d'une même ligne, d'une écriture ou de plusieurs, se
-posent l'une sur l'autre dans l'ordre des réponses (`answers.ts`).
-Le mode de planification et l'avancement s'y montrent par une
-icône nommée, le chemin critique par une icône et le gras sur la marge, jamais par la seule
-couleur ; une date se montre dans sa forme courte. Le tri et la
-recherche sont dans l'adresse, sous les noms du contrat (`sort_by`, `sort_order`, `search`,
-`query.ts`) : un en-tête cliqué ou une recherche saisie change l'adresse, la page relit
-l'opération avec eux, et la grille rend les lignes dans l'ordre reçu, les totaux de la
-réponse en pied — TanStack Table n'y enregistre aucun modèle trié, filtré ni groupé. Au
-clavier, la grille est un seul arrêt de tabulation, sa cellule active, que les flèches déplacent,
-l'en-tête compris — ses boutons et ses poignées hors de la tabulation — : Entrée ou Espace sur un
-en-tête trie sa colonne, Maj et les flèches l'élargissent ou la rétrécissent (motif `grid` d'ARIA, #182). Un refus
-d'écriture reste dit jusqu'à ce que l'utilisateur ferme son avis (`OutcomeNotice`,
-`dismissible`), quoi qui réussisse après lui. Seules
-les lignes visibles sont rendues (`row-window.ts`, sur `@tanstack/virtual-core`) : le
-virtualiseur est lu comme un magasin dont l'instantané est une donnée, qui ne change que
-quand la fenêtre bouge. Le React Compiler n'est pas activé dans ce front, mais le lint de
-React refuse l'adaptateur de TanStack Virtual, dont un rendu compilé figerait les réponses
-(`react-hooks/incompatible-library`). La hauteur d'une ligne suit la taille de la police
-racine (1,75 rem). L'en-tête et les totaux sont collés au haut et au pied de la grille, le
-numéro et le libellé à son début. La ligne d'en-tête de toute table, liste comme grille dense, est
-sur le fond `muted` de la charte : `TableHead` le pose à l'en-tête d'une colonne, dans le `<thead>`,
-non à celui d'une ligne, et un `<thead>` écrit à la main le prend de même (#508), ce que
-`frontend/src/components/thead-guard.test.ts` vérifie dans les sources. La grille prend la hauteur que lui laisse son écran : un
-écran de grille est un `Screen` qui remplit la fenêtre (`fill`), la page bornée à sa hauteur
-(`ShellFrame`), et la grille s'y réduit de la hauteur de ses lignes jusqu'à un plancher, dix rem au plus et jamais
-plus que son contenu (`min(10rem, 2 × EDGE_REM + max(lignes, 1) × ROW_REM)`, `grid-floor.ts`, #1041) —
-aucune hauteur n'y est calculée d'après ce qui la précède ; une fenêtre trop basse pour ce
-plancher fait défiler la page. L'enveloppe de la grille et de sa barre porte ce plancher, plus la
-barre, en hauteur minimale : les enveloppes de l'écran, qui rétrécissent à ce qui reste (`min-h-0`),
-ne poussent pas le cadre sous son plancher sur ce qui le suit dans la même enveloppe — les filtres
-au-dessus, les pages en dessous. Le plancher ne remonte pas plus haut : une enveloppe en `min-h-0`
-peut rester plus basse que le cadre, ce que la page absorbe en défilant, tant que rien ne la suit.
-Un écran qui a du contenu sous l'enveloppe de sa grille, hors de la chaîne qui la contient — fût-ce
-seulement dans une fenêtre étroite, où le contenu voisin se range dessous (les coûts réels, les
-risques) —, ne remplit pas la fenêtre là où il l'a dessous (`fillWide`,
-`lg:min-h-0`), de même que `/admin/backups` et le référentiel des ressources et des coûts, qui empilent leurs
-grilles, ne la remplissent pas :
-la grille déborderait sur lui (#1033). `frontend/e2e/grid-frame.spec.ts` le mesure sur les neuf
-écrans qui remplissent la fenêtre, dans une fenêtre basse, aux deux largeurs du harnais : le cadre
-ne chevauche rien. La barre et le bouton « Colonnes » ont la largeur du cadre de la table, telle que
-le navigateur la pose (barres de défilement comprises, `frame-width.ts`), sans la dépasser, et jamais
-moins que ce que la barre tient sur une ligne (`min-w-min`, la recherche rétrécissant avant que
-rien ne s'enroule, hors la liste de commandes d'un écran, qui s'enroule d'elle-même) ; les avis — refus, collage appliqué, colonnes non montrées, problème de saisie —
-gardent toute la largeur (#1042). Colonnes masquées, largeurs et tri sont une préférence
-d'affichage (`settings.ts`, WF-IHM-0060) : lues de la session, la grille remplacée entière à
-chaque écriture et ce qu'elle ne règle pas renvoyé tel quel. Une grille garde dans le compte son tri
-et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
-l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
-préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
-venir) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
-les filtres d'une adresse qui les dit vivent dans l'adresse. Une autre grille ne garde aucun filtre. Une colonne ou une largeur
-s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
-quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne
-porte pas `keepalive`, et la fermeture d'un onglet peut l'interrompre. Seul un clic
-d'en-tête écrit le tri, une fois que la page le montre (`recordShown`), avec les réglages de
-ce moment — une largeur changée pendant la navigation comprise : Next porte une action
-serveur dans l'état de son routeur, et une navigation ne se montre pas avant que les actions
-lancées après elle aient répondu — écrite au clic, la préférence retenait le tri d'un
-aller-retour, et de chaque action en file avant elle. Jusque-là, elle attend comme le reste,
-et part avec lui si la page est quittée, cachée ou démontée, ou avant une recherche. L'adresse fait foi :
-un tri levé y reste, `sort_by` vide, et le tri gardé ne sert que quand elle ne dit rien du
-tri. Chaque grille est à la route de sa fonction, `…/revisions/[r]/planning` et
-`…/revisions/[r]/estimate` ; la révision elle-même mène à la première fonction d'une révision
-que la session peut lire, dans l'ordre de la FBS et de la barre latérale — le planning, ou le
-devis pour un chiffreur qui ne lit pas le planning. L'écran du devis dit au-dessus de sa
-grille les taux horaires qui manquent à son calcul, avec le chemin du référentiel pour qui le
-lit, et ses indicateurs, avec leur date de calcul, ou qu'ils sont indisponibles quand l'API
-ne les trouve pas ou les refuse faute de taux horaire (`HOURLY_RATE_MISSING`, #159) — ces
-deux cas ne font pas tomber l'écran ; toute autre réponse suit la règle des lectures
-(`EstimateSummary`).
-
-Une grille qui lit un différentiel (`CostStructure.kind` = `amendment`) est un diff avec la structure
-principale, que le serveur calcule (`Node.difference`, rendu sur chaque nœud, avec les nœuds retirés
-à leur place) : elle reçoit `GridConfig.difference` (`withDifference`, `nodes.tsx`) et une colonne
-`DiffMark` en tête (`diff-mark.tsx`, `DIFF_MARK_KEY`), avant le numéro. Le caractère dit la
-différence — `+` un ajout, `-` un retrait, `M` une modification, une récapitulative dont le contenu
-change comprise —, la couleur le double, la marque dans le vert, le rouge ou le jaune de son jeton
-et la ligne teintée du même (`--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark`, avec
-leurs valeurs sombres), jamais la couleur seule : le mot — « Ajouté », « Retiré », « Modifié » — est
-lu par qui ne voit ni l'un ni l'autre, et un nœud inchangé ne porte rien. Les jetons sont mesurés
-dans les deux modes (`contrast.test.ts`), et les grilles du planning et du devis sur l'avenant 2 sont
-des écrans du harnais d'accessibilité (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). Un nœud retiré se lit
-et ne se touche pas : aucun geste de structure ne lui est offert, ni « Insérer » ni « Supprimer » ni
-Ctrl+Suppr, il ne se déplace pas, rien ne se dépose à côté de lui (`isRemoved`, `structure-rules.ts`,
-#1185), et la cellule des prédécesseurs suit `editable_fields` (`task.predecessors`) : celle d'une tâche
-retirée, qui ne le nomme pas, n'est pas saisissable (#1257).
-
-La comparaison de deux révisions (`/revisions?from_revision_id=…&to_revision_id=…`) est la même
-grille, en lecture seule (`comparison-grid.tsx`, `components/revisions/`) : les nœuds de
-`compareRevisions` — l'arbre de la révision comparée, les nœuds retirés à leur place —, chacun avec
-la marque que le serveur rend (`difference`, `changes`, une tâche déplacée sous une autre
-récapitulative marquée modifiée, WF-REV-0080), la colonne `DiffMark` en tête, puis le numéro, le
-libellé indenté par son niveau sous l'icône de sa nature, et ce qui change du nœud, nommé comme le
-serveur le nomme. La comparaison ne se pagine pas, comme `listNodes` (#1201) : l'écran demande
-l'arbre entier, réduit par `fields` aux colonnes qu'il montre (`COMPARISON_FIELDS`, `kind`,
-`task.label`, `estimate_line.label`) et projeté (`comparisonRows`) ; le serveur rend toujours le
-numéro, le niveau, la version et la marque. Faute de parent dans ces champs, l'arbre ne se plie
-pas ; rien ne se trie ni ne se cherche, l'ordre est celui du plan. Les 5 999 nœuds de l'exemple de
-volume (`volume/comparison_volume.json`, dont 2 770 modifiés) ne montent qu'une fenêtre de lignes,
-et l'écran garde la borne d'un écran de grille (`WORKING`, 15 s, `revisions.spec.ts`) ; le parcours
-joue l'exemple de la fenêtre, le faux back servant le premier exemple de l'opération. Les écarts
-de montants restent une table sous la grille, et l'écran est l'un de ceux du harnais
-d'accessibilité (`DIFFERENTIAL_SCREENS`).
-
-### La grille de planning et le Gantt
-
-La grille de planning présente aussi la description d'une tâche et l'avancement physique d'une
-récapitulative, un pourcentage calculé ou non calculable, son motif en titre ; puis le Gantt
-(FBS-4.3.3, `frontend/src/components/gantt/`), sa dernière colonne, en lecture seule, épinglée à
-droite (`GridColumn.pinned: "end"`, `pinning.ts`, US-0530) : elle glisse sur les colonnes qui la
-précèdent quand elle s'élargit, et la grille les fait défiler hors de dessous elle
-(`scroll-padding-inline-end`). Sa poignée, sur son bord gauche — la souris, ou Maj et les flèches,
-la flèche gauche l'élargissant —, règle sa largeur, celle de `gantt` dans `column_widths`, et ne
-modifie aucune tâche, d'un minimum jusqu'à la place du cadre à sa plus grande largeur
-(`useFrameRoom`), moins les colonnes épinglées en tête et la plus large des autres, où se montre la
-cellule active (`endMaxOf`). Chaque cellule
-dessine en SVG la ligne de sa tâche — sa barre, les morceaux des liaisons qui la quittent, la longent
-ou l'atteignent, les mois de l'axe — : le dessin est aligné ligne à ligne sur la grille, rendu avec
-ses seules lignes visibles, et suit la largeur de sa colonne, en part de cette largeur. La
-disposition (`ganttLayout`, `layout.ts`) se calcule une fois pour les lignes que la grille montre,
-écritures comprises, que `DenseGrid` remet à ce qu'un écran met autour d'elle (`around`,
-`GanttRows`) — jamais en prop de chaque ligne ; l'en-tête dessine l'axe (`GridColumn.axis`), son
-libellé ne nommant plus la colonne qu'aux lecteurs d'écran. Rien n'y est planifié : une tâche va du
-début de son premier jour à la fin du dernier, une fin à l'heure 0 étant le début de son jour, un
-jalon se tient à sa fin, et l'axe va du premier du mois du plus tôt au premier du mois qui suit le
-plus tard (`monthTicks`, `chart/ticks.ts`, sans ECharts). Une liaison joint l'endroit que son type
-nomme sur le prédécesseur à celui qu'il nomme sur la tâche ; un prédécesseur hors de la réponse n'en
-dessine aucune. Une récapitulative est un crochet, un jalon un losange, une tâche une barre, pleine
-sur le chemin critique et creuse ailleurs, et chaque barre est une image nommée par ses dates et
-« critique » : rien ne se lit à la seule couleur. Aucune cellule du Gantt ne prend de saisie, et
-seul le bouton qui précède le crochet d'une récapitulative y prend le pointeur, pour la plier ou la
-déplier. Son niveau le plus fin divise chaque jour en heures travaillées, numérotées dans leur jour,
-que la page lit de `getDurationUnits` : `hoursOfDay` (`scale.ts`) arrondit `hours_per_day` à l'heure
-entière la plus proche, la demi-heure vers le haut, de 1 à 24, sur les chiffres de la chaîne, jamais
-par un flottant (#1393). « Exporter en PNG », après le zoom dans le coin de l'en-tête et au menu
-d'une cellule, dessine sur un canevas (`gantt-image.ts`) toute l'étendue au niveau montré — la
-largeur du dessin zoomé, celle de la colonne une fois ajusté au projet —, une ligne par tâche que la grille
-montre, pliée comme elle, les jours chômés du même hachurage que l'écran (`DAY_OFF_HATCH`, lu par
-les classes de ses jetons) et leur légende, la provenance en tête comme pour toute courbe
-(`useProvenance`, `provenanceOf` de `grid-screen.ts`) ; deux fois plus dense que l'écran tant qu'un
-canevas le tient, aussi dense sinon, et indisponible, son motif dit, au-delà des bornes des
-navigateurs (32 767 points de côté, 268 millions en tout). Sa colonne « Rattachement » présente le lot ou le poste que porte une tâche, par le libellé
-que le serveur résout (`work_breakdown_label`) ; là où la structure lue liste `edit_planning`, la cellule le
-choisit parmi les lots et les postes du lotissement lu entier, ou rien, écrit par `updateTaskFacet`
-— le champ choisi, et l'autre mis à `null` dans la même écriture quand la tâche le porte
-(`planning-attachment.ts`) —, son refus dit par le motif de son champ, en nommant la tâche qui porte
-déjà l'élément ou celles qui sortiraient du sous-arbre de leur lot (WF-PLA-0170) ; comme tout refus
-de l'écriture d'une cellule, il est dit au-dessus de la grille, et sa cellule, marquée, en est
-décrite (`aria-invalid`, `aria-describedby`). Là aussi, la tâche se saisit au clavier, cellule par
-cellule, par `updateTaskFacet` (US-0470, `planning.tsx`) : le libellé, la description — vidée, elle
-est nulle —, le mode (une liste), la durée avec le suffixe de son unité et les dates, chacune là où
-le nœud porte sa tâche, nomme son champ parmi ceux qu'il accepte (`editable_fields`) et ne le
-calcule pas (`computed_fields`) : les dates d'une tâche automatique, la durée d'une récapitulative
-sont traversées sans entrer en saisie (WF-PLA-0020). La durée se lit dans la langue de l'interface
-(`parseDuration`, `cell-values.ts`), sans égard à la casse, un nombre seul en jours : les suffixes
-que nomme WF-PLA-0160 sont lus en toutes langues — « m » un mois, « min » une minute, « h », « j »,
-« sem », et leurs pareils écoulés préfixés d'un « e » —, plus ceux que le catalogue écrit dans la
-langue courante (`enums.DurationUnit`), et aucun autre : en anglais « d », « wk », « mo » sont lus,
-en français ils ne le sont pas. Elle part dans son unité, que le serveur garde. Une date se tape
-dans la forme courte de la langue, ou sous sa forme ISO (`parsePlanningDate`), et part seule, sans
-heures : le front ne connaît pas le calendrier, le serveur complète les heures — le début au début
-du jour ouvré, la fin au bout de ses heures —, et la cellule montre ce qu'il rend (#1244). Les prédécesseurs d'une tâche se saisissent comme
-dans MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`) : le numéro de ligne, le code du type
-de la liaison dans la langue de l'interface — FD, DD, FF, DF en français, FS, SS, FF, SF en anglais,
-rien pour une fin à début —, puis le décalage, positif ou négatif, avec l'unité d'une durée (les
-suffixes de `parseDuration`) ou en pourcentage de la durée du prédécesseur ; la liste entière part
-en place de celle de la tâche, par `setPredecessors`, avec la version du nœud lu. Le numéro se résout
-sur les lignes que la grille a lues (celles d'un prédécesseur qu'une recherche a écarté se retrouvent
-par les liaisons d'une ligne lue) : un numéro qu'elles ne connaissent pas laisse la saisie ouverte,
-qui le dit, sans rien envoyer. Un refus du serveur se dit à la cellule par son code — une boucle de
-liaisons, avec les tâches qu'elle traverse (`cycle`, `problemDetails`), une liaison entre une
-récapitulative et sa subordonnée, un projet qui dépasserait quinze ans —, et les lignes écrites, avec
-les tâches que le serveur redate, prennent la place des lignes lues, le Gantt suivant ; le front ne
-date rien. La validation de la dernière cellule saisissable
-d'une ligne place le curseur sur la ligne suivante, à la cellule d'où la ligne a été commencée.
-Toute écriture de cellule, de toute grille, dit un refus par champ par le motif de son champ
-(`byField` de `cell-writes.ts`, #817.1) ; seul un refus de la valeur (422) marque la cellule, l'API
-hors d'atteinte, une version périmée ou une session perdue ne disant rien de ce qui a été saisi
-(#819.2) ; une valeur que la ligne répondue porte déjà n'écrit rien, faute de quoi le corps ne
-porterait que la version (#819.8), et lève le refus de sa cellule, avec l'avis qui le dit. Au-dessus
-de la grille du planning et de celle du devis, un
-filtre choisit un lot ou un poste parmi le même lotissement lu entier (`BreakdownFilterChoice`,
-`readGridScreen` avec `byBreakdown`), écrit dans l'adresse sous le nom du contrat —
-`work_package_id` ou `order_item_id`, l'un levant l'autre, un identifiant mal formé ignoré — et
-envoyé à `listNodes`, qui retient le sous-arbre de la tâche rattachée ; le bandeau le montre actif
-et le lève (`breakdownChip`), au devis sur la grille seulement, ses indicateurs restant ceux du
-projet. Un lotissement que l'API refuse (404, 422, 503) n'ôte que le filtre, sauf là où le
-rattachement se saisit, qui ne s'en passe pas (`needsBreakdown`). Dans la grille vide, le squelette
-s'offre comme la révision liste `generate_skeleton`, indisponible avec sa condition dès que la
-structure comporte une tâche (WF-PRJ-0030) ; engendré, ses tâches remplissent la grille tant que le
-compteur de la structure qu'il rend est plus récent que celui de la lecture (EP-14/L44d). Les
-autres feuilles du planning ont
-leur écran, où son en-tête mène : l'arborescence de
-tâches (FBS-4.3.5, `…/task-tree`, `frontend/src/components/tree/`), un `tree` d'ARIA sous la racine
-du projet, le premier niveau côte à côte, les suivants sous leur parent, un seul arrêt de tabulation
-que les flèches parcourent, la profondeur dans l'adresse (`depth`) ; et les chronologies
-(FBS-4.3.1, `…/timelines`), une par lien (`timeline`), chacune une frise à couloirs, distincte du
-Gantt (`gantt/timeline-chart.tsx`, US-0530, #1068) : sur l'axe du Gantt, à ses niveaux et à son zoom
-(`GanttRows`, `GanttAxis`), une tâche est un rectangle de son début à sa fin, son nom tronqué et
-entier dans l'infobulle et le nom accessible — la tâche, ses dates, son couloir —, un jalon une ligne
-verticale sur toute la hauteur, son nom et sa date au pied. Les rectangles s'empilent en couloirs
-(`lanes.ts`, un calcul de présentation) : chacun dans celui où l'utilisateur l'a placé tant qu'il
-y tient, les autres, dans l'ordre du plan, au premier couloir où ils n'en chevauchent aucun, les
-couloirs vides refermés. Un rectangle se glisse à la souris d'un couloir à l'autre, ou se déplace par
-Alt et les flèches haut et bas sur celui que le clavier désigne — la frise est un seul arrêt de
-tabulation, les flèches gauche et droite passant d'un rectangle à l'autre (`aria-activedescendant`).
-Un couloir où il en chevaucherait un autre est refusé, le refus dit, et rien ne bouge ; sous le
-dernier couloir s'en offre toujours un vide, jamais au-dessus d'un autre, et le clavier vise le plus
-proche couloir où le rectangle tient, passant ceux où il chevaucherait, pour atteindre tout ce
-qu'atteint la souris. La disposition est une préférence d'affichage par chronologie
-(`DisplayPreferences.timelines`, WF-ADM-0040), écrite après une pause comme les réglages d'une grille
-(`useKeptWriter`, `updateTimelinePreferences`) : les couloirs de tous les rectangles montrés, le
-déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne déplace rien d'autre ;
-« Disposition automatique » l'oublie (`null`). La lecture en table, sous la frise, dit chaque tâche,
-ses dates et son couloir ; elles se créent par leur nom et la chronologie montrée se supprime après
-confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
-demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
-chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
-chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
-idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
-avec le back d'EP-03. L'arborescence offre exactement les niveaux que la structure a, du premier à
-celui de sa plus profonde récapitulative, que le serveur dit quels que soient les filtres
-(`meta.summary_depth`, #494), et montre le niveau demandé, ou le plus profond quand on lui en
-demande un au-delà (`depthShown`).
-
-### L'écran des risques
-
-L'écran des risques, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), lit chacune de
-ses opérations dans la révision de sa route (`revision_id`) : les totaux des provisions des
-risques retenus, par état et le total général, tels que le serveur les rend ; le filtre par
-état, des boutons pressés qui n'écrivent que l'adresse (`states`, sous le nom et la forme du
-contrat) ; la grille dense, une configuration de plus (`risk-grid.tsx`), en lecture, où la
-gravité et la provision sont des colonnes calculées entières — aucun champ de nœud à demander
-(`field` rend `undefined`), leur refus nomme les règles que le risque porte pour chacune
-(`computed_fields`, `dependsOn`) — et la case de matrice une colonne de `Signal` ; la matrice des risques, un nuage de bulles
-(`RiskBubbleChart`, « Les courbes ») sur toute la largeur entre les cartes et la grille — la colonne
-de droite n'existe plus —, dont les bulles sont les risques des états du filtre, et sous lui la table du
-décompte par case, ses axes nommés par les bornes que rend le serveur, chaque case par son signal et
-son nombre de risques ; et,
-quand l'adresse nomme un risque (`risk`) — d'un clic sur sa bulle ou sur son libellé —, son détail, dans
-une colonne à côté de la grille qui garde de quoi le lire (la page défile dans une fenêtre trop basse) : notes, ligne de provision présente ou
-retirée à la survenance, avec la catégorie et le sous-projet que le risque désigne pour elle, par les
-libellés que le serveur résout — la catégorie dite désactivée quand elle ou sa nature l'est
-(`provision_cost_category_is_active`), la provision hors sous-projet quand il n'en désigne aucun
-(EP-14/L42p) —, historique des réexamens. « Identifier un risque » (`risk-commands.tsx`), dans
-l'en-tête de l'écran, suit `declare_risk` comme la révision de la route le liste : absente, rien ; indisponible,
-décrite par la condition qui manque (`at_least_one_task`, `active_provision_category`) ; disponible, elle ouvre
-le formulaire `risk-form.tsx` (`ReferenceForm`) — libellé, description, actions de mitigation, probabilité en
-pourcentage envoyée en rapport, catégorie de la provision demandée seulement quand plusieurs catégories actives
-de type provision se proposent, sous-projet et tâche porteuse facultatifs, lus par la page quand une commande
-les demande (`provision-options.ts`) —, dit le 409 sous le formulaire et, la création faite, ouvre le devis
-propre du risque (`structure_id`) dans la grille de devis, pour une session qui lit le devis. « Modifier »,
-dans le détail, suit `update`, et la provision `update_provision` : indisponible, la catégorie, le sous-projet et
-la tâche se montrent fixes et ne sont pas envoyés. Les deux commandes attendent, inactives, qu'une écriture de
-leur formulaire fermé soit répondue (défaut n° 24 de `typescript.md`). Les commandes du détail
-(`RiskCommands`) partagent par risque l'écriture en route et la réponse la plus récente. « Réexaminer »
-(`risk-review.tsx`, `review`) part de la probabilité et de l'état que le risque porte — le confirmer
-sans rien changer produit un réexamen daté (`reviewRisk`), que l'historique montre à la relecture — et
-offre les états que le contrat laisse retenir (identifié, écarté) ; un risque écarté dont la catégorie
-n'est plus active (`provision_cost_category_is_active`) en demande une autre, parmi plusieurs actives,
-au retour à l'état identifié. « Supprimer le risque » (`risk-lifecycle.tsx`, `delete`) demande une
-confirmation, est indisponible pour un risque cité (`risk_not_cited`) et, supprimé, quitte le détail par
-l'adresse sans le risque. « Déclarer survenu » (`declare_occurrence`) confirme, met la survenance en
-file (202) et la remet au suivi des tâches de fond (`Following`) ; le compte rendu préalable de la
-fusion n'a pas de source au contrat (#1383) et n'est pas présenté. Un risque survenu liste toutes ses
-commandes indisponibles. Le registre ne se pagine pas encore (#1367). Le libellé d'un risque est un lien hors de la
-tabulation : la grille suit le lien d'une cellule qui n'est pas saisie à Entrée
-(`grid-keyboard.ts`).
-
-### L'écran du reste à engager
-
-L'écran du reste à engager, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
-`remaining.tsx` de la grille), lit ses indicateurs dans la révision de sa route
-(`getRemainingIndicators`, `revision_id`) — le total, la marge sur le budget de référence et
-l'écart à la revue précédente, absent plutôt que nul sans elle, les totaux par nature et, par
-sous-projet, le reste à engager et la marge sur son budget avec le `Signal` de la zone que le
-serveur donne, et la couverture des risques (`RiskCoverageSummary`) —, ou les dit indisponibles
-quand l'API ne les trouve pas ; et la
-grille dense, une configuration de plus, sur les lignes des seules tâches démarrées, à moins que
-l'adresse ne demande aussi les non démarrées (`progress`, sous le nom et la forme du contrat, qu'un
-lien de son en-tête écrit). Le montant budgété, les grandeurs et le réestimé au reste à engager
-précédent, puis les grandeurs et le réestimé courants (WF-RAE-0040) ; les trois montants y sont des
-colonnes calculées, les grandeurs précédentes des valeurs conservées, jamais saisies ; les grandeurs
-d'une ligne se réestiment une par une par `setLineRemaining`,
-là où la ligne dit l'accepter (`remaining_entry`) et où son nœud accepte le champ — jamais d'après
-l'avancement de sa tâche —, la commande `edit_remaining` de la structure lue (`screen.commands`)
-posant Annuler et Rétablir, et la grille, en lecture seule quand elle ne la liste pas ; elle se
-filtre aussi par un lot ou un poste du lotissement lu entier, comme le planning et le devis
-(`order_item_id`, `work_package_id`, restreignant la grille seule) ; la fin d'une
-tâche s'y montre sans se saisir, et la fin dépassée par une marque propre, que le serveur dit
-(`finish_overdue`). Les sous-projets du projet (`listSubprojects`, lus avec le bandeau, une fois par
-requête) ne sont lus que là où la structure liste `edit_remaining` disponible, et refusés ils ne
-donnent pas le sous-menu « Sous-projet » ; la colonne et le sous-menu sont ceux du devis, décrits
-avec le menu contextuel des cellules (`choice-menu.tsx`). Son bandeau ne montre que le
-sous-projet, seul paramètre de contexte que ses lectures prennent, et dit qu'il ne restreint que la
-grille, ses indicateurs étant ceux du projet entier (`gridOnly` de `ContextBanner`, #459). Le
-Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
-`…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
-démarrées et les terminées avec leur date, telles que les rend
-`listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
-signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
-découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
-d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
-gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
-et droite d'une colonne à l'autre ; un seul arrêt de tabulation) et fait les gestes que sa tâche
-liste (`available_commands`, jamais déduits de la nature de la tâche ni de ses lignes) : par son
-menu, qui garde les gestes indisponibles avec leurs conditions, par glisser-déposer sur une
-colonne, ou au clavier — Maj et flèche droite ou gauche portent la carte à la colonne voisine,
-et à elle seule : un glisser vers une colonne plus loin n'a pas de touche. Le menu de la carte,
-ouvert par Entrée, offre tous les gestes que la tâche liste : c'est lui l'équivalent clavier
-complet du glisser (WF-IHM-0100). Le glisser pose un type qui lui est propre
-(`application/x-waterfall-card`), non `text/plain`, qu'un champ de texte où l'on dépose
-insérerait. Le geste qui mène à l'état de la colonne visée est celui que la carte liste avec cet
-état (`progress`) ; sans lui, la carte le dit. Une carte qui demande sa date n'est pas
-glissable, et aucune autre demande ne s'ouvre tant qu'elle l'attend : la saisie n'est jamais
-perdue en silence.
-Démarrer et terminer demandent la date de l'événement, celle du jour proposée ; « Saisir le reste à
-engager » est un lien vers la grille du reste à engager, cherchée sur le libellé de la tâche
-(`remainingHref`). La réponse de `setTaskProgress` remplace la carte dans la colonne de son nouvel
-état, tant que la lecture qui suit n'a pas le nœud à sa version ou à une plus récente (le
-compteur du nœud départage, `replaced`) ; la carte répondue ne liste aucun geste avant cette
-lecture. Le focus suit la carte, un refus se dit sur elle (`OutcomeNotice`), et une écriture à la
-fois. L'opération lit la révision en cours : sur une révision marquée, l'écran le dit et ne
-demande rien.
-
-### L'écran des coûts réels
-
-L'écran des coûts réels, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), lit
-ceux du projet — ils ne sont pas versionnés, la révision de la route n'est que le contexte du
-bandeau — page par page, comme le serveur les pagine (`offset`, `listActualCosts`) : les trois
-totaux des lignes retenues et la date du dernier import, tels que le serveur les rend ; les
-filtres par périmètre, par sous-projet — celui du contexte de lecture, `subproject_id` — et par
-période des pièces, qui n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la
-première page ; la grille dense en lecture (`cost-grid.tsx`), sans recherche — l'opération n'en
-a pas : une configuration la retire par `searched: false` —, chaque ligne avec son sous-projet
-nommé par le serveur, son périmètre en mots et chaque colonne conservée du fichier comme une
-colonne, sous le nom que le fichier lui donne, ses valeurs telles qu'importées
-(`passthrough.<colonne>`), chaque colonne triée par le serveur — les colonnes conservées sont
-celles de toutes les lignes retenues, dans l'ordre où le serveur les nomme
-(`meta.passthrough_columns`, #414) : les mêmes d'une page à l'autre — ; et le journal des imports,
-paginé à part (`imports_offset`, `imports_limit`), avec son « Lignes par page » et sa clé de grille
-(`cost_imports`, `KeptListSize` de `grid/kept-list-size.tsx`, qui enregistre la taille comme une grille
-dense : le journal n'est pas une grille). Les imports d'un projet (`imports`) font de même. Quand le projet liste l'exclusion de ses lignes
-(`exclude_cost_lines`), le numéro de pièce d'une ligne est un lien hors de la tabulation, que la
-grille suit à Entrée, vers la même adresse nommant la ligne (`line`) : sa place dans le périmètre
-suivi s'y montre (`CostLineScope`), avec la commande qui l'exclut, sur le motif saisi, ou la
-réintègre (`setActualCostTrackedScope`, WF-CRE-0040) ; l'écriture faite, la page relit la ligne et
-les trois totaux, que le serveur tient (#291). Des filtres que le serveur refuse (422 : une
-période qui finit avant de commencer, un sous-projet que le projet n'a pas) se disent à la place
-des lignes, les filtres gardés pour être changés. Un tri ou une recherche changés ramènent toute
-liste paginée à sa première page (`sortHref`, `searchHref`). Un lien de page, comme le libellé d'un
-risque, part de la dernière adresse demandée
-(`usePendingLink`) ; quand elle lit les coûts autrement que la page montrée — un filtre ou un tri
-en attente —, il mène à leur première page.
-
-### Les écrans du référentiel
-
-Les écrans du référentiel (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
-US-0250) sont hors projet, aux routes de leurs fonctions. Les paramètres de coûts disent la devise
-de l'installation et présentent la grille des taux horaires — une configuration de plus de la
-grille dense (`rate-grid.tsx`), la troisième section de l'écran, sous les natures et les catégories, une ligne par catégorie de main-d'œuvre, son état, une colonne par
-année de toute la grille, quelle que soit la page, dont l'en-tête est l'année elle-même
-(`GridColumn.heading`) —, cherchée, filtrée par état et sur les bornes du taux d'une année
-(`RateFilterBar`, #545), triée et paginée par le serveur sous les noms du contrat (`search`,
-`is_active`, `rate_year`, `rate_min`, `rate_max`, `sort_by`, `offset`, #509) : chaque colonne se trie, le taux d'une année par
-`rate.<année>`, que la page accepte pour toute année que `Year` prend (`RATE_SORTS`), avant de
-connaître celles de la réponse ; sa ligne de totaux dit combien de catégories le serveur retient,
-et la devise. Une cellule saisie part seule par `setHourlyRate`, sans version
-au premier taux d'une année, avec celle du taux lu pour une correction, et le taux répondu prend sa
-place. La saisie n'est offerte qu'à une session qui porte `cost_settings.write` (`platformOffer`),
-comme l'ajout de la colonne d'une année que la grille n'a pas (WF-REF-0060, #299) : le contrat n'a
-aucune opération pour la créer — une année entre dans la grille par son premier taux —, si bien
-que la colonne est celle de la grille, vide, à sa place parmi les années, jusqu'à ce que la
-saisie d'une de ses cellules écrive ce premier taux, et elle se retire tant qu'aucun taux n'y est
-saisi ni en cours d'écriture ; une année déjà présente, ou hors des bornes de `Year`, est refusée
-dans la page ; la colonne ajoutée se trie comme les autres, le serveur laissant l'ordre du code
-pour une année sans taux. Au-dessus d'elle, les natures puis les catégories de coût, deux grilles denses
-(`cost-grids.tsx`, #510), triées sur chaque colonne, cherchées, filtrées — les natures par type
-(`kinds`, `ValuesFilter`) et par état, les catégories par nature, offerte parmi toutes celles que la
-session lit, et par état — et paginées par le serveur — les trois
-sections s'empilent comme celles des paramètres de ressources, dans une page qui défile (`Screen`
-sans `fill`, US-0570/L3, #1044), chaque grille plafonnée à la fenêtre (`max-h-svh` de `DenseGrid`). Les paramètres de ressources présentent trois
-grilles denses (#301, #511, #533) : l'organisation, une grille arborescente qui ne se trie pas et
-ne se pagine pas, dans l'ordre de `listOrgNodes`, chaque nœud par son libellé décalé de sa
-profondeur (`level`), qui plie ce qui est sous lui comme les grilles de tâches (`GridTree.parent`,
-`fold.tsx`), son code et son niveau, filtrée par code (`code`), par niveau (`level`, offert parmi
-ceux de l'arbre entier) et par état, le serveur rendant les nœuds retenus et leurs ancêtres, qu'un
-filtre déplie une fois ; les rôles, chacun par son libellé et son code (EP-14/L42r), triés par le
-serveur sur chacune de leurs colonnes, cherchés par lui sur le libellé et le code, filtrés par code
-(`code`, comme celui des nœuds), par nœud (`org_node_id`, offert dans l'ordre de l'arbre entier), par catégorie (`cost_category_id`), par
-calendrier (`calendar_id`) — chacun offert parmi tous ceux que la session lit, lus comme une liste
-de choix (#303), les catégories absentes quand l'API les refuse — et par état, et paginés ; les
-calendriers, triés sur chacune de leurs colonnes, les heures de chaque jour comprises, cherchés,
-filtrés par état et paginés, sans filtre sur les heures de leurs jours (WF-IHM-0130-A, #1047). Les
-colonnes de nombres se bornent (#545, WF-IHM-0130) : les heures mensuelles et l'effectif d'un rôle,
-le taux d'une année de la grille des
-taux — l'année choisie parmi celles de la grille, écrite avec ses bornes (`rate_year`) —, sous la
-convention du contrat pour toute liste, `<colonne>_min` et `<colonne>_max`, incluses
-(`docs/api/DECISIONS.md`). Le filtre est un composant de la grille, réutilisable pour les montants
-des lots suivants (`RangeFilter` de `components/grid/range-filter.tsx`, `boundsHref` et
-`readBounds` de `filters.ts`) : un formulaire par liste, chaque borne saisie comme la langue écrit un
-nombre (`parseDecimal`) et écrite comme le contrat l'écrit, ramenant la liste à sa première page ;
-une saisie qui n'est pas un nombre, ou un montant de plus de deux décimales, se dit à son champ, qui
-prend le focus, sans rien demander. Le serveur seul juge les bornes : celle qu'il refuse (422) — pas
-un nombre de son type (`NUMBER_INVALID`), une borne supérieure sous l'inférieure, qu'il nomme
-(`VALUE_OUT_OF_RANGE`), l'année du taux manquante (`VALUE_REQUIRED`) — se dit à son champ, qui prend
-le focus (`refusedBounds`, `refusedSides`), et la liste n'est pas lue (`shownPage` d'`address.ts`,
-`BoundsRefused`) ; le reste de l'écran l'est. Chaque champ se nomme par sa colonne et son côté, tous
-deux écrits à côté de lui (« Heures par mois, min. », WCAG 2.5.3). L'arbre se borne aussi sur la
-profondeur (`level_min`, `level_max`), à côté du choix d'une profondeur (`level`) ; le taux ne se
-borne qu'avec une année que le contrat prend, sans quoi la page ne présente pas sa borne. Chacune des grilles du référentiel
-est cherchée par le serveur, a sa clé de préférences, où son tri se garde, et écrit son tri, sa
-recherche, ses filtres et sa page dans l'adresse sous ses propres noms, ceux du contrat après son
-préfixe (`org_`, `role_`, `calendar_`, `type_`, `category_` : `role_search`, `role_sort_by`,
-`role_cost_category_id`, `role_is_active`, `role_offset` ; `prefixedAddress` de `query.ts`,
-`GridConfig.address`) — la grille des taux, celle de la fonction, garde les noms du contrat — : les
-grilles d'un même écran ne se lisent pas l'une l'autre, et la page demande l'API sous les noms du
-contrat ; l'arbre entier est relu quand une recherche ou un filtre le restreint, pour les filtres
-des rôles. Un tri, une recherche ou un filtre ramènent leur liste à sa première page ; un lien de
-page part de la dernière adresse demandée, et mène à la première page quand elle lit la liste
-autrement que celle montrée — le tri d'une autre liste de l'écran n'y comptant pas (`ListPages` de
-`components/grid/list-pages.tsx`, nommé d'après sa liste, la seule règle de « même liste » de
-`readingOf`) ; la ligne des totaux dit combien le serveur en retient (`meta.total`). Les
-unités de durée suivent : trois constantes, que la commande « Modifier les unités de durée » —
-offerte à qui porte `resource_settings.write`, comme les calendriers — ouvre en formulaire
-(`DurationUnitSettings` de `settings-forms.tsx`, `setDurationUnits`), en décimaux de la langue ; le
-refus (422) se dit au champ, la version périmée (412) propose de relire, la réponse prend la place des
-valeurs lues, et une phrase sous les champs dit que le changement vaut pour tous les projets, les
-plannings des révisions en cours étant recalculés et une révision marquée gardant ses heures
-(WF-PLA-0160, WF-REF-0130, #1049). Les paramètres des risques présentent les bornes de la matrice et la zone
-de chaque case, placée par son rang dans l'ordre du contrat, ceux des indicateurs les seuils des
-indices et le délai entre deux revues : des matrices de taille fixe, qui restent des tables
-simples, sans tri ni filtre (décision de l'auteur du 2026-10-08, #508). Un objet rattaché se nomme
-par le libellé que le serveur résout à la lecture, actif ou désactivé — jamais en rapprochant des
-listes dans le front ; une section se nomme par `aria-label` (#251).
-
-Les listes du référentiel ne lisent que les objets actifs, et les désactivés aussi quand l'adresse
-le demande (`include_inactive`, WF-REF-0150, #300), sous le nom du contrat, que l'en-tête de
-l'écran écrit ou lève par un lien (`InactiveSwitch`), qui ramène chaque liste paginée à sa première
-page — à une session seulement qui porte la permission de lecture de leur partie du référentiel,
-sans laquelle le contrat le refuse (403, `inactiveQuery` d'`address.ts`), comme les listes du devis
-(#351). Le filtre par état (`is_active`, `StateFilter`) prime sur lui : tous les états, les actifs
-seuls, ou les désactivés seuls, offert à la même session seulement (`stateOf`). Un objet désactivé
-s'y dit par une marque et un mot, et s'y réactive comme le serveur liste sa commande
-(`available_commands`, #532, WF-IHM-0090) — le serveur ne la liste qu'à qui peut modifier cette
-partie, et le front n'en déduit rien : disponible, par la commande d'activation de sa nature
-(`setActivation`, une action serveur, depuis la version lue), puis la page relit ses listes ;
-indisponible — un nœud sous un parent désactivé, un rôle sous un nœud désactivé (WF-REF-0080) —,
-présentée `aria-disabled`, décrite par ses conditions, et un appui les dit dans la région de la
-liste sans rien demander, comme la suppression d'un rôle porté (#515) ; absente, rien. Un objet ne
-porte que la commande qui change son état, `deactivate` sur un objet actif, `reactivate` sur un
-désactivé, l'une et l'autre par la même cellule (`StateCell` de `commands.tsx`, EP-02/L43,
-ci-dessous) ; la désactivation du calendrier par défaut est indisponible (WF-REF-0120). Le refus du serveur — le conflit (409), qui nomme le nœud à réactiver d'abord
-d'après la ligne qui le connaît, ou la version périmée (412), avec l'offre de relire — se dit
-au-dessus de la liste (`Reactivations`), qu'une cellule de grille n'a pas la place de dire, jusqu'à
-ce qu'on ferme son avis — un refus arrivé pendant qu'un autre est dit s'ajoute à lui, sans le
-remplacer, sauf celui de la même commande sur le même objet, qui prend sa place ; un succès après lui
-ne l'efface pas, et le focus revient au contrôle qui a écrit quand le refus en nomme un (`back`,
-une case de la matrice des permissions), sinon à la cellule active de la grille, ou à la liste —, et seulement tant que la liste se lit comme au moment de la commande :
-les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
-une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
-(`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
-`include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
-tiendra en EP-05.
-
-### Les paramètres de coûts : natures et catégories
-
-Les paramètres de coûts offrent les commandes d'écriture des natures et des catégories (EP-02/L43a,
-décision de l'auteur du 2026-10-08, #512 ; `commands.tsx`, `reference-form.tsx`, `cost-form.tsx`),
-pour projeter la mise en page et éprouver le contrat de chaque écriture ; ceux des ressources les
-leurs (EP-02/L43b, plus bas), par les mêmes pièces. À une session qui porte `cost_settings.write`
-(`platformOffer`), chaque liste offre « Nouvelle nature » ou « Nouvelle catégorie » à côté de son
-titre — liste vide comprise —, et chaque ligne « Modifier », dans une colonne à elle ; l'état de la
-ligne porte la désactivation ou la réactivation comme l'objet la liste (`available_commands`,
-`StateCell`), et la présente indisponible avec ses conditions quand elle l'est — la dernière
-nature de type provision pour risques et sa dernière catégorie se désactivent comme les autres
-depuis EP-14/L42p, qui retire la règle de #578 ; aucune commande ne supprime (WF-REF-0010,
-WF-DAT-0080). Une autre session n'en voit aucune. La création et la modification ouvrent un
-dialogue (`ReferenceForm`, `ui/dialog.tsx`), que chaque liste rend par celui
-de sa nature (`CostDialog`, `useListForm`) : le code, le libellé et le type
-d'une nature, choisi parmi les trois du contrat ; le code, le libellé, la nature — parmi les actives,
-et celle de la catégorie modifiée, marquée désactivée — et le code comptable d'une catégorie, exigé,
-d'un à vingt caractères (WF-REF-0040, décision de l'auteur du 2026-10-09). Ce qu'une modification
-change suit les commandes de l'objet (EP-02/L42g, WF-IHM-0090) : le type d'une nature n'est offert
-que si elle liste `change_kind` disponible, et se présente sinon figé, en lecture seule
-(`control: "fixed"` d'un `FormField`), ses conditions dites sous lui (`note`) — une catégorie
-employée (`cost_type_unused`) —, la description du dialogue le disant aussi ; une catégorie ne se
-voit proposer une nature d'un autre type que si elle liste `change_cost_type` disponible, et sinon
-les natures de son type seules, ses conditions dites sous le choix — employée, porteuse de taux
-(#577), rattachée à un rôle (EP-14/L42r) ; le refus du serveur d'un changement de type, la
-condition levée depuis la lecture, nomme les rôles en cause, par leur libellé et leur code, à
-rattacher d'abord à une autre catégorie de main-d'œuvre — d'une autre nature, pour une nature —
-(`params.resource_roles`, `problemMessage`, WF-IHM-0090), que l'écran des coûts ne lit pas. Le type se compare par le `kind` de chaque nature, désactivées comprises : pour une session
-qui écrit, la page lit toutes les natures avec `include_inactive=true` (`every` de `CostDialog`),
-une lecture entière distincte des choix du filtre, qu'elle ne fait pas quand ceux-ci comprennent déjà
-les désactivées ; une catégorie sous une nature désactivée se voit ainsi proposer les natures
-actives de son type, et sa nature désactivée se nomme par son code, que cette lecture donne. Une
-nature qu'aucune lecture ne donne — une session qui écrit sans pouvoir lire les désactivées, à qui
-le contrat refuserait `include_inactive` (403), et pour qui la page ne la demande pas — laisse à la
-catégorie sa seule nature, et la note le dit à part (« Le type de la nature désactivée n'est pas
-lisible : seule elle est proposée. »). `costs/page.test.tsx` éprouve ce que la page passe au
-formulaire, les natures servies par `cost_types_with_inactive`, la lecture avec les désactivées, qui
-ne vaut que pour elle.
-Un nœud dont le code est pris est nommé de même, d'après l'arbre ou la liste, sinon par le libellé que
-le refus donne (`OrgNodeDialog`). Le
-formulaire refuse à son champ ce qui manque, ou un nombre qui n'en est pas un dans la langue du
-lecteur (`parseDecimal`), avant toute demande, et le champ prend le focus ; le
-serveur juge le reste : un refus par champ (422, `fields[]`, convention #293) se dit au champ qu'il
-désigne, par la phrase de son code et de ses paramètres — `problemMessage` d'un `FieldProblem`, le
-premier champ refusé prenant le focus —, comme une valeur déjà portée (409 `ALREADY_EXISTS`,
-`fields[]`), qui nomme l'objet qui la porte (`fields[].params.conflicting_object_id`) par son code et
-son libellé quand la liste le montre (`names` de `ReferenceForm`), de façon générique sinon ; le
-décodeur en tire aussi l'objet du refus (`conflictingObjectId`) quand l'enveloppe n'en nomme pas.
-Tout autre refus se dit sous le formulaire (`OutcomeNotice`), qui reste ouvert — un état qui interdit
-l'écriture (409 `STATE_FORBIDS_OPERATION`) avec sa condition, la version périmée (412) avec l'offre
-de relire la page ; un refus par champ que le formulaire ne montre pas y reste seul, sans répéter ce
-qui est dit aux champs. Le bouton d'envoi dit
-l'écriture en cours ; fermé pendant l'attente, le dialogue ne fait rien taire : le succès se dit dans
-la région de la liste, le refus au-dessus d'elle, sur la lecture d'où il est parti. Fermé, il rend le
-focus à la cellule de la ligne — la grille est un seul arrêt — ou à la commande de création.
-`problemMessage` lit aussi les
-paramètres des refus par champ d'une enveloppe : le minimum d'un taux refusé se dit avec le refus de
-la cellule, écrit dans la langue du lecteur (« Valeur minimale : 0,01. »). Toute écriture répondue
-relit la page (`refresh`) : les natures sont ce par quoi les catégories se filtrent et se rattachent,
-les catégories de main-d'œuvre les lignes de la grille des taux, et un choix qui offrirait encore une
-nature désactivée serait une commande que le serveur refuserait (WF-REF-0010) ; une écriture change
-aussi les commandes d'autres objets — le rattachement d'une catégorie le type de l'ancienne et de
-la nouvelle nature (#577) —, que sa réponse ne porte pas. Un taux ne relit la page qu'à sa première
-saisie : la catégorie qui porte des taux ne se rattache plus à une nature d'un autre type
-(`cost_category_unrated`) ; une première saisie refusée comme un second taux de l'année (409
-`ALREADY_EXISTS`) relit aussi la page, et la cellule montre le taux de l'année avec sa version, que la
-saisie suivante corrige ; une correction ne change aucune commande. Cette relecture, à la
-même adresse, n'abandonne rien de la grille des taux : un taux parti avant elle reste en attente, le
-refus dit le reste, et un taux répondu, avant ou après elle, garde sa cellule tant qu'il est plus
-récent que la cellule relue, par le `lock_version` du taux — la réponse est le changement d'une
-cellule, trouvée par son année parmi celles de la ligne relue et reposée sur elle
-(`RowPart.versioned`, `rate-cells.ts`), une ligne de la grille n'ayant pas de compteur à elle ;
-ailleurs, une réponse se juge en bloc par le compteur de ce qu'elle a écrit (`GridConfig.fresher`,
-le `lock_version` d'un nœud) : plus récente que la relecture, elle garde tout ce qu'elle a rendu, les
-récapitulatives recalculées et les totaux compris, une réponse plus récente l'emportant toujours sur
-une plus ancienne pour une même ligne ; rattrapée, elle cède tout ; là où le compteur ne dit rien —
-même version, ligne sans compteur, faux back —, chaque valeur reste tant que la relecture lit sa ligne,
-ou ses totaux, comme avant. Seule une lecture à une autre adresse — un tri, une recherche, un filtre,
-une page de la grille — abandonne les réponses en cours ; une lecture qui rend les mêmes lignes dans
-le même ordre, une autre liste de l'écran triée ou l'adresse réécrite par `history.replaceState`, est
-la même (`cell-writes.ts`, défaut n° 22). Cette dernière règle suppose que le contenu d'une ligne ne
-dépend pas de l'adresse : le jour où une grille calcule ses lignes d'après un paramètre de l'adresse
-— une devise, une date de valeur —, deux lectures aux mêmes lignes ne sont plus la même, et la règle
-devient fausse. Une modification ou
-une activation répondue remplace sa ligne par ce que le serveur rend, tant que la réponse est plus
-récente que la ligne lue (`lock_version`, `useAnswered`) — face au faux back, qui ne garde rien, elle
-survit donc aux relectures — ; une création n'ajoute aucune ligne, la page relue la range où le
-serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
-désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
-(`useListReport`). Le faux back ne gardant rien, l'écran le dit
-sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle que le serveur l'a rendue
-tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
-par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
-service de son EPIC). La saisie d'un taux reste celle de la grille.
-
-### Les paramètres de ressources : organisation, rôles et calendriers
-
-Les paramètres de ressources offrent de même les commandes de l'organisation, des rôles et des
-calendriers (EP-02/L43b, #512 ; `resource-commands.tsx`, `calendar-default.tsx`), à une session qui
-porte `resource_settings.write` : « Nouveau nœud », « Nouveau rôle », « Nouveau calendrier », la
-modification de chaque ligne, la désactivation ou la réactivation comme l'objet la liste — un nœud
-avec ses descendants, que la réponse remplace dans l'arbre (WF-REF-0080), les rôles qu'elle désactive
-avec lui étant ceux de l'autre liste, que la page relue montre. Un nœud s'écrit par son code, son
-libellé et son parent — nul pour une racine, envoyé à la modification comme à la création (`OrgNodeUpdate`) —, choisi dans l'ordre de l'arbre, chaque nœud
-décalé de sa profondeur (`treeLabel`) : parmi les nœuds actifs seuls, que le nœud soit actif ou
-désactivé (WF-REF-0070, EP-14/L43g), jamais sous lui-même ni sous l'un de ses descendants, qu'il
-emmène ; son parent est toujours offert, d'après `parent_id` et `parent_label`, marqué désactivé quand
-il l'est, et la liste le montre choisi — le contrat ne refuse un parent désactivé que si la
-modification le change ; désactivé, il garde sa profondeur
-quand le nœud au-dessus de lui est offert, ou qu'il est une racine, et alors sa place — dans l'arbre
-lu, le front ne réordonnant rien, ou sous son propre parent quand la ligne de la liste le nomme — ; à
-la fin sans décalage sinon. Un rôle s'écrit par son code, unique, désactivés compris (EP-14/L42r),
-son libellé, son nœud, une catégorie de main-d'œuvre et son calendrier — parmi les actifs, celui du
-rôle modifié marqué désactivé quand il l'est (WF-REF-0090), nommé sans marque quand la liste n'est pas
-lue, faute de savoir s'il l'est, ou quand toutes les catégories lues le disent actif, une catégorie
-dont la nature a quitté la main-d'œuvre (`read` d'`offered`, #714) : un garde-fou seul, le contrat
-interdisant ce cas depuis EP-14/L42r (`docs/api/DECISIONS.md`, la mention de L42r dans la section de
-L42j) — et sa
-capacité, heures par mois et effectif, saisis dans la langue du lecteur (WF-REF-0100) ; son nœud se
-fixe à la création, et sa modification le nomme sans l'offrir : un rôle se recrée sous un autre nœud
-(§3.4.4.2.1). La catégorie de main-d'œuvre se reconnaît au type de sa nature, que chaque catégorie dit
-(`cost_type_kind`, `labourOf` de `kinds.ts`, EP-14/L43g) : la page ne lit pas les natures pour cela.
-Une session à qui l'API refuse les catégories ne peut en choisir aucune : « Nouveau
-rôle » ne lui est pas offert (WF-IHM-0090), et la modification nomme la catégorie du rôle comme sa ligne
-la nomme. Un code pris se dit au champ, le rôle qui le porte nommé par le libellé que le refus donne
-(`conflicting_object_label`), la liste lue sans les désactivés pouvant ne pas le montrer. La modification d'un objet répondue pour un autre objet est une panne du service
-(`INTERNAL_ERROR`), dite sous le formulaire comme la réponse d'une cellule pour une autre ligne. Un
-calendrier s'écrit par son libellé
-et ses sept valeurs d'heures, du lundi au dimanche, rien d'autre (WF-REF-0110). Un calendrier se désigne
-par défaut depuis sa ligne comme il en liste la commande
-(`CalendarCommand.set_default`, `setDefaultCalendar`, WF-REF-0120, EP-14/L43g), depuis la version lue,
-la page relue montrant le précédent sans la désignation : absente — sur le calendrier par défaut, ou
-pour une session qui ne modifie pas —, rien, le front ne déduisant rien de l'état de la ligne ;
-indisponible pour un calendrier désactivé, présentée `aria-disabled`, décrite par sa condition
-(`calendar_active`), et un appui la dit dans la région de la liste sans rien demander
-(`UnavailableCellCommand`) ; le refus du serveur — le calendrier désactivé entre-temps (409), la
-version périmée (412), avec l'offre de relire — se dit au-dessus de la liste. Un refus par champ se
-dit au champ (`ReferenceForm`) : une référence inconnue (`UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY`,
-`UNKNOWN_CALENDAR`), un nœud placé sous lui-même ou l'un de ses descendants (`ORG_NODE_CYCLE`), une
-catégorie hors main-d'œuvre (`LABOUR_CATEGORY_REQUIRED`), un parent, un nœud ou un rattachement
-désactivé entre-temps (`INACTIVE_REFERENCE_OBJECT`), des heures hors de 0 à 24 ou une capacité
-négative, avec la borne franchie (`VALUE_OUT_OF_RANGE`) ; le libellé déjà porté d'un calendrier,
-désactivés compris, nomme son porteur d'après la page, par son identifiant, de façon générique
-sinon ; le reste comme pour les coûts, la version périmée sous le formulaire avec l'offre de relire ;
-l'écran dit que le faux back ne garde rien (`MockupNotice`). Une écriture qui laisserait une tâche sans
-heure travaillée — un calendrier modifié ou désigné par défaut, un rôle modifié — est refusée
-(`TASK_WITHOUT_WORKING_HOURS`, « Une tâche n'aurait plus aucune heure travaillée dans la semaine. »)
-en disant pourquoi et en nommant chaque projet en cause par son libellé et son code, par son seul
-libellé sans code (`params.projects`, WF-PLA-0010), jusqu'à cinq dans la phrase, en liste hors de
-l'alerte au-delà, comme les lignes d'un sous-projet. La cause est celle de `resource_role_ids` : les
-rôles dont les calendriers ne se recoupent aucun jour, que le refus ne donne que par leurs
-identifiants — la page, pour une session qui écrit, lit tous les rôles, désactivés compris comme elle
-le peut (`readEveryRole`), et les prête à chaque avis de leurs deux listes (`RoleNames`, `KnownNames`
-d'`outcome-notice.tsx`), chacun par son libellé et son code, et la cause se dit sans nom quand elle
-n'en a lu aucun — ; aucun rôle donné, les tâches sans ligne de main-d'œuvre, sur le calendrier par
-défaut vidé ou désigné.
-
-### Les paramètres des risques et des indicateurs
-
-Les paramètres des risques et des indicateurs se modifient chacun dans un formulaire (EP-14/L43e,
-#512 ; `settings-forms.tsx`), offert par « Modifier la matrice de risques » à une session qui porte
-`risk_settings.write`, par « Modifier les seuils et le délai » à une session qui porte
-`indicator_settings.write` (`platformOffer`) ; une autre session lit les tables seules, sans avis de
-la maquette. L'un saisit les six bornes, en pourcentages (`editablePercent`, `percentRatio`), et les
-seize zones, un choix par case ; l'autre les quatre seuils, en valeurs de l'indice, et le délai, en
-semaines entières (`control: "whole"`, un nombre entier, signe compris, ses bornes au serveur, jugé
-au champ avec les autres, dit par le texte propre au champ, `invalid`). Chaque écran suit sa seule permission : une session qui porte
-l'une sans l'autre lit l'autre écran sans commande ni avis. Chacun envoie par `updateReferenceSettings` le seul sous-objet de son écran et la
-version lue (`RiskMatrixWrite`, `IndicatorWrite`), jamais un champ de l'autre écran, que garde une
-autre permission ; ni la devise (WF-REF-0140) ni la langue de l'installation, qui est à EP-03, n'y
-sont offertes. Le formulaire du référentiel range côte à côte, sous une légende, les champs qui vont
-ensemble (`group` d'un `FormField`, un `fieldset` qui se replie sur deux colonnes dans une fenêtre
-étroite) : les bornes d'un axe, les zones d'un niveau de probabilité, les deux seuils d'un indice,
-chaque champ nommé par la légende de son groupe puis par son libellé (`aria-labelledby`), que les
-groupes répètent ; et il juge, dans le même envoi que les champs, sur ceux qui sont passés, les règles
-qui lient des champs entre eux (`rules`), avant toute demande — un champ refusé n'a pas de valeur,
-qu'une règle laisse sans jugement, et son propre refus l'emporte ; tout ce qui est refusé se dit en une
-fois (EP-14/L52) — : chaque borne qui n'est pas strictement
-au-dessus de la précédente, à son rang (`BOUNDS_NOT_ORDERED`), chaque seuil d'alerte qui n'est pas
-sous son seuil de vigilance (`THRESHOLD_NOT_BELOW_WATCH`), dits au champ que le serveur désignerait,
-les décimaux comparés sans flottant (`compareDecimals`). Le refus du serveur se dit de même : par
-champ au champ, la permission manquante (403) et la version périmée (412, les deux écrans partageant
-le compteur) sous le formulaire. La réponse prend la place des paramètres lus tant qu'elle est plus
-récente qu'eux, la page relue, comme les paramètres du projet, et ne ferme que le dialogue d'où elle
-est partie, jamais un dialogue rouvert depuis ; la commande qui l'ouvre attend, inactive, la réponse
-d'une écriture d'un dialogue fermé (#661) ; face au faux back, qui répond par le
-premier exemple de l'opération — les seuils écrits —, la matrice montrée reste celle d'avant.
-
-### Les écrans de l'administration
-
-Les écrans de l'administration (`frontend/src/app/admin/`, `frontend/src/app/system/`,
-`frontend/src/components/admin/`, US-0250) sont hors projet eux aussi, et en lecture seule hors
-celui des rôles, branché sur le service (plus bas) : les
-comptes, désactivés compris par défaut (`include_inactive`), chacun avec ses rôles et son nœud nommés par le
-serveur, sur la grille dense (#514, `admin-grids.tsx`), triés sur chaque colonne, cherchés,
-filtrés par origine (`origins`, `ValuesFilter`), par nœud d'organisation (`org_node_id`, offert
-dans l'ordre de l'arbre, `OrgNodeFilter`), par rôle d'habilitation (`access_role_ids`, les rôles
-que `listAccessRoles` rend, aucun à une session qui ne les lit pas ; tous choisis filtrent encore,
-un compte sans rôle n'étant retenu par aucun, `exhaustive: false`, EP-02/L42f) et par état, un
-seul choix (`is_active`) — tous, les actifs seuls, les désactivés seuls —, qui dit ce que la grille
-montre : la page demande toujours les désactivés aussi (`include_inactive=true`, le contrat les
-masquant par défaut), une adresse d'avant qui les masquait (`include_inactive=false`) se lit
-« Comptes actifs » (`readAccountState`), et tout choix lève ce paramètre ancien (`lifts` de
-`ChoiceFilter`) — et paginés par le serveur, sous les noms du contrat — un tri, une recherche ou un
-filtre ramenant à la première page —, la ligne des totaux disant combien le serveur
-en retient (`meta.total`), l'écran remplissant la fenêtre ; la recherche porte sur le nom, le
-prénom, l'adresse et le nom affiché, sans égard à la casse ni aux accents, comme toute recherche du
-contrat. Les rôles d'habilitation sont sur la grille dense eux aussi
-(#515), triés sur chaque colonne, cherchés et filtrés par le serveur — leur nature
-(`is_predefined`, `ChoiceFilter`), leurs porteurs entre deux bornes incluses (`holder_count_min`,
-`holder_count_max`, `RangeFilter` de forme `count`, un entier depuis zéro ; une borne refusée dite
-à son champ, la liste non lue) —, sans pagination — le
-§4.6.2 ne compte aucun rôle, trois sont prédéfinis, et le contrat ne les pagine pas —, et la matrice
-des permissions montre les rôles que la table retient, dans son ordre (US-0380) — une ligne par
-permission dans l'ordre du catalogue, les permissions consécutives d'une même fonction de second
-niveau, ou d'une même nature hors fonction, groupées sous un en-tête de groupe
-(`scope="rowgroup"`) qui nomme la fonction — jamais par son code de la FBS, une clé interne
-qu'aucun écran ne montre (décision de l'auteur du 2026-10-08, #515) —, une colonne par rôle,
-accordée ou non dite par un mot ; l'état du système ; les sauvegardes et leur planification, dont
-les commandes sont branchées au contrat (EP-02/L43c, plus bas). Les tables des comptes et des rôles finissent sur leurs colonnes d'audit (#936, `audit-columns.tsx`) :
-« Créé le », « Créé par », « Modifié le », « Modifié par », chacune triée par le serveur sous le nom
-de son champ (`created_at`, `created_by`…), un instant en heure locale (`LocalTime`), un auteur par
-le nom que la ligne garde du compte — désactivé depuis, toujours nommé ; anonymisé, le libellé
-neutre — ou la plateforme par son propre libellé (`ActorCell`). Chacune se filtre (`audit-address.ts`,
-`audit-filters.tsx`) : une période de jours locaux par colonne de dates (`PeriodFilter` de forme
-`day`, sous `created_at_from` et `created_at_to`, `updated_at_from` et `updated_at_to`), une fin
-refusée dite à son champ, la liste non lue ; un auteur par colonne d'auteurs (`AuthorFilter`), un
-seul choix qui écrit un compte (`created_by_user_id`) ou une sorte d'auteur — un compte quel qu'il
-soit, ou la plateforme (`created_by_kind`) —, chaque choix levant le paramètre des autres (`name`
-d'un `Choice` de `ChoiceFilter`). Le contrat n'a pas de liste des auteurs : les rôles offrent ceux de
-la liste sans filtre, relue à part quand la grille la restreint ; les comptes, ceux de la page
-montrée, et ceux qu'une recherche des comptes trouve (`findAccounts`, `listUsers` cherché, vingt au
-plus). Ces filtres sont gardés avec les réglages des deux grilles, comme les autres. La recherche et
-les filtres de la table des rôles sont gardés avec les réglages de
-sa grille (`GridConfig.filters`, `kept-filters.ts`, sous `filters` de `GridPreferences`, tels que
-l'adresse les écrit) : enregistrés dès que la page en montre d'autres que ceux gardés — une lecture
-levée comprise —, et retrouvés seulement sur une adresse qui ne dit rien de la grille, ni tri, ni
-recherche, ni filtre, que la page, sur le serveur et avant toute lecture, redirige vers celle des
-filtres gardés (`restoredAddress`, `kept-address.ts`), comme elle prend le tri gardé quand l'adresse
-n'en dit rien — d'où qu'on vienne, le lien de la barre latérale suivi depuis l'écran compris. La
-levée du dernier filtre se dit dans l'adresse, la recherche écrite vide (`search=`, `spokenHref`, que
-pose le `PendingAddress` d'un écran qui nomme ce que garde sa grille), comme un tri levé écrit
-`sort_by` vide : la préférence se vide, et la page ne retrouve pas les filtres gardés (#836). L'écran des rôles est branché sur le
-service (US-0380/L2, #380) : à une session qui porte `access_roles.write`, la table crée un rôle en
-ligne, par son seul libellé (`role-commands.tsx`), le renomme dans sa cellule — la saisie de la
-grille, écrite par `updateAccessRole` avec les permissions du rôle — et le supprime depuis sa ligne,
-après une confirmation qui nomme le rôle et dit la suppression définitive (`AlertDialog`, hors de la
-grille, Échap l'abandonnant) — une suppression logique (#456), que rien ne restaure, un rôle prédéfini
-compris —, indisponible, `aria-disabled` et décrite par sa condition, tant qu'un compte porte le rôle
-(`ACCESS_ROLE_IN_USE`, WF-ADM-0090) ; la matrice est le lieu de la modification des permissions, une
-case à cocher par permission et par rôle (`permission-matrix.tsx`), qui écrit le rôle entier, ses
-permissions dans l'ordre du catalogue, les autres cases du rôle attendant la réponse. La table et la
-matrice lisent une seule source du rôle répondu le plus récent par sa `lock_version`
-(`RoleAnswers`, `role-answers.tsx`) : un renommage puis une case cochée avant la relecture, ou
-l'inverse, part de la version répondue, et une relecture plus ancienne que la réponse ne la défait
-pas ; l'en-tête de la colonne d'un rôle renommé et le nom de chacune de ses cases prennent eux aussi
-le libellé répondu (`RoleLabel`, `PermissionCell`), sans attendre la relecture (#976). Ce que fait
-une commande de la table se dit dans sa région, nommée « Commandes des rôles
-d'habilitation » ; un refus, par le catalogue des codes d'erreur au-dessus de la table ou de la
-matrice, sur la lecture d'où il est parti (`Reactivations`) — le dernier administrateur
-(`LAST_ADMINISTRATOR`), la version périmée avec l'offre de relire —, le focus rendu, le refus fermé,
-à la case qui a écrit ; un libellé refusé par le serveur, ou blanc, refusé sans appel comme la saisie
-de la grille (`parsedEntry`), se dit à son champ ; toute écriture répondue relit la page.
-Pour les comptes (US-0360, #379), la table est sa propre saisie, à une session qui porte
-`users.write` (`platformOffer`) : le nom et le prénom d'un compte local dans leurs cellules
-(`updateUser`), ceux d'un compte de l'annuaire ou d'un fournisseur restant en lecture (WF-ADM-0050) ;
-l'état sur un interrupteur, son mot à côté (`setUserActivation`) ; les rôles dans une liste à choix
-multiple des rôles de l'installation, quel que soit le rattachement (`setUserAccessRoles`,
-`user-cells.tsx`) — chacun tel que le compte liste sa commande (`User.available_commands`) : une
-commande absente n'est pas présentée, une indisponible l'est avec sa condition, et un clic la dit
-sans la lancer. La désactivation du dernier compte actif qui porte les permissions de modifier les
-comptes et les rôles est indisponible, `last_administrator` manquante (WF-ADM-0120, #540) — le front
-ne pourrait pas le trouver seul, la liste étant paginée ; l'attribution de ses rôles reste
-disponible, le serveur jugeant les rôles envoyés, et refusant par `LAST_ADMINISTRATOR` ceux qui lui
-retireraient ces permissions — un refus dit comme tout autre. Le lien de fixation d'un compte local
-(`createPasswordSetupLink`) se remet dans un dialogue, entier et en lecture seule, avec l'heure où il
-cesse de valoir, jamais relu ; indisponible pour un compte désactivé (`is_active_account`), absent
-d'un compte qui n'est pas local ou qui est anonymisé. « Créer un compte local », en tête de la table, ouvre le dialogue du
-nom, du prénom et de l'adresse (`user-dialogs.tsx`) : un champ blanc est refusé à son champ sans
-appel, l'adresse déjà portée dite à son champ ; quand aucune invitation n'est partie
-(`invitation_sent` faux), le compte créé le dit et offre aussitôt son lien de fixation (#816). La
-colonne « Anonymisation » porte la commande `anonymize` d'un compte désactivé (`anonymizeUser`),
-après une confirmation qui nomme le compte et dit l'action irréversible (`AlertDialog`, comme la
-suppression d'un rôle) ; un compte anonymisé est nommé par le libellé neutre du catalogue, et ses nom
-et prénom ne se saisissent pas, son origine fût-elle locale (WF-ADM-0060). Aucune suppression
-(WF-ADM-0060). Comme pour les rôles, une seule source du compte répondu le plus récent par sa
-`lock_version` (`UserCommands`, `user-commands.tsx`) : l'écriture suivante d'une ligne, quelle que soit
-sa cellule, part de sa version. Les écritures d'une ligne passent l'une après l'autre : un nom saisi
-pendant qu'une autre écriture de sa ligne est en route attend sa réponse et part de la version qu'elle
-a répondue, et l'interrupteur, les rôles et l'anonymisation de la ligne se marquent occupés et
-indisponibles (`aria-busy`, `aria-disabled`) tant qu'une écriture y est en route — l'anonymisation
-aussi tant qu'une réactivation demandée n'a pas répondu. Ce que fait une écriture — un renommage
-compris — se dit dans la région « Commandes des comptes » ; un refus de l'interrupteur, des rôles ou
-de l'anonymisation, au-dessus de la table, sur la lecture d'où il est parti (`Reactivations`), celui
-d'un nom, à sa cellule. La recherche et les
-filtres se gardent avec les réglages de la grille et se retrouvent quand l'adresse ne dit rien de la
-table (`USER_KEPT`), comme pour les rôles. Sans la permission, rien ne s'écrit et aucune commande ne
-se présente. Au-dessus de la table, la lecture des comptes du fournisseur d'identité (US-0370,
-WF-ADM-0070, `identity-sync.tsx`) montre le compte rendu de la dernière lecture achevée
-(`getLatestIdentitySync`), ou dit qu'aucune n'a encore abouti (404) : ses comptes créés, mis à jour,
-désactivés, ceux dont elle a rétabli l'identité dans le fournisseur, les comptes locaux qu'elle en
-retire, et, à la demande, ce qu'elle a laissé tel quel, chacun avec le motif du catalogue — un compte
-nommé tel qu'il se lit à la consultation, sous le libellé neutre s'il est anonymisé depuis
-(`useAccountNaming`, `AnonymizedName`) ; une personne du fournisseur par son nom et son identifiant
-chez lui (#918) ; celle dont un compte porte l'adresse (`ALREADY_EXISTS`) par son identifiant et ce
-compte, tel qu'il se lit, ou par son seul identifiant quand aucun ne la portait plus (#920). À une
-session qui porte `users.write`, « Lire les comptes » (`startIdentitySync`) rend la main dès la
-tâche en file et la confie au suivi, qui l'annonce achevée et offre de relire l'écran, sans jamais
-le relire de lui-même. Une liste que le serveur pagine — comptes, sauvegardes — dit combien elle en porte et
-mène aux pages voisines par `offset` (`ListPages`, pour les comptes comme pour
-les sauvegardes), les autres paramètres de l'adresse gardés, sans jamais montrer une page pour le tout ;
-elle ne se dit vide que si elle ne tient rien (`meta.total`) et que rien ne la restreint, et une page demandée au-delà de sa fin le dit et ramène à la dernière — une seule
-règle pour toutes les listes paginées, `pageOffsets` de `frontend/src/navigation/pages.ts` (#317).
-L'heure d'une sauvegarde planifiée s'affiche telle quelle, en UTC, comme le contrat la donne : une
-heure du jour n'a pas de date d'où tirer le décalage d'un fuseau à heure d'été. Son formulaire la
-saisit de même, et dit à côté l'heure du poste qu'elle donne la semaine où il est ouvert — l'heure seule
-pour une planification quotidienne, le jour local aussi pour une hebdomadaire, qui peut être la veille
-ou le lendemain du jour universel (`localTimeOfDay` de `format.ts`, dans le navigateur) : rien n'est
-converti à l'envoi.
-
-### L'écran des sauvegardes
-
-L'écran des sauvegardes (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f, EP-14/L43d)
-présente leur planification (`backup-schedule.tsx`) et une page de leur liste sur la
-grille dense (`backup-columns.tsx`, `backup-grid.tsx`, préférences sous la clé `backups`) : la date,
-en heure locale, la taille, la vérification, le déclenchement et la conservation, dans l'ordre du
-serveur, la ligne des totaux disant combien il en retient (`meta.total`). Le serveur trie chaque
-colonne dans les deux sens (WF-IHM-0060), les plus récentes d'abord quand l'adresse et le compte ne
-disent rien, et le tri ne se lève jamais, comme celui du journal ; il filtre sur chaque colonne
-(WF-IHM-0130, `backup-address.ts`), sous les noms du contrat : la période de la prise, deux jours du
-lecteur tirés en instants, `from` compris et `to` exclu, comme l'accueil (`PeriodFilter`, `day`) ;
-le déclenchement et la vérification, par leurs valeurs (`origins`, `verifications`,
-`ValuesFilter`) ; la conservation, par un choix (`is_retained`, `ChoiceFilter`) ; la taille, par ses
-deux bornes en octets, incluses (`size_bytes_min`, `size_bytes_max`, `RangeFilter`, sorte `bytes` :
-un entier qui a plus de chiffres qu'un compte). Une liste filtrée ne se dit jamais vide, et une
-borne que le serveur refuse (422) — une fin avant le début, un maximum sous le minimum — laisse la
-liste non lue, les filtres gardés, la borne dite à son champ. « Sauvegarder maintenant », dans la
-tête de la liste, liste vide comprise — une tâche de fond remise au suivi avec sa commande —, suit
-la permission `backups.write` (WF-ADM-0100, `platformOffer`) ; les autres commandes sont celles que
-chaque sauvegarde liste (`Backup.available_commands`, WF-IHM-0090, `backup-commands.tsx`), le front
-n'en déduisant rien de la session ni de l'état de la sauvegarde : « Conserver » ou « Ne plus
-conserver », celle des deux qui change son marquage, dans la colonne de la conservation ;
-« Télécharger » et « Restaurer », chacune dans sa colonne dès qu'une sauvegarde de la page la
-liste — le serveur ne liste le marquage que sous `backups.write`, le téléchargement que sous
-`backups.read` et `backups.write` (décision de l'auteur du 2026-10-10, #705, qui remplace celle du
-2026-10-09, #588), la restauration que sous `platform_restore` —, et aucune ne supprime. Une commande absente n'est pas présentée ; une indisponible l'est, `aria-disabled` et
-décrite par la condition qui lui manque (`enums.CommandCondition`) — `backup_verified` au
-téléchargement et à la restauration d'une sauvegarde non vérifiée, `no_backup_running` à la
-restauration pendant qu'une sauvegarde court, `no_restore_running` au marquage et à la restauration
-pendant qu'une restauration court —, et un clic la dit dans la tête de la liste sans rien demander,
-comme les activations du référentiel. La tête de la liste dit ce que la dernière commande a fait dès
-qu'une commande est offerte. Une sauvegarde n'ayant pas de compteur, la réponse d'un marquage reste
-montrée tant que chaque relecture lit la sauvegarde comme la précédente ; une relecture qui l'a
-changée l'emporte pour de bon, et une démarque par un tiers que la relecture ne montre pas reste
-invisible (#588). Le téléchargement est un lien vers la route `/admin/backups/[backupId]/content`,
-qui relaie `downloadBackup` en flux comme le résultat d'une tâche (`src/api/relay.ts`, commun aux
-deux routes) : des octets, seul type que le contrat déclare, sous le nom que l'API donne
-(`Content-Disposition`, que le contrat exige : `waterfall-backup-`, l'instant de la sauvegarde et
-l'extension de son archive), avec sa longueur quand le corps arrive sans `Content-Encoding` — tout
-autre type, ou un fichier sans nom, renvoie l'erreur d'une mauvaise passerelle (502). Un refus —
-403, 404 sans distinction (WF-ADM-0110), 409 d'une sauvegarde non vérifiée, 502, l'API
-injoignable — renvoie à l'écran des sauvegardes, sa page et ses filtres gardés, l'adresse nommant la
-sauvegarde et le refus (`refused_backup`, `refusal`, les noms paramétrés de `result-refusal.ts`) :
-l'écran le dit au-dessus de la liste jusqu'à ce qu'on ferme son avis — le téléchargement nommé, la
-sauvegarde par sa date quand la page la porte —, et l'avis, rendu avec la page, prend le focus au
-montage, sans quoi aucun lecteur d'écran ne l'annoncerait ; l'adresse est rendue sans le refus une
-fois la page révélée (`afterReveal`), l'avis fermé ou non. « Restaurer » ouvre un dialogue
-(`restore-dialog.tsx`) qui énonce la date de la sauvegarde et sa vérification, la perte sans retour
-de ce qui a été saisi depuis, la déconnexion des utilisateurs et l'inscription au journal d'audit
-(WF-ADM-0160, WF-SEC-0030) ; le bouton ne s'active qu'une fois l'identifiant de la sauvegarde
-saisi, sans égard à la casse, et la demande énonce la date dite (`acknowledged_backup_taken_at`).
-Pendant la demande, ni Échap, ni un clic au-dehors, ni « Annuler » ne ferment le dialogue : un
-refus s'y dit — un état qui l'interdit (409), la condition nommée comme tout refus ; une date
-confirmée qui n'est pas celle de la sauvegarde (400, `CONFIRMATION_REQUIRED`, EP-03/US-0440/L2),
-dite à la date que le dialogue énonce, la liste lue n'étant plus celle de la sauvegarde, et la page
-relue —, et rien ne part qu'on croie abandonné. Mise en file, la restauration fait place à l'écran
-de sa maintenance (`restoration.tsx`, `maintenance.tsx`, US-0440), qui suit sa tâche tant que la
-plateforme sert, puis la sonde de vie, et dit la déconnexion des utilisateurs, puis la fin ; le suivi
-de la coquille ne la reçoit pas : une restauration ne se relance que depuis cette confirmation. Le refus
-d'une commande de la liste se dit au-dessus d'elle (`Reactivations`), la condition nommée pour un
-409 ; l'écran dit que le faux back ne garde rien (`MockupNotice`) dès qu'une commande est offerte.
-La restauration depuis un fichier passe par le dépôt par morceaux d'EP-03 (#350,
-`completeChunkedUpload`), offert à qui porte `platform_restore` sous la liste, dont la date lue dans
-le manifeste est celle que la confirmation nomme : le même dialogue, l'identifiant du dépôt saisi, sa
-vérification dite en attente — sa restauration la fait (EP-14/L42o). La planification et les
-emplacements externes, que le service ne sert pas encore (404), sont laissés de côté sans emporter
-la liste.
-
-La planification se modifie, à une session qui porte `backups.write` (`platformOffer`), dans le
-formulaire du référentiel (`ReferenceForm`), qui la renvoie **entière** depuis la version où il s'est
-ouvert (`setBackupSchedule` est un `PUT`) : activée ou suspendue, la fréquence et l'heure en UTC (un
-champ `time` : une heure à moitié saisie, que son champ rend vide, `validity.badInput`, est refusée
-avant tout appel par la phrase propre à son champ, `invalid`, jamais envoyée comme « aucune heure ») —
-exigées d'une planification activée seulement, le contrat ne les exigeant pas d'une
-suspendue —, le jour — exigé d'une planification hebdomadaire, nul d'une quotidienne —, le nombre de
-sauvegardes conservées, un nombre entier dont le serveur juge les bornes, signe compris ; un champ
-exigé selon le brouillon le dit (`required` d'un `FormField`, une fonction du brouillon, qui donne
-aussi `aria-required`, #678) ; puis la copie externe, offerte quand l'installation déclare un emplacement
-ou que la planification en règle une : l'emplacement, choisi parmi ceux que la page lit pour cette
-seule session (`listExternalBackupLocations`) par son nom et sa nature, sa description sous le champ,
-jamais un secret ni une adresse — un emplacement réglé que l'installation ne déclare plus reste offert
-par son nom, refusé au champ avant l'envoi (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`) plutôt que retiré en
-silence —, « Aucune copie » la retirant ; le dossier
-relatif ; le nombre de copies, au moins celui des sauvegardes conservées (WF-EXP-0050), vérifié avant
-l'envoi et dit au champ avec ce minimum, comme le serveur le dirait — pour une rétention dans ses
-bornes, de 1 à 365 (`RETENTION`), le reste revenant au serveur, qui donne alors le minimum des
-copies à 1 — ; la copie active ou suspendue.
-Les règles entre champs passent par `rules` du formulaire, une note qui suit la saisie par une
-fonction du brouillon (`note`), et ce qui suit les champs sans en être un par `after` : « Tester
-l'emplacement » (`testExternalBackupLocation`), offert pour un emplacement que l'installation
-déclare, qui dit l'emplacement éprouvé, l'instant du test en
-heure locale, le dossier ou la racine, et la réussite ou le motif de l'échec
-(`enums.ExternalBackupFailure`) dans une région annoncée ; un dossier refusé (422, `/path`) se dit sous
-le bouton par la phrase de son propre code ; seule la réponse du dernier test demandé est dite, tant
-que le dossier saisi est celui qu'il a éprouvé, et un autre emplacement choisi fait tomber le test en
-route. La réponse d'un enregistrement remplace la planification affichée tant que son `lock_version`
-est plus récent que la lecture, la page relue, et ne ferme que le dialogue ouvert d'où elle est partie
-(compteur d'ouvertures, comme les paramètres du référentiel), la commande attendant, inactive, la
-réponse d'une écriture d'un dialogue fermé (#661, #678) ; un refus par champ (422 : emplacement inconnu, chemin
-invalide, rétention trop courte) se dit au champ, tout autre sous le formulaire, la version périmée
-(412) avec l'offre de relire.
-
-### Le journal d'audit
-
-Le journal d'audit (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
-#517) est un écran de l'administration à lui ; la table « Dernières opérations » de l'état du
-système, trois faits de la plateforme (WF-ADM-0130), reste telle quelle. C'est une fonction en
-lecture seule, qui n'a que sa permission de consulter (WF-ADM-0100) : `FunctionPermission` nomme
-toute fonction par sa permission de consulter, et `WritableFunction` celles qui ont aussi la
-permission de modifier, seules que `platformOffer` accepte. L'écran est gardé par `audit_log.read`,
-introuvable sans elle comme une adresse qui ne mène nulle part (WF-ADM-0110). Il présente une page
-des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`audit-columns.tsx`,
-préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
-ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
-des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
-de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
-le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
-identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
-l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
-les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
-inscriptions de sa seule requête. Le serveur trie sur chaque colonne (#550), dans les deux sens.
-Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
-(`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
-(`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
-ne mène à son écran propre que si la session lit sa fonction — les risques, le planning dont les
-échanges sont une feuille, les révisions —, sinon à sa révision, qui mène à la première fonction
-lisible, et à rien sans fonction de révision à lire (`auditReach`). La corrélation saisie ne part
-que sous la forme que le contrat accepte (`pattern` du champ, que le navigateur dit). La recherche de la grille
-porte sur le libellé de l'objet (`search`). Les filtres
-n'écrivent que l'adresse, sous les noms du contrat, et ramènent à la première page
-(`audit-filters.tsx`) : la période, deux instants saisis en heure locale et envoyés en temps
-universel — seul le navigateur connaît son fuseau, si bien que les champs montrent ceux de
-l'adresse une fois la page hydratée ; une borne laissée telle quelle repart comme l'adresse la nomme,
-et une saisie est datée par la période de l'adresse, le formulaire jamais remonté —, la nature de
-l'auteur (`ValuesFilter`), l'auteur et le projet parmi ceux que nomme le journal entier
-(`listAuditFacets`, que la seule consultation du journal lit : un auditeur sans `users.read` filtre
-par auteur) — sans auteur à choisir ni auteur choisi, le filtre d'auteur n'est pas offert —, les
-actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'histoire, nommé et
-levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
-qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
-l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
-(`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
-ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans
-une révision, vers son écran propre dans celle que l'inscription nomme (`AuditObject.revision`) —
-un risque vers les risques de la révision, son détail ouvert (`risk`), l'import d'un planning, d'un
-devis ou d'un reste à engager vers ses échanges, son compte rendu montré (`import`), le
-différentiel d'un avenant vers les structures de coûts de l'écran des révisions lu dans elle
-(`revision_id`) ; une ligne de coût réel et
-l'import des coûts réels ne vivent dans aucune révision, et un compte, un rôle ou une sauvegarde
-n'ont pas d'écran à eux : leur nom reste seul. Une période que l'API refuse (422, la fin désignée hors
-de ses bornes) se dit à la place des inscriptions, les filtres gardés, et tout autre refus des filtres
-par son enveloppe (`problemMessage`) ; aucune commande n'est offerte.
-
-### L'écran des imports et exports
-
-L'écran des imports et exports, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
-US-0260), est la feuille FBS-4.3.4 du planning, dont l'en-tête y mène dans le même contexte, comme
-celui de l'écran des coûts réels ; un
-import s'applique pourtant à la révision en cours, créée au besoin (WF-INTF-0090), quelle que soit
-la révision lue. Un import se fait en deux temps (WF-ARC-0100) : la commande de sa nature ouvre dans
-la page le choix du fichier — et, pour une extraction de coûts réels, la période qu'elle couvre —,
-qu'une action serveur dépose pour un import (`uploadFile`, `purpose: import`) puis analyse
-(`openImport`) ; un fichier de plus de 10 Mio, la borne que le contrat donne au dépôt d'un import,
-est refusé dans la page, et la borne des actions serveur de Next est réglée un peu au-dessus
-(`next.config.ts`). La tâche de l'analyse va au
-suivi de la coquille, et l'adresse nomme l'import (`import`, un identifiant ou rien), dont la page lit
-le compte rendu (`getImport`) — lignes lues, motifs de confirmation, lignes rejetées par leur place
-et leur motif, rendu comme un refus depuis son code et ses paramètres (`problemMessage`), écarts
-avec les champs qu'ils changent, nommés par le catalogue de leurs colonnes (`NodeColumn`,
-`ActualCostColumn`) —,
-dans l'ordre reçu. Les commandes d'un compte rendu sont les siennes : un autre import montré les
-remplace. L'application n'est offerte qu'à un import analysé, et ne part qu'une fois confirmée dans
-la page ; sa tâche va au suivi. L'abandon ramène à l'adresse de départ, si l'écran montre encore cet
-import. Chaque import est offert comme le projet offre sa commande (`importOffers`) :
-`import_planning`, `import_estimate`, `import_remaining`, `import_actual_costs`, avec ou sans
-révision en cours — sans elle, qui ne peut pas créer la révision voit l'import indisponible,
-`may_create_revision` nommée. Un projet sans révision, qu'aucune adresse de révision n'atteint,
-offre les mêmes imports sur son propre écran (`ImportPart`), et y montre le compte rendu de l'import
-que son adresse nomme (#332). L'écran est gardé par les commandes qu'il exerce, et non par la seule
-lecture du planning (#521) : il se montre à une session qui lit le planning, dont il est la feuille,
-ou à laquelle le projet liste un import (`listsAnImport`) — un chiffreur, que le devis et le reste à
-engager y mènent quand le projet liste leur import, disponible ou non, l'écran le présentant alors
-avec ses conditions (`ExchangesLink`, WF-IHM-0090) ; il est introuvable pour tout autre. La liste des imports, paginée par le serveur (`offset`,
-`ListPages` de `components/grid/list-pages.tsx`), mène au compte rendu de chacun ; la demande
-d'export n'offre que les natures que la révision lue offre d'exporter (`exportOffers`, `export_*`) — un export, gardé par la permission de
-consulter sa nature, est présent ou absent —, et part pour cette révision — l'image de
-l'arborescence au niveau demandé —, et le suivi n'offre de télécharger que le résultat d'un export
-réussi (`givesFile` de `tracking.ts`), celui des autres tâches se lisant sur leur écran : le serveur de Next le lit (`getBackgroundTaskResult`) et le transmet en flux, sans le tenir
-entier en mémoire et hors de la file des actions serveur, à la route `/tasks/[taskId]/result`, que
-le navigateur suit comme un lien, sans `download` : un type que le contrat déclare pour sa nature,
-et la pièce jointe nommée du nom de base que le contrat promet (`Content-Disposition`,
-`attachmentName`), sans sa longueur, que `fetch` a décodée, et que rien ne garde en cache
-(`private, no-store`). Ce que la route ne transmet pas — un refus de l'API, dont le résultat expiré
-ou pas encore prêt (409), l'API injoignable, une réponse qui ne nomme pas le fichier ou dont le
-type n'est pas déclaré, l'erreur inattendue d'une mauvaise passerelle (502) — renvoie le navigateur,
-par une adresse relative, à l'écran d'où il partait (`from`), l'adresse nommant la tâche et le
-refus (`refused_task`, `refusal`, `result-refusal.ts`) : le suivi relit la tâche, la suit et dit
-le refus dans son entrée (`OutcomeNotice`) — ou, la tâche illisible, dans un avis de son panneau —,
-et l'ôte de l'adresse une fois la page révélée, le routeur de Next rendant à neuf une page dont
-l'adresse change (#416).
-
-La page d'un projet propose de démarrer son planning par l'encart « Démarrer le projet »
-(`ProjectStart`, `components/projects/project-start.tsx`, US-0490) tant que la structure principale
-de la révision en cours n'a aucune tâche. La condition est lue au serveur (`startOffers`,
-`start-offers.ts`) : la révision en cours liste `generate_skeleton` — l'appelant peut modifier le
-planning — sans qu'il lui manque `main_structure_without_tasks` ; le front n'en déduit rien d'autre.
-La page la prend dans la liste de ses révisions, dont chaque élément est une révision entière, sans
-la relire. Ce que la génération produit (une récapitulative par lot et par poste, leurs jalons de fin)
-est l'affaire du back : le front envoie la commande et mène à la grille, et le critère de
-`WF-PRJ-0030-A` sur le résultat se porte au test du back, non à l'encart.
-« Planning automatique depuis le lotissement » mène au lotissement (`settings?start=skeleton`), où
-« Engendrer le planning » (`GeneratePlanning`) appelle `generatePlanningSkeleton`, relit la page
-après la génération comme après un 409 (#819.5, #819.6) et mène à la grille. « Importer un fichier MS
-Project » ouvre la zone de dépôt (`FileDrop`, `components/exchanges/file-drop.tsx`) : un bouton qui
-ouvre le sélecteur, la zone nommée et décrite, le type (`.xml`) et la taille vérifiés avant l'envoi ;
-elle envoie comme le formulaire de l'écran des imports (`useOpenImport`, `open-import.ts`), le compte
-rendu s'affichant sur la page, et l'application confirmée mène à la grille. « Plus tard » replie
-l'encart pour la session de l'onglet (`start-fold.ts`, `sessionStorage`) ; un bouton le rouvre. Le
-faux back, sans état, sert au témoin une structure à mille tâches : l'encart n'y paraît jamais, et les
-deux parcours de bout en bout (lotissement puis génération ; dépôt puis compte rendu) ne se jouent
-qu'aux tests des composants, contre les exemples du contrat (`project-start.dom.test.tsx`, #1350).
-
-### Les écrans du portefeuille
-
-Les écrans du portefeuille, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), sont
-hors projet : chacun lit sa vue sur le périmètre de l'adresse, sous les noms du contrat — les états
-retenus (`states`), la période (`from`, `to`), la date de calcul (`as_of`) et le nœud d'organisation
-(`org_node_id`), qui retient aussi ses descendants, offert dans l'ordre de l'arbre que rend
-`listOrgNodes`, chaque nœud décalé de sa profondeur (`treeLabel`, comme le filtre du plan de charge
-d'un projet) —, de ce périmètre ce que l'opération prend (`perimeterQuery`, `Takes`). Un état se montre
-pressé comme l'adresse le demande, ou, quand elle n'en nomme aucun, comme le serveur les a retenus
-(`scope.states`) : le front ne suppose aucun défaut. Sous le titre, le périmètre que le serveur a
-retenu et la date de calcul de la vue, `scope.as_of` (`PortfolioHeader`), que portent tous ses
-chiffres, et le nœud retenu, nommé par le serveur (`scope.org_node_label`). Une période que le
-serveur refuse — une fin qui précède le début, `PortfolioPeriodRefused`, EP-02/L42f — est dite au
-champ de la fin, le début nommé, comme les coûts réels la disent (`usePeriodProblem`) — une borne
-seule se complétant par la période par défaut, un début postérieur à la fin complétée est dit au
-champ du début, la fin nommée (`params.maximum`) — ; la vue n'est
-pas lue, son titre reste sans périmètre retenu et une phrase tient sa place (`RefusedView` de
-`frontend/src/app/portfolio/refused.tsx`) ; ses états sont pressés comme l'adresse les nomme, et,
-sans état nommé, le filtre des états n'est pas offert, rien ne disant ce que le serveur retiendrait.
-La liste des projets (FBS-2.1) est une configuration de plus de la grille dense, triée,
-cherchée et paginée par le serveur, sa ligne de totaux le nombre de projets retenus
-(`meta.total`), sous la valeur du portefeuille. Les six autres vues (FBS-2.2 à FBS-2.7) montrent ce
-que le serveur calcule : le plan de charge agrégé et les décaissements prennent en outre l'horizon
-(`horizon_months`) et, pour le premier, le seuil de sous-charge (`under_load_threshold`),
-paramètres de la vue et non préférences (WF-PTF-0060) : le menu propose quelques valeurs, mais toute
-valeur de l'adresse que le contrat prend — un horizon de 1 à 240 mois, un seuil en `Percent` — est
-envoyée et se montre choisie ; sans seuil dans l'adresse, le menu montre celui que le serveur a
-retenu (`under_load_threshold` de la réponse), comme les états ; les colonnes du plan de charge
-sont les mois de la réponse (`months`), que chaque rôle porte dans le même ordre. Un signal de santé
-dit ce qu'il nomme (`params` : les semaines sans revue, le jalon dépassé et sa date de référence),
-comme une alerte de l'état du système le composant indisponible. Chaque projet nommé — libellé de la liste, risque le plus lourd, signal de santé —
-ouvre le projet (WF-PTF-0030). Les zones d'indice, de charge et de santé sont celles du serveur,
-par `Signal` ; l'évolution trimestrielle des indices, la courbe en S et les décaissements sont des
-figures de `Chart`, exportées en PNG avec la provenance de leur vue (`usePortfolioExport`) : le
-périmètre que le serveur a retenu — états, nombre de projets, période, nœud d'organisation — et sa
-date de calcul, `scope.as_of`, la phrase même de l'en-tête (#312).
-
-### Les grilles : le collage d'un bloc de tableur
-
-Un bloc copié d'un tableur se colle sur la cellule active, en deux temps (WF-IHM-0050,
-`paste.ts`) : le bloc se lit à l'événement `paste`, écouté sur le document — le navigateur le
-vise où un clic a laissé le curseur, la cellule est celle qui a le focus dans la grille, et une
-saisie en cours garde le collage pour son champ —, jamais par `navigator.clipboard`, qui demande
-une permission ; en valeurs séparées par des tabulations, une cellule entre guillemets gardant
-ses tabulations et ses fins de ligne (`readBlock`). Le serveur remplit, à partir de la colonne
-visée, les colonnes de la facette du nœud visé dans l'ordre de `NodeColumn`, sans connaître
-celles que la grille montre (#200) : le front mesure donc le bloc sur ces colonnes-là
-(`GridPaste.span`, `pasteSpan`, #223), et refuse aussitôt, sans rien demander, un bloc plus
-large qu'elles à partir de la cellule — comme le serveur le refuserait (`PASTE_TOO_WIDE`) — et
-un bloc dont la portée, de la colonne visée à la dernière colonne remplie dans cet ordre,
-atteint une colonne que la grille ne montre pas, masquée ou absente de sa configuration, qu'il
-nomme — par son en-tête, ou par son libellé du catalogue (`enums.NodeColumn`) ; il refuse de même
-un bloc dont une ligne ne tomberait pas sur celle que le serveur écrit : le serveur remplit les
-lignes du plan sous la ligne visée, que la grille connaît par leur numéro dans toute la structure
-(`row_number`), non les lignes affichées après elle. Une seule garde compare, de la cible à la
-dernière ligne du bloc, le numéro de chaque ligne affichée à celui qu'elle aurait dans l'ordre du
-plan (sur un différentiel, le serveur saute les nœuds que l'avenant retire et remplit les
-suivants : la garde ne compte ni leur rang ni leur ligne, comme l'aperçu, #1278) — une grille qui
-colle lit tous les genres de nœud, et ses numéros se suivent — ; pliée
-(`fold.tsx`), déplacée par un tri, cachée par la recherche ou un filtre, ou au-delà de la dernière
-ligne montrée, la cause dite est celle que l'utilisateur lève d'abord (L40, #527).
-Sinon `previewPaste` rend le plan, que
-montre une boîte de dialogue de shadcn (`PasteDialog`, `ui/dialog.tsx`), dans une seule région
-annoncée — combien de lignes seront écrites, chaque ligne refusée par sa place dans le bloc, ses
-cellules telles que copiées et son motif, une ligne refusée pour plusieurs cellules comptée une
-fois —, et `applyPaste` l'applique sur confirmation, en une seule opération : les lignes valides sont
-écrites, les lignes refusées ne le sont pas (WF-IHM-0050, EP-14/L42q). Un plan qui refuse des lignes
-et en écrit d'autres le dit, et se confirme ; un plan qui n'écrit aucune ligne n'offre que
-l'abandon. La confirmation attend toute autre écriture de la grille en cours — une cellule saisie, un
-geste — et la relecture qui suit un geste : elle porterait la version de la structure que leur
-réponse va avancer, et serait refusée (412) ; « Appliquer le collage » reste offert, inactif, occupé
-et décrit par l'attente, jusqu'à leur réponse (`busy` de `useGridPaste`, #1224). Ce que la
-confirmation rend prend la place de ce qui était lu (`CellWrites.applied`), comme les lignes qu'écrit
-un choix du menu d'une cellule ; une écriture de cellule partie avant elles et répondue après se
-prend comme toute réponse, le compteur de la structure décidant laquelle des deux une ligne montre
-(`answers.ts`, #202, #421), et seul son refus se tait quand elles ont écrit sa ligne depuis. Ce que
-le collage n'a pas écrit
-(`PasteApplied.rejected`) — les refus de l'aperçu, et ceux que le serveur ajoute en jugeant de
-nouveau les lignes acceptées, une catégorie ou un rôle désactivés entre-temps — est dit au-dessus de
-la grille avec la cellule d'où le bloc a été collé et le nombre de lignes écrites
-(`PasteAppliedNotice`), chaque refus comme à l'aperçu, lu dans la réponse et jamais dans le plan,
-jusqu'à ce que l'utilisateur ferme l'avis ou colle à nouveau ; les refus y sont une région nommée,
-atteinte au clavier, dont la hauteur est bornée — ils défilent, la grille reste dans la fenêtre
-(défaut n° 13), la phrase et la fermeture hors du défilement —, hors de l'alerte, qui ne dit que la
-cellule, le nombre de lignes écrites et celui des lignes refusées, « listées ci-dessous » — une phrase
-à elle, l'aperçu gardant la sienne —, et qui la décrit (#765). Un collage entièrement écrit ne dit
-rien de plus que sa grille. Échap abandonne, une
-réponse arrivée après l'abandon est ignorée, et le focus revient à la cellule. Le front ne juge rien
-du contenu : la colonne visée part sous son nom de colonne du contrat (`NodeColumn`), que la grille
-la trie ou non, et la confirmation porte la version de la structure lue (`structureVersion`), le
-serveur refusant par 412 un plan jugé sur une structure qui a changé depuis l'aperçu (#200, #201).
-Le faux back ne sert que le premier exemple de chaque opération, le plan qui ne refuse rien : le
-collage partiel n'est éprouvé que par les tests de la grille (`paste-applied.dom.test.tsx`,
-`paste-dialog.dom.test.tsx`), et la hauteur réelle de l'avis ne se prouvera qu'en parcours. Une grille sans
-`paste` dans sa configuration, en lecture seule, ne prend aucun collage.
-
-### Les grilles : annuler et rétablir
-
-Annuler et Rétablir sont posées, pas branchées (WF-IHM-0110, US-0140, `undo-commands.tsx`) :
-toute grille dont la structure lue liste sa commande `edit_*` disponible les pose (`undoable`
-de `DenseGrid`) — le devis par `edit_estimate`, le planning par `edit_planning`, le reste à
-engager par `edit_remaining` (#115) ; aucune grille hors d'une révision en cours ne les pose : ni
-le marquage, ni un import appliqué, ni l'exclusion d'une ligne de coût ne s'annulent. Une telle
-grille les montre en boutons dans sa barre et dans le menu contextuel de ses cellules (clic droit,
-Maj+F10, touche Menu — `CellMenu`, sans arrêt de tabulation de plus), avec leurs raccourcis, et
-prend Ctrl+Z et Ctrl+Maj+Z — Cmd sur un Mac — dans la grille ou sa barre, hors d'un menu ou d'une
-boîte qu'elle ouvre. Indisponibles tant que le serveur ne conserve pas l'historique des saisies,
-elles restent atteignables au clavier, `aria-disabled`, décrites par leur raison ; le raccourci la
-dit dans une région annoncée. Un champ en cours de saisie — l'éditeur d'une cellule, la
-recherche — garde Ctrl+Z pour lui : l'annulation du navigateur y reste. EP-06 les branche sur
-`undoLastChange` et `redoLastUndo`, une annulation portée par le serveur, jamais une pile dans le
-navigateur ; leur refus se dira comme tout refus, sa condition nommée par le catalogue — celle d'une
-annulation qui rendrait un sous-projet supprimé depuis, `restored_subproject_exists`, y est déjà
-(EP-14/L42p).
-
-### Les grilles : créer et supprimer des tâches et des lignes
-
-Une grille se saisit, et offre ses gestes de structure, selon la commande de la structure qu'elle
-lit (`CostStructure.available_commands`, WF-IHM-0090) : `readGridScreen` rend celles qui sont
-disponibles (`commands`), le planning lit `edit_planning`, le devis `edit_estimate`, le reste à
-engager `edit_remaining`. Le front ne déduit jamais la phase du projet : sur la structure principale
-d'un projet En cours le devis est en lecture seule, le reste à engager l'est avant (WF-DEV-0050,
-WF-RAE-0040). Les gestes — « Insérer au-dessous », « Insérer une sous-tâche », « Insérer une
-ligne », « Indenter », « Désindenter », « Monter », « Descendre », « Supprimer » — sont dans le menu
-contextuel des cellules et aux touches Insert, Alt+Insert, Ctrl+Insert, Alt+Maj+→, Alt+Maj+←,
-Alt+Maj+↑, Alt+Maj+↓ et Ctrl+Suppr (`structure-gestures.tsx`, règles pures dans
-`structure-rules.ts`) ; la barre, tenue sur une ligne, n'offre que la première tâche d'une grille
-sans ligne. Une création passe par un dialogue qui la nomme, et nomme la ligne sous laquelle il agit
-(libellé ; pour une ligne, catégorie et quantité, que le contrat exige), `createNode` et
-`deleteNode` sont les actions de `src/api/actions/nodes.ts`. Une création désigne sa place par le
-nœud qu'elle suit parmi ses frères (`after_node_id`), jamais par un rang qu'une grille filtrée ne
-saurait compter : la ligne active pour « Insérer au-dessous » et pour une ligne sous une ligne ;
-sans lui, une sous-tâche va après la dernière sous-tâche, une ligne sous une tâche après sa dernière
-ligne, les lignes d'une tâche précédant toujours ses sous-tâches (#1183, #1187).
-
-La cellule du numéro de chaque ligne en est la poignée (`row-selection.tsx`), dans une grille dont
-l'écran déplace des lignes (`RowCommands.drag`) : nommée par le numéro de sa ligne, décrite
-par la façon de sélectionner et de déplacer, elle se traverse aux flèches comme les autres cellules.
-Un clic la sélectionne seule, Maj et un clic étendent la sélection depuis son ancre ; au clavier,
-sur la colonne des poignées, Espace sélectionne, Maj+↑ et Maj+↓ étendent la sélection avec la cellule
-active, Échap la lève. La sélection est faite de lignes contiguës, gardées par leur identité : une
-relecture qui les déplace les garde sélectionnées, et la cellule active les suit ; une relecture
-qui ne montre plus l'une de ses extrémités — un filtre, un pliage — la lève. Plier une ligne qui
-porte une extrémité de la sélection, son parent par exemple, la lève donc, sans le dire ; plier des
-lignes sous la sélection, ses extrémités restant montrées, la garde. La cellule active suit
-aussi la ligne qu'un geste a déplacée, sélectionnée ou non (`RowCommands.moved`), à l'arrivée de la
-relecture, qui lui rend le focus s'il était dans la grille. Chaque ligne dit si elle l'est
-(`aria-selected`), la grille qu'elle en prend plusieurs (`aria-multiselectable`), un statut combien
-— les lignes montrées : les subordonnées pliées sous une récapitulative sélectionnée la suivent
-sans être comptées. Une cellule calculée sélectionnée garde son ombre. Un geste de déplacement
-porte sur la sélection quand la ligne d'où il part en est, sur cette ligne seule sinon, et sur les
-nœuds qui portent les autres (`topsOf`) : une récapitulative emporte ses subordonnées. La
-suppression ne porte que sur une ligne seule.
-
-« Indenter » place les tâches sous celle qui précède la première parmi ses frères, en dernière place
-(`after_node_id` absent) ; « Désindenter » les place après leur parent, sous le parent de celui-ci
-(`after_node_id` = l'ancien parent) ; « Descendre » les place après la sœur de leur genre qui suit
-la dernière, et « Monter » place la sœur qui précède la première après la dernière — le même ordre,
-sans reposer sur une ligne que la grille ne montre pas. Les lignes que la grille montre ne sont pas
-toujours l'arbre : une recherche, un filtre, le reste à engager, qui ne lit par défaut que les
-tâches commencées, ou le planning, qui ne lit aucune ligne, en laissent. Un déplacement n'est donc
-offert, au menu comme à la touche, que si les nœuds déplacés sont des frères de rang en rang, d'un
-même genre, et que la voisine sur laquelle il repose est rendue : son rang (`Node.position`, à
-partir de 1, les lignes d'une tâche comptant avant ses sous-tâches) est celui de la première moins
-un, ou de la dernière plus un ; « Indenter » ne l'est pas sous un jalon, ni sous une ligne.
-« Désindenter » ne dépend d'aucune ligne masquée, la place étant celle du parent (`parent_id`,
-`node_id`), mais n'est pas offerte si la grille ne montre pas ce parent, ni à la racine. Alt+Maj et
-une flèche, là où le déplacement n'est pas offert, sont pris sans effet : la cellule active ne bouge
-pas (AltGr, qui est Ctrl et Alt, reste à la grille). Une écriture en cours — un geste, une cellule
-saisie, un collage appliqué, toute écriture de la grille (décision de l'auteur du 2026-10-21, #1224) —,
-puis la relecture qui suit un geste, retiennent les gestes et la confirmation d'un collage, la
-grille se disant occupée (`aria-busy`) : le suivant part des voisines que la relecture a rendues,
-jamais de celles d'avant avec une version déjà avancée. La grille dit ses propres écritures aux
-commandes de son écran (`RowCommands.writing`), qui les comptent avec les leurs
-(`useStructureVersion`), chacune pour la structure où elle est partie : une réponse arrivée quand la
-grille en montre une autre n'en avance pas la version et ne la relit pas.
-
-La poignée glisse la sélection — ou sa seule ligne, qui n'en est pas — à côté d'une autre ligne :
-avant elle ou après elle, à son niveau, par le quart haut ou bas de la ligne, ou sous elle, en
-dernière place de son genre, par son milieu ; entre deux lignes, c'est avant celle du bas, et au
-bas de la dernière ligne de la grille, après elle. La cellule active suit la première des lignes
-glissées (`RowCommands.moved`) ; quand la relecture ne la montre pas — glissée sous une
-récapitulative pliée, ou hors d'un filtre —, la cellule active reste à son indice et le focus lui
-revient, comme après une suppression, au lieu de tomber sur la page ; ce focus n'est rendu qu'à une
-cellule de la grille, jamais à un élément hors d'elle. Une ligne se glisse sous une
-tâche qui porte des lignes, une tâche sous une tâche qui n'est pas un jalon. Avant une ligne, la
-place est celle qui suit la sœur de rang moins un, rendue, ou la tête (`after_node_id` nul) au
-rang 1 : le planning, qui ne lit aucune ligne, n'offre donc pas de dépôt avant la première
-sous-tâche d'une tâche qui porte des lignes, sa sœur de rang moins un étant une ligne qu'il ne rend
-pas ; la glisser sous la tâche la met en dernière place. L'indicateur — un trait entre les lignes,
-ou la ligne grisée — ne paraît qu'où le dépôt est accepté (`dropOf`) : jamais parmi les lignes
-glissées ni sous elles, ni à côté d'une ligne d'un autre genre, ni tant que la grille est occupée
-(`RowCommands.busy`, qu'exige `drag`). Le glisser ne porte que son type
-(`application/x-waterfall-rows`) : un dépôt venu d'ailleurs, un texte par exemple, ne déplace rien.
-Le glisser a son équivalent au clavier, Alt+Maj et les flèches sur la sélection ; mais une place
-éloignée, ou une sélection qui n'est pas faite de frères, y demandent plusieurs gestes, là où un
-seul dépôt suffit.
-
-`moveNodes` s'appelle pour la liste des nœuds dans l'ordre de la grille. La version de la structure
-qu'il porte est celle d'un suivi unique par grille (`useStructureVersion`, `structure-version.ts`) :
-la plus haute entre celle de la page et celles que les écritures ont rendues
-(`NodesWritten.structure_lock_version`), cellule saisie, création, déplacement, suppression ou
-collage, car le contrat fait avancer `CostStructure.lock_version` à chaque écriture de l'arbre. Ce
-suivi tient la version et les écritures en cours par structure : ce qu'une réponse applique — la
-version qu'elle a atteinte, la ligne que la cellule active suit, la relecture — l'est pour la
-structure où elle a été envoyée, et rien n'est relu pour elle une fois que la grille en montre une
-autre (défaut n° 1). Un
-refus par champ se dit par la raison du champ (`byField`), pour toute écriture du hook — création,
-déplacement et `deleteNode`, dont le contrat ne cite aucun champ, son refus se disant alors par son
-code —, comme celui d'une cellule ; `NODE_NOT_SIBLING`, qui vient d'une lecture périmée, relit en
-outre la grille, le focus rendu à la grille si la relecture retire la cellule qui l'avait. La
-suppression d'une récapitulative est confirmée, celle d'une feuille ou d'une ligne ne l'est pas, et
-le focus revient alors à la cellule active de la grille. La grille est relue après une écriture, la
-lecture du serveur faisant foi pour les numéros et les niveaux (#1160), et la version que la
-structure a atteinte est dite à la grille, que porte le collage suivant. Les gestes de tâche du
-devis exigent `edit_planning` (`tasksEditable` de `estimate-grid.tsx`) en plus de `edit_estimate` :
-créer ou supprimer une tâche écrit le planning, et un chiffreur qui ne peut que saisir le devis n'en
-crée pas. Un refus — tâche terminée, par exemple — est dit au-dessus de la grille en nommant la
-ligne en cause, dont l'étiquette est marquée et décrite par lui ; celui d'une création sans ligne
-(la première tâche d'une grille vide) nomme la tâche tentée. Le succès se dit par `useSaid` et le
-refus par `OutcomeNotice`, tous deux notés dans l'historique des messages.
-
-Le menu contextuel des cellules offre deux sous-menus de plus (`choice-menu.tsx`, règles pures dans
-`row-choices.ts`, US-0480). « Chronologies » : une case par chronologie du projet (`listTimelines`),
-cochée quand la tâche y est inscrite, et « Suivi temps/temps » pour un jalon ; la tâche l'offre quand
-elle nomme `task.tracking` dans ses `editable_fields`. « Sous-projet » : des boutons radio,
-« Aucun sous-projet » et chaque sous-projet du projet (`listSubprojects`), nommé par son code et son
-libellé — le code seul est unique dans un projet —, celui de la ligne coché ;
-la ligne l'offre quand elle nomme `estimate_line.subproject_id`, ce que ne fait ni une ligne de
-provision, ni celle d'une tâche démarrée dont le sous-projet a reçu des coûts réels
-(`SUBPROJECT_HAS_ACTUAL_COSTS`) : le front ne déduit aucune de ces gardes. Dans le devis, le choix se
-fait tant que le projet n'est pas En cours, dans le reste à engager ensuite, selon ce que la ligne
-nomme. Un sous-menu s'applique à la sélection, ou à la ligne seule : un appel par ligne qui nomme le
-champ, avec la version de cette ligne — `setNodeTracking` avec la liste complète de ses inscriptions,
-`updateEstimateLine` avec `subproject_id` —, dans l'ordre de la grille — sans écriture pour une
-ligne déjà dans l'état visé — et jusqu'au premier refus, dit pour sa ligne comme celui d'un geste :
-les lignes écrites avant lui le restent, celles d'après ne sont pas écrites. Chaque réponse prend la
-place de la ligne lue (`applied` de `RowCommands.menu`), puis la grille est relue comme après un
-geste. Un projet sans chronologie propose « Créer une chronologie… » (`createTimeline`), nommée dans
-un dialogue, à laquelle les tâches sont inscrites, selon l'offre `manage_timelines` du projet :
-absente, l'entrée n'est pas présentée ; indisponible, elle l'est grisée avec sa condition. Les
-colonnes « Chronologies » du planning et « Sous-projet » du devis et du reste à engager sont en
-lecture et masquées (`GridColumn.hidden`) tant que le compte n'a gardé aucune liste de colonnes
-masquées (`initialSettings`) ; il les montre par le choix des colonnes.
-
-### Les grilles arborescentes : plier et déplier
-
-Les grilles arborescentes — planning, devis, reste à engager — se plient et se déplient
-(WF-PLA-0080, WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`) : une grille dont
-l'arbre nomme le parent de chaque ligne (`GridTree.parent`, `parent_id` de `listNodes`) est un
-`treegrid`, chaque ligne portant `aria-level`, `aria-posinset`, `aria-setsize` et, quand la réponse
-tient des lignes sous elle, `aria-expanded`. Une ligne pliée sort ses subordonnées des lignes de la
-grille : la virtualisation ne les rend plus, le clavier ne les parcourt plus, et le Gantt, une
-colonne de la même grille, les perd avec elle ; la cellule active reste sur sa ligne, ou passe à
-celle qui la porte. Le bouton du libellé — ou celui qui précède le crochet d'une récapitulative dans
-le Gantt — plie ou déplie sa ligne, hors de l'ordre de tabulation ; au clavier, comme dans Microsoft
-Project, Alt et moins plie la ligne de la cellule active — celle qui la porte, depuis une ligne
-sous laquelle rien ne se plie —, Alt et plus la déplie, Alt et * déplie tout, Maj ou non selon ce
-que la disposition du clavier demande pour taper le caractère, sur le pavé numérique aussi ; le
-caractère est celui que la touche a tapé, et, quand il ne nomme aucune commande, celui que la
-touche porte dans la disposition que le navigateur dit (`navigator.keyboard.getLayoutMap`) —
-jamais la seule place de la touche, qui porte un autre caractère sur une autre disposition. Ctrl
-et AltGr sont exclus ; Alt+Maj et les flèches déplacent les tâches. Ces raccourcis
-ne sont que des accélérateurs : sans `getLayoutMap`, sous Safari et Firefox pour Mac, Option et une
-touche tapent un autre caractère, et ils ne sont pas reconnus. Le menu contextuel des cellules
-(Maj+F10, touche Menu, clic droit), offert dans toute grille arborescente, Annuler et Rétablir ou
-non, les remplace partout : « Plier la ligne » — « Plier « libellé » », qui nomme la ligne qui
-la porte, depuis une ligne sous laquelle rien ne se plie —, « Déplier la ligne » quand elle l'est,
-« Tout déplier », offert même hors d'une cellule, si bien que le menu n'est jamais vide ; le focus
-revient à la cellule active. Les touches se disent par `aria-keyshortcuts` — Maj+F10 sur chaque
-cellule, celles du pliage sur le libellé d'une ligne qui se plie, dans le menu et dans la barre —,
-autant que le navigateur les reconnaît (`useFoldReach`, lu après l'hydratation) : toutes hors d'un
-Mac ; sur un Mac, Alt et moins, Alt et plus quand `getLayoutMap` existe, aucune sinon ; Alt et *
-hors d'un Mac seulement. Un
-bloc collé qui s'étendrait, à partir
-de la ligne visée, sur une ligne pliée est refusé sans rien demander, comme celui qui atteint une
-colonne masquée. Le menu « Arbre » de
-la barre plie tout, déplie tout, ou plie jusqu'à un niveau. Une recherche ou un filtre qui retient
-une ligne pliée déplie ses ancêtres, une fois pour cette recherche. L'état plié se garde dans le
-stockage de session de l'onglet (`sessionStorage`), par grille et par révision, sans rien envoyer
-au serveur : le serveur rend l'arbre déplié, que le navigateur replie une fois hydraté.
-
-### Les commandes
-
-Une commande s'affiche par `Command` de `frontend/src/components/commands/` (WF-IHM-0090) :
-absente quand l'objet ne la liste pas dans `available_commands` — le serveur n'y met que
-celles que l'appelant a la permission d'exercer, et le front ne sait pas quelle permission
-garde quelle commande ; seule exception, décidée par l'utilisateur le 2026-10-05, un import
-sans révision en cours que l'appelant ne pourrait pas créer, listé indisponible,
-`may_create_revision` manquante —, présente et disponible, ou présente et indisponible, marquée
-`aria-disabled` et décrite par le texte visible des conditions qui lui manquent
-(`enums.CommandCondition.*`). `LifecycleCommands` rend, dans l'ordre du serveur, les sorties
-du cycle de vie d'un projet — les autres commandes du projet appartiennent aux formulaires de
-leur domaine, sa modification à celui de ses paramètres (`ProjectIdentity`) —, et `RevisionCommands` celles d'une révision, chacune selon son
-`is_available` et ses conditions — une révision marquée les liste indisponibles, faute d'être
-en cours d'élaboration —, ses exports laissés à l'écran des imports et exports, qui les offre
-(`ExportForm`), ses saisies (`edit_*`) à leurs grilles et le squelette à la grille de planning vide
-(EP-14/L44d) ; `findOffer` en tire une seule, et `UnmetConditions` nomme ce qui manque à
-l'offre d'un formulaire qui n'est pas un `Command`. Hors projet — comptes, rôles, référentiel,
-sauvegarde —, `platformOffer` suit la permission de modification d'une fonction de portée
-`platform` (`PlatformFunction`) dans `Session.permissions`, ou `project_create` pour la création
-d'un projet, qu'aucun projet ne liste ; les commandes d'une sauvegarde sont celles qu'elle liste
-(`Backup.available_commands`, EP-14/L43f), le téléchargement et la restauration comprises. Griser n'est qu'une
-commodité : une commande disponible lance son action serveur, et le refus du serveur est dit
-par `OutcomeNotice`.
-
-### Les infobulles des commandes
-
-Un bouton porte `CommandTooltip` (`frontend/src/components/commands/command-tooltip.tsx`, US-0580,
-#1071), jamais un attribut `title=`, que le navigateur montre tard, sans mise en forme ni thème sombre,
-et jamais au focus du clavier. Un lien dessiné comme un bouton et un article de menu le portent de
-même. L'infobulle dit :
-
-- **le nom** de la commande, celui que le contrôle porte déjà ;
-- **une phrase d'aide**, la prop `help`, déjà traduite : pour une commande, `commands.<commande>.help`,
-  dans les deux langues, tenue par `make catalogs` et lue par `t("commands.<commande>.help")`, que le
-  typage du catalogue refuse pour une commande qui n'en a pas (`CommandHelp` nomme celles qui en ont,
-  pour une table de commandes) ; pour l'en-tête d'une colonne, sa définition
-  (`columns.<grille>.<colonne>.help`) ; ou une phrase à paramètres, comme le montant corrigé de
-  l'inflation, qui nomme l'année de référence et le taux. `help` et `unavailable` ne prennent jamais un
-  littéral (`make lint-front`) ;
-- **ses touches**, en `<kbd>`, écrites selon le poste — ⌘ sur un Mac, Ctrl ailleurs —, chaque touche
-  par son nom du catalogue (`commands.keys`, `commands.macKeys`). Elles n'ont qu'une source : la prop
-  `keys`, écrite comme `aria-keyshortcuts` la nomme (`"Control+Z Meta+Z"`), que `CommandTooltip` pose
-  sur le contrôle et montre à la fois (`shortcut.ts`) ;
-- **la condition qui manque**, pour une commande indisponible (WF-IHM-0090) : `unavailable`, qui
-  marque le contrôle `aria-disabled` — jamais `disabled`, qui l'ôterait du survol et du clavier. La
-  condition décrit le contrôle, infobulle fermée comme ouverte : par le texte qui la dit déjà à côté de
-  la commande, que `describedBy` désigne, ou, l'écran ne la disant nulle part ailleurs, par un texte
-  caché de `CommandTooltip` lui-même.
-
-Un article de menu s'écrit par `MenuCommand` (`menu-command.tsx`), qui prend l'article
-(`item={ContextMenuItem}` ou `DropdownMenuItem`), le nom, l'aide, les touches, la condition, l'icône
-et `onSelect` : le nom est à la fois le texte de l'article et celui de l'infobulle, et les touches
-sont posées sur l'article, montrées à sa fin et dans l'infobulle, d'une seule saisie.
-
-L'infobulle suit WCAG 1.4.13 : elle s'ouvre au survol, après un court repos, et au focus du clavier,
-aussitôt — dans un menu, après le même repos, pour qu'Échap pressé aussitôt ferme le menu (`inMenu`,
-que `MenuCommand` pose) ; elle se ferme par Échap sans déplacer le focus — dans un menu, le premier
-Échap ferme l'infobulle, le second le menu —, et reste ouverte tant que le pointeur passe dessus, même
-dans un menu modal, qui ôte le pointeur au reste de la page (`pointer-events-auto` de `TooltipContent`).
-Ouverte, elle décrit en outre le contrôle (`aria-describedby`) par sa phrase d'aide : elle ne porte
-jamais seule ce qu'il faut savoir, le nom restant celui du contrôle et la condition sa description. Le
-contrôle est un seul élément, qui reçoit les attributs et les événements de l'infobulle : il ne pose
-lui-même ni `aria-keyshortcuts`, ni `aria-disabled`, ni `aria-describedby`, que `CommandTooltip`
-pose ; il ne fait rien, pressé indisponible. Les infobulles partagent un seul `TooltipProvider`, à la
-racine de la coquille (`shell.tsx`) : l'une fermée, la suivante que le pointeur atteint s'ouvre sans
-attendre ; chacune dit son délai (`delayDuration` de `Tooltip`), et une infobulle rendue hors de la
-coquille, dans le test d'un composant, apporte le sien.
-
-_Contrôle_ : `src/components/button-title-guard.test.ts` (`make test-front`) lit chaque composant par
-l'analyseur de TypeScript et refuse un `title=` sur un bouton — `<button>`, `Button`, `CellCommand`,
-`Command`, un interrupteur, un article de menu, coché ou au choix, ou un déclencheur, un élément de
-rôle `button`, un lien dessiné par `buttonVariants`, écrit en place ou par une constante du même
-fichier —, et un `title` passé par la décomposition d'un objet écrit ou nommé dans le fichier. Restent
-à la revue : des classes ou des props importées d'un autre module, la décomposition des props qu'un
-composant reçoit (`{...props}`), et un composant à nous qui dessine un bouton sous un autre nom. Les
-commandes d'objet passent à `CommandTooltip` avec US-0580/L2 (#1137), et la garde ne tolère plus aucun
-`title=` sur un bouton : `Command` et `ConfirmedCommand` prennent `help` (pour une commande d'objet,
-`commands.project.<commande>.help` ou `commands.revision.<commande>.help`, d'après les énumérations du
-contrat), `CellCommand` et `UnavailableCellCommand` prennent le nom (`label`), `help` et la condition qui
-manque (`unavailable`), que `CommandTooltip` pose en `aria-disabled` et en description, sans texte caché
-écrit à la main. L'en-tête d'une colonne porte sa définition de la même façon (`GridColumn.help`, clé
-`<grille>.<colonne>` du catalogue `columns`, et `helpValues` pour la phrase à paramètres du montant
-corrigé de l'inflation, que `estimateGrid` pose d'après l'année de référence de la révision et le taux du
-projet). La garde suit les noms liés dans le bloc le plus proche du bouton qui les lie, non plus dans le
-fichier entier. Les boutons de validation et d’annulation d’un formulaire ou d’un dialogue, dont le libellé
-est l’action, ne portent pas de phrase d’aide. Les tests du composant sont dans
-`command-tooltip.dom.test.tsx` (survol, focus, Échap dans un menu, touches, condition, fournisseur partagé,
-axe) ; `help-keys.test.ts` échoue pour toute clé `commands.*.help` du catalogue qu’aucun composant ne lit,
-et `column-help.test.ts` pour toute colonne de devis, de planning ou de reste à engager sans définition.
-
-### L'aide en ligne
-
-Chaque écran que la table des fonctions connaît ouvre son aide (WF-IHM-0140, US-0580) : le bouton
-« Aide » de son en-tête (`PageHeader`) — une icône seule, nommée, de la hauteur d'une ligne du titre,
-qui suit son dernier mot dans le même flux de texte : à droite, parmi les commandes, il rétrécirait le
-titre ; élément d'une rangée qui passe à la ligne, il prendrait une ligne à lui sous un titre sur deux
-lignes, celui du reste à engager en 1280 × 720 ; dans les deux cas, l'en-tête grandirait et
-pousserait les totaux d'une grille hors d'une fenêtre basse (`grid-frame.spec.ts`,
-`remaining.spec.ts`). Il ne passe à la ligne que si la dernière ligne du titre est pleine —, ou F1
-partout sur l'écran, ouvre à côté de lui un panneau
-latéral (`shell/help-panel.tsx`, un `Sheet`) sur la page de son code de la FBS — celui de la route que
-suit l'adresse (`helpCodeAt`, `src/help/help.ts`) : une fonction, une feuille, la liste des projets
-(FBS-4). Une page est un fichier Markdown, `frontend/help/fr/<code>.md` ; une notion de la méthode,
-`frontend/help/fr/notions/<notion>.md`. Le serveur les lit à l'ouverture du panneau, par l'action
-`readHelp` (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), qui ne nomme aucun fichier
-d'après la requête sans l'avoir confronté aux codes de la table ou à la forme d'un nom de notion, et
-dont la lecture refuse, là où le chemin s'écrit, tout fichier hors du dossier de l'aide (#1462) ; le
-standalone les emporte par `outputFileTracingIncludes` (`next.config.ts`). Le panneau les rend par
-`react-markdown` et `remark-gfm`, sans HTML brut (`skipHtml`) et dans les seuls éléments d'un texte ;
-un code entre accents graves s'y lit comme une touche (`<kbd>`). Un lien relatif vers un code ou une
-notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` depuis une notion) montre sa page
-dans le panneau ; tout autre lien se lit comme du texte. Le panneau tient le focus, se ferme par Échap et rend le focus
-à ce qui l'avait — le bouton, ou la cellule où F1 a été pressée ; une page suivie par un lien donne le
-focus à son titre. Une réponse arrivée après une autre demande est ignorée.
-
-La page d'un écran suit la structure de #1075, ses titres de second niveau dans cet ordre
-(`SCREEN_HEADINGS`) : « Ce que montre l'écran », « Ses commandes », « Ses colonnes et ses valeurs
-calculées », « Les gestes au clavier », « Voir aussi ». Une notion cite le glossaire de l'annexe A mot pour mot, une citation par
-terme (`> **Terme** — définition`), sous « Ce que dit le glossaire », puis « Dans Waterfall » et
-« Voir aussi ». L'aide n'existe qu'en français : une interface en anglais la montre en français, écart
-de WF-IHM-0140 tant que la traduction n'est pas décidée (#1075).
-
-_Contrôle_ : `src/help/help.test.ts` (`make test-front`) exige une page française par code de la table
-qui a un écran, ou sa place dans la liste des pages à venir avec le lot qui l'écrit (`SCREENS_TO_COME`,
-`NOTIONS_TO_COME`) — liste qui échoue dès qu'un code qu'elle nomme reçoit son fichier ; il tient la
-structure des pages, les citations du glossaire, les liens, qui mènent à une page écrite ou à venir, et
-l'absence de HTML brut. Une page à venir se dit telle dans le panneau. `help-panel.dom.test.tsx` éprouve
-le panneau, et `e2e/accessibility.spec.ts` l'audite ouvert par F1 sur le planning.
-
-### Les actions longues et le suivi des tâches de fond
-
-Une action longue rend la main à la réception de sa tâche de fond (WF-ARC-0090) : son action
-serveur passe par `decodeTask` de `frontend/src/api/problem.ts`, qui tient le motif d'un échec
-à la règle du catalogue, et l'écran remet la référence au suivi de la coquille par
-`useTrackTask()` (`frontend/src/components/tasks/`), avec la commande qui l'a lancée et, s'il
-y en a un, le nom que l'utilisateur lui a donné (WF-IHM-0080). Le suivi est commun aux neuf
-genres de tâche : il relit la tâche toutes les deux secondes tant qu'elle court, par l'action
-serveur `readBackgroundTask`, en montre l'avancement, ajoute sa fin à un journal
-(`role="log"`) lu quel que soit l'écran, offre de recharger l'écran quand elle a abouti — il
-ne recharge jamais de lui-même —, et rejoue la commande d'une tâche échouée. Son panneau est une
-feuille (`Sheet`) le long du bord droit de la fenêtre, qui porte aussi l'historique des messages
-(ci-dessous) : un dialogue modal titré « Tâches et messages », qui garde le focus tant qu'il est
-ouvert et que ferment Échap, son bouton de fermeture, un clic hors du panneau ou « Recharger
-l'écran », le focus rendu au bouton de la barre. Le bouton de la barre (`TasksButton`) l'ouvre et dit, dans
-son nom et ses pastilles, le nombre des tâches suivies et celui des refus non lus. Rien ne l'ouvre
-de lui-même, sauf le refus d'un résultat au retour du navigateur, dont le téléchargement est parti
-du panneau. Une tâche remise ou finie se dit sous la barre, dans le flux de la page, sur l'écran où
-l'on est : la dernière, en une ligne courte qui reste jusqu'à la suivante — la confirmation sur
-place d'un succès que l'écran ne montre pas —, sans annonce, le journal parlant pour les fins ; son
-bouton la ferme, au clavier comme à la souris, et rend le focus au bouton de la barre, la tâche
-restant suivie (décision de l'auteur, #1179).
-Fermé, le panneau suit encore ses tâches — la coquille les relit (`TaskPolling`), hors des entrées
-— et son journal parle toujours, hors du panneau, ou dedans tant qu'il est ouvert, où le focus est
-gardé. Une relance
-refusée comme périmée (412) perd sa commande, qui le serait encore, et une relecture refusée
-(404, 401) interrompt le suivi, qui le dit. Aucun écran ne suit ses tâches lui-même. Une
-réponse ne s'applique qu'à la tâche pour laquelle elle a été demandée, jamais à celle qu'une
-relance a mise à sa place. Les actions serveur de Next partent une à une, dans une seule file :
-suivre k tâches ajoute k actions toutes les deux secondes, dans la file même des écritures de
-l'écran, qu'une relecture lente retarde d'autant. Le stockage de session de l'onglet garde les
-tâches qui courent pour un rechargement complet, sans leur commande mais avec le nom que
-l'utilisateur leur a donné ; et, pour une session ouverte, le layout racine demande côté
-serveur les tâches de son utilisateur qui courent (`listBackgroundTasks`), lancées d'un autre
-onglet ou d'un autre poste — plutôt que par une action serveur au montage de la coquille, que
-`StrictMode` lançait deux fois en développement. Il ne les attend pas : il passe leur promesse
-au suivi (`running`), qui la lit par `use()` sous un `Suspense` qui ne rend rien, et le
-document part sans elles ; sans session, rien n'est demandé. Le suivi les redemande par une
-action (`listRunningTasks`) chaque fois que l'onglet redevient visible (`visibilitychange`,
-`signedIn`) ; il suit celles qu'il ne suivait pas — une liste refusée ou injoignable le laisse
-tel qu'il est, et la promesse ne rejette jamais. Une tâche retrouvée par le stockage ou par la
-liste ne se relance pas du suivi : échouée, son entrée dit de la relancer depuis l'écran de son
-objet. La commande `mark` d'une révision
-(`MarkCommand`) en est le premier emploi : elle ouvre, dans la page, la saisie du nom de
-version.
-« Contractualiser l'avenant » (`MergeAmendmentCommand`, `revisions/`) en est un autre : offerte par
-la grille de planning d'un différentiel non fusionné, comme la révision liste `merge_structure`, elle
-lit le compte rendu à l'ouverture (`getStructureMergeReport`), le présente dans les marques `+`, `-`,
-`M` de la grille, demande le nom de version et confirme avec les deux compteurs lus ; une version
-périmée (412) propose de relire le compte rendu, et l'abandon n'envoie rien. La fusion remise au
-suivi, `useWhenTaskSucceeds` dit à l'écran qu'elle a abouti, et il énonce la nouvelle référence.
-« Préparer un avenant » (`create_structure`) demande un libellé et ouvre le différentiel créé dans
-la grille de planning.
-
-### L'historique des messages
-
-L'historique des messages (#1043, `components/notices/message-history.ts`) garde chaque issue d'une
-commande que les écrans ont dite, succès comme refus, pour qu'un avis fermé ou laissé sur un autre
-écran se relise. Ce n'est pas le journal d'audit (WF-SEC-0030) : une aide à l'utilisateur, pour lui
-seul, propre à la session de navigation — le stockage de session de l'onglet (`wf_messages`), les
-cent dernières, effacé à la déconnexion —, sans opération du contrat. Le panneau des tâches et des
-messages le montre, la dernière en tête (`MessageList`) ; ouvert, il les a toutes montrées, et le
-compte des refus non lus retombe à zéro.
-
-Une entrée (`Message`) garde :
-
-- **l'heure** où l'avis a été dit, un instant du poste, montré par `LocalTime` ;
-- **le ton** — `success` ou `refusal`, dit en mots, jamais par la seule couleur ; le service
-  injoignable, une tâche échouée ou interrompue, des lignes refusées d'un collage sont des refus ;
-- **la phrase de l'avis**, telle qu'elle a été dite, dans la langue du moment : l'historique répète,
-  il ne réécrit pas ; et, pour une tâche échouée, **le motif** en seconde phrase (`detail`) ;
-- **l'objet**, quand l'avis en nomme un : celui que l'écran donne — `subject` d'`OutcomeNotice`, de
-  `Command`, de `DoneNotice` et de `ReferenceForm` (l'objet modifié : une ligne du référentiel, un
-  projet, un sous-projet ; le projet d'une sortie du cycle de vie, la révision d'une commande de
-  révision), `object` de `useSaid` —, sinon l'objet en conflit, la tâche — son genre et le nom que
-  l'utilisateur lui a donné —, la copie externe éprouvée ;
-- **la référence de corrélation** d'une erreur inattendue (`INTERNAL_ERROR`, WF-OBS-0020) ;
-- **l'écran** : son adresse, où ramène un lien, et le projet qu'il montrait (`useShownProjectLabel`) ;
-  le lien se nomme comme la fin du fil d'Ariane (`crumbsOf`), suivi du projet ; un écran que le fil
-  ne nomme pas est « Écran d'origine ». La fin d'une tâche garde l'écran d'où elle a été lancée ;
-  une tâche retrouvée — par la liste de l'API, après un rechargement — l'écran où sa fin est dite.
-
-Ce qui l'alimente — l'issue de chaque commande, succès comme refus :
-
-- **les refus** : `OutcomeNotice`, pour chaque refus qu'il dit — les avis de la grille compris, qui
-  passent par lui —, `UnshownNotice` de la grille ; un refus dit hors d'un avis, par
-  `useNoteRefusal`, dans la phrase même qu'un avis lui donnerait : un refus dit aux champs d'un
-  formulaire (`ReferenceForm`, la création d'un compte, d'un rôle, la liste des contributeurs, le
-  découpage), la date refusée d'une restauration, le refus d'une écriture partie d'un écran quitté,
-  que dit la barre (`LeftRefusals`) avec l'écran d'où elle était partie, et celui du suivi d'une
-  tâche, inscrit par `TaskPolling`, monté avec la coquille, panneau fermé ;
-- **les succès** : chaque statut d'un écran qui dit ce qu'une écriture a fait, par `useSaid`
-  (`components/notices/said.ts`), seul point d'entrée de ces statuts, qui le dit et l'inscrit ;
-  `DoneNotice` (son `of` : l'issue qu'il dit, une par enregistrement) ; le squelette engendré, le
-  dépôt d'une sauvegarde, le test d'une copie externe (`LocationTest`) ;
-- **les collages** : `PasteAppliedNotice`, un succès quand toutes les lignes sont écrites — rien ne
-  se dit alors sur place, la grille les montre —, un refus sinon, le nombre des lignes refusées en
-  seconde phrase ;
-- **le suivi** : une tâche remise (`useTrackTask`) et chaque fin de son journal.
-
-Chacun y inscrit l'issue une fois, quelle que soit la fréquence de ses rendus (l'identité de l'issue,
-`noteMessage`), sans rien annoncer : l'avis sur place reste l'alerte (`role="alert"`) ou le statut, et
-l'historique n'est pas une région vivante. Un refus dit en partie aux champs est inscrit entier, et la
-part que dit l'avis sous le formulaire n'est pas inscrite une seconde fois (`parts`). Sur place, rien
-ne change. N'y entrent pas, faute d'une commande partie : ce qu'une commande indisponible pressée
-n'a pas — ses conditions, que redit un statut (`noted: false` de `useSaid`, `ToldConditions` des
-listes du référentiel) —, et le refus d'une saisie que l'écran juge avant d'envoyer quoi que ce soit
-(un champ requis, un fichier trop lourd, une cellule mal tapée). Ni le statut « Sauvegarde lancée »,
-dont la tâche remise est déjà inscrite par le suivi.
-
-### L'image de développement
-
-L'image de développement (`frontend/Dockerfile`) part d'une image épinglée par son
-empreinte, et tourne sous un utilisateur non privilégié, désigné par son numéro.
-
-### Le client de l'API
-
-Le client de l'API est engendré du contrat (PBS-1.2, WF-ARC-0060) : `make generate-client`
-écrit ses types dans `frontend/src/api/generated/schema.d.ts`, que personne ne retouche, et
-`frontend/src/api/client.ts` en fait des appels typés par openapi-fetch, une liste de la requête
-écrite en un seul paramètre, ses valeurs séparées par des virgules, comme le contrat les déclare
-toutes (`explode: false`, que `make lint-openapi` exige de chaque paramètre de tableau :
-`rule/array-parameter-explode-declared` et `rule/array-parameter-not-exploded` de
-`docs/api/redocly.yaml`). Il écrit à côté `examples.d.ts`, les exemples de `fixtures/api/` que
-le contrat cite par opération et par statut (`wftools.exampleroutes`), qui type les réponses du
-faux client des tests. Une opération qui
-manque au client est une modification du contrat, suivie d'un `make generate-client` ; le
-fichier engendré se versionne avec elle.
-
-Le client garde ses connexions ouvertes, et la suivante réutilise celle qu'une réponse a libérée.
-L'API ferme une connexion inactive après un délai à elle — cinq secondes pour Prism comme pour
-uvicorn —, et undici, le `fetch` du serveur de Next, ne réutilise la sienne qu'en deçà d'une marge
-sous ce délai ; mais son minuteur est celui de la boucle du serveur, qu'une charge retient plus
-longtemps que la marge : la requête part alors sur une connexion que l'API vient de fermer, et
-`fetch` la rejette (`UND_ERR_SOCKET`, `other side closed`, ou `ECONNRESET`), sans qu'aucun délai
-plus court n'y change rien, retenu de même. Une lecture (`GET`, `HEAD`) ainsi coupée part une
-seconde fois, sur une connexion nouvelle, et la coupure s'écrit au journal du serveur
-(`console.warn`) ; coupée encore, c'est l'API hors d'atteinte (`Unreachable`), jamais un silence.
-Une écriture ne repart jamais : l'API a pu la faire avant de fermer. `WATERFALL_API_CONNECTIONS`
-dit comment le serveur tient ses connexions : `kept`, ou rien, en production comme en développement ;
-`closed`, une connexion par requête, fermée une fois répondue (`Connection: close`), que seul le
-harnais pose (« Un parcours de bout en bout »), et que le serveur, démarré ainsi hors du harnais du
-faux back (`WATERFALL_E2E`), signale une fois au journal ; aucun fichier de `deploy/` ni l'image du
-front ne la nomme, ce que `src/api/server.test.ts` vérifie. Toute autre valeur arrête le serveur à
-son démarrage (`src/startup.ts`), plutôt que de répondre une erreur à chaque requête. La coupure
-écrite au journal n'en dit que la méthode et le chemin, jamais la recherche.
-`src/api/client.test.ts`, `src/api/connections.test.ts` — contre un serveur sur une vraie socket,
-qui coupe la connexion réutilisée — et `src/api/server.test.ts` l'éprouvent. Aucun appel réseau ne s'écrit hors de
-`frontend/src/api/client.ts`, et seul le serveur Next appelle l'API : un composant client
-n'importe de `src/api/` que ses actions serveur (`src/api/actions/`) et des types.
-
-_Contrôles_ : `make client-up-to-date` échoue si le client versionné n'est pas celui que le
-contrat produit ; une modification du contrat réveille donc la famille front. ESLint refuse
-hors de `src/api/client.ts` les moyens connus d'atteindre le réseau — `fetch`,
-`XMLHttpRequest`, `WebSocket`, `EventSource`, un client http importé —, et, dans un fichier
-`"use client"`, l'import direct de `src/api/` hors des actions serveur, qui s'ouvrent sur
-`"use server"` ; `src/api/network-guard.test.ts` l'éprouve sur des extraits piégés, et fige
-la liste des dépendances de `package.json`, pour qu'une nouvelle soit examinée pour la
-garde avant d'entrer. Le cas transitif — un module sans directive qui importe
-`@/api/server`, et qu'un composant client importe — échappe à ESLint : `client.ts` et
-`server.ts` importent `server-only`, le filet de `next build`, que `make build-front` lance au
-palier rapide, sans API joignable : une page qui lirait l'API à la construction, pré-rendue
-au lieu d'être rendue à la requête, le fait échouer (#131) ; au palier complet, la mesure du
-§4.6.2 le construit (`make e2e-measure`, et `make e2e` sur un poste). Après l'une ou l'autre
-construction, `make prerendered-front` affirme qu'elle n'a prérendu aucune page (« Chaîne »).
-`make typecheck-front`, `make test-front` ;
+### Grids
+
+A grid is the dense grid of `frontend/src/components/grid/` (US-0110), configured per screen: a
+`GridConfig` (`columns.ts`) names the key of its preferences, stable, its columns — key, label of
+the catalogue (`grid.columns.*`), format, alignment, default width, those of its cells the server
+computes, frozen or not, the column of the contract it shows (`contract`) — the one the server
+sorts it by and the one a paste targets —, and, for a narrow column, the icon that stands in for a
+header and that its label names, or what its cell renders in place of the formatted value
+(`render`) — and, if it has one, its tree (level, nature icon by `RowNatureIcon`). Sorting is first
+the grid's business: a tree grid whose rows keep the order of the plan sorts none of them
+(`sorts: false`), and its address asks for none — the planning (§3.4, WF-IHM-0060, #525). The
+estimate and the remaining to commit, of which the server sorts only the lines under each task,
+the tasks keeping the order of the tree (WF-IHM-0060, #526), do not sort by a column of the task
+alone, which the contract accepts but whose sort would change nothing: the column says so itself
+(`GridColumn.sorts: false`), while keeping its column of the contract, which a paste targets
+where the grid takes one (the planning, the estimate) — progress and finish in the remaining to
+commit, which thus offers only what acts (in the spirit of WF-IHM-0090). Neither its header nor
+the address offer the sort, and a sort by it, in the address or kept by the account, is ignored
+like an unknown sort (`sortColumns`). The configuration reads the rows through functions: it is
+handed to `DenseGrid` in a client component of the screen's own (`estimate-grid.tsx`,
+`planning-grid.tsx`), and the page, server-side, passes it nothing but data — the structure read
+and, of each node, the only fields the grid reads: those of every grid (identity, version,
+computed fields, number, level, parent, nature, label) and those of its columns, which its
+configuration names (`ESTIMATE_FIELDS`, `PLANNING_FIELDS`). The page asks `listNodes` for them
+(`fields`, `nodeFieldNames`: a field of a facet under its name, `task.label`) and projects them
+again (`projectNodes`): a server may render more than it is asked for — the fake back renders its
+whole example —, and the six thousand whole nodes weigh six and a half megabytes in the page,
+projected, forty-eight to sixty-five per cent — the parent, by which the tree folds, added four
+points to it; the reading of the screen (`readGridScreen`) renders only the projected rows and the
+totals, never the whole response. A field of a line that says nothing — null, or false for a
+flag (`SPARSE_LINE_FIELDS`) — does not pass through, the cell reading it as null, and the
+subproject identifier of a line passes through only to a grid that enters it
+(`withoutSubprojectIds`). A column that reads a new field adds it to that list: the typing of the
+row requires it, and `projection.test.tsx` checks that the grid reads the same thing from the
+projected row as from the whole node, and that the page asks for what it projects. The computed is
+read cell by cell (WF-IHM-0030, `computed-nodes.ts`): a field that no write carries — the
+amounts, the float — is computed in every row that carries it, and its column has Σ in its
+header; an enterable field is computed where the node names it in `computed_fields`, never from
+its mode or its nature. A computed cell is greyed, marked Σ and named « Computed » — the mark
+reads without the colour —; it is a button which, clicked or pressed on the keyboard, refuses the
+entry in a Popover (`ComputedCell`, `ComputedRefusal`) by saying what its value depends on, which
+the server says: each computed column names the field of the contract of each of its cells, and
+the refusal calls `getComputedValueDependencies` for the node and that field, through a server
+action (`readComputedDependencies`) that the grid receives from its screen (`nodeDependencies`,
+one reader per reading of the page) — only while it is open, and once per question: the reading
+of the page, the node and the field. A closed refusal asks nothing; reopened after a re-read of
+the page, it asks again, because the rows it names may have changed number or label without the
+node changing version; a failure is asked again at the next opening, only an answer is kept. In a
+single announced region (`role="status"`, `aria-live="polite"`), present from the opening and
+`aria-busy` during the reading, it says that it is reading it, then the rules that compute it
+(`enums.ComputedDependency.*`) and the rows it comes from, named by their number and their label,
+whether the grid shows them or not; a refusal of the server, or the API unreachable, are said by
+`OutcomeNotice`. A row that says itself what its value depends on — a risk, its severity and its
+provision (`Risk.computed_fields`) — gives it to its column (`dependsOn`), and the refusal names
+the rules outright, without asking anything. The front reads no rule of the core. The Popover is
+mounted only at the first attempt: one Radix root per computed cell would weigh down the
+hydration of the first screen. The planning grid and the estimate grid are two configurations of
+this single component (`planning.tsx`, `estimate.ts`), which share the tree, the number and the
+label of a node (`nodes.tsx`) and the reading of the structure the address names
+(`grid-screen.ts`); the planning asks the server for the tasks only (`kinds=task`). The estimate
+presents, of a line as of a task, summary included, and in total, the amount at the reference
+year, before inflation (`base_amount`), as the server renders it, never the budgeted nor the
+re-estimated, inflation included (WF-DEV-0020, WF-DEV-0050); it names the category and the role of
+a line by the labels the server resolves, the object active or deactivated
+(`cost_category_label`, `resource_role_label`, #305); the subproject of a provision line, the one
+its risk designates, is there a computed cell, which the node names
+(`estimate_line.subproject_id` of `computed_fields`, EP-14/L42p), and its refusal asks the server
+what it depends on, like its quantities — the lists of the reference data serve only the choice
+of an entry, offered only on an object they know; they ask for the deactivated objects
+(`include_inactive`) only for a session that carries the read permission of their part of the
+reference data, which the contract requires, and an estimator without it enters on the active
+objects (#351). What a write renders is read the way the grid reads it (`nodesWritten`): the nodes
+written and their whole ancestors, of the re-dated tasks the part of their calendar it shows
+(`rescheduled`), of the lines and tasks moved in time the part of their amounts it shows
+(`reinflated`) — each part sets only its own fields: those of a same row, from one write or
+several, are laid over one another in the order of the answers (`answers.ts`). The planning mode
+and the progress show there by a named icon, the critical path by an icon and bold on the float,
+never by the colour alone; a date shows in its short form. The sort and the search are in the
+address, under the names of the contract (`sort_by`, `sort_order`, `search`, `query.ts`): a
+clicked header or an entered search changes the address, the page re-reads the operation with
+them, and the grid renders the rows in the order received, the totals of the response in the
+footer — TanStack Table records no sorted, filtered or grouped model there. On the keyboard, the
+grid is a single tab stop, its active cell, which the arrows move, header included — its buttons
+and its handles out of the tabbing —: Enter or Space on a header sorts its column, Shift and the
+arrows widen or narrow it (ARIA `grid` pattern, #182). A write refusal stays said until the user
+closes its notice (`OutcomeNotice`, `dismissible`), whatever succeeds after it. Only the visible
+rows are rendered (`row-window.ts`, on `@tanstack/virtual-core`): the virtualiser is read as a
+store whose snapshot is a datum, which changes only when the window moves. The React Compiler is
+not enabled in this front, but React's lint refuses the TanStack Virtual adapter, whose compiled
+render would freeze the answers (`react-hooks/incompatible-library`). The height of a row follows
+the size of the root font (1.75 rem). The header and the totals are stuck to the top and the foot
+of the grid, the number and the label to its start. The header row of every table, list as well as
+dense grid, is on the `muted` background of the visual identity: `TableHead` sets it on the header
+of a column, in the `<thead>`, not on that of a row, and a hand-written `<thead>` takes it likewise
+(#508), which `frontend/src/components/thead-guard.test.ts` checks in the sources. The grid takes
+the height its screen leaves it: a grid screen is a `Screen` that fills the window (`fill`), the
+page bounded to its height (`ShellFrame`), and the grid shrinks there by the height of its rows
+down to a floor, ten rem at most and never more than its content
+(`min(10rem, 2 × EDGE_REM + max(lignes, 1) × ROW_REM)`, `grid-floor.ts`, #1041) — no height is
+computed there from what precedes it; a window too low for that floor makes the page scroll. The
+envelope of the grid and its bar carries that floor, plus the bar, as minimum height: the
+envelopes of the screen, which shrink to what remains (`min-h-0`), do not push the frame under its
+floor onto what follows it in the same envelope — the filters above, the pages below. The floor
+climbs no higher: an envelope in `min-h-0` may stay lower than the frame, which the page absorbs
+by scrolling, as long as nothing follows it. A screen that has content under the envelope of its
+grid, outside the chain that contains it — were it only in a narrow window, where the neighbouring
+content lines up below (the actual costs, the risks) —, does not fill the window where it has it
+below (`fillWide`, `lg:min-h-0`), just as `/admin/backups` and the reference data of resources and
+costs, which stack their grids, do not fill it: the grid would overflow onto it (#1033).
+`frontend/e2e/grid-frame.spec.ts` measures it on the nine screens that fill the window, in a low
+window, at the two widths of the harness: the frame overlaps nothing. The bar and the « Columns »
+button have the width of the frame of the table, as the browser sets it (scrollbars included,
+`frame-width.ts`), without exceeding it, and never less than what the bar holds on one line
+(`min-w-min`, the search shrinking before anything wraps, apart from the command list of a screen,
+which wraps by itself); the notices — refusal, paste applied, columns not shown, entry problem —
+keep the whole width (#1042). Hidden columns, widths and sort are a display preference
+(`settings.ts`, WF-IHM-0060): read from the session, the grid replaced whole at each write and what
+it does not set returned as is. It also writes the keys of all the columns it offers
+(`known_columns`, `gridShape`, US-0650): a column hidden by default that the grid did not know at
+the last write is hidden, a column the account chose to show stays so; settings written before
+that list know none of them, and a column hidden by default is hidden there
+(`docs/api/DECISIONS.md`). A grid keeps in the account its sort and its columns — those it hides,
+and their widths —, never its page (rule validated by the author on 2026-10-09). Its filters, a
+grid that declares them (`GridConfig.filters`) keeps them as a preference, as the criterion of
+US-0380, which is authoritative, wants (#836, confirmation of the author to come): they are found
+again at the opening of an address that says nothing of the grid; the page and the filters of an
+address that says them live in the address. Any other grid keeps no filter. A column or a width
+is written after a pause, with the sort kept as is; what is waiting leaves when the page is left
+or hidden, before a search and at unmounting — at best: a server action does not carry
+`keepalive`, and closing a tab can interrupt it. Only a header click writes the sort, once the
+page shows it (`recordShown`), with the settings of that moment — a width changed during the
+navigation included: Next carries a server action in the state of its router, and a navigation
+does not show before the actions launched after it have answered — written at the click, the
+preference retained the sort of a round trip, and of each action queued before it. Until then, it
+waits like the rest, and leaves with it if the page is left, hidden or unmounted, or before a
+search. The address is authoritative: a lifted sort stays there, `sort_by` empty, and the kept
+sort serves only when it says nothing of the sort. Each grid is at the route of its function,
+`…/revisions/[r]/planning` and `…/revisions/[r]/estimate`; the revision itself leads to the first
+function of a revision the session can read, in the order of the FBS and of the sidebar — the
+planning, or the estimate for an estimator who does not read the planning. The estimate screen
+says above its grid the hourly rates its computation lacks, with the path of the reference data
+for whoever reads it, and its indicators, with their date of computation, or that they are
+unavailable when the API does not find them or refuses them for lack of an hourly rate
+(`HOURLY_RATE_MISSING`, #159) — these two cases do not bring the screen down; any other response
+follows the rule of the readings (`EstimateSummary`).
+
+A grid that reads a differential (`CostStructure.kind` = `amendment`) is a diff against the main
+structure, which the server computes (`Node.difference`, rendered on each node, with the removed
+nodes in their place): it receives `GridConfig.difference` (`withDifference`, `nodes.tsx`) and a
+`DiffMark` column at the head (`diff-mark.tsx`, `DIFF_MARK_KEY`), before the number. The character
+says the difference — `+` an addition, `-` a removal, `M` a modification, a summary task whose
+content changes included —, the colour doubles it, the mark in the green, the red or the yellow of
+its token and the row tinted the same (`--diff-added`, `--diff-removed`, `--diff-modified` and
+their `-mark`, with their dark values), never the colour alone: the word — « Added », « Removed »,
+« Modified » — is read by whoever sees neither, and an unchanged node carries nothing. The tokens
+are measured in both modes (`contrast.test.ts`), and the planning and estimate grids on amendment 2
+are screens of the accessibility harness (`DIFFERENTIAL_SCREENS`, `e2e/routes.ts`). A removed node
+is read and not touched: no structure gesture is offered on it, neither « Insert » nor « Delete »
+nor Ctrl+Delete, it does not move, nothing drops next to it (`isRemoved`, `structure-rules.ts`,
+#1185), and the predecessors cell follows `editable_fields` (`task.predecessors`): that of a
+removed task, which does not name it, is not enterable (#1257).
+
+The comparison of two revisions (`/revisions?from_revision_id=…&to_revision_id=…`) is the same
+grid, read-only (`comparison-grid.tsx`, `components/revisions/`): the nodes of
+`compareRevisions` — the tree of the compared revision, the removed nodes in their place —, each
+with the mark the server renders (`difference`, `changes`, a task moved under another summary task
+marked modified, WF-REV-0080), the `DiffMark` column at the head, then the number, the label
+indented by its level under the icon of its nature, and what changes in the node, named as the
+server names it. The comparison does not paginate, like `listNodes` (#1201): the screen asks for
+the whole tree, reduced by `fields` to the columns it shows (`COMPARISON_FIELDS`, `kind`,
+`task.label`, `estimate_line.label`) and projected (`comparisonRows`); the server always renders
+the number, the level, the version and the mark. For lack of a parent among those fields, the tree
+does not fold; nothing sorts or searches, the order is that of the plan. The 5,999 nodes of the
+volume example (`volume/comparison_volume.json`, 2,770 of them modified) mount only one window of
+rows, and the screen keeps the bound of a grid screen (`WORKING`, 15 s, `revisions.spec.ts`); the
+path plays the example of the window, the fake back serving the first example of the operation.
+The amount gaps remain a table under the grid, and the screen is one of those of the accessibility
+harness (`DIFFERENTIAL_SCREENS`).
+
+### The planning grid and the Gantt
+
+Above the grid, the planning start date of the structure read (`CostStructure.planning_start_on`,
+WF-PLA-0020), as the server gives it (`PlanningStart`, `planning-start.tsx`); where the structure
+lists `edit_planning`, a confirmed command changes it (`updateCostStructure`, `updateStructure`)
+with the counter of the structure, the page re-read for the tasks the server re-dates, and the
+answered date shown as long as the page read is older; a day without a working hour is refused by
+`NON_WORKING_DAY`, said under the field with the next working day. The write counts among those of
+the grid (`StructureAccount.writing`). The grid presents the start and completion dates
+(`started_on`, `completed_on`), read-only, after the float, and names the conflicting link
+(`link_conflicts`) by an icon in the predecessors column — on the manual task as on its
+predecessor — and in the name of the Gantt bar: the row of the predecessor, the type of the link,
+the row of the task when the grid reads it (`link-conflicts.tsx`). The planning grid also presents
+the description of a task and the physical progress of a summary task, a percentage computed or
+not computable, its reason as title; then the Gantt (FBS-4.3.3, `frontend/src/components/gantt/`),
+its last column, read-only, pinned to the right (`GridColumn.pinned: "end"`, `pinning.ts`,
+US-0530): it slides over the columns that precede it when it widens, and the grid scrolls them out
+from under it (`scroll-padding-inline-end`). Its handle, on its left edge — the mouse, or Shift and
+the arrows, the left arrow widening it —, sets its width, that of `gantt` in `column_widths`, and
+modifies no task, from a minimum up to the room of the frame at its greatest width
+(`useFrameRoom`), minus the columns pinned at the head and the widest of the others, where the
+active cell shows (`endMaxOf`). Each cell draws in SVG the row of its task — its bar, the pieces of
+the links that leave it, run along it or reach it, the months of the axis —: the drawing is aligned
+row by row on the grid, rendered with its visible rows only, and follows the width of its column,
+as a share of that width. The layout (`ganttLayout`, `layout.ts`) is computed once for the rows the
+grid shows, writes included, which `DenseGrid` hands to what a screen puts around it (`around`,
+`GanttRows`) — never as a prop of each row; the header draws the axis (`GridColumn.axis`), its
+label naming the column only to screen readers any more. Nothing is planned there: a task runs
+from the start of its first day to the end of the last, a finish at hour 0 being the start of its
+day, a milestone stands at its finish, and the axis runs from the first of the month of the
+earliest to the first of the month that follows the latest (`monthTicks`, `chart/ticks.ts`, without
+ECharts). A link joins the place its type names on the predecessor to the one it names on the
+task; a predecessor outside the response draws none. A summary task is a bracket, a milestone a
+diamond, a task a bar, solid on the critical path and hollow elsewhere, and each bar is an image
+named by its dates and « critical »: nothing is read by the colour alone. No cell of the Gantt
+takes an entry, and only the button that precedes the bracket of a summary task takes the pointer
+there, to fold or unfold it. Its finest level divides each day into working hours, numbered within
+their day, which the page reads from `getDurationUnits`: `hoursOfDay` (`scale.ts`) rounds
+`hours_per_day` to the nearest whole hour, the half-hour upwards, from 1 to 24, on the digits of
+the string, never through a float (#1393). « Export as PNG », after the zoom in the corner of the
+header and in the menu of a cell, draws on a canvas (`gantt-image.ts`) the whole extent at the
+level shown — the width of the zoomed drawing, that of the column once fitted to the project —,
+one row per task the grid shows, folded like it, the days off with the same hatching as the screen
+(`DAY_OFF_HATCH`, read from the classes of its tokens) and their legend, the provenance at the
+head as for every curve (`useProvenance`, `provenanceOf` of `grid-screen.ts`); twice as dense as
+the screen as long as a canvas holds it, as dense otherwise, and unavailable, its reason said,
+beyond the bounds of the browsers (32,767 points a side, 268 million in all). Its « Attached to »
+column presents the work package or the order item a task carries, by the label the server
+resolves (`work_breakdown_label`); where the structure read lists `edit_planning`, the cell chooses
+it among the work packages and the order items of the whole work breakdown read, or nothing,
+written by `updateTaskFacet` — the chosen field, and the other set to `null` in the same write when
+the task carries it (`planning-attachment.ts`) —, its refusal said by the reason of its field,
+naming the task that already carries the element or those that would leave the subtree of their
+work package (WF-PLA-0170); like every refusal of the write of a cell, it is said above the grid,
+and its cell, marked, is described by it (`aria-invalid`, `aria-describedby`). There too, the task
+is entered on the keyboard, cell by cell, through `updateTaskFacet` (US-0470, `planning.tsx`): the
+label, the description — emptied, it is null —, the mode (a list), the duration with the suffix of
+its unit and the dates, each where the node carries its task, names its field among those it
+accepts (`editable_fields`) and does not compute it (`computed_fields`): the dates of an automatic
+task, the duration of a summary task are passed over without entering entry mode (WF-PLA-0020).
+The duration is read in the language of the interface (`parseDuration`, `cell-values.ts`),
+regardless of case, a bare number in days: the suffixes WF-PLA-0160 names are read in every
+language — « m » a month, « min » a minute, « h », « j », « sem », and their elapsed counterparts
+prefixed with an « e » —, plus those the catalogue writes in the current language
+(`enums.DurationUnit`), and no other: in English « d », « wk », « mo » are read, in French they are
+not. It leaves in its unit, which the server keeps. A date is typed in the short form of the
+language, or in its ISO form (`parsePlanningDate`), and leaves alone, without hours: the front does
+not know the calendar, the server completes the hours — the start at the start of the working
+day, the finish at the end of its hours —, and the cell shows what it renders (#1244). The
+predecessors of a task are entered as in MS Project, « 3FD+2 j ; 5DD » (`predecessors-entry.ts`):
+the row number, the code of the type of the link in the language of the interface — FD, DD, FF, DF
+in French, FS, SS, FF, SF in English, nothing for a finish-to-start —, then the lag, positive or
+negative, with the unit of a duration (the suffixes of `parseDuration`) or as a percentage of the
+duration of the predecessor; the whole list leaves in place of the task's, through
+`setPredecessors`, with the version of the node read. The number resolves on the rows the grid has
+read (those of a predecessor a search has set aside are found again through the links of a row
+read); a number they do not know is asked of the server, in the numbering of the whole structure
+(`resolveRowNumber`, US-0650), the entry read-only and `aria-busy` as long as it has not answered
+(`EntryKind.ask`, `useRowNames`), then validated again. A number no task carries — an estimate
+line, or no node (404) — leaves the entry open, which says so, without sending anything; a server
+that could not answer too, saying to validate again. Left by a click elsewhere during the request,
+the entry validates at the answer, or is abandoned. A refusal of the server is said at the cell by
+its code — a loop of links, with the tasks it crosses (`cycle`, `problemDetails`), a link between a
+summary task and its subordinate, a project that would exceed fifteen years —, and the rows
+written, with the tasks the server re-dates, take the place of the rows read, the Gantt following;
+the front dates nothing. Validating the last enterable cell of a row places the cursor on the next
+row, at the cell from which the row was started. Every cell write, of every grid, says a refusal
+per field by the reason of its field (`byField` of `cell-writes.ts`, #817.1); only a refusal of the
+value (422) marks the cell, the API out of reach, a stale version or a lost session saying nothing
+of what was entered (#819.2); a value the answered row already carries writes nothing, failing
+which the body would carry only the version (#819.8), and lifts the refusal of its cell, with the
+notice that says it. Above the planning grid and the estimate grid, a filter chooses a work
+package or an order item from the same whole work breakdown read (`BreakdownFilterChoice`,
+`readGridScreen` with `byBreakdown`), written in the address under the name of the contract —
+`work_package_id` or `order_item_id`, the one lifting the other, a malformed identifier ignored —
+and sent to `listNodes`, which retains the subtree of the attached task; the banner shows it active
+and lifts it (`breakdownChip`), in the estimate on the grid only, its indicators remaining those of
+the project. A work breakdown the API refuses (404, 422, 503) removes only the filter, except where
+the attachment is entered, which cannot do without it (`needsBreakdown`). In the empty grid, the
+skeleton is offered as the revision lists `generate_skeleton`, unavailable with its condition as
+soon as the structure has a task (WF-PRJ-0030); generated, its tasks fill the grid as long as the
+counter of the structure it renders is more recent than that of the reading (EP-14/L44d). The
+other leaves of the planning have their screen, where its header leads: the task tree (FBS-4.3.5,
+`…/task-tree`, `frontend/src/components/tree/`), an ARIA `tree` under the root of the project, the
+first level side by side, the next ones under their parent, a single tab stop the arrows walk
+through, the depth in the address (`depth`); and the timelines (FBS-4.3.1, `…/timelines`), one per
+link (`timeline`), each a strip with lanes, distinct from the Gantt (`gantt/timeline-chart.tsx`,
+US-0530, #1068): on the axis of the Gantt, at its levels and its zoom (`GanttRows`, `GanttAxis`), a
+task is a rectangle from its start to its finish, its name truncated and whole in the tooltip and
+the accessible name — the task, its dates, its lane —, a milestone a vertical line over the whole
+height, its name and its date at the foot. The rectangles stack in lanes (`lanes.ts`, a
+presentation computation): each in the one where the user placed it as long as it fits there, the
+others, in the order of the plan, in the first lane where they overlap none, the empty lanes closed
+up. A rectangle is dragged with the mouse from one lane to another, or moved by Alt and the up and
+down arrows on the one the keyboard designates — the strip is a single tab stop, the left and
+right arrows passing from one rectangle to the other (`aria-activedescendant`). A lane where it
+would overlap another is refused, the refusal said, and nothing moves; under the last lane an
+empty one is always offered, never above another, and the keyboard targets the nearest lane where
+the rectangle fits, skipping those where it would overlap, to reach everything the mouse reaches.
+The layout is a display preference per timeline (`DisplayPreferences.timelines`, WF-ADM-0040),
+written after a pause like the settings of a grid (`useKeptWriter`,
+`updateTimelinePreferences`): the lanes of all the rectangles shown, the moved one first, within
+the bound of 64 of the contract, so that a move moves nothing else; « Automatic layout » forgets
+it (`null`). The table reading, under the strip, says each task, its dates and its lane; they are
+created by their name and the timeline shown is deleted after confirmation, as the project lists
+`manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). The server selects what each one draws
+(#463): the tree asks for the summary tasks down to the level of the address (`summaries_only`,
+`max_level`), a timeline the tasks inscribed in it (`timeline_id`). The fake back ignoring these
+filters, each one applies the same criterion again to the response (`summaryTree`,
+`inscribedTo`): an idempotent filter, which changes nothing against a server that honours them, a
+temporary gap of EP-02 removed with the back of EP-03. The tree offers exactly the levels the
+structure has, from the first to that of its deepest summary task, which the server says whatever
+the filters (`meta.summary_depth`, #494), and shows the level asked for, or the deepest when asked
+for one beyond it (`depthShown`).
+
+### The risks screen
+
+The risks screen, `…/revisions/[r]/risks` (`frontend/src/components/risks/`), reads each of its
+operations in the revision of its route (`revision_id`): the totals of the provisions of the
+retained risks, by state and the grand total, as the server renders them; the filter by state,
+pressed buttons that write only the address (`states`, under the name and the form of the
+contract); the dense grid, one more configuration (`risk-grid.tsx`), read-only, where the
+severity and the provision are entirely computed columns — no node field to ask for (`field`
+renders `undefined`), their refusal names the rules the risk carries for each one
+(`computed_fields`, `dependsOn`) — and the matrix cell a `Signal` column; the risk matrix, a bubble
+chart (`RiskBubbleChart`, « Curves ») over the whole width between the cards and the grid — the
+right-hand column no longer exists —, whose bubbles are the risks of the states of the filter, and
+under it the table of the count per cell, its axes named by the bounds the server renders, each
+cell by its signal and its number of risks; and, when the address names a risk (`risk`) — from a
+click on its bubble or on its label —, its detail, in a column beside the grid that keeps enough
+room to read it (the page scrolls in a window too low): notes, provision line present or withdrawn
+at the occurrence, with the category and the subproject the risk designates for it, by the labels
+the server resolves — the category said deactivated when it or its cost type is
+(`provision_cost_category_is_active`), the provision outside any subproject when it designates
+none (EP-14/L42p) —, history of the reviews. « Identify a risk » (`risk-commands.tsx`), in the
+header of the screen, follows `declare_risk` as the revision of the route lists it: absent,
+nothing; unavailable, described by the condition that is missing (`at_least_one_task`,
+`active_provision_category`); available, it opens the form `risk-form.tsx` (`ReferenceForm`) —
+label, description, mitigation actions, probability as a percentage sent as a ratio, category of
+the provision asked for only when several active categories of the provision type offer
+themselves, subproject and carrying task optional, read by the page when a command asks for them
+(`provision-options.ts`) —, says the 409 under the form and, the creation done, opens the risk's
+own estimate (`structure_id`) in the estimate grid, for a session that reads the estimate.
+« Modify », in the detail, follows `update`, and the provision `update_provision`: unavailable, the
+category, the subproject and the task show fixed and are not sent. Both commands wait, inactive,
+until a write of their closed form is answered (defect no. 24 of `typescript.md`). The commands of
+the detail (`RiskCommands`) share per risk the write under way and the most recent answer.
+« Review » (`risk-review.tsx`, `review`) starts from the probability and the state the risk
+carries — confirming it without changing anything produces a dated review (`reviewRisk`), which the
+history shows at the re-read — and offers the states the contract lets one retain (identified,
+dismissed); a dismissed risk whose category is no longer active
+(`provision_cost_category_is_active`) asks for another one, among several active ones, on the
+return to the identified state. « Delete the risk » (`risk-lifecycle.tsx`, `delete`) asks for a
+confirmation, is unavailable for a cited risk (`risk_not_cited`) and, deleted, leaves the detail
+through the address without the risk. « Declare occurred » (`declare_occurrence`) confirms, queues
+the occurrence (202) and hands it to the tracking of background tasks (`Following`); it first reads
+the report of the occurrence (`getRiskOccurrenceReport`, US-0680), presents it in the marks `+`,
+`-`, `M` like that of a merge (`occurrence-report.tsx`), says the withdrawal of the provision and
+the refusals, and confirms with the counters read; a stale version (412) offers to re-read it. A
+failed task is not replayed from the tracking, which would confirm old counters: its entry says to
+start again from the risk screen, where the command re-reads the report. An occurred risk lists
+all its commands unavailable. The register paginates like every flat table (`limit`, `offset`,
+`meta`): « Rows per page » and the pages under the grid (`ListPages`, `RISKS_LIST`), the totals
+remaining those of all the retained risks. The label of a risk is a link out of the tabbing: the
+grid follows the link of a cell that is not being entered on Enter (`grid-keyboard.ts`).
+
+### The remaining-to-commit screen
+
+The remaining-to-commit screen, `…/revisions/[r]/remaining` (`frontend/src/components/remaining/`,
+`remaining.tsx` for the grid), reads its indicators in the revision of its route
+(`getRemainingIndicators`, `revision_id`) — the total, the margin on the reference budget and the
+gap to the previous review, absent rather than null without one, the totals by cost type and, by
+subproject, the remaining to commit and the margin on its budget with the `Signal` of the zone the
+server gives, and the risk coverage (`RiskCoverageSummary`) —, or says they are unavailable when
+the API does not find them; and the dense grid, one more configuration, on the lines of the
+started tasks only, unless the address also asks for the non-started ones (`progress`, under the
+name and the form of the contract, which a link of its header writes). The budgeted amount, the
+quantities and the re-estimated at the previous remaining to commit, then the current quantities
+and re-estimated (WF-RAE-0040); the three amounts are computed columns there, the previous
+quantities kept values, never entered; the quantities of a line are re-estimated one by one
+through `setLineRemaining`, where the line says it accepts it (`remaining_entry`) and where its
+node accepts the field — never from the progress of its task —, the `edit_remaining` command of
+the structure read (`screen.commands`) setting Undo and Redo, and the grid, read-only when it does
+not list it; it also filters by a work package or an order item of the whole work breakdown read,
+like the planning and the estimate (`order_item_id`, `work_package_id`, restricting the grid
+alone); the finish of a task shows there without being entered, and the overdue finish by a mark
+of its own, which the server says (`finish_overdue`). The subprojects of the project
+(`listSubprojects`, read with the banner, once per request) are read only where the structure
+lists `edit_remaining` available, and refused they do not give the « Subproject » submenu; the
+column and the submenu are those of the estimate, described with the context menu of the cells
+(`choice-menu.tsx`). Its banner shows only the subproject, the only context parameter its readings
+take, and says that it restricts only the grid, its indicators being those of the whole project
+(`gridOnly` of `ContextBanner`, #459). The Kanban of task starts, FBS-4.5.3, is a leaf of the
+function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
+the started and the completed ones with their date, as `listStartableTasks` renders them, each a
+card, a non-started milestone whose predecessors are completed flagged to be completed
+(`predecessors_completed`, a text and an icon); no percentage. The page cuts out the cards
+(`kanban-cards.ts`: what the card shows and its gestures, never the whole node of a thousand
+tasks) and reads the main structure of the revision (`listCostStructures`), where the gestures are
+written. A card is chosen by click or by the arrows (up and down within the column, left and right
+from one column to another; a single tab stop) and makes the gestures its task lists
+(`available_commands`, never deduced from the nature of the task or its lines): through its menu,
+which keeps the unavailable gestures with their conditions, by drag and drop onto a column, or on
+the keyboard — Shift and right or left arrow carry the card to the neighbouring column, and to it
+alone: a drag to a column further away has no key. The menu of the card, opened by Enter, offers
+all the gestures the task lists: it is the complete keyboard equivalent of the drag (WF-IHM-0100).
+The drag sets a type of its own (`application/x-waterfall-card`), not `text/plain`, which a text
+field one drops into would insert. The gesture that leads to the state of the targeted column is
+the one the card lists with that state (`progress`); without it, the card says so. A card that
+asks for its date is not draggable, and no other request opens while it waits for it: the entry is
+never lost in silence. Start and complete ask for the date of the event, today's proposed; « Enter
+the remaining to commit » is a link to the remaining-to-commit grid, searched on the label of the
+task (`remainingHref`). The answer of `setTaskProgress` replaces the card in the column of its new
+state, as long as the reading that follows does not have the node at its version or a more recent
+one (the counter of the node decides, `replaced`); the answered card lists no gesture before that
+reading. The focus follows the card, a refusal is said on it (`OutcomeNotice`), and one write at a
+time. The operation reads the revision in progress: on a marked revision, the screen says so and
+asks for nothing.
+
+### The actual costs screen
+
+The actual costs screen, `…/revisions/[r]/actual-costs` (`frontend/src/components/costs/`), reads
+those of the project — they are not versioned, the revision of the route is only the context of
+the banner — page by page, as the server paginates them (`offset`, `listActualCosts`): the three
+totals of the retained lines and the date of the last import, as the server renders them; the
+filters by scope, by subproject — that of the reading context, `subproject_id` — and by period of
+the documents, which write only the address, under the names of the contract, and bring back to
+the first page; the dense grid, read-only (`cost-grid.tsx`), without search — the operation has
+none: a configuration removes it by `searched: false` —, each line with its subproject named by
+the server, its scope in words and each column kept from the file as a column, under the name the
+file gives it, its values as imported (`passthrough.<colonne>`), each column sorted by the server
+— the kept columns are those of all the retained lines, in the order the server names them
+(`meta.passthrough_columns`, #414): the same from one page to the next —; and the import log,
+paginated apart (`imports_offset`, `imports_limit`), with its « Rows per page » and its grid key
+(`cost_imports`, `KeptListSize` of `grid/kept-list-size.tsx`, which records the size like a dense
+grid: the log is not a grid). The imports of a project (`imports`) do the same. When the project
+lists the exclusion of its lines (`exclude_cost_lines`), the document number of a line is a link
+out of the tabbing, which the grid follows on Enter, to the same address naming the line
+(`line`): its place in the tracked scope shows there (`CostLineScope`), with the command that
+excludes it, on the reason entered, or reinstates it (`setActualCostTrackedScope`, WF-CRE-0040);
+the write done, the page re-reads the line and the three totals, which the server holds (#291).
+Filters the server refuses (422: a period that ends before it starts, a subproject the project
+does not have) are said in place of the lines, the filters kept to be changed. A changed sort or
+search brings every paginated list back to its first page (`sortHref`, `searchHref`). A page link,
+like the label of a risk, starts from the last address requested (`usePendingLink`); when it reads
+the costs otherwise than the page shown — a pending filter or sort —, it leads to their first
+page.
+
+### The reference data screens
+
+The reference data screens (`frontend/src/app/reference/`, `frontend/src/components/reference/`,
+US-0250) are outside any project, at the routes of their functions. The cost settings say the
+currency of the installation and present the grid of hourly rates — one more configuration of the
+dense grid (`rate-grid.tsx`), the third section of the screen, under the cost types and the
+categories, one row per labour category, its state, one column per year of the whole grid,
+whatever the page, whose header is the year itself (`GridColumn.heading`) —, searched, filtered by
+state and on the bounds of the rate of a year (`RateFilterBar`, #545), sorted and paginated by the
+server under the names of the contract (`search`, `is_active`, `rate_year`, `rate_min`,
+`rate_max`, `sort_by`, `offset`, #509): each column sorts, the rate of a year by `rate.<année>`,
+which the page accepts for any year `Year` takes (`RATE_SORTS`), before knowing those of the
+response; its totals row says how many categories the server retains, and the currency. An
+entered cell leaves alone through `setHourlyRate`, without a version for the first rate of a
+year, with that of the rate read for a correction, and the answered rate takes its place. The
+entry is offered only to a session that carries `cost_settings.write` (`platformOffer`), like the
+addition of the column of a year the grid does not have (WF-REF-0060, #299): the contract has no
+operation to create it — a year enters the grid through its first rate —, so that the column is
+the grid's, empty, in its place among the years, until the entry of one of its cells writes that
+first rate, and it withdraws as long as no rate is entered or being written there; a year already
+present, or outside the bounds of `Year`, is refused in the page; the added column sorts like the
+others, the server leaving the order of the code for a year without a rate. Above it, the cost
+types then the cost categories, two dense grids (`cost-grids.tsx`, #510), sorted on each column,
+searched, filtered — the types by kind (`kinds`, `ValuesFilter`) and by state, the categories by
+cost type, offered among all those the session reads, and by state — and paginated by the server
+— the three sections stack like those of the resource settings, in a page that scrolls (`Screen`
+without `fill`, US-0570/L3, #1044), each grid capped at the window (`max-h-svh` of `DenseGrid`).
+The resource settings present three dense grids (#301, #511, #533): the organisation, a tree grid
+that neither sorts nor paginates, in the order of `listOrgNodes`, each node by its label indented
+by its depth (`level`), which folds what is under it like the task grids (`GridTree.parent`,
+`fold.tsx`), its code and its level, filtered by code (`code`), by level (`level`, offered among
+those of the whole tree) and by state, the server rendering the retained nodes and their
+ancestors, which a filter unfolds once; the roles, each by its label and its code (EP-14/L42r),
+sorted by the server on each of their columns, searched by it on the label and the code, filtered
+by code (`code`, like that of the nodes), by node (`org_node_id`, offered in the order of the
+whole tree), by category (`cost_category_id`), by calendar (`calendar_id`) — each offered among
+all those the session reads, read as a list of choices (#303), the categories absent when the API
+refuses them — and by state, and paginated; the calendars, sorted on each of their columns, the
+hours of each day included, searched, filtered by state and paginated, without a filter on the
+hours of their days (WF-IHM-0130-A, #1047). The number columns are bounded (#545, WF-IHM-0130):
+the monthly hours and the headcount of a role, the rate of a year of the rates grid — the year
+chosen among those of the grid, written with its bounds (`rate_year`) —, under the convention of
+the contract for every list, `<colonne>_min` and `<colonne>_max`, inclusive
+(`docs/api/DECISIONS.md`). The filter is a component of the grid, reusable for the amounts of the
+following lots (`RangeFilter` of `components/grid/range-filter.tsx`, `boundsHref` and
+`readBounds` of `filters.ts`): one form per list, each bound entered as the language writes a
+number (`parseDecimal`) and written as the contract writes it, bringing the list back to its first
+page; an entry that is not a number, or an amount with more than two decimals, is said at its
+field, which takes the focus, without asking anything. The server alone judges the bounds: the one
+it refuses (422) — not a number of its type (`NUMBER_INVALID`), an upper bound under the lower,
+which it names (`VALUE_OUT_OF_RANGE`), the year of the rate missing (`VALUE_REQUIRED`) — is said
+at its field, which takes the focus (`refusedBounds`, `refusedSides`), and the list is not read
+(`shownPage` of `address.ts`, `BoundsRefused`); the rest of the screen is. Each field is named by
+its column and its side, both written next to it (« Hours a month, min », WCAG 2.5.3). The tree is
+also bounded on the depth (`level_min`, `level_max`), next to the choice of a depth (`level`); the
+rate is bounded only with a year the contract takes, failing which the page does not present its
+bound. Each of the grids of the reference data is searched by the server, has its preferences
+key, where its sort is kept, and writes its sort, its search, its filters and its page in the
+address under its own names, those of the contract after its prefix (`org_`, `role_`,
+`calendar_`, `type_`, `category_`: `role_search`, `role_sort_by`, `role_cost_category_id`,
+`role_is_active`, `role_offset`; `prefixedAddress` of `query.ts`, `GridConfig.address`) — the
+rates grid, that of the function, keeps the names of the contract —: the grids of a same screen
+do not read one another, and the page asks the API under the names of the contract; the whole
+tree is re-read when a search or a filter restricts it, for the filters of the roles. A sort, a
+search or a filter bring their list back to its first page; a page link starts from the last
+address requested, and leads to the first page when it reads the list otherwise than the one
+shown — the sort of another list of the screen not counting there (`ListPages` of
+`components/grid/list-pages.tsx`, named after its list, the only « same list » rule of
+`readingOf`); the totals row says how many the server retains (`meta.total`). The duration units
+follow: three constants, which the command « Modify the units of duration » — offered to whoever
+carries `resource_settings.write`, like the calendars — opens as a form (`DurationUnitSettings` of
+`settings-forms.tsx`, `setDurationUnits`), in decimals of the language; the refusal (422) is said
+at the field, the stale version (412) offers to re-read, the answer takes the place of the values
+read, and a sentence under the fields says that the change holds for all projects, the plannings
+of the revisions in progress being recomputed and a marked revision keeping its hours
+(WF-PLA-0160, WF-REF-0130, #1049). The risk settings present the bounds of the matrix and the zone
+of each cell, placed by its rank in the order of the contract, the indicator settings the
+thresholds of the indices and the delay between two reviews: matrices of fixed size, which remain
+simple tables, without sort or filter (decision of the author of 2026-10-08, #508). An attached
+object is named by the label the server resolves at reading time, active or deactivated — never
+by matching lists in the front; a section is named by `aria-label` (#251).
+
+The lists of the reference data read only the active objects, and the deactivated ones too when
+the address asks for it (`include_inactive`, WF-REF-0150, #300), under the name of the contract,
+which the header of the screen writes or lifts by a link (`InactiveSwitch`), which brings each
+paginated list back to its first page — only for a session that carries the read permission of
+their part of the reference data, without which the contract refuses it (403, `inactiveQuery` of
+`address.ts`), like the lists of the estimate (#351). The filter by state (`is_active`,
+`StateFilter`) prevails over it: all states, the active only, or the deactivated only, offered to
+the same session only (`stateOf`). A deactivated object is said there by a mark and a word, and is
+reactivated there as the server lists its command (`available_commands`, #532, WF-IHM-0090) — the
+server lists it only for whoever can modify that part, and the front deduces nothing from it:
+available, through the activation command of its nature (`setActivation`, a server action, from
+the version read), then the page re-reads its lists; unavailable — a node under a deactivated
+parent, a role under a deactivated node (WF-REF-0080) —, presented `aria-disabled`, described by
+its conditions, and a press says them in the region of the list without asking anything, like the
+deletion of a role in use (#515); absent, nothing. An object carries only the command that changes
+its state, `deactivate` on an active object, `reactivate` on a deactivated one, both through the
+same cell (`StateCell` of `commands.tsx`, EP-02/L43, below); the deactivation of the default
+calendar is unavailable (WF-REF-0120). The refusal of the server — the conflict (409), which names
+the node to reactivate first from the row that knows it, or the stale version (412), with the
+offer to re-read — is said above the list (`Reactivations`), which a grid cell has no room to
+say, until its notice is closed — a refusal arriving while another is said is added to it,
+without replacing it, except that of the same command on the same object, which takes its place; a
+success after it does not erase it, and the focus returns to the control that wrote when the
+refusal names one (`back`, a cell of the permissions matrix), otherwise to the active cell of the
+grid, or to the list —, and only as long as the list reads as at the moment of the command: the
+parameters it reads (`listReads`), the sort of another list of the screen not counting there. In a
+grid, the command is out of the tabbing, and Enter on its cell presses it (`CELL_COMMAND`,
+`grid-keyboard.ts`). The fake back ignoring the filters, the pages and `include_inactive`, and
+keeping nothing, the tests test what the screen asks for; the service will honour it in EP-05.
+
+### Cost settings: types and categories
+
+The cost settings offer the write commands of the cost types and the categories (EP-02/L43a,
+decision of the author of 2026-10-08, #512; `commands.tsx`, `reference-form.tsx`, `cost-form.tsx`),
+to project the layout and to test the contract of each write; those of the resources theirs
+(EP-02/L43b, further down), through the same parts. To a session that carries
+`cost_settings.write` (`platformOffer`), each list offers « New nature » or « New category » next
+to its title — empty list included —, and each row « Modify », in a column of its own; the state
+of the row carries the deactivation or the reactivation as the object lists it
+(`available_commands`, `StateCell`), and presents it unavailable with its conditions when it is —
+the last cost type of the provision-for-risks kind and its last category are deactivated like the
+others since EP-14/L42p, which removes the rule of #578; no command deletes (WF-REF-0010,
+WF-DAT-0080). Any other session sees none of them. Creation and modification open a dialog
+(`ReferenceForm`, `ui/dialog.tsx`), which each list renders through the one of its nature
+(`CostDialog`, `useListForm`): the code, the label and the kind of a cost type, chosen among the
+three of the contract; the code, the label, the cost type — among the active ones, and that of
+the modified category, marked deactivated — and the accounting code of a category, required, from
+one to twenty characters (WF-REF-0040, decision of the author of 2026-10-09). What a modification
+changes follows the commands of the object (EP-02/L42g, WF-IHM-0090): the kind of a cost type is
+offered only if it lists `change_kind` available, and otherwise presents itself frozen, read-only
+(`control: "fixed"` of a `FormField`), its conditions said under it (`note`) — a category in use
+(`cost_type_unused`) —, the description of the dialog saying so too; a category is offered a cost
+type of another kind only if it lists `change_cost_type` available, and otherwise the cost types
+of its kind alone, its conditions said under the choice — in use, carrying rates (#577), attached
+to a role (EP-14/L42r); the refusal of the server of a change of kind, the condition lifted since
+the reading, names the roles involved, by their label and their code, to attach first to another
+labour category — of another cost type, for a cost type — (`params.resource_roles`,
+`problemMessage`, WF-IHM-0090), which the costs screen does not read. The kind is compared by the
+`kind` of each cost type, deactivated ones included: for a session that writes, the page reads all
+the cost types with `include_inactive=true` (`every` of `CostDialog`), a whole reading distinct
+from the choices of the filter, which it does not do when those already include the deactivated
+ones; a category under a deactivated cost type is thus offered the active cost types of its kind,
+and its deactivated cost type is named by its code, which that reading gives. A cost type that no
+reading gives — a session that writes without being able to read the deactivated ones, to which
+the contract would refuse `include_inactive` (403), and for which the page does not ask for it —
+leaves the category its only cost type, and the note says so apart (« The type of the deactivated
+nature cannot be read: it alone is offered. »). `costs/page.test.tsx` tests what the page passes to
+the form, the cost types served by `cost_types_with_inactive`, the reading with the deactivated
+ones, which holds for it only. A node whose code is taken is named likewise, from the tree or the
+list, otherwise by the label the refusal gives (`OrgNodeDialog`). The form refuses at its field
+what is missing, or a number that is not one in the language of the reader (`parseDecimal`),
+before any request, and the field takes the focus; the server judges the rest: a refusal per field
+(422, `fields[]`, convention #293) is said at the field it designates, by the sentence of its code
+and its parameters — `problemMessage` of a `FieldProblem`, the first refused field taking the
+focus —, like a value already carried (409 `ALREADY_EXISTS`, `fields[]`), which names the object
+that carries it (`fields[].params.conflicting_object_id`) by its code and its label when the list
+shows it (`names` of `ReferenceForm`), generically otherwise; the decoder also draws the object of
+the refusal from it (`conflictingObjectId`) when the envelope does not name one. Any other refusal
+is said under the form (`OutcomeNotice`), which stays open — a state that forbids the write (409
+`STATE_FORBIDS_OPERATION`) with its condition, the stale version (412) with the offer to re-read
+the page; a refusal per field the form does not show stays there alone, without repeating what is
+said at the fields. The submit button says the write under way; closed during the wait, the dialog
+silences nothing: the success is said in the region of the list, the refusal above it, on the
+reading it started from. Closed, it gives the focus back to the cell of the row — the grid is a
+single stop — or to the creation command. `problemMessage` also reads the parameters of the
+refusals per field of an envelope: the minimum of a refused rate is said with the refusal of the
+cell, written in the language of the reader (« Minimum value: 0.01. »). Every answered write
+re-reads the page (`refresh`): the cost types are what the categories filter and attach by, the
+labour categories the rows of the rates grid, and a choice that would still offer a deactivated
+cost type would be a command the server would refuse (WF-REF-0010); a write also changes the
+commands of other objects — the attachment of a category the kind of the old and of the new cost
+type (#577) —, which its answer does not carry. A rate re-reads the page only at its first entry:
+the category that carries rates no longer attaches to a cost type of another kind
+(`cost_category_unrated`); a first entry refused as a second rate of the year (409
+`ALREADY_EXISTS`) also re-reads the page, and the cell shows the rate of the year with its
+version, which the next entry corrects; a correction changes no command. That re-read, at the
+same address, abandons nothing of the rates grid: a rate that left before it stays pending, the
+refusal says the rest, and an answered rate, before or after it, keeps its cell as long as it is
+more recent than the re-read cell, by the `lock_version` of the rate — the answer is the change of
+a cell, found by its year among those of the re-read row and laid back on it (`RowPart.versioned`,
+`rate-cells.ts`), a row of the grid having no counter of its own; elsewhere, an answer is judged
+as a block by the counter of what it wrote (`GridConfig.fresher`, the `lock_version` of a node):
+more recent than the re-read, it keeps everything it rendered, the recomputed summary tasks and
+the totals included, a more recent answer always prevailing over an older one for a same row;
+caught up, it yields everything; where the counter says nothing — same version, row without a
+counter, fake back —, each value stays as long as the re-read reads its row, or its totals, as
+before. Only a reading at another address — a sort, a search, a filter, a page of the grid —
+abandons the answers under way; a reading that renders the same rows in the same order, another
+list of the screen sorted or the address rewritten by `history.replaceState`, is the same one
+(`cell-writes.ts`, defect no. 22). This last rule assumes that the content of a row does not
+depend on the address: the day a grid computes its rows from a parameter of the address — a
+currency, a value date —, two readings with the same rows are no longer the same one, and the
+rule becomes false. An answered modification or activation replaces its row by what the server
+renders, as long as the answer is more recent than the row read (`lock_version`, `useAnswered`) —
+against the fake back, which keeps nothing, it therefore survives the re-reads —; a creation adds
+no row, the re-read page files it where the server retains it. What a write did is said in the
+region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
+like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
+under its header, for whoever writes — a written row remaining shown as the server rendered it as
+long as the screen stays open — (`MockupNotice`, `components/shell/mockup-notice.tsx`, to be taken
+up by each screen of the mockup whose commands write, removed when the screen is plugged into the
+service of its epic). The entry of a rate remains that of the grid.
+
+The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
+`/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
+`leafOf("FBS-3.1.3")` (`components/reference/actual-cost-mapping.tsx`): the accepted headings of
+each of the five columns read and the kept columns, as editable lists, and a bar that says the
+required columns without a heading from the server's `is_complete` and `missing_columns`, never
+recomputed. Under `cost_settings.write`, a single form replaces the whole mapping with the
+`lock_version` read (`setActualCostMapping`); under `cost_settings.read` alone, the lists are read
+without a command. The server alone judges: a 422 refusal is said at the field by its pointer
+(`/columns/<rang>/labels/<rang>`, `/kept_columns/<rang>`), the duplicate (`DUPLICATE_COLUMN_LABEL`)
+naming the heading it duplicates (`params.duplicate_of`); the stale version (412) is said under
+the form, with the offer to re-read.
+
+### Resource settings: organisation, roles and calendars
+
+The resource settings likewise offer the commands of the organisation, the roles and the
+calendars (EP-02/L43b, #512; `resource-commands.tsx`, `calendar-default.tsx`), to a session that
+carries `resource_settings.write`: « New node », « New role », « New calendar », the modification
+of each row, the deactivation or the reactivation as the object lists it — a node with its
+descendants, which the answer replaces in the tree (WF-REF-0080), the roles it deactivates with it
+being those of the other list, which the re-read page shows. A node is written by its code, its
+label and its parent — null for a root, sent at modification as at creation (`OrgNodeUpdate`) —,
+chosen in the order of the tree, each node indented by its depth (`treeLabel`): among the active
+nodes only, whether the node is active or deactivated (WF-REF-0070, EP-14/L43g), never under
+itself nor under one of its descendants, which it takes along; its parent is always offered, from
+`parent_id` and `parent_label`, marked deactivated when it is, and the list shows it chosen — the
+contract refuses a deactivated parent only if the modification changes it; deactivated, it keeps
+its depth when the node above it is offered, or when it is a root, and then its place — in the
+tree read, the front reordering nothing, or under its own parent when the row of the list names
+it —; at the end without indentation otherwise. A role is written by its code, unique,
+deactivated ones included (EP-14/L42r), its label, its node, a labour category and its calendar —
+among the active ones, that of the modified role marked deactivated when it is (WF-REF-0090),
+named without a mark when the list is not read, for lack of knowing whether it is, or when all the
+categories read say it active, a category whose cost type has left labour (`read` of `offered`,
+#714): a safeguard only, the contract forbidding that case since EP-14/L42r
+(`docs/api/DECISIONS.md`, the mention of L42r in the section of L42j) — and its capacity, hours a
+month and headcount, entered in the language of the reader (WF-REF-0100); its node is fixed at
+creation, and its modification names it without offering it: a role is recreated under another
+node (§3.4.4.2.1). The labour category is recognised by the kind of its cost type, which each
+category says (`cost_type_kind`, `labourOf` of `kinds.ts`, EP-14/L43g): the page does not read the
+cost types for that. A session to which the API refuses the categories can choose none: « New
+role » is not offered to it (WF-IHM-0090), and the modification names the category of the role as
+its row names it. A taken code is said at the field, the role that carries it named by the label
+the refusal gives (`conflicting_object_label`), the list read without the deactivated ones
+possibly not showing it. The modification of an object answered for another object is a failure
+of the service (`INTERNAL_ERROR`), said under the form like the answer of a cell for another row. A
+calendar is written by its label and its seven hour values, from Monday to Sunday, nothing else
+(WF-REF-0110). A calendar is designated as default from its row as it lists the command
+(`CalendarCommand.set_default`, `setDefaultCalendar`, WF-REF-0120, EP-14/L43g), from the version
+read, the re-read page showing the previous one without the designation: absent — on the default
+calendar, or for a session that does not modify —, nothing, the front deducing nothing from the
+state of the row; unavailable for a deactivated calendar, presented `aria-disabled`, described by
+its condition (`calendar_active`), and a press says it in the region of the list without asking
+anything (`UnavailableCellCommand`); the refusal of the server — the calendar deactivated in the
+meantime (409), the stale version (412), with the offer to re-read — is said above the list. A
+refusal per field is said at the field (`ReferenceForm`): an unknown reference
+(`UNKNOWN_ORG_NODE`, `UNKNOWN_COST_CATEGORY`, `UNKNOWN_CALENDAR`), a node placed under itself or
+one of its descendants (`ORG_NODE_CYCLE`), a category outside labour (`LABOUR_CATEGORY_REQUIRED`),
+a parent, a node or an attachment deactivated in the meantime (`INACTIVE_REFERENCE_OBJECT`), hours
+outside 0 to 24 or a negative capacity, with the bound crossed (`VALUE_OUT_OF_RANGE`); the label
+already carried by a calendar, deactivated ones included, names its carrier from the page, by its
+identifier, generically otherwise; the rest as for the costs, the stale version under the form
+with the offer to re-read; the screen says that the fake back keeps nothing (`MockupNotice`). A
+write that would leave a task without a working hour — a calendar modified or designated as default,
+a role modified — is refused (`TASK_WITHOUT_WORKING_HOURS`, « A task would have no working hour left
+in the week. ») by saying why and by naming each project involved by its label and its code, by its
+label alone without a code (`params.projects`, WF-PLA-0010), up to five in the sentence, as a list
+outside the alert beyond, like the lines of a subproject. The cause is that of
+`params.resource_roles`: the roles whose calendars overlap on no day, which the refusal names itself
+by their code and their label, wherever it is told, the planning included, the page reading none; an
+empty list designates the default calendar, emptied or designated, when only tasks without a labour
+line lose their hours.
+
+### Risk and indicator settings
+
+The risk settings and the indicator settings are each modified in a form (EP-14/L43e, #512;
+`settings-forms.tsx`), offered by « Modify the risk matrix » to a session that carries
+`risk_settings.write`, by « Modify the thresholds and the delay » to a session that carries
+`indicator_settings.write` (`platformOffer`); any other session reads the tables alone, without a
+notice of the mockup. The one enters the six bounds, as percentages (`editablePercent`,
+`percentRatio`), and the sixteen zones, one choice per cell; the other the four thresholds, as
+values of the index, and the delay, in whole weeks (`control: "whole"`, a whole number, sign
+included, its bounds left to the server, judged at the field with the others, said by the text of
+the field's own, `invalid`). Each screen follows its single permission: a session that carries
+one without the other reads the other screen without a command or a notice. Each sends through
+`updateReferenceSettings` the single sub-object of its screen and the version read
+(`RiskMatrixWrite`, `IndicatorWrite`), never a field of the other screen, which another permission
+guards; neither the currency (WF-REF-0140) nor the language of the installation, which belongs to
+EP-03, are offered there. The form of the reference data lays side by side, under a legend, the
+fields that go together (`group` of a `FormField`, a `fieldset` that folds onto two columns in a
+narrow window): the bounds of an axis, the zones of a probability level, the two thresholds of an
+index, each field named by the legend of its group then by its label (`aria-labelledby`), which
+the groups repeat; and it judges, in the same submission as the fields, on those that passed, the
+rules that bind fields to one another (`rules`), before any request — a refused field has no
+value, which a rule leaves unjudged, and its own refusal prevails; everything refused is said at
+once (EP-14/L52) —: each bound that is not strictly above the previous one, at its rank
+(`BOUNDS_NOT_ORDERED`), each alert threshold that is not below its watch threshold
+(`THRESHOLD_NOT_BELOW_WATCH`), said at the field the server would designate, the decimals compared
+without a float (`compareDecimals`). The refusal of the server is said likewise: per field at the
+field, the missing permission (403) and the stale version (412, the two screens sharing the
+counter) under the form. The answer takes the place of the settings read as long as it is more
+recent than them, the page re-read, like the settings of the project, and closes only the dialog
+it started from, never a dialog reopened since; the command that opens it waits, inactive, for the
+answer of a write of a closed dialog (#661); against the fake back, which answers with the first
+example of the operation — the thresholds written —, the matrix shown remains the one from
+before.
+
+### The administration screens
+
+The administration screens (`frontend/src/app/admin/`, `frontend/src/app/system/`,
+`frontend/src/components/admin/`, US-0250) are outside the project too, and read-only except the
+one of the roles, wired to the service (below): the accounts, deactivated ones included by default
+(`include_inactive`), each with its roles and its node named by the server, on the dense grid
+(#514, `admin-grids.tsx`), sorted on every column, searched, filtered by origin (`origins`,
+`ValuesFilter`), by organisation node (`org_node_id`, offered in the order of the tree,
+`OrgNodeFilter`), by access role (`access_role_ids`, the roles that `listAccessRoles` returns, none
+to a session that does not read them; all of them chosen still filter, an account without a role
+being kept by none, `exhaustive: false`, EP-02/L42f) and by state, a single choice (`is_active`) —
+all, the active ones only, the deactivated ones only —, which says what the grid shows: the page
+always asks for the deactivated ones too (`include_inactive=true`, the contract hiding them by
+default), an address from before that hid them (`include_inactive=false`) reads as « Active
+accounts » (`readAccountState`), and any choice lifts that old parameter (`lifts` of
+`ChoiceFilter`) — and paginated by the server, under the names of the contract — a sort, a search
+or a filter bringing back to the first page —, the totals row saying how many the server keeps
+(`meta.total`), the screen filling the window; the search covers the surname, the first name, the
+address and the display name, regardless of case and accents, like every search of the contract.
+The access roles are on the dense grid too (#515), sorted on every column, searched and filtered by
+the server — their nature (`is_predefined`, `ChoiceFilter`), their holders between two inclusive
+bounds (`holder_count_min`, `holder_count_max`, `RangeFilter` of the `count` form, an integer from
+zero; a refused bound said at its field, the list not loaded) —, without pagination — §4.6.2 counts
+no role, three are predefined, and the contract does not paginate them —, and the permission matrix
+shows the roles the table keeps, in its order (US-0380) — one row per permission in the order of
+the catalogue, the consecutive permissions of the same second-level function, or of the same nature
+outside a function, grouped under a group header (`scope="rowgroup"`) that names the function —
+never by its FBS code, an internal key no screen shows (author's decision of 2026-10-08, #515) —,
+one column per role, granted or not said by a word; the state of the system; the backups and their
+schedule, whose commands are wired to the contract (EP-02/L43c, below). The tables of the accounts
+and of the roles end on their audit columns (#936, `audit-columns.tsx`): « Created », « Created
+by », « Last modified », « Last modified by », each sorted by the server under the name of its field
+(`created_at`, `created_by`…), an instant in local time (`LocalTime`), an author by the name the
+row keeps of the account — deactivated since, still named; anonymised, the neutral label — or the
+platform by its own label (`ActorCell`). Each can be filtered (`audit-address.ts`,
+`audit-filters.tsx`): a period of local days per date column (`PeriodFilter` of the `day` form,
+under `created_at_from` and `created_at_to`, `updated_at_from` and `updated_at_to`), a refused end
+said at its field, the list not loaded; an author per author column (`AuthorFilter`), a single
+choice that writes an account (`created_by_user_id`) or a kind of author — any account whatsoever,
+or the platform (`created_by_kind`) —, each choice lifting the parameter of the others (`name` of a
+`Choice` of `ChoiceFilter`). The contract has no list of the authors: the roles offer those of the
+unfiltered list, loaded again separately when the grid restricts it; the accounts, those of the
+page shown, and those that a search of the accounts finds (`findAccounts`, `listUsers` searched,
+twenty at most). These filters are kept with the settings of the two grids, like the others. The
+search and the filters of the roles table are kept with the settings of its grid
+(`GridConfig.filters`, `kept-filters.ts`, under `filters` of `GridPreferences`, as the address
+writes them): saved as soon as the page shows others than those kept — a lifted loading included —,
+and found again only on an address that says nothing of the grid, neither sort, nor search, nor
+filter, which the page, on the server and before any loading, redirects to the one of the kept
+filters (`restoredAddress`, `kept-address.ts`), as it takes the kept sort when the address says
+nothing of it — wherever one comes from, the link of the sidebar followed from the screen included.
+Lifting the last filter is said in the address, the search written empty (`search=`, `spokenHref`,
+which the `PendingAddress` of a screen that names what its grid keeps sets), as a lifted sort
+writes `sort_by` empty: the preference empties, and the page does not find the kept filters again
+(#836). The roles screen is wired to the service (US-0380/L2, #380): to a session that carries
+`access_roles.write`, the table creates a role inline, by its label alone (`role-commands.tsx`),
+renames it in its cell — the grid's input, written by `updateAccessRole` with the permissions of
+the role — and deletes it from its row, after a confirmation that names the role and says the
+deletion is definitive (`AlertDialog`, outside the grid, Escape abandoning it) — a logical deletion
+(#456), which nothing restores, a predefined role included —, unavailable, `aria-disabled` and
+described by its condition, as long as an account carries the role (`ACCESS_ROLE_IN_USE`,
+WF-ADM-0090); the matrix is the place where permissions are changed, one checkbox per permission
+and per role (`permission-matrix.tsx`), which writes the whole role, its permissions in the order of
+the catalogue, the other boxes of the role waiting for the answer. The table and the matrix read a
+single source of the most recently answered role by its `lock_version` (`RoleAnswers`,
+`role-answers.tsx`): a rename then a box ticked before the reload, or the reverse, starts from the
+answered version, and a reload older than the answer does not undo it; the header of the column of
+a renamed role and the name of each of its boxes take the answered label too (`RoleLabel`,
+`PermissionCell`), without waiting for the reload (#976). What a command of the table does is said
+in its region, named « Commands of the access roles »; a refusal, by the catalogue of error codes
+above the table or the matrix, on the loading it started from (`Reactivations`) — the last
+administrator (`LAST_ADMINISTRATOR`), the stale version with the offer to reload —, the focus given
+back, the refusal closed, to the box that wrote; a label refused by the server, or blank, refused
+outright like the grid's input (`parsedEntry`), is said at its field; every answered write reloads
+the page. For the accounts (US-0360, #379), the table is its own input, to a session that carries
+`users.write` (`platformOffer`): the surname and the first name of a local account in their cells
+(`updateUser`), those of a directory or provider account staying read-only (WF-ADM-0050); the state
+on a switch, its word beside it (`setUserActivation`); the roles in a multiple-choice list of the
+roles of the installation, whatever the attachment (`setUserAccessRoles`, `user-cells.tsx`) — each
+as the account lists its command (`User.available_commands`): an absent command is not presented,
+an unavailable one is, with its condition, and a click says it without launching it. Deactivating
+the last active account that carries the permissions to change the accounts and the roles is
+unavailable, `last_administrator` missing (WF-ADM-0120, #540) — the front could not find it on its
+own, the list being paginated; assigning its roles stays available, the server judging the roles
+sent, and refusing by `LAST_ADMINISTRATOR` those that would take these permissions away from it — a
+refusal said like any other. The password setup link of a local account
+(`createPasswordSetupLink`) is handed over in a dialog, whole and read-only, with the time at which
+it stops being valid, never loaded again; unavailable for a deactivated account
+(`is_active_account`), absent from an account that is not local or that is anonymised. « Create a
+local account », at the head of the table, opens the dialog of the surname, the first name and the
+address (`user-dialogs.tsx`): a blank field is refused at its field outright, an address already
+carried said at its field; when no invitation has left (`invitation_sent` false), the created
+account says so and offers its setup link at once (#816). The « Anonymisation » column carries the
+`anonymize` command of a deactivated account (`anonymizeUser`), after a confirmation that names the
+account and says the action is irreversible (`AlertDialog`, like the deletion of a role); an
+anonymised account is named by the neutral label of the catalogue, and its surname and first name
+cannot be entered, even if its origin is local (WF-ADM-0060). No deletion (WF-ADM-0060). As for the
+roles, a single source of the most recently answered account by its `lock_version`
+(`UserCommands`, `user-commands.tsx`): the next write of a row, whatever its cell, starts from its
+version. The writes of a row go one after the other: a name entered while another write of its row
+is under way waits for its answer and starts from the version it answered, and the switch, the
+roles and the anonymisation of the row mark themselves busy and unavailable (`aria-busy`,
+`aria-disabled`) as long as a write is under way there — the anonymisation also as long as a
+requested reactivation has not answered. What a write does — a rename included — is said in the
+« Commands of the accounts » region; a refusal of the switch, of the roles or of the anonymisation,
+above the table, on the loading it started from (`Reactivations`), that of a name, at its cell. The
+search and the filters are kept with the settings of the grid and found again when the address says
+nothing of the table (`USER_KEPT`), as for the roles. Without the permission, nothing is written
+and no command is presented. Above the table, the reading of the accounts of the identity provider
+(US-0370, WF-ADM-0070, `identity-sync.tsx`) shows the report of the last completed reading
+(`getLatestIdentitySync`), or says that none has succeeded yet (404): its accounts created,
+updated, deactivated, those whose identity it restored in the provider, the local accounts it
+removes from it, and, on request, what it left as is, each with the reason from the catalogue — an
+account named as it reads on consultation, under the neutral label if anonymised since
+(`useAccountNaming`, `AnonymizedName`); a person of the provider by their name and their identifier
+there (#918); the one whose address an account carries (`ALREADY_EXISTS`) by their identifier and
+that account, as it reads, or by their identifier alone when none carried it any more (#920). To a
+session that carries `users.write`, « Read the accounts » (`startIdentitySync`) hands back control
+as soon as the task is queued and entrusts it to the tracking, which announces it completed and
+offers to reload the screen, without ever reloading it on its own. A list the server paginates —
+accounts, backups — says how many it holds and leads to the neighbouring pages by `offset`
+(`ListPages`, for the accounts as for the backups), the other parameters of the address kept,
+without ever showing a page for the whole; it only says it is empty if it holds nothing
+(`meta.total`) and nothing restricts it, and a page requested beyond its end says so and brings
+back to the last one — a single rule for all paginated lists, `pageOffsets` of
+`frontend/src/navigation/pages.ts` (#317). The time of a scheduled backup is displayed as is, in
+UTC, as the contract gives it: a time of day has no date from which to derive the offset of a time
+zone with daylight saving. Its form enters it the same way, and says beside it the workstation time
+it gives in the week it is open — the time alone for a daily schedule, the local day too for a
+weekly one, which may be the day before or the day after the universal day (`localTimeOfDay` of
+`format.ts`, in the browser): nothing is converted on sending.
+
+### The backups screen
+
+The backups screen (FBS-1.4, `/admin/backups`, EP-02/L43c, #519, EP-14/L43f, EP-14/L43d) presents
+their schedule (`backup-schedule.tsx`) and a page of their list on the dense grid
+(`backup-columns.tsx`, `backup-grid.tsx`, preferences under the `backups` key): the date, in local
+time, the size, the verification, the trigger and the retention, in the order of the server, the
+totals row saying how many it keeps (`meta.total`). The server sorts every column in both
+directions (WF-IHM-0060), the most recent first when the address and the account say nothing, and
+the sort is never lifted, like the one of the log; it filters on every column (WF-IHM-0130,
+`backup-address.ts`), under the names of the contract: the period of the capture, two days of the
+reader turned into instants, `from` included and `to` excluded, like the home page (`PeriodFilter`,
+`day`); the trigger and the verification, by their values (`origins`, `verifications`,
+`ValuesFilter`); the retention, by a choice (`is_retained`, `ChoiceFilter`); the size, by its two
+bounds in bytes, inclusive (`size_bytes_min`, `size_bytes_max`, `RangeFilter`, kind `bytes`: an
+integer that has more digits than a count). A filtered list never says it is empty, and a bound
+that the server refuses (422) — an end before the start, a maximum below the minimum — leaves the
+list not loaded, the filters kept, the bound said at its field. « Back up now », in the head of the
+list, empty list included — a background task handed to the tracking with its command —, follows
+the `backups.write` permission (WF-ADM-0100, `platformOffer`); the other commands are those that
+each backup lists (`Backup.available_commands`, WF-IHM-0090, `backup-commands.tsx`), the front
+deducing nothing from the session nor from the state of the backup: « Keep » or « Stop keeping »,
+whichever of the two changes its marking, in the retention column; « Download » and « Restore »,
+each in its column as soon as a backup of the page lists it — the server lists the marking only
+under `backups.write`, the download only under `backups.read` and `backups.write` (author's decision
+of 2026-10-10, #705, which replaces the one of 2026-10-09, #588), the restoration only under
+`platform_restore` —, and none deletes. An absent command is not presented; an unavailable one is,
+`aria-disabled` and described by the condition it lacks (`enums.CommandCondition`) —
+`backup_verified` for the download and the restoration of an unverified backup,
+`no_backup_running` for the restoration while a backup is running, `no_restore_running` for the
+marking and the restoration while a restoration is running —, and a click says it in the head of
+the list without asking anything, like the activations of the reference data. The head of the list
+says what the last command did as soon as a command is offered. A backup having no counter, the
+answer of a marking stays shown as long as each reload reads the backup as the previous one; a
+reload that changed it wins for good, and an unmarking by a third party that the reload does not
+show stays invisible (#588). The download is a link to the route
+`/admin/backups/[backupId]/content`, which relays `downloadBackup` as a stream like the result of a
+task (`src/api/relay.ts`, common to both routes): bytes, the only type the contract declares, under
+the name the API gives (`Content-Disposition`, which the contract requires: `waterfall-backup-`,
+the instant of the backup and the extension of its archive), with its length when the body arrives
+without `Content-Encoding` — any other type, or a file without a name, returns the error of a bad
+gateway (502). A refusal — 403, 404 without distinction (WF-ADM-0110), 409 of an unverified backup,
+502, the API unreachable — sends back to the backups screen, its page and its filters kept, the
+address naming the backup and the refusal (`refused_backup`, `refusal`, the parameter names of
+`result-refusal.ts`): the screen says it above the list until its notice is closed — the download
+named, the backup by its date when the page carries it —, and the notice, rendered with the page,
+takes the focus on mount, without which no screen reader would announce it; the address is
+rendered without the refusal once the page is revealed (`afterReveal`), the notice closed or not.
+« Restore » opens a dialog (`restore-dialog.tsx`) that states the date of the backup and its
+verification, the loss without return of what has been entered since, the disconnection of the
+users and the entry in the audit log (WF-ADM-0160, WF-SEC-0030); the button is only enabled once
+the identifier of the backup is entered, regardless of case, and the request states the date said
+(`acknowledged_backup_taken_at`). During the request, neither Escape, nor a click outside, nor
+« Cancel » close the dialog: a refusal is said there — a state that forbids it (409), the condition
+named like any refusal; a confirmed date that is not the one of the backup (400,
+`CONFIRMATION_REQUIRED`, EP-03/US-0440/L2), said at the date the dialog states, the list loaded no
+longer being the one of the backup, and the page reloaded —, and nothing leaves that one believes
+abandoned. Once queued, the restoration gives way to the screen of its maintenance
+(`restoration.tsx`, `maintenance.tsx`, US-0440), which follows its task as long as the platform
+serves, then the liveness probe, and says the disconnection of the users, then the end; the
+tracking of the shell does not receive it: a restoration is only relaunched from this confirmation.
+The refusal of a command of the list is said above it (`Reactivations`), the condition named for a
+409; the screen says that the fake back keeps nothing (`MockupNotice`) as soon as a command is
+offered. The restoration from a file goes through the chunked upload of EP-03 (#350,
+`completeChunkedUpload`), offered to whoever carries `platform_restore` under the list, whose date
+read in the manifest is the one the confirmation names: the same dialog, the identifier of the
+upload entered, its verification said pending — its restoration does it (EP-14/L42o). The schedule
+and the external locations, which the service does not serve yet (404), are left aside without
+taking the list down.
+
+The schedule is changed, to a session that carries `backups.write` (`platformOffer`), in the form
+of the reference data (`ReferenceForm`), which sends it back **whole** from the version it opened on
+(`setBackupSchedule` is a `PUT`): enabled or suspended, the frequency and the time in UTC (a `time`
+field: a half-entered time, which its field renders empty, `validity.badInput`, is refused before
+any call by the sentence proper to its field, `invalid`, never sent as « no time ») — required of
+an enabled schedule only, the contract not requiring them of a suspended one —, the day — required
+of a weekly schedule, null for a daily one —, the number of backups retained, an integer whose
+bounds the server judges, sign included; a field required according to the draft says so
+(`required` of a `FormField`, a function of the draft, which also gives `aria-required`, #678);
+then the external copy, offered when the installation declares a location or when the schedule
+sets one: the location, chosen among those the page reads for this session only
+(`listExternalBackupLocations`) by its name and its nature, its description under the field, never
+a secret nor an address — a set location that the installation no longer declares stays offered by
+its name, refused at the field before sending (`UNKNOWN_EXTERNAL_BACKUP_LOCATION`) rather than
+removed silently —, « No copy » removing it; the relative folder; the number of copies, at least
+that of the backups retained (WF-EXP-0050), checked before sending and said at the field with that
+minimum, as the server would say it — for a retention within its bounds, from 1 to 365
+(`RETENTION`), the rest falling back to the server, which then gives the minimum of copies as 1 —;
+the copy enabled or suspended.
+The rules between fields go through the `rules` of the form, a note that follows the input by a
+function of the draft (`note`), and what follows the fields without being one through `after`:
+« Test the location » (`testExternalBackupLocation`), offered for a location that the installation
+declares, which says the location tested, the instant of the test in local time, the folder or the
+root, and the success or the reason of the failure (`enums.ExternalBackupFailure`) in an announced
+region; a refused folder (422, `/path`) is said under the button by the sentence of its own code;
+only the answer of the last test requested is said, as long as the folder entered is the one it
+tested, and another location chosen drops the test under way. The answer of a save replaces the
+schedule displayed as long as its `lock_version` is more recent than the loading, the page
+reloaded, and only closes the open dialog it started from (a counter of openings, like the settings
+of the reference data), the command waiting, inactive, for the answer of a write of a closed dialog
+(#661, #678); a refusal per field (422: unknown location, invalid path, retention too short) is
+said at the field, any other under the form, the stale version (412) with the offer to reload.
+
+### The audit log
+
+The audit log (FBS-1.5, WF-SEC-0030, `/admin/audit-log`, `frontend/src/components/audit/`,
+#517) is an administration screen of its own; the « Last operations » table of the state of the
+system, three facts of the platform (WF-ADM-0130), stays as it is. It is a read-only function,
+which only has its permission to consult (WF-ADM-0100): `FunctionPermission` names every function
+by its permission to consult, and `WritableFunction` those that also have the permission to
+change, the only ones `platformOffer` accepts. The screen is guarded by `audit_log.read`, not found
+without it like an address that leads nowhere (WF-ADM-0110). It presents a page of the entries of
+`listAuditEvents` on the dense grid, read-only (`audit-columns.tsx`, preferences under the
+`audit_log` key): the date, in local time, the author, the action and, under it, what it did to its
+object — composed by the front in the language of the reader from the codes and the parameters the
+entry keeps (`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110);
+a second line of the action cell, which sorts by the code of the action, never a column of its own,
+which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a backup,
+which has none, by its nature, never by its identifier —, the project and the correlation, each as
+the entry keeps it, and a link to the history of the object — the log filtered on its nature and
+its identifier, its whole history: the other filters and the search lifted, the sort kept —, the
+correlation leading likewise to the entries of its request alone. The server sorts on every column
+(#550), in both directions. The most recent first when the address says nothing, and the sort is
+never lifted (`GridConfig.lifts`): the header of the date asks for descending first
+(`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
+object only leads to its own screen if the session reads its function — the risks, the planning
+whose exchanges are a sheet, the revisions —, otherwise to its revision, which leads to the first
+readable function, and to nothing without a revision function to read (`auditReach`). The entered
+correlation only leaves in the form the contract accepts (`pattern` of the field, which the browser
+says). The search of the grid covers the label of the object (`search`). The filters only write the
+address, under the names of the contract, and bring back to the first page (`audit-filters.tsx`):
+the period, two instants entered in local time and sent in universal time — only the browser knows
+its time zone, so that the fields show those of the address once the page is hydrated; a bound left
+as is leaves again as the address names it, and an input is dated by the period of the address, the
+form never remounted —, the nature of the author (`ValuesFilter`), the author and the project among
+those the whole log names (`listAuditFacets`, which the mere consultation of the log reads: an
+auditor without `users.read` filters by author) — without an author to choose nor an author chosen,
+the author filter is not offered —, the actions in a menu, the nature of the object, the object
+whose history the address asks for, named and lifted, and the correlation, entered (`TextFilter`);
+an author or a project the address names without any choice offering it stays chosen under the
+name the entries give it. The project and the object are links where the session can consult
+them — a project it can open (`listProjects`, all states; none when the API does not find the list
+of projects, which the service only serves from EP-04 on, a tolerance of the 404 that #962 then
+removes) —: the project, a revision of such a project, and an object that lives in a revision,
+towards its own screen in the one the entry names (`AuditObject.revision`) — a risk towards the
+risks of the revision, its detail open (`risk`), the import of a planning, of an estimate or of a
+remaining to commit towards its exchanges, its report shown (`import`), the differential of an
+amendment towards the cost structures of the revisions screen read in it (`revision_id`); an actual
+cost line and the import of the actual costs live in no revision, and an account, a role or a
+backup have no screen of their own: their name stays alone. A period the API refuses (422, the end
+designated out of its bounds) is said in place of the entries, the filters kept, and any other
+refusal of the filters by its envelope (`problemMessage`); no command is offered.
+
+### The imports and exports screen
+
+The imports and exports screen, `…/revisions/[r]/exchanges` (`frontend/src/components/exchanges/`,
+US-0260), is the FBS-4.3.4 sheet of the planning, whose header leads to it in the same context,
+like the one of the actual costs screen; an import nevertheless applies to the current revision,
+created if needed (WF-INTF-0090), whatever the revision read. An import is done in two steps
+(WF-ARC-0100): the command of its nature opens in the page the choice of the file — and, for an
+extraction of actual costs, the period it covers —, which a server action uploads for an import
+(`uploadFile`, `purpose: import`) then analyses (`openImport`); a file of more than 10 MiB, the
+bound the contract gives to the upload of an import, is refused in the page, and the bound of
+Next's server actions is set a little above (`next.config.ts`). The task of the analysis goes to
+the tracking of the shell, and the address names the import (`import`, an identifier or nothing),
+whose report the page reads (`getImport`) — lines read, reasons for confirmation, lines rejected by
+their place — their tab when the file has some, and their rank — and their reason, rendered like a
+refusal from its code and its parameters (`problemMessage`), differences with the fields they
+change, named by the catalogue of their columns (`NodeColumn`, `ActualCostColumn`), tasks that the
+file dates otherwise than Waterfall recomputes them (`date_mismatches`, WF-INTF-0040) —, in the
+order received. The commands of a report are its own: another import shown replaces them. The
+application is only offered to an analysed import, and only leaves once confirmed in the page; its
+task goes to the tracking. Abandoning brings back to the starting address, if the screen still
+shows that import. The report also names what the import ignores (`report.ignored`), the columns
+of an extraction of actual costs by their heading as the file carries it. Each import is offered as
+the project offers its command (`importOffers`): `import_planning`, `import_estimate`,
+`import_remaining`, `import_actual_costs`, with or without a current revision — without it, whoever
+cannot create the revision sees the import unavailable, `may_create_revision` named. The one of
+the actual costs, unavailable for lack of a mapping (`actual_cost_mapping_complete`), says in
+addition the required columns without a heading and leads to the page of the mapping (FBS-3.1.3):
+the columns come from `getActualCostMapping`, which the page reads (`readMappingGap`) for whoever
+carries `cost_settings.read`, the others reading the condition alone. The refusals of
+`openImport` — the 409 that names the columns (`columns`), the 422 `FILE_FORMAT_UNREADABLE` that
+names each absent column with its headings (`missing_columns`) — are said by `problemMessage`. A
+project without a revision, which no revision address reaches, offers the same imports on its own
+screen (`ImportPart`), and shows there the report of the import its address names (#332). The
+screen is guarded by the commands it exercises, and not by the mere reading of the planning (#521):
+it shows itself to a session that reads the planning, of which it is the sheet, or to which the
+project lists an import (`listsAnImport`) — an estimator, whom the estimate and the remaining to
+commit lead there when the project lists their import, available or not, the screen then
+presenting it with its conditions (`ExchangesLink`, WF-IHM-0090); it is not found for anyone else.
+The list of the imports, paginated by the server (`offset`, `ListPages` of
+`components/grid/list-pages.tsx`), leads to the report of each; the export request only offers the
+natures that the revision read offers to export (`exportOffers`, `export_*`) — an export, guarded
+by the permission to consult its nature, is present or absent —, and leaves for that revision — the
+image of the tree at the requested level —, and the tracking only offers to download the result of
+a successful export (`givesFile` of `tracking.ts`), the one of the other tasks being read on their
+screen: Next's server reads it (`getBackgroundTaskResult`) and forwards it as a stream, without
+holding it whole in memory and outside the queue of the server actions, to the route
+`/tasks/[taskId]/result`, which the browser follows like a link, without `download`: a type the
+contract declares for its nature, and the attachment named with the base name the contract promises
+(`Content-Disposition`, `attachmentName`), without its length, which `fetch` has decoded, and which
+nothing keeps in cache (`private, no-store`). What the route does not forward — a refusal of the
+API, including the result expired or not ready yet (409), the API unreachable, an answer that does
+not name the file or whose type is not declared, the unexpected error of a bad gateway (502) —
+sends the browser back, by a relative address, to the screen it was leaving from (`from`), the
+address naming the task and the refusal (`refused_task`, `refusal`, `result-refusal.ts`): the
+tracking reloads the task, follows it and says the refusal in its entry (`OutcomeNotice`) — or, the
+task unreadable, in a notice of its panel —, and removes it from the address once the page is
+revealed, Next's router rendering afresh a page whose address changes (#416).
+
+The page of a project proposes to start its planning through the « Start the project » insert
+(`ProjectStart`, `components/projects/project-start.tsx`, US-0490) as long as the main structure of
+the current revision has no task. The condition is read at the server (`startOffers`,
+`start-offers.ts`): the current revision lists `generate_skeleton` — the caller may change the
+planning — without lacking `main_structure_without_tasks`; the front deduces nothing else from it.
+The page takes it from the list of its revisions, each element of which is a whole revision,
+without reloading it. What the generation produces (a summary per lot and per workstation, their
+end milestones) is the back's business: the front sends the command and leads to the grid, and the
+criterion of `WF-PRJ-0030-A` on the result goes to the test of the back, not to the insert.
+« Automatic planning from the work breakdown » leads to the work breakdown
+(`settings?start=skeleton`), where « Generate the planning » (`GeneratePlanning`) calls
+`generatePlanningSkeleton`, reloads the page after the generation as after a 409 (#819.5, #819.6)
+and leads to the grid. « Import an MS Project file » opens the drop zone (`FileDrop`,
+`components/exchanges/file-drop.tsx`): a button that opens the picker, the zone named and
+described, the type (`.xml`) and the size checked before sending; it sends like the form of the
+imports screen (`useOpenImport`, `open-import.ts`), the report displaying on the page, and the
+confirmed application leads to the grid. « Later » folds the insert for the session of the tab
+(`start-fold.ts`, `sessionStorage`); a button reopens it. The fake back, stateless, serves the
+witness a structure of a thousand tasks: the insert never appears there, and the two end-to-end
+paths (work breakdown then generation; upload then report) are only played in the tests of the
+components, against the examples of the contract (`project-start.dom.test.tsx`, #1350).
+
+### The portfolio screens
+
+The portfolio screens, `/portfolio/…` (`frontend/src/components/portfolio/`, FBS-2), are outside
+the project: each reads its view on the perimeter of the address, under the names of the
+contract — the states kept (`states`), the period (`from`, `to`), the calculation date (`as_of`)
+and the organisation node (`org_node_id`), which also keeps its descendants, offered in the order
+of the tree that `listOrgNodes` returns, each node indented by its depth (`treeLabel`, like the
+filter of the workload plan of a project) —, of that perimeter what the operation takes
+(`perimeterQuery`, `Takes`). A state shows pressed as the address asks, or, when it names none, as
+the server kept them (`scope.states`): the front assumes no default. Under the title, the perimeter
+the server kept and the calculation date of the view, `scope.as_of` (`PortfolioHeader`), which all
+its figures carry, and the node kept, named by the server (`scope.org_node_label`). A period the
+server refuses — an end that precedes the start, `PortfolioPeriodRefused`, EP-02/L42f — is said at
+the field of the end, the start named, as the actual costs say it (`usePeriodProblem`) — a single
+bound completing itself with the default period, a start later than the completed end is said at
+the field of the start, the end named (`params.maximum`) —; the view is not loaded, its title stays
+without a kept perimeter and a sentence takes its place (`RefusedView` of
+`frontend/src/app/portfolio/refused.tsx`); its states are pressed as the address names them, and,
+without a named state, the filter of the states is not offered, nothing saying what the server
+would keep. The aggregated workload plan and the project control health, on which a completed
+project has no effect (G-05), say so by a note of the perimeter (`completedWithoutEffect` of
+`PerimeterBar`) as soon as the server keeps `completed`, read from `scope.states` and never from
+the address (US-0703/L9). The list of projects (FBS-2.1) is one more configuration of the dense grid, sorted,
+searched and paginated by the server, its totals row the number of projects kept (`meta.total`),
+under the value of the portfolio. The six other views (FBS-2.2 to FBS-2.7) show what the server
+computes: the aggregated workload plan and the disbursements take in addition the horizon
+(`horizon_months`) and, for the first, the under-load threshold (`under_load_threshold`),
+parameters of the view and not preferences (WF-PTF-0060): the menu proposes a few values, but any
+value of the address that the contract takes — a horizon from 1 to 240 months, a threshold in
+`Percent` — is sent and shows as chosen; without a threshold in the address, the menu shows the one
+the server kept (`under_load_threshold` of the answer), like the states; the columns of the
+workload plan are the months of the answer (`months`), which each role carries in the same order.
+A health signal says what it names (`params`: the weeks without a review, the milestone overrun and
+its reference date), like an alert of the state of the system the unavailable component. Each
+named project — label of the list, heaviest risk, health signal — opens the project (WF-PTF-0030).
+The zones of index, of load and of health are those of the server, by `Signal`; the quarterly
+evolution of the indices, the S-curve and the disbursements are figures of `Chart`, exported as PNG
+with the provenance of their view (`usePortfolioExport`): the perimeter the server kept — states,
+number of projects, period, organisation node — and its calculation date, `scope.as_of`, the very
+sentence of the header (#312).
+
+### Grids: pasting a block from a spreadsheet
+
+A block copied from a spreadsheet is pasted on the active cell, in two steps (WF-IHM-0050,
+`paste.ts`): the block is read at the `paste` event, listened to on the document — the browser
+targets it where a click left the cursor, the cell is the one that has the focus in the grid, and
+an input under way keeps the paste for its field —, never by `navigator.clipboard`, which asks for
+a permission; as tab-separated values, a cell between quotes keeping its tabs and its line endings
+(`readBlock`). The server fills, from the targeted column, the columns of the facet of the targeted
+node in the order of `NodeColumn`, without knowing those the grid shows (#200): the front therefore
+measures the block on those columns (`GridPaste.span`, `pasteSpan`, #223), and refuses at once,
+without asking anything, a block wider than them from the cell — as the server would refuse it
+(`PASTE_TOO_WIDE`) — and a block whose span, from the targeted column to the last column filled in
+that order, reaches a column the grid does not show, hidden or absent from its configuration,
+which it names — by its header, or by its label from the catalogue (`enums.NodeColumn`); it
+likewise refuses a block one of whose rows would not fall on the one the server writes: the server
+fills the rows of the plan under the targeted row, which the grid knows by their number in the
+whole structure (`row_number`), not the rows displayed after it. A single guard compares, from the
+target to the last row of the block, the number of each displayed row to the one it would have in
+the order of the plan (on a differential, the server skips the nodes the amendment removes and
+fills the next ones: the guard counts neither their rank nor their row, like the preview, #1278) —
+a grid that pastes reads all the kinds of node, and its numbers follow one another —; folded
+(`fold.tsx`), moved by a sort, hidden by the search or a filter, or beyond the last row shown, the
+cause said is the one the user lifts first (L40, #527). Otherwise `previewPaste` returns the plan,
+which a shadcn dialog box shows (`PasteDialog`, `ui/dialog.tsx`), in a single announced region —
+how many rows will be written, each refused row by its place in the block, its cells as copied and
+its reason, a row refused for several cells counted once —, and `applyPaste` applies it on
+confirmation, in a single operation: the valid rows are written, the refused rows are not
+(WF-IHM-0050, EP-14/L42q). A plan that refuses rows and writes others says so, and is confirmed; a
+plan that writes no row only offers abandoning. The confirmation waits for any other write of the
+grid under way — an entered cell, a gesture — and the reload that follows a gesture: it would carry
+the version of the structure that their answer is going to advance, and would be refused (412);
+« Apply the paste » stays offered, inactive, busy and described by the wait, until their answer
+(`busy` of `useGridPaste`, #1224). What the confirmation returns takes the place of what was loaded
+(`CellWrites.applied`), like the rows a choice of a cell's menu writes; a cell write that left
+before them and answered after is taken like any answer, the counter of the structure deciding
+which of the two a row shows (`answers.ts`, #202, #421), and only its refusal stays silent when
+they have written its row since. What the paste did not write (`PasteApplied.rejected`) — the
+refusals of the preview, and those the server adds by judging the accepted rows again, a category
+or a role deactivated in the meantime — is said above the grid with the cell from which the block
+was pasted and the number of rows written (`PasteAppliedNotice`), each refusal as in the preview,
+read in the answer and never in the plan, until the user closes the notice or pastes again; the
+refusals are there a named region, reachable by keyboard, whose height is bounded — they scroll,
+the grid stays in the window (defect no. 13), the sentence and the closing outside the scrolling —,
+outside the alert, which only says the cell, the number of rows written and that of the rows
+refused, « listed below » — a sentence of its own, the preview keeping its own —, and which
+describes it (#765). A paste written in full says nothing more than its grid. Escape abandons, an
+answer arrived after the abandon is ignored, and the focus returns to the cell. The front judges
+nothing of the content: the targeted column leaves under its column name of the contract
+(`NodeColumn`), whether the grid sorts it or not, and the confirmation carries the version of the
+structure loaded (`structureVersion`), the server refusing by 412 a plan judged on a structure that
+has changed since the preview (#200, #201). The fake back only serves the first example of each
+operation, the plan that refuses nothing: the partial paste is only tested by the tests of the grid
+(`paste-applied.dom.test.tsx`, `paste-dialog.dom.test.tsx`), and the real height of the notice will
+only be proved in a path. A grid without `paste` in its configuration, read-only, takes no paste.
+
+### Grids: undo and redo
+
+Undo and Redo are placed, not wired (WF-IHM-0110, US-0140, `undo-commands.tsx`): every grid whose
+loaded structure lists its `edit_*` command as available places them (`undoable` of `DenseGrid`) —
+the estimate by `edit_estimate`, the planning by `edit_planning`, the remaining to commit by
+`edit_remaining` (#115); no grid outside a current revision places them: neither the marking, nor
+an applied import, nor the exclusion of a cost line can be undone. Such a grid shows them as
+buttons in its bar and in the context menu of its cells (right click, Shift+F10, Menu key —
+`CellMenu`, without one more tab stop), with their shortcuts, and takes Ctrl+Z and Ctrl+Shift+Z —
+Cmd on a Mac — in the grid or its bar, outside a menu or a box it opens. Unavailable as long as the
+server does not keep the history of the inputs, they stay reachable by keyboard, `aria-disabled`,
+described by their reason; the shortcut says it in an announced region. A field being entered — the
+editor of a cell, the search — keeps Ctrl+Z for itself: the browser's undo stays there. EP-06 wires
+them to `undoLastChange` and `redoLastUndo`, an undo carried by the server, never a stack in the
+browser; their refusal will be said like any refusal, its condition named by the catalogue — the
+one of an undo that would bring back a subproject deleted since, `restored_subproject_exists`, is
+already there (EP-14/L42p).
+
+### Grids: creating and deleting tasks and lines
+
+A grid takes input, and offers its structure gestures, according to the command of the structure
+it reads (`CostStructure.available_commands`, WF-IHM-0090): `readGridScreen` returns those that are
+available (`commands`), the planning reads `edit_planning`, the estimate `edit_estimate`, the
+remaining to commit `edit_remaining`. The front never deduces the phase of the project: on the main
+structure of an In progress project the estimate is read-only, the remaining to commit is before
+(WF-DEV-0050, WF-RAE-0040). The gestures — « Insert below », « Insert a sub-task », « Insert a
+line », « Indent », « Outdent », « Move up », « Move down », « Delete » — are in the context menu of
+the cells and on the keys Insert, Alt+Insert, Ctrl+Insert, Alt+Shift+→, Alt+Shift+←, Alt+Shift+↑,
+Alt+Shift+↓ and Ctrl+Delete (`structure-gestures.tsx`, pure rules in `structure-rules.ts`); the
+bar, held on one line, only offers the first task of a grid without a row. A creation goes through
+a dialog that names it, and names the row under which it acts (label; for a line, category and
+quantity, which the contract requires), `createNode` and `deleteNode` are the actions of
+`src/api/actions/nodes.ts`. A creation designates its place by the node it follows among its
+siblings (`after_node_id`), never by a rank that a filtered grid could not count: the active row
+for « Insert below » and for a line under a line; without it, a sub-task goes after the last
+sub-task, a line under a task after its last line, the lines of a task always preceding its
+sub-tasks (#1183, #1187).
+
+The number cell of each row is its handle (`row-selection.tsx`), in a grid whose screen moves rows
+(`RowCommands.drag`): named by the number of its row, described by the way to select and to move,
+it is traversed with the arrows like the other cells. A click selects it alone, Shift and a click
+extend the selection from its anchor; by keyboard, on the column of the handles, Space selects,
+Shift+↑ and Shift+↓ extend the selection with the active cell, Escape lifts it. The selection is
+made of contiguous rows, kept by their identity: a reload that moves them keeps them selected, and
+the active cell follows them; a reload that no longer shows one of its ends — a filter, a folding —
+lifts it. Folding a row that carries an end of the selection, its parent for instance, therefore
+lifts it, without saying so; folding rows under the selection, its ends staying shown, keeps it.
+The active cell also follows the row a gesture moved, selected or not (`RowCommands.moved`), at the
+arrival of the reload, which gives it back the focus if it was in the grid. Each row says whether
+it is selected (`aria-selected`), the grid that it takes several (`aria-multiselectable`), a status
+how many — the rows shown: the subordinates folded under a selected summary follow it without being
+counted. A selected computed cell keeps its shade. A move gesture bears on the selection when the
+row it starts from belongs to it, on that row alone otherwise, and on the nodes that carry the
+others (`topsOf`): a summary takes its subordinates along. Deletion only bears on a single row.
+
+« Indent » places the tasks under the one that precedes the first among its siblings, in last
+place (`after_node_id` absent); « Outdent » places them after their parent, under the parent of the
+latter (`after_node_id` = the former parent); « Move down » places them after the sibling of their
+kind that follows the last, and « Move up » places the sibling that precedes the first after the
+last — the same order, without relying on a row the grid does not show. The rows the grid shows are
+not always the tree: a search, a filter, the remaining to commit, which by default only reads the
+started tasks, or the planning, which reads no line, leave some out. A move is therefore only
+offered, in the menu as on the key, if the moved nodes are siblings from rank to rank, of the same
+kind, and the neighbour it relies on is rendered: its rank (`Node.position`, from 1, the lines of
+a task counting before its sub-tasks) is that of the first minus one, or of the last plus one;
+« Indent » is not offered under a milestone, nor under a line. « Outdent » depends on no hidden
+row, the place being that of the parent (`parent_id`, `node_id`), but is not offered if the grid
+does not show that parent, nor at the root. Alt+Shift and an arrow, where the move is not offered,
+are taken without effect: the active cell does not move (AltGr, which is Ctrl and Alt, stays with
+the grid). A write under way — a gesture, an entered cell, an applied paste, any write of the grid
+(author's decision of 2026-10-21, #1224) —, then the reload that follows a gesture, hold back the
+gestures and the confirmation of a paste, the grid saying it is busy (`aria-busy`): the next one
+starts from the neighbours the reload rendered, never from those of before with a version already
+advanced. The grid says its own writes to the commands of its screen (`RowCommands.writing`), which
+count them with their own (`useStructureVersion`), each for the structure where it left: an answer
+arrived when the grid shows another does not advance its version and does not reload it.
+
+The handle drags the selection — or its single row, which does not belong to one — beside another
+row: before it or after it, at its level, by the top or bottom quarter of the row, or under it, in
+last place of its kind, by its middle; between two rows, it is before the lower one, and at the
+bottom of the last row of the grid, after it. The active cell follows the first of the dragged rows
+(`RowCommands.moved`); when the reload does not show it — dragged under a folded summary, or out of
+a filter —, the active cell stays at its index and the focus comes back to it, as after a deletion,
+instead of falling on the page; that focus is only given to a cell of the grid, never to an element
+outside it. A line is dragged under a task that carries lines, a task under a task that is not a
+milestone. Before a row, the place is the one that follows the sibling of rank minus one, rendered,
+or the head (`after_node_id` null) at rank 1: the planning, which reads no line, therefore offers
+no drop before the first sub-task of a task that carries lines, its sibling of rank minus one being
+a line it does not render; dragging it under the task puts it in last place. The indicator — a
+stroke between the rows, or the greyed row — only appears where the drop is accepted (`dropOf`):
+never among the dragged rows nor under them, nor beside a row of another kind, nor as long as the
+grid is busy (`RowCommands.busy`, which `drag` requires). The drag only carries its type
+(`application/x-waterfall-rows`): a drop come from elsewhere, a text for instance, moves nothing.
+The drag has its keyboard equivalent, Alt+Shift and the arrows on the selection; but a distant
+place, or a selection that is not made of siblings, require several gestures there, where a single
+drop is enough.
+
+`moveNodes` is called for the list of the nodes in the order of the grid. The version of the
+structure it carries is that of a single tracking per grid (`useStructureVersion`,
+`structure-version.ts`): the highest between that of the page and those the writes returned
+(`NodesWritten.structure_lock_version`), entered cell, creation, move, deletion or paste, because
+the contract advances `CostStructure.lock_version` at every write of the tree. That tracking holds
+the version and the writes under way per structure: what an answer applies — the version it
+reached, the row the active cell follows, the reload — is applied for the structure where it was
+sent, and nothing is reloaded for it once the grid shows another (defect no. 1). A refusal per
+field is said by the reason of the field (`byField`), for every write of the hook — creation, move
+and `deleteNode`, for which the contract cites no field, its refusal then being said by its code —,
+like that of a cell; `NODE_NOT_SIBLING`, which comes from a stale loading, reloads the grid in
+addition, the focus given back to the grid if the reload removes the cell that had it. The deletion
+of a summary is confirmed, that of a leaf or a line is not, and the focus then returns to the
+active cell of the grid. The grid is reloaded after a write, the server's loading being
+authoritative for the numbers and the levels (#1160), and the version the structure reached is said
+to the grid, which the next paste carries. The task gestures of the estimate require
+`edit_planning` (`tasksEditable` of `estimate-grid.tsx`) in addition to `edit_estimate`: creating
+or deleting a task writes the planning, and an estimator who can only enter the estimate does not
+create one. A refusal — a finished task, for instance — is said above the grid naming the row at
+issue, whose label is marked and described by it; that of a creation without a row (the first task
+of an empty grid) names the attempted task. Success is said by `useSaid` and refusal by
+`OutcomeNotice`, both noted in the message history.
+
+The context menu of the cells offers two more submenus (`choice-menu.tsx`, pure rules in
+`row-choices.ts`, US-0480). « Timelines »: a box per timeline of the project (`listTimelines`),
+ticked when the task is entered in it, and « Time/time tracking » for a milestone; the task offers
+it when it names `task.tracking` in its `editable_fields`. « Subproject »: radio buttons, « No
+subproject » and each subproject of the project (`listSubprojects`), named by its code and its
+label — the code alone is unique within a project —, the one of the line ticked; the line offers it
+when it names `estimate_line.subproject_id`, which neither a provision line does, nor the one of a
+started task whose subproject has received actual costs (`SUBPROJECT_HAS_ACTUAL_COSTS`): the front
+deduces none of these guards. In the estimate, the choice is made as long as the project is not In
+progress, in the remaining to commit afterwards, according to what the line names. A submenu
+applies to the selection, or to the single row: one call per row that names the field, with the
+version of that row — `setNodeTracking` with the complete list of its entries,
+`updateEstimateLine` with `subproject_id` —, in the order of the grid — without a write for a row
+already in the targeted state — and up to the first refusal, said for its row like that of a
+gesture: the rows written before it stay so, those after are not written. Each answer takes the
+place of the row loaded (`applied` of `RowCommands.menu`), then the grid is reloaded as after a
+gesture. A project without a timeline proposes « Create a timeline… » (`createTimeline`), named in
+a dialog, in which the tasks are entered, according to the `manage_timelines` offer of the project:
+absent, the entry is not presented; unavailable, it is, greyed with its condition. The
+« Timelines » column of the planning and « Subproject » of the estimate and of the remaining to
+commit are read-only and hidden (`GridColumn.hidden`) as long as the account has kept no list of
+hidden columns (`initialSettings`); it shows them through the choice of the columns.
+
+### Tree grids: folding and unfolding
+
+The tree grids — planning, estimate, remaining to commit — fold and unfold (WF-PLA-0080,
+WF-PLA-0090, EP-02/L40, `frontend/src/components/grid/fold.tsx`): a grid whose tree names the
+parent of each row (`GridTree.parent`, `parent_id` of `listNodes`) is a `treegrid`, each row
+carrying `aria-level`, `aria-posinset`, `aria-setsize` and, when the answer holds rows under it,
+`aria-expanded`. A folded row takes its subordinates out of the rows of the grid: the
+virtualisation no longer renders them, the keyboard no longer traverses them, and the Gantt, a
+column of the same grid, loses them with it; the active cell stays on its row, or moves to the one
+that carries it. The button of the label — or the one that precedes the bracket of a summary in the
+Gantt — folds or unfolds its row, outside the tab order; by keyboard, as in Microsoft Project, Alt
+and minus folds the row of the active cell — the one that carries it, from a row under which
+nothing folds —, Alt and plus unfolds it, Alt and * unfolds all, Shift or not according to what the
+keyboard layout requires to type the character, on the numeric keypad too; the character is the
+one the key typed, and, when it names no command, the one the key carries in the layout the browser
+says (`navigator.keyboard.getLayoutMap`) — never the mere place of the key, which carries another
+character on another layout. Ctrl and AltGr are excluded; Alt+Shift and the arrows move the tasks.
+These shortcuts are only accelerators: without `getLayoutMap`, under Safari and Firefox for Mac,
+Option and a key type another character, and they are not recognised. The context menu of the
+cells (Shift+F10, Menu key, right click), offered in every tree grid, Undo and Redo or not,
+replaces them everywhere: « Collapse the row » — « Collapse « label » », which names the row that
+carries it, from a row under which nothing folds —, « Expand the row » when it is folded, « Expand
+all », offered even outside a cell, so that the menu is never empty; the focus returns to the
+active cell. The keys are said by `aria-keyshortcuts` — Shift+F10 on each cell, those of the
+folding on the label of a row that folds, in the menu and in the bar —, as far as the browser
+recognises them (`useFoldReach`, read after hydration): all outside a Mac; on a Mac, Alt and minus,
+Alt and plus when `getLayoutMap` exists, none otherwise; Alt and * outside a Mac only. A pasted
+block that would extend, from the targeted row, over a folded row is refused without asking
+anything, like the one that reaches a hidden column. The « Tree » menu of the bar folds all,
+unfolds all, or folds down to a level. A search or a filter that keeps a folded row unfolds its
+ancestors, once for that search. The folded state is kept in the session storage of the tab
+(`sessionStorage`), per grid and per revision, without sending anything to the server: the server
+renders the tree unfolded, which the browser folds again once hydrated.
+
+### The commands
+
+A command is displayed by `Command` of `frontend/src/components/commands/` (WF-IHM-0090): absent
+when the object does not list it in `available_commands` — the server only puts there those the
+caller has the permission to exercise, and the front does not know which permission guards which
+command; the only exception, decided by the user on 2026-10-05, an import without a current
+revision that the caller could not create, listed unavailable, `may_create_revision` missing —,
+present and available, or present and unavailable, marked `aria-disabled` and described by the
+visible text of the conditions it lacks (`enums.CommandCondition.*`). `LifecycleCommands` renders,
+in the order of the server, the exits of the life cycle of a project — the other commands of the
+project belong to the forms of their domain, its modification to the one of its settings
+(`ProjectIdentity`) —, and `RevisionCommands` those of a revision, each according to its
+`is_available` and its conditions — a marked revision lists them unavailable, for lack of being
+under elaboration —, its exports left to the imports and exports screen, which offers them
+(`ExportForm`), its inputs (`edit_*`) to their grids and the skeleton to the empty planning grid
+(EP-14/L44d); `findOffer` draws a single one from it, and `UnmetConditions` names what the offer of
+a form that is not a `Command` lacks. Outside the project — accounts, roles, reference data,
+backup —, `platformOffer` follows the permission to change of a function of `platform` scope
+(`PlatformFunction`) in `Session.permissions`, or `project_create` for the creation of a project,
+which no project lists; the commands of a backup are those it lists (`Backup.available_commands`,
+EP-14/L43f), the download and the restoration included. Greying out is only a convenience: an
+available command launches its server action, and the server's refusal is said by
+`OutcomeNotice`.
+
+### The tooltips of the commands
+
+A button carries `CommandTooltip` (`frontend/src/components/commands/command-tooltip.tsx`, US-0580,
+#1071), never a `title=` attribute, which the browser shows late, without formatting nor dark theme,
+and never on keyboard focus. A link drawn as a button and a menu item carry it likewise. The
+tooltip says:
+
+- **the name** of the command, the one the control already carries;
+- **a help sentence**, the `help` prop, already translated: for a command, `commands.<commande>.help`,
+  in both languages, held by `make catalogs` and read by `t("commands.<commande>.help")`, which the
+  typing of the catalogue refuses for a command that has none (`CommandHelp` names those that have
+  one, for a table of commands); for the header of a column, its definition
+  (`columns.<grille>.<colonne>.help`); or a sentence with parameters (`helpValues`). `help` and
+  `unavailable` never take a literal (`make lint-front`);
+- **its keys**, in `<kbd>`, written according to the workstation — ⌘ on a Mac, Ctrl elsewhere —, each
+  key by its name from the catalogue (`commands.keys`, `commands.macKeys`). They have only one
+  source: the `keys` prop, written as `aria-keyshortcuts` names it (`"Control+Z Meta+Z"`), which
+  `CommandTooltip` sets on the control and shows at the same time (`shortcut.ts`);
+- **the missing condition**, for an unavailable command (WF-IHM-0090): `unavailable`, which marks
+  the control `aria-disabled` — never `disabled`, which would take it out of hover and keyboard. The
+  condition describes the control, tooltip closed as well as open: by the text that already says it
+  beside the command, which `describedBy` designates, or, the screen saying it nowhere else, by a
+  hidden text of `CommandTooltip` itself.
+
+A menu item is written by `MenuCommand` (`menu-command.tsx`), which takes the item
+(`item={ContextMenuItem}` or `DropdownMenuItem`), the name, the help, the keys, the condition, the
+icon and `onSelect`: the name is both the text of the item and that of the tooltip, and the keys
+are set on the item, shown at its end and in the tooltip, from a single input. An item that leads
+elsewhere takes `href` instead of `onSelect` — one or the other, never both —, and is rendered as a
+link; `detail` is a text the item says under its name, the condition a gesture of the Kanban lacks
+(#1435).
+
+The tooltip follows WCAG 1.4.13: it opens on hover, after a short rest, and on keyboard focus, at
+once — in a menu, after the same rest, so that Escape pressed at once closes the menu (`inMenu`,
+which `MenuCommand` sets); it closes by Escape without moving the focus — in a menu, the first
+Escape closes the tooltip, the second the menu —, and stays open as long as the pointer passes over
+it, even in a modal menu, which takes the pointer away from the rest of the page
+(`pointer-events-auto` of `TooltipContent`). Open, it also describes the control
+(`aria-describedby`) by its help sentence: it never carries alone what has to be known, the name
+remaining that of the control and the condition its description. The control is a single element,
+which receives the attributes and the events of the tooltip: it does not itself set
+`aria-keyshortcuts`, nor `aria-disabled`, nor `aria-describedby`, which `CommandTooltip` sets; it
+does nothing, pressed unavailable. The tooltips share a single `TooltipProvider`, at the root of
+the shell (`shell.tsx`): one closed, the next one the pointer reaches opens without waiting; each
+says its delay (`delayDuration` of `Tooltip`), and a tooltip rendered outside the shell, in the
+test of a component, brings its own.
+
+_Check_: `src/components/button-title-guard.test.ts` (`make test-front`) reads each component with
+TypeScript's parser and refuses a `title=` on a button — `<button>`, `Button`, `CellCommand`,
+`Command`, a switch, a menu item, checkbox or radio, or a trigger, an element of role `button`, a
+link drawn by `buttonVariants`, written in place or by a constant of the same file —, and a `title`
+passed by the destructuring of an object written or named in the file. Left to the review: classes
+or props imported from another module, the destructuring of the props a component receives
+(`{...props}`), and a component of ours that draws a button under another name. The object commands
+move to `CommandTooltip` with US-0580/L2 (#1137), and the guard no longer tolerates any `title=` on
+a button: `Command` and `ConfirmedCommand` take `help` (for an object command,
+`commands.project.<commande>.help` or `commands.revision.<commande>.help`, after the enumerations
+of the contract), `CellCommand` and `UnavailableCellCommand` take the name (`label`), `help` and
+the missing condition (`unavailable`), which `CommandTooltip` sets as `aria-disabled` and as
+description, without a hand-written hidden text. The header of a column carries its definition the
+same way (`GridColumn.help`, key `<grille>.<colonne>` of the `columns` catalogue, and `helpValues`
+for a sentence with parameters). The guard follows the bound names in the closest block of the
+button that binds them, no longer in the whole file. The submit and cancel buttons of a form or a
+dialog, whose label is the action, carry no help sentence. The tests of the component are in
+`command-tooltip.dom.test.tsx` (hover, focus, Escape in a menu, keys, condition, shared provider,
+axe); `help-keys.test.ts` fails for any `commands.*.help` key of the catalogue that no component
+reads, and `column-help.test.ts` for any column of the estimate, the planning, the remaining to
+commit or the risk register without a definition.
+
+### Online help
+
+Each screen the table of functions knows opens its help (WF-IHM-0140, US-0580): the « Help » button
+of its header (`PageHeader`) — a single icon, named, at most the height of a line of the title,
+which follows its last word in the same text flow: on the right, among the commands, it would
+shrink the title; an element of a row that wraps, it would take a line of its own under a title on
+two lines, the one of the remaining to commit at 1280 × 720; in both cases, the header would grow
+and push the totals of a grid out of a low window (`grid-frame.spec.ts`, `remaining.spec.ts`). It
+only wraps if the last line of the title is full, and it is then there without an indent: a space
+separates it from the title, not a margin —, or F1 anywhere on the screen, opens beside it a side
+panel (`shell/help-panel.tsx`, a `Sheet`) on the page of its FBS code — the one of the route the
+address follows (`helpCodeAt`, `src/help/help.ts`): a function, a sheet, the list of projects
+(FBS-4). A page is a Markdown file, `frontend/help/<language>/<code>.md`; a notion of the method,
+`frontend/help/<language>/notions/<notion>.md` — the same files, under the same names, in French and
+in English (US-0670b). The server reads them when the panel opens, in the language of the interface,
+through the `readHelp` action (`src/api/actions/help.ts`, `src/help/read.ts`, `server-only`), which
+names no file after the request without having checked the page against the codes of the table or
+the form of a notion name, and the language against the languages of the interface (`LOCALES`), and
+whose reading refuses, where the path is written, any file outside the help folder
+(#1462); the standalone takes them along through `outputFileTracingIncludes` (`next.config.ts`).
+The panel renders them with `react-markdown` and `remark-gfm`, without raw HTML (`skipHtml`) and in
+the elements of a text only; a code between backticks reads there as a key (`<kbd>`). A relative
+link to a code or a notion (`FBS-4.4.md`, `notions/valeur-acquise.md`, `../FBS-4.3.md` from a
+notion) shows its page in the panel; any other link reads as text. The search covers the titles of
+the pages written in the language read, which the action returns with the page; the server keeps an
+index per language. No page is read in another language in the place of its own: a missing English
+page is a failure, as a missing French page is. The panel holds the focus, closes by
+Escape and gives the focus back to what had it — the button, or the cell where F1 was pressed; a
+page followed through a link gives the focus to its title. An answer arrived after another request
+is ignored.
+
+The page of a screen follows the structure of #1075, its second-level headings in this order, said
+in its language (`SCREEN_HEADINGS`): « Ce que montre l'écran », « Ses commandes », « Ses colonnes et
+ses valeurs calculées », « Les gestes au clavier », « Voir aussi »; « What the screen shows », « Its
+commands », « Its columns and computed values », « Keyboard gestures », « See also » in English. The definitions of the columns are not
+written there: the panel renders them after the third section, from the configuration of the grid
+of the screen and the keys of its headers (`columns.<grille>.<colonne>.help`, `COLUMNS` of
+`read.ts`), a single source with their tooltips. A notion quotes the glossary of appendix A word
+for word, without the requirement identifiers between parentheses (« (WF-RIS-0050) »), which mean
+nothing to whoever reads the help, and which `help.test.ts` ignores in its comparison (#1440), one
+quotation per term (`> **Terme** — définition`), under « Ce que dit le glossaire », then « Dans
+Waterfall » and « Voir aussi » (`NOTION_HEADINGS`). The specification existing in French alone, an
+English notion translates its quotations, in the same form and as many, under « What the glossary
+says », « In Waterfall » and « See also ». The English page is the faithful translation of the
+French one: its input examples are those of the English interface (« 2 d », « 1 wk », « 3FS+2 d;
+5SS », #1441), and the labels it cites, those of the `en` catalogue. The panel says the language the
+page was read in (`lang`) on the rendered page (`WrittenPage`), the title of the panel and the titles
+the search finds: the messages of the interface of the body (loading, failure, number of results)
+bear none (#1442).
+
+_Check_: `src/help/help.test.ts` (`make test-front`) requires, in each language, a page per code of
+the table that has a screen, or its place in the list of the pages to come with the lot that writes
+it (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) — a list that fails as soon as a code it names receives its
+file —, and the same files in English as in French; it holds the structure of the pages in each
+language, the quotations of the glossary — word for word in French, as many in English —, the links,
+which lead to a written page or one to come, the same in English as in French, the labels cited in
+bold, taken from the `en` catalogue where the French page cites the `fr` one, and the absence of raw
+HTML. A page to come says so in the panel. `help-panel.dom.test.tsx` tests the panel in both
+languages, and `e2e/accessibility.spec.ts` audits it opened by F1 on the planning, in French and in
+English.
+
+### Long actions and the tracking of background tasks
+
+A long action hands back control on receiving its background task (WF-ARC-0090): its server
+action goes through `decodeTask` of `frontend/src/api/problem.ts`, which holds the reason of a
+failure to the rule of the catalogue, and the screen hands the reference to the tracking of the
+shell through `useTrackTask()` (`frontend/src/components/tasks/`), with the command that launched
+it and, if there is one, the name the user gave it (WF-IHM-0080). The tracking is common to the
+nine kinds of task: it reloads the task every two seconds as long as it runs, through the server
+action `readBackgroundTask`, shows its progress, adds its end to a log (`role="log"`) read whatever
+the screen, offers to reload the screen when it has succeeded — it never reloads on its own —, and
+replays the command of a failed task. Its panel is a sheet (`Sheet`) along the right edge of the
+window, which also carries the message history (below): a modal dialog titled « Tasks and
+messages », which holds the focus as long as it is open and which Escape, its close button, a click
+outside the panel or « Reload the screen » close, the focus given back to the button of the bar.
+The button of the bar (`TasksButton`) opens it and says, in its name and its badges, the number of
+tracked tasks and that of the unread refusals. Nothing opens it on its own, except the refusal of a
+result on the browser's return, whose download left from the panel. A handed-over or finished task
+is said under the bar, in the flow of the page, on the screen where one is: the last one, in a
+short line that stays until the next — the confirmation in place of a success the screen does not
+show —, without an announcement, the log speaking for the ends; its button closes it, by keyboard
+as by mouse, and gives the focus back to the button of the bar, the task staying tracked (author's
+decision, #1179).
+Closed, the panel still follows its tasks — the shell reloads them (`TaskPolling`), outside the
+entries — and its log still speaks, outside the panel, or inside as long as it is open, where the
+focus is held. A relaunch refused as stale (412) loses its command, which would still be, and a
+refused reload (404, 401) interrupts the tracking, which says so. No screen tracks its tasks
+itself. An answer only applies to the task for which it was requested, never to the one a relaunch
+put in its place. Next's server actions leave one by one, in a single queue: tracking k tasks adds
+k actions every two seconds, in the very queue of the writes of the screen, which a slow reload
+delays as much. The session storage of the tab keeps the running tasks for a full reload, without
+their command but with the name the user gave them; and, for an open session, the root layout asks
+on the server side for the running tasks of its user (`listBackgroundTasks`), launched from another
+tab or another workstation — rather than through a server action on the mount of the shell, which
+`StrictMode` launched twice in development. It does not wait for them: it passes their promise to
+the tracking (`running`), which reads it by `use()` under a `Suspense` that renders nothing, and
+the document leaves without them; without a session, nothing is asked. The tracking asks for them
+again through an action (`listRunningTasks`) each time the tab becomes visible again
+(`visibilitychange`, `signedIn`); it follows those it was not following — a refused or unreachable
+list leaves it as it is, and the promise never rejects. A task found again through the storage or
+the list is not relaunched from the tracking: failed, its entry says to relaunch it from the screen
+of its object. The `mark` command of a revision (`MarkCommand`) is its first use: it opens, in the
+page, the input of the version name.
+« Contractualise the amendment » (`MergeAmendmentCommand`, `revisions/`) is another: offered by
+the planning grid of an unmerged differential, as the revision lists `merge_structure`, it reads
+the report on opening (`getStructureMergeReport`), presents it in the `+`, `-`, `M` marks of the
+grid, asks for the version name and confirms with the two counters read; a stale version (412)
+proposes to reload the report, and abandoning sends nothing. The merge handed to the tracking,
+`useWhenTaskSucceeds` tells the screen that it succeeded, and it states the new reference.
+« Prepare an amendment » (`create_structure`) asks for a label and opens the created differential
+in the planning grid.
+
+### The message history
+
+The message history (#1043, `components/notices/message-history.ts`) keeps each outcome of a
+command the screens have said, success as well as refusal, so that a notice closed or left on
+another screen can be read again. It is not the audit log (WF-SEC-0030): a help to the user, for
+them alone, proper to the browsing session — the session storage of the tab (`wf_messages`), the
+last hundred, erased on sign-out —, without an operation of the contract. The tasks and messages
+panel shows it, the last one first (`MessageList`); opened, it has shown them all, and the count of
+the unread refusals falls back to zero.
+
+An entry (`Message`) keeps:
+
+- **the time** the notice was said, an instant of the workstation, shown by `LocalTime`;
+- **the tone** — `success` or `refusal`, said in words, never by colour alone; the unreachable
+  service, a failed or interrupted task, refused rows of a paste are refusals;
+- **the sentence of the notice**, as it was said, in the language of the moment: the history
+  repeats, it does not rewrite; and, for a failed task, **the reason** as a second sentence (`detail`);
+- **the object**, when the notice names one: the one the screen gives — `subject` of `OutcomeNotice`,
+  of `Command`, of `DoneNotice` and of `ReferenceForm` (the object changed: a line of the reference
+  data, a project, a subproject; the project of an exit of the life cycle, the revision of a revision
+  command), `object` of `useSaid` —, otherwise the object in conflict, the task — its kind and the
+  name the user gave it —, the external copy tested;
+- **the correlation reference** of an unexpected error (`INTERNAL_ERROR`, WF-OBS-0020);
+- **the screen**: its address, to which a link brings back, and the project it showed
+  (`useShownProjectLabel`); the link is named like the end of the breadcrumb (`crumbsOf`), followed
+  by the project; a screen the breadcrumb does not name is « Screen of origin ». The end of a task
+  keeps the screen from which it was launched; a task found again — through the list of the API,
+  after a reload — the screen where its end is said.
+
+What feeds it — the outcome of each command, success as well as refusal:
+
+- **the refusals**: `OutcomeNotice`, for each refusal it says — the notices of the grid included,
+  which go through it —, `UnshownNotice` of the grid; a refusal said outside a notice, through
+  `useNoteRefusal`, in the very sentence a notice would give it: a refusal said at the fields of a
+  form (`ReferenceForm`, the creation of an account, of a role, the list of the contributors, the
+  breakdown), the refused date of a restoration, the refusal of a write that left from a screen since
+  left, which the bar says (`LeftRefusals`) with the screen it had left from, and the one of the
+  tracking of a task, entered by `TaskPolling`, mounted with the shell, panel closed;
+- **the successes**: each status of a screen that says what a write did, through `useSaid`
+  (`components/notices/said.ts`), the only entry point of these statuses, which says it and enters
+  it; `DoneNotice` (its `of`: the outcome it says, one per save); the generated skeleton, the upload
+  of a backup, the test of an external copy (`LocationTest`);
+- **the pastes**: `PasteAppliedNotice`, a success when all the rows are written — nothing is then
+  said in place, the grid shows them —, a refusal otherwise, the number of refused rows as a second
+  sentence;
+- **the tracking**: a handed-over task (`useTrackTask`) and each end of its log.
+
+Each enters the outcome there once, whatever the frequency of its renders (the identity of the
+outcome, `noteMessage`), without announcing anything: the notice in place remains the alert
+(`role="alert"`) or the status, and the history is not a live region. A refusal said partly at the
+fields is entered whole, and the part the notice under the form says is not entered a second time
+(`parts`). In place, nothing changes. Do not enter it, for lack of a command having left: what a
+pressed unavailable command does not have — its conditions, which a status repeats (`noted: false`
+of `useSaid`, `ToldConditions` of the lists of the reference data) —, and the refusal of an input
+the screen judges before sending anything (a required field, a file too heavy, a mistyped cell).
+Nor the « Backup started » status, whose handed-over task is already entered by the tracking.
+
+### The development image
+
+The development image (`frontend/Dockerfile`) starts from an image pinned by its digest, and runs
+under an unprivileged user, designated by their number.
+
+### The API client
+
+The API client is generated from the contract (PBS-1.2, WF-ARC-0060): `make generate-client`
+writes its types in `frontend/src/api/generated/schema.d.ts`, which nobody touches up, and
+`frontend/src/api/client.ts` makes typed calls of them through openapi-fetch, a list of the query
+written in a single parameter, its values separated by commas, as the contract declares them all
+(`explode: false`, which `make lint-openapi` requires of every array parameter:
+`rule/array-parameter-explode-declared` and `rule/array-parameter-not-exploded` of
+`docs/api/redocly.yaml`). It writes beside it `examples.d.ts`, the examples of `fixtures/api/` that
+the contract cites per operation and per status (`wftools.exampleroutes`), which types the answers
+of the fake client of the tests. An operation missing from the client is a change to the contract,
+followed by a `make generate-client`; the generated file is versioned with it.
+
+The client keeps its connections open, and the next one reuses the one an answer has freed. The
+API closes an idle connection after a delay of its own — five seconds for Prism as for uvicorn —,
+and undici, the `fetch` of Next's server, only reuses its own within a margin below that delay;
+but its timer is that of the server's loop, which a load holds longer than the margin: the request
+then leaves on a connection the API has just closed, and `fetch` rejects it (`UND_ERR_SOCKET`,
+`other side closed`, or `ECONNRESET`), without any shorter delay changing anything, held likewise.
+A read (`GET`, `HEAD`) cut this way leaves a second time, on a new connection, and the cut is
+written to the server's log (`console.warn`); cut again, it is the API out of reach
+(`Unreachable`), never a silence. A write never leaves again: the API may have done it before
+closing. `WATERFALL_API_CONNECTIONS` says how the server holds its connections: `kept`, or nothing,
+in production as in development; `closed`, one connection per request, closed once answered
+(`Connection: close`), which only the harness sets (« An end-to-end path »), and which the server,
+started this way outside the harness of the fake back (`WATERFALL_E2E`), reports once to the log;
+no file of `deploy/` nor the image of the front names it, which `src/api/server.test.ts` checks.
+Any other value stops the server at its start-up (`src/startup.ts`), rather than answering an error
+to every request. The cut written to the log only says its method and its path, never the query.
+`src/api/client.test.ts`, `src/api/connections.test.ts` — against a server on a real socket, which
+cuts the reused connection — and `src/api/server.test.ts` test it. No network call is written
+outside `frontend/src/api/client.ts`, and only the Next server calls the API: a client component
+imports from `src/api/` only its server actions (`src/api/actions/`) and types.
+
+_Checks_: `make client-up-to-date` fails if the versioned client is not the one the contract
+produces; a change to the contract therefore wakes the front family. ESLint refuses outside
+`src/api/client.ts` the known means of reaching the network — `fetch`, `XMLHttpRequest`,
+`WebSocket`, `EventSource`, an imported http client —, and, in a `"use client"` file, the direct
+import of `src/api/` outside the server actions, which open on `"use server"`;
+`src/api/network-guard.test.ts` tests it on trapped excerpts, and freezes the list of the
+dependencies of `package.json`, so that a new one is examined for the guard before entering. The
+transitive case — a module without a directive that imports `@/api/server`, and that a client
+component imports — escapes ESLint: `client.ts` and `server.ts` import `server-only`, the safety
+net of `next build`, which `make build-front` launches at the fast tier, without a reachable API: a
+page that would read the API at build time, pre-rendered instead of being rendered at the request,
+makes it fail (#131); at the full tier, the end-to-end paths launch it before playing against the
+built front (`make e2e`, `make e2e-measure`, and the `front-build` job of `ci.yml` in the chain).
+After either build, `make prerendered-front` asserts that it pre-rendered no page (« The chain »).
+`make typecheck-front`, `make test-front`;
 `make lint-docker` (hadolint).
+## The fake back
 
-## Le faux back
+The fake back serves the contract through prism, without one line of response written by hand:
+what it answers are the **examples of the contract**. A missing response is an example added to
+the contract, never a file in the front; an example invalid against its schema makes
+`make lint-openapi` fail.
 
-Le faux back sert le contrat par prism, sans une ligne de réponse écrite à la main : ce qu'il
-répond, ce sont les **exemples du contrat**. Une réponse qui manque est un exemple ajouté au
-contrat, jamais un fichier dans le front ; un exemple invalide au regard de son schéma fait
-échouer `make lint-openapi`.
+A long example goes under `fixtures/api/`, as an OpenAPI Example object (`summary`, `value`),
+and the contract cites it by `$ref`; the bundle embeds it. Its numbers take up those of the Vérif
+where they make sense — probability of winning, inflation, amounts.
 
-Un exemple long se range sous `fixtures/api/`, en objet Example d'OpenAPI (`summary`,
-`value`), et le contrat le cite par `$ref` ; le bundle l'embarque. Ses nombres reprennent
-ceux des Vérif là où ils ont un sens — probabilité de gain, inflation, montants.
+**The witness universe.** The examples describe one single universe, at one single instant, today:
+3 June 2026 at 14:05 UTC (`docs/api/DECISIONS.md`, « L'univers témoin »). The first example of
+each operation is the witness project, PRJ-001, or the portfolio that counts it, at that instant;
+another named example is another reading of it, an earlier instant of the same chronology, the
+sequel of a write made today, or a declared counterfactual variant.
 
-**L'univers témoin.** Les exemples décrivent un seul univers, à un seul instant, aujourd'hui :
-le 3 juin 2026 à 14 h 05 UTC (`docs/api/DECISIONS.md`, « L'univers témoin »). Le premier
-exemple de chaque opération est le projet témoin, PRJ-001, ou le portefeuille qui le compte, à
-cet instant ; un autre exemple nommé en est une autre lecture, un instant antérieur de la même
-chronologie, la suite d'une écriture faite aujourd'hui, ou une variante contrefactuelle déclarée.
+**What is generated is not written by hand.** `make mock-data` (`wftools.mockdata`) writes,
+reading neither the clock nor chance — every drawn value comes from the digest of a fixed seed and
+of what it describes, and two generations write the same bytes:
 
-**Ce qui s'engendre ne s'écrit pas à la main.** `make mock-data` (`wftools.mockdata`) écrit,
-sans lire ni l'horloge ni le hasard — chaque valeur tirée vient de l'empreinte d'une graine fixe
-et de ce qu'elle décrit, et deux engendrements écrivent les mêmes octets :
+- in `fixtures/api/volume/`, which is never touched up, the volumes of §4.6.2: the structure of
+  the witness, a thousand tasks and five thousand lines, its readable core at the head and linked
+  to the drawn tasks around it, dated in hours on the calendar of each task and read today
+  (`wftools.mockstructure`, dated and emitted by `wftools.mockcore`), first example of
+  `listNodes`, the indicators of its estimate, what its first summary task depends on and a
+  lengthened duration that pushes a task into 2027 (`task_lengthened`); the comparison of the offer
+  and of the reference over that whole structure, read with `fields`, second example of
+  `compareRevisions` (`wftools.mockcomparisons`, #1201); the three hundred projects of
+  `getPortfolioProjects` and the views that sum up from their rows — value, performance,
+  cost structure, risks and coverage (`wftools.mockportfolio`) —; the two hundred cost
+  categories and fifteen years of hourly rates, in one page and by pages, the grid sorted
+  also by the rate of one year (`wftools.mockreference`);
+- under `fixtures/api/`, by their name, the examples of the witness, declared generated in
+  `tools/paths.toml`: the readings of its core (`wftools.mockcore`, described once in
+  `wftools.mockwitness`, its hours of work in `wftools.mockcalendar`, its lines sorted under
+  each task, or filtered by the bounds of a column, by `wftools.mocksort`); the responses of the
+  grid writes, difference of two readings (`wftools.mockwrites`), among them those of the gestures
+  of structure and of the entry of tasks, with their refusals (`wftools.mockgestures`, the place of
+  a node and the loops a gesture would close in `wftools.mocktree`, the gestures of the estimate
+  made on amendment 2, and the entry and the paste the end-to-end paths make there, in
+  `wftools.mockamendmentwrites`), the gestures of the cards of the Kanban and their
+  responses (`wftools.mockkanban`), and the refusals
+  of a paste and of an import that a subproject or the phase of the project command
+  (`wftools.mockexchanges`), and a manual date on a non-working day, refused at entry and
+  flagged at import (`wftools.mocknonworking`, #1271); its
+  history (`wftools.mockhistory`), its revisions read before the designation of the offer, while it
+  is still proposed (`wftools.mockcycle`), its marked revisions read with their snapshot
+  (`wftools.mocksnapshot`), its compared revisions (`wftools.mockcomparisons`) and its risks, and the responses of the
+  entries of a risk, with the own estimate of risk 751 and the preliminary report of its
+  occurrence (`wftools.mockriskwrites`); its indicators, its curves and
+  its workload today, over the whole structure of a thousand tasks (`wftools.mocktoday`,
+  `wftools.mockindicators`, `wftools.mockcurves`); its actual costs — those the witness describes and
+  the invoices of its drawn tasks that are completed — and the log of their imports (`wftools.mockcosts`);
+  and the views of the portfolio over time — aggregated workload, S-curve and its variant
+  at 31 December 2025, project control health —, which sum the witness at its own readings and the other projects by
+  simple formulas (`wftools.mockportfoliotime`); and the audit log of the installation, drawn from
+  the chronology of the witness and from the examples that date its accounts, its roles and its backups
+  (`wftools.mockaudit`, held by `tools/tests/test_mockaudit.py`); and the readings of the lists
+  written by hand — the projects of the home page, the subprojects and the contributors of the witness, the
+  accounts and the access roles, the backups — and of the work breakdown of the witness, sorted,
+  searched and filtered as their screens ask for them, with the entry of the work breakdown, its response
+  and its refusals (`wftools.mocklists`, held by `tools/tests/test_mocklists.py`); and the
+  contributors of the witness once an account is anonymised (`wftools.mockanonymized`, held by
+  `tools/tests/test_mockfindings.py`); and the exit of the witness, which marks or abandons its
+  revision in progress, its refused code, and its readings according to the quality of the reader —
+  participant, or non-contributor who registers a project manager when none has an active account — or during the
+  marking of its revision in progress (`wftools.mockproject`, held by `tools/tests/test_mockexit.py`); and the refusals of one
+  form each (`wftools.mockrefusals`, held by `tools/tests/test_mockrefusals.py`), with those the
+  contract declared without a code, a condition or an example (`wftools.mockdeclared`, held by
+  `tools/tests/test_mockdeclared.py`); and the examples of the majors of the review of the
+  contract of 2026-10-31 — the list of the projects with the project created, the code of a
+  subproject too long, the rate update of a category not proposed, a task refused under a
+  milestone, the summary that awaits its own lines alone, the writes of a line of a completed
+  task refused on the main structure, the own estimate of the occurred risk as the reference 101
+  froze it and the nodes its occurrence merged, the register filtered on its columns, the life of
+  an import and its refusals — (`wftools.mockreview`, held by `tools/tests/test_mockreview.py`).
 
-- dans `fixtures/api/volume/`, qu'on ne retouche pas, les volumes du §4.6.2 : la structure du
-  témoin, mille tâches et cinq mille lignes, son cœur lisible en tête et relié aux tâches tirées
-  autour de lui, datée en heures sur le calendrier de chaque tâche et lue aujourd'hui
-  (`wftools.mockstructure`, datée et émise par `wftools.mockcore`), premier exemple de
-  `listNodes`, les indicateurs de son devis, ce dont dépend sa première récapitulative et une
-  durée allongée qui pousse une tâche en 2027 (`task_lengthened`) ; la comparaison de l'offre et
-  de la référence sur toute cette structure, lue avec `fields`, deuxième exemple de
-  `compareRevisions` (`wftools.mockcomparisons`, #1201) ; les trois cents projets de
-  `getPortfolioProjects` et les vues qui se somment de leurs lignes — valeur, performance,
-  structure des coûts, risques et couverture (`wftools.mockportfolio`) — ; les deux cents
-  catégories de coût et quinze ans de taux horaires, en une page et par pages, la grille triée
-  aussi par le taux d'une année (`wftools.mockreference`) ;
-- sous `fixtures/api/`, par leur nom, les exemples du témoin, déclarés engendrés dans
-  `tools/paths.toml` : les lectures de son cœur (`wftools.mockcore`, décrit une fois dans
-  `wftools.mockwitness`, ses heures de travail dans `wftools.mockcalendar`, ses lignes triées sous
-  chaque tâche par `wftools.mocksort`) ; les réponses des
-  écritures de grille, différence de deux lectures (`wftools.mockwrites`), dont celles des gestes
-  de structure et de la saisie des tâches, avec leurs refus (`wftools.mockgestures`, la place d'un
-  nœud et les boucles qu'un geste fermerait dans `wftools.mocktree`, les gestes du devis faits sur
-  l'avenant 2, et la saisie et le collage qu'y font les parcours, dans
-  `wftools.mockamendmentwrites`), les gestes des cartes du Kanban et leurs
-  réponses (`wftools.mockkanban`), et les refus
-  d'un collage et d'un import qu'un sous-projet ou la phase du projet commandent
-  (`wftools.mockexchanges`), et une date manuelle sur un jour chômé, refusée à la saisie et
-  signalée à l'import (`wftools.mocknonworking`, #1271) ; son
-  histoire (`wftools.mockhistory`), ses révisions lues avant la désignation de l'offre, quand elle
-  est encore proposée (`wftools.mockcycle`), ses révisions comparées (`wftools.mockcomparisons`) et ses risques, et les réponses des
-  saisies d'un risque (`wftools.mockriskwrites`) ; ses indicateurs, ses courbes et
-  son plan de charge aujourd'hui, sur toute la structure de mille tâches (`wftools.mocktoday`,
-  `wftools.mockindicators`, `wftools.mockcurves`) ; ses coûts réels — ceux que le témoin décrit et
-  les factures de ses tâches tirées terminées — et le journal de leurs imports (`wftools.mockcosts`) ;
-  et les vues du portefeuille dans le temps — plan de charge agrégé, courbe en S et sa variante
-  au 31 décembre 2025, santé du pilotage —, qui somment le témoin à ses propres lectures et les autres projets par des
-  formules simples (`wftools.mockportfoliotime`) ; et le journal d'audit de l'installation, tiré de
-  la chronologie du témoin et des exemples qui datent ses comptes, ses rôles et ses sauvegardes
-  (`wftools.mockaudit`, tenu par `tools/tests/test_mockaudit.py`) ; et les lectures des listes
-  écrites à la main — les projets de l'accueil, les sous-projets et les contributeurs du témoin, les
-  comptes et les rôles d'habilitation — et du lotissement du témoin, triées, cherchées et filtrées
-  comme leurs écrans les demandent (`wftools.mocklists`, tenu par `tools/tests/test_mocklists.py`).
+What the same command generates is never re-read from the disk: the indicators, the risks
+and the curves of the witness, which the portfolio sums, are passed to it in memory, so that one single
+run of `make mock-data` reaches its fixed point.
 
-Ce que la même commande engendre ne se relit jamais sur le disque : les indicateurs, les risques
-et les courbes du témoin, que le portefeuille somme, lui sont passés en mémoire, pour qu'une seule
-exécution de `make mock-data` atteigne son point fixe.
+**What stays written by hand** — sessions, accounts and roles, reference data (resource roles and
+their headcounts, calendars, organisation nodes), the project, its revisions and its transitions,
+imports and their reports, background tasks, state of the system and backups, counterfactual
+variants — is read by the generators, never copied, and confronted with what is generated:
+`tools/tests/test_mockhistory.py` for the chronology, `tools/tests/test_mockuniverse.py` for the
+rest (the monthly hours of a role, its whole headcount included, are its headcount times the
+weekly hours of its calendar × 52 / 12, the row of the witness in the portfolio is that of
+its indicators, every view of the portfolio is computed today…). A volume example is written one line per element, so that a change can be read
+in the diff. The marks the end-to-end paths read — line numbers, labels,
+totals — are fixed by `test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`)
+for the structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/test_mockdata.py`)
+for the portfolio and `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
+for the monthly review: a change of the generator that moves them fails there, before the
+paths. The grid tests check only lines that stay within the window the virtualised grid
+renders. The tests of the front read the address of a node of the witness in the example — its
+identifier, its index or its number found by its label —, never a hard-coded number,
+except where the number is what the test puts to the proof (#400).
 
-**Ce qui reste écrit à la main** — sessions, comptes et rôles, référentiel (rôles de ressources et
-leurs effectifs, calendriers, nœuds d'organisation), le projet, ses révisions et ses transitions,
-imports et leurs comptes rendus, tâches de fond, état du système et sauvegardes, variantes
-contrefactuelles — est lu par les générateurs, jamais recopié, et confronté à ce qui est engendré :
-`tools/tests/test_mockhistory.py` pour la chronologie, `tools/tests/test_mockuniverse.py` pour le
-reste (les heures mensuelles d'un rôle, tout son effectif compris, valent son effectif par les
-heures hebdomadaires de son calendrier × 52 / 12, la ligne du témoin au portefeuille est celle de
-ses indicateurs, toute vue du portefeuille est calculée aujourd'hui…). Un exemple de volume s'écrit une ligne par élément, pour qu'un changement se lise
-dans le diff. Les repères que lisent les parcours de bout en bout — numéros de ligne, libellés,
-totaux — sont fixés par `test_the_marks_the_journeys_read` (`tools/tests/test_mockstructure.py`)
-pour la structure, `test_the_marks_the_portfolio_journey_reads` (`tools/tests/test_mockdata.py`)
-pour le portefeuille et `test_the_marks_the_review_journey_reads` (`tools/tests/test_mocktoday.py`)
-pour la revue mensuelle : un changement du générateur qui les déplace échoue là, avant les
-parcours. Les tests de grille ne vérifient que des lignes qui restent dans la fenêtre que la grille
-virtualisée rend. Les tests du front lisent l'adresse d'un nœud du témoin dans l'exemple — son
-identifiant, son index ou son numéro trouvés par son libellé —, jamais un numéro écrit en dur,
-sauf là où le numéro est ce que le test éprouve (#400).
-
-`make mock-spec` dérive du contrat la variante que prism sert : chemins sous le préfixe du
-serveur, `/api/v1`, que prism ignorerait, et aucune sécurité exigée (`security`
-retiré) — le faux back accorde la session dont part la maquette (EP-02), et Prism n'exige donc pas le
-jeton. Une troisième différence : Prism sert le premier exemple d'une opération quel que soit son
-chemin, si bien que `listNodes` de l'avenant aurait rendu la structure principale. La variante
-répète donc les chemins de `listNodes`, `updateEstimateLine`, `previewPaste` et `applyPaste` pour
-chaque structure de nature `amendment` que liste le premier exemple de `listCostStructures`, son
-identifiant écrit dans le chemin, et y place l'exemple `amendment` de chaque opération en tête
-(`wftools.mock`, #1219, #1277) : la lecture de l'installation sur l'avenant, la charge de sa ligne
-ajoutée saisie, et un bloc collé sur ses lignes 7 à 9, aperçu puis appliqué
-(`wftools.mockamendmentwrites`). Prism classe un chemin par ses segments écrits, devant celui qui
-les laisse en gabarit. Aucune réponse n'est écrite à la main : le choix suit l'identifiant du
-chemin. Les autres chemins de l'avenant — ses gestes, son planning — répondent comme ceux de la
-principale ; les avenants 212 et 213 et les structures de risque ne sont pas aiguillés (EP-16).
-**Où jouent les parcours d'écriture.** La structure principale du projet en cours liste le devis en
-lecture seule (#1176) : un parcours qui écrit le devis ne le lit donc pas là. Celui de la saisie
-d'une ligne (`entry.spec.ts`) et celui du collage (`paste.spec.ts`) jouent sur l'avenant 2, structure
-203, dont le faux back sert les trois exemples `amendment` ; le collage y retrouve `[WF-IHM-0050-A]`,
-les trois lignes du bloc de `paste_applied_amendment` écrites après la confirmation. Les parcours
-qui n'ont pas d'exemple propre à l'avenant restent sur la structure qui les sert, le devis propre
-du risque du recâblage (structure 204, qui reçoit le premier exemple de chaque opération) : le
-collage d'une catégorie inconnue, le collage d'un bloc trop large, et la ligne de provision, que
-l'avenant ne porte pas. Un parcours qui écrit sur un autre différentiel attend ses exemples, à
+`make mock-spec` derives from the contract the variant prism serves: paths under the prefix of the
+server, `/api/v1`, which prism would ignore, and no security required (`security`
+removed) — the fake back grants the session the mockup starts from (EP-02), and Prism therefore does not require the
+token. A third difference: Prism serves the first example of an operation whatever its
+path, so that `listNodes` of the amendment would have rendered the main structure. The variant
+therefore repeats the paths of `listNodes`, `updateEstimateLine`, `previewPaste` and `applyPaste` for
+each structure of kind `amendment` that the first example of `listCostStructures` lists, its
+identifier written in the path, and places the `amendment` example of each operation at their head
+(`wftools.mock`, #1219, #1277): the reading of the installation on the amendment, the hours of its
+added line entered, and a block pasted on its lines 7 to 9, previewed then applied
+(`wftools.mockamendmentwrites`). Prism ranks a path by its written segments, ahead of the one that
+leaves them as templates. No response is written by hand: the choice follows the identifier of the
+path. The other paths of the amendment — its gestures, its planning — answer like those of the
+main structure; amendments 212 and 213 and the risk structures are not routed (EP-16).
+**Where the writing paths play.** The main structure of the project in progress lists the estimate
+read-only (#1176): a path that writes the estimate therefore does not read it there. The one of the entry
+of a line (`entry.spec.ts`) and the one of the paste (`paste.spec.ts`) play on amendment 2, structure
+203, whose three `amendment` examples the fake back serves; the paste finds there `[WF-IHM-0050-A]`,
+the three lines of the block of `paste_applied_amendment` written after the confirmation. The paths
+that have no example of their own on the amendment stay on the structure that serves them, the own estimate
+of the rewiring risk (structure 204, which receives the first example of each operation): the
+paste of an unknown category, the paste of a block too wide, and the provision line, which
+the amendment does not carry. A path that writes on another differential awaits its examples, at
 EP-16.
-Rien d'autre ne change. Le contrat garde le schéma `bearer`, et le front l'envoie quand même :
-en mode `WATERFALL_AUTH=mock`, `serverClient()` pose `Authorization: Bearer` avec un jeton fixe
-(`MOCK_TOKEN`, `src/api/server.ts`, sans valeur secrète), que seul le serveur de Next tient — le
-navigateur n'en détient aucun. Ce mode est refusé quand `NODE_ENV` est `production`, sauf si
-`WATERFALL_E2E=1` : le harnais Playwright construit et démarre le front de production pour la
-mesure, et pose les deux variables à ses serveurs (`playwright.config.ts`) ; `make dev` pose
-`WATERFALL_AUTH=mock` au front (`compose.dev.yaml`), `make build-front` n'en a pas besoin. Contre
-une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose ni l'une ni
-l'autre.
+Nothing else changes. The contract keeps the `bearer` scheme, and the front sends it all the same:
+in `WATERFALL_AUTH=mock` mode, `serverClient()` sets `Authorization: Bearer` with a fixed token
+(`MOCK_TOKEN`, `src/api/server.ts`, with no secret value), which only the Next server holds — the
+browser holds none. This mode is refused when `NODE_ENV` is `production`, unless
+`WATERFALL_E2E=1`: the Playwright harness plays its paths against the production front, and
+sets both variables on its front (`playwright.config.ts`); `make dev` sets
+`WATERFALL_AUTH=mock` on the front (`compose.dev.yaml`), `make build-front` does not need it. Against
+an API the environment names (`WATERFALL_API_ADDRESS`), the harness sets only
+`WATERFALL_E2E=1`, which admits no fixed token there (#1265).
 
-- `make mock` : le faux back seul, sur `http://localhost:4010`.
-- `make dev` : le front (`http://localhost:3000`) contre le faux back, par
-  `deploy/compose/compose.dev.yaml`. Le front ne connaît que l'adresse de l'API,
-  `WATERFALL_API_ADDRESS` : à partir d'EP-03, la même variable désigne le vrai service.
-  `make dev-down` l'arrête. Le faux back garde le cache de npm, où `npx` a mis prism, dans
-  le volume nommé `mock-npm`, monté sur le répertoire de l'utilisateur 1000 de l'image, qui
-  en est propriétaire : prism n'est téléchargé qu'au premier démarrage.
-  `docker volume rm waterfall-dev_mock-npm`, la plateforme arrêtée, l'oublie.
-- Le front s'ouvre à `localhost` et à `127.0.0.1`. Pour l'ouvrir depuis un autre poste, à
-  l'adresse de celui-ci sur le réseau, la déclarer dans `WATERFALL_DEV_ORIGINS` (des hôtes
-  séparés par des virgules), à l'appel ou dans `deploy/compose/.env`, que git ignore :
-  `WATERFALL_DEV_ORIGINS=127.0.0.1,192.168.1.210 make dev`. Sans elle, `next dev` refuse ses
-  ressources à cette origine, et la page s'affiche sans s'hydrater (#481).
+- `make mock`: the fake back alone, on `http://localhost:4010`.
+- `make dev`: the front (`http://localhost:3000`) against the fake back, through
+  `deploy/compose/compose.dev.yaml`. The front knows only the address of the API,
+  `WATERFALL_API_ADDRESS`: from EP-03 on, the same variable designates the real service.
+  `make dev-down` stops it. The fake back keeps the npm cache, where `npx` put prism, in
+  the named volume `mock-npm`, mounted on the directory of user 1000 of the image, who
+  owns it: prism is downloaded only at the first start.
+  `docker volume rm waterfall-dev_mock-npm`, the platform stopped, forgets it.
+- The front opens at `localhost` and at `127.0.0.1`. To open it from another workstation, at
+  the address of this one on the network, declare it in `WATERFALL_DEV_ORIGINS` (hosts
+  separated by commas), on the call or in `deploy/compose/.env`, which git ignores:
+  `WATERFALL_DEV_ORIGINS=127.0.0.1,192.168.1.210 make dev`. Without it, `next dev` refuses its
+  resources to that origin, and the page displays without hydrating (#481).
 
-Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'apparaît pas dans
-la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
-front qui ne font que lire, jamais à éprouver une écriture.
+The fake back serves readings. It keeps no state: a created project does not appear in
+the next list. It serves the front lots that precede their back lot and the tests of the
+front that only read, never to put a write to the proof.
 
-_Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
-`make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la
-famille contract, que `fixtures/api/` réveille comme le contrat), `make lint-compose`.
+_Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
+`make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
+contract family, which `fixtures/api/` wakes like the contract), `make lint-compose`.
 
-## Commandes
+## Commands
 
-Tout se lance par le Makefile, sur un poste comme dans la chaîne : `make help` les liste.
-Une commande que la chaîne exécute existe dans le Makefile, et un workflow n'écrit aucune
-logique de contrôle de son côté ; un échec de la chaîne se reproduit donc par la même
-commande.
+Everything is launched through the Makefile, on a workstation as in the chain: `make help` lists them.
+A command the chain executes exists in the Makefile, and a workflow writes no control
+logic on its side; a failure of the chain is therefore reproduced by the same
+command.
 
-| Commande                                                                | Ce qu'elle fait                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Command                                                                 | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make check BASE=origin/epic/EP-nn`                                     | les contrôles de ce que la modification touche, fichiers non commités compris : à lancer avant de pousser                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `make check-all`                                                        | toutes les familles de contrôles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make check-<famille>`                                                  | une famille : `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `make changes BASE=…`                                                   | les familles qu'une modification touche                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | un seul fichier de tests, pendant le développement ; sans `TESTS`, tous, comme dans la chaîne                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `make service-install`                                                  | amorce la plateforme de service démarrée, son royaume appliqué (`waterfall-api install`, US-0420) : applique les migrations sous le propriétaire des tables, crée l'installation, ses trois rôles prédéfinis et son administrateur local, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` par défaut), dans la langue `WATERFALL_DEFAULT_LANGUAGE` (`fr` par défaut), et écrit seul sur sa sortie le lien qui fixe son mot de passe, valable jusqu'à son emploi ; relancée, elle ne crée rien, et écrit un nouveau lien, qui remplace le précédent, tant que l'administrateur n'a pas de mot de passe, aucun ensuite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `make service-up`, `make service-down`                                  | démarre, arrête la plateforme de service (`deploy/compose/compose.service.yaml` : PostgreSQL, Redis, le stockage objet Garage et ses compartiments, les migrations, l'API, le worker et le planificateur de ses tâches, le service de la restauration, Keycloak derrière son frontal HTTPS et son royaume, appliqué de nouveau à chaque démarrage par `keycloak-realm`, qui reste démarré pour le réappliquer après une restauration, OpenLDAP, Mailpit) ; elle exige ses secrets dans l'environnement (ci-dessous), et `service-down WATERFALL_RESET_DATA=yes` supprime aussi ses bases, son stockage, son annuaire et l'autorité de son frontal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
-| `make check-keycloak`                                                   | la famille `keycloak` : `build-keycloak`, puis `test-keycloak`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `make images`                                                           | construit les trois images que la chaîne publie — `front`, `waterfall`, `keycloak` —, chacune l'étape `production` de son Dockerfile, sous `ghcr.io/waterfall-project/<image>`, étiquetées par le commit (son empreinte entière), par la branche mise en forme d'étiquette (`epic/EP-03` donne `epic-EP-03`) et, sur `main`, par la version de la distribution du back (`backend/pyproject.toml`), que le front porte aussi, une seule fois et pour les trois ensemble : l'étiquette de version est immuable ; la branche et le commit sont ceux du dépôt, sauf si `IMAGE_BRANCH` et `IMAGE_COMMIT` les nomment ; `PUSH=yes` les publie, depuis `main` ou une branche `epic/…` seulement, d'un dépôt propre au commit nommé, une fois les trois construites et fouillées (`wftools.images`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `make prerendered-front`                                                | lit le manifeste que la dernière construction de production du front a écrit (`frontend/.next/prerender-manifest.json`) et affirme qu'elle n'a prérendu que `/_global-error` et `/icon.svg`, sans Docker : la famille `front` l'enchaîne après `build-front` au palier rapide, après les parcours au palier complet (`wftools.frontimage --manifest`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `make check-front-image`                                                | la famille `front-image` : construit l'étape `production` du front (`frontend/Dockerfile`), la démarre, et affirme que `/` répond avec les réglages du service `front` du Compose de production, que le front s'arrête sans chacune des variables dont il ne se passe pas en la nommant (#825), que `WATERFALL_AUTH=mock` sans `WATERFALL_E2E` est refusé, et que `next build` n'a prérendu que `/_global-error` et `/icon.svg` (`wftools.frontimage`, « Chaîne »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `make production-trial`                                                 | démarre la plateforme de production (`deploy/compose/compose.prod.yaml`, US-0430) sur les images de l'étiquette `WATERFALL_IMAGE_TAG` — le commit du dépôt par défaut —, sous un nom local (`WATERFALL_DOMAIN`, `waterfall.localhost` par défaut, avec `compose.prod.local.yaml`), l'amorce, affirme la sonde de vie de l'API, que le propriétaire des tables, `waterfall`, n'est pas superutilisateur, le renvoi de HTTP à la même page sur l'adresse publiée, port compris, les en-têtes de Caddy en HTTPS, HSTS d'abord, que la console de Keycloak et le royaume `master` répondent 404, et que le premier administrateur fixe son mot de passe par le lien, se connecte par le front et Keycloak et que le front le nomme ; avec `WATERFALL_TRIAL_RESTORATION=1`, une sauvegarde puis sa restauration demandées par l'API, la restauration suivie par la sonde de vie jusqu'à `ok` (`wftools.restoration_trial`, US-0440, #948), que la chaîne demande (`production.yml`, `images.yml`) ; puis la retire avec ses volumes (`wftools.production`) ; ses secrets viennent de l'environnement, comme `deploy/compose/production.env.example` les nomme ; son projet Compose est `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
-| `make check-production`                                                 | la famille `production`, au palier complet seulement : `make images`, sans poussée, puis `make production-trial` sur les images construites                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make check BASE=origin/epic/EP-nn`                                     | the checks of what the change touches, uncommitted files included: to run before pushing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make check-all`                                                        | every family of checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `make check-<famille>`                                                  | one family: `repo`, `spec`, `contract`, `back`, `front`, `front-image`, `roadmap`, `keycloak`, `service`, `production`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `make changes BASE=…`                                                 | the families a change touches                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make test-back TESTS=…`, `make test-front TESTS=…`, `make e2e TESTS=…` | one single test file, during development; without `TESTS`, all of them, as in the chain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `make service-install`                                                  | bootstraps the started service platform, its realm applied (`waterfall-api install`, US-0420): applies the migrations under the owner of the tables, creates the installation, its three predefined roles and its local administrator, `WATERFALL_ADMIN_EMAIL` (`administrateur@waterfall.test` by default), in the language `WATERFALL_DEFAULT_LANGUAGE` (`fr` by default), and writes on its output only the link that sets its password, valid until it is used; run again, it creates nothing, and writes a new link, which replaces the previous one, as long as the administrator has no password, none afterwards                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make service-up`, `make service-down`                                  | starts, stops the service platform (`deploy/compose/compose.service.yaml`: PostgreSQL, Redis, the Garage object storage and its buckets, the migrations, the API, the worker and the scheduler of its tasks, the restoration service, Keycloak behind its HTTPS front end and its realm, applied again at each start by `keycloak-realm`, which stays started to reapply it after a restoration, OpenLDAP, Mailpit); it requires its secrets in the environment (below), and `service-down WATERFALL_RESET_DATA=yes` also deletes its databases, its storage, its directory and the authority of its front end                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make keycloak-authority`                                               | copies out of the platform the root of the authority of Keycloak's front end, into `deploy/compose/.authority/root.crt`, which git ignores; `service-up` and `test-keycloak` do it at each start                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make e2e-service`                                                      | the paths of the Playwright project `service` (`frontend/e2e/service/`) against the real service, through Prism as a proxy (« An end-to-end path »); same secrets as `service-up`, and the browser of `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make service-logs`                                                     | the logs of the services of the platform, those of `SERVICES` (`SERVICES="keycloak openldap"`), all by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `make migrate`                                                          | applies the migrations to the database `WATERFALL_DATABASE_URL` designates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `make build-keycloak`                                                   | builds the image of Keycloak (`deploy/keycloak/`): the extension compiled and its JUnit tests passed, the themes, the realm; no JVM is asked of the workstation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `make test-keycloak`                                                    | starts Keycloak on the platform — and Mailpit, where it sends its emails and where its tests read them —, applies its realm and runs the tests of the `keycloak` marker (`backend/tests/test_keycloak_*.py`), which the other tests of the back leave aside: the realm and the extension, and the API that validates its tokens, served in the process of the tests on a database they create on the PostgreSQL of the platform, unless `WATERFALL_TEST_DATABASE_URL` names another one; it measures the coverage of the client of Keycloak's administration API and of the bootstrap, `waterfall-api install` (« Code coverage »); same secrets as `service-up`. Its tests change the realm for the time of a test — the duration of an idle session, that of the links, the lockout, the directory and the provider disabled, the directory not synchronised (`UNSYNCED`) —, and one of them restarts Keycloak (#852): it is never run at the same time as another use of the platform, `make e2e-service` or the tests of another agent, no more than `make check-keycloak` or `make check` when it puts the `keycloak` or `service` family to the proof                                                                           |
+| `make check-keycloak`                                                   | the `keycloak` family: `build-keycloak`, then `test-keycloak`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `make images`                                                           | builds the three images the chain publishes — `front`, `waterfall`, `keycloak` —, each the `production` stage of its Dockerfile, under `ghcr.io/waterfall-project/<image>`, tagged by the commit (its whole digest), by the branch shaped as a tag (`epic/EP-03` gives `epic-EP-03`) and, on `main`, by the version of the distribution of the back (`backend/pyproject.toml`), which the front carries too, once only and for the three together: the version tag is immutable; the branch and the commit are those of the repository, unless `IMAGE_BRANCH` and `IMAGE_COMMIT` name them; `PUSH=yes` publishes them, from `main` or an `epic/…` branch only, from a clean repository at the named commit, once the three are built and searched (`wftools.images`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make prerendered-front`                                                | reads the manifest the last production build of the front wrote (`frontend/.next/prerender-manifest.json`) and asserts that it prerendered only `/_global-error` and `/icon.svg`, without Docker: the `front` family chains it after `build-front` at the fast tier, after the paths at the full tier (`wftools.frontimage --manifest`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `make check-front-image`                                                | the `front-image` family: builds the `production` stage of the front (`frontend/Dockerfile`), starts it, and asserts that `/` answers with the settings of the `front` service of the production Compose, that the front stops without each of the variables it cannot do without, naming it (#825), that `WATERFALL_AUTH=mock` without `WATERFALL_E2E` is refused, and that `next build` prerendered only `/_global-error` and `/icon.svg` (`wftools.frontimage`, « The chain »)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `make production-trial`                                                 | starts the production platform (`deploy/compose/compose.prod.yaml`, US-0430) on the images of the tag `WATERFALL_IMAGE_TAG` — the commit of the repository by default —, under a local name (`WATERFALL_DOMAIN`, `waterfall.localhost` by default, with `compose.prod.local.yaml`), bootstraps it, asserts the liveness probe of the API, that the owner of the tables, `waterfall`, is not a superuser, the redirect from HTTP to the same page on the published address, port included, Caddy's headers in HTTPS, HSTS first, that Keycloak's console and the `master` realm answer 404, and that the first administrator sets their password through the link, signs in through the front and Keycloak and that the front names them; with `WATERFALL_TRIAL_RESTORATION=1`, a backup then its restoration requested through the API, the restoration followed through the liveness probe until `ok` (`wftools.restoration_trial`, US-0440, #948), which the chain requests (`production.yml`, `images.yml`); then removes it with its volumes (`wftools.production`); its secrets come from the environment, as `deploy/compose/production.env.example` names them; its Compose project is `WATERFALL_PRODUCTION_PROJECT` (`waterfall-production-trial`) |
+| `make check-production`                                                 | the `production` family, at the full tier only: `make images`, without a push, then `make production-trial` on the built images                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
-La plateforme de service refuse de démarrer sans ses secrets, qu'aucun fichier ne porte :
+The service platform refuses to start without its secrets, which no file carries:
 
+| Variable                               | What it protects                                                                                                                                                                                                                                                                                    |
 | Variable                               | Ce qu'elle protège                                                                                                                                                                                                                                                                                  |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WATERFALL_POSTGRES_PASSWORD`          | le rôle `waterfall` de PostgreSQL, propriétaire des tables, par lequel passent les migrations ; en lettres et en chiffres seulement, puisqu'il s'écrit dans une URL                                                                                                                                 |
-| `WATERFALL_SERVICE_DATABASE_PASSWORD`  | le rôle `waterfall_service`, nommé d'après la base, par lequel l'API et le worker se connectent, qui ne tient que ce que les tables lui accordent (sql.md, « Le rôle du service ») ; en lettres et en chiffres seulement                                                                            |
-| `WATERFALL_BACKUP_DATABASE_PASSWORD`   | le rôle `waterfall_backup`, membre de `pg_read_all_data`, par lequel le worker sauvegarde les deux bases, qui lit toutes les tables et ne peut ni écrire ni couper un déclencheur (#895) ; en lettres et en chiffres seulement                                                                      |
+| `WATERFALL_POSTGRES_PASSWORD`          | the PostgreSQL role `waterfall`, owner of the tables, through which the migrations pass; in letters and digits only, since it is written in a URL                                                                                                                                                   |
+| `WATERFALL_SERVICE_DATABASE_PASSWORD`  | the role `waterfall_service`, named after the database, through which the API and the worker connect, which holds only what the tables grant it (sql.md, « Le rôle du service »); in letters and digits only                                                                                     |
+| `WATERFALL_BACKUP_DATABASE_PASSWORD`   | the role `waterfall_backup`, member of `pg_read_all_data`, through which the worker backs up the two databases, which reads every table and can neither write nor cut a trigger (#895); in letters and digits only                                                                                  |
 | `WATERFALL_REDIS_PASSWORD`             | Redis                                                                                                                                                                                                                                                                                               |
-| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | le rôle `keycloak`, propriétaire de la base de Keycloak, distincte sur le même serveur                                                                                                                                                                                                              |
-| `WATERFALL_STORAGE_SECRET`             | la clé de la plateforme sur son stockage objet, Garage, dont l'identifiant, qui n'est pas un secret, est `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` par défaut)                                                                                                                   |
-| `WATERFALL_STORAGE_RPC_SECRET`         | le canal interne de Garage ; 64 chiffres hexadécimaux (`openssl rand -hex 32`), Garage refusant toute autre forme                                                                                                                                                                                   |
-| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`    | l'administrateur `admin` du royaume `master`, par lequel keycloak-config-cli applique le royaume `waterfall`, et que lisent les tests de `make test-keycloak` ; il n'est lu qu'au premier démarrage, qui crée le royaume `master` : en changer demande `make service-down WATERFALL_RESET_DATA=yes` |
-| `WATERFALL_FRONT_CLIENT_SECRET`        | le client `waterfall-front` du royaume                                                                                                                                                                                                                                                              |
-| `WATERFALL_SERVICE_CLIENT_SECRET`      | le client `waterfall-service`, le compte de service de l'API et du worker                                                                                                                                                                                                                           |
-| `WATERFALL_INSTALLATION_CLIENT_SECRET` | le client `waterfall-installation`, celui de l'amorçage seul, dont les liens valent jusqu'à leur emploi (#652), et qui donne au royaume la langue de l'installation (`manage-realm`, #873) : ni l'API ni le worker ne le tiennent                                                                   |
+| `WATERFALL_KEYCLOAK_DATABASE_PASSWORD` | the role `keycloak`, owner of Keycloak's database, distinct on the same server                                                                                                                                                                                                                      |
+| `WATERFALL_STORAGE_SECRET`             | the key of the platform on its object storage, Garage, whose identifier, which is not a secret, is `WATERFALL_STORAGE_ACCESS_KEY` (`GK000000000000000000000001` by default)                                                                                                                         |
+| `WATERFALL_STORAGE_RPC_SECRET`         | the internal channel of Garage; 64 hexadecimal digits (`openssl rand -hex 32`), Garage refusing any other form                                                                                                                                                                                      |
+| `WATERFALL_KEYCLOAK_ADMIN_PASSWORD`    | the `admin` administrator of the `master` realm, through which keycloak-config-cli applies the `waterfall` realm, and which the tests of `make test-keycloak` read; it is read only at the first start, which creates the `master` realm: changing it requires `make service-down WATERFALL_RESET_DATA=yes` |
+| `WATERFALL_FRONT_CLIENT_SECRET`        | the `waterfall-front` client of the realm                                                                                                                                                                                                                                                           |
+| `WATERFALL_SERVICE_CLIENT_SECRET`      | the `waterfall-service` client, the service account of the API and of the worker                                                                                                                                                                                                                    |
+| `WATERFALL_INSTALLATION_CLIENT_SECRET` | the `waterfall-installation` client, that of the bootstrap alone, whose links are valid until they are used (#652), and which gives the realm the language of the installation (`manage-realm`, #873): neither the API nor the worker holds it                                                      |
 
-Sur un poste, des valeurs de poste suffisent — celles de `.github/workflows/keycloak.yml` par
-exemple. Keycloak répond en HTTPS sur `https://localhost:8443/auth`, sa console d'administration
-sous `/auth/admin`, par un frontal Caddy (`deploy/compose/Caddyfile.service`) que le navigateur
-et le serveur de Next joignent tous deux, et qui le sert aussi sur `https://127.0.0.1:8443/auth`,
-une seconde adresse pour les tests de la plateforme (#680) ; son adresse,
-`WATERFALL_KEYCLOAK_ADDRESS`, est `https://localhost:<port>/auth` : le frontal ne sert que les
-hôtes `localhost` et `127.0.0.1`, et seul le port se déplace, par `WATERFALL_KEYCLOAK_PORT` :
-le Makefile et Compose la déduisent de lui, et ne lisent aucune adresse exportée (#735).
-Les certificats viennent de l'autorité propre de Caddy (`tls internal`) : sa racine, gardée
-dans le volume du frontal, est copiée à chaque démarrage dans
-`deploy/compose/.authority/root.crt` ; le front s'y fie par `NODE_EXTRA_CA_CERTS`, qui l'ajoute
-aux autorités qu'il connaît, les tests de `make test-keycloak` par `SSL_CERT_FILE`, qui en fait
-leur seule autorité, un navigateur en l'important, ou en acceptant l'avertissement. uv lit aussi
-`SSL_CERT_FILE` : `make test-keycloak` synchronise l'environnement du back sans elle, puis lance
-les tests sans le resynchroniser (`uv run --no-sync`) — sinon, sur un poste ou un runner sans
-cache, uv ne se fierait plus à GitHub pour télécharger Python ou les paquets (#737). L'API, dans
-le réseau de la plateforme, joint Keycloak en HTTP sur `keycloak:8080` ; le chiffrement de ce
-lien relève d'EP-13 (WF-SEC-0010).
-Redis est publié sur `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), pour un front lancé sur le poste
-(#681), qui l'atteint par `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifie la
-fermeture des sessions à ce front par le canal de retour, à l'adresse
-`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` par défaut, l'hôte vu de son
-conteneur), distincte de `WATERFALL_FRONT_ADDRESS`, celle du navigateur : le front écoute alors
-sur toutes les interfaces du poste, pas sur la seule boucle locale. Les deux adresses s'écrivent
-dans le royaume quand il s'applique, et `make e2e-service` les remplace par celles du front de ses
-parcours, jusqu'au `service-up` suivant. Mailpit
-montre les courriels sur `http://127.0.0.1:8025`. Le royaume de développement ajoute un annuaire
-OpenLDAP de test et un second royaume, `external`, qui joue le fournisseur externe : leurs comptes
-et leurs mots de passe, des valeurs de développement, sont dans `deploy/keycloak/development/`. Il
-ajoute aussi `waterfall-test`, un client public qui accepte un mot de passe hors de la page du
-royaume, pour les jetons dont les tests de la plateforme ont besoin : `admin-cli`, que Keycloak
-crée dans chaque royaume, n'en accepte plus (#644), et ses jetons ne sont pas pour l'API, faute de
-l'audience `waterfall-api`. Ces fichiers s'appliquent après le royaume, sous un état distant à eux
-(`--import.cache.key=development`, service `keycloak-realm`) : keycloak-config-cli supprime les
-clients que son état nomme et que les fichiers qu'il applique ne déclarent pas, et sans cela le
-client de test emporterait ceux du royaume.
-L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
-personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
-supprime avec elles.
+On a workstation, workstation values are enough — those of `.github/workflows/keycloak.yml` for
+example. Keycloak answers in HTTPS on `https://localhost:8443/auth`, its administration console
+under `/auth/admin`, through a Caddy front end (`deploy/compose/Caddyfile.service`) that the browser
+and the Next server both reach, and which also serves it on `https://127.0.0.1:8443/auth`,
+a second address for the tests of the platform (#680); its address,
+`WATERFALL_KEYCLOAK_ADDRESS`, is `https://localhost:<port>/auth`: the front end serves only the
+hosts `localhost` and `127.0.0.1`, and only the port moves, through `WATERFALL_KEYCLOAK_PORT`:
+the Makefile and Compose deduce it from it, and read no exported address (#735).
+The certificates come from Caddy's own authority (`tls internal`): its root, kept
+in the volume of the front end, is copied at each start into
+`deploy/compose/.authority/root.crt`; the front trusts it through `NODE_EXTRA_CA_CERTS`, which adds it
+to the authorities it knows, the tests of `make test-keycloak` through `SSL_CERT_FILE`, which makes it
+their only authority, a browser by importing it, or by accepting the warning. uv also reads
+`SSL_CERT_FILE`: `make test-keycloak` synchronises the environment of the back without it, then runs
+the tests without resynchronising it (`uv run --no-sync`) — otherwise, on a workstation or a runner without
+a cache, uv would no longer trust GitHub to download Python or the packages (#737). The API, inside
+the network of the platform, reaches Keycloak in HTTP on `keycloak:8080`; the encryption of that
+link belongs to EP-13 (WF-SEC-0010).
+Redis is published on `127.0.0.1:6379` (`WATERFALL_REDIS_PORT`), for a front launched on the workstation
+(#681), which reaches it through `redis://:<mot de passe>@127.0.0.1:6379/0`. Keycloak notifies the
+closing of the sessions to that front through the back channel, at the address
+`WATERFALL_FRONT_BACKCHANNEL` (`http://host.docker.internal:3000` by default, the host as seen from its
+container), distinct from `WATERFALL_FRONT_ADDRESS`, that of the browser: the front then listens
+on every interface of the workstation, not on the loopback alone. Both addresses are written
+into the realm when it is applied, and `make e2e-service` replaces them with those of the front of its
+paths, until the next `service-up`. Mailpit
+shows the emails on `http://127.0.0.1:8025`. The development realm adds a test OpenLDAP
+directory and a second realm, `external`, which plays the external provider: their accounts
+and their passwords, development values, are in `deploy/keycloak/development/`. It
+also adds `waterfall-test`, a public client that accepts a password outside the page of the
+realm, for the tokens the tests of the platform need: `admin-cli`, which Keycloak
+creates in each realm, no longer accepts one (#644), and its tokens are not for the API, for lack of
+the `waterfall-api` audience. These files are applied after the realm, under a remote state of their own
+(`--import.cache.key=development`, service `keycloak-realm`): keycloak-config-cli deletes the
+clients its state names and that the files it applies do not declare, and without that the
+test client would take those of the realm with it.
+The directory keeps its data in a volume, like the databases: bootstrapped again, it would give its
+people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it
+with them.
 
-`BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
+`BASE` is `origin/main` by default; a lot is compared with the branch of its epic.
 
-`make lot-size BASE=origin/epic/EP-nn` mesure un lot : les lignes de son diff, séparées en
-code de production, tests et le reste (documentation, configuration, contrat), les fichiers
-engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
-dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
+`make lot-size BASE=origin/epic/EP-nn` measures a lot: the lines of its diff, separated into
+production code, tests and the rest (documentation, configuration, contract), the generated
+files set apart. The pull request puts that number next to the estimate of its issue; an
+overrun makes nothing fail (README of the roadmap, section « Lots »).
 
-## Chaîne
+## The chain
 
-La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
+The chain is made of GitHub Actions workflows (`.github/workflows/`):
 
-- `ci.yml` décide des familles qu'une pull request touche (`make changes`), appelle le
-  workflow de chacune, et termine par la **porte** (`gate`), qui juge le tout
-  (`make gate`) : elle échoue si un travail a échoué ou a été annulé, et un travail sauté
-  parce que sa famille n'est pas touchée n'est pas un échec. La porte est le seul contrôle
-  que la protection des branches exige : un contrôle exigé qui ne s'exécute pas faute de
-  fichier touché resterait « en attente » et bloquerait la fusion.
-- un workflow par famille — `repo.yml`, `spec.yml`, `contract.yml`… —, qui installe ses
-  outils et appelle `make check-<famille>`. `repo` s'exécute sur toute modification. Le
-  front en a deux, qui tournent côte à côte (#492) : `front.yml`, tout sauf les parcours de
-  bout en bout (`make check-front-code`), et `e2e.yml`, les parcours et la mesure du §4.6.2,
-  au palier complet seulement (`make e2e`, `make e2e-measure`, puis `make prerendered-front`
-  sur la construction de la mesure) ; sur un poste, `make check-front` enchaîne les deux
-  moitiés, `check-front-code` puis `check-front-e2e`.
-  `front.yml` répartit son travail sur plusieurs runners. L'un tient le client, le lint, les
-  types, les catalogues et, au palier rapide, la construction de production
-  (`make check-front-static`). Trois jouent les tests unitaires, qui occupent tous les cœurs
-  d'un runner (`make check-front-tests`) : les gardes qui lancent ESLint, une minute ou plus
-  chacune, sur l'un (`SHARD=lint`, le projet `lint` de `frontend/vitest.config.ts`), les autres
-  tests en deux moitiés sur les deux autres (`SHARD=1/2`, `SHARD=2/2`). Vitest répartit des
-  fichiers entiers par l'empreinte de leur chemin, et les trois gardes tombaient dans le même
-  morceau. Au palier complet, un dernier runner rassemble la couverture des trois morceaux et
-  la tient à ses seuils (`make coverage-front-merge`). ESLint garde son cache, par le contenu
-  de chaque fichier (`pnpm lint`, `actions/cache`) : sans lui, il prend une minute.
-  `front-cache.yml` écrit ce cache et le magasin de pnpm après chaque fusion, sur la branche
-  dont les pull requests et la file de fusion lisent les caches : sans lui, elles ne
-  trouveraient rien.
-  `keycloak.yml` construit l'image de Keycloak et l'éprouve sur la plateforme de service, son
-  royaume appliqué (`make check-keycloak`), aux deux paliers : la famille `keycloak` se
-  réveille sur `deploy/keycloak/`, sur les fichiers de la plateforme qui la démarrent, sur
-  ses tests, sur tout le code du back, dont ses tests servent l'API, et sur le contrat, auquel
-  ils confrontent ses réponses (#671) ; en échec, le travail imprime les journaux de Keycloak
-  (`make service-logs`). `service.yml` joue les parcours contre le vrai service, au palier
-  complet seulement (`make check-service`, soit `make e2e-service`) : la famille `service` se
-  réveille sur le front, le back, le contrat et les fichiers de la plateforme. Il tourne sur le
-  runner même, non dans l'image de Playwright : les parcours joignent la plateforme sur les ports
-  que Docker publie sur le runner, qu'un conteneur de travail ne voit pas ; le navigateur s'y
-  installe avec ses paquets système (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
-  `front-image.yml` construit et démarre l'image de production du front, que `images.yml` ne
-  publie qu'après la fusion, aux deux paliers (`make check-front-image`) : la famille
-  `front-image` se réveille sur ce qui la fait — `frontend/Dockerfile` et son `.dockerignore`,
-  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, et ce que son serveur
-  vérifie au démarrage, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
-  `src/api/server.ts` —, et non sur le
-  code du front, que la famille `front` construit déjà ; elle coûte une construction d'environ
-  une minute et demie. Ce qui est prérendu, c'est le code des pages qui le décide — un
-  `layout.tsx` qui cesserait de lire les cookies, une page qui ne lirait aucune valeur de la
-  requête — : la famille `front` l'affirme donc elle-même, sans Docker, sur le manifeste de sa
-  propre construction (`make prerendered-front`), après `make build-front` au palier rapide et
-  après la construction de la mesure au palier complet ; cette construction prérend comme celle
-  de l'image, dont la sortie autonome (`WATERFALL_STANDALONE=1`) ne change que l'empaquetage.
-  La famille `front-image` affirme que `/` répond avec les réglages du service `front` de
-  `compose.prod.yaml`, des valeurs de remplacement pour ses secrets ; que le front, démarré sans
-  l'une des variables dont il ne se passe pas, s'arrête en la nommant dans ses journaux (#825) ;
-  que le faux back de la maquette (`WATERFALL_AUTH=mock`) est refusé sans `WATERFALL_E2E` — le
-  serveur s'arrête au démarrage, et dit pourquoi —, et que `next build` n'a prérendu
-  (`.next/prerender-manifest.json`) que `/_global-error` et `/icon.svg` : aucune page qui lirait
-  l'environnement n'est figée à la construction.
+- `ci.yml` decides the families a pull request touches (`make changes`), calls the
+  workflow of each, and ends with the **gate** (`gate`), which judges the whole
+  (`make gate`): it fails if a job failed or was cancelled, and a job skipped
+  because its family is not touched is not a failure. The gate is the only check
+  that the branch protection requires: a required check that does not run for lack of a
+  touched file would stay « pending » and would block the merge.
+- one workflow per family — `repo.yml`, `spec.yml`, `contract.yml`… —, which installs its
+  tools and calls `make check-<famille>`. `repo` runs on every change. The
+  front has two, which run side by side (#492): `front.yml`, everything except the end-to-end
+  paths (`make check-front-code`), and `e2e.yml`, the paths and the measure of §4.6.2,
+  at the full tier only (`make e2e`, `make e2e-measure` and `make prerendered-front`, on
+  the build the `front-build` job of `ci.yml` made, « on one single build of the front »); on
+  a workstation, `make check-front` chains the two
+  halves, `check-front-code` then `check-front-e2e`.
+  `front.yml` spreads its work over several runners. One holds the client, the lint, the
+  types, the catalogues and, at the fast tier, the production build
+  (`make check-front-static`). Three play the unit tests, which occupy every core
+  of a runner (`make check-front-tests`): the guards that run ESLint, a minute or more
+  each, on one (`SHARD=lint`, the `lint` project of `frontend/vitest.config.ts`), the other
+  tests in two halves on the other two (`SHARD=1/2`, `SHARD=2/2`). Vitest spreads whole
+  files by the digest of their path, and the three guards fell into the same
+  shard. Vitest takes there one worker per processor minus one, as it does by itself outside
+  watch mode, four at most (`workers`, `frontend/vitest.config.ts`, #1474): the processor
+  left is that of the main process, which gathers the results and the coverage of the
+  workers; a runner, four processors, therefore plays on three. The workstation, twelve processors,
+  gained nothing beyond four, and every test ran slower there, a test of the grid,
+  under one second alone, beyond its five seconds under coverage. On four cores of the
+  workstation, the coverage of the `2/2` half took 121 s on four workers and 131 s on three,
+  but 29 of its tests exceeded one second on four, 11 on three. `structure-busy.dom.test.tsx`
+  and `planning-entry.dom.test.tsx` hide the columns they do not put to the proof, the Gantt first:
+  the whole grid, rendered two or three times at each gesture, doubled their duration. At the
+  full tier, one last runner gathers the coverage of the three shards and
+  holds it to its thresholds (`make coverage-front-merge`). ESLint keeps its cache, by the content
+  of each file (`pnpm lint`, `actions/cache`): without it, it takes a minute.
+  `front-cache.yml` writes that cache and the pnpm store after each merge, on the branch
+  whose caches the pull requests and the merge queue read: without it, they would
+  find nothing.
+  `keycloak.yml` builds the image of Keycloak and puts it to the proof on the service platform, its
+  realm applied (`make check-keycloak`), at both tiers: the `keycloak` family wakes
+  on `deploy/keycloak/`, on the files of the platform that start it, on
+  its tests, on all the code of the back, of which its tests serve the API, and on the contract, against which
+  they confront its responses (#671); on failure, the job prints the logs of Keycloak
+  (`make service-logs`). `service.yml` plays the paths against the real service, at the full
+  tier only (`make check-service`, that is `make e2e-service`, on the build of the front that
+  the paths of `e2e.yml` share): the `service` family wakes
+  on the front, the back, the contract and the files of the platform. It runs on the
+  runner itself, not in the Playwright image: the paths reach the platform on the ports
+  that Docker publishes on the runner, which a job container does not see; the browser is
+  installed there with its system packages (`make e2e-browsers PLAYWRIGHT_INSTALL=--with-deps`).
+  `front-image.yml` builds and starts the production image of the front, which `images.yml`
+  publishes only after the merge, at both tiers (`make check-front-image`): the
+  `front-image` family wakes on what makes it — `frontend/Dockerfile` and its `.dockerignore`,
+  `next.config.ts`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, and what its server
+  checks at start, `src/instrumentation.ts`, `src/startup.ts`, `src/session/settings.ts`,
+  `src/api/server.ts` —, and not on the
+  code of the front, which the `front` family already builds; it costs a build of about
+  a minute and a half. What is prerendered, the code of the pages decides it — a
+  `layout.tsx` that would stop reading the cookies, a page that would read no value of the
+  request —: the `front` family therefore asserts it itself, without Docker, on the manifest of its
+  own build (`make prerendered-front`), after `make build-front` at the fast tier and
+  after the build of the measure at the full tier; that build prerenders like that
+  of the image, whose standalone output (`WATERFALL_STANDALONE=1`) changes only the packaging.
+  The `front-image` family asserts that `/` answers with the settings of the `front` service of
+  `compose.prod.yaml`, placeholder values for its secrets; that the front, started without
+  one of the variables it cannot do without, stops naming it in its logs (#825);
+  that the fake back of the mockup (`WATERFALL_AUTH=mock`) is refused without `WATERFALL_E2E` — the
+  server stops at start, and says why —, and that `next build` prerendered
+  (`.next/prerender-manifest.json`) only `/_global-error` and `/icon.svg`: no page that would read
+  the environment is frozen at build.
 
-Hors des pull requests, `images.yml` publie les images (US-0430) : à chaque poussée sur `main` ou
-sur une branche `epic/**` — à chaque fusion, que la file a déjà éprouvée —, il construit `front`,
-`waterfall` (l'API, le worker, sa planification et les migrations, commandes d'une même
-distribution) et `keycloak` (l'extension, les thèmes et le royaume, sans rien de
-`deploy/keycloak/development/`), et les pousse sur `ghcr.io/waterfall-project/…` (`make images
-PUSH=yes`). Son seul travail demande `packages: write` ; le jeton ne va qu'à la connexion au
-registre, et aucune construction ne reçoit d'argument ni de secret (WF-SEC-0010) :
-`tools/tests/test_images.py` le garde, avec les déclencheurs et les étiquettes.
+Outside the pull requests, `images.yml` publishes the images (US-0430): at each push on `main` or
+on an `epic/**` branch — at each merge, which the queue has already put to the proof —, it builds `front`,
+`waterfall` (the API, the worker, its scheduling and the migrations, commands of one same
+distribution) and `keycloak` (the extension, the themes and the realm, with nothing of
+`deploy/keycloak/development/`), and pushes them to `ghcr.io/waterfall-project/…` (`make images
+PUSH=yes`). Its only job asks for `packages: write`; the token goes only to the login to the
+registry, and no build receives an argument or a secret (WF-SEC-0010):
+`tools/tests/test_images.py` guards it, with the triggers and the tags.
 
-- **Les trois d'abord.** Les trois images sont construites avant toute poussée, et rien n'est
-  poussé si l'une échoue ; puis toutes les étiquettes du commit, et seulement ensuite celles qui
-  bougent — la branche, la version —, pour qu'une étiquette mobile ne désigne jamais des images
-  de deux commits.
-- **L'étiquette de version est immuable.** Elle ne se pose que depuis `main`, une seule fois, et
-  pour les trois images ensemble, qui viennent alors d'un même commit : avant de la poser,
-  l'outil demande au registre, image par image, s'il a déjà `<image>:<version>`
-  (`docker buildx imagetools inspect`). S'il ne l'a pour aucune, les trois la prennent ; s'il
-  l'a pour les trois, aucune ne la reprend, et les étiquettes du commit et de la branche se
-  publient seules : une fusion dans `main` qui ne monte pas la version ne la republie donc pas,
-  et c'est en montant `version` de `backend/pyproject.toml` (et du front) qu'une publication en
-  pose une nouvelle. Tout autre cas — le registre l'a pour certaines seulement, après une
-  publication interrompue, ou ne répond pas clairement qu'il ne l'a pas, comme le `403` de ghcr
-  pour un paquet absent ou illisible — ne la pose sur aucune : l'outil publie les étiquettes du
-  commit et de la branche, puis échoue en nommant chaque image et ce que le registre en a dit ;
-  la version se règle alors à la main, ou en la montant. Une branche d'EPIC, qui porte la même
-  version, ne la pose jamais ; le label `org.opencontainers.image.version` d'une image qui ne
-  prend pas l'étiquette de version le dit (`0.1.0+epic-EP-03` hors de `main`, `0.1.0+main` sur
-  `main` une fois la version publiée). Chaque image porte aussi son propre `title` et son `url`,
-  qui remplacent ceux de son image de base.
-- **Ce qui refuse une poussée.** Une branche autre que `main` ou `epic/…` ; un dépôt dont le
-  commit n'est pas celui que nomme `IMAGE_COMMIT`, ou qui n'est pas propre dans les contextes des
-  images (`git status --porcelain -- frontend backend deploy/keycloak`) ; une image construite
-  dont le système de fichiers (`docker export`) contient une valeur de développement connue — la
-  marque `development-only`, que portent toutes celles de `deploy/keycloak/development/`, et les
-  secrets de poste de `.github/workflows/keycloak.yml`. L'outil nomme alors la valeur trouvée,
-  jamais la valeur elle-même. La fouille lit l'archive du conteneur telle quelle : une valeur
-  dans un fichier compressé lui échappe.
-- **La dernière fusion gagne.** Une publication attend celle de la fusion précédente sur sa
-  branche, sans l'annuler ; mais GitHub ne garde qu'une exécution en attente par groupe, et une
-  troisième fusion annule celle qui attend : l'étiquette de la branche finit sur la dernière, et
-  un commit intermédiaire peut ne pas avoir d'image.
-- **La plateforme de production sur les images publiées.** Le travail `trial` d'`images.yml`, après
-  la publication, tire du registre les images du commit, par son empreinte, et y joue
-  `make production-trial` (`packages: read` pour les tirer) : la plateforme de production démarre,
-  s'amorce, et laisse entrer son premier administrateur (WF-ARC-0050). Un échec y dit qu'une image
-  publiée ne fait pas une plateforme ; il ne défait pas la publication.
+- **The three first.** The three images are built before any push, and nothing is
+  pushed if one fails; then every tag of the commit, and only afterwards those that
+  move — the branch, the version —, so that a moving tag never designates images
+  of two commits.
+- **The version tag is immutable.** It is set only from `main`, once only, and
+  for the three images together, which then come from one same commit: before setting it,
+  the tool asks the registry, image by image, whether it already has `<image>:<version>`
+  (`docker buildx imagetools inspect`). If it has it for none, the three take it; if it
+  has it for the three, none takes it again, and the tags of the commit and of the branch are
+  published alone: a merge into `main` that does not raise the version therefore does not republish it,
+  and it is by raising `version` of `backend/pyproject.toml` (and of the front) that a publication
+  sets a new one. Any other case — the registry has it for some only, after an
+  interrupted publication, or does not answer clearly that it does not have it, like the `403` of ghcr
+  for an absent or unreadable package — sets it on none: the tool publishes the tags of the
+  commit and of the branch, then fails naming each image and what the registry said of it;
+  the version is then settled by hand, or by raising it. An epic branch, which carries the same
+  version, never sets it; the label `org.opencontainers.image.version` of an image that does not
+  take the version tag says so (`0.1.0+epic-EP-03` outside `main`, `0.1.0+main` on
+  `main` once the version is published). Each image also carries its own `title` and its `url`,
+  which replace those of its base image.
+- **What refuses a push.** A branch other than `main` or `epic/…`; a repository whose
+  commit is not the one `IMAGE_COMMIT` names, or which is not clean in the contexts of the
+  images (`git status --porcelain -- frontend backend deploy/keycloak`); a built image
+  whose file system (`docker export`) contains a known development value — the
+  `development-only` mark, which all those of `deploy/keycloak/development/` carry, and the
+  workstation secrets of `.github/workflows/keycloak.yml`. The tool then names the value found,
+  never the value itself. The search reads the archive of the container as it is: a value
+  in a compressed file escapes it.
+- **The last merge wins.** A publication waits for that of the previous merge on its
+  branch, without cancelling it; but GitHub keeps only one pending run per group, and a
+  third merge cancels the one that waits: the tag of the branch ends up on the last one, and
+  an intermediate commit may have no image.
+- **The production platform on the published images.** The `trial` job of `images.yml`, after
+  the publication, pulls from the registry the images of the commit, by its digest, and plays
+  `make production-trial` on them (`packages: read` to pull them): the production platform starts,
+  bootstraps itself, and lets its first administrator in (WF-ARC-0050). A failure there says that a
+  published image does not make a platform; it does not undo the publication.
 
-La famille `production` (`production.yml`) fait le même essai avant la fusion, au palier complet
-seulement, dans la file : `make check-production` construit les trois images comme `images.yml`,
-sans les pousser, puis démarre la plateforme sur elles. Elle se réveille sur les fichiers de la
-plateforme de production — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
-`production.env.example` —, sur ceux qu'elle monte de `deploy/compose/`, et sur l'essai lui-même,
-`tools/src/wftools/production.py` ; un changement de ce
-dont les images sont faites n'est éprouvé ainsi qu'après la fusion, par `images.yml`. Elle coûte la
-construction des trois images, celle de Keycloak et de son extension surtout, puis le démarrage de
-Keycloak et l'application de son royaume.
+The `production` family (`production.yml`) makes the same trial before the merge, at the full tier
+only, in the queue: `make check-production` builds the three images like `images.yml`,
+without pushing them, then starts the platform on them. It wakes on the files of the
+production platform — `compose.prod.yaml`, `compose.prod.local.yaml`, `Caddyfile.prod`,
+`production.env.example` —, on those it mounts from `deploy/compose/`, and on the trial itself,
+`tools/src/wftools/production.py`; a change of what
+the images are made of is put to the proof that way only after the merge, by `images.yml`. It costs the
+build of the three images, that of Keycloak and of its extension above all, then the start of
+Keycloak and the application of its realm.
 
-Les familles, les chemins qui les réveillent, les chemins engendrés et ceux des tests sont
-déclarés dans `tools/paths.toml`, et nulle part ailleurs. Un chemin de `shared` — le
-Makefile, `ci.yml`, la déclaration elle-même et le code qui la lit — réveille toutes les
-familles. Le reste des outils réveille les familles qui s'en servent : chacune nomme parmi ses
-chemins son workflow, les actions locales qu'il prend et les modules de `wftools` que ses
-contrôles lancent. `tools/tests/test_families.py` les tient contre le Makefile, les workflows
-et le harnais de Playwright, imports compris : un module lancé par une famille sans la
-réveiller fait échouer `make check-repo`. La famille `repo`, qui tourne à chaque modification,
-teste tous les outils.
+The families, the paths that wake them, the generated paths and those of the tests are
+declared in `tools/paths.toml`, and nowhere else. A path of `shared` — the
+Makefile, `ci.yml`, the declaration itself and the code that reads it — wakes every
+family. The rest of the tools wakes the families that use them: each names among its
+paths its workflow, the local actions it takes and the modules of `wftools` its
+checks run. `tools/tests/test_families.py` holds them against the Makefile, the workflows
+and the Playwright harness, imports included: a module run by a family without
+waking it makes `make check-repo` fail. The `repo` family, which runs on every change,
+tests every tool.
 
-Deux paliers : le rapide à chaque poussée sur une pull request (`pull_request`), le complet
-dans la file de fusion (`merge_group`), sur le résultat de la fusion, avant qu'elle soit
-acceptée. Le palier complet ajoute ce qui est lent — la couverture du code, puis les tests de
-bout en bout ; sur un poste, `make check-back TIER=full`. Une pull request entre dans la file par
-le bouton « Merge when ready », ou par la mutation `enqueuePullRequest` de l'API GraphQL :
-`gh pr merge` ne sait pas le faire tant que la fusion automatique est désactivée sur le
-dépôt. Une branche sans file de fusion fait tourner le palier complet à la main sur la
-branche d'un lot, avant de le fusionner : `gh workflow run chain --ref <branche>`.
+Two tiers: the fast one at each push on a pull request (`pull_request`), the full one
+in the merge queue (`merge_group`), on the result of the merge, before it is
+accepted. The full tier adds what is slow — code coverage, then the end-to-end
+tests; on a workstation, `make check-back TIER=full`. A pull request enters the queue through
+the « Merge when ready » button, or through the `enqueuePullRequest` mutation of the GraphQL API:
+`gh pr merge` cannot do it as long as auto-merge is disabled on the
+repository. A branch without a merge queue runs the full tier by hand on the
+branch of a lot, before merging it: `gh workflow run chain --ref <branche>`.
 
-Le palier complet vise moins de huit minutes dans la file pour son travail le plus long
-(#492). Les parcours de bout en bout, la moitié la plus longue, s'y prennent ainsi :
+The full tier aims at under eight minutes in the queue for its longest job
+(#492). The end-to-end paths, the longest half, go about it this way:
 
-- **dans l'image de Playwright** (`mcr.microsoft.com/playwright`), à la version de
-  `@playwright/test` que résout `frontend/pnpm-lock.yaml`, épinglée par son empreinte
-  (`container:` d'`e2e.yml`) : Chromium et ses paquets système y sont, rien ne vient du miroir
-  d'Ubuntu, dont le débit n'est pas le nôtre (#472). Le travail appelle `make e2e`, qui trouve
-  le navigateur de l'image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), et non
-  `make check-front-e2e`, qui en installerait un. Monter `@playwright/test` monte l'image avec
-  lui, étiquette et empreinte : sinon les parcours s'arrêtent d'emblée sur un navigateur
-  introuvable, et `tools/tests/test_playwrightimage.py` échoue avant eux, dans `make check-repo`.
-  L'empreinte est celle de l'index multi-architecture de l'étiquette, que donne la ligne
-  `Digest:` de `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble`, ou
-  l'en-tête `docker-content-digest` de
+- **in the Playwright image** (`mcr.microsoft.com/playwright`), at the version of
+  `@playwright/test` that `frontend/pnpm-lock.yaml` resolves, pinned by its digest
+  (`container:` of `e2e.yml`): Chromium and its system packages are there, nothing comes from the
+  Ubuntu mirror, whose throughput is not ours (#472). The job calls `make e2e`, which finds
+  the browser of the image (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`), and not
+  `make check-front-e2e`, which would install one. Raising `@playwright/test` raises the image with
+  it, tag and digest: otherwise the paths stop at once on a browser
+  not found, and `tools/tests/test_playwrightimage.py` fails before them, in `make check-repo`.
+  The digest is that of the multi-architecture index of the tag, which the line
+  `Digest:` of `docker buildx imagetools inspect mcr.microsoft.com/playwright:v<X>-noble` gives, or
+  the `docker-content-digest` header of
   `curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' https://mcr.microsoft.com/v2/playwright/manifests/v<X>-noble`.
-  L'image n'a pas `make` : son paquet d'Ubuntu noble est téléchargé, épinglé et
-  vérifié par son empreinte, comme pandoc ;
-- **répartis sur trois runners** (`make e2e SHARD=i/3`, soit `playwright test --shard=i/3`),
-  la mesure du §4.6.2 sur un quatrième, seule (`make e2e-measure`), par une matrice dont aucun
-  morceau n'annule les autres ; le résultat d'`e2e` est un échec dès qu'un morceau échoue ou
-  est annulé, et la porte avec lui. Trois, parce que Playwright répartit des fichiers entiers
-  de parcours, à nombre de tests égal, et que les plus longs pèsent — sauf un fichier joué test
-  par test (`mode: "parallel"`), comme `accessibility.spec.ts`, dont les tests se répartissent un
-  à un : avant ce fichier, en octobre 2026, le plus long de trois morceaux jouait environ 140 s
-  de parcours sur deux workers, celui de quatre 130 s, quand chaque morceau paie environ deux
-  minutes d'image, d'installation et de serveurs. Ce que le fichier ajoute se lit sur la chaîne de
-  la pull request d'US-0200, et le choix se revoit quand les parcours s'allongent : les durées
-  par fichier se lisent dans le journal de chaque morceau.
+  The image has no `make`: its Ubuntu noble package is downloaded, pinned and
+  verified by its digest, like pandoc;
+- **spread over three runners** (`make e2e SHARD=i/3`, that is `playwright test --shard=i/3`),
+  the measure of §4.6.2 on a fourth, alone (`make e2e-measure`), through a matrix none of whose
+  shards cancels the others; the result of `e2e` is a failure as soon as a shard fails or
+  is cancelled, and the gate with it. Three, because Playwright spreads whole files
+  of paths, at an equal number of tests, and the longest weigh — except a file played test
+  by test (`mode: "parallel"`), like `accessibility.spec.ts`, whose tests are spread one
+  by one: before that file, in October 2026, the longest of three shards played about 140 s
+  of paths on two workers, that of four 130 s, when each shard pays about two
+  minutes of image, installation and servers. What the file adds can be read on the chain of
+  the pull request of US-0200, and the choice is reconsidered when the paths lengthen: the durations
+  per file can be read in the log of each shard;
+- **on one single build of the front per run** (US-0590): the `front-build` job of `ci.yml`,
+  which runs as soon as `e2e` or `service` runs, launches `make build-front` and uploads
+  `frontend/.next` without its cache (`.next/cache`, which only a following build would read). The three
+  shards, the measure and the paths of the service wait for it, download it where the build
+  wrote it and play with `E2E_BUILT=1`, without rebuilding anything. It lives in `ci.yml` and not in
+  one of the two workflows: `e2e.yml` and `service.yml` are two called workflows, and a `needs`
+  does not join the jobs of one to those of the other; neither has any other
+  trigger than that call, so that none builds the front. A failed build skips the
+  two, and the gate, which waits for it too, fails. It builds on the runner, like `front.yml`, in
+  Node 24: the shards start it in the Playwright image, in Node 24 too (its
+  `NODE_VERSION`), on the same Ubuntu noble in amd64, and at another path of the workspace
+  (`/__w/…` instead of `/home/runner/work/…`); `service.yml`, on the runner. The build does not depend
+  on that path: only `required-server-files.json`, which the standalone output of the image reads and
+  not `next start`, names it, and a build moved elsewhere, its original folder removed, serves its
+  pages (checked on 2026-10-25 on the workstation, by moving the build; the proof in the chain
+  will come from a run of `chain` on the branch of the lot).
 
-Le back suit le même modèle (#492, levier 5) :
+The back follows the same model (#492, lever 5):
 
-- PostgreSQL tourne en service du travail (`services:` de `back.yml`), dans l'image de la
-  version que vise la plateforme — celle de `compose.service.yaml` —, épinglée par son
-  empreinte, avec sa sonde de santé : les tests d'intégration le joignent sur `localhost`, sans
-  Compose, par `WATERFALL_TEST_DATABASE_URL` ; l'empreinte est écrite dans `back.yml` et dans
-  `compose.service.yaml`, et `tests/test_platform_images.py` échoue si elles divergent ;
-- la couverture, plus lente, ne tourne qu'au palier complet, à la place des tests simples
-  (`full-else` du Makefile) ;
-- les tests se répartissent sur les cœurs du runner, huit processus au plus (`PYTEST_WORKERS`
-  du Makefile, pytest-xdist) : 7 minutes en série sur la chaîne en octobre 2026, moins de deux
-  sur quatre cœurs. Chaque processus crée sa propre base, son rôle et son bucket, de nom unique,
-  et prend la base de Redis qui suit celle de `WATERFALL_TEST_REDIS_URL` selon son rang
-  (`tests/conftest.py`). Les processus doivent collecter les mêmes tests : un paramètre de test
-  n'est jamais tiré au hasard (un `uuid4()` dans `parametrize`), il est fixé. Les tests de
-  Keycloak restent sur un processus : l'un d'eux redémarre Keycloak.
+- PostgreSQL runs as a service of the job (`services:` of `back.yml`), in the image of the
+  version the platform targets — that of `compose.service.yaml` —, pinned by its
+  digest, with its health probe: the integration tests reach it on `localhost`, without
+  Compose, through `WATERFALL_TEST_DATABASE_URL`; the digest is written in `back.yml` and in
+  `compose.service.yaml`, and `tests/test_platform_images.py` fails if they diverge;
+- the coverage, slower, runs only at the full tier, in place of the plain tests
+  (`full-else` of the Makefile);
+- the tests are spread over the cores of the runner, eight processes at most (`PYTEST_WORKERS`
+  of the Makefile, pytest-xdist): 7 minutes in series on the chain in October 2026, under two
+  on four cores. Each process creates its own database, its role and its bucket, with a unique name,
+  and takes the Redis database that follows that of `WATERFALL_TEST_REDIS_URL` according to its rank
+  (`tests/conftest.py`). The processes must collect the same tests: a test parameter
+  is never drawn at random (a `uuid4()` in `parametrize`), it is fixed. The tests of
+  Keycloak stay on one process: one of them restarts Keycloak.
 
-Reste à écrire, quand la durée l'exige :
+Still to write, when the duration demands it:
 
-- les parcours contre le vrai service (`service.yml`), qu'un seul runner joue tant qu'ils sont
-  courts, se répartissent comme ceux d'`e2e.yml`, la plateforme démarrée dans chaque morceau.
+- the paths against the real service (`service.yml`), which one single runner plays as long as they are
+  short, are spread like those of `e2e.yml`, the platform started in each shard.
 
-Les images se construisent depuis un cache de GitHub Actions (`type=gha`) : l'extension de
-Keycloak compilée par Maven, les dépendances du front et du back ne se refont pas à chaque
-travail. Le job `cache` d'`images.yml` l'écrit après chaque fusion (`make build-cache`), sur la
-branche dont les pull requests lisent les caches ; `keycloak.yml`, `service.yml`,
-`production.yml` et `front-image.yml` le lisent (`build-keycloak`, `wftools.images`,
-`wftools.frontimage`). L'action locale `.github/actions/build-cache` le leur ouvre : elle active
-le magasin d'images de containerd, sans lequel le builder de Docker n'importe ni n'exporte un tel
-cache, et redémarre Docker — jamais dans un travail qui a des `services:`
-(`tools/tests/test_images.py`) ; puis elle passe aux étapes suivantes l'adresse et le jeton du
-cache, que le runner ne donne qu'à une action (`.github/actions/actions-runtime`, sans rien
-afficher). Sur un poste, Docker ignore un cache `type=gha`. La publication (`publish`) n'en lit
-aucun : sur le magasin de containerd, une image se pousserait avec ses attestations, dans un
-autre format que celui publié aujourd'hui.
+The images are built from a GitHub Actions cache (`type=gha`): the extension of
+Keycloak compiled by Maven, the dependencies of the front and of the back are not redone at each
+job. The `cache` job of `images.yml` writes it after each merge (`make build-cache`), on the
+branch whose caches the pull requests read; `keycloak.yml`, `service.yml`,
+`production.yml` and `front-image.yml` read it (`build-keycloak`, `wftools.images`,
+`wftools.frontimage`). The local action `.github/actions/build-cache` opens it to them: it enables
+the containerd image store, without which Docker's builder neither imports nor exports such a
+cache, and restarts Docker — never in a job that has `services:`
+(`tools/tests/test_images.py`); then it passes to the following steps the address and the token of the
+cache, which the runner gives only to an action (`.github/actions/actions-runtime`, without displaying
+anything). On a workstation, Docker ignores a `type=gha` cache. The publication (`publish`) reads
+none: on the containerd store, an image would be pushed with its attestations, in another
+format than the one published today.
 
-Règles des workflows :
+Rules of the workflows:
 
-- une action tierce est épinglée par l'empreinte de son commit, la version en commentaire ;
-  Dependabot propose chaque mois leur mise à jour (`.github/dependabot.yml`) ;
-- chaque workflow déclare `permissions: contents: read`, et n'en demande pas plus sans
-  raison écrite ;
-- `actions/checkout` ne garde pas le jeton (`persist-credentials: false`) ;
-- un outil téléchargé hors d'une action est épinglé par sa version et vérifié par son
-  empreinte, comme pandoc dans `spec.yml`.
+- a third-party action is pinned by the digest of its commit, the version as a comment;
+  Dependabot proposes their update every month (`.github/dependabot.yml`);
+- each workflow declares `permissions: contents: read`, and asks for no more without
+  a written reason;
+- `actions/checkout` does not keep the token (`persist-credentials: false`);
+- a tool downloaded outside an action is pinned by its version and verified by its
+  digest, like pandoc in `spec.yml`.
 
-_Contrôle_ : `make lint-workflows` (actionlint) ; l'épinglage et les permissions, la revue.
+_Check_: `make lint-workflows` (actionlint); the pinning and the permissions, the review.
 
-La protection des branches est un réglage de GitHub, fait par le propriétaire du dépôt :
-sur `epic/*`, pas de poussée directe, la porte exigée, la file de fusion ; sur `main`, la
-porte n'est exigée qu'à partir de la livraison d'EP-01 — GitHub lit les workflows dans la
-branche d'une pull request, et une pull request vers `main` tirée d'avant la chaîne ne la
-déclencherait pas.
+The branch protection is a GitHub setting, made by the owner of the repository:
+on `epic/*`, no direct push, the gate required, the merge queue; on `main`, the
+gate is required only from the delivery of EP-01 on — GitHub reads the workflows in the
+branch of a pull request, and a pull request to `main` created from before the chain would not
+trigger it.
 
-## Nommage
+## Naming
 
-Le code, les tables, les colonnes, les variables, les chemins et les messages de console
-sont en anglais ; la documentation est en français, comme la spécification. Les noms des
-objets du domaine sont ceux du tableau de correspondance du §4.4.1 de la spécification
-(`estimate_line`, `cost_line`, `revision`…), et les conventions du contrat — `snake_case`,
-`operationId` en `camelCase`, identifiants UUID — sont dans `docs/api/README.md`.
+The code, the tables, the columns, the variables, the paths and the console messages
+are in English; the documentation is in French, like the specification. The names of the
+objects of the domain are those of the correspondence table of §4.4.1 of the specification
+(`estimate_line`, `cost_line`, `revision`…), and the conventions of the contract — `snake_case`,
+`operationId` in `camelCase`, UUID identifiers — are in `docs/api/README.md`.
 
-_Contrôle_ : aucun outil ne vérifie la langue d'un nom ; la revue le fait.
+_Check_: no tool checks the language of a name; the review does.
 
-## En-têtes et licences
+## Headers and licences
 
-Chaque fichier de code commence par deux lignes, après la ligne `#!` s'il en a une :
+Every code file begins with two lines, after the `#!` line if it has one:
 
 <!-- REUSE-IgnoreStart -->
 
@@ -2853,1138 +2966,1205 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <!-- REUSE-IgnoreEnd -->
 
-dans la syntaxe de commentaire du langage. Le nom du fichier n'y figure pas : il deviendrait
-faux au premier renommage ; la première ligne de la docstring du module dit à quoi il sert.
-Ce qui ne peut pas porter de commentaire, ou n'y gagnerait rien — documentation, figures,
-contrat, gabarits, images, fichiers engendrés — est déclaré dans `REUSE.toml`. La
-spécification y est déclarée sous CC BY-SA 4.0 et le contrat d'interface sous Apache-2.0
-(`docs/legal/README.md`, « Les décisions prises ») ; le code de conduite garde sa propre
+in the comment syntax of the language. The name of the file does not appear there: it would become
+wrong at the first rename; the first line of the docstring of the module says what it is for.
+What cannot carry a comment, or would gain nothing from it — documentation, figures,
+contract, templates, images, generated files — is declared in `REUSE.toml`. The
+specification is declared there under CC BY-SA 4.0 and the interface contract under Apache-2.0
+(`docs/legal/README.md`, « The decisions taken »); the code of conduct keeps its own
 licence, CC BY 4.0.
 
-Un document qui cite ces deux lignes, comme celui-ci, les encadre de
-`REUSE-IgnoreStart` et `REUSE-IgnoreEnd`, faute de quoi l'outil les lirait comme la licence
-du document.
+A document that cites these two lines, like this one, frames them with
+`REUSE-IgnoreStart` and `REUSE-IgnoreEnd`, failing which the tool would read them as the licence
+of the document.
 
-_Contrôle_ : `make reuse` échoue sur un fichier couvert ni par un en-tête ni par
+_Check_: `make reuse` fails on a file covered neither by a header nor by
 `REUSE.toml`.
 
-## Outils du dépôt
+## Repository tools
 
-Les outils vivent dans `tools/`, en Python, avec leurs tests (`make test-tools`). Tout outil
-qui a besoin des exigences les lit par `wftools.projection`, qui lit la projection
-`docs/spec/waterfall-spec.md` : un seul lecteur, pour que deux outils ne puissent pas
-diverger sur ce qu'une exigence dit. Il compare les textes après normalisation — apostrophes
-et espaces typographiques rendus simples —, et découpe un Vérif en phrases. L'exemple du
-§1.3.1, `WF-EXA-0010-A`, n'est pas une exigence du produit : les outils l'excluent.
+The tools live in `tools/`, in Python, with their tests (`make test-tools`). Every tool
+that needs the requirements reads them through `wftools.projection`, which reads the projection
+`docs/spec/waterfall-spec.md`: one single reader, so that two tools cannot
+diverge on what a requirement says. It compares the texts after normalisation — apostrophes
+and typographic spaces made plain —, and splits a Vérif into sentences. The example of
+§1.3.1, `WF-EXA-0010-A`, is not a requirement of the product: the tools exclude it.
 
-_Contrôle_ : `make test-tools`.
+_Check_: `make test-tools`.
 
-## La roadmap et les exigences
+## The roadmap and the requirements
 
-Les US de `docs/roadmap` citent les exigences qu'elles réalisent, et leurs critères
-d'acceptation reprennent le Vérif de chacune **mot pour mot**, en critère ou en écart : ce
-sont les cas de test à venir. `make roadmap` confronte la roadmap au document, et échoue :
+The stories of `docs/roadmap` cite the requirements they implement, and their acceptance
+criteria take up the Vérif of each **word for word**, as a criterion or as a deviation: they
+are the test cases to come. `make roadmap` confronts the roadmap with the document, and fails:
 
-- sur un identifiant inconnu, ou d'un indice de révision que le document a dépassé, dans un
-  tableau d'EPIC comme dans une US ;
-- sur une phrase du Vérif d'une exigence citée, absente de l'US ou tronquée — une phrase se
-  cite entière, point final compris ; les apostrophes et les espaces typographiques ne
-  comptent pas ;
-- sur une exigence du tableau d'un EPIC qu'aucune de ses US ne cite, sauf si l'EPIC est
-  `à planifier` ;
-- sur une exigence qu'aucun EPIC ne close, ou que plusieurs closent.
+- on an unknown identifier, or one with a revision index the document has gone past, in an
+  epic table as in a story;
+- on a sentence of the Vérif of a cited requirement, absent from the story or truncated — a sentence is
+  cited whole, full stop included; apostrophes and typographic spaces do not
+  count;
+- on a requirement of the table of an epic that none of its stories cites, unless the epic is
+  `à planifier`;
+- on a requirement that no epic closes, or that several close.
 
-Il liste, sans échouer, les exigences F0 qu'aucune US ne cite encore : leur nombre décroît à
-mesure que les US des EPIC suivants s'écrivent. L'outil ne lit que le dépôt : l'état des
-issues n'est pas son affaire.
+It lists, without failing, the F0 requirements that no story cites yet: their number decreases as
+the stories of the following epics are written. The tool reads only the repository: the state of the
+issues is not its business.
 
-Il échoue aussi sur une commande `make` que cite un agent (`.claude/agents/`,
-`docs/dev/agents.md`) et que le Makefile n'a pas : une cible renommée ne laisse pas un agent
-appeler une commande disparue.
+It also fails on a `make` command that an agent cites (`.claude/agents/`,
+`docs/dev/agents.md`) and that the Makefile does not have: a renamed target does not let an agent
+call a command that has disappeared.
 
-_Contrôle_ : `make roadmap`, famille `roadmap` de la chaîne, réveillée aussi par un
-changement de la projection ou des agents.
+_Check_: `make roadmap`, `roadmap` family of the chain, woken also by a
+change of the projection or of the agents.
 
-## Commentaires
+## Comments
 
-Un commentaire dit pourquoi, pas ce que fait le code : la raison d'un choix, un invariant,
-un cas limite. Il est en anglais, comme le code.
+A comment says why, not what the code does: the reason for a choice, an invariant,
+an edge case. It is in English, like the code.
 
-_Contrôle_ : aucun outil ne juge ce qu'un commentaire dit ; la revue le fait. La forme des
-docstrings, le code commenté et les `TODO` — toujours `TODO(#12): …`, avec le numéro de
-l'issue — sont contrôlés : voir « Lint, typage et format ».
+_Check_: no tool judges what a comment says; the review does. The form of the
+docstrings, commented-out code and the `TODO`s — always `TODO(#12): …`, with the number of
+the issue — are checked: see « Lint, types and format ».
 
-## Lint, typage et format
+## Lint, types and format
 
-Ce que la spécification appelle analyse statique (WF-QUA-0030) : tout est bloquant, et aucun
-avertissement n'est toléré ; ce qui ne mérite pas de bloquer se retire du jeu de règles.
+What the specification calls static analysis (WF-QUA-0030): everything is blocking, and no
+warning is tolerated; what does not deserve to block is removed from the rule set.
 
-**Python** — le back et les outils du dépôt partagent un seul jeu de règles,
-`ruff.toml`, à la racine :
+**Python** — the back and the repository tools share one single rule set,
+`ruff.toml`, at the root:
 
-- toutes les règles de Ruff sont actives ; celles qui sont retirées sont listées, chacune
-  avec sa raison, et l'historique du fichier montre chaque retrait ;
-- complexité cyclomatique inférieure à 15 par fonction (`C901`, maximum 14) ;
-- l'en-tête SPDX (`CPY001`), une docstring d'une ligne pour ce qui est public (`D1`,
-  convention PEP 257 ; ni les tests ni les méthodes spéciales n'en demandent), pas de code
-  commenté (`ERA001`), un `TODO` qui cite son issue (`TD003`) ;
-- Pyright en mode strict (`[tool.pyright]` de chaque projet), `# type: ignore` non honoré.
+- every rule of Ruff is active; those that are removed are listed, each
+  with its reason, and the history of the file shows each removal;
+- cyclomatic complexity under 15 per function (`C901`, maximum 14);
+- the SPDX header (`CPY001`), a one-line docstring for what is public (`D1`,
+  PEP 257 convention; neither the tests nor the special methods ask for one), no commented-out
+  code (`ERA001`), a `TODO` that cites its issue (`TD003`);
+- Pyright in strict mode (`[tool.pyright]` of each project), `# type: ignore` not honoured.
 
-**Aucune règle ne s'écarte par un commentaire dans le code.** Une exception, s'il en faut
-une, s'écrit dans la configuration de l'outil — `per-file-ignores` de `ruff.toml` —, avec sa
-raison. Aucun fichier source ne dépasse 1 000 lignes, lignes vides et commentaires compris ;
-les fichiers engendrés en sont exclus.
+**No rule is waived by a comment in the code.** An exception, if one is needed,
+is written in the configuration of the tool — `per-file-ignores` of `ruff.toml` —, with its
+reason. No source file exceeds 1,000 lines, blank lines and comments included;
+generated files are excluded from it.
 
-_Contrôles_ : `make lint-back`, `make typecheck-back`, `make lint-tools`,
-`make typecheck-tools` ; `make sources` pour les commentaires d'exemption et la taille des
-fichiers, sur tout le dépôt. Les outils de `docs/spec/tools` et `docs/api/tools` suivent
-les mêmes règles que ceux de `tools/` ; une exception, s'il en faut une, se déclare dans
-`tools/paths.toml`, avec sa raison et ce qui la lèvera.
+_Checks_: `make lint-back`, `make typecheck-back`, `make lint-tools`,
+`make typecheck-tools`; `make sources` for the exemption comments and the size of the
+files, over the whole repository. The tools of `docs/spec/tools` and `docs/api/tools` follow
+the same rules as those of `tools/`; an exception, if one is needed, is declared in
+`tools/paths.toml`, with its reason and what will lift it.
 
-**TypeScript** — le front a son jeu de règles dans `frontend/eslint.config.mjs` :
+**TypeScript** — the front has its rule set in `frontend/eslint.config.mjs`:
 
-- les configurations recommandées d'ESLint, de Next.js (`core-web-vitals`) et de
-  typescript-eslint en mode strict, avec les informations de type ; ce qui leur est ajouté
-  ou retiré est écrit dans le fichier, avec sa raison ;
-- complexité cyclomatique inférieure à 15 (`complexity`, maximum 14) ; 1 000 lignes au plus
-  par fichier (`max-lines`) ;
-- une docstring JSDoc pour ce qui est exporté, sans type — TypeScript les porte
-  (`jsdoc/no-types`) — et sans section par paramètre, qui répéterait la signature ;
-- aucun des moyens connus d'appeler le réseau hors de `src/api/client.ts` — `fetch`,
-  `XMLHttpRequest`, `WebSocket`, `EventSource`, ni un client http importé —, et aucun
-  import de `src/api/` dans un composant client hors des actions serveur : l'API ne
-  s'appelle que par le client engendré, depuis le serveur
-  (WF-ARC-0020) ;
-- aucun texte destiné à l'utilisateur écrit dans le code (WF-QUA-0070) : voir « Clés de
-  traduction » ;
-- Prettier pour le format (`frontend/.prettierrc.json`) ; ESLint s'exécute avec
+- the recommended configurations of ESLint, of Next.js (`core-web-vitals`) and of
+  typescript-eslint in strict mode, with type information; what is added to them
+  or removed from them is written in the file, with its reason;
+- cyclomatic complexity under 15 (`complexity`, maximum 14); 1,000 lines at most
+  per file (`max-lines`);
+- a JSDoc docstring for what is exported, without a type — TypeScript carries them
+  (`jsdoc/no-types`) — and without a section per parameter, which would repeat the signature;
+- none of the known means of calling the network outside `src/api/client.ts` — `fetch`,
+  `XMLHttpRequest`, `WebSocket`, `EventSource`, nor an imported http client —, and no
+  import of `src/api/` in a client component outside the server actions: the API is
+  called only through the generated client, from the server
+  (WF-ARC-0020);
+- no text meant for the user written in the code (WF-QUA-0070): see « Translation
+  keys »;
+- Prettier for the format (`frontend/.prettierrc.json`); ESLint runs with
   `--max-warnings 0`.
 
-Les commentaires de configuration dans le code ne sont pas honorés (`noInlineConfig`) et
-`make sources` les refuse. Un `TODO` cite son issue, sous la même forme qu'en Python :
-`TODO(#12): …` ; les autres étiquettes d'attente sont refusées — c'est `make sources` qui le
-vérifie, ESLint n'ayant pas d'équivalent aux règles `TD` et `FIX` de Ruff.
+The configuration comments in the code are not honoured (`noInlineConfig`) and
+`make sources` refuses them. A `TODO` cites its issue, in the same form as in Python:
+`TODO(#12): …`; the other waiting labels are refused — it is `make sources` that
+checks it, ESLint having no equivalent of the `TD` and `FIX` rules of Ruff.
 
-_Contrôles_ : `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
+_Checks_: `make lint-front` (ESLint, Prettier), `make typecheck-front`, `make sources`.
 
-**Contrat** — `docs/api/redocly.yaml` étend `recommended-strict` : toute règle de Redocly
-bloque. Une opération à laquelle une règle ne s'applique pas — une sonde sans réponse 4xx,
-une redirection OIDC sans réponse 2xx — est déclarée dans `docs/api/.redocly.lint-ignore.yaml`,
-avec sa raison.
+**Contract** — `docs/api/redocly.yaml` extends `recommended-strict`: every rule of Redocly
+blocks. An operation to which a rule does not apply — a probe without a 4xx response,
+an OIDC redirect without a 2xx response — is declared in `docs/api/.redocly.lint-ignore.yaml`,
+with its reason.
 
-_Contrôle_ : `make lint-openapi`.
+_Check_: `make lint-openapi`.
 
-## Règles de codage
+## Coding rules
 
-Comment s'écrit chaque langage : [Python](python.md), pour le back et les outils,
-[TypeScript](typescript.md), pour le front, et [Java](java.md), pour l'extension Keycloak.
-Chacun nomme d'abord les jeux de règles des outils, par renvoi, puis les règles de conception
-qu'aucun outil ne contrôle, chacune avec sa raison, et finit par les défauts déjà rencontrés,
-que la revue cherche nommément. Le
-SQL et les migrations ont le leur : [SQL](sql.md), pour les tables, les types, les contraintes,
-les migrations et les verrous.
+How each language is written: [Python](python.md), for the back and the tools,
+[TypeScript](typescript.md), for the front, and [Java](java.md), for the Keycloak extension.
+Each first names the rule sets of the tools, by reference, then the design rules
+that no tool checks, each with its reason, and ends with the defects already met,
+which the review looks for by name. The
+SQL and the migrations have their own: [SQL](sql.md), for the tables, the types, the constraints,
+the migrations and the locks.
 
 ## Tests
 
-- **Un test qui cite son exigence** — voir ci-dessous.
-- **Un test qui reprend un exemple chiffré** — voir ci-dessous.
-- **Un parcours de bout en bout** — voir ci-dessous.
-- **Un test contre PostgreSQL** — voir ci-dessous.
-- **Un test contre Redis** — voir ci-dessous.
-- **Un test contre le stockage objet** — voir ci-dessous.
+- **A test that cites its requirement** — see below.
+- **A test that takes up a numeric example** — see below.
+- **An end-to-end path** — see below.
+- **A test against PostgreSQL** — see below.
+- **A test against Redis** — see below.
+- **A test against the object storage** — see below.
 
-Les réponses du faux back sont les exemples du contrat, tels quels. Deux exceptions, et seulement
-elles. Un test peut retirer une permission d'une session d'exemple pour éprouver une combinaison
-qu'aucun compte du témoin ne porte (décision de l'auteur, 2026-10-09) ; il n'ajoute ni ne réécrit
-rien d'autre. Il la retire de la session que lit la page (`requestSession` doublé, comme le fait L43c
-pour les sauvegardes, `app/reference/costs/page.test.tsx`), jamais en réécrivant une réponse du
-client. Et un test peut rendre un composant sur une variante contrefactuelle d'une ligne d'exemple
-— une valeur changée, le reste de la ligne gardé —, quand aucun exemple du contrat ne porte le cas
-qu'il éprouve : la variante se passe en prop au composant, jamais servie comme réponse du client, et
-le test dit de quel exemple elle vient et ce qu'il change (EP-14/L45a). Précédents : « SP-REC », le
-sous-projet créé, qu'aucune révision marquée ne cite, déchargé de ses coûts réels, sa suppression
-listée disponible comme le serveur la listerait alors, pour la suppression d'un sous-projet, les deux
-du témoin étant cités et chargés (EP-14/L42l) ; les commandes des sous-projets ôtées d'une ligne
-(EP-14/L44e, `subproject-commands.dom.test.tsx`) — celles d'un projet clos, toutes indisponibles,
-ont leur exemple depuis L42o (`subprojects_completed`), qui remplace la variante (EP-14/L52) — ; et l'écart à la revue précédente absent du reste à engager
+The responses of the fake back are the examples of the contract, as they are. Two exceptions, and
+only those. A test may remove a permission from an example session to exercise a combination
+that no account of the witness carries (author's decision, 2026-10-09); it adds and rewrites
+nothing else. It removes it from the session the page reads (`requestSession` doubled, as L43c does
+for the backups, `app/reference/costs/page.test.tsx`), never by rewriting a response of the
+client. And a test may render a component on a counterfactual variant of an example line
+— one value changed, the rest of the line kept —, when no example of the contract carries the case
+it exercises: the variant is passed to the component as a prop, never served as a response of the
+client, and the test says which example it comes from and what it changes (EP-14/L45a). Precedents: « SP-REC », the
+created sub-project, which no marked revision cites, relieved of its actual costs, its deletion
+listed as available as the server would list it then, for the deletion of a sub-project, the two
+of the witness being cited and loaded (EP-14/L42l); the sub-project commands removed from a line
+(EP-14/L44e, `subproject-commands.dom.test.tsx`) — those of a closed project, none since US-0702/L3,
+have their example since L42o (`subprojects_completed`), which replaces the variant (EP-14/L52) —; and the gap to the previous review absent from the remaining to commit
 (`remaining-summary.test.tsx`).
 
-### Un test qui cite son exigence
+### A test that cites its requirement
 
-Chaque exigence F0 est couverte par au moins un test qui la cite par son identifiant complet,
-indice de révision compris (WF-QUA-0010).
+Every F0 requirement is covered by at least one test that cites it by its full identifier,
+revision index included (WF-QUA-0010).
 
-- **Python** : le marqueur `@pytest.mark.requirement("WF-ARC-0010-A")`, sur le test, sur sa
-  classe, ou sur le module (`pytestmark = pytest.mark.requirement(...)`) quand tout le
-  fichier porte la même exigence. Le marqueur est déclaré : une faute de frappe dans son nom
-  fait échouer Pytest.
-- **TypeScript** — Vitest ou Playwright : l'identifiant entre crochets dans le titre,
+- **Python**: the marker `@pytest.mark.requirement("WF-ARC-0010-A")`, on the test, on its
+  class, or on the module (`pytestmark = pytest.mark.requirement(...)`) when the whole
+  file carries the same requirement. The marker is declared: a typo in its name
+  makes Pytest fail.
+- **TypeScript** — Vitest or Playwright: the identifier between square brackets in the title,
   `it("lit une grille [WF-QUA-0050-A]", …)`.
 
-Un test cite l'exigence dont il éprouve le Vérif, pas celle dont il parle. Un test qui ne
-couvre aucune exigence — un outil, un détail de réalisation — n'en cite aucune.
+A test cites the requirement whose Vérif it exercises, not the one it talks about. A test that
+covers no requirement — a tool, an implementation detail — cites none.
 
-_Contrôles_ : `make requirements` lit les citations dans les fichiers de test, sans les
-lancer, et publie le relevé — chaque exigence F0 avec les tests qui la couvrent et leur
-famille, celle que `tools/paths.toml` déclare pour leur chemin dans sa table `[tests]` :
-bout en bout contre le service (`frontend/e2e/service/**`, qui prime sur les autres parcours),
-bout en bout (`frontend/e2e/**`, qui prime sur le reste de `frontend/`), front, back,
-keycloak (les tests JUnit de l'extension, qui ne citent aucune exigence), outils — dans le résumé
-du travail de la chaîne ; une citation d'un identifiant inconnu, ou
-d'un indice de révision que le document a dépassé, le fait échouer. Les tests du front
-citent des exigences que d'autres EPIC clôturent, par la phrase du Vérif qu'ils éprouvent ;
-une exigence que seuls le front et le bout en bout citent, et qu'un EPIC clôt sans avoir
-`front` pour seule famille — d'après la table « Exigences réalisées » de la roadmap et le
-champ `famille` de son front matter —, est comptée à part, « couverte par le front seul »,
-et ne compte pas comme couverte. Un parcours joué contre le service, lui, traverse le back : il
-prouve ce que le back clôt, comme ses propres tests (US-0340). `make requirements-release` échoue en plus sur toute exigence F0
-non couverte, ou couverte par le front seul, en la nommant : c'est la commande de la
-publication d'une version. Une exigence dont le Vérif s'ouvre par « Vérifiée en recette »
-attend un procès-verbal, dont la forme n'est pas encore définie : le relevé le dit.
+_Checks_: `make requirements` reads the citations in the test files, without running
+them, and publishes the report — each F0 requirement with the tests that cover it and their
+family, the one `tools/paths.toml` declares for their path in its `[tests]` table:
+end to end against the service (`frontend/e2e/service/**`, which takes precedence over the other paths),
+end to end (`frontend/e2e/**`, which takes precedence over the rest of `frontend/`), front, back,
+keycloak (the JUnit tests of the extension, which cite no requirement), tools — in the summary
+of the chain's job; a citation of an unknown identifier, or
+of a revision index the document has moved past, makes it fail. The tests of the front
+cite requirements that other epics close, by the sentence of the Vérif they exercise;
+a requirement that only the front and the end-to-end tests cite, and that an epic closes without having
+`front` as its only family — according to the « Exigences réalisées » table of the roadmap and the
+`famille` field of its front matter —, is counted apart, « covered by the front alone »,
+and does not count as covered. A path played against the service, for its part, goes through the back: it
+proves what the back closes, like the back's own tests (US-0340). `make requirements-release` fails in addition on any F0 requirement
+not covered, or covered by the front alone, naming it: it is the command of the
+release of a version. A requirement whose Vérif opens with « Vérifiée en recette »
+expects an acceptance report, whose form is not yet defined: the report says so.
 
-### Un test contre PostgreSQL
+### A test against PostgreSQL
 
-Un test d'intégration du back joint la vraie base, PostgreSQL, jamais une autre à sa place
-(`python.md`, « Les tests »). La variable `WATERFALL_TEST_DATABASE_URL` désigne un serveur et un
-rôle qui peut créer des bases et des rôles, un superutilisateur
-(`postgresql://rôle@hôte:5432/postgres`) : à chaque session de tests, la fixture `database_url`
-(`backend/tests/conftest.py`) y crée une base de nom unique, y applique les migrations, et la
-supprime à la fin, avec le rôle du service que les migrations lui ont créé. La fixture
-`database` rend cette base telle que le service la voit — par un rôle de connexion membre du
-rôle du service de cette base, créé pour la session (sql.md, « Le rôle du service ») —, et en
-supprime après chaque test les lignes de toutes les tables que la `Base` déclare, en
-propriétaire, journal d'audit compris, que son déclencheur ne protège pas d'un superutilisateur
-qui coupe les déclencheurs — sauf celles qu'une migration écrit, le catalogue des permissions,
-que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend une session que le
-test défait.
+An integration test of the back joins the real database, PostgreSQL, never another in its place
+(`python.md`, « Les tests »). The variable `WATERFALL_TEST_DATABASE_URL` names a server and a
+role that can create databases and roles, a superuser
+(`postgresql://rôle@hôte:5432/postgres`): at each test session, the `database_url` fixture
+(`backend/tests/conftest.py`) creates there a database with a unique name, applies the migrations to it, and
+drops it at the end, with the service role the migrations created for it. The `database`
+fixture returns this database as the service sees it — through a login role that is a member of the
+service role of this database, created for the session (sql.md, « Le rôle du service ») —, and
+deletes after each test the rows of every table the `Base` declares, as
+owner, audit log included, which its trigger does not protect from a superuser
+who disables the triggers — except those a migration writes, the catalogue of permissions,
+which its table marks (`WRITTEN_BY_MIGRATION` in its `info`); `session` returns a session the
+test rolls back.
 
-- **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
-- **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
-  l'environnement, « Commandes »), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
-  vaut alors
-  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
-  créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
-- **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
-  en silence. Les tests d'`examples/`, sockets fermées, n'en ont pas besoin.
-- Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
-  sur sa connexion : l'environnement d'Alembic, lui, n'est pas rentrant, et se joue dans un
-  processus à la fois.
+- **In the chain**, `back.yml` starts PostgreSQL as a service of the job and sets the variable.
+- **On a workstation**, two ways: `make service-up` (with the secrets of the platform in
+  the environment, « Commands »), whose PostgreSQL listens on `127.0.0.1:5432` — the variable
+  is then
+  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` —; or a local server,
+  created for the occasion (`initdb -E UTF8`, `pg_ctl start`) and deleted afterwards.
+- **Without the variable**, a test that needs the database **fails** saying so, and does not pass
+  silently. The tests of `examples/`, sockets closed, do not need it.
+- A test that needs two instances of the service starts two processes (`subprocess`), each
+  on its own connection: Alembic's environment, for its part, is not re-entrant, and runs in one
+  process at a time.
 
-### Un test contre le stockage objet
+### A test against the object storage
 
-Une sauvegarde se teste contre un vrai stockage objet, Garage, l'image de la plateforme de service
-(PBS-3.3) : la variable `WATERFALL_TEST_STORAGE_URL` le désigne avec une clé qui peut créer un
-compartiment, `http://<clé>:<secret>@127.0.0.1:3900`. La fixture `backups_bucket`
-(`backend/tests/conftest.py`) y crée un compartiment pour la session de tests, et le vide puis le
-supprime à la fin. Les sauvegardes appellent `pg_dump` et `pg_restore` dans `/usr/bin`, ceux de
-Debian et d'Ubuntu, d'une version au moins égale à celle du serveur. Elles vident les bases comme
-le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_role`
-(`backend/tests/conftest.py`) crée pour la session, membre de `pg_read_all_data` (#895).
+A backup is tested against a real object storage, Garage, the image of the service platform
+(PBS-3.3): the variable `WATERFALL_TEST_STORAGE_URL` names it with a key that can create a
+bucket, `http://<clé>:<secret>@127.0.0.1:3900`. The `backups_bucket` fixture
+(`backend/tests/conftest.py`) creates a bucket there for the test session, and empties then
+deletes it at the end. The backups call `pg_dump` and `pg_restore` in `/usr/bin`, those of
+Debian and Ubuntu, of a version at least equal to the server's. They dump the databases like
+the worker of the platform, through a backup role that the `backup_role` fixture
+(`backend/tests/conftest.py`) creates for the session, a member of `pg_read_all_data` (#895).
 
-- **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
-  reçoit pas les arguments qu'il demande — et pose la variable.
-- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
+- **In the chain**, `back.yml` starts Garage by `docker run` — a service of the job does not
+  receive the arguments it asks for — and sets the variable.
+- **On a workstation**, a throwaway Garage is enough, with the settings of the platform:
   `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
-- **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
+- **Without the variable**, a test that needs the storage **fails** saying so.
 
-### Un test contre Redis
+### A test against Redis
 
-La session du front et la file des tâches du back se testent contre un vrai Redis, jamais un
-double : la variable `WATERFALL_TEST_REDIS_URL` le désigne (`redis://127.0.0.1:6379/0`), une base
-que les tests sont seuls à employer. Côté front, `withTestRedis()` (`frontend/src/test/session.ts`)
-y pointe le magasin des sessions pour la durée d'un fichier de test ; chaque clé est tirée au
-hasard : les fichiers qui tournent ensemble ne se rencontrent pas, et les clés expirent
-d'elles-mêmes. Côté back, la fixture `queue` (`backend/tests/conftest.py`) ouvre la file sur un flux
-à elle, supprimé après le test, et `platform_queue` sur celui de toute installation, que les
-commandes de la plateforme emploient, vidé avant et après. Les tests du back tournant sur
-plusieurs processus, chacun prend la base qui suit celle de la variable selon son rang (`gw0` la
-sienne, `gw7` la septième après) : le flux de toute installation n'est jamais vidé sous les pieds
-d'un autre. Aucun test ne vide le serveur.
+The session of the front and the task queue of the back are tested against a real Redis, never a
+double: the variable `WATERFALL_TEST_REDIS_URL` names it (`redis://127.0.0.1:6379/0`), a database
+that the tests alone use. On the front side, `withTestRedis()` (`frontend/src/test/session.ts`)
+points the session store at it for the duration of a test file; each key is drawn at
+random: the files that run together do not meet, and the keys expire
+by themselves. On the back side, the `queue` fixture (`backend/tests/conftest.py`) opens the queue on a stream
+of its own, deleted after the test, and `platform_queue` on the one of the whole installation, which the
+commands of the platform use, emptied before and after. The tests of the back running on
+several processes, each takes the database that follows the variable's according to its rank (`gw0` its
+own, `gw7` the seventh after): the stream of the whole installation is never emptied from under
+another's feet. No test flushes the server.
 
-- **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
+- **In the chain**, `front.yml` and `back.yml` start Redis as a service of the job and set the
   variable.
-- **Sur un poste**, un Redis jetable suffit :
+- **On a workstation**, a throwaway Redis is enough:
   `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
-- **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
-  silence.
+- **Without the variable**, a test that needs Redis **fails** saying so, and does not pass
+  silently.
 
-Keycloak, lui, n'est pas dans les tests du front : `frontend/src/test/identity-provider.ts` répond
-au serveur de Next comme le royaume `waterfall` — code à usage unique pour son vérificateur, jeton
-de rafraîchissement tourné à chaque emploi et refusé au second, jetons signés d'une clé à lui.
-`make test-keycloak` prouve contre le vrai royaume l'échange du code avec son vérificateur, le
-refus d'un jeton de rafraîchissement déjà employé et la fermeture des sessions d'un compte ; le
-jeton de déconnexion que Keycloak poste au front, le parcours contre le service d'US-0340
-(`frontend/e2e/service/session.spec.ts`) ; `refresh_expires_in`, les deux heures d'une session
-inactive, et ce qu'US-0350 demande d'autre au royaume — chaque nature de compte, le mot de passe,
-le verrouillage, le lien —, `backend/tests/test_keycloak_sign_in.py` ; le retour à l'écran visé,
-les parcours contre le service d'US-0350/L5b (#849).
+Keycloak, for its part, is not in the tests of the front: `frontend/src/test/identity-provider.ts` answers
+Next's server like the `waterfall` realm — single-use code for its verifier, refresh token
+rotated at each use and refused at the second, tokens signed with a key of its own.
+`make test-keycloak` proves against the real realm the exchange of the code with its verifier, the
+refusal of a refresh token already used and the closing of an account's sessions; the
+logout token that Keycloak posts to the front, the path against the service of US-0340
+(`frontend/e2e/service/session.spec.ts`); `refresh_expires_in`, the two hours of an inactive
+session, and whatever else US-0350 asks of the realm — each kind of account, the password,
+the lockout, the link —, `backend/tests/test_keycloak_sign_in.py`; the return to the intended screen,
+the paths against the service of US-0350/L5b (#849).
 
-### Un parcours de bout en bout
+### An end-to-end path
 
-Un parcours s'écrit sous `frontend/e2e/`, en Playwright, et cite dans son titre l'exigence
-qu'il couvre : `test("… [WF-QUA-0050-A]", …)`. Il trouve les éléments par leur rôle et leur
-nom accessible (`getByRole`), comme un utilisateur les voit, jamais par une classe CSS.
+A path is written under `frontend/e2e/`, in Playwright, and cites in its title the requirement
+it covers: `test("… [WF-QUA-0050-A]", …)`. It finds the elements by their role and their
+accessible name (`getByRole`), as a user sees them, never by a CSS class.
 
-Une page ouverte par son adresse s'affiche avant que React l'ait hydratée : un lien suivi charge
-alors son écran en document entier, mais un clic sur un bouton, une touche dans une cellule, se
-perdent (#471). Un parcours ouvre donc un écran de projet par `openHydrated`
-(`frontend/e2e/hydration.ts`), qui attend le témoin de l'hydratation : le cookie `wf_last_project`,
-que la coquille n'écrit que dans un effet. Hors projet, rien n'en témoigne : le geste se répète
-jusqu'à ce que React y réponde, sans défaire celui qu'il a déjà reçu (`setExpanded`, `openMenu`, et
-`sortUntilAddress` pour un tri, qui ne se presse jamais à l'aveugle). Un écran de grille s'attend à
-la borne des écrans de grille, quinze secondes (`WORKING`, #315, #419), qu'un clic l'atteigne ou le
-relise (un tri, un filtre, une recherche, le détail d'une ligne). Un écran de grille est une grille
-dense — devis, planning, reste à engager, risques, coûts réels, portefeuille —, ou un écran qui lit
-la structure de mille tâches (`listNodes`) : le Kanban, l'arborescence, les chronologies. La
-comparaison de deux révisions s'y ajoute, le temps d'une décision : elle rend ses 2 770
-modifications en une table simple, rendue au serveur, qui dépasse cinq secondes en développement
-(constat #624 d'EP-14/L45a, à trancher — admise, ou portée sur la grille dense) : du clic à
-l'adresse, pour cinq mégaoctets de réponse, environ quatre secondes au serveur, jusqu'à dix quand un
-autre parcours le charge, et trois ou quatre au navigateur, le faux back répondant en quelques
-dizaines de millisecondes (#729). Un parcours qui rend ainsi des milliers de lignes hors d'une
-grille virtualisée peut garder sa trace sans instantanés du DOM (`snapshots: false`), et seulement
-après une mesure qui montre ce qu'ils coûtent dans la borne — pour la comparaison, deux secondes
-environ, qui la portaient jusqu'à onze secondes sur quinze sur un poste au repos. La trace perd le
-DOM, le réseau, l'arbre d'accessibilité et la capture de chaque action, et ne garde que les actions,
-leurs sources et le film de l'écran : le parcours dit lui-même, en annotation, la durée de ce qu'il
-attend (`test.info().annotations`). Le remède atténue, il ne solde rien : le reste tient à l'écran.
-Les risques et les coûts réels, relus, ont dépassé cinq secondes sous charge : les mesures sont
-consignées dans #500, qui reste à trancher. Tout autre écran garde les cinq secondes d'une
-assertion. Un parcours qui enchaîne trois de ces bornes, ouverture comprise, dépasse les trente
-secondes d'un test, et prend `test.slow()`. Une ligne de grille vérifiée est dans la fenêtre :
-au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`scrollToPosition`,
-`frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la
-fenêtre.
+A page opened by its address is displayed before React has hydrated it: a link followed then
+loads its screen as a whole document, but a click on a button, a key in a cell, get
+lost (#471). A path therefore opens a project screen with `openHydrated`
+(`frontend/e2e/hydration.ts`), which waits for the witness of hydration: the cookie `wf_last_project`,
+which the shell writes only in an effect. Outside a project, nothing witnesses it: the gesture is repeated
+until React answers it, without undoing the one it has already received (`setExpanded`, `openMenu`, and
+`sortUntilAddress` for a sort, which never hurries blindly). A grid screen is waited for up to
+the bound of grid screens, fifteen seconds (`WORKING`, #315, #419), whether a click reaches it or
+reloads it (a sort, a filter, a search, the detail of a line). A grid screen is a dense
+grid — estimate, planning, remaining to commit, risks, actual costs, portfolio —, or a screen that reads
+the structure of a thousand tasks (`listNodes`): the Kanban, the tree, the timelines. The
+comparison of two revisions joins them, for the time of a decision: it renders its 2,770
+modifications in a plain table, rendered on the server, which exceeds five seconds in development
+(finding #624 of EP-14/L45a, to be decided — accepted, or moved onto the dense grid): from the click to
+the address, for five megabytes of response, about four seconds on the server, up to ten when another
+path loads it, and three or four in the browser, the fake back answering in a few
+tens of milliseconds (#729). A path that renders thousands of lines this way outside a
+virtualised grid may keep its trace without DOM snapshots (`snapshots: false`), and only
+after a measurement that shows what they cost within the bound — for the comparison, about two
+seconds, which took it up to eleven seconds out of fifteen on an idle workstation. The trace loses the
+DOM, the network, the accessibility tree and the screenshot of each action, and keeps only the actions,
+their sources and the film of the screen: the path itself says, in an annotation, the duration of what it
+waits for (`test.info().annotations`). The remedy mitigates, it settles nothing: the rest lies with the screen.
+The risks and the actual costs, reloaded, have exceeded five seconds under load: the measurements are
+recorded in #500, which remains to be decided. Every other screen keeps the five seconds of an
+assertion. A path that chains three of these bounds, opening included, exceeds the thirty
+seconds of a test, and takes `test.slow()`. A grid line that is checked is in the viewport:
+beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
+`frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
+viewport.
 
-`make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
-dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
-les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
-serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front de développement,
-3101 pour le front construit —, jamais ceux de `make dev`, et son faux back sert une variante
-du contrat écrite sous `frontend/.e2e/`, que `make dev` ne lit pas : un port déjà pris fait
-échouer le lancement en le disant. `E2E_API_PORT`, `E2E_FRONT_PORT` et
-`E2E_PRODUCTION_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste ; un
-port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
-navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
-chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`playwright test --workers`), moins que Playwright n'en prend de lui-même sur un poste chargé, où
-des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
-contre l'API qu'elle nomme et ne démarre aucun faux back.
+`make e2e`: Playwright starts the fake back (`make mock`) and the front, plays the paths
+in Chromium, then stops both — it signals their whole process group, without which
+the servers that `make` and `pnpm` start would survive. It always starts its own
+servers, on ports of its own — 4110 for the fake back, 3100 for the front —, never those of
+`make dev`, and its fake back serves a variant of the contract written under `frontend/.e2e/`, which
+`make dev` does not read: a port already taken makes the launch fail saying so. `E2E_API_PORT`
+and `E2E_FRONT_PORT` move the ports, for two copies of the repository on the same workstation — the front of the
+paths takes as many as it has workers, starting from it (below); a port
+that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
+browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, like
+each of the chain's runners (« The chain »), and `make e2e WORKERS=<n>` plays them on `n` workers
+(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer of at least 1, nothing else), fewer than
+Playwright takes on its own — half the processors — on a loaded workstation, where
+paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
+against the API it names and starts no fake back.
 
-Avant le premier parcours, le harnais demande une fois chaque route au serveur de développement
-(`globalSetup`, `frontend/e2e/warm-up.ts`, #1145) : celui-ci compile une route à sa première
-demande, et sous la charge de quatre workers la compilation dépassait les cinq secondes de
-l'assertion qui attend l'écran qu'un clic atteint. Les écrans sont ceux de `frontend/e2e/routes.ts`,
-que `src/app/screens.test.ts` tient à chaque page de `src/app`, avec les pages qui ne font que
-rediriger : une page ajoutée est préchauffée avec elles. Les route handlers le sont aussi, chacun à
-une adresse qui ne change rien — `/auth/sign-out` sans suivre sa redirection, `/auth/backchannel-logout`
-par un `GET` qu'il refuse, un téléchargement à une adresse qui ne nomme rien —, ou déclarés exempts
-avec leur raison — `/login`, qui commence hors du faux back une connexion, un état gardé dans
-Redis — ;
-`src/app/route-handlers.test.ts` tient ces deux listes à chaque `route.ts` de `src/app`. Quatre à la
-fois, la redirection non suivie ; ce qu'une route répond reste aux parcours. Une connexion que le
-serveur coupe (`ECONNRESET`, `EPIPE`, `socket hang up`), ce que fait le serveur de développement
-sous charge, n'est pas une erreur de l'écran : la route est redemandée une fois, et la sortie
-l'écrit (#1301) ; un serveur qui redémarre refuse la connexion (`ECONNREFUSED`), ce qui n'est pas
-une coupure. Une erreur du serveur — un statut de 500 ou plus, jamais redemandé, ou aucune réponse,
-une seconde coupure comprise, dont l'erreur garde le message de la première — s'écrit dans la
-sortie au moment où elle survient. Elle fait échouer le lancement une fois toutes les routes
-demandées, en nommant chaque adresse en cause : un écran qui ne compile pas se voit là, pas dans
-chaque parcours. Le préchauffage écrit sa durée, mesurée à 44,3 s, 19,7 s et 23,7 s sur les trois
-passages du 2026-10-21, pour les 38 écrans d'alors. Il ne précède ni la mesure jouée seule
-(`E2E_PART=measure`), ni les parcours du service, qui n'atteignent que quelques écrans de
-l'administration, chacun après une connexion par le royaume, et dont l'écran demandé sans session
-enverrait par le mandataire du contrat, dont leur garde lit le journal, les lectures d'un projet
-que le service n'a pas. `compile` (`frontend/e2e/compile.ts`) reste pour un parcours qui compile
-lui-même ce qu'il atteint.
+**The paths are played against the front built for production** (US-0590), the one
+users open: one `next start` server per worker of the paths, on `E2E_FRONT_PORT`
+and the ports that follow it, each worker playing against the one of its place among the workers
+(`TEST_PARALLEL_INDEX`); a single one for the measurement of the second, played on one worker, for the
+paths of the service, whose realm knows the address of only one front, and for the development
+server. The development server rendered the pages of the four workers in series, beyond
+the five seconds of an assertion (#1262), and rose above 9 GB after compiling every
+route (#1309). A single built front, one process, rendered them in series too, faster:
+busy three quarters of the time under six workers, it left the risks screen loading
+five seconds after the click, three times out of sixty (#1477); one front per worker, none out of
+sixty. Playwright starts the fronts one after the other, and the first builds the front when
+it is not built. It starts as many as there are workers even for a single file
+(`make e2e TESTS=…`) or a shard: each answers in about a second on the workstation, so
+that a replay under four workers waits three or four seconds longer for its first path. The
+harness does not know, when reading its configuration, how many workers the replay will occupy: a cap
+at the number of files would give a single front to the four workers of a file played test by test
+(`mode: "parallel"`, `accessibility.spec.ts`), the congestion of #1477; `WORKERS=1` starts a
+single one. `make e2e`, `make e2e-measure` and
+`make e2e-service` first build the front like `make build-front`, with no reachable API
+(#131) — the same build therefore serves the fake back and the real service —, then launch Playwright, which
+starts it; locally, Next's cache (`frontend/.next/cache`) shortens the following builds.
+`E2E_BUILT=1` says the front is already built: neither the target nor the harness rebuild it, which is what
+the chain does, building it once per run for all its parts — the shards of the
+paths, the measurement and the paths of the service (`front-build`, « The chain »). Without it, the
+harness launched outside the Makefile (`pnpm exec playwright test`) builds the front itself before
+starting it.
 
-Le front du harnais ouvre une connexion à lui pour chaque requête à l'API
-(`WATERFALL_API_CONNECTIONS=closed`, « Le client de l'API ») : l'API y est toujours Prism, faux
-back ou mandataire du contrat, qui ferme une connexion inactive depuis cinq secondes, et le serveur de
-développement chargé envoyait une requête sur une connexion que Prism venait de fermer
-(`UND_ERR_SOCKET: other side closed`, puis `Unreachable` dans `readOrFail`, #1145).
+`E2E_DEV_SERVER=1` replays locally the paths against the development server (`next dev`),
+without rebuilding the front at each replay: `make e2e E2E_DEV_SERVER=1 TESTS=e2e/<fichier>`, or
+`make e2e-service E2E_DEV_SERVER=1`. The measurement never follows it: it is always played against the
+built front, so that `make e2e E2E_DEV_SERVER=1` leaves it aside, and that
+`make e2e-measure` builds the front anyway. Set in the chain (`CI` defined), it makes
+the launch fail, with a message that says so. Nothing warms up the routes for it: a
+local replay is played on few files, and the development server compiles a route at its
+first request, which the first assertion that waits for it may exceed. `compile`
+(`frontend/e2e/compile.ts`) remains for a path that first compiles what it reaches.
 
-`make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
-(`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
-plateforme de service (`make service-up`), son royaume appliqué avec l'adresse du front des
-parcours, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
-celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.internal:3100`
-(`WATERFALL_FRONT_BACKCHANNEL`), quelles que soient celles que l'environnement exporte ; puis
-Prism en mandataire entre le front et l'API
-(`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
-`WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
-`docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
-(`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors
-du contrat un 422, et Prism écrit chacune à son journal sous sa requête. Prism n'y exige aucun
-jeton : le service authentifie, et son refus passe tel quel, confronté au contrat. Il lance enfin
-Playwright avec, dans son environnement — jamais en ligne de commande, où le mot de passe de
-Redis se lirait —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (le mandataire),
-`E2E_CONTRACT_PROXY` (son conteneur), `E2E_SERVICE_DATABASE` (celui de PostgreSQL),
+The warm-up of the routes (`e2e/warm-up.ts`, #1145), which requested each route from the development
+server before the first path, is removed with its tests: the built front compiles
+nothing on demand. A failure of the API, of the realm or of Redis is therefore read at the first path that
+reaches it, and no longer before it (#1265).
+
+**No failure is tolerated** (US-0590b, #1460): at the local full tier as in the chain, the
+failure of a path is a failure, even if it passes replayed alone. The provisional rule of #1145, which
+let a lot merge whose paths of #1145 and #1263 fell at the local tier then
+passed replayed alone, disappeared with US-0590b, which fixed these failures at their cause: the built
+front, one per worker (above), and the lightened keyboard walk (below). A path
+that falls is fixed at its cause, never by a longer wait, a `retries`, a `fixme` or a
+`skip`.
+
+The front of the harness opens a connection of its own for each request to the API
+(`WATERFALL_API_CONNECTIONS=closed`, « The API client »): the API there is always Prism, fake
+back or proxy of the contract, which closes a connection idle for five seconds, and the loaded
+development server sent a request on a connection Prism had just closed
+(`UND_ERR_SOCKET: other side closed`, then `Unreachable` in `readOrFail`, #1145). The harness also
+sets `WATERFALL_E2E=1` on the front, against the fake back as against the service: the built front
+admits the fixed token of the fake back only on that condition, and does not report the `closed` connections
+(#1265).
+
+`make e2e-service` plays against the real service the paths of the Playwright project `service`
+(`frontend/e2e/service/`, US-0340), alongside those of the fake back, which remain. It starts the
+service platform (`make service-up`), its realm applied with the address of the front of the
+paths, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, which follows `E2E_FRONT_PORT`), and
+the one through which Keycloak reaches it from its container, `http://host.docker.internal:3100`
+(`WATERFALL_FRONT_BACKCHANNEL`), whatever the ones the environment exports; then
+Prism as a proxy between the front and the API
+(`prism proxy --errors`, service `contract-proxy`, on `127.0.0.1:4210`, which
+`WATERFALL_PROXY_PORT` moves), which serves the variant of the fake back written in
+`docs/api/waterfall.proxy.json`: a response outside its schema becomes a 500 error
+(`VIOLATIONS`), an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outside
+the contract a 422, and Prism writes each one to its log under its request. Prism requires no
+token there: the service authenticates, and its refusal passes as it is, checked against the contract. It finally launches
+Playwright with, in its environment — never on the command line, where the password of
+Redis could be read —, `E2E_PART=service`, `WATERFALL_API_ADDRESS` (the proxy),
+`E2E_CONTRACT_PROXY` (its container), `E2E_SERVICE_DATABASE` (PostgreSQL's),
 `WATERFALL_KEYCLOAK_ADDRESS`, `WATERFALL_FRONT_ADDRESS`,
-`WATERFALL_REDIS_URL` (le Redis de la plateforme) et `NODE_EXTRA_CA_CERTS` (la racine de
-l'autorité du frontal de Keycloak) ; le secret du client du front, et celui de l'administrateur
-de Keycloak, viennent de l'environnement. La plateforme reste démarrée : `make service-down`
-l'arrête. Avant Playwright, il amorce la plateforme (`waterfall-api install`, service `install`,
-US-0420) : le premier administrateur, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), porte le
-rôle « Administrateur », et le lien qui fixe son mot de passe, valable jusqu'à son emploi, est
-dans `E2E_INSTALLATION_LINK` — vide dès qu'un parcours l'a employé, l'administrateur se
-connectant ensuite avec le mot de passe constant des parcours (`LOCAL_PASSWORD`,
-`frontend/e2e/service/realm.ts`). Une précondition :
-`E2E_ADMIN_EMAIL` doit être l'adresse avec laquelle la plateforme a été amorcée la première fois.
-Une relance n'installe rien de nouveau et ignore une autre adresse (`installation.admin_email_ignored`
-dans ses journaux) : sur une plateforme amorcée avec une autre, par `make service-install` et un autre
-`WATERFALL_ADMIN_EMAIL`, les parcours chercheraient un administrateur qui n'existe pas. Il faut alors
-donner la première adresse à `E2E_ADMIN_EMAIL`, ou repartir d'une plateforme vide
+`WATERFALL_REDIS_URL` (the Redis of the platform) and `NODE_EXTRA_CA_CERTS` (the root of the
+authority of Keycloak's front end); the secret of the front's client, and that of Keycloak's
+administrator, come from the environment. The platform stays up: `make service-down`
+stops it. Before Playwright, it bootstraps the platform (`waterfall-api install`, service `install`,
+US-0420): the first administrator, `administrateur@waterfall.test` (`E2E_ADMIN_EMAIL`), carries the
+role « Administrateur », and the link that sets their password, valid until it is used, is
+in `E2E_INSTALLATION_LINK` — empty as soon as a path has used it, the administrator
+signing in afterwards with the constant password of the paths (`LOCAL_PASSWORD`,
+`frontend/e2e/service/realm.ts`). A precondition:
+`E2E_ADMIN_EMAIL` must be the address with which the platform was bootstrapped the first time.
+A relaunch installs nothing new and ignores another address (`installation.admin_email_ignored`
+in its logs): on a platform bootstrapped with another one, by `make service-install` and another
+`WATERFALL_ADMIN_EMAIL`, the paths would look for an administrator who does not exist. One must then
+give the first address to `E2E_ADMIN_EMAIL`, or start again from an empty platform
 (`make service-down WATERFALL_RESET_DATA=yes`).
 
-Les parcours se jouent en cinq projets Playwright. `installation` d'abord
-(`installation.setup.ts`, WF-EXP-0020) : le lien ne sert qu'une fois, et ce parcours fixe le mot de
-passe de l'administrateur, se connecte, et constate son rôle, les trois rôles prédéfinis et le
-catalogue. `service` ensuite, sur plusieurs workers (#730) : chaque parcours se connecte avec un
-compte local à lui, que l'administrateur crée par l'API (`createUser`, `createPasswordSetupLink`) et
-dont il fixe le mot de passe par le lien rendu, ou avec un compte dont aucun autre parcours ne ferme
-les sessions — l'administrateur lui-même, pour les écrans des comptes et des rôles et pour le
-journal d'audit (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). L'administrateur donne leurs
-rôles aux comptes locaux par l'API ; la personne de l'annuaire de test,
-`dominique.annuaire@waterfall.test`, et celle du fournisseur externe, `camille.externe`
-(`deploy/keycloak/development/`), que l'API admet sans rôle à leur première requête (WF-ADM-0180) et
-que seul `sign-in.spec.ts` emploie, reçoivent le leur par une écriture dans la base de la plateforme
-(`grantRole`), une fois admises. Aucun parcours ne donne à un autre compte que l'administrateur les
-deux permissions d'administration — `give` le refuse —, et aucun ne renomme ni ne change un rôle
-prédéfini : les refus `LAST_ADMINISTRATOR` de l'écran des rôles et de celui des comptes en dépendent
-(`roles.spec.ts`). Le jeton de l'administrateur, qui vit cinq minutes, se redemande quand il en a
-plus de quatre.
+The paths are played in five Playwright projects. `installation` first
+(`installation.setup.ts`, WF-EXP-0020): the link serves only once, and this path sets the
+administrator's password, signs in, and observes their role, the three predefined roles and the
+catalogue. `service` next, on several workers (#730): each path signs in with a
+local account of its own, which the administrator creates through the API (`createUser`, `createPasswordSetupLink`) and
+whose password it sets through the returned link, or with an account whose sessions no other path
+closes — the administrator themselves, for the accounts and roles screens and for the
+audit log (`accounts.spec.ts`, `roles.spec.ts`, `audit.spec.ts`). The administrator gives the local accounts their
+roles through the API; the person of the test directory,
+`dominique.annuaire@waterfall.test`, and the one of the external provider, `camille.externe`
+(`deploy/keycloak/development/`), whom the API admits without a role at their first request (WF-ADM-0180) and
+whom only `sign-in.spec.ts` uses, receive theirs by a write into the platform's database
+(`grantRole`), once admitted. No path gives any account other than the administrator the
+two administration permissions — `give` refuses it —, and none renames or changes a predefined
+role: the `LAST_ADMINISTRATOR` refusals of the roles screen and of the accounts screen depend on it
+(`roles.spec.ts`). The administrator's token, which lives five minutes, is requested again when it is
+more than four minutes old.
 
-Tous les workers connectent l'administrateur, et le royaume refuse les identifiants d'un compte
-qu'il est déjà en train de vérifier, comme s'il était verrouillé (`user_temporarily_disabled`, sans
-échec compté) : une connexion attend son tour (`oneAtATime`, `realm.ts`), sous un verrou — un
-répertoire du dossier temporaire du système, nommé d'après la course et le compte —, qu'elle tient
-jusqu'à la réponse du royaume, attendue quinze secondes au plus, bien en deçà des trente que les
-autres workers attendent le verrou. Un écran de table de l'administration s'ouvre par une adresse
-qui dit sa recherche, vide au besoin (`?search=`) : une adresse muette rétablirait la recherche ou
-les filtres que l'administrateur a gardés sur un autre parcours, puisqu'il est le même sur tous.
-`realm` ensuite, sur un seul worker, une fois les autres finis : les parcours marqués `@realm-wide`,
-qui raccourcissent une durée du royaume, que lit chaque compte. `restoration` après eux, seul : les
-parcours marqués `@platform-wide`, qui restaurent la plateforme entière et en ferment toutes les
-sessions (US-0440, `backups.spec.ts`). `contract` enfin, le démontage de `installation` : la garde
-du contrat de toute la course.
+All the workers sign the administrator in, and the realm refuses the credentials of an account
+it is already verifying, as if it were locked (`user_temporarily_disabled`, with no
+failure counted): a sign-in waits its turn (`oneAtATime`, `realm.ts`), under a lock — a
+directory of the system's temporary folder, named after the run and the account —, which it holds
+until the realm's answer, awaited for fifteen seconds at most, well below the thirty that the
+other workers wait for the lock. A table screen of the administration is opened by an address
+that states its search, empty if need be (`?search=`): a silent address would restore the search or
+the filters the administrator kept on another path, since they are the same on all of them.
+`realm` next, on a single worker, once the others are finished: the paths marked `@realm-wide`,
+which shorten a duration of the realm, which every account reads. `restoration` after them, alone: the
+paths marked `@platform-wide`, which restore the whole platform and close all its
+sessions (US-0440, `backups.spec.ts`). `contract` last, the teardown of `installation`: the guard
+of the contract of the whole run.
 
-Le projet `service` ne joue que `frontend/e2e/service/`, que les autres projets laissent : contre
-le serveur de développement seul, sans `WATERFALL_AUTH=mock` — la vraie connexion, par le
-royaume —, et à l'écoute de toutes les interfaces du poste, d'où Keycloak joint son canal de
-retour (#681) ; le navigateur accepte le certificat du frontal de Keycloak
-(`ignoreHTTPSErrors`), que le serveur de Next tient de `NODE_EXTRA_CA_CERTS`. Ces requêtes vers
-l'API, le serveur de Next les fait, hors de la vue du navigateur, et un écran peut survivre à
-l'une d'elles : un fichier de ces parcours se tient au contrat par `heldToTheContract()`
-(`frontend/e2e/service/contract.ts`), qui lit par Docker le journal du mandataire et échoue sur
-toute ligne où Prism écrit `Request terminated with error:` — ses propres erreurs comme celles du
-mandataire, corps illisible ou API injoignable (WF-ARC-0060). Prism écrit sa ligne une fois la
-réponse rendue, et le serveur de Next lit encore l'API après la dernière assertion : chaque worker
-lit chaque ligne une fois — par `docker logs --since`, à partir du moment où il s'était arrêté, et
-du début de son premier fichier — ; un parcours échoue sur les erreurs écrites jusqu'à sa fin, une
-erreur plus tardive fait échouer le suivant du worker. Le journal ne dit pas quel worker a demandé
-quoi : une erreur fait échouer le parcours de chaque worker qui la lit, celui qui l'a causée parmi
-eux. Le projet `contract` (`contract.teardown.ts`) relit enfin tout le journal de la course, depuis
-son début (`E2E_SERVICE_STARTED`, que pose `playwright.config.ts`), une fois le mandataire tu —
-rien d'autre que le contrôle de santé pendant deux secondes, la dernière ligne d'une réponse, qui
-ne nomme pas sa requête, n'en étant que si elle suit celle de la réponse d'un contrôle (#735) — :
-les erreurs d'après le dernier parcours d'un worker le font échouer, et celles qu'un parcours a
-déjà dites, de nouveau. Ce début est la dernière ligne que le mandataire a écrite avant la course
-(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), et chaque moment que les
-parcours comparent est celui que Docker a donné à une ligne, jamais l'horloge du poste, qu'une
-machine virtuelle laisse dériver de la sienne ; la garde prouve sa fenêtre : une ligne lue au moins
-— le contrôle de santé en écrit une toutes les deux secondes —, et le refus de l'adresse hors du
-contrat quand son parcours a joué. Un parcours le montre (`contract.spec.ts`) : une adresse hors du
-contrat (`OUTSIDE`), que la garde lit, seule, refusée ; tout autre lecteur la lui laisse. Un statut
-que l'opération ne déclare pas n'en est pas une pour Prism : la réponse passe, avec l'en-tête
-`sl-violations` de sévérité `Warning`, que son journal ne rattache pas à sa requête — ce sont
-aujourd'hui les 404 des opérations que lit la coquille et que le service ne sert pas encore. Les
-tests du service tiennent ses statuts au contrat (`ContractClient`), les parcours ses corps
-(#726). Les parcours de la connexion s'y jouent (US-0350) : se connecter, se déconnecter sur tous
-ses postes, la session du front perdue comprise, aucun jeton dans le navigateur, la fermeture des
-sessions par le royaume (`session.spec.ts`) ; chaque sorte de compte qui agit selon ses rôles, la
-session inactive qui ramène à la connexion puis à l'écran visé, le compte non admis
-(`sign-in.spec.ts`) ; le compte local créé, son lien de fixation, les règles du mot de passe et le
-verrouillage (`password.spec.ts`) ; la langue décidée par le navigateur jusqu'à ce que le compte en
-choisisse une, puis retrouvée d'un poste à l'autre, appliquée sans reconnexion, l'avatar déposé,
-remplacé et retiré, les colonnes masquées, les largeurs et les filtres des tables retrouvés à la
-réouverture, chaque compte voyant les siens (`account.spec.ts`, US-0400) — ces réglages lus dans la
-base (`gridPreferences`), où le front les écrit après une pause ; une attribution de rôle faite par
-le service, que le journal d'audit, filtré sur son auteur et son action, présente à chaque lecteur
-dans sa langue (`audit.spec.ts`) ; l'amorçage (`installation.setup.ts`), l'écran des comptes
-(`accounts.spec.ts`) et celui des rôles (`roles.spec.ts`). Ils règlent le royaume par son API
-d'administration, en administrateur du royaume `master` (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — une
-durée raccourcie le temps d'un parcours, que `service-up` rend de toute façon au royaume suivant —,
-et demandent un jeton pour l'API par le flux du client du front (`WATERFALL_FRONT_CLIENT_SECRET`).
+The project `service` plays only `frontend/e2e/service/`, which the other projects leave alone: against
+the built front, like the others, without `WATERFALL_AUTH=mock` — the real sign-in, through the
+realm —, listening on every interface of the workstation, from where Keycloak reaches its back
+channel (#681), and with the server actions key without which the built front does not start
+outside the fake back (`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, drawn for the run if the environment
+does not give one); the browser accepts the certificate of Keycloak's front end
+(`ignoreHTTPSErrors`), which Next's server gets from `NODE_EXTRA_CA_CERTS`. These requests to
+the API, Next's server makes them, out of the browser's sight, and a screen can survive
+one of them: a file of these paths is held to the contract by `heldToTheContract()`
+(`frontend/e2e/service/contract.ts`), which reads the proxy's log through Docker and fails on
+every line where Prism writes `Request terminated with error:` — its own errors as well as those of the
+proxy, unreadable body or unreachable API (WF-ARC-0060). Prism writes its line once the
+response is returned, and Next's server still reads the API after the last assertion: each worker
+reads each line once — by `docker logs --since`, from the moment where it had stopped, and
+from the start of its first file —; a path fails on the errors written up to its end, a
+later error makes the worker's next one fail. The log does not say which worker requested
+what: an error makes the path of every worker that reads it fail, the one that caused it among
+them. The project `contract` (`contract.teardown.ts`) finally re-reads the whole log of the run, from
+its start (`E2E_SERVICE_STARTED`, which `playwright.config.ts` sets), once the proxy has gone quiet —
+nothing but the health check for two seconds, the last line of a response, which
+does not name its request, being one only if it follows that of a health check's response (#735) —:
+the errors after a worker's last path make it fail, and those a path has
+already reported, again. This start is the last line the proxy wrote before the run
+(`docker logs --timestamps --tail 1`, `frontend/e2e/service/proxy-log.ts`), and every moment the
+paths compare is the one Docker gave to a line, never the workstation's clock, which a
+virtual machine lets drift from its own; the guard proves its window: at least one line read
+— the health check writes one every two seconds —, and the refusal of the address outside the
+contract when its path has played. A path shows it (`contract.spec.ts`): an address outside the
+contract (`OUTSIDE`), which the guard alone reads, refused; every other reader leaves it to the guard. A status
+the operation does not declare is not one for Prism: the response passes, with the header
+`sl-violations` of severity `Warning`, which its log does not tie to its request — today these are
+the 404s of the operations the shell reads and the service does not serve yet. The
+tests of the service hold its statuses to the contract (`ContractClient`), the paths its bodies
+(#726). The sign-in paths are played there (US-0350): signing in, signing out on all
+one's workstations, the lost session of the front included, no token in the browser, the closing of the
+sessions by the realm (`session.spec.ts`); each kind of account acting according to its roles, the
+inactive session that brings back to the sign-in then to the intended screen, the account not admitted
+(`sign-in.spec.ts`); the local account created, its setup link, the password rules and the
+lockout (`password.spec.ts`); the language decided by the browser until the account
+chooses one, then found again from one workstation to another, applied without signing in again, the avatar uploaded,
+replaced and removed, the hidden columns, the widths and the filters of the tables found again on
+reopening, each account seeing its own (`account.spec.ts`, US-0400) — these settings read in the
+database (`gridPreferences`), where the front writes them after a pause; a role assignment made by
+the service, which the audit log, filtered on its author and its action, presents to each reader
+in their language (`audit.spec.ts`); the bootstrap (`installation.setup.ts`), the accounts screen
+(`accounts.spec.ts`) and the roles screen (`roles.spec.ts`). They set the realm through its
+administration API, as administrator of the `master` realm (`WATERFALL_KEYCLOAK_ADMIN_PASSWORD`) — a
+duration shortened for the time of a path, which `service-up` gives back to the realm anyway next time —,
+and request a token for the API through the flow of the front's client (`WATERFALL_FRONT_CLIENT_SECRET`).
 
-Une limite des parcours contre le service : Prism, en mandataire du contrat, lit tout corps comme
-du texte et altère les corps binaires — chaque octet au-delà de `0x7f` d'une requête ou d'une
-réponse `application/octet-stream` devient U+FFFD (#973, #1025). Les parcours n'éprouvent donc ni
-le téléchargement ni le dépôt d'une archive octet pour octet : `backups.spec.ts` ne vérifie de
-l'archive téléchargée que son nom et sa taille non nulle, et restaure la sauvegarde de la liste,
-non un dépôt. La restauration d'un dépôt est prouvée par les tests du service
-(`backend/tests/test_uploads.py`). Le passage des opérations binaires hors de Prism est reporté à
+A limit of the paths against the service: Prism, as a proxy of the contract, reads every body as
+text and alters binary bodies — every byte beyond `0x7f` of an `application/octet-stream` request or
+response becomes U+FFFD (#973, #1025). The paths therefore exercise neither
+the download nor the upload of an archive byte for byte: `backups.spec.ts` checks of
+the downloaded archive only its name and its non-zero size, and restores the backup of the list,
+not an upload. The restoration of an upload is proven by the tests of the service
+(`backend/tests/test_uploads.py`). Moving the binary operations out of Prism is deferred to
 EP-13.
 
-La seconde du §4.6.2 — ouvrir une grille de mille tâches — se mesure dans
-`frontend/e2e/opening.spec.ts` (US-0110, US-0220), sur la structure de volume que sert le faux
-back, pour la grille de devis et pour celle de planning ; le faux back sert le planning sans
-tenir compte de `kinds=task`, et sa mesure est pessimiste : elle porte sur six mille lignes, et
-non sur les mille tâches que le service rendra. Une ouverture va de son début — le début de
-la navigation pour une grille ouverte par son adresse, le clic pour une grille ouverte depuis
-la barre latérale — jusqu'à la grille utilisable, c'est-à-dire dessinée et hydratée : dessinée,
-la première image où l'en-tête de ses colonnes, la légende de ses totaux et la première ligne
-de la réponse sont entièrement dans la fenêtre ; hydratée, la première image où la grille
-entière est rendue par React — le serveur en rend le premier écran, qui peut s'afficher avant
-qu'un clic n'y fasse rien —, que le parcours reconnaît aux clés que React pose, en l'hydratant,
-sur le dernier élément de la grille, la dernière cellule de ses totaux (`__reactProps$…`) : un
-détail interne de React, lu par le test seul. Le plus tardif des deux
-instants se compare à la seconde. Un script remis à chaque document guette chaque image et note
-les instants sur l'horloge du système (`performance.timeOrigin`), qu'un document remplacé ne
-perd pas : ni les allers-retours de Playwright ni son attente n'y comptent. Elle se joue contre
-le front construit pour la production (`next build`, puis `next start` sur le port 3101), que
-`playwright.config.ts` démarre après le faux back, à côté du serveur de développement —
-celui-ci compile une route à sa première demande et rend avec les contrôles de React en
-développement : il dirait la vitesse du poste du développeur. Avant chaque série de cinq
-ouvertures — cinq par l'adresse, cinq depuis la barre latérale, pour chaque grille —, une
-ouverture n'est pas mesurée : le premier chargement des modules du serveur ne compte pas, et
-le cache du navigateur est chaud, comme pour un utilisateur qui a déjà ouvert l'application.
-Chaque ouverture ne commence qu'une fois la précédente entièrement servie, préchargements
-compris — la grille hydratée, ses liens de la barre latérale demandent encore au serveur les
-écrans où ils mènent, et une navigation lancée avant leur réponse les couperait pendant que le
-serveur les rend, dans le temps de l'ouverture suivante — : le parcours suit les requêtes de la
-page, qu'elles partent d'un document nouveau ou d'une navigation dans la même page, et attend,
-hors de la mesure, qu'aucune ne soit en cours depuis une demi-seconde, en quinze secondes au
-plus ; le journal écrit combien étaient en cours au départ de chaque ouverture mesurée, et il
-n'en faut aucune.
-Chaque ouverture se compare à la seconde, sans arrondi ; le journal du parcours, et le résumé
-du travail dans la chaîne, sous le titre « The second of §4.6.2 », écrivent la médiane et la
-pire, utilisable, dessinée et hydratée, et, pour l'ouverture par l'adresse, où va le temps :
-les instants médians où le serveur a fini d'envoyer le document et où le navigateur l'a lu. **La mesure ne fait rien échouer sur la
-seconde** : une ouverture qui la dépasse est un avertissement — du test, et de la chaîne —,
-jamais un échec, ni de `make e2e`, ni de la chaîne, ni de la file de fusion. Contre le faux
-back, pour un utilisateur seul, sur une machine partagée de la chaîne, elle ne dit pas ce que
-tiendra le service : ses chiffres variaient d'un run à l'autre du simple au double sur une
-même révision. C'est un écart déclaré d'US-0110 et d'US-0220 ; la seconde se tient, bloquante,
-en EP-13, sur le jeu de référence, avec cinquante utilisateurs, contre le vrai service. Le
-parcours garde seulement des bornes de fonctionnement, loin de la seconde, qui ne mesurent
-rien : quinze secondes pour qu'une grille devienne utilisable et qu'une page se pose
-(`WORKING`), les cinq secondes de Playwright pour chaque assertion : l'adresse après un clic,
-puis ce que la grille montre ; trois minutes pour chaque test. Passé l'une d'elles, le parcours ne fonctionne plus — une grille jamais
-utilisable, une page qui ne se pose jamais — et il échoue, quelle que soit la seconde. Le
-parcours vérifie enfin que le document ne porte aucun champ d'un nœud que la grille
-ne lit pas (`lineage_id`). Son projet Playwright, `production`, dépend du projet `chromium` :
-il tourne après tous les autres parcours, seul sur la machine — et ne tourne pas quand l'un
-d'eux échoue —, et sans trace. Dans la chaîne, au palier complet, elle tourne seule sur un
-runner à elle, à côté des morceaux des parcours (« Chaîne ») : `make e2e-measure`, qui ne
-démarre que le faux back et le front construit — le harnais n'en réutilise aucun —, et que
-l'échec d'un parcours n'empêche plus. Sur un poste, `make e2e` la joue après les parcours, et
-`make e2e-measure` seule. `E2E_PART` dit au harnais ce qu'il joue : `paths`, les parcours sans
-la mesure ni la construction du front, que `make e2e SHARD=i/N` pose ; `measure`, la mesure
-seule, sans le serveur de développement, que pose `make e2e-measure` ; `service`, les parcours
-contre le service seuls, que pose `make e2e-service` et qui exige `WATERFALL_API_ADDRESS` ;
-absente, le tout, sans les parcours contre le service. Sans
-elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
-entraînerait tous dans chaque morceau.
+The second of §4.6.2 — opening a grid of a thousand tasks — is measured in
+`frontend/e2e/opening.spec.ts` (US-0110, US-0220), on the volume structure the fake
+back serves, for the estimate grid and for the planning grid; the fake back serves the planning without
+taking `kinds=task` into account, and its measurement is pessimistic: it bears on six thousand lines, and
+not on the thousand tasks the service will return. An opening goes from its start — the start of
+the navigation for a grid opened by its address, the click for a grid opened from
+the sidebar — to the usable grid, that is, drawn and hydrated: drawn,
+the first frame where the header of its columns, the legend of its totals and the first line
+of the response are entirely within the viewport; hydrated, the first frame where the whole
+grid is rendered by React — the server renders its first screen, which may be displayed before
+a click does anything there —, which the path recognises by the keys React sets, while hydrating it,
+on the last element of the grid, the last cell of its totals (`__reactProps$…`): an
+internal detail of React, read by the test alone. The later of the two
+instants is compared to the second. A script handed to each document watches each frame and notes
+the instants on the system clock (`performance.timeOrigin`), which a replaced document does not
+lose: neither Playwright's round trips nor its waiting count there. It is played against
+the front built for production, the one of the paths, and never against the development
+server, even under `E2E_DEV_SERVER=1`: the latter compiles a route at its first request and
+renders with React's development checks — it would tell the speed of the developer's
+workstation. Before each series of five
+openings — five by the address, five from the sidebar, for each grid —, one
+opening is not measured: the first loading of the server's modules does not count, and
+the browser's cache is warm, as for a user who has already opened the application.
+Each opening starts only once the previous one is entirely served, prefetches
+included — the grid hydrated, its sidebar links still request from the server the
+screens they lead to, and a navigation started before their response would cut them off while the
+server renders them, within the time of the next opening —: the path follows the requests of the
+page, whether they leave from a new document or from a navigation within the same page, and waits,
+outside the measurement, until none has been in flight for half a second, within fifteen seconds at
+most; the log writes how many were in flight at the start of each measured opening, and there
+must be none.
+Each opening is compared to the second, without rounding; the log of the path, and the summary
+of the job in the chain, under the title « The second of §4.6.2 », write the median and the
+worst, usable, drawn and hydrated, and, for the opening by the address, where the time goes:
+the median instants where the server finished sending the document and where the browser read it. **The measurement fails nothing on the
+second**: an opening that exceeds it is a warning — of the test, and of the chain —,
+never a failure, neither of `make e2e`, nor of the chain, nor of the merge queue. Against the fake
+back, for a single user, on a shared machine of the chain, it does not tell what
+the service will hold: its figures varied from one run to the next by a factor of two on the
+same revision. It is a declared deviation of US-0110 and US-0220; the second is held, blocking,
+in EP-13, on the reference data set, with fifty users, against the real service. The
+path keeps only operating bounds, far from the second, which measure
+nothing: fifteen seconds for a grid to become usable and for a page to settle
+(`WORKING`), Playwright's five seconds for each assertion: the address after a click,
+then what the grid shows; three minutes for each test. Past one of them, the path no longer works — a grid never
+usable, a page that never settles — and it fails, whatever the second. The
+path finally checks that the document carries no field of a node that the grid
+does not read (`lineage_id`). Its Playwright project, `measure`, depends on the `chromium` project:
+it runs after all the other paths, alone on the machine — and does not run when one
+of them fails —, and without a trace. In the chain, at the full tier, it runs alone on a
+runner of its own, alongside the shards of the paths (« The chain »): `make e2e-measure`, which
+starts only the fake back and the built front — the harness reuses none of them —, and which
+the failure of a path no longer prevents. On a workstation, `make e2e` plays it after the paths, and
+`make e2e-measure` alone. `E2E_PART` tells the harness what it plays: `paths`, the paths without
+the measurement, which `make e2e SHARD=i/N` sets; `measure`, the measurement alone, which
+`make e2e-measure` sets; `service`, the paths against the service alone, which `make e2e-service` sets
+and which requires `WATERFALL_API_ADDRESS`; absent, everything, without the paths against the service. Without
+it, Playwright would not know how to distribute the paths: the measurement, which waits for all of them, would
+drag them all into each shard.
 
-Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
-sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
-serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
-contrat par `frontend/src/test/fixtures.ts`, les mêmes données que sert le faux back.
+The witness path — list of projects, project, grid — goes through three minimal pages,
+with no text of their own, which EP-02 replaces while keeping the path. They read the API on the
+server side (`frontend/src/api/server.ts`); their unit tests receive the examples of the
+contract through `frontend/src/test/fixtures.ts`, the same data the fake back serves.
 
-L'accessibilité minimale de chaque écran (US-0200, WF-IHM-0100) se contrôle dans
-`frontend/e2e/accessibility.spec.ts`, sur les écrans de `frontend/e2e/routes.ts` : ceux de la table
-de `functions.json`, que lit aussi `screens.spec.ts`, et ceux qu'aucune table ne nomme — le projet
-lui-même, les pages du compte, la connexion et le mot de passe oublié, l'écran « introuvable ».
-`frontend/src/app/screens.test.ts` (`make test-front`) confronte chaque page de `frontend/src/app`
-à ces écrans et aux pages qui ne font que rediriger (`REDIRECTS`) : une page ajoutée sans son écran
-le fait échouer, comme une page de `REDIRECTS` qui ne fait pas que rediriger, ou une route qui en
-intercepte une autre. Chaque écran s'ouvre par son adresse dans une fenêtre de 1366 × 768 points,
-hydraté (`untilHydrated`, qui attend les clés que React pose sur chaque élément qu'atteint le
-clavier), puis se rétrécit à 911 × 512 — ce qu'un agrandissement de 150 % laisse de 1366 points, la
-page remise en page comme le navigateur la remet quand on agrandit ; un facteur d'échelle de
-l'appareil changerait les pixels, pas la mise en page. Trois tests par écran contrôlent chacun les
-deux largeurs :
+The minimal accessibility of each screen (US-0200, WF-IHM-0100) is checked in
+`frontend/e2e/accessibility.spec.ts`, on the screens of `frontend/e2e/routes.ts`: those of the table
+of `functions.json`, which `screens.spec.ts` also reads, and those no table names — the project
+itself, the account pages, the sign-in and the forgotten password, the « not found » screen.
+`frontend/src/app/screens.test.ts` (`make test-front`) confronts each page of `frontend/src/app`
+with these screens and with the pages that only redirect (`REDIRECTS`): a page added without its screen
+makes it fail, as does a page of `REDIRECTS` that does not only redirect, or a route that
+intercepts another. Each screen is opened by its address in a 1366 × 768 point window,
+hydrated (`untilHydrated`, which waits for the keys React sets on each element the
+keyboard reaches), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
+page laid out again as the browser lays it out again when zooming; a device scale
+factor would change the pixels, not the layout. Three tests per screen each check the
+two widths:
 
-- les règles d'axe pour WCAG A et AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe n'est pas WCAG —,
-  contraste compris, une fois en mode clair et une fois en mode sombre (`colorScheme`), chaque test
-  constatant d'abord le mode peint — aucun `data-theme`, le fond de la charte. Un texte qu'axe laisse
-  « incomplet » avec ses deux couleurs mesurées et une mesure qui échoue — un seul caractère sous le
-  rapport attendu, qu'il ne veut pas appeler un texte, ou un texte de la couleur de son fond — est un
-  écart, ses couleurs dites ; ce qu'axe laisse sans mesure (`unmeasured`), le test le note en
-  annotation, raison par raison (`elmPartiallyObscured`, `bgOverlap`…), les figures de courbe à part — un caractère seul
-  dont axe n'a pas mesuré les couleurs y compte sous sa brièveté, axe l'écrivant par-dessus la raison
-  qui l'a empêché de mesurer. En mode clair, les
-  règles des libellés des champs et des descriptions des images — `label`, `image-alt` et leurs
-  parentes — sont dites à part ;
-- le parcours au clavier (`walkByTab`, `frontend/e2e/tab-walk.ts`, la mesure dans la page par
-  `frontend/e2e/focus-probe.ts`) : à 1366 points, Tab depuis le haut de la page, à 911 points depuis
-  là où le premier parcours s'est arrêté, chaque fois jusqu'au retour au premier élément atteint.
-  Chaque élément atteint est vu — affiché, non transparent, et le milieu de ce qui en reste, coupé
-  par la fenêtre et par la boîte de remplissage de chaque boîte qui le rogne le long de ses blocs
-  conteneurs, est l'élément lui-même : rien qui peigne n'est dessiné par-dessus, une couche que le
-  pointeur traverse comprise —, et rien d'autre n'y prend le pointeur, une couche transparente qui
-  capte les clics comprise (`covered`). Il porte un indicateur du focus : un contour ou une ombre
-  qu'il ne portait pas avant le parcours, quand rien n'avait le focus — ou, pour un élément né
-  depuis, qu'il ne porte plus une fois quitté ; un élément né depuis et disparu une fois quitté ne
-  se juge pas, et se dit (`unjudged`) —, non transparent, un côté au moins hors de ce que coupent
-  les boîtes qui le rognent et, à l'intérieur, pas sous ce qui le recouvre : ce que l'élément contient pour une ombre intérieure, un
-  élément positionné pour un contour. Un élément atteint deux fois avant le retour au premier est
-  un piège, comme un élément qui garde le focus d'un Tab à l'autre plus longtemps qu'un champ fait
-  de champs — le jour, le mois et l'année d'une date. Chaque élément que Tab peut atteindre —
-  affiché, actif, d'ordre clavier non négatif — doit être atteint lui-même, ou, pour un widget qui
-  déplace lui-même le focus (grille, arbre, menu, liste, groupe de radios, onglets, barre d'outils),
-  le focus doit entrer en lui ; chacun de ces widgets doit être entré (`stopless`) ; aucun élément
-  ne doit se trouver entier au-delà du bord d'une boîte qui cache ce qui la déborde, que le
-  navigateur fait défiler au focus mais que le pointeur n'atteint pas — une boîte que l'utilisateur
-  fait défiler n'est jamais un bord : ce qu'elle cache, elle le montre en défilant, et c'est elle qui
-  doit être dans les boîtes autour d'elle ; ce qu'elle montre reste jugé contre elles ; aucun lien ni bouton n'est sorti de
-  l'ordre du clavier hors d'un tel widget. Enfin, tout ce que Tab atteint à 1366 points, il
-  l'atteint encore à 911 (`lost`).
+- the axe rules for WCAG A and AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe is not WCAG —,
+  contrast included, once in light mode and once in dark mode (`colorScheme`), each test
+  first observing the painted mode — no `data-theme`, the background of the visual identity. A text that axe leaves
+  « incomplete » with its two colours measured and a measurement that fails — a single character under the
+  expected ratio, which it does not want to call a text, or a text of the colour of its background — is a
+  deviation, its colours stated; what axe leaves unmeasured (`unmeasured`), the test notes in an
+  annotation, reason by reason (`elmPartiallyObscured`, `bgOverlap`…), the curve figures apart — a lone character
+  whose colours axe did not measure counts there under its brevity, axe writing it over the reason
+  that prevented it from measuring. In light mode, the
+  rules of field labels and image descriptions — `label`, `image-alt` and their
+  relatives — are stated apart;
+- the keyboard walk (`walkByTab`, `frontend/e2e/tab-walk.ts`, the in-page measurement by
+  `frontend/e2e/focus-probe.ts`): at 1366 points, Tab from the top of the page, at 911 points from
+  where the first walk stopped, each time until the return to the first element reached.
+  Each element reached is seen — displayed, not transparent, and the middle of what remains of it, clipped
+  by the viewport and by the padding box of each box that clips it along its containing
+  blocks, is the element itself: nothing that paints is drawn over it, a layer the
+  pointer passes through included —, and nothing else takes the pointer there, a transparent layer that
+  captures clicks included (`covered`). It carries a focus indicator: an outline or a shadow
+  it did not carry before the walk, when nothing had the focus — or, for an element born
+  since, that it no longer carries once left; an element born since and gone once left is
+  not judged, and is reported (`unjudged`) —, not transparent, at least one side outside what the boxes that
+  clip it cut off and, inside, not under what covers it: what the element contains for an inner shadow, a
+  positioned element for an outline. An element reached twice before the return to the first is
+  a trap, like an element that keeps the focus from one Tab to the next longer than a field made
+  of fields — the day, the month and the year of a date. Each element Tab can reach —
+  displayed, enabled, of non-negative keyboard order — must be reached itself, or, for a widget that
+  moves the focus itself (grid, tree, menu, list, radio group, tabs, toolbar),
+  the focus must enter it; each of these widgets must be entered (`stopless`); no element
+  may lie entirely beyond the edge of a box that hides what overflows it, which the
+  browser scrolls on focus but the pointer does not reach — a box the user
+  scrolls is never an edge: what it hides, it shows by scrolling, and it is the box that
+  must be within the boxes around it; what it shows is still judged against them; no link or button is taken out of
+  the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
+  still reaches at 911 (`lost`). To see what paints over an element, the walk makes
+  only the elements that do not take the pointer, and whose box touches that of the element or of one of its
+  children, take it for the time of the measurement — each point the measurement asks the
+  browser for is in one of them —, then puts them back as they were; it reads all the elements
+  first, then writes the ones it found, never one after the other, `pointer-events` being
+  inherited. A sheet laid on all (`* { pointer-events: auto }`) and removed at each Tab
+  made the style of the whole page be recomputed twice — three fifths of the time of a
+  Tab on a page of two thousand elements, and the walk of the access roles, more than 350
+  Tabs at each width, at 84 of the 90 seconds of its timeout under four workers, 69 once only the
+  elements without pointer were changed, all of them, at each Tab, 54 once those that touch
+  the element were changed (#1263). The rest is that of the page and of the round trips: alone,
+  each width of the walk occupies the browser 12 of its 16 seconds, 10 without any pointer
+  measurement. The walk presses Tab in batches (`BATCH`, sixteen keys) and reads in a single
+  `evaluate`, after each batch, what the page measured for each key: only one round trip per element
+  remains, that of the key, which the keyboard imposes; a read after each key made a second one, and
+  the loaded workstation pushed the walk of the roles past its 90 seconds with it (#1540). The probe
+  hears each Tab at its `keyup` — the focus moved, or it stayed, the trap the walk must see — and
+  takes the measurement, by the same code, at the moment the walk used to take it: when the page
+  hears the walk again, the next key before any listener the page set after the probe sees it, or
+  the read of the batch. `focusin` is not enough: it fires neither when the focus stays, nor when it
+  leaves the document. Back at the first element, the page stops measuring, and the keys left in the
+  batch reach neither the listeners the page set after the probe nor the focus, so that the focus is
+  back on the first element when the next walk starts; what the page measured beyond a trap is not
+  read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on
+  the test's side. The walk, and it alone, keeps its trace without DOM snapshots
+  (`withoutSnapshots`): a snapshot per key weighed more than the walk itself under load (#1540), and
+  its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
+  group refuses an option that forces a new worker: the test restarts the trace the harness opened,
+  with the same options, without the snapshots.
 
-`frontend/e2e/tab-walk.spec.ts` et `frontend/e2e/axe.spec.ts` éprouvent le parcours et l'audit
-d'axe eux-mêmes, sur des pages écrites pour eux (`page.setContent`) : chaque défaut qu'ils doivent
-nommer y est nommé, et ce qu'ils doivent laisser passer passe. Les outils du serveur de
-développement de Next (`nextjs-portal`), que le front construit n'a pas, sont écartés d'axe et du
-parcours. Le fichier se joue test par test (`mode: "parallel"`) : Playwright répartit ses tests un à
-un entre les workers et les morceaux de la chaîne, et non le fichier en bloc ; chacun prend
-`test.slow()`, car il ouvre un écran à froid, que le serveur de développement compile à sa première
-visite, puis le contrôle deux fois. Un écart relevé se corrige dans l'écran, jamais en écartant une
-règle.
+`frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
+themselves, on pages written for them (`page.setContent`): each defect they must
+name is named there, and what they must let pass passes. The tools of Next's development
+server (`nextjs-portal`), which the built front does not have, are set aside from axe and from the
+walk. The file is played test by test (`mode: "parallel"`): Playwright distributes its tests one by
+one among the workers and the shards of the chain, and not the file as a block; each takes
+`test.slow()`, because it opens a screen then checks it twice, which exceeds the default timeout
+on a loaded workstation; the cold compilation of a screen adds to this time only under
+`E2E_DEV_SERVER=1`, the built front having none. A reported deviation is fixed in the screen, never by setting aside a
+rule.
 
-Le harnais ne contrôle que les écrans tels qu'ils s'ouvrent : ce qu'un geste ouvre — un dialogue,
-un menu, le refus d'une cellule, l'éditeur d'une cellule — n'est pas parcouru, ni ce qu'un
-`details` fermé contient, ni un état qu'un geste atteint (un refus, `?import=`) ; axe ne juge pas le
-contraste d'un texte posé sur le dessin d'une courbe, et le contraste de l'indicateur du focus
-(WCAG 1.4.11) n'est mesuré que par les jetons de `contrast.test.ts`. Ce qui les couvre ailleurs, et
-ce qui reste, est dit dans la note d'US-0200 (EP-14) et dans #782.
+The harness checks only the screens as they open: what a gesture opens — a dialog,
+a menu, the refusal of a cell, the editor of a cell — is not walked, nor what a
+closed `details` contains, nor a state a gesture reaches (a refusal, `?import=`); axe does not judge the
+contrast of a text laid on the drawing of a curve, and the contrast of the focus indicator
+(WCAG 1.4.11) is measured only by the tokens of `contrast.test.ts`. What covers them elsewhere, and
+what remains, is stated in the note of US-0200 (EP-14) and in #782.
 
-_Contrôle_ : `make e2e`, au palier complet de la chaîne ; l'échec d'un parcours la fait
-échouer, une ouverture de grille qui dépasse la seconde n'y est qu'un avertissement.
+_Check_: `make e2e`, at the full tier of the chain; the failure of a path makes it
+fail, a grid opening that exceeds the second is only a warning there.
 
-### Couverture du code
+### Code coverage
 
-La spécification ne demande que la couverture des exigences ; la couverture du code est une
-règle du dépôt, qui trouve ce que la première ne voit pas — un chemin d'erreur jamais
-exécuté, du code mort. Le back et le front doivent chacun couvrir **90 % des lignes et 85 %
-des branches** : les branches comptent, parce qu'un `if` sans son `else` couvre toutes ses
-lignes et la moitié des cas. Le code engendré en est exclu. Le client de l'API d'administration
-de Keycloak (`waterfall.platform.keycloak_admin`), que seul Keycloak sert, la lecture des
-comptes du worker (`waterfall.worker.identity_sync`), qui le demande à chaque pas, et l'amorçage
-(`waterfall.bootstrap`), qui crée en lui le premier administrateur, sont mesurés par
-`make test-keycloak`, aux mêmes seuils (`backend/coverage-keycloak.toml`), et écartés par leur chemin
-de la mesure du back, `make coverage-back`, qui mesure tout le reste du back. Aucune ligne ne s'exclut de la
-mesure par un commentaire ; une exclusion s'écrit dans la configuration, avec sa raison
-(`[tool.coverage.report]` de `backend/pyproject.toml`, `coverage` de
-`frontend/vitest.config.ts`). Un test qui passe sur des lignes sans rien vérifier est un
-défaut, que la revue relève.
+The specification asks only for the coverage of the requirements; code coverage is a
+rule of the repository, which finds what the former does not see — an error path never
+executed, dead code. The back and the front must each cover **90 % of the lines and 85 %
+of the branches**: the branches count, because an `if` without its `else` covers all its
+lines and half of the cases. Generated code is excluded from it. The client of Keycloak's administration
+API (`waterfall.platform.keycloak_admin`), which only Keycloak serves, the reading of the
+accounts by the worker (`waterfall.worker.identity_sync`), which requests it at each step, and the bootstrap
+(`waterfall.bootstrap`), which creates the first administrator in it, are measured by
+`make test-keycloak`, at the same thresholds (`backend/coverage-keycloak.toml`), and set aside by their path
+from the measurement of the back, `make coverage-back`, which measures all the rest of the back. No line excludes itself from the
+measurement by a comment; an exclusion is written in the configuration, with its reason
+(`[tool.coverage.report]` of `backend/pyproject.toml`, `coverage` of
+`frontend/vitest.config.ts`). A test that passes over lines without checking anything is a
+defect, which the review reports.
 
-_Contrôles_ : `make coverage-back`, `make coverage-front`, au palier complet : ils nomment
-les fichiers les moins couverts quand un seuil n'est pas atteint.
+_Checks_: `make coverage-back`, `make coverage-front`, at the full tier: they name
+the least covered files when a threshold is not reached.
 
-### Un test qui reprend un exemple chiffré
+### A test that takes up a numeric example
 
-Chaque phrase chiffrée d'un champ Vérif est un cas de test du noyau, avec les mêmes entrées
-et la même valeur attendue (WF-QUA-0020). `make fixtures` les relève dans
-`fixtures/examples.json` — fichier engendré, qu'on ne retouche pas —, chacune sous une clé
-faite de l'exigence et de l'empreinte de son texte : `WF-PTF-0020-A#ab12cd34ef56`.
+Each numeric sentence of a Vérif field is a test case of the core, with the same inputs
+and the same expected value (WF-QUA-0020). `make fixtures` lists them in
+`fixtures/examples.json` — a generated file, which is not touched by hand —, each under a key
+made of the requirement and the fingerprint of its text: `WF-PTF-0020-A#ab12cd34ef56`.
 
-Pour éprouver un exemple :
+To exercise an example:
 
-1. écrire une fixture sous `fixtures/`, un fichier JSON qui cite dans `examples` la clé de
-   la phrase, et porte ses données, recopiées de la phrase ;
-2. écrire le test sous `backend/tests/examples/` : la fixture `example` le charge par la
-   clé, le test appelle le noyau et compare à la valeur de la phrase.
+1. write a fixture under `fixtures/`, a JSON file that cites in `examples` the key of
+   the sentence, and carries its data, copied from the sentence;
+2. write the test under `backend/tests/examples/`: the `example` fixture loads it by the
+   key, the test calls the core and compares to the value of the sentence.
 
-Les sockets y sont fermées : un exemple qui passe ne demande ni base, ni service, ni
-navigateur. Une phrase modifiée dans le document change de clé ; la fixture de l'ancienne
-fait alors échouer la chaîne, et on la réécrit d'après la nouvelle phrase.
+The sockets are closed there: an example that passes needs neither database, nor service, nor
+browser. A sentence modified in the document changes key; the fixture of the old one
+then makes the chain fail, and it is rewritten from the new sentence.
 
-_Contrôles_ : `make check-fixtures` — le relevé est à jour, chaque clé citée existe, et les
-exemples qu'aucune fixture ne cite encore sont listés, sans échec : leur nombre décroît avec
-les EPIC de calcul (EP-06 à EP-11).
+_Checks_: `make check-fixtures` — the report is up to date, each cited key exists, and the
+examples that no fixture cites yet are listed, without failure: their number decreases with
+the computation epics (EP-06 to EP-11).
 
-## Enveloppe d'erreur et codes d'erreur
+## Error envelope and error codes
 
-L'enveloppe est fixée par le contrat (`docs/api/README.md`, WF-ARC-0110) : un code machine et
-ses paramètres, jamais une phrase.
+The envelope is fixed by the contract (`docs/api/README.md`, WF-ARC-0110): a machine code and
+its parameters, never a sentence.
 
-- **Ajouter un code côté front** — un code nouveau est d'abord une modification du contrat
-  (`ErrorCode`, `docs/api/components/common.yaml`), suivie de `make generate-client`. Le
-  front lui donne sa phrase, `errors.<CODE>`, dans les deux catalogues : ce qui est refusé,
-  sans rien de ce que les paramètres nomment. Un paramètre nouveau qu'un lecteur doit
-  connaître reçoit la sienne, `problemDetails.<param>`, et sa lecture dans `DETAILS` de
-  `frontend/src/i18n/problem.ts`, qui nomme une valeur codée — une permission, une
-  condition — par son libellé du catalogue ; un paramètre qui ne dit rien à un lecteur —
-  un identifiant, un compteur d'écriture — n'en reçoit pas. Un composant rend un refus par
-  `problemMessage(problem, { locale, messages })`, jamais en écrivant la phrase.
+- **Adding a code on the front side** — a new code is first a change to the contract
+  (`ErrorCode`, `docs/api/components/common.yaml`), followed by `make generate-client`. The
+  front gives it its sentence, `errors.<CODE>`, in both catalogues: what is refused,
+  without anything of what the parameters name. A new parameter a reader has to
+  know receives its own, `problemDetails.<param>`, and its reading in `DETAILS` of
+  `frontend/src/i18n/problem.ts`, which names a coded value — a permission, a
+  condition — by its label from the catalogue; a parameter that tells a reader nothing —
+  an identifier, a write counter — receives none. A component renders a refusal by
+  `problemMessage(problem, { locale, messages })`, never by writing the sentence.
 
-  _Contrôles_ : `make typecheck-front` échoue sur un code d'`ErrorCode` sans clé dans le
-  catalogue français, que `problem.ts` lit par `errors.${code}` ; `make catalogs`, sur un
-  code sans clé dans l'un des deux, ou sur une clé `errors.` que le contrat n'a plus.
+  _Checks_: `make typecheck-front` fails on a code of `ErrorCode` without a key in the
+  French catalogue, which `problem.ts` reads by `errors.${code}`; `make catalogs`, on a
+  code without a key in one of the two, or on an `errors.` key the contract no longer has.
 
-- **Réagir à un refus côté front** — une action serveur ne rend jamais la réponse brute de
-  l'API : elle appelle le client par `decode` de `frontend/src/api/problem.ts`, le seul
-  décodeur, et rend son `Outcome` — `done` ; `refused`, un `Problem` à dire tel quel ;
-  `stale` (412) ; `conflict` (409) ; `signed_out` (401) ; `unreachable`, l'API qui n'a pas
-  répondu du tout, distinct de tout `Problem` — le rejet de `fetch` lui-même, que
-  `client.ts` marque `Unreachable` (une autre `TypeError` est un défaut et remonte), ou un
-  502, 503 ou 504 sans enveloppe `Problem`, qu'une passerelle rend quand le service est
-  tombé. Une réponse d'erreur sans enveloppe, ou dont le `code` manque au catalogue — un
-  service plus récent que le front —, vaut `INTERNAL_ERROR`, « erreur inattendue », au
-  statut reçu : l'écran n'affiche jamais une clé brute. Le composant le dit par
-  `OutcomeNotice` (`frontend/src/components/commands/`), en alerte : la phrase de
-  `problemMessage`, qui nomme aussi les objets que le refus ne donne que par leurs identifiants
-  quand l'écran les a lus (`names`, et `KnownNames` pour tous les avis d'un écran) ; les lignes
-  ou les projets nommés au-delà de la phrase, hors de l'alerte et décrits par sa phrase (#765) ; sur 412, l'offre de recharger l'écran ; l'objet en conflit
-  (`params.conflicting_object_id`, ou à défaut celui du premier refus par champ qui en nomme un,
-  `fields[].params.conflicting_object_id` d'un 409 `ALREADY_EXISTS` — `conflictingOf` de
-  `frontend/src/api/problem.ts`) nommé quand l'écran le connaît, par `names`, ou à défaut par le
-  libellé que le refus lui donne (`conflicting_object_label`) — un projet, un sous-projet que
-  l'écran ne montre pas, dont le code pris revient le dialogue fermé (#714) ; sur 401, le
-  lien vers la connexion ; l'API injoignable annoncée, jamais un écran blanc ; l'erreur
-  inattendue avec sa référence (`correlation_id`), comme l'écran de panne. Une action serveur
-  dont la promesse est rejetée n'a rendu aucun `Outcome` : le composant le tient par `rejected`
-  (`frontend/src/components/commands/rejection.ts`), une règle pour tous les écrans (#330) —
-  une `TypeError` est l'API injoignable : c'est ce que lève le `fetch` du navigateur rejeté, et
-  le navigateur ne la distingue pas d'une `TypeError` levée ailleurs, qui passe donc aussi pour
-  « injoignable » ; tout autre rejet se classe par son `digest`, comme l'écran de panne le classe
-  (`failureOf`) — l'API injoignable, la session perdue avec le lien vers la connexion, ou
-  l'erreur inattendue avec sa référence, celle-ci gardée seulement si elle a la forme d'un
-  `correlation_id` du contrat. La connexion
-  est `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
-  `frontend/src/navigation/login.ts`) : la route de connexion (US-0320), la session rouverte,
-  mène à `returnTarget(next)`, qui ne suit qu'un chemin du front — ni `//hôte`, ni une
-  adresse d'un autre site — et ramène sinon à l'accueil. Un 401 `ACCOUNT_DEACTIVATED` n'y mène
-  pas, il bouclerait : `kindOf` le range en `refused`, et une lecture lève `AccountDeactivated`.
+- **Reacting to a refusal on the front side** — a server action never returns the raw response
+  of the API: it calls the client through `decode` of `frontend/src/api/problem.ts`, the only
+  decoder, and returns its `Outcome` — `done`; `refused`, a `Problem` to say as it is;
+  `stale` (412); `conflict` (409); `signed_out` (401); `unreachable`, the API that did not
+  answer at all, distinct from any `Problem` — the rejection of `fetch` itself, which
+  `client.ts` marks `Unreachable` (another `TypeError` is a defect and propagates), or a
+  502, 503 or 504 without a `Problem` envelope, which a gateway returns when the service is
+  down. An error response without an envelope, or whose `code` is missing from the catalogue — a
+  service more recent than the front —, counts as `INTERNAL_ERROR`, « unexpected error », at
+  the status received: the screen never displays a raw key. The component says it through
+  `OutcomeNotice` (`frontend/src/components/commands/`), as an alert: the sentence of
+  `problemMessage`, which also names the objects the refusal gives only by their identifiers when
+  the screen has read them (`names`); the lines or the projects named beyond the sentence, outside
+  the alert and described by its sentence (#765); on 412, the offer to reload the screen; the
+  conflicting object (`params.conflicting_object_id`, or failing that the one of the first refusal
+  by field that names one, `fields[].params.conflicting_object_id` of a 409 `ALREADY_EXISTS` —
+  `conflictingOf` of `frontend/src/api/problem.ts`) named when the screen knows it, through `names`,
+  or failing that by the label the refusal gives it (`conflicting_object_label`) — a project, a
+  sub-project the screen does not show, whose taken code comes back once the dialog is closed
+  (#714); on 401, the link to the login; the unreachable API announced, never a blank screen; the
+  unexpected error with its reference (`correlation_id`), like the failure screen. A server action
+  whose promise is rejected has returned no `Outcome`: the component holds it through `rejected`
+  (`frontend/src/components/commands/rejection.ts`), one rule for every screen (#330) —
+  a `TypeError` is the unreachable API: that is what the browser's rejected `fetch` throws, and
+  the browser does not distinguish it from a `TypeError` thrown elsewhere, which therefore also passes for
+  « unreachable »; any other rejection is classified by its `digest`, as the failure screen classifies it
+  (`failureOf`) — the unreachable API, the lost session with the link to the login, or
+  the unexpected error with its reference, the latter kept only if it has the form of a
+  `correlation_id` of the contract. The login
+  is `/login?next=<chemin et requête de l'écran visé>` (`loginHref`,
+  `frontend/src/navigation/login.ts`): the login route (US-0320), once the session is reopened,
+  leads to `returnTarget(next)`, which follows only a path of the front — neither `//hôte`, nor an
+  address of another site — and otherwise brings back to the home page. A 401 `ACCOUNT_DEACTIVATED` does not lead
+  there, it would loop: `kindOf` files it under `refused`, and a read throws `AccountDeactivated`.
 
-  _Contrôles_ : `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`) ;
-  qu'une action serveur passe par `decode`, et qu'un rejet passe par `rejected`, la revue.
+  _Checks_: `make test-front` (`problem.test.ts`, `login.test.ts`, `rejection.test.ts`);
+  that a server action goes through `decode`, and that a rejection goes through `rejected`, the review.
 
-- **Ajouter un code côté service** — le code existe d'abord au contrat (`ErrorCode`), puis dans
-  les modèles du service que `make generate-server-models` en engendre
-  (`backend/src/waterfall/api/contract/models.py`, versionnés ; `make server-models-up-to-date`,
-  dans `make check-contract`, échoue s'ils ne sont plus ceux du contrat). Une adresse y est un
-  simple texte (`--type-mappings email=string`) : le service la rend telle qu'il la tient, et les
-  modèles ne valident pas les adresses ; le noyau les valide selon la règle du contrat (#665,
-  `is_address` de `waterfall.core.users.identity`). Le noyau lève ensuite
-  l'exception de `waterfall.platform.errors` qui porte le statut du contrat — `NotFoundError`
+- **Adding a code on the service side** — the code exists first in the contract (`ErrorCode`), then in
+  the models of the service that `make generate-server-models` generates from it
+  (`backend/src/waterfall/api/contract/models.py`, versioned; `make server-models-up-to-date`,
+  in `make check-contract`, fails if they are no longer those of the contract). An address there is a
+  plain text (`--type-mappings email=string`): the service returns it as it holds it, and the
+  models do not validate addresses; the core validates them by the rule of the contract (#665,
+  `is_address` of `waterfall.core.users.identity`). The core then raises
+  the exception of `waterfall.platform.errors` that carries the status of the contract — `NotFoundError`
   404, `ForbiddenError` 403, `ConflictError` 409, `PreconditionFailedError` 412,
-  `UnprocessableError` 422, `UnavailableError` 503… — avec le code, en chaîne, et ses paramètres ;
-  un refus par champ se dit par des `FieldError(pointer, code, params)`, le pointeur étant celui
-  du contrat (`/label` dans le corps, `/query/from` dans la requête) ; une clé envoyée par le
-  client s'y échappe comme RFC 6901 le veut, `~` en `~0` et `/` en `~1` (`json_pointer` de
-  `waterfall.platform.errors`, #750). Il ne construit jamais
-  de `Problem` ni de réponse : un seul gestionnaire (`waterfall.api.problems`) rend toute
-  erreur dans l'enveloppe, avec l'identifiant de corrélation de la requête, dans le corps et
-  dans l'en-tête `X-Correlation-ID`. Le gestionnaire range de même, sans que la route y pense :
-  une requête illisible (corps absent, `null`, qui n'est pas du JSON ou pas un objet, en-tête
-  ou témoin illisible) en 400 `MALFORMED_REQUEST` ; une valeur refusée en 422
-  `VALIDATION_FAILED`, un champ par faute — un `model_validator` sur un corps lisible en est
-  une, au pointeur `""` — (`VALUE_REQUIRED` pour une valeur vide quand une au moins est
-  demandée, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` avec `minimum` ou `maximum` pour une borne
-  incluse, `NUMBER_INVALID`, `DATE_INVALID`, sinon `VALIDATION_FAILED` : une borne exclusive,
-  une longueur minimale dépassée par une valeur non vide) ; un identifiant du chemin qui n'est
-  pas un UUID en 404 `NOT_FOUND`, comme un objet inexistant ou invisible, tandis qu'un autre
-  paramètre de chemin refusé est un 422 par champ, au pointeur `/path/<nom>`
-  (`docs/api/DECISIONS.md`, « Session et erreurs ») ; une route inconnue, ou une méthode que la
-  route ne sert pas, en 404, sans redirection d'une barre finale ; toute exception inattendue
-  en 500 `INTERNAL_ERROR`, attrapée par `CorrelationMiddleware` : journalisée une fois avec sa
-  trace, sa corrélation et l'auteur de la requête, sans rien en rendre.
-  Un code que le contrat ne connaît pas est un défaut : le gestionnaire le rend en 500.
-  Un texte reçu qui contient le caractère NUL, que PostgreSQL refuse dans une colonne comme dans
-  un `jsonb`, est une valeur refusée — 422 `VALIDATION_FAILED` au pointeur du champ —, jamais un
-  500 de la base (#743) : chaque modèle engendré hérite de `ContractModel`
-  (`waterfall.api.contract.base`, que `[tool.datamodel-codegen]` de `backend/pyproject.toml`
-  donne au générateur), qui cherche le NUL dans chacun de ses champs, élément d'une liste, clé ou
-  valeur d'un objet compris ; un paramètre de requête ou de chemin en texte se type `Text`, du
-  même module.
+  `UnprocessableError` 422, `UnavailableError` 503… — with the code, as a string, and its parameters;
+  a refusal by field is said by `FieldError(pointer, code, params)`, the pointer being that
+  of the contract (`/label` in the body, `/query/from` in the query); a key sent by the
+  client is escaped there as RFC 6901 wants it, `~` as `~0` and `/` as `~1` (`json_pointer` of
+  `waterfall.platform.errors`, #750). It never builds
+  a `Problem` nor a response: a single handler (`waterfall.api.problems`) renders every
+  error in the envelope, with the correlation identifier of the request, in the body and
+  in the `X-Correlation-ID` header. The handler likewise files, without the route thinking about it:
+  an unreadable request (body absent, `null`, not JSON or not an object, unreadable header
+  or cookie) as 400 `MALFORMED_REQUEST`; a refused value as 422
+  `VALIDATION_FAILED`, one field per fault — a `model_validator` on a readable body is
+  one, at the pointer `""` — (`VALUE_REQUIRED` for an empty value when at least one is
+  required, `VALUE_TOO_LONG`, `VALUE_OUT_OF_RANGE` with `minimum` or `maximum` for an
+  inclusive bound, `NUMBER_INVALID`, `DATE_INVALID`, otherwise `VALIDATION_FAILED`: an exclusive bound,
+  a minimum length not met by a non-empty value); a path identifier that is not
+  a UUID as 404 `NOT_FOUND`, like a non-existent or invisible object, whereas another
+  refused path parameter is a 422 by field, at the pointer `/path/<nom>`
+  (`docs/api/DECISIONS.md`, « Session et erreurs »); an unknown route, or a method the
+  route does not serve, as 404, without redirecting a trailing slash; any unexpected exception
+  as 500 `INTERNAL_ERROR`, caught by `CorrelationMiddleware`: logged once with its
+  trace, its correlation and the author of the request, without returning any of it.
+  A code the contract does not know is a defect: the handler renders it as 500.
+  A received text that contains the NUL character, which PostgreSQL refuses in a column as in
+  a `jsonb`, is a refused value — 422 `VALIDATION_FAILED` at the pointer of the field —, never a
+  500 from the database (#743): every generated model inherits from `ContractModel`
+  (`waterfall.api.contract.base`, which `[tool.datamodel-codegen]` of `backend/pyproject.toml`
+  gives to the generator), which looks for the NUL in each of its fields, an element of a list, a key or
+  value of an object included; a query or path parameter in text is typed `Text`, from the
+  same module.
 
-  _Contrôles_ : `make server-models-up-to-date` ; `make test-back` (`test_api_problems.py`,
-  `test_access_roles_guard.py` pour le NUL) ; que tout paramètre en texte est un `Text`, que le
-  code et le statut sont ceux du contrat pour l'opération, la revue, puis la validation des
-  réponses des tests d'API contre le contrat.
+  _Checks_: `make server-models-up-to-date`; `make test-back` (`test_api_problems.py`,
+  `test_access_roles_guard.py` for the NUL); that every text parameter is a `Text`, that the
+  code and the status are those of the contract for the operation, the review, then the validation of the
+  responses of the API tests against the contract.
 
-- **Journaux et réponses des tests d'API** — un test d'API passe par `ContractClient`
-  (`backend/tests/support.py`), qui valide chaque réponse contre le contrat avec openapi-core :
-  une réponse hors schéma fait échouer le test. Les journaux sont ceux de structlog en JSON
-  (`waterfall.platform.logs`) : un enregistrement porte `level`, `timestamp`, `actor` et, dans
-  une requête, `correlation_id` ; tout champ dont le nom contient `password`, `token`,
-  `secret`, `authorization` ou `cookie` en est retiré. La valeur de chaque secret des
-  réglages (`Settings.secret_values()`, mot de passe d'une URL compris) est de plus remplacée par
-  `***` dans tout le texte rendu d'un enregistrement — message, trace, `repr` —, y compris ceux
-  des bibliothèques. La limite : un secret que les réglages ne connaissent pas (un jeton de
-  session, un mot de passe reçu dans une requête) n'est ni retiré sous un autre nom ni masqué
-  par sa valeur : on ne le journalise pas, ni ne le met dans le message d'une exception. Une
-  forme décodée du mot de passe d'une URL n'est retenue que si elle fait au moins quatre
-  caractères, faute de quoi elle masquerait tout texte qui la contient ; l'URL entière et la
-  forme encodée restent masquées dans tous les cas.
+- **Logs and responses of the API tests** — an API test goes through `ContractClient`
+  (`backend/tests/support.py`), which validates every response against the contract with openapi-core:
+  a response outside the schema fails the test. The logs are those of structlog in JSON
+  (`waterfall.platform.logs`): a record carries `level`, `timestamp`, `actor` and, within
+  a request, `correlation_id`; any field whose name contains `password`, `token`,
+  `secret`, `authorization` or `cookie` is removed from it. The value of every secret of the
+  settings (`Settings.secret_values()`, the password of a URL included) is moreover replaced by
+  `***` in the whole rendered text of a record — message, trace, `repr` —, including those
+  of the libraries. The limit: a secret the settings do not know (a session
+  token, a password received in a request) is neither removed under another name nor masked
+  by its value: it is not logged, nor put in the message of an exception. A
+  decoded form of the password of a URL is kept only if it is at least four
+  characters long, failing which it would mask any text that contains it; the whole URL and the
+  encoded form remain masked in every case.
 
-- **Accéder aux données d'un module** — les tables d'un module sont des classes sur la `Base` de
-  `waterfall.platform.database`, dans son `tables.py`, privé ; son accès aux données, des
-  fonctions de son module qui prennent une `Session`, privé lui aussi ; l'`interface` n'offre aux
-  autres que ce qu'elle déclare, en objets simples et non en lignes de la table. Une écriture
-  reçoit en argument qui écrit et à quel moment (`Stamp(author, at)`, l'auteur étant `None` pour
-  la plateforme) : le noyau ne lit pas l'horloge. Un identifiant se tire de `new_id()`
-  (`waterfall.platform.identifiers`), un instant de `UtcDateTime`, qui refuse un instant sans
-  fuseau. Une requête, une transaction : `Database.transaction()` la valide à la fin du bloc et
-  la défait si une exception le traverse, la réponse étant construite avant. Une modification qui
-  porte un `lock_version` le teste dans l'écriture même et lève `PreconditionFailedError` si la
-  version n'est plus la bonne.
+- **Accessing the data of a module** — the tables of a module are classes on the `Base` of
+  `waterfall.platform.database`, in its `tables.py`, private; its data access, functions
+  of its module that take a `Session`, private too; the `interface` offers the
+  others only what it declares, as plain objects and not as rows of the table. A write
+  receives as an argument who writes and at what moment (`Stamp(author, at)`, the author being `None` for
+  the platform): the core does not read the clock. An identifier is drawn from `new_id()`
+  (`waterfall.platform.identifiers`), an instant from `UtcDateTime`, which refuses an instant without
+  a time zone. One request, one transaction: `Database.transaction()` commits it at the end of the block and
+  rolls it back if an exception passes through, the response being built before. A change that
+  carries a `lock_version` tests it in the write itself and raises `PreconditionFailedError` if the
+  version is no longer the right one.
 
-  _Contrôles_ : `make test-back` (`tests/test_users_data_access.py`) ; `make imports-back` pour
-  les frontières ; que l'écriture teste son `lock_version` dans la requête, la revue.
+  _Checks_: `make test-back` (`tests/test_users_data_access.py`); `make imports-back` for
+  the boundaries; that the write tests its `lock_version` in the query, the review.
 
-- **Connaître l'appelant** — une route gardée prend `Caller` et, si elle lit ou écrit la base,
-  `Transaction` (`waterfall.api.authentication`) : la première valide le jeton d'accès par les
-  clés du royaume (`waterfall.platform.keycloak`) et lit le compte par `idp_subject` à chaque
-  requête, la seconde ouvre la transaction de la requête, validée quand la route a construit sa
-  réponse et avant qu'elle parte. Aucun appel à Keycloak ne se fait dans une transaction (#669) :
-  l'appelant est lu, puis au besoin admis, et ses permissions lues (`Acting`), chacun dans une
-  transaction courte à lui, et une route qui appelle Keycloak — `closeMySessions`, `createUser`,
-  `setUserActivation` et `setUserAccessRoles`, qui ferment les sessions d'un compte désactivé ou
-  privé de tous ses rôles une fois l'écriture validée, `createPasswordSetupLink`, qui fait faire le
-  lien par l'extension et ne l'inscrit au journal, sans son jeton, qu'une fois fait,
-  `updateMyPreferences`, qui donne la langue choisie au compte chez Keycloak avant de l'écrire et
-  n'écrit rien tant qu'il ne répond pas — ne prend pas `Transaction`, mais ouvre les siennes avant
-  et après l'appel. Un jeton absent ou invalide est
-  un 401 `SESSION_REQUIRED`, un jeton expiré un 401 `SESSION_EXPIRED`, un jeton dont la
-  connexion (`auth_time`, à défaut `iat`) précède la dernière fermeture des sessions du compte, ou
-  tombe dans sa seconde, un 401 `SESSION_REVOKED` — `closeMySessions`, la désactivation et le
-  retrait de tous les rôles en notent l'heure, `sessions_closed_at`, avant d'appeler Keycloak
-  (#668, #835, #855) —, un compte désactivé un 401
-  `ACCOUNT_DEACTIVATED` ; un compte que Waterfall ne connaît pas encore est créé sans rôle s'il
-  vient de l'annuaire ou d'un fournisseur externe, refusé sinon par un 401
-  `ACCOUNT_NOT_ADMITTED` (#664), sa cause écrite au seul journal. L'appelant devient l'auteur
-  (`actor`) de chaque journal de la requête. L'API lit `WATERFALL_KEYCLOAK_ADDRESS`, l'adresse
-  du navigateur, qui nomme l'émetteur des jetons, `WATERFALL_KEYCLOAK_BACKCHANNEL`, celle où elle
-  joint Keycloak si elle en a une autre, et le secret `WATERFALL_SERVICE_CLIENT_SECRET`. Un test
-  signe ses jetons par des clés qu'il engendre et sert comme le royaume sert les siennes
-  (`tests/realm.py`) ; ce qui demande l'API d'administration de Keycloak
-  (`waterfall.platform.keycloak_admin`) s'éprouve contre la plateforme (`make test-keycloak`).
+- **Knowing the caller** — a guarded route takes `Caller` and, if it reads or writes the database,
+  `Transaction` (`waterfall.api.authentication`): the first validates the access token by the
+  keys of the realm (`waterfall.platform.keycloak`) and reads the account by `idp_subject` at every
+  request, the second opens the transaction of the request, committed when the route has built its
+  response and before it leaves. No call to Keycloak is made inside a transaction (#669):
+  the caller is read, then admitted if need be, and its permissions read (`Acting`), each in a
+  short transaction of its own, and a route that calls Keycloak — `closeMySessions`, `createUser`,
+  `setUserActivation` and `setUserAccessRoles`, which close the sessions of an account deactivated or
+  stripped of all its roles once the write is committed, `createPasswordSetupLink`, which has the
+  link made by the extension and records it in the log, without its token, only once done,
+  `updateMyPreferences`, which gives the chosen language to the account at Keycloak before writing it and
+  writes nothing as long as it does not answer — does not take `Transaction`, but opens its own before
+  and after the call. An absent or invalid token is
+  a 401 `SESSION_REQUIRED`, an expired token a 401 `SESSION_EXPIRED`, a token whose
+  login (`auth_time`, failing that `iat`) precedes the last closing of the sessions of the account, or
+  falls within its second, a 401 `SESSION_REVOKED` — `closeMySessions`, the deactivation and the
+  removal of all the roles note its time, `sessions_closed_at`, before calling Keycloak
+  (#668, #835, #855) —, a deactivated account a 401
+  `ACCOUNT_DEACTIVATED`; an account Waterfall does not know yet is created without a role if it
+  comes from the directory or from an external provider, refused otherwise by a 401
+  `ACCOUNT_NOT_ADMITTED` (#664), its cause written to the log alone. The caller becomes the author
+  (`actor`) of every log of the request. The API reads `WATERFALL_KEYCLOAK_ADDRESS`, the address
+  of the browser, which names the issuer of the tokens, `WATERFALL_KEYCLOAK_BACKCHANNEL`, the one where it
+  reaches Keycloak if it has another, and the secret `WATERFALL_SERVICE_CLIENT_SECRET`. A test
+  signs its tokens with keys it generates and serves as the realm serves its own
+  (`tests/realm.py`); what requires the administration API of Keycloak
+  (`waterfall.platform.keycloak_admin`) is tested against the platform (`make test-keycloak`).
 
-  _Contrôles_ : `make test-back` (`tests/test_api_authentication.py`, qui compte aussi les
-  connexions prises pendant l'appel à Keycloak, `Watching` de `tests/support.py`),
-  `make test-keycloak` (`tests/test_keycloak_authentication.py`) ; qu'une route gardée prenne
-  `Caller`, la revue.
+  _Checks_: `make test-back` (`tests/test_api_authentication.py`, which also counts the
+  connections taken during the call to Keycloak, `Watching` of `tests/support.py`),
+  `make test-keycloak` (`tests/test_keycloak_authentication.py`); that a guarded route takes
+  `Caller`, the review.
 
-## Clés de traduction
+## Translation keys
 
-Les textes de l'interface vivent dans deux catalogues jumeaux, que lit next-intl :
-`frontend/messages/fr.json`, la référence, et `frontend/messages/en.json`. La langue
-n'apparaît pas dans l'adresse — un lien partagé s'ouvre chez chacun dans la sienne
-(WF-INTF-0170) — : le serveur la résout à chaque requête (`frontend/src/i18n/request.ts`),
-d'après la préférence du compte si elle vaut `fr` ou `en`, sinon la première langue offerte
-que demande `Accept-Language`, sinon la langue par défaut de l'installation
-(`getInstallation`). Un `*` placé devant toute langue offerte dans `Accept-Language` laisse
-décider l'installation ; une installation illisible ou injoignable donne `fr`, la langue du
-catalogue de référence. Sans compte — pas de session, ou une API injoignable — il n'y a pas
-de préférence : le navigateur décide, et la coquille n'offre pas le menu du compte, où la
-langue se choisit.
+The texts of the interface live in two twin catalogues, which next-intl reads:
+`frontend/messages/fr.json`, the reference, and `frontend/messages/en.json`. The language
+does not appear in the address — a shared link opens for everyone in their own
+(WF-INTF-0170) —: the server resolves it at every request (`frontend/src/i18n/request.ts`),
+from the preference of the account if it is `fr` or `en`, otherwise the first offered language
+that `Accept-Language` asks for, otherwise the default language of the installation
+(`getInstallation`). A `*` placed before any offered language in `Accept-Language` lets
+the installation decide; an unreadable or unreachable installation gives `fr`, the language of the
+reference catalogue. Without an account — no session, or an unreachable API — there is no
+preference: the browser decides, and the shell does not offer the account menu, where the
+language is chosen.
 
-- **Une clé est hiérarchique, en anglais.** Un texte propre à l'interface se range sous le
-  composant ou l'écran qui l'emploie, en camelCase (`languageSelector.label`). Ce que le
-  contrat énumère garde ses noms, et chaque valeur a sa clé :
-  - `enums.<Schéma>.<valeur>` pour une énumération nommée (`enums.ProjectState.in_progress`),
-    `enums.<Schéma>.<propriété>.<valeur>` pour une énumération déclarée dans une propriété
-    (`enums.BackgroundTaskRef.kind.revision_mark`), les `items` d'un tableau ne comptant pas
-    (`enums.ReferenceReadiness.missing.active_cost_category`) : toutes les énumérations de
-    `components.schemas`, sauf les deux suivantes ;
-  - `errors.<CODE>` pour chaque code d'`ErrorCode`, `permissions.<code>` pour chaque
-    `PermissionCode` ;
-  - `enums.<Paramètre>.<valeur>` pour une énumération d'un paramètre partagé de
-    `components.parameters` (`enums.Scope.unassigned`) : son nom partage le niveau des
-    schémas, et un paramètre qui énumère des valeurs ne porte pas le nom d'un schéma ;
-  - aucune énumération ne s'écrit en ligne, faute d'un nom pour ranger ses clés : celle d'un
-    paramètre d'opération devient un paramètre partagé de
-    `docs/api/components/parameters.yaml` ; celle d'un corps de requête ou de réponse, ou
-    d'un en-tête — sous `paths` comme sous `components.responses`, `requestBodies` et
-    `headers` —, un schéma nommé de `components.schemas`. Deux exceptions, sans clé :
-    `sort_by`, dont les valeurs sont des colonnes que l'en-tête de la grille libelle déjà, et
-    les corps des sondes, `/health` et les chemins qui en partent, qu'aucun écran n'affiche ;
-  - un `const` n'a pas de clé : le contrat ne s'en sert que pour l'accord qu'une requête
-    donne (`confirmed: true`), qui ne s'affiche pas ;
-  - une valeur qui porte un point se lit comme un niveau, next-intl réservant le point au
-    chemin : `permissions.users.write`, `enums.ComputedField.task.start`.
-- **Une valeur est un message ICU** — `{max_columns, plural, one {…} other {…}}` —, avec les
-  mêmes arguments dans les deux catalogues, ce que `make catalogs` vérifie ; le libellé d'une valeur d'énumération ou d'une
-  permission est du texte sans argument. Le français suit sa typographie : espace insécable
-  avant les deux-points, fine insécable avant le point-virgule et les points d'exclamation et
-  d'interrogation, apostrophe typographique ; l'anglais suit l'orthographe britannique.
-- **Ajouter une clé**, c'est l'écrire dans les deux catalogues, au même endroit, et la lire par
-  `useTranslations` — composant client, ou serveur sans `await` — ou par `createTranslator`
-  et `requestLanguage()` dans un composant serveur asynchrone. Une valeur ajoutée à une
-  énumération du contrat ajoute sa clé dans la même modification.
-- **Ce que l'utilisateur a saisi ne se traduit pas** : un libellé de tâche, un nom de projet
-  s'affichent tels quels (WF-INTF-0170).
-- **Les formats** sont ceux de `frontend/src/i18n/format.ts`, par la langue : un montant, un
-  décimal, des heures depuis la chaîne exacte du contrat (`formatMoney`, `formatDecimal`),
-  jamais par un flottant ; une date de planning telle quelle, sans fuseau
-  (`formatPlanningDate`) ; un horodatage en heure locale du poste, écrit dans le navigateur
-  (`LocalTime`) ; un rapport saisi ou réglé — un taux, une probabilité, une borne — en
-  pourcentage, depuis sa chaîne exacte, chaque chiffre gardé (`formatPercent`) ; une part que le
-  serveur calcule — la part d'une nature ou d'un poste, un avancement, un taux de charge — au
-  centième de pourcentage (`formatShare`) : une part non nulle que l'arrondi dirait nulle se dit
-  « < 0,01 % », ou « > -0,01 % », par le catalogue (`share`) ; une part nulle, quel que soit le
-  nombre de ses zéros, se lit « 0 % » ; près de 100 %, l'arrondi ordinaire (EP-14/L51). Une part
-  que le contrat donne nulle l'est : une part non nulle n'est jamais donnée nulle, mais à son
-  premier chiffre significatif (EP-14/L42o, #694), et le pont de L51, qui jugeait une part nulle
-  par son montant, est retiré (EP-14/L52). En français, `Intl` sépare les milliers par une fine
-  insécable (U+202F) : « 1 234,56 » ne se coupe pas en fin de ligne. L'anglais se formate en anglais
-  britannique (`en-GB`), comme ses catalogues s'écrivent : « 31 May 2026, 16:30 », les
-  nombres restant « 1,234.56 ».
+- **A key is hierarchical, in English.** A text specific to the interface is filed under the
+  component or the screen that uses it, in camelCase (`languageSelector.label`). What the
+  contract enumerates keeps its names, and each value has its key:
+  - `enums.<Schéma>.<valeur>` for a named enumeration (`enums.ProjectState.in_progress`),
+    `enums.<Schéma>.<propriété>.<valeur>` for an enumeration declared in a property
+    (`enums.BackgroundTaskRef.kind.revision_mark`), the `items` of an array not counting
+    (`enums.ReferenceReadiness.missing.active_cost_category`): every enumeration of
+    `components.schemas`, except the two following;
+  - `errors.<CODE>` for each code of `ErrorCode`, `permissions.<code>` for each
+    `PermissionCode`;
+  - `enums.<Paramètre>.<valeur>` for an enumeration of a shared parameter of
+    `components.parameters` (`enums.Scope.unassigned`): its name shares the level of the
+    schemas, and a parameter that enumerates values does not bear the name of a schema;
+  - no enumeration is written inline, for want of a name to file its keys under: that of an
+    operation parameter becomes a shared parameter of
+    `docs/api/components/parameters.yaml`; that of a request or response body, or
+    of a header — under `paths` as under `components.responses`, `requestBodies` and
+    `headers` —, a named schema of `components.schemas`. Two exceptions, without a key:
+    `sort_by`, whose values are columns the header of the grid already labels, and
+    the bodies of the probes, `/health` and the paths that stem from it, which no screen displays;
+  - a `const` has no key: the contract uses it only for the agreement a request
+    gives (`confirmed: true`), which is not displayed;
+  - a value that carries a dot reads as a level, next-intl reserving the dot for the
+    path: `permissions.users.write`, `enums.ComputedField.task.start`.
+- **A value is an ICU message** — `{max_columns, plural, one {…} other {…}}` —, with the
+  same arguments in both catalogues, which `make catalogs` checks; the label of an enumeration value or of a
+  permission is text without an argument. French follows its typography: a non-breaking space
+  before the colon, a thin non-breaking space before the semicolon and the exclamation and
+  question marks, a typographic apostrophe; English follows British spelling.
+- **Adding a key** means writing it in both catalogues, at the same place, and reading it through
+  `useTranslations` — client component, or server component without `await` — or through `createTranslator`
+  and `requestLanguage()` in an asynchronous server component. A value added to an
+  enumeration of the contract adds its key in the same change.
+- **What the user has typed is not translated**: a task label, a project name
+  are displayed as they are (WF-INTF-0170).
+- **The formats** are those of `frontend/src/i18n/format.ts`, by language: an amount, a
+  decimal, hours from the exact string of the contract (`formatMoney`, `formatDecimal`),
+  never from a float; a planning date as it is, without a time zone
+  (`formatPlanningDate`); a timestamp in the local time of the workstation, written in the browser
+  (`LocalTime`); a ratio typed or set — a rate, a probability, a bound — as a
+  percentage, from its exact string, every digit kept (`formatPercent`); a share the
+  server computes — the share of a cost type or of a position, a progress, a load rate — to the
+  hundredth of a percent (`formatShare`): a non-zero share that rounding would call zero is said
+  « < 0.01 % », or « > -0.01 % », through the catalogue (`share`); a zero share, whatever the
+  number of its zeros, reads « 0 % »; near 100 %, ordinary rounding (EP-14/L51). A share
+  the contract gives as zero is zero: a non-zero share is never given as zero, but to its
+  first significant digit (EP-14/L42o, #694), and the bridge of L51, which judged a share zero
+  by its amount, is removed (EP-14/L52). In French, `Intl` separates thousands with a thin
+  non-breaking space (U+202F): « 1 234,56 » does not break at the end of a line. English is formatted in British
+  English (`en-GB`), as its catalogues are written: « 31 May 2026, 16:30 », the
+  numbers remaining « 1,234.56 ».
 
-_Contrôles_ : `make typecheck-front` — next-intl est typé par le catalogue français, et une
-clé que le code emploie sans qu'il l'ait casse le typage, comme une clé qui manque au
-catalogue anglais (`frontend/src/i18n/catalogues.ts`) ; `make lint-front` —
-`react/jsx-no-literals` refuse le texte écrit dans le JSX, et `no-restricted-syntax` un
-littéral dans un attribut lu — `aria-label`, `aria-description`, `aria-roledescription`,
-`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (sauf `blur`, `empty` et
-une adresse `data:image/`, les formes de next/image), `label`, la `value` d'un `input`
-bouton —, ou dans une branche ou une concaténation d'un enfant ou d'un de ces attributs ;
-restent à la revue les autres props de nos propres composants, et une chaîne bâtie par une
-fonction ou une méthode (`.join`, `.concat`), dans le JSX ou hors de lui ;
-`frontend/src/i18n/text-guard.test.ts` l'éprouve sur des extraits piégés, à côté de la garde
-réseau qui partage la règle ; `make catalogs`, dans `check-front`, qui lit le
-contrat qu'il vient d'assembler (`wftools.catalogs`) — les deux catalogues ont les mêmes
-clés, chaque valeur est un texte non vide, chaque valeur d'énumération, chaque code d'erreur
-et chaque permission du contrat a la sienne, et aucune clé sous `enums`, `errors` ou
-`permissions` ne survit à la valeur que le contrat a retirée ; un texte emploie les mêmes
-arguments ICU que celui du catalogue français, une clé ne s'écrit qu'une fois par fichier, et
-aucune énumération ne s'écrit en ligne, hors `sort_by` et les sondes. Il demande au moins
-deux catalogues, et nomme chaque clé qui manque et le catalogue qui la porte.
+_Checks_: `make typecheck-front` — next-intl is typed by the French catalogue, and a
+key the code uses without it having it breaks the typing, as does a key missing from the
+English catalogue (`frontend/src/i18n/catalogues.ts`); `make lint-front` —
+`react/jsx-no-literals` refuses text written in the JSX, and `no-restricted-syntax` a
+literal in a read attribute — `aria-label`, `aria-description`, `aria-roledescription`,
+`aria-valuetext`, `aria-placeholder`, `title`, `alt`, `placeholder` (except `blur`, `empty` and
+a `data:image/` address, the forms of next/image), `label`, the `value` of a button
+`input` —, or in a branch or a concatenation of a child or of one of these attributes;
+what remains for the review are the other props of our own components, and a string built by a
+function or a method (`.join`, `.concat`), in the JSX or outside it;
+`frontend/src/i18n/text-guard.test.ts` tests it on trapped extracts, next to the network
+guard that shares the rule; `make catalogs`, in `check-front`, which reads the
+contract it has just bundled (`wftools.catalogs`) — the two catalogues have the same
+keys, each value is a non-empty text, each enumeration value, each error code
+and each permission of the contract has its own, and no key under `enums`, `errors` or
+`permissions` survives the value the contract has removed; a text uses the same
+ICU arguments as that of the French catalogue, a key is written only once per file, and
+no enumeration is written inline, apart from `sort_by` and the probes. It requires at least
+two catalogues, and names each key that is missing and the catalogue that carries it.
 
-## Charte graphique
+## Visual identity
 
-La charte vit dans `frontend/src/theme/globals.css`, et nulle part ailleurs : les couleurs,
-la typographie, les espacements et les rayons y sont des jetons — des variables CSS que
-Tailwind et les composants de shadcn/ui lisent par le thème (`bg-primary`,
-`text-muted-foreground`, `rounded-md`). Les bleus viennent des logos de `docs/assets`
-(`#027dc6`, `#1195e1`), qui n'atteignent un composant que par des jetons mesurés, les
-neutres de shadcn/ui ; la police est Geist, celle du logo.
+The visual identity lives in `frontend/src/theme/globals.css`, and nowhere else: the colours,
+the typography, the spacings and the radii are tokens there — CSS variables that
+Tailwind and the shadcn/ui components read through the theme (`bg-primary`,
+`text-muted-foreground`, `rounded-md`). The blues come from the logos of `docs/assets`
+(`#027dc6`, `#1195e1`), which reach a component only through measured tokens, the
+neutrals from shadcn/ui; the typeface is Geist, that of the logo.
 
-- **Clair et sombre par les mêmes jetons.** Chaque jeton de couleur porte ses deux valeurs,
-  `light-dark(claire, sombre)`. Le document suit le poste (`color-scheme: light dark`) ; quand
-  le compte force un mode (`DisplayPreferences.theme`), le layout racine pose
-  `data-theme="light"` ou `data-theme="dark"` sur `<html>`, résolu côté serveur comme la
-  langue. Aucun composant ne se demande quel mode s'affiche : la variante `dark:` de
-  Tailwind, qui ne suivrait que le poste et ignorerait le mode forcé, est refusée. Un état
-  qui change de couleur — survol, page courante — a son propre jeton (`--primary-hover`),
-  mesuré comme les autres.
-- **Ajouter une couleur, c'est ajouter un jeton** : sa valeur claire et sa valeur sombre dans
-  `:root`, son nom dans `@theme inline` (`--color-<nom>: var(--<nom>)`), et chaque paire
-  texte et fond qu'il forme dans `frontend/src/theme/contrast.test.ts` ; un composant emploie
-  ensuite sa classe (`bg-<nom>`). Jamais une couleur dans un composant : ni une classe de la
-  palette de Tailwind, retirée du thème — `bg-blue-500` ne produit rien —, ni une valeur
-  arbitraire d'un utilitaire de couleur (`bg-[#027dc6]`, `bg-[red]`) — une longueur ou un
-  nombre passent, `ring-[3px]` —, ni une variable entre parenthèses (`bg-(--x)`,
-  `font-(family-name:--x)`), que personne n'a mesurée, ni une propriété arbitraire qui peint ou une variable
-  (`[color:…]`, `[--primary:…]`), ni `color-mix(`, ni une couleur écrite dans une chaîne,
-  dans un `style` ou dans l'attribut d'un SVG. Une police s'ajoute de même, par un jeton
-  `--font-<nom>`.
-- **La marque d'un différentiel** (US-0500) a trois jetons de ligne et trois jetons de marque,
-  `--diff-added`, `--diff-removed`, `--diff-modified` et leurs `-mark` — un vert, un rouge, un jaune —,
-  que `DiffMark` pose (`frontend/src/components/grid/diff-mark.tsx`) ; la couleur double le caractère
-  `+`, `-` ou `M` et le mot, elle ne les remplace jamais. Le texte de la page et la marque atteignent
-  4,5:1 sur chaque teinte dans les deux modes (`contrast.test.ts`).
-- **Le contraste** d'un texte sur son fond atteint 4,5:1, celui de ce qui montre un contrôle —
-  bord d'un champ, anneau du focus — 3:1, dans les deux modes (WCAG AA, §3.6).
-- **Un signalement passe par `Signal`** (`frontend/src/components/signal/`), et seulement
-  par lui (WF-IHM-0070) : il reçoit une `AlertZone` du contrat et la rend par une forme
-  Lucide, son libellé du catalogue (`enums.AlertZone.<zone>`) et son jeton,
-  `--signal-<zone>`, dans une seule table typée sur `AlertZone`. **Une zone vient du
-  serveur**, qui classe selon les seuils du référentiel : le front n'en déduit jamais une
-  d'une valeur (WF-ARC-0020). Une zone nulle ou absente ne rend aucun `Signal` ; la valeur
-  dit qu'elle manque (`ComputedIndicator`) ; jamais `?? "nominal"`. Les jetons de signalement
-  sont mesurés comme les autres, et de plus en niveaux de gris et vus d'un protanope et d'un
-  deutéranope (`contrast.test.ts`) ; l'alerte y ressort le plus de la page dans les deux modes —
-  la plus sombre en clair, la plus lumineuse en sombre —, le nominal le moins. Hors de `src/components/signal/`, un utilitaire de couleur qui nomme
-  un jeton de zone (`bg-signal-alert`, `text-signal-watch`) est refusé : `SIGNAL_SYNTAX` de
-  `frontend/eslint.config.mjs`, `make lint-front`, éprouvé par `colour-guard.test.ts`.
-  Qu'aucun écran ne distingue deux états par la seule couleur — une pastille, une ligne
-  teintée sans forme ni texte —, c'est pour le reste la revue qui le tient ; les tests de
-  `Signal` le prouvent pour le composant.
-- **L'état d'un projet passe par `ProjectStateBadge`** (`frontend/src/components/projects/`,
-  #523), partout où un écran le montre — l'accueil, la liste du portefeuille, la page, les
-  paramètres et le cycle de vie d'un projet : une pastille remplie du jeton de son état,
-  `--state-<état>`, son texte du jeton `--state-<état>-foreground`, dans la palette que l'auteur
-  a validée — gris clair pour Créé, bleu pour Chiffrage, vert pour En cours, gris foncé pour
-  Terminé, orange pour Perdu, rouge sourd pour Abandonné —, et toujours le mot de l'état et son
-  icône, propre à chacun et distincte des formes de `Signal`. `contrast.test.ts` mesure le texte
-  de chaque état sur sa pastille, et tient chaque jeton d'état à l'écart des jetons de zone :
-  un état ne se lit pas comme une alerte.
-- **shadcn/ui partout où un composant existe** : un composant s'ajoute en copiant son source
-  dans `frontend/src/components/ui/` (`frontend/components.json` en donne les chemins), et
-  seulement quand un écran l'emploie ; ce qu'il offre et qu'aucun écran n'emploie — une
-  variante, une pièce — ne se copie pas. Copié, il est du code du dépôt, soumis à toutes ses
-  règles : en-tête, lint, JSDoc, couverture, textes par le catalogue, couleurs par les jetons
-  — ses classes se récrivent sur les jetons de la charte (`bg-popover`, `bg-sidebar-accent`),
-  et un jeton qu'il attend et que la charte n'a pas s'y ajoute, mesuré. Une variable CSS ne se
-  pose pas dans un `style` : la charte la déclare (`--sidebar-width`). Radix, son socle, vient
-  du paquet `radix-ui`, un seul, examiné pour la garde réseau. Un composant qui en passe un
-  autre à un composant client depuis un composant serveur lui passe un élément, jamais une
-  fonction — une icône se remet dessinée (`commandIcon`).
-- **La mise en page** suit la maquette validée par l'utilisateur (EP-02, « Charte
-  graphique ») : la barre latérale est le Sidebar de shadcn/ui, repliable en rail d'icônes dont
-  chaque entrée garde son nom et le montre en infobulle ; la barre du haut porte le fil
-  d'Ariane, la recherche, le bouton du panneau des tâches et des messages et, à droite, le
-  bouton de l'avatar qui déroule le menu du compte (DropdownMenu). Un écran se construit sur le gabarit de
-  `frontend/src/components/shell/page-header.tsx` : `Screen`, son `<main>`, et `PageHeader`,
-  le titre et l'icône de sa fonction, une ligne dessous, ses commandes à droite.
-- **La densité** : les grilles et les listes sont denses — le plus d'informations sous les
-  yeux —, les écrans d'indicateurs aérés ; chaque fonction a la sienne, dans une table typée
-  (`FUNCTION_DENSITY`, `function-display.ts`), que `Screen` et `PageHeader` reçoivent.
-- **Une icône Lucide sur chaque entrée de navigation, chaque bouton et chaque nature de
-  ligne.** Pour les fonctions, les blocs, les commandes, les pages du compte, les natures de ligne,
-  les modes de planification et les états d'avancement, elle est tirée d'une table typée sur ce qu'elle représente — `FUNCTION_ICONS`,
-  `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` et `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
-  `ROW_NATURE_ICONS`, `SCHEDULING_MODE_ICONS` et `PROGRESS_ICONS` —, de sorte qu'une valeur ajoutée sans icône casse le typage ; ailleurs — un
-  bouton de la coquille, un avis, une page système —, elle est posée en ligne. Une icône à côté de son texte est `aria-hidden` ; une
-  icône seule porte un nom — le bouton qui la porte, ou l'icône elle-même (`role="img"`), la
-  nature d'une ligne dans sa cellule.
-- **La sobriété** : aucun ornement hors des icônes — ni dégradé, ni ombre décorative, ni
-  transition, ni animation, hors la pulsation du squelette de chargement, qui dit un état et
-  s'arrête quand le poste demande moins de mouvement ; une seule ombre, `shadow-md`, sur ce qui
-  flotte au-dessus de la page (un menu), pour l'en détacher. `src/components/ui/sobriety.test.ts`
-  le vérifie pour les composants copiés. Un état se dit en mots — un badge, une pastille —, jamais par la seule
-  couleur.
-- **Le logo et le favicon** sont les fichiers de `docs/assets`, copiés à l'octet près dans
-  `frontend/public/` et `frontend/src/app/icon.svg` ; le logo prend sa variante sombre là où
-  le mode sombre s'applique.
+- **Light and dark through the same tokens.** Each colour token carries its two values,
+  `light-dark(claire, sombre)`. The document follows the workstation (`color-scheme: light dark`); when
+  the account forces a mode (`DisplayPreferences.theme`), the root layout sets
+  `data-theme="light"` or `data-theme="dark"` on `<html>`, resolved on the server side like the
+  language. No component asks itself which mode is displayed: Tailwind's `dark:`
+  variant, which would follow only the workstation and ignore the forced mode, is refused. A state
+  that changes colour — hover, current page — has its own token (`--primary-hover`),
+  measured like the others.
+- **Adding a colour means adding a token**: its light value and its dark value in
+  `:root`, its name in `@theme inline` (`--color-<nom>: var(--<nom>)`), and each pair of
+  text and background it forms in `frontend/src/theme/contrast.test.ts`; a component then uses
+  its class (`bg-<nom>`). Never a colour in a component: neither a class of Tailwind's
+  palette, removed from the theme — `bg-blue-500` produces nothing —, nor an arbitrary
+  value of a colour utility (`bg-[#027dc6]`, `bg-[red]`) — a length or a
+  number pass, `ring-[3px]` —, nor a variable in parentheses (`bg-(--x)`,
+  `font-(family-name:--x)`), which nobody has measured, nor an arbitrary property that paints or a variable
+  (`[color:…]`, `[--primary:…]`), nor `color-mix(`, nor a colour written in a string,
+  in a `style` or in the attribute of an SVG. A typeface is added the same way, through a
+  `--font-<nom>` token.
+- **The mark of a differential** (US-0500) has three line tokens and three mark tokens,
+  `--diff-added`, `--diff-removed`, `--diff-modified` and their `-mark` — a green, a red, a yellow —,
+  which `DiffMark` sets (`frontend/src/components/grid/diff-mark.tsx`); the colour doubles the character
+  `+`, `-` or `M` and the word, it never replaces them. The text of the page and the mark reach
+  4.5:1 on each tint in both modes (`contrast.test.ts`).
+- **The contrast** of a text on its background reaches 4.5:1, that of what shows a control —
+  border of a field, focus ring — 3:1, in both modes (WCAG AA, §3.6).
+- **A signal goes through `Signal`** (`frontend/src/components/signal/`), and only
+  through it (WF-IHM-0070): it receives an `AlertZone` of the contract and renders it by a
+  Lucide shape, its label from the catalogue (`enums.AlertZone.<zone>`) and its token,
+  `--signal-<zone>`, in a single table typed on `AlertZone`. **A zone comes from the
+  server**, which classifies by the thresholds of the reference data: the front never derives one
+  from a value (WF-ARC-0020). A null or absent zone renders no `Signal`; the value
+  says that it is missing (`ComputedIndicator`); never `?? "nominal"`. The signal tokens
+  are measured like the others, and moreover in greyscale and as seen by a protanope and a
+  deuteranope (`contrast.test.ts`); the alert stands out the most from the page there in both modes —
+  the darkest in light, the brightest in dark —, the nominal the least. Outside `src/components/signal/`, a colour utility that names
+  a zone token (`bg-signal-alert`, `text-signal-watch`) is refused: `SIGNAL_SYNTAX` of
+  `frontend/eslint.config.mjs`, `make lint-front`, tested by `colour-guard.test.ts`.
+  That no screen distinguishes two states by colour alone — a dot, a tinted
+  line without shape or text —, it is otherwise the review that holds it; the tests of
+  `Signal` prove it for the component.
+- **The state of a project goes through `ProjectStateBadge`** (`frontend/src/components/projects/`,
+  #523), everywhere a screen shows it — the home page, the list of the portfolio, the page, the
+  settings and the life cycle of a project: a dot filled with the token of its state,
+  `--state-<état>`, its text from the token `--state-<état>-foreground`, in the palette the author
+  has validated — light grey for Created, blue for Pricing, green for In progress, dark grey for
+  Completed, orange for Lost, muted red for Abandoned —, and always the word of the state and its
+  icon, specific to each and distinct from the shapes of `Signal`. `contrast.test.ts` measures the text
+  of each state on its dot, and keeps each state token away from the zone tokens:
+  a state does not read as an alert.
+- **shadcn/ui everywhere a component exists**: a component is added by copying its source
+  into `frontend/src/components/ui/` (`frontend/components.json` gives the paths), and
+  only when a screen uses it; what it offers and no screen uses — a
+  variant, a part — is not copied. Once copied, it is code of the repository, subject to all its
+  rules: header, lint, JSDoc, coverage, texts through the catalogue, colours through the tokens
+  — its classes are rewritten on the tokens of the visual identity (`bg-popover`, `bg-sidebar-accent`),
+  and a token it expects and the visual identity does not have is added there, measured. A CSS variable is not
+  set in a `style`: the visual identity declares it (`--sidebar-width`). Radix, its foundation, comes
+  from the `radix-ui` package, a single one, examined for the network guard. A component that passes another
+  to a client component from a server component passes it an element, never a
+  function — an icon is handed over drawn (`commandIcon`).
+- **The layout** follows the mockup validated by the user (EP-02, « Charte
+  graphique »): the sidebar is the Sidebar of shadcn/ui, collapsible into a rail of icons where
+  each entry keeps its name and shows it in a tooltip; the top bar carries the
+  breadcrumb, the search, the button of the tasks and messages panel and, on the right, the
+  avatar button that drops down the account menu (DropdownMenu). A screen is built on the template of
+  `frontend/src/components/shell/page-header.tsx`: `Screen`, its `<main>`, and `PageHeader`,
+  the title and the icon of its function, a line below, its commands on the right.
+- **Density**: the grids and the lists are dense — the most information before the
+  eyes —, the indicator screens airy; each function has its own, in a typed table
+  (`FUNCTION_DENSITY`, `function-display.ts`), which `Screen` and `PageHeader` receive.
+- **A Lucide icon on every navigation entry, every button and every line
+  nature.** For the functions, the blocks, the commands, the account pages, the line natures,
+  the scheduling modes and the progress states, it is drawn from a table typed on what it represents — `FUNCTION_ICONS`,
+  `GROUP_ICONS`, `PROJECT_COMMAND_ICONS` and `REVISION_COMMAND_ICONS`, `ACCOUNT_ICONS`,
+  `ROW_NATURE_ICONS`, `SCHEDULING_MODE_ICONS` and `PROGRESS_ICONS` —, so that a value added without an icon breaks the typing; elsewhere — a
+  button of the shell, a notice, a system page —, it is set inline. An icon next to its text is `aria-hidden`; a
+  lone icon carries a name — the button that carries it, or the icon itself (`role="img"`), the
+  nature of a line in its cell.
+- **Sobriety**: no ornament beyond the icons — neither gradient, nor decorative shadow, nor
+  transition, nor animation, apart from the pulse of the loading skeleton, which says a state and
+  stops when the workstation asks for less motion; a single shadow, `shadow-md`, on what
+  floats above the page (a menu), to detach it from it. `src/components/ui/sobriety.test.ts`
+  checks it for the copied components. A state is said in words — a badge, a dot —, never by colour
+  alone.
+- **The logo and the favicon** are the files of `docs/assets`, copied byte for byte into
+  `frontend/public/` and `frontend/src/app/icon.svg`; the logo takes its dark variant where
+  the dark mode applies.
 
-_Contrôles_ : `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` de
-`frontend/eslint.config.mjs`) refuse, dans toute chaîne du code, une classe de couleur de la
-palette, une valeur arbitraire d'un utilitaire de couleur qui n'est ni une longueur ni un
-nombre, une variable passée à un utilitaire de couleur ou de police, une police arbitraire, une propriété arbitraire qui peint, pose une police ou une
-variable, `color-mix(`, une couleur écrite en chaîne entière et la variante `dark:` ; dans un
-`style`, quelle que soit sa valeur, une propriété qui peint, borde, ombre ou pose une police,
-et une variable, que la clé soit un nom ou une chaîne ; et, pour `fill`, `stroke`, `color` et
-les couleurs d'un SVG, tout littéral ou gabarit sans expression autre que `currentColor`,
-`none` ou `url(…)`, où qu'il soit dans la valeur, une branche comprise.
-`frontend/src/theme/colour-guard.test.ts` l'éprouve sur des extraits piégés, et vérifie
-qu'aucune feuille de style ne vit hors de `src/theme/`. `make test-front` —
-`contrast.test.ts` mesure chaque paire de jetons dans les deux modes, `brand.test.ts`
-compare les logos et l'icône à ceux de `docs/assets`. Le contraste des écrans rendus se
-contrôle dans le navigateur, sur chaque écran de la table, en clair et en sombre
-(`frontend/e2e/accessibility.spec.ts`, US-0200) ; le reste de l'accessibilité d'un composant, dans ses
-tests, par `expectAccessible` (`frontend/src/test/axe.ts`, axe-core sous happy-dom, qui ne
-calcule pas les couleurs). Reste à la revue : une couleur bâtie par un gabarit à expressions
-ou par une fonction, et un `style` ou un attribut de SVG qui reçoit une variable plutôt qu'un
-objet ou un littéral écrit sur place ; et, pour la mise en page, qu'un bouton ou une entrée
-porte son icône hors des tables typées — un bouton écrit à la main —, qu'aucune ombre, aucun
-dégradé ni aucune animation n'orne un composant copié, qu'un écran prenne le gabarit et la
-densité de sa fonction, et qu'un composant copié n'entre qu'avec l'écran qui l'emploie.
+_Checks_: `make lint-front` — `no-restricted-syntax` (`COLOUR_SYNTAX` of
+`frontend/eslint.config.mjs`) refuses, in any string of the code, a colour class of the
+palette, an arbitrary value of a colour utility that is neither a length nor a
+number, a variable passed to a colour or typeface utility, an arbitrary typeface, an arbitrary property that paints, sets a typeface or a
+variable, `color-mix(`, a colour written as a whole string and the `dark:` variant; in a
+`style`, whatever its value, a property that paints, borders, shadows or sets a typeface,
+and a variable, whether the key is a name or a string; and, for `fill`, `stroke`, `color` and
+the colours of an SVG, any literal or template without an expression other than `currentColor`,
+`none` or `url(…)`, wherever it is in the value, a branch included.
+`frontend/src/theme/colour-guard.test.ts` tests it on trapped extracts, and checks
+that no stylesheet lives outside `src/theme/`. `make test-front` —
+`contrast.test.ts` measures each pair of tokens in both modes, `brand.test.ts`
+compares the logos and the icon with those of `docs/assets`. The contrast of the rendered screens is
+checked in the browser, on each screen of the table, in light and in dark
+(`frontend/e2e/accessibility.spec.ts`, US-0200); the rest of the accessibility of a component, in its
+tests, through `expectAccessible` (`frontend/src/test/axe.ts`, axe-core under happy-dom, which does not
+compute colours). Left to the review: a colour built by a template with expressions
+or by a function, and a `style` or an SVG attribute that receives a variable rather than an
+object or a literal written in place; and, for the layout, that a button or an entry
+carries its icon outside the typed tables — a hand-written button —, that no shadow, no
+gradient and no animation adorns a copied component, that a screen takes the template and the
+density of its function, and that a copied component enters only with the screen that uses it.
 
 ## Migrations
 
-Le schéma de la base est l'histoire de ses migrations : Alembic, dans
-`backend/src/waterfall/migrations/` (`versions/0001_….py`, `0002_….py`…), une chaîne de
-révisions numérotées, **écrites à la main** et relues comme le code. Les règles — nommage, types,
-contraintes, deux temps, verrous — sont dans [sql.md](sql.md) ; cette section dit comment s'en
-écrit une.
+The schema of the database is the history of its migrations: Alembic, in
+`backend/src/waterfall/migrations/` (`versions/0001_….py`, `0002_….py`…), a chain of
+numbered revisions, **written by hand** and reviewed like the code. The rules — naming, types,
+constraints, two steps, locks — are in [sql.md](sql.md); this section says how one
+is written.
 
-**Écrire une migration.**
+**Writing a migration.**
 
-1. Déclarer la table ou la colonne dans les tables du module qui la possède
-   (`waterfall/core/<module>/tables.py`), sur la `Base` de `waterfall.platform.database` : sa
-   `MetaData` porte la convention de nommage des contraintes, déclarée une fois. Ne la décrire
-   nulle part ailleurs.
-2. Créer le fichier de la révision, avec le numéro suivant :
-   `cd backend && uv run alembic revision --rev-id 0002 -m "ce qui change"`. L'environnement
-   d'Alembic (`waterfall/migrations/env.py`) lit `WATERFALL_DATABASE_URL`, comme le service ;
-   aucune base n'est nécessaire pour créer le fichier vide.
-3. Écrire `upgrade()` et `downgrade()` à la main avec `op.create_table`, `op.add_column`… : les
-   contraintes se déclarent **sans nom**, sauf la partie `<nom>` d'une contrainte de vérification
-   et un index d'expression (sql.md, « Nommage »). Un brouillon d'autogénération se relit ligne à
-   ligne ; il n'est jamais validé tel quel. Le fichier créé est un gabarit : `ruff check --fix` et
-   `ruff format` (dans `backend/`) le mettent aux règles du dépôt. Une table nouvelle accorde ses
-   droits au rôle du service dans la même migration, le rôle nommé par la base où elle s'applique
-   (`format('GRANT … ON <table> TO %I', current_database() || '_service')`, dans un bloc `DO` ; un
-   nom de base de 55 octets au plus), et les déclare, avec leur raison, dans `SERVICE_RIGHTS`
-   (`tests/test_migrations.py`) (sql.md, « Le rôle du service ») : sans eux, l'API ne la lit pas,
-   et les tests du service non plus ; sans leur déclaration, le test des droits échoue.
-4. Ajouter ou ajuster le test : le test de `tests/test_migrations.py` qui compare une base migrée
-   à une base créée par les tables du code (contraintes, index, colonnes et défauts, lus dans le
-   catalogue de PostgreSQL) échoue tant que les deux ne disent pas la même chose, et
-   un test de `tests/test_database_constraints.py` éprouve chaque contrainte nouvelle.
-5. Appliquer : `make migrate` sur la base de `WATERFALL_DATABASE_URL`, ou
-   `make service-up`, dont le service `migrate` applique les migrations avant l'API.
+1. Declare the table or the column in the tables of the module that owns it
+   (`waterfall/core/<module>/tables.py`), on the `Base` of `waterfall.platform.database`: its
+   `MetaData` carries the naming convention of the constraints, declared once. Do not describe it
+   anywhere else.
+2. Create the file of the revision, with the next number:
+   `cd backend && uv run alembic revision --rev-id 0002 -m "ce qui change"`. Alembic's
+   environment (`waterfall/migrations/env.py`) reads `WATERFALL_DATABASE_URL`, like the service;
+   no database is needed to create the empty file.
+3. Write `upgrade()` and `downgrade()` by hand with `op.create_table`, `op.add_column`…: the
+   constraints are declared **without a name**, except the `<nom>` part of a check constraint
+   and an expression index (sql.md, « Nommage »). An autogenerated draft is reviewed line by
+   line; it is never committed as it is. The created file is a template: `ruff check --fix` and
+   `ruff format` (in `backend/`) bring it to the rules of the repository. A new table grants its
+   rights to the role of the service in the same migration, the role named by the database where it applies
+   (`format('GRANT … ON <table> TO %I', current_database() || '_service')`, in a `DO` block; a
+   database name of 55 bytes at most), and declares them, with their reason, in `SERVICE_RIGHTS`
+   (`tests/test_migrations.py`) (sql.md, « Le rôle du service »): without them, the API does not read it,
+   and neither do the tests of the service; without their declaration, the test of the rights fails.
+4. Add or adjust the test: the test of `tests/test_migrations.py` that compares a migrated database
+   with a database created by the tables of the code (constraints, indexes, columns and defaults, read from the
+   catalogue of PostgreSQL) fails as long as the two do not say the same thing, and
+   a test of `tests/test_database_constraints.py` tests each new constraint.
+5. Apply: `make migrate` on the database of `WATERFALL_DATABASE_URL`, or
+   `make service-up`, whose `migrate` service applies the migrations before the API.
 
-**Appliquer.** `waterfall-migrate` (le service `migrate` de `compose.service.yaml`, ou
-`make migrate`) applique, dans l'ordre, les révisions que la base n'a pas encore ; Alembic note
-la dernière dans la table `alembic_version`. Une migration déjà appliquée ne se rejoue pas
-(WF-DAT-0140), et deux instances qui démarrent ensemble n'appliquent pas la même deux fois : un
-verrou consultatif les met à la queue. La commande s'arrête, avec le nom de la variable, si
-`WATERFALL_DATABASE_URL` manque (WF-SEC-0010).
+**Applying.** `waterfall-migrate` (the `migrate` service of `compose.service.yaml`, or
+`make migrate`) applies, in order, the revisions the database does not have yet; Alembic notes
+the last one in the `alembic_version` table. A migration already applied is not replayed
+(WF-DAT-0140), and two instances that start together do not apply the same one twice: an
+advisory lock queues them. The command stops, with the name of the variable, if
+`WATERFALL_DATABASE_URL` is missing (WF-SEC-0010).
 
-**Une seule tête.** Deux migrations qui partent du même parent forment deux têtes : la seconde à
-être fusionnée se rebase sur la première et prend le numéro suivant. Le test de la chaîne échoue
-sur deux têtes.
+**A single head.** Two migrations that start from the same parent form two heads: the second to
+be merged is rebased on the first and takes the next number. The test of the chain fails
+on two heads.
 
-**Les lignes que la migration écrit.** Le catalogue des permissions, par exemple, est une
-migration de données, séparée de celle du schéma. Les lignes de l'installation, elles, sont
-celles de l'installateur : l'amorçage les écrit, pas une migration (US-0420).
+**The rows the migration writes.** The catalogue of permissions, for instance, is a
+data migration, separate from that of the schema. The rows of the installation, for their part, are
+those of the installer: the bootstrap writes them, not a migration (US-0420).
 
-**Taille d'un lot.** Les migrations sont écrites à la main : elles comptent dans la taille d'un
-lot, et seules les révisions qu'un outil engendre seul seraient déclarées dans
+**Lot size.** The migrations are written by hand: they count in the size of a
+lot, and only the revisions a tool generates on its own would be declared in
 `tools/paths.toml`.
 
-_Contrôles_ : `make test-back` (`tests/test_migrations.py` : une seule tête, une migration
-appliquée ne se rejoue pas, la descente est le miroir de la montée, le schéma — contraintes de
-vérification et défauts compris — est celui des tables du code, quatre instances ensemble),
-contre PostgreSQL (voir « Tests ») ; la compatibilité
-avec le code voisin, la revue.
+_Checks_: `make test-back` (`tests/test_migrations.py`: a single head, a migration
+already applied is not replayed, the downgrade is the mirror of the upgrade, the schema — check
+constraints and defaults included — is that of the tables of the code, four instances together),
+against PostgreSQL (see « Tests »); the compatibility
+with the neighbouring code, the review.
 
 ## Agents
 
-Les agents de `.claude/agents/` — cadrage, livraison, développement et revue par langage —
-suivent ce guide comme une personne, et leurs règles propres sont dans
-[agents.md](agents.md) : ce qui fait foi, comment un lot se fait, où un agent s'arrête.
+The agents of `.claude/agents/` — framing, delivery, development and review per language —
+follow this guide like a person, and their own rules are in
+[agents.md](agents.md): what is authoritative, how a lot is done, where an agent stops.
 
-## Branches, lots et pull requests
+## Branches, lots and pull requests
 
-Les règles sont dans le [README de la roadmap](../roadmap/README.md), sections « Lots » et
-« Branches », et dans [CONTRIBUTING](../../CONTRIBUTING.md) : un lot, une issue, une branche
-`lot/<identifiant>` tirée de `epic/EP-nn`, une pull request qui y revient.
+The rules are in the [README of the roadmap](../roadmap/README.md), sections « Lots » and
+« Branches », and in [CONTRIBUTING](../../CONTRIBUTING.md): one lot, one issue, one branch
+`lot/<identifiant>` created from `epic/EP-nn`, one pull request that returns to it.
 
-## Signature des commits
+Each directory of `docs/` has its README in English, `README.md`, next to its French original,
+`README-fr.md`, which is the reference. A lot that changes a `README-fr.md` carries the same
+change, translated, to the neighbouring `README.md`, in the same pull request: a heading added,
+removed or moved in one is so in the other, at the same rank and the same level. The check does
+not judge the translation; it proves that its structure follows the original.
 
-Les commits qui arrivent sur `main` sont signés : la règle « Require signed commits » de
-GitHub protège `main`, et un commit qu'elle ne reconnaît pas bloque la fusion. Ce que GitHub
-crée lui-même (le merge commit d'une pull request, un squash, un commit de Dependabot) est
-signé par GitHub ; ce qu'une personne ou un agent commite est signé par la clé de cette
-personne.
+_Check_: `make readmes` (`wftools.readmes`, family `repo`), which fails on a `README-fr.md` of
+`docs/` without its `README.md`, or the reverse, and on a pair whose headings differ, one for
+one — in number, or in level at a given rank.
 
-**Configurer sa machine** (clé SSH, la plus simple) :
+## Commit signing
+
+The commits that reach `main` are signed: GitHub's « Require signed commits » rule
+protects `main`, and a commit it does not recognise blocks the merge. What GitHub
+creates itself (the merge commit of a pull request, a squash, a commit of Dependabot) is
+signed by GitHub; what a person or an agent commits is signed by the key of that
+person.
+
+**Setting up one's machine** (SSH key, the simplest):
 
 ```bash
-ssh-keygen -t ed25519 -C "<adresse des commits>" -f ~/.ssh/id_ed25519_signing
+ssh-keygen -t ed25519 -C "<commit email address>" -f ~/.ssh/id_ed25519_signing
 git config --global gpg.format ssh
 git config --global user.signingkey ~/.ssh/id_ed25519_signing.pub
 git config --global commit.gpgsign true
 ```
 
-Puis ajouter le contenu de `~/.ssh/id_ed25519_signing.pub` dans GitHub, *Settings → SSH and
-GPG keys → New SSH key*, avec le type **Signing Key** et l'adresse des commits. La clé ne doit
-pas demander sa phrase secrète à chaque commit, faute de quoi un agent s'arrête : la charger
-dans `ssh-agent` (`ssh-add`) ou dans le trousseau du système. Se vérifier avec
-`git log --show-signature -1`, puis lire le badge « Verified » sur GitHub après un push.
+Then add the content of `~/.ssh/id_ed25519_signing.pub` to GitHub, *Settings → SSH and
+GPG keys → New SSH key*, with the type **Signing Key** and the address of the commits. The key must
+not ask for its passphrase at every commit, failing which an agent stops: load it
+into `ssh-agent` (`ssh-add`) or into the keychain of the system. Check with
+`git log --show-signature -1`, then read the « Verified » badge on GitHub after a push.
 
-**Les agents** (`.claude/agents/`) commitent avec la configuration git de la machine où ils
-tournent : lancés sur la machine d'une personne dont la clé est enregistrée, leurs commits sont
-signés et vérifiés. Lancés dans une session cloud, ils signent avec une clé d'environnement
-que GitHub ne connaît pas : leurs commits ne sont pas « Verified » et ne doivent pas arriver
-sur `main` tels quels.
+**The agents** (`.claude/agents/`) commit with the git configuration of the machine where they
+run: launched on the machine of a person whose key is registered, their commits are
+signed and verified. Launched in a cloud session, they sign with an environment key
+that GitHub does not know: their commits are not « Verified » and must not reach
+`main` as they are.
 
-**Fusions.** `main` reçoit les branches d'EPIC par merge commit, qui porte leurs commits : il
-faut donc qu'ils soient tous vérifiés. Pour ne pas bloquer une fusion, ne commiter sur
-`epic/EP-nn` et `lot/*` qu'avec une clé enregistrée, et mettre une branche à jour depuis `main`
-par le bouton « Update branch » de la pull request ou par un merge local signé. Éviter le « Rebase and merge » : GitHub
-réécrit alors les commits sans les signer.
+**Merges.** `main` receives the epic branches by merge commit, which carries their commits: they
+must therefore all be verified. So as not to block a merge, commit on
+`epic/EP-nn` and `lot/*` only with a registered key, and update a branch from `main`
+through the « Update branch » button of the pull request or through a signed local merge. Avoid « Rebase and merge »: GitHub
+then rewrites the commits without signing them.
 
-**Mise en place sur `main`.** La règle ne s'active qu'une fois l'EPIC en cours, EP-15,
-fusionné, car il contient des commits non signés et la règle ne revérifie pas l'historique
-déjà fusionné. Ordre : la clé enregistrée et vérifiée, la fusion d'EP-15, puis « Require signed
-commits » sur `main` (*Settings → Rules*), avant de tirer la branche de l'EPIC suivant. La règle
-ne vise ni `epic/*` ni `lot/*`. Aucun contrôle de la chaîne ne la double : c'est GitHub qui
-refuse, d'où cette section.
+**Setting it up on `main`.** The rule is activated only once the epic in progress, EP-15,
+is merged, because it contains unsigned commits and the rule does not re-check the history
+already merged. Order: the key registered and verified, the merge of EP-15, then « Require signed
+commits » on `main` (*Settings → Rules*), before creating the branch of the next epic. The rule
+targets neither `epic/*` nor `lot/*`. No check of the chain duplicates it: it is GitHub that
+refuses, hence this section.

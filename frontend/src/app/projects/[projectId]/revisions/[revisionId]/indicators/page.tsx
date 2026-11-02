@@ -44,6 +44,7 @@ import {
   readUnlessRefused,
   refusalOf,
 } from "@/api/problem";
+import { requestCurrency } from "@/currency/request";
 import { serverClient } from "@/api/server";
 import {
   type ComputedRevision,
@@ -204,11 +205,21 @@ function IndicatorsRefused({ reason }: { readonly reason: IndicatorsRefusal }) {
 }
 
 /** The cards of the indicators and the evolution of their indices, or why the API computes none. */
-function IndicatorsOrWhy({ read }: { readonly read: Awaited<ReturnType<typeof readIndicators>> }) {
+function IndicatorsOrWhy({
+  read,
+  currency,
+}: {
+  readonly read: Awaited<ReturnType<typeof readIndicators>>;
+  readonly currency: string | undefined;
+}) {
   return "refused" in read ? (
     <IndicatorsRefused reason={read.refused} />
   ) : (
-    <ProjectIndicatorCards indicators={read.indicators} history={read.history} />
+    <ProjectIndicatorCards
+      indicators={read.indicators}
+      history={read.history}
+      currency={currency}
+    />
   );
 }
 
@@ -364,10 +375,11 @@ export default async function IndicatorsPage({
 }) {
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "indicators");
-  const [reading, read, milestones] = await Promise.all([
+  const [reading, read, milestones, currency] = await Promise.all([
     readProjectContext(at.pathname, at.context, ["subproject_id", "as_of"]),
     readIndicators(at),
     readMilestones(at),
+    requestCurrency(),
   ]);
   const figures = "refused" in read ? undefined : read;
   if (reading === "not_found") {
@@ -403,7 +415,7 @@ export default async function IndicatorsPage({
         {history === undefined || history === (computedOn ?? shown?.revision_id) ? null : (
           <ComputedElsewhere history={named.get(history)} />
         )}
-        <IndicatorsOrWhy read={read} />
+        <IndicatorsOrWhy read={read} currency={currency} />
         <Sections
           reading={reading}
           figures={figures}

@@ -43,6 +43,7 @@ from waterfall.api.contract.models import (
     UserOrigin,
     UserRolesWrite,
     UserUpdate,
+    Uuid,
 )
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import (
@@ -345,6 +346,18 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
         logger.exception("account.withdrawal_failed", subject=subject)
 
 
+class PendingUserCreate(UserCreate):
+    """The body of createUser, with the roles the service still gives an account it creates.
+
+    The contract has a local account born without a role since #1731 (US-0704): its roles are given
+    by setUserAccessRoles, under the permission to modify the access roles. Until the service
+    follows it (#1732, EP-03), it reads them here as it did: the body admits properties the
+    contract does not declare, and this one, no longer declared, is read all the same.
+    """
+
+    access_role_ids: list[Uuid] | None = None
+
+
 @router.post(
     "/users",
     operation_id="createUser",
@@ -353,7 +366,7 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
     response_model_exclude_unset=True,
 )
 def post_user(
-    body: UserCreate, account: Caller, actor: Acting, services: ServicesOf
+    body: PendingUserCreate, account: Caller, actor: Acting, services: ServicesOf
 ) -> UserCreated:
     """Create a local account in the provider and in Waterfall, and invite its holder.
 

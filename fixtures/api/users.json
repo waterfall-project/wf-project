@@ -1,5 +1,5 @@
 {
-  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, de l'atelier de câblage, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation et son anonymisation s'il est désactivé, et l'attribution de ses rôles ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
+  "summary": "Les comptes de l'installation, par nom, désactivés compris : Dominique Bernard, manager, importé de l'annuaire ; Sacha Lefèvre, de l'atelier de câblage, créé à sa première connexion par le fournisseur d'identité, sans rôle tant qu'on ne lui en a pas donné ; Camille Martin, compte local, dont le rôle accorde tout le catalogue ; Alix Moreau, rattaché au bureau d'études électricité, désactivé ; Lucas Petit, chiffreur, Inès Roux, au pilotage de projet, et Noé Vidal, auditeur, comptes locaux créés par Camille Martin. Lus par Camille Martin, qui peut les modifier : chacun porte sa désactivation, ou sa réactivation et son anonymisation s'il est désactivé, et l'attribution de ses rôles, et un compte local, en plus, le lien de fixation de son mot de passe et le renvoi de son invitation, indisponibles s'il est désactivé, is_active_account manquante (WF-ADM-0140) ; Camille Martin, le seul compte actif qui porte les permissions de modifier les comptes et les rôles d'habilitation, a sa désactivation indisponible, last_administrator manquante, l'attribution de ses rôles restant disponible : seul le retrait de ces permissions lui est refusé (WF-ADM-0050, WF-ADM-0060, WF-ADM-0180, WF-ADM-0120, WF-IHM-0090).",
   "value": {
     "items": [
       {
@@ -109,6 +109,16 @@
             "command": "set_access_roles",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "resend_invitation",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {
@@ -157,6 +167,20 @@
             "command": "set_access_roles",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": false,
+            "missing_conditions": [
+              "is_active_account"
+            ]
+          },
+          {
+            "command": "resend_invitation",
+            "is_available": false,
+            "missing_conditions": [
+              "is_active_account"
+            ]
           }
         ],
         "audit": {
@@ -200,6 +224,16 @@
           },
           {
             "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "resend_invitation",
             "is_available": true,
             "missing_conditions": []
           }
@@ -247,6 +281,16 @@
             "command": "set_access_roles",
             "is_available": true,
             "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "resend_invitation",
+            "is_available": true,
+            "missing_conditions": []
           }
         ],
         "audit": {
@@ -290,6 +334,16 @@
           },
           {
             "command": "set_access_roles",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "create_password_link",
+            "is_available": true,
+            "missing_conditions": []
+          },
+          {
+            "command": "resend_invitation",
             "is_available": true,
             "missing_conditions": []
           }

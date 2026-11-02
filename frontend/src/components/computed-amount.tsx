@@ -5,10 +5,13 @@
  * value, Σ, named (WF-IHM-0030), alone or as a total named in a list of terms: the severity and
  * the provisions of the risks, the totals of the actual costs.
  */
+"use client";
+
 import { Sigma } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { FigureTerm } from "@/components/figures-card";
+import { useCurrency } from "@/currency/context";
 import { formatMoney } from "@/i18n/format";
 
 /**
@@ -18,10 +21,11 @@ import { formatMoney } from "@/i18n/format";
 export function ComputedAmount({ amount }: { readonly amount: string }) {
   const t = useTranslations("grid");
   const locale = useLocale();
+  const currency = useCurrency();
   return (
     <span className="inline-flex items-center gap-1 tabular-nums">
       <Sigma role="img" aria-label={t("computed")} className="size-3 shrink-0" />
-      {formatMoney(amount, locale)}
+      {formatMoney(amount, locale, currency)}
     </span>
   );
 }

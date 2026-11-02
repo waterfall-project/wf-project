@@ -84,11 +84,20 @@ _SEQUELS = {
     "task_restore_queued.json",
     "task_interrupted_by_restore.json",
     "task_mark_relaunched.json",
+    "task_exit_mark_queued.json",
+    "task_exit_mark_running.json",
+    "task_exit_mark_succeeded.json",
+    "task_exit_mark_failed.json",
+    "task_exit_mark_relaunched.json",
+    "task_exit_mark_relaunched_succeeded.json",
     "task_import_queued.json",
     "task_import_succeeded.json",
     "task_export_queued.json",
     "task_export_succeeded.json",
     "task_merge_outside_work_package.json",
+    "task_merge_link_cycle.json",
+    "task_merge_link_forbidden.json",
+    "task_merge_horizon_exceeded.json",
     "task_merge_queued.json",
     "task_merge_running.json",
     "task_merge_succeeded.json",
@@ -105,13 +114,15 @@ inscribes the application of an import, at the instant its task succeeds (EP-02/
 _BEFORE_MARKING = {
     "rate_update_applied.json": RATES_UPDATED,
     "revisions_designation_open.json": RATES_UPDATED,
+    "revision_rate_update_offered.json": mockhistory.REVISIONS[mockhistory.REFERENCE][0],
 }
 """The examples of a revision of the witness read before its marking, an earlier instant of the
 chronology, and the instant of the last write it had received: the rates of 2026 accepted from the
-revision 101 in progress (C-362, EP-15/US-0490), and the history read on 15 January before the
-offer is designated, where the 101 is still the one that update left (US-0490/L2). A revision
-of such an example marked before that instant says its marking as any other; each renders at least
-one revision still in progress at that instant."""
+revision 101 in progress (C-362, EP-15/US-0490), the history read on 15 January before the
+offer is designated, where the 101 is still the one that update left (US-0490/L2), and the 101 at
+its opening, before any write, the update of its rates offered (#1351). A revision of such an
+example marked before that instant says its marking as any other; each renders at least one
+revision still in progress at that instant."""
 
 
 @pytest.fixture(scope="module")
@@ -194,7 +205,7 @@ def test_the_project_its_revisions_and_its_transitions_say_the_instants_of_the_c
                 if before is not None and marked is not None and before.instant < marked.instant:
                     # An earlier instant of the chronology: the revision still in progress.
                     written = before.instant
-                    assert created.instant < written, path.name
+                    assert created.instant <= written, path.name
                     assert (each["status"], each["marked_at"]) == ("draft", None), path.name
                     assert audit["updated_at"] == mockhistory.stamp(written), path.name
                     in_progress[path.name] += 1
@@ -256,14 +267,29 @@ def test_the_reference_bears_a_reserve_of_its_provisions_and_a_budget_the_occurr
     budget = mockhistory.reference_budget(rows)
     assert budget == mockhistory.reference_budget(mockcore.current())
     # The lines the amendment 1 did not designate keep the rates of the offer (#467): the core's
-    # alone are budgeted 120,534.56, the whole structure 65,430,697.64.
+    # alone are budgeted 120,534.56, the whole structure 68,241,568.05, inflation included.
     assert mockhistory.reference_budget(mockcore.core(mockwitnessrisks.reference())) == Decimal(
         "120534.56"
     )
-    assert budget == Decimal("65430697.64")
+    assert budget == Decimal("68241568.05")
     numbers = {row.number for row in rows}
     assert mockwitnessrisks.MERGED not in numbers
     assert {557, 567} <= numbers
+
+
+def test_a_page_of_the_register_keeps_the_totals_of_every_risk_retained(
+    history: dict[str, Any],
+) -> None:
+    # WF-IHM-0060, WF-IHM-0130 (#1367, #1268): a page of the register, fewer risks than it
+    # retains, its count and its totals those of all of them, so that a test of the front tells
+    # `meta.total` from the rows rendered and the totals from the sum of the page.
+    register, page = history["risks"], history["risks_page"]
+    assert page["items"] == register["items"][: mockhistory.RISKS_PAGE]
+    assert page["meta"] == {"limit": 2, "offset": 0, "total": len(REGISTER)}
+    assert len(page["items"]) < page["meta"]["total"]
+    assert page["totals"] == register["totals"]
+    rendered = sum(Decimal(item["provision_amount"]) for item in page["items"])
+    assert rendered != Decimal(page["totals"]["total"])
 
 
 def test_the_register_reads_its_severities_on_the_reference_budget_of_the_whole_structure(
@@ -288,9 +314,9 @@ def test_the_register_reads_its_severities_on_the_reference_budget_of_the_whole_
     amount = mocktext.amount
     summary = str(examples["risk_matrix.json"]["summary"])
     for severity, label, share, level in (
-        (1_250_000, "Risque de reprise du câblage", "1,91 %", 2),
+        (1_250_000, "Risque de reprise du câblage", "1,83 %", 2),
         (200, "Retard de livraison des armoires", "moins de 0,01 %", 1),
-        (12_000_000, "Indisponibilité de l'automaticien", "18,34 %", 4),
+        (12_000_000, "Indisponibilité de l'automaticien", "17,58 %", 4),
     ):
         said = f"{amount(Decimal(severity))} pour « {label} », {share}, au niveau {level}"
         assert said in summary, said
@@ -358,6 +384,11 @@ def _label(node: Node) -> str:
     return cast("str", node[node["kind"]]["label"])
 
 
+def _amounts(node: Node) -> list[str]:
+    """Return what changed of a node besides its subproject, which moves none of its amounts."""
+    return [change for change in cast("list[str]", node["changes"]) if change != "subproject"]
+
+
 def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_lineage(
     whole: Node,
 ) -> None:
@@ -392,38 +423,54 @@ def test_the_comparison_is_the_difference_of_the_offer_and_the_reference_by_line
     core = {lineage: changes for lineage, changes in changed.items() if lineage in reference_ids}
     assert core == {
         mockcore.lineage(526): ["dates", "duration"],
-        mockcore.lineage(553): ["budgeted_amount", "reestimated_amount"],
+        mockcore.lineage(553): ["budgeted_amount", "reestimated_amount", "subproject"],
+        # The offer bore no subproject, the reference puts the lines of the control station under
+        # theirs: each is modified by its subproject, its amounts kept or not (#1751).
+        mockcore.lineage(554): ["subproject"],
         # Not designated by the amendment: their budget is the offer's, their amount at the one
         # rate of 2026 of their category (#467, WF-DEV-0020).
-        mockcore.lineage(563): ["reestimated_amount"],
-        mockcore.lineage(566): ["reestimated_amount"],
+        mockcore.lineage(563): ["reestimated_amount", "subproject"],
+        mockcore.lineage(566): ["reestimated_amount", "subproject"],
     }
     # Every labour line drawn about the core is re-estimated at the rate of 2026 the same way, and
-    # nothing else of the drawn tasks changes: the offer dated them as the reference does.
-    drawn = {lineage: changes for lineage, changes in changed.items() if lineage not in core}
-    assert len(drawn) == 2_766
-    assert {tuple(cast("list[str]", changes)) for changes in drawn.values()} == {
-        ("reestimated_amount",)
+    # nothing else of the drawn tasks changes: the offer dated them as the reference does. Those
+    # the reference puts under a subproject change it besides, which moves none of their amounts
+    # (#1751).
+    drawn = {
+        lineage: [change for change in cast("list[str]", changes) if change != "subproject"]
+        for lineage, changes in changed.items()
+        if lineage not in core
     }
+    rerated = {lineage: changes for lineage, changes in drawn.items() if changes}
+    assert len(rerated) == 2_766
+    assert {tuple(changes) for changes in rerated.values()} == {("reestimated_amount",)}
     # The deltas by nature, as by subproject, sum to the difference of the two estimates: the
     # 3,165 of the core without its provisions, the 850,060 of the provisions the reference bore —
     # 751 and 753 at the scale of the structure (EP-14/L45b) —, and the rates of 2026 on the labour
     # drawn.
+    # The budgeted deltas leave the rates out: the drawn labour keeps the budget of the offer.
     offer = mockhistory.offer_rows()
-    difference = sum(
-        (row.amounts.base for row in reference.values() if row.kind == "estimate_line"),
-        Decimal(0),
-    ) - sum((row.amounts.base for row in offer if row.kind == "estimate_line"), Decimal(0))
-    for dimension in ("cost_type", "subproject"):
-        deltas = [
-            Decimal(entry["delta"])
-            for entry in compared["amount_deltas"]
-            if entry["dimension"] == dimension
-        ]
-        assert sum(deltas, Decimal(0)) == difference == Decimal("1027251.25")
+    for key, expected in (("budgeted", "852925.00"), ("reestimated", "1034848.01")):
+        difference = sum(
+            (
+                getattr(row.amounts, key)
+                for row in reference.values()
+                if row.kind == "estimate_line"
+            ),
+            Decimal(0),
+        ) - sum(
+            (getattr(row.amounts, key) for row in offer if row.kind == "estimate_line"), Decimal(0)
+        )
+        for dimension in ("cost_type", "subproject"):
+            deltas = [
+                Decimal(entry[f"{key}_delta"])
+                for entry in compared["amount_deltas"]
+                if entry["dimension"] == dimension
+            ]
+            assert sum(deltas, Decimal(0)) == difference == Decimal(expected), key
     # Read whole, its totals are those of listNodes on the reference (#1193).
     assert len(compared["items"]) == 5_999
-    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 2_770
+    assert sum(1 for node in _marked(compared, "modified") if node["changes"]) == 4_251
     assert compared["totals"] == mockcore.whole(mockhistory.reference_rows())["totals"]
     # Its meta is that of listNodes, but for when the dates were last computed: the marking, which
     # the merge of the amendment redated, and after which nothing redates it (#1404, WF-DAT-0020).
@@ -475,17 +522,20 @@ def test_the_comparison_is_read_by_the_window_of_a_subtree_as_list_nodes_reads_o
         if (offer.get(number) or referenced[number]).kind == "estimate_line"
     ]
 
-    def base(rows: dict[int, mockcore.Row], number: int) -> Decimal:
-        return rows[number].amounts.base if number in rows else Decimal(0)
+    def amount(rows: dict[int, mockcore.Row], number: int, key: str) -> Decimal:
+        return getattr(rows[number].amounts, key) if number in rows else Decimal(0)
 
-    expected = sum((base(referenced, n) - base(offer, n) for n in lines), Decimal(0))
-    for dimension in ("cost_type", "subproject"):
-        deltas = [
-            Decimal(entry["delta"])
-            for entry in window["amount_deltas"]
-            if entry["dimension"] == dimension
-        ]
-        assert sum(deltas, Decimal(0)) == expected == Decimal("602950.00")
+    for key, total in (("budgeted", "602650.00"), ("reestimated", "602950.00")):
+        expected = sum(
+            (amount(referenced, n, key) - amount(offer, n, key) for n in lines), Decimal(0)
+        )
+        for dimension in ("cost_type", "subproject"):
+            deltas = [
+                Decimal(entry[f"{key}_delta"])
+                for entry in window["amount_deltas"]
+                if entry["dimension"] == dimension
+            ]
+            assert sum(deltas, Decimal(0)) == expected == Decimal(total), key
     summary = str(mockcomparisons.examples()["comparison.json"]["summary"])
     assert "sous-arbre « Installation sur site » (subtree_of)" in summary
     assert "9 nœuds dans l'ordre du plan" in summary
@@ -499,7 +549,9 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
     # Those of the core, under the installation on site, by their label in the window the example
     # reads; those drawn about it, in the comparison read whole (EP-14/L45a, #1193).
     core = {mockcore.lineage(row.number) for row in mockcore.alone()}
-    rerated = [entry for entry in whole["items"] if entry["changes"] == ["reestimated_amount"]]
+    # A line the reference puts under a subproject is modified by it besides (#1751): what is
+    # named here is what moves of its amounts.
+    rerated = [entry for entry in whole["items"] if _amounts(entry) == ["reestimated_amount"]]
     kept = [entry["estimate_line"]["label"] for entry in rerated if entry["lineage_id"] in core]
     assert kept == ["Câblage sur site", "Mise en service sur site"]
     assert len(rerated) - len(kept) == 2_766
@@ -508,7 +560,7 @@ def test_the_comparison_names_the_lines_reestimated_without_being_designated(
     assert [
         entry["estimate_line"]["label"]
         for entry in window
-        if entry["changes"] == ["reestimated_amount"]
+        if _amounts(entry) == ["reestimated_amount"]
     ] == kept
     assert all(f"« {label} »" in str(example["summary"]) for label in kept)
     assert "réestimées au taux de 2026 de leur catégorie" in str(example["summary"])
@@ -616,12 +668,17 @@ def test_the_offer_is_priced_at_the_rates_of_its_reference_year(whole: Node) -> 
     ]
     assert [reference[n].amounts.budgeted for n in (563, 566)] == [Decimal(9420), Decimal(5880)]
     labour = next(entry for entry in whole["amount_deltas"] if entry["key"] == mockstructure.LABOR)
-    # Read whole: the 3,515 of the core, and the step of 1.50 an hour on the labour drawn about it.
-    assert Decimal(labour["delta"]) == Decimal("3515.00") + Decimal("174026.25")
-    drawn_hours = sum(
-        (row.hours for row in reference.values() if row.number >= GENERATED), Decimal(0)
+    # Read whole: the budget of the core changes by 3,215, the two lines the amendment does not
+    # designate keeping the offer's; the re-estimate by its 3,515 and by the step of 1.50 an hour
+    # on the labour drawn about it, 174,026.25 before inflation, projected on its years.
+    offered = {row.number: row for row in mockhistory.offer_rows()}
+    drawn = [row for row in reference.values() if row.number >= GENERATED and row.hours]
+    step = sum(row.amounts.reestimated - offered[row.number].amounts.reestimated for row in drawn)
+    assert Decimal(labour["budgeted_delta"]) == Decimal("3215.00")
+    assert Decimal(labour["reestimated_delta"]) == Decimal("3515.00") + step
+    assert sum((row.hours for row in drawn), Decimal(0)) * mockstructure.RATE_STEP == Decimal(
+        "174026.25"
     )
-    assert drawn_hours * mockstructure.RATE_STEP == Decimal("174026.25")
     grid = {
         row["cost_category_id"]: {cell["year"]: cell["amount"] for cell in row["cells"] if cell}
         for row in mockwitness.fixture("volume/hourly_rate_grid")["rows"]
@@ -810,10 +867,9 @@ def test_a_line_of_provision_offers_no_payment_delay_it_does_not_carry() -> None
         encoding="utf-8"
     )
     # The motive of every field a node does not accept, neither entered nor computed for it — but
-    # the payment delay of a line of labour, which the specification wants entered: not codified,
-    # followed by #785 (relecture 1).
+    # the payment delay of a line of labour, which the specification wants entered (#785).
     assert "le débours ou le délai de paiement d'une ligne de main-d'œuvre" not in said
-    assert "Le délai de paiement d'une ligne de main-d'œuvre" in said.split("#785", 1)[0]
+    assert "Le délai de paiement se saisit sur une ligne de main-d'œuvre" in said
     paths = (api / "paths" / "revisions.yaml").read_text(encoding="utf-8")
     update = paths.split("operationId: updateEstimateLine\n", 1)[1].split("operationId:", 1)[0]
     for name, text in (

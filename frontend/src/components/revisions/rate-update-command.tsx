@@ -13,8 +13,8 @@
  * longer presented, and the status that told the update stays. It is kept by the revision: another
  * one starts anew, no status and every category retained.
  *
- * No command of the revision says the update beforehand: the proposal presents it, and the refusal of
- * the server alone names the condition that lacks.
+ * The revision lists the command (`apply_rate_update`): it is offered as the revision lists it,
+ * available, or unavailable and naming the conditions it lacks (WF-IHM-0090).
  */
 "use client";
 
@@ -25,6 +25,8 @@ import { useId, useState } from "react";
 import { applyRateUpdate } from "@/api/actions/revisions";
 import type { components } from "@/api/generated/schema";
 import { ConfirmedCommand } from "@/components/commands/confirmed-command";
+import type { CommandOffer } from "@/components/commands/offer";
+import { useCurrency } from "@/currency/context";
 import { formatMoney } from "@/i18n/format";
 
 /** A category of the proposal. */
@@ -35,6 +37,8 @@ export interface ApplyRateUpdateProps {
   readonly projectId: string;
   readonly revisionId: string;
   readonly lockVersion: number;
+  /** What the revision lists of `apply_rate_update`: available, or the conditions it lacks. */
+  readonly offer: CommandOffer;
   /** How the screen names the revision, which a refusal and the history of the messages cite. */
   readonly name: string;
   readonly categories: readonly ProposedCategory[];
@@ -45,18 +49,20 @@ export function ApplyRateUpdateCommand({
   projectId,
   revisionId,
   lockVersion,
+  offer,
   name,
   categories,
 }: ApplyRateUpdateProps) {
   const t = useTranslations("revisionCommands.rateUpdate");
   const helps = useTranslations("commands");
   const locale = useLocale();
+  const currency = useCurrency();
   const legend = useId();
   const [refused, setRefused] = useState<ReadonlySet<string>>(new Set());
   const retained = categories.filter(({ cost_category_id: id }) => !refused.has(id));
   return (
     <ConfirmedCommand
-      offer={{ is_available: true, missing_conditions: [] }}
+      offer={offer}
       label={t("label")}
       help={helps("updateRates.help")}
       icon={<Coins aria-hidden="true" />}
@@ -95,8 +101,8 @@ export function ApplyRateUpdateCommand({
             />
             {t("change", {
               category: category.label,
-              previous: formatMoney(category.previous_amount, locale),
-              proposed: formatMoney(category.proposed_amount, locale),
+              previous: formatMoney(category.previous_amount, locale, currency),
+              proposed: formatMoney(category.proposed_amount, locale, currency),
             })}
           </label>
         ))}

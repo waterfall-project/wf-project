@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The revisions of a project (FBS-4.1, US-0210), under the banner of its reading context
- * (WF-IHM-0020): the commands of the revision the address carries, each available or naming what
- * it lacks (WF-IHM-0090), its marking wired; the history of the revisions; the comparison of two
- * marked ones, as `compareRevisions` gives it, read whole and reduced by `fields` to what the grid
- * of the comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
+ * (WF-IHM-0020): the commands of the revision the address carries, each available or naming what it
+ * lacks (WF-IHM-0090), its marking wired; the history of the revisions; the comparison of two
+ * marked ones, as `compareRevisions` gives it — « Écarts seulement » retaining the differences
+ * alone, said in the banner (US-0700) —, read whole and reduced by `fields` to what the grid of the
+ * comparison shows (US-0500, #1201) — the history read whole, whatever the server pages
  * (`readEveryPage`, #303), so that the comparison offers every marked revision —; and, of the
  * revision the address carries, its cost structures and — for the current revision, the one a rate
  * update would apply to — the rate update the API proposes. The ergonomics gathers the leaves of
@@ -24,6 +25,8 @@ import { findOffer } from "@/components/commands/offer";
 import { RevisionCommands } from "@/components/commands/object-commands";
 import { ContextBanner } from "@/components/context/context-banner";
 import type { Revision } from "@/components/context/read-only";
+import { differenceQuery, readDifferenceFilter } from "@/components/grid/difference-filter";
+import { PendingAddress } from "@/components/grid/pending-address";
 import type { Project } from "@/components/context/reading";
 import { COMPARISON_FIELDS, COMPARISON_KEY } from "@/components/revisions/comparison-rows";
 import {
@@ -82,20 +85,23 @@ async function readComparisonPreferences() {
 
 /**
  * What applying the rates proposed to the current revision takes, or nothing when the revision does
- * not list `edit_estimate` available: the rates are an estimate's, and the contract lists no
- * command of its own for the update (#1351).
+ * not list `apply_rate_update` — the caller may not exercise it: the command is offered as the
+ * revision lists it, available or lacking the conditions it names (WF-IHM-0090, #1351).
  */
 function applicable(current: Revision, projectId: string) {
-  const offer = findOffer(current.available_commands, "edit_estimate");
-  return offer?.is_available === true
-    ? { projectId, revisionId: current.revision_id, lockVersion: current.lock_version }
-    : undefined;
+  const offer = findOffer(current.available_commands, "apply_rate_update");
+  return offer === undefined
+    ? undefined
+    : { projectId, revisionId: current.revision_id, lockVersion: current.lock_version, offer };
 }
 
 /** Render the revisions of a project, their comparison, and the parts of the one it reads in. */
 export default async function RevisionsPage(props: ProjectPageProps) {
   const address = await projectAddress(props, "revisions");
-  const compared = comparedRevisions(pageSearch(await props.searchParams));
+  const search = pageSearch(await props.searchParams);
+  const compared = comparedRevisions(search);
+  // « Écarts seulement » of the comparison (US-0700): read, and said, when two revisions are compared.
+  const difference = compared === undefined ? undefined : readDifferenceFilter(search);
   const client = serverClient();
   const project = { project_id: address.projectId };
   const { revisionId } = address.context;
@@ -115,7 +121,14 @@ export default async function RevisionsPage(props: ProjectPageProps) {
       ? undefined
       : readOrFail("compareRevisions", () =>
           client.GET("/projects/{project_id}/revisions/comparison", {
-            params: { path: project, query: { ...compared, fields: [...COMPARISON_FIELDS] } },
+            params: {
+              path: project,
+              query: {
+                ...compared,
+                fields: [...COMPARISON_FIELDS],
+                ...differenceQuery(difference),
+              },
+            },
           }),
         ),
     compared === undefined ? undefined : readComparisonPreferences(),
@@ -131,18 +144,23 @@ export default async function RevisionsPage(props: ProjectPageProps) {
           }),
         );
   return (
-    <>
-      <ContextBanner reading={read} />
+    <PendingAddress>
+      <ContextBanner reading={read} difference={difference} />
       <Screen density={FUNCTION_DENSITY.revisions}>
         <RevisionsHeader revision={read.revision} project={read.project} />
         <RevisionHistory revisions={revisions} context={read.context} />
-        <ReferenceDesignation revisions={revisions} projectId={address.projectId} />
+        <ReferenceDesignation
+          revisions={revisions}
+          projectId={address.projectId}
+          projectLockVersion={read.project.lock_version}
+        />
         <RevisionComparisonSection
           revisions={revisions}
           action={address.pathname}
           context={read.context}
           compared={compared}
           comparison={comparison}
+          difference={difference}
           preferences={preferences}
         />
         {structures === undefined ? null : <CostStructureList structures={structures} />}
@@ -150,6 +168,6 @@ export default async function RevisionsPage(props: ProjectPageProps) {
           <RateUpdate proposal={rates} apply={applicable(current, address.projectId)} />
         )}
       </Screen>
-    </>
+    </PendingAddress>
   );
 }

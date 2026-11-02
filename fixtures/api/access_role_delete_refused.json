@@ -1,0 +1,8 @@
+{
+  "summary": "La suppression du rôle prédéfini « Chef de projet », que porte Alix Moreau, désactivée : refusée, un rôle porté par un compte, désactivé compris, ne se supprime pas ; rien n'est supprimé (WF-ADM-0090).",
+  "value": {
+    "code": "ACCESS_ROLE_IN_USE",
+    "status": 409,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001598"
+  }
+}

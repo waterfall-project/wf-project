@@ -62,7 +62,11 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 // The session of the contract, the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+const kept = vi.hoisted(
+  (): { grids: Record<string, { page_size?: number; filters?: Record<string, string> }> } => ({
+    grids: {},
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -86,8 +90,10 @@ vi.mock("next/headers", () => ({
 }));
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
-/** Every state of the contract, as the home asks them when its address names none. */
+/** Every state of the contract, as the home asks them for `states=all`. */
 const EVERY_STATE = "created,pricing,in_progress,completed,lost,abandoned";
+/** The states the home asks when its address names none and the account kept none. */
+const DEFAULT_STATES = "pricing,in_progress";
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 /** The notice that the fake back keeps nothing, for a session that may create a project. */
 const MOCKUP = CATALOGUES.en.mockup.notKept;
@@ -164,8 +170,11 @@ describe("the home, the list of projects", () => {
     expect(text(html)).toContain("2 projects");
   });
 
-  it("asks every state when the address names none, and the states, the sort, the search and the page it holds", async () => {
+  it("asks Chiffrage and En cours when the address names no state, every state for `states=all`, and the states, the sort, the search and the page it holds [WF-IHM-0130]", async () => {
     await home();
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
+    server.clients = [];
+    await home({ states: "all" });
     expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
     server.clients = [];
     await home({
@@ -192,10 +201,37 @@ describe("the home, the list of projects", () => {
     });
   });
 
-  it("offers the filter by state, every state pressed when the address names none", async () => {
+  it("says the filter by default while it applies, with Chiffrage and En cours pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
     const html = await home();
     expect(html).toMatch(/role="group" aria-label="Filter by state"/);
+    expect(html).toContain('aria-label="Default filter of the list by state"');
+    const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
+      text(match[1] ?? ""),
+    );
+    expect(pressed).toEqual(["Pricing", "In progress"]);
+  });
+
+  it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
+    const html = await home({ states: "all" });
+    expect(html).not.toContain("Default filter of the list by state");
     expect(html).toMatch(/aria-pressed="true"[^>]*>.*?Every state/);
+  });
+
+  it("takes the states the account kept when the address names none, and the address over them [WF-IHM-0060-A]", async () => {
+    kept.grids = { projects: { filters: { states: "pricing,in_progress,completed" } } };
+    const html = await home();
+    expect(listQuery()).toEqual({
+      is_contributor: "true",
+      states: "pricing,in_progress,completed",
+    });
+    expect(html).not.toContain("Default filter of the list by state");
+    server.clients = [];
+    kept.grids = { projects: { filters: { states: "all" } } };
+    await home();
+    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
+    server.clients = [];
+    await home({ states: "lost" });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: "lost" });
   });
 
   it("presses in the filter by state the states the address names: the address is the truth of the filter", async () => {
@@ -214,7 +250,7 @@ describe("the home, the list of projects", () => {
     const html = await home({ from, to, offset: "50" });
     expect(listQuery()).toEqual({
       is_contributor: "true",
-      states: EVERY_STATE,
+      states: DEFAULT_STATES,
       from,
       to,
       offset: "50",
@@ -231,7 +267,7 @@ describe("the home, the list of projects", () => {
     // refuse it.
     server.clients = [];
     await home({ from: "2026-03-01", to: "2026-02-30T00:00:00Z" });
-    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
   });
 
   it("says at its field the end of a period the server refuses for preceding its start, the list unread and the filters kept", async () => {
@@ -287,7 +323,7 @@ describe("the home, the list of projects", () => {
   it("stays filtered, without either link, for a session that may not read every project, whatever the address says (#522)", async () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home({ is_contributor: "false" });
-    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
     expect(text(html)).toContain("Projects you contribute to");
     expect(text(html)).not.toContain("Show all projects");
     expect(text(html)).not.toContain("Show only my projects");
@@ -296,20 +332,20 @@ describe("the home, the list of projects", () => {
   });
 
   it("lists every project the user may read once the filter is lifted, and offers it again: a filter, never a restriction of reading", async () => {
-    const html = await home({ is_contributor: "false" });
+    const html = await home({ is_contributor: "false", states: "all" });
     expect(listQuery()).toEqual({ states: EVERY_STATE });
     expect(text(html)).toContain("Show only my projects");
     expect(text(html)).not.toContain("Projects you contribute to");
-    expect(links(html)[0]).toBe("/");
+    expect(links(html)[0]).toBe("/?states=all");
     expect(grids.props[0]?.projects.map((project) => project.project_id)).toContain(PROJECT);
   });
 
   it("asks the page its address holds, and offers none before the first nor after the last", async () => {
     await home({ offset: "50" });
-    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE, offset: "50" });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES, offset: "50" });
     server.clients = [];
     await home({ offset: "-3" });
-    expect(listQuery()).toEqual({ is_contributor: "true", states: EVERY_STATE });
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
     // The two projects of the example are the whole list: no way through pages.
     const html = await home();
     expect(html).not.toContain('aria-label="Pages of the projects"');
@@ -351,16 +387,17 @@ describe("the home, the list of projects", () => {
 describe("the empty states of the home", () => {
   it("says the user contributes to no project when the filter empties the list, which the filter shown lifts, once", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
-    const html = await home();
+    const html = await home({ states: "all" });
     expect(text(html)).toMatch(
       /^Projects Help Create a project Projects you contribute to Show all projects Mock-up: .* Every state .* You contribute to no project\.$/,
     );
-    expect(links(html)).toEqual(["/?is_contributor=false"]);
+    expect(links(html)).toEqual(["/?states=all&is_contributor=false"]);
     expect(html).not.toContain('role="grid"');
   });
 
   it.each([
     [{ states: "lost" }, { states: "lost" }],
+    [{}, { states: DEFAULT_STATES }],
     [{ search: "x" }, { search: "x" }],
     [{ to: "2025-01-31T23:00:00.000Z" }, { to: "2025-01-31T23:00:00.000Z" }],
   ])(
@@ -375,9 +412,20 @@ describe("the empty states of the home", () => {
     },
   );
 
-  it("says there is no project when the list is empty unfiltered", async () => {
+  it("keeps an empty grid, the badge of the states by default and « Every state », when the states by default retain no project and the address names none (WF-IHM-0130)", async () => {
     server.answers = { ...server.answers, "GET /projects": "projects_empty" };
     const html = await home({ is_contributor: "false" });
+    expect(listQuery()).toEqual({ states: DEFAULT_STATES });
+    expect(html).toMatch(/role="grid"[^>]*aria-label="List of projects"/);
+    expect(text(html)).toContain("By default:");
+    expect(text(html)).toContain("Every state");
+    expect(text(html)).not.toContain("No project.");
+    expect(grids.props[0]?.projects).toEqual([]);
+  });
+
+  it("says there is no project when the list is empty unfiltered", async () => {
+    server.answers = { ...server.answers, "GET /projects": "projects_empty" };
+    const html = await home({ is_contributor: "false", states: "all" });
     expect(text(html)).toMatch(
       /^Projects Help Create a project Show only my projects Mock-up: .* Every state .* No project\.$/,
     );
@@ -403,7 +451,7 @@ describe("the empty states of the home", () => {
       // Sur une installation au référentiel incomplet, l'accueil nomme les prérequis manquants et
       // mène au référentiel.
       server.answers = { ...server.answers, "GET /reference/readiness": readiness };
-      const html = await home();
+      const html = await home({ states: "all" });
       expect(text(html)).toMatch(
         new RegExp(
           `^Projects Help Create a project The minimum reference data is incomplete\\. Projects you contribute to Show all projects Mock-up: .* Incomplete reference data No project can be created until the common reference data has: ${missing} Every state`,
@@ -434,7 +482,7 @@ describe("the empty states of the home", () => {
       "GET /projects": "projects_empty",
       "GET /reference/readiness": "reference_readiness_incomplete",
     };
-    const html = await home({ is_contributor: "false" });
+    const html = await home({ is_contributor: "false", states: "all" });
     // The heading of the screen first, then the notice of the reference under it.
     expect(html).toMatch(
       new RegExp(

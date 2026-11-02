@@ -3,9 +3,10 @@
 """The journal of audit of the universe, engendered from its chronology (EP-02/L42, #516).
 
 Each inscription is an action WF-SEC-0030 names that the universe has already done: read from the
-chronology of the witness (``mockwitness``) — the offer marked, then designated reference, the
-amendment 1 merged, the occurrence of 752, the imports of actual costs applied, the reception of
-the customer excluded from the tracked scope — and from the examples written by hand that say when
+chronology of the witness (``mockwitness``) — the witness created, by its creator, at the instant
+its audit says (#1577), the offer marked, then designated reference, the amendment 1 merged, the
+occurrence of 752, the imports of actual costs applied, the reception of the customer excluded
+from the tracked scope — and from the examples written by hand that say when
 each account, each access role and each backup came to be (``users``, ``access_roles``,
 ``backups``). Nothing is invented that another example does not say. An actor is read from an
 audit only where that audit was last updated by the action inscribed — the marking of the offer,
@@ -16,16 +17,19 @@ them; an import is by the actor its journal names; what the platform does by its
 platform. A label is the one the object bears in its example, and an object that lives in a
 revision names it — the risk that occurred, the amendment merged; the lines of cost and the imports
 of actual costs live in the project. And the immediate sequel of the exit of the witness from its
-lifecycle, confirmed today (``project_completed``).
+lifecycle, confirmed today (``project_completed``), which abandons its revision in progress in
+the same request (US-0701/L9), and that of the abandon of its revision in progress, today too
+(``project_without_current_revision``, #1577).
 
 What the same command writes — the risks of ``mockhistory``, the journal of the imports of
 ``mockcosts`` — is read in memory, never from its file, so that one run reaches its fixed point;
 only examples written by hand are read from the disk. The answers of ``listAuditEvents`` are
 written from the one journal: the whole of it, the latest first; its second page of ten; the
-journal of the witness; that journal after its exit, and after the estimate imported this morning
-is applied; a filter that retains nothing; the journal
-sorted by author; the inscriptions of one correlation; a search on the label of the object; and,
-a variant of its own, the administration of the accounts and the roles of today (#961).
+journal of the witness; that journal after its exit, after the estimate imported this morning
+is applied, and after its revision in progress is abandoned; a filter that retains nothing; the
+journal sorted by author; the inscriptions of one correlation; a search on the label of the
+object; the journal of the witness as its auditor reads it, who may open no project; and, a
+variant of its own, the administration of the accounts and the roles of today (#961).
 The answer of ``listAuditFacets`` is read from the same journal: its authors and its projects
 (#550). Nothing here reads the clock.
 """
@@ -136,7 +140,7 @@ def _revisions() -> list[Inscription]:
         Inscription(
             merged,
             reference["audit"]["updated_by"],
-            "amendment_merge",
+            "structure_merge",
             "cost_structure",
             amendment["structure_id"],
             amendment["label"],
@@ -168,7 +172,7 @@ def _witness() -> list[Inscription]:
         for each in cast("list[JsonObject]", mockcosts.journal()["items"])
     }
     current = _current_revision()
-    found = _revisions()
+    found = [_created(), *_revisions()]
     found.extend(
         Inscription(
             risk.last.at,
@@ -195,6 +199,7 @@ def _witness() -> list[Inscription]:
                 "import",
                 exchange["import_id"],
                 exchange["filename"],
+                params={"import_kind": exchange["kind"]},
             )
         )
     found.extend(
@@ -210,6 +215,24 @@ def _witness() -> list[Inscription]:
         if line.excluded is not None
     )
     return [replace(each, on_witness=True) for each in found]
+
+
+def _created() -> Inscription:
+    """Return the creation of the witness: by its creator, at the instant its audit says (#1577).
+
+    The project is named by its code and its label of the moment, as every inscription on the
+    witness names it (`AuditEvent.project`): the creation has nothing more to say (`params`).
+    """
+    project = fixture("project")
+    audit = cast("JsonObject", project["audit"])
+    return Inscription(
+        _instant(cast("str", audit["created_at"])),
+        cast("JsonObject", audit["created_by"]),
+        "project_create",
+        "project",
+        cast("str", project["project_id"]),
+        cast("str", project["label"]),
+    )
 
 
 def _current_revision() -> tuple[str, str | None]:
@@ -353,7 +376,11 @@ def inscriptions() -> list[Inscription]:
 
 
 def exit_today() -> Inscription:
-    """Return the exit of the witness from its lifecycle, confirmed today (`project_completed`)."""
+    """Return the exit of the witness from its lifecycle, confirmed today (`project_completed`).
+
+    It says the terminal state reached, the one the project reads, and its reason, none being
+    given to the confirmation of the example (B-02).
+    """
     project = fixture("project_completed")
     return Inscription(
         _instant(project["audit"]["updated_at"]),
@@ -363,14 +390,28 @@ def exit_today() -> Inscription:
         project["project_id"],
         project["label"],
         on_witness=True,
+        params={"to_state": project["state"], "reason": None},
     )
+
+
+def exit_abandon_today() -> Inscription:
+    """Return the abandon of the revision in progress the exit of today orders.
+
+    « La sortie n'est appliquée qu'avec ce choix, dans la même opération » (WF-CYC-0090): the
+    exit of the witness (`project_completed`) abandons its revision 102
+    (``project_exit_abandoning``), inscribed before the exit, by its author, at its instant, under
+    its correlation, as `abandon_today` inscribes an abandon (US-0701/L9).
+    """
+    exited = exit_today()
+    return replace(abandon_today(), at=exited.at, actor=exited.actor)
 
 
 def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
     """Return an inscription as the journal reads it (`AuditEvent`), numbered in its order.
 
     Its correlation is that of the request that produced it, numbered in the order of the
-    requests: the inscriptions of one request share it.
+    requests: the inscriptions of one request share it. The journal is read by the account of the
+    witness, who consults every project: an inscription leads to the witness (`can_open`).
     """
     project = fixture("project")
     return {
@@ -393,6 +434,7 @@ def _event(number: int, request: int, inscription: Inscription) -> JsonObject:
                 "project_id": project["project_id"],
                 "code": project["code"],
                 "label": project["label"],
+                "can_open": True,
             }
             if inscription.on_witness
             else None
@@ -423,19 +465,48 @@ def import_applied_today() -> Inscription:
         imported["filename"],
         on_witness=True,
         revision=_current_revision(),
+        params={"import_kind": imported["kind"]},
     )
 
 
-def _sequels() -> tuple[Inscription, ...]:
+def abandon_today() -> Inscription:
+    """Return the abandon of the revision in progress of the witness, today.
+
+    As `project_without_current_revision` says it: at its last update, by its author. The revision
+    is named by its identifier and by its project; in progress, it has no version name yet
+    (WF-REV-0010), and, a revision itself, it lives in none (`AuditObject.revision`). The abandon
+    has nothing more to say (`params`, #1577).
+    """
+    project = fixture("project_without_current_revision")
+    audit = cast("JsonObject", project["audit"])
+    revision, version = _current_revision()
+    return Inscription(
+        _instant(cast("str", audit["updated_at"])),
+        cast("JsonObject", audit["updated_by"]),
+        "revision_abandon",
+        "revision",
+        revision,
+        version,
+        on_witness=True,
+    )
+
+
+def _sequels() -> tuple[tuple[Inscription, ...], ...]:
     """Return the actions that take effect just after today, each the sequel of a write of today.
 
-    Each is read alone, a variant of the journal: the exit of the witness and the application of
-    the estimate do not follow one another — a project completed takes no import (WF-CYC-0100).
+    Each is read alone, a variant of the journal: the exit of the witness, the application of the
+    estimate and the abandon of its revision in progress do not follow one another — a project
+    completed takes no import (WF-CYC-0100), and the estimate applies to the revision abandoned.
+    The exit abandons the revision in progress in the same request, inscribed before it.
     """
-    return exit_today(), import_applied_today()
+    return (exit_abandon_today(), exit_today()), (import_applied_today(),), (abandon_today(),)
 
 
-EXIT, IMPORT = range(2)
+WRITTEN_VARIANTS = 2
+"""The inscriptions the variants of the journal written by hand number past the sequels
+(``audit_events_anonymized_actor``, ``audit_events_anonymized_object``)."""
+
+EXIT, IMPORT, ABANDON = range(3)
 """The sequels by their rank in ``_sequels``, which numbers them apart from one another."""
 
 
@@ -445,7 +516,9 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
     Two inscriptions of one instant come in the order they were inscribed, reversed. A sequel —
     an action that takes effect just after today, by its rank — is inscribed last, by a request of
     its own; its number and its request's follow those of the sequels before it, so that two
-    variants never give one identifier to two inscriptions.
+    variants never give one identifier to two inscriptions. What a sequel inscribes before its
+    own action, under its request, is numbered past every sequel and the variants of the journal
+    written by hand (``WRITTEN_VARIANTS``).
     """
     found = inscriptions()
     events: list[JsonObject] = []
@@ -454,7 +527,12 @@ def journal(*, sequel: int | None = None) -> list[JsonObject]:
         request += 0 if each.joined else 1
         events.append(_event(number, request, each))
     if sequel is not None:
-        events.append(_event(len(found) + 1 + sequel, request + 1 + sequel, _sequels()[sequel]))
+        sequels = _sequels()
+        *before, action = sequels[sequel]
+        for rank, each in enumerate(before):
+            number = len(found) + len(sequels) + WRITTEN_VARIANTS + 1 + rank
+            events.append(_event(number, request + 1 + sequel, each))
+        events.append(_event(len(found) + 1 + sequel, request + 1 + sequel, action))
     return events[::-1]
 
 
@@ -465,8 +543,14 @@ Past the journal, its sequels and the variants of the journal written by hand
 (``audit_events_anonymized_*``): the administration is a variant of its own, whose identifiers and
 correlations no other example gives (#961)."""
 
-IDENTITY = ("last_name", "first_name", "email")
-"""The fields of the identity of an account, in the order of the account (`AuditUserField`)."""
+ACCOUNT_FIELDS = ("last_name", "first_name", "email", "org_node_id")
+"""The fields of an account a modification names, in the order of the account (`AuditUserField`):
+its identity, and its attachment to a node of the organisation (#1739)."""
+
+ATTACHED_NODE = "Bureau d'études électricité"
+"""The node of the organisation the administration attaches the account of Léa Garnier to, once she
+holds her first role: a modification of her attachment alone no example of updateUser answers, a
+liberty of that variant (#1739)."""
 
 WITHDRAWN = ("cost_settings.write", "resource_settings.write")
 """The permissions the modification of the administration withdraws from « Manager », in the order
@@ -547,10 +631,11 @@ def _administered_roles() -> list[Inscription]:
 def _administered_accounts() -> list[Inscription]:
     """Return the accounts the administration of today creates, modifies and takes roles from.
 
-    Léa Garnier created a local account (`user_created`) with her first role, « Chiffreur », which
-    the request that creates her gives her and inscribes after her creation, under its correlation:
-    a creation with a first role no example of createUser answers — each creates its account without
-    any role —, a liberty of this variant;
+    Léa Garnier created a local account (`user_created`), born without a role (#1731), then
+    given her first role, « Chiffreur », by setUserAccessRoles, a request of its own after the
+    creation: a first attribution no example of setUserAccessRoles answers, a liberty of this
+    variant; then attached to a node of the organisation (``ATTACHED_NODE``), a modification of
+    her attachment alone no example of updateUser answers, a liberty of this variant (#1739);
     the name of Lucas Petit corrected (`user_renamed`); Noé Vidal, as the list of the accounts has
     him, attached by the platform to the person of the directory who holds his address, under the
     name the directory gives him (``DIRECTORY_LAST_NAME``), from the directory from now on (#707):
@@ -564,25 +649,25 @@ def _administered_accounts() -> list[Inscription]:
     roles = {role["access_role_id"]: role for role in fixture("access_roles")}
     [first] = [role for role in roles.values() if role["label"] == "Chiffreur"]
     [noe] = [user for user in users.values() if display_name(user) == "Noé Vidal"]
+    [node] = [each for each in fixture("org_nodes") if each["label"] == ATTACHED_NODE]
     attached = {**noe, "last_name": DIRECTORY_LAST_NAME}
+    placed = {**created, "org_node_id": node["org_node_id"]}
     actor = _updater(created)
 
-    def changed(after: JsonObject) -> list[JsonValue]:
-        before = users[after["user_id"]]
-        return [name for name in IDENTITY if after[name] != before[name]]
+    def changed(after: JsonObject, before: JsonObject | None = None) -> list[JsonValue]:
+        earlier = users[after["user_id"]] if before is None else before
+        return [name for name in ACCOUNT_FIELDS if after[name] != earlier[name]]
 
     held = cast("list[str]", users[cleared["user_id"]]["access_role_ids"])
     return [
         _account(created, "user_create", actor, {"origin": created["origin"]}),
-        replace(
-            _account(
-                created,
-                "user_access_roles_set",
-                actor,
-                {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
-            ),
-            joined=True,
+        _account(
+            created,
+            "user_access_roles_set",
+            actor,
+            {"access_roles_granted": [_role_named(first)], "access_roles_withdrawn": []},
         ),
+        _account(placed, "user_update", actor, {"fields": changed(placed, created)}),
         _account(
             renamed,
             "user_update",
@@ -612,8 +697,7 @@ def administration() -> list[JsonObject]:
     """Return the administration of the accounts and the roles of today, the latest first.
 
     A variant of the journal, each write of today on an account or a role a request of its own,
-    at the instant of today, save the first role of an account created, inscribed by the request
-    that creates it (``joined``). Numbered from ``ADMINISTERED``, its requests too.
+    at the instant of today. Numbered from ``ADMINISTERED``, its requests too.
     """
     events: list[JsonObject] = []
     request = ADMINISTERED - 1
@@ -727,9 +811,24 @@ def searched(events: list[JsonObject], text: str) -> list[JsonObject]:
     ]
 
 
+def unopenable(events: list[JsonObject]) -> list[JsonObject]:
+    """Return the journal as a reader who may not consult its projects reads it (WF-ADM-0190).
+
+    Each project still named by its code and its label, none leading to it (`can_open` false):
+    the auditor of the universe, who consults the journal and nothing else (`me_auditor`).
+    """
+    read: list[JsonObject] = []
+    for event in events:
+        project = cast("JsonObject | None", event["project"])
+        read.append(
+            {**event, "project": None if project is None else {**project, "can_open": False}}
+        )
+    return read
+
+
 def _merged(events: list[JsonObject]) -> list[JsonObject]:
     """Return the inscriptions of the request that merged the amendment 1, of one correlation."""
-    [merge] = [event for event in events if event["action"] == "amendment_merge"]
+    [merge] = [event for event in events if event["action"] == "structure_merge"]
     return [event for event in events if event["correlation_id"] == merge["correlation_id"]]
 
 
@@ -739,6 +838,7 @@ def examples() -> dict[str, JsonObject]:
     witness = _of_witness(events)
     exited = _of_witness(journal(sequel=EXIT))
     imported = _of_witness(journal(sequel=IMPORT))
+    abandoned = _of_witness(journal(sequel=ABANDON))
     day = mocktext.day(TODAY.date())
     counted = mocktext.count(len(events))
     return {
@@ -748,7 +848,7 @@ def examples() -> dict[str, JsonObject]:
             f"celle que {_backuper()['display_name']} a lancée, les imports de coûts réels "
             f"appliqués, l'exclusion d'une ligne de coût, la survenance du risque 752, la fusion "
             f"de l'avenant 1, qui marque la révision de référence et la désigne, la désignation de "
-            f"l'offre comme référence et son marquage, les "
+            f"l'offre comme référence et son marquage, la création du projet témoin, les "
             f"comptes créés ou désactivés, les rôles d'habilitation créés, ceux de "
             f"l'installation par la plateforme, et les rôles que le premier administrateur "
             f"s'est attribués. Chaque inscription a sa date, son auteur, son action, l'objet "
@@ -767,14 +867,17 @@ def examples() -> dict[str, JsonObject]:
             f"réception du client du périmètre suivi, la survenance du retard de livraison des "
             f"armoires, la fusion de l'avenant 1 avec le marquage et la désignation de la "
             f"révision de référence qu'elle produit, sous une seule corrélation, la désignation "
-            f"de l'offre comme référence et son marquage (WF-SEC-0030).",
+            f"de l'offre comme référence et son marquage, et sa création par Camille Martin le "
+            f"6 octobre 2025 (WF-SEC-0030).",
             _page(witness),
         ),
         "audit_events_exited.json": mocktext.example(
             f"Le journal d'audit du projet témoin juste après sa sortie du cycle de vie, "
-            f"confirmée le {day} à 14 h 05 (project_completed) : la sortie en tête, puis les "
-            f"mêmes inscriptions qu'avant elle. Le journal d'un projet terminé se lit par le "
-            f"même filtre, aussi longtemps que les projets sont conservés (WF-SEC-0030).",
+            f"confirmée le {day} à 14 h 05 (project_completed) : la sortie en tête, puis "
+            f"l'abandon de sa révision en cours, qu'elle a ordonné dans la même requête, sous sa "
+            f"corrélation (WF-CYC-0090), puis les mêmes inscriptions qu'avant elle. Le journal "
+            f"d'un projet terminé se lit par le même filtre, aussi longtemps que les projets sont "
+            f"conservés (WF-SEC-0030).",
             _page(exited),
         ),
         "audit_events_import_applied.json": mocktext.example(
@@ -786,10 +889,25 @@ def examples() -> dict[str, JsonObject]:
             f"(WF-INTF-0090) ; puis les mêmes inscriptions qu'avant elle (WF-SEC-0030).",
             _page(imported),
         ),
+        "audit_events_revision_abandoned.json": mocktext.example(
+            f"Le journal d'audit du projet témoin juste après l'abandon de sa révision en cours, "
+            f"le {day} à 14 h 05 (project_without_current_revision) : l'abandon en tête, par "
+            f"Camille Martin, sur la révision désignée par son identifiant et par son projet, "
+            f"qui n'a pas encore de nom de version (WF-REV-0010) ; puis les mêmes inscriptions "
+            f"qu'avant lui (WF-SEC-0030, #1577).",
+            _page(abandoned),
+        ),
         "audit_events_empty.json": mocktext.example(
             f"Les restaurations du journal d'audit le {day} (actions=restore) : la plateforme "
             f"n'a jamais été restaurée, et la liste est vide (WF-SEC-0030).",
             _page([event for event in events if event["action"] == "restore"]),
+        ),
+        "audit_events_auditor.json": mocktext.example(
+            f"Le journal d'audit du projet témoin le {day} (project_id), lu par Noé Vidal, "
+            f"auditeur (me_auditor), qui consulte le journal et rien d'autre : les mêmes "
+            f"inscriptions, chacune nommant le projet par son code et son libellé sans mener à "
+            f"lui, qu'il ne peut pas consulter (WF-ADM-0190, WF-ADM-0110).",
+            _page(unopenable(witness)),
         ),
         "audit_events_administration.json": mocktext.example(
             "Variante : le journal d'audit depuis aujourd'hui à 14 h 05 (from), après "
@@ -799,9 +917,11 @@ def examples() -> dict[str, JsonObject]:
             "« Manager » renommé « Responsable d'équipe », doté de la modification de la "
             "planification et privé de celle des paramètres de coûts et de ressources par une "
             "même modification, qu'aucun exemple d'updateAccessRole ne répond ; le "
-            "compte local de Léa Garnier créé avec son premier rôle, « Chiffreur », que la "
-            "requête de la création inscrit après elle, sous sa corrélation : une création avec "
-            "premier rôle qu'aucun exemple de createUser ne répond ; le nom de Lucas "
+            "compte local de Léa Garnier créé sans rôle, puis doté de son premier rôle, "
+            "« Chiffreur », par une attribution à elle : une première attribution qu'aucun "
+            "exemple de setUserAccessRoles ne répond, puis rattachée au nœud "
+            f"« {ATTACHED_NODE} », une modification du seul rattachement qu'aucun exemple "
+            "d'updateUser ne répond ; le nom de Lucas "
             "Petit corrigé ; Inès Roux privée de son seul rôle. Par la plateforme, Noé Vidal "
             "rattaché à la personne de l'annuaire qui porte son adresse, sous le nom qu'elle lui "
             f"donne, « {DIRECTORY_LAST_NAME} », et venu de l'annuaire désormais : un "

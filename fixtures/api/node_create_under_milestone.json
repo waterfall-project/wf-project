@@ -1,0 +1,12 @@
+{
+  "summary": "La tâche « Note de calcul des protections » créée sous la « Réception des études », un jalon : un jalon ne porte pas de sous-tâches, mais il peut porter des lignes de devis. La création est refusée sur le parent visé, le jalon nommé ; rien n'est écrit (WF-PLA-0050, #1771).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/parent_id","code":"MILESTONE_HAS_NO_SUBTASK","params":{"node_id":"01926f3a-7c00-7000-8000-000000000525","label":"Réception des études"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001671"
+  }
+}

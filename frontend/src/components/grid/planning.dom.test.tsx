@@ -17,6 +17,7 @@ import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
+import { pasteSpan } from "./nodes";
 import { PLANNING_GRID, PLANNING_SORT_COLUMNS } from "./planning";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
@@ -176,7 +177,23 @@ describe("the grid of the planning", () => {
     // The description, which no task of the witness bears; the physical progress of the summary
     // alone; the Gantt last, a drawing.
     expect(bodyRows().map(texts)).toEqual([
-      ["1", "Études", "", "", days("40"), "02/03/2026", "24/04/2026", "", full, "", "", "", ""],
+      [
+        "1",
+        "Études",
+        "",
+        "",
+        days("40"),
+        "02/03/2026",
+        "24/04/2026",
+        "",
+        full,
+        days("0"),
+        "02/03/2026",
+        "",
+        "",
+        "",
+        "",
+      ],
       [
         "2",
         "Études de détail",
@@ -188,6 +205,8 @@ describe("the grid of the planning", () => {
         "",
         "",
         days("0"),
+        "02/03/2026",
+        "10/04/2026",
         "",
         "",
         "",
@@ -202,6 +221,8 @@ describe("the grid of the planning", () => {
         "24/04/2026",
         "",
         "",
+        "",
+        "02/03/2026",
         "",
         "",
         "",
@@ -218,6 +239,8 @@ describe("the grid of the planning", () => {
         "",
         "",
         days("0"),
+        "13/04/2026",
+        "24/04/2026",
         "2",
         "",
         "",
@@ -233,6 +256,8 @@ describe("the grid of the planning", () => {
         "",
         "",
         days("0"),
+        "24/04/2026",
+        "24/04/2026",
         `5;4DD+1${NBSP}sem`,
         "",
         "",
@@ -248,6 +273,8 @@ describe("the grid of the planning", () => {
         "",
         "",
         days(FILE_FLOAT.replace(".", ",")),
+        "09/04/2026",
+        "15/04/2026",
         `2FD-${days("2")}`,
         "",
         "",
@@ -330,15 +357,21 @@ describe("the grid of the planning", () => {
     expect(PLANNING_SORT_COLUMNS).toEqual([]);
   });
 
-  it("shows in each column but the Gantt the column of the contract of the same name, whose value it reads", () => {
+  it("shows in each column but the progress, the timelines and the Gantt the column of the contract of the same name, whose value it reads", () => {
     // The name a paste on its cell is sent under, though the grid sorts none.
-    expect(PLANNING_GRID.columns.map((column) => column.contract)).toEqual([
-      ...PLANNING_GRID.columns
-        .map((column) => column.key)
-        .filter((key) => !["timelines", "gantt"].includes(key)),
-      undefined,
-      undefined,
-    ]);
+    // The progress names none: the state is a visual mark, not a column (WF-PLA-0080).
+    const progress = PLANNING_GRID.columns.find((column) => column.key === "progress");
+    expect(progress).toBeDefined();
+    expect(progress?.contract).toBeUndefined();
+    const carrying = PLANNING_GRID.columns.filter(
+      (column) => !["progress", "timelines", "gantt"].includes(column.key),
+    );
+    expect(carrying.map((column) => column.contract)).toEqual(carrying.map((column) => column.key));
+    expect(
+      PLANNING_GRID.columns
+        .filter((column) => ["timelines", "gantt"].includes(column.key))
+        .map((column) => column.contract),
+    ).toEqual([undefined, undefined]);
     // The predecessors, the timelines and the Gantt, which their cells render, read no value.
     const milestone = planning.items[4];
     const columns = PLANNING_GRID.columns.filter(
@@ -354,8 +387,124 @@ describe("the grid of the planning", () => {
       "completed",
       undefined,
       "0",
+      "2026-04-24",
+      "2026-04-24",
       undefined,
     ]);
+  });
+
+  it("presents the dates a task was started and completed on, read only, after the float [WF-PLA-0080-A]", () => {
+    // Chacune des colonnes citées est présente : ses dates de démarrage et de terminaison.
+    renderPlanning();
+    const grid = screen.getByRole("treegrid", { name: "Grille de planning" });
+    for (const name of ["Démarrée le", "Terminée le"]) {
+      expect(within(grid).getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+    const keys = PLANNING_GRID.columns.map((column) => column.key);
+    expect(keys.slice(keys.indexOf("total_float"))).toEqual([
+      "total_float",
+      "started_on",
+      "completed_on",
+      "predecessors",
+      "work_breakdown",
+      "timelines",
+      "gantt",
+    ]);
+    // The server sets them with the progress: a summary shows the first start of its subordinates.
+    const studies = cellsOf("Études");
+    expect(
+      [studies[at("started_on")], studies[at("completed_on")]].map((c) => c?.textContent),
+    ).toEqual(["02/03/2026", ""]);
+    // A leaf completed shows both, as the example gives them.
+    const review = cellsOf("Revue de conception");
+    expect(
+      [review[at("started_on")], review[at("completed_on")]].map((c) => c?.textContent),
+    ).toEqual(["13/04/2026", "24/04/2026"]);
+  });
+
+  it("has a column for each of started_on, completed_on and predecessors, which a block pasted from the float fills [WF-PLA-0080-A]", () => {
+    // Un collage de quatre colonnes et plus depuis la marge ne bute plus sur « démarrée le » ni sur
+    // « terminée le » (#1649) : il va, dans l'ordre du contrat, jusqu'aux prédécesseurs.
+    const task = planning.items[0];
+    if (task === undefined) {
+      throw new Error("the example of the planning lacks its first row");
+    }
+    const contracts = new Set(PLANNING_GRID.columns.map((column) => column.contract));
+    const span = pasteSpan(task, "total_float");
+    expect(span?.slice(0, 5)).toEqual([
+      "total_float",
+      "is_critical",
+      "started_on",
+      "completed_on",
+      "predecessors",
+    ]);
+    expect(
+      (["started_on", "completed_on", "predecessors"] as const).filter(
+        (column) => !contracts.has(column),
+      ),
+    ).toEqual([]);
+  });
+
+  it("names the link in conflict on the manual task and on its predecessor, never by a colour alone [WF-PLA-0020-A]", () => {
+    // Une tâche manuelle datée avant la fin calculée de son prédécesseur est signalée dans la grille,
+    // avec ce prédécesseur.
+    const [review, desks] = ["Revue de conception", "Pupitres opérateurs"].map((label) =>
+      planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    const conflicting = {
+      ...planning,
+      items: planning.items.map((node) => {
+        if (node.node_id === review.node_id && node.task) {
+          return { ...node, task: { ...node.task, link_conflicts: [conflict] } };
+        }
+        if (node.node_id === desks.node_id && node.task) {
+          return {
+            ...node,
+            predecessors: [
+              {
+                predecessor_node_id: review.node_id,
+                predecessor_row_number: review.row_number,
+                link_type: "finish_to_start" as const,
+                lag: { value: "0", unit: "d" as const },
+              },
+            ],
+            task: { ...node.task, link_conflicts: [conflict] },
+          };
+        }
+        return node;
+      }),
+    };
+    const { unmount } = renderPlanning(conflicting);
+    const marked = (label: string) =>
+      iconNames(cellsOf(label)[at("predecessors")]).filter((name) => name?.startsWith("Liaison"));
+    // The task is named by its predecessor, and its own row; the predecessor by the row of the successor.
+    expect(marked("Pupitres opérateurs")).toEqual([
+      `Liaison en conflit${NBSP}: 5FD vers la ligne 4`,
+    ]);
+    expect(marked("Revue de conception")).toEqual([
+      `Liaison en conflit${NBSP}: 5FD vers la ligne 4`,
+    ]);
+    expect(marked("Dossier de conception")).toEqual([]);
+    expect(
+      within(cellsOf("Revue de conception")[at("predecessors")] ?? document.body).getByTitle(
+        /^Liaison en conflit\s: 5FD vers la ligne 4$/,
+      ),
+    ).toBeInTheDocument();
+    unmount();
+    // A search that leaves the manual task out: the successor is not named, as no row names it.
+    renderPlanning({
+      ...conflicting,
+      items: conflicting.items.filter((n) => n !== desks && n.node_id !== desks.node_id),
+    });
+    expect(marked("Revue de conception")).toEqual([`Liaison en conflit${NBSP}: 5FD`]);
   });
 
   it("says the physical progress of a summary not computable, and why, in the cell itself", () => {
@@ -442,6 +591,8 @@ describe("the grid of the planning", () => {
       "",
       "",
       `0${NBSP}d`,
+      "24/04/2026",
+      "24/04/2026",
       `5;4SS+1${NBSP}wk`,
       "",
       "",
@@ -457,6 +608,8 @@ describe("the grid of the planning", () => {
       "",
       "",
       `${FILE_FLOAT}${NBSP}d`,
+      "09/04/2026",
+      "15/04/2026",
       `2FS-2${NBSP}d`,
       "",
       "",

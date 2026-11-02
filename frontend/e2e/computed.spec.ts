@@ -50,7 +50,7 @@ test("shows the amount of a line of labour as computed, apart from its effort in
   // reads without the colour.
   await expect(hours).toHaveText(/^\d+(,\d+)?$/);
   await expect(hours.getByRole("img")).toHaveCount(0);
-  await expect(amount).toHaveAccessibleName(/^Calculé [\d\s]+,\d\d$/);
+  await expect(amount).toHaveAccessibleName(/^Calculé [\d\s]+,\d\d\s€$/);
   await expect(amount.getByRole("img", { name: "Calculé" })).toBeVisible();
   expect(await background(amount)).not.toBe(await background(hours));
 

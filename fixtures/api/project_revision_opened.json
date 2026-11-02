@@ -5,6 +5,7 @@
     "label": "Rénovation du poste de livraison",
     "code": null,
     "description": null,
+    "client": null,
     "state": "pricing",
     "inflation_rate": "0",
     "win_probability": "0",

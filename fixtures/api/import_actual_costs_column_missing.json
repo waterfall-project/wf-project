@@ -1,0 +1,19 @@
+{
+  "summary": "Une extraction de coûts réels déposée sur le projet témoin sans colonne de montant : aucun en-tête n'y vaut « Val./Devise objet », le seul intitulé que la correspondance déclare pour elle (actual_cost_mapping). Refusée, le format attendu nommé, sans version — une extraction de l'ERP n'en porte pas —, et la colonne exigée absente nommée avec ses intitulés ; rien n'est analysé (WF-REF-0190, WF-INTF-0070).",
+  "value": {
+    "code": "FILE_FORMAT_UNREADABLE",
+    "status": 422,
+    "params": {
+      "expected_format": "actual_costs",
+      "missing_columns": [
+        {
+          "column": "amount",
+          "labels": [
+            "Val./Devise objet"
+          ]
+        }
+      ]
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001549"
+  }
+}

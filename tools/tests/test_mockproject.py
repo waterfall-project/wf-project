@@ -38,6 +38,10 @@ WITHOUT_COSTS = "subproject_without_actual_costs"
 NOT_CITED = "subproject_not_cited"
 WITHOUT_LINES = "subproject_without_estimate_lines"
 FORBIDDEN = (409, "STATE_FORBIDS_OPERATION")
+QUALITY_REFUSALS = (
+    ("NOT_CONTRIBUTOR", {"missing_condition": "is_contributor"}),
+    ("NOT_PROJECT_MANAGER", {"missing_condition": "is_project_manager"}),
+)
 """The one envelope of a command a state makes unavailable, its condition named (EP-02/L42a)."""
 
 OPEN = ("created", "pricing")
@@ -70,8 +74,8 @@ SUBPROJECTS = (
 )
 """The examples that read or write subprojects, each with its commands."""
 CLOSED = "subprojects_completed"
-"""The subprojects of the witness completed (`project_completed`), their commands all unavailable
-(EP-14/L42o, #673)."""
+"""The subprojects of the witness completed (`project_completed`, EP-14/L42o, #673), which list no
+command, as their project (US-0702/L3)."""
 
 TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
     "project_code_taken": (409, "ALREADY_EXISTS", [("/code", "ALREADY_EXISTS")], {}),
@@ -115,12 +119,14 @@ TOLD: dict[str, tuple[int, str, list[tuple[str, str]], dict[str, Any]]] = {
             "estimate_lines": [
                 {
                     "structure_id": universe(201),
+                    "structure_label": "Structure principale",
                     "node_id": universe(553),
                     "row_number": 10,
                     "label": "Raccordement des borniers",
                 },
                 {
                     "structure_id": universe(201),
+                    "structure_label": "Structure principale",
                     "node_id": universe(554),
                     "row_number": 11,
                     "label": "Borniers",
@@ -203,6 +209,23 @@ def _commands(entry: Entry) -> list[tuple[str, bool, list[str]]]:
     ]
 
 
+QUALITIES = ("is_contributor", "is_project_manager")
+"""The qualities a command lacks before its conditions of state (WF-IHM-0090, US-0701/L9)."""
+
+
+def _stated(entry: Entry) -> list[tuple[str, bool, list[str]]]:
+    """Return the commands of a project as its project manager would read them.
+
+    Its qualities are left out, which ``tests/test_mockexit.py`` tries (`project_participant`,
+    `project_rescue`).
+    """
+    stated = [
+        (command, [each for each in missing if each not in QUALITIES])
+        for command, _, missing in _commands(entry)
+    ]
+    return [(command, not missing, missing) for command, missing in stated]
+
+
 def enumeration(text: str, schema: str, field: str | None = None) -> list[str]:
     """Return the values an enumeration of a schema file declares, in line or one a line."""
     block = text.split(f"\n{schema}:\n", 1)[1].split("\n\n", 1)[0]
@@ -225,15 +248,16 @@ def test_the_win_probability_command_follows_update_and_is_frozen_from_in_progre
     assert {"project", "projects", "project_completed", "project_reader"} <= projects.keys()
     for name, listed in projects.items():
         for project in listed:
-            commands = _commands(project)
+            commands = _stated(project)
             names = [command for command, _, _ in commands]
             if "update" not in names:
                 assert WIN_PROBABILITY not in names, name
                 continue
             assert names.index(WIN_PROBABILITY) == names.index("update") + 1, name
             state = project["state"]
+            # A terminal project lists no command (US-0702/L3).
+            assert state not in TERMINAL, (name, state)
             missing = [] if state in OPEN else [BEFORE_IN_PROGRESS]
-            missing += [NOT_TERMINAL] if state in TERMINAL else []
             assert (WIN_PROBABILITY, not missing, missing) in commands, (name, state)
 
 
@@ -349,7 +373,9 @@ def _borne_by_the_current_revision() -> set[str]:
     The main structure whole — the core and the lots « Poste de commande » bear the control
     station, the lots « Ligne d'essais » the tests and commissioning —, the amendment 2, which bears
     them as the main structure does (#791), and the own estimates of the risks, a line of which
-    bears its subproject as any other (C-273); the subproject created today none.
+    would bear its subproject as any other (C-273) — but the universe draws none in them
+    (`_own_estimate`), so that the subprojects counted are those of the main structure and of
+    the amendment alone (#747, point 9); the subproject created today none.
     """
     current = fixture("project")["current_revision_id"]
     structures = [each for each in fixture("structures") if each["revision_id"] == current]
@@ -377,25 +403,20 @@ def _listed(
     subproject: Entry,
     cited: set[str],
     *,
-    terminal: bool = False,
     borne: set[str] | None = None,
 ) -> list[tuple[str, bool, list[str]]]:
-    """Return the commands a subproject lists to whom bears `update`.
+    """Return the commands a subproject of a project not closed lists to whom bears `update`.
 
     Its citation by a marked revision (§4.4.1, decision of the author of 2026-10-10, #634), then its
-    costs (WF-PRJ-0050), then the lines of the current revision that bear it (WF-DAT-0080, C-273),
-    then the closing of its project (WF-CYC-0100) say them, in that order — the order the contract
-    says (`_order_said`): from the condition that never lifts to the one a move of the lines lifts,
-    the conditions of the subproject before the one of the project, as a project lists its commands
-    (`project_completed`).
+    costs (WF-PRJ-0050), then the lines of the current revision that bear it (WF-DAT-0080, C-273)
+    say them, in that order — the order the contract says (`_order_said`): from the condition that
+    never lifts to the one a move of the lines lifts. A closed project lists none (US-0702/L3).
     """
     borne = _borne_by_the_current_revision() if borne is None else borne
-    closed = [NOT_TERMINAL] if terminal else []
     missing = [NOT_CITED] if subproject["subproject_id"] in cited else []
     missing += [WITHOUT_COSTS] if subproject["has_actual_costs"] else []
     missing += [WITHOUT_LINES] if subproject["subproject_id"] in borne else []
-    missing += closed
-    return [("update", not closed, closed), ("delete", not missing, missing)]
+    return [("update", True, []), ("delete", not missing, missing)]
 
 
 ORDER = [NOT_CITED, WITHOUT_COSTS, WITHOUT_LINES, NOT_TERMINAL]
@@ -470,6 +491,33 @@ def test_every_subproject_of_the_examples_is_charged_and_none_offers_its_deletio
     assert estimated == [("update", True, []), ("delete", False, [WITHOUT_LINES])]
 
 
+def test_the_subproject_borne_by_lines_alone_is_an_example_its_refused_deletion_follows() -> None:
+    # A subproject whose deletion misses the lines alone, as the listing reads it (#764): the
+    # variant of `subproject_delete_estimated`, the subprojects of the witness kept as they are.
+    cited = _cited_by_a_marked_revision()
+    *witness, estimated = _subprojects("subprojects_estimated")
+    assert witness == fixture("subprojects")
+    created = fixture("subproject_created")
+    assert {**estimated, "available_commands": None, "has_actual_costs": True} == {
+        **created,
+        "available_commands": None,
+    }
+    assert estimated["has_actual_costs"] is False
+    borne = {cast("str", estimated["subproject_id"])}
+    assert _commands(estimated) == _listed(estimated, cited, borne=borne)
+    assert _commands(estimated)[1] == ("delete", False, [WITHOUT_LINES])
+    refused = fixture("subproject_delete_estimated")
+    assert refused["params"]["missing_condition"] == WITHOUT_LINES
+    listing = mockwitness.FIXTURES / "subprojects_estimated.json"
+    summary = json.loads(listing.read_text(encoding="utf-8"))["summary"]
+    assert "subproject_delete_estimated" in summary
+    assert "variante contrefactuelle" in summary
+    text = (API / "paths" / "projects.yaml").read_text(encoding="utf-8")
+    block = text.split("operationId: listSubprojects\n", 1)[1].split("operationId:", 1)[0]
+    cited_examples = re.findall(r"fixtures/api/(\w+)\.json", block)
+    assert cited_examples[-1] == "subprojects_estimated"
+
+
 def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_closing() -> None:
     # The order the contract says, in the description of `SubprojectCommand` and in that of the
     # 409 of `deleteSubproject`, read there (#657): a change of either fails here, before the
@@ -481,33 +529,60 @@ def test_on_a_closed_project_the_conditions_of_the_subproject_come_before_its_cl
     refusal = deletion.split("'409':", 1)[1].split("content:", 1)[0]
     assert _order_said(command, "la commande les liste dans cet ordre") == ORDER
     assert _order_said(refusal, "dans l'ordre où la commande `delete` les liste") == ORDER
-    # The order a project lists its own commands in (`project_completed`): the condition proper to
-    # the command first, `project_not_terminal` last. The subprojects of the witness completed
-    # follow it (`subprojects_completed`, EP-14/L42o); a variant built here, uncited and
-    # uncharged, misses the closing alone.
-    assert fixture("project_completed")["state"] in TERMINAL
-    completed = {
-        each["command"]: each for each in fixture("project_completed")["available_commands"]
-    }
-    assert completed["update"]["missing_conditions"] == [NOT_TERMINAL]
-    assert completed[WIN_PROBABILITY]["missing_conditions"] == [BEFORE_IN_PROGRESS, NOT_TERMINAL]
-    cited = _cited_by_a_marked_revision()
-    closed = _subprojects(CLOSED)
-    for subproject in closed:
-        assert subproject["subproject_id"] in cited, subproject["code"]
-        assert _commands(subproject) == _listed(subproject, cited, terminal=True)
-        assert _commands(subproject) == [
-            ("update", False, [NOT_TERMINAL]),
-            ("delete", False, ORDER),
-        ]
+    # The subprojects of the witness completed (`subprojects_completed`, EP-14/L42o) list no
+    # command, as their project (US-0702/L3): their deletion sent all the same is refused by the
+    # first condition in that order — the citation by the reference, before the closing.
+    assert _subprojects(CLOSED)
+    for subproject in _subprojects(CLOSED):
+        assert _commands(subproject) == [], subproject["code"]
     # The same subprojects as those of the project in progress, their commands apart.
-    unlisted = [{**each, "available_commands": None} for each in closed]
+    unlisted = [{**each, "available_commands": None} for each in _subprojects(CLOSED)]
     assert unlisted == [{**each, "available_commands": None} for each in fixture("subprojects")]
-    bare = {**fixture("subproject_created"), "has_actual_costs": False}
-    assert _listed(bare, cited, terminal=True) == [
-        ("update", False, [NOT_TERMINAL]),
-        ("delete", False, [NOT_TERMINAL]),
+
+
+def test_a_terminal_project_lists_no_command_and_refuses_a_write_by_its_condition(
+    examples: dict[str, Any],
+) -> None:
+    # A terminal project lists no command, not even unavailable (decision of the author of the
+    # 2026-10-30, #1657, US-0702/L3): none will ever become available (WF-CYC-0080). A call sent
+    # all the same is refused by 409, `project_not_terminal` (US-0702/L1): the one place where
+    # that condition is named.
+    completed = fixture("project_completed")
+    assert completed["state"] in TERMINAL
+    assert completed["current_revision_id"] is None
+    terminal = [
+        (name, project)
+        for name, listed in _projects(examples).items()
+        for project in listed
+        if project["state"] in TERMINAL
     ]
+    assert "project_completed" in {name for name, _ in terminal}
+    for name, project in terminal:
+        assert project["available_commands"] == [], name
+    assert _subprojects(CLOSED)
+    for subproject in _subprojects(CLOSED):
+        assert _commands(subproject) == [], subproject["code"]
+    for name in ("timeline_create_terminal", "project_exit_terminal", "actual_cost_scope_terminal"):
+        assert fixture(name)["params"] == {"missing_condition": NOT_TERMINAL}, name
+    assert NOT_TERMINAL in enumeration(
+        (SCHEMAS / "projects.yaml").read_text(encoding="utf-8"), "CommandCondition"
+    )
+
+
+def test_no_command_an_example_lists_names_project_not_terminal(examples: dict[str, Any]) -> None:
+    # #1675: the condition stays a `CommandCondition`, the type of the 409's `missing_condition`,
+    # and no `missing_conditions` ever holds it, neither that of a command listed nor that of an
+    # entry (`EntryAvailability`, which names no command): only the 409 of a direct call does.
+    listed = [
+        (name, found.get("command"), found["missing_conditions"])
+        for name, example in examples.items()
+        for found in _walk(example["value"])
+        if "missing_conditions" in found
+    ]
+    assert any(command is None for _, command, _ in listed)
+    assert any(command is not None for _, command, _ in listed)
+    for name, command, missing in listed:
+        assert NOT_TERMINAL not in missing, (name, command)
 
 
 def test_the_citation_by_a_marked_revision_is_a_condition_of_the_catalogue() -> None:
@@ -572,8 +647,8 @@ def test_a_line_of_provision_is_moved_off_a_subproject_by_its_risk() -> None:
     block = text.split("operationId: deleteSubproject\n", 1)[1].split("    parameters:", 1)[0]
     said = " ".join(block.split())
     assert (
-        "une ligne de provision se passe par son risque (`updateRisk`, `provision_subproject_id`)"
-        in said
+        "une ligne de provision se passe par son risque (`updateRiskProvision`, "
+        "`provision_subproject_id`)" in said
     )
     assert "la décision contredit le Vérif" not in said
 
@@ -586,6 +661,9 @@ def test_the_lines_a_refused_deletion_names_are_lines_of_the_current_revision() 
     rows = {row.node["node_id"]: row.node for row in mockcore.current()}
     for line in refused["params"]["estimate_lines"]:
         assert line["structure_id"] == main["structure_id"]
+        # Two lines of two structures may bear one number: the label of the structure tells them
+        # apart without reading the structures (#764).
+        assert line["structure_label"] == main["label"]
         node = cast("Entry", rows[line["node_id"]])
         assert node["kind"] == "estimate_line"
         assert (node["row_number"], node["estimate_line"]["label"]) == (
@@ -747,7 +825,12 @@ def test_every_refusal_that_names_a_missing_condition_is_the_one_envelope_of_a_c
         "calendar_default_refused",
     } <= named.keys()
     for name, refused in named.items():
-        assert (refused["status"], refused["code"]) == FORBIDDEN, name
+        if refused["status"] == 403:
+            # A 403 names a quality on the project, never a state: a terminal project and a marked
+            # revision are refused by the 409 of their condition (`Forbidden`; US-0702/L1).
+            assert (refused["code"], refused["params"]) in QUALITY_REFUSALS, name
+        else:
+            assert (refused["status"], refused["code"]) == FORBIDDEN, name
         assert "fields" not in refused, name
 
 

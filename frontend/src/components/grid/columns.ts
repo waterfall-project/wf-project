@@ -24,7 +24,7 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatMoney, formatPercent, formatPlanningDate } from "@/i18n/format";
 import type { Locale } from "@/i18n/locale";
 
-import type { PredecessorsProblem } from "./predecessors-entry";
+import type { PredecessorsParsed } from "./predecessors-entry";
 import type { GridAddress } from "./query";
 
 /**
@@ -255,12 +255,14 @@ export type EntryKind =
       readonly type: "predecessors";
       /**
        * Validate the text typed in the language: the links as the value an entry holds, `null`
-       * for none, or why the text is not one (`predecessors-entry.ts`).
+       * for none, why the text is not one, or the row numbers to ask first (`predecessors-entry.ts`).
        */
-      readonly parse: (
-        text: string,
-        locale: Locale,
-      ) => { readonly value: string | null } | { readonly problem: PredecessorsProblem };
+      readonly parse: (text: string, locale: Locale) => PredecessorsParsed;
+      /**
+       * Ask the server the tasks of row numbers `parse` found in no row of the grid, which it then
+       * names: settled once it answered — a number no task bears included —, never rejected.
+       */
+      readonly ask: (rows: readonly number[]) => Promise<void>;
       /** A value validated as it is typed in the language, which the entry starts from. */
       readonly text: (value: string, locale: Locale) => string;
     }
@@ -454,6 +456,15 @@ export interface GridConfig<Row, Sort extends string, Totals> {
    * no filter.
    */
   readonly filters?: readonly string[] | undefined;
+  /**
+   * For the filters of `filters` that have a default, the text of the address that says it: an
+   * address that names none takes the one kept, else this; a filter shown at it keeps nothing, and
+   * is recorded only once it differs (WF-IHM-0060). None, and an address that names none lifts the
+   * filter.
+   */
+  readonly defaulted?: Readonly<Record<string, string>> | undefined;
+  /** Whether the search is kept with the filters; `false`, it is not (the home keeps states). */
+  readonly searchKept?: boolean | undefined;
 }
 
 /** The key of the column of row numbers, which no configuration may take. */
@@ -495,15 +506,21 @@ export function alignment(column: { readonly format: CellFormat; readonly align?
 
 /**
  * Show the value of a cell in a language, from the exact string of the contract: nothing for
- * none, a text as it is, a figure by the formats of the interface — never through a float.
+ * none, a text as it is, a figure by the formats of the interface — never through a float. An
+ * amount carries the currency of the installation, when it is known.
  */
-export function formatCell(format: CellFormat, value: CellValue, locale: Locale): string {
+export function formatCell(
+  format: CellFormat,
+  value: CellValue,
+  locale: Locale,
+  currency?: string,
+): string {
   if (value === null || value === undefined) {
     return "";
   }
   switch (format) {
     case "money":
-      return formatMoney(value, locale);
+      return formatMoney(value, locale, currency);
     case "decimal":
       return formatDecimal(value, locale);
     case "percent":

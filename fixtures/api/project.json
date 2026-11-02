@@ -5,6 +5,7 @@
     "label": "Modernisation du poste de commande",
     "code": "PRJ-001",
     "description": null,
+    "client": "Papeteries de la Vienne",
     "state": "in_progress",
     "inflation_rate": "0.03",
     "win_probability": "1",
@@ -50,13 +51,6 @@
         "command": "complete",
         "is_available": true,
         "missing_conditions": []
-      },
-      {
-        "command": "lose",
-        "is_available": false,
-        "missing_conditions": [
-          "project_in_pricing"
-        ]
       },
       {
         "command": "abandon",

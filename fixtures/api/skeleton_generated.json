@@ -10,6 +10,7 @@
         "position": 1,
         "row_number": 1,
         "level": 1,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -28,6 +29,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -39,13 +41,18 @@
             "saturday": "0",
             "sunday": "0"
           },
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "link_conflicts": [],
           "order_item_id": null,
           "work_package_id": "01926f3a-7c00-7000-8000-000000000714",
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "inflated_amount": "0.00",
           "physical_progress": {
             "is_computable": false,
             "value": null,
@@ -53,6 +60,7 @@
           }
         },
         "computed_fields": [
+          "task.scheduling_mode",
           "task.duration",
           "task.start",
           "task.finish",
@@ -75,6 +83,7 @@
         "position": 1,
         "row_number": 2,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Rénovation du poste de livraison",
@@ -93,6 +102,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": true,
           "is_milestone": false,
           "calendar_hours": {
@@ -104,13 +114,18 @@
             "saturday": "0",
             "sunday": "0"
           },
+          "total_float": {
+            "value": "0",
+            "unit": "d"
+          },
+          "is_critical": true,
+          "link_conflicts": [],
           "order_item_id": "01926f3a-7c00-7000-8000-000000000715",
           "work_package_id": null,
           "work_breakdown_label": "Rénovation du poste de livraison",
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
           "reestimated_amount": "0.00",
-          "inflated_amount": "0.00",
           "physical_progress": {
             "is_computable": false,
             "value": null,
@@ -118,6 +133,7 @@
           }
         },
         "computed_fields": [
+          "task.scheduling_mode",
           "task.duration",
           "task.start",
           "task.finish",
@@ -140,6 +156,7 @@
         "position": 1,
         "row_number": 3,
         "level": 3,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",
@@ -158,6 +175,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {
@@ -174,10 +192,10 @@
             "unit": "d"
           },
           "is_critical": true,
+          "link_conflicts": [],
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00",
-          "inflated_amount": "0.00"
+          "reestimated_amount": "0.00"
         },
         "predecessors": [],
         "computed_fields": [
@@ -203,6 +221,7 @@
         "position": 2,
         "row_number": 4,
         "level": 2,
+        "origin_risk_id": null,
         "lock_version": 1,
         "task": {
           "label": "Fin de « Rénovation du poste de livraison »",
@@ -221,6 +240,7 @@
           },
           "progress": "not_started",
           "finish_overdue": false,
+          "awaiting_own_lines": false,
           "is_summary": false,
           "is_milestone": true,
           "calendar_hours": {
@@ -237,10 +257,10 @@
             "unit": "d"
           },
           "is_critical": true,
+          "link_conflicts": [],
           "base_amount": "0.00",
           "budgeted_amount": "0.00",
-          "reestimated_amount": "0.00",
-          "inflated_amount": "0.00"
+          "reestimated_amount": "0.00"
         },
         "predecessors": [
           {
@@ -278,8 +298,7 @@
       "hours": "0",
       "base_amount": "0.00",
       "budgeted_amount": "0.00",
-      "reestimated_amount": "0.00",
-      "inflated_amount": "0.00"
+      "reestimated_amount": "0.00"
     },
     "structure_lock_version": 1
   }

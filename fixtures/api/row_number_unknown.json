@@ -1,0 +1,8 @@
+{
+  "summary": "Le numéro 6001 demandé le 3 juin 2026 sur la structure principale du projet témoin, qui compte 6 000 lignes : aucun nœud ne le porte, refusé comme un objet inexistant, sans paramètre (WF-ADM-0110) ; la colonne des prédécesseurs le dit inconnu.",
+  "value": {
+    "code": "NOT_FOUND",
+    "status": 404,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001550"
+  }
+}

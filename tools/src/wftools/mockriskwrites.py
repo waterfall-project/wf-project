@@ -9,8 +9,12 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
 - a risk declared today, its own structure opened empty with it — its severity and its provision
   nought until its own estimate is priced in the grid of estimate — and its line of provision on
   the first task of the first level, no task designated (``risk_created``, WF-RIS-0010, #786);
-- that risk modified, its line of provision moved to the task its form designates, the total of
-  the estimate unchanged (``risk_updated``);
+- that risk modified, its actions of mitigation entered, a data of the project
+  (``risk_updated``), then its line of provision moved to the task its form designates, the
+  total of the estimate unchanged, an entry of the current revision (``risk_provision_moved``;
+  H-02, #1782); and the rework of the wiring modified the same way once the revision 102 is
+  abandoned, the project without a current revision, which creates none
+  (``risk_updated_without_current_revision``);
 - the rework of the wiring confirmed today without a change, a review dated of today
   (``risk_reviewed``, WF-RIS-0010), and its reviews read after it (``risk_reviews_reviewed``);
 - the rework of the wiring dismissed today instead, a counterfactual, its line of provision
@@ -21,8 +25,15 @@ their answers are read, as the register is, from the risks of ``wftools.mockwitn
   (``task_occurrence_queued``, WF-RIS-0060, WF-ARC-0090);
 - a declaration whose provision names a task the main structure does not bear
   (``risk_provision_task_refused``);
-- and the line of provision of the rework of the wiring moved in the grid, which its form alone
-  moves (``nodes_move_provision_refused``, WF-RIS-0010, #1227).
+- the line of provision of the rework of the wiring moved in the grid, which its form alone
+  moves (``nodes_move_provision_refused``, WF-RIS-0010, #1227);
+- and the occurrence of the rework of the wiring before its confirmation (US-0680, #1383): its own
+  estimate, the structure 204, read (``nodes_risk_estimate``, WF-RIS-0030); the report of what its
+  occurrence would make of the main structure of the current revision (``risk_occurrence_report``,
+  WF-RIS-0060), and the confirmation that returns what it read (``risk_occurrence_sent``); the
+  report and the occurrence refused for a risk not identified (``risk_occurrence_not_identified``),
+  and the confirmation refused for a report gone stale (``risk_occurrence_report_stale``,
+  WF-IHM-0110).
 
 The risk declared is a counterfactual: no reading of the witness knows its risk 754, its own
 structure 208 or its line of provision 585 — the register, the structures and the grids read the
@@ -40,7 +51,7 @@ from datetime import timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from wftools import mockamendment, mockcore, mocktext
+from wftools import mockamendment, mockcore, mockdating, mocktext
 from wftools.mockhistory import (
     reference_budget,
     reference_rows,
@@ -49,7 +60,8 @@ from wftools.mockhistory import (
     stamp,
 )
 from wftools.mockids import universe
-from wftools.mockwitness import TODAY, N
+from wftools.mockstructure import described
+from wftools.mockwitness import AMENDMENT_MERGED, REWORK_ESTIMATE, TODAY, N, fixture, lineage_id
 from wftools.mockwitnessrisks import (
     AUTOMATION_ENGINEER,
     DELIVERY_DELAY,
@@ -112,15 +124,69 @@ def risk_created() -> JsonObject:
 
 
 def risk_updated() -> JsonObject:
-    """Return what updateRisk answers when the risk declared moves its provision to the mounting.
+    """Return what updateRisk answers when the risk declared receives its actions of mitigation.
 
-    It follows the declaration (``risk_created``), one version further; its line stays its line,
-    the provision unchanged (WF-RIS-0010).
+    It follows the declaration (``risk_created``), one version further: its identity alone, a data
+    of the project, its provision where the declaration put it (WF-RIS-0020; H-02, #1782).
+    """
+    changed = replace(DECLARED, mitigation_notes=MITIGATION)
+    item = risk_item(changed, _budget(), first_root())
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {**item, "audit": audit, "lock_version": 2}
+
+
+UNVERSIONED_MITIGATION = (
+    "Contrôle du câblage en atelier avant expédition ; essais de continuité et d'isolement "
+    "systématiques."
+)
+"""The actions of mitigation the rework of the wiring receives once the revision 102 is abandoned:
+its identity, a data of the project, entered without a current revision (H-02, #1782)."""
+
+
+def risk_updated_without_current_revision() -> JsonObject:
+    """Return what updateRisk answers on the rework of the wiring, the revision 102 just abandoned.
+
+    The project of ``project_without_current_revision``: the risk back at its evaluation in the
+    reference 101, the last marked revision — its review of 12 January, its own structure there,
+    its line of provision under the task that bore it —, its actions of mitigation entered. No
+    revision is created, nothing enters the history of undo; its counter, never going back, goes
+    on past its four versions of today, one for the abandon, one for this modification (H-02,
+    #1782; ``abandonRevision``).
+    """
+    marked = AMENDMENT_MERGED.instant
+    own = next(
+        structure["structure_id"]
+        for structure in fixture("structures_amendments")
+        if structure.get("risk_id") == universe(REWORK.number)
+    )
+    reverted = replace(
+        REWORK,
+        mitigation_notes=UNVERSIONED_MITIGATION,
+        reviews=tuple(review for review in REWORK.reviews if review.at <= marked),
+    )
+    rows = {row.number: row for row in reference_rows()}
+    bearer = cast("int", rows[cast("int", REWORK.reference_provision_line)].parent)
+    item = risk_item(reverted, _budget(), bearer)
+    audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
+    return {
+        **item,
+        "structure_id": own,
+        "provision_task": {"node_id": universe(bearer), "label": rows[bearer].label},
+        "audit": audit,
+        "lock_version": len(REWORK.reviews) + 3,
+    }
+
+
+def risk_provision_moved() -> JsonObject:
+    """Return what updateRiskProvision answers when that risk moves its provision to the mounting.
+
+    It follows the modification (``risk_updated``), one version further, the counter of the risk
+    being one (H-02, #1782); its line stays its line, the provision unchanged (WF-RIS-0010).
     """
     changed = replace(DECLARED, mitigation_notes=MITIGATION)
     item = risk_item(changed, _budget(), DESIGNATED)
     audit = {**cast("JsonObject", item["audit"]), "updated_at": stamp(MODIFIED_AT)}
-    return {**item, "audit": audit, "lock_version": 2}
+    return {**item, "audit": audit, "lock_version": 3}
 
 
 def _reviewed(risk: Risk, state: str) -> Risk:
@@ -258,11 +324,221 @@ def nodes_move_provision_refused() -> JsonObject:
     }
 
 
+REESTIMATED_PROVISION_CORRELATION = universe(1074)
+
+
+def remaining_provision_refused() -> JsonObject:
+    """Return what setLineRemaining answers to the line of provision of the rework re-estimated.
+
+    A line of provision is never re-estimated: its amount is the one its risk computes, and its
+    node says so by the condition it lacks (`remaining_entry`, WF-RIS-0010, WF-RAE-0010).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    facet = cast("JsonObject", rows[cast("int", REWORK.provision_line)].node["estimate_line"])
+    entry = cast("JsonObject", facet["remaining_entry"])
+    if entry["missing_conditions"] != ["line_not_provision"]:
+        message = "the line of provision of the rework does not lack line_not_provision alone"
+        raise ValueError(message)
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": "line_not_provision"},
+        "correlation_id": REESTIMATED_PROVISION_CORRELATION,
+    }
+
+
+# --- The report before the occurrence ----------------------------------------------------------
+
+OCCURRING = REWORK
+"""The risk whose occurrence the report describes: the rework of the wiring, identified, its own
+estimate the structure 204 (``mockwitness.REWORK_ESTIMATE``, US-0680)."""
+
+NOT_IDENTIFIED = AUTOMATION_ENGINEER
+"""The risk whose report and occurrence are refused: the unavailability of the automation engineer,
+dismissed on 2 February (WF-RIS-0020)."""
+
+NOT_IDENTIFIED_CORRELATION = universe(1591)
+STALE_CORRELATION = universe(1592)
+
+READ = ("main_structure_lock_version", "risk_lock_version", "creates_current_revision")
+"""What the confirmation returns of the report, as it read it (`RiskOccurrence`)."""
+
+SCHEDULE = ("duration", "start", "finish")
+"""What the occurrence may change of the task that bore the line of provision, in the order of
+`NodeColumn`: its dates and its duration, a summary spanning its subordinates (WF-PLA-0040)."""
+SCHEDULE_SAID = {"duration": "sa durée", "start": "son début", "finish": "sa fin"}
+
+
+def risk_estimate() -> list[mockcore.Row]:
+    """Return the own estimate of the rework of the wiring read today, dated and priced.
+
+    It has no previous review: an own estimate has no remaining to commit (WF-RAE-0040).
+    """
+    return mockcore.opened(mockcore.core(REWORK_ESTIMATE))
+
+
+def nodes_risk_estimate() -> JsonObject:
+    """Return what listNodes answers of the own estimate of the rework, the structure 204.
+
+    Every node, every total; its tasks name neither a lot, nor a post, nor an inscription among the
+    fields they accept, those being the main structure's alone (WF-PLA-0170), and no node is marked,
+    an own estimate being read against nothing (`Node.difference`).
+    """
+    answer = mockcore.whole(risk_estimate())
+    items = [
+        {
+            **node,
+            "editable_fields": [
+                field
+                for field in cast("list[JsonValue]", node["editable_fields"])
+                if field not in mockamendment.MAIN_ONLY
+            ],
+        }
+        for node in cast("list[JsonObject]", answer["items"])
+    ]
+    return {**answer, "items": cast("list[JsonValue]", items)}
+
+
+def bearer() -> mockcore.Row:
+    """Return the task of the main structure that bears the line of provision of the rework.
+
+    Not a milestone: the tasks of the own estimate go under it, in last position, and not after it
+    (WF-RIS-0060).
+    """
+    rows = {row.number: row for row in mockcore.current()}
+    task = rows[cast("int", rows[cast("int", OCCURRING.provision_line)].parent)]
+    if cast("JsonObject", task.node["task"])["is_milestone"]:
+        message = f"the task {task.number} that bears the provision is a milestone"
+        raise ValueError(message)
+    return task
+
+
+def bearer_changes() -> list[JsonValue]:
+    """Return what the occurrence changes of the task that bears the provision, as columns.
+
+    It becomes a summary of the tasks of the own estimate, which keep the dates they had there
+    (WF-RIS-0060): its dates span theirs, and its duration is the work between them on its own
+    calendar, that of the lines it bears (WF-PLA-0040).
+    """
+    was = mockdating.schedule(described())[bearer().number]
+    placed = mockdating.schedule(REWORK_ESTIMATE).values()
+    start = min(each.start for each in placed)
+    finish = max(each.finish for each in placed)
+    changed = {
+        "duration": was.calendar.work_between(start, finish) != was.hours,
+        "start": start != was.start,
+        "finish": finish != was.finish,
+    }
+    return [name for name in SCHEDULE if changed[name]]
+
+
+def _difference(change: str, row: mockcore.Row, fields: list[JsonValue]) -> JsonObject:
+    """Return a node added, updated or removed, as the report of a merge names it."""
+    return {
+        "change": change,
+        "target": row.kind,
+        "lineage_id": None if change == "added" else lineage_id(row.number),
+        "label": row.label,
+        "predecessor_label": None,
+        "fields": fields,
+    }
+
+
+def risk_occurrence_report() -> JsonObject:
+    """Return what getRiskOccurrenceReport answers of the rework of the wiring (WF-RIS-0060).
+
+    The tasks and the lines of its own estimate added under the task that bears its provision, in
+    the order of its plan; that task modified, become their summary; the line of provision
+    withdrawn, and its amount withdrawn from the remaining to commit; nothing refusing it. The
+    counters read: the main structure's, as `structures` lists it, and the risk's, as the register
+    reads it; the witness has a current revision, the 102, which the occurrence does not create
+    (WF-RIS-0060, WF-REV-0010). An added node has no lineage in the main structure yet; the links
+    within the own estimate come with its tasks, as those of the tasks an amendment adds
+    (``mockamendment``).
+    """
+    main = {row.number: row for row in mockcore.current()}
+    differences: list[JsonValue] = [_difference("added", row, []) for row in risk_estimate()]
+    differences.append(_difference("updated", bearer(), bearer_changes()))
+    line = main[cast("int", OCCURRING.provision_line)]
+    differences.append(_difference("removed", line, []))
+    risk = risk_item(OCCURRING, _budget())
+    return {
+        "main_structure_lock_version": mockamendment.structure("main")["lock_version"],
+        "risk_lock_version": risk["lock_version"],
+        "creates_current_revision": False,
+        "differences": differences,
+        "provision_amount": risk["provision_amount"],
+        "refusals": [],
+    }
+
+
+def risk_occurrence_sent() -> JsonObject:
+    """Return the confirmation of the occurrence of the rework, as its report read it.
+
+    It returns the two counters and ``creates_current_revision`` of ``risk_occurrence_report`` as
+    they were read (WF-IHM-0110).
+    """
+    report = risk_occurrence_report()
+    return {"confirmed": True, **{name: report[name] for name in READ}}
+
+
+def risk_occurrence_not_identified() -> JsonObject:
+    """Return the refusal of the report, and of the occurrence, of a risk not identified.
+
+    The condition its command ``declare_occurrence`` says it lacks (WF-RIS-0020, WF-IHM-0090).
+    """
+    item = risk_item(NOT_IDENTIFIED, _budget())
+    [command] = [
+        each
+        for each in cast("list[JsonObject]", item["available_commands"])
+        if each["command"] == "declare_occurrence"
+    ]
+    [condition] = cast("list[JsonValue]", command["missing_conditions"])
+    return {
+        "code": "STATE_FORBIDS_OPERATION",
+        "status": 409,
+        "params": {"missing_condition": condition},
+        "correlation_id": NOT_IDENTIFIED_CORRELATION,
+    }
+
+
+def risk_occurrence_report_stale() -> JsonObject:
+    """Return the refusal of an occurrence confirmed with the counters of a stale report.
+
+    The report read before the review of the risk of 2 March, which advanced its counter: the
+    version returned is the risk's, the object the path names, and nothing else, as every 412
+    (#296, WF-IHM-0110). The main structure is at its first version: no earlier report read it.
+    """
+    return {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": risk_item(OCCURRING, _budget())["lock_version"]},
+        "correlation_id": STALE_CORRELATION,
+    }
+
+
 # --- The examples ------------------------------------------------------------------------------
 
 
 def _task_label(item: JsonObject) -> str:
     return cast("str", cast("JsonObject", item["provision_task"])["label"])
+
+
+def _without_current_revision_example() -> JsonObject:
+    """Return the example of the modification of an identity without a current revision."""
+    item = risk_updated_without_current_revision()
+    return mocktext.example(
+        f"« {REWORK.label} », modifié aujourd'hui sur le projet sans révision en cours "
+        f"(project_without_current_revision), la révision 102 abandonnée à 14 h 05 : ses "
+        f"actions de mitigation saisies, une donnée du projet. Aucune révision n'est créée, et "
+        f"la modification n'entre dans aucun historique d'annulation. Le risque se lit tel que "
+        f"la dernière révision marquée, la référence 101, le porte, l'abandon l'y ayant rendu : "
+        f"son évaluation du {mocktext.day(REWORK.reviews[0].at.date())}, sa structure propre de "
+        f"la référence et sa ligne de provision sous « {_task_label(item)} ». Son compteur, qui "
+        f"ne revient jamais en arrière, avance d'une version pour l'abandon et d'une pour la "
+        f"modification (WF-RIS-0020, #1782).",
+        item,
+    )
 
 
 def _reviews_examples() -> dict[str, JsonObject]:
@@ -315,9 +591,81 @@ def _reviews_examples() -> dict[str, JsonObject]:
     }
 
 
+def _occurrence_examples() -> dict[str, JsonObject]:
+    """Return the named examples of the occurrence of a risk before its confirmation."""
+    estimate = nodes_risk_estimate()
+    report = risk_occurrence_report()
+    tasks = [row for row in risk_estimate() if row.kind == mockcore.TASK]
+    said = mocktext.listed([f"« {row.label} »" for row in tasks])
+    entered = next(each.manual for each in REWORK_ESTIMATE if each.manual is not None)
+    task = bearer()
+    main = {row.number: row for row in mockcore.current()}
+    line = main[cast("int", OCCURRING.provision_line)]
+    changed = mocktext.listed([SCHEDULE_SAID[cast("str", name)] for name in bearer_changes()])
+    severity = cast("JsonObject", estimate["totals"])["reestimated_amount"]
+    reviewed = NOT_IDENTIFIED.last.at.date()
+    return {
+        "nodes_risk_estimate.json": mocktext.example(
+            f"Le devis propre de « {OCCURRING.label} », structure {OCCURRING.own_structure} de la "
+            f"révision courante, lu le {mocktext.day(mockcore.READ_ON)} : {said}, sous-traitées, "
+            f"la première en mode manuel du {mocktext.day(entered[0])} au "
+            f"{mocktext.day(entered[1])}, la seconde à sa suite ; leur total, "
+            f"{mocktext.amount(Decimal(cast('str', severity)))}, est la gravité du risque "
+            f"(risk). Les tâches n'y portent ni lot, ni poste, ni "
+            f"inscription, et ne les nomment pas parmi les champs qu'elles acceptent ; aucun nœud "
+            f"n'est marqué, le devis propre ne se lisant contre rien (WF-RIS-0010, WF-RIS-0030, "
+            f"WF-PLA-0170, US-0680).",
+            estimate,
+        ),
+        "risk_occurrence_report.json": mocktext.example(
+            f"Le compte rendu préalable de la survenance de « {OCCURRING.label} », risque "
+            f"identifié du témoin : {said}, avec leurs lignes, ajoutées en dernière position sous "
+            f"le « {task.label} », qui "
+            f"portait la ligne de provision et n'est pas un jalon (nodes_risk_estimate) ; le "
+            f"« {task.label} » modifié par {changed}, devenu la récapitulative de ces tâches, "
+            f"dont il couvre les dates ; la ligne « "
+            f"{line.label} » retirée, et sa provision de "
+            f"{mocktext.amount(Decimal(cast('str', report['provision_amount'])))} retirée du "
+            f"reste à engager ; aucun motif de refus. Rien n'est écrit : la confirmation, qui "
+            f"renverra les compteurs lus — celui de la structure principale, "
+            f"{report['main_structure_lock_version']}, comme `structures` le dit, et celui du "
+            f"risque, {report['risk_lock_version']}, comme `risk` le dit, et "
+            f"creates_current_revision faux, la révision en cours existant déjà —, est offerte "
+            f"(risk_occurrence_sent ; WF-RIS-0060, WF-IHM-0110, #1383).",
+            report,
+        ),
+        "risk_occurrence_sent.json": mocktext.example(
+            f"La confirmation de la survenance de « {OCCURRING.label} », après son compte rendu "
+            f"(risk_occurrence_report) : elle renvoie ce qu'il a lu, tel quel — le compteur de "
+            f"la structure principale, {report['main_structure_lock_version']}, celui du risque, "
+            f"{report['risk_lock_version']}, et creates_current_revision faux, le projet ayant "
+            f"une révision en cours, que la survenance ne crée donc pas. Lu vrai, faute de "
+            f"révision en cours, il ferait refuser la confirmation par 412 si une révision en "
+            f"cours était née depuis la lecture (WF-RIS-0060, WF-REV-0010, WF-IHM-0110).",
+            risk_occurrence_sent(),
+        ),
+        "risk_occurrence_not_identified.json": mocktext.example(
+            f"Le compte rendu de la survenance de « {NOT_IDENTIFIED.label} », écarté le "
+            f"{mocktext.day(reviewed)}, ou sa survenance, demandés aujourd'hui : seul un risque "
+            f"identifié survient, et la commande declare_occurrence du risque nomme la condition "
+            f"qui manque (risks). Rien n'est lu ni écrit (WF-RIS-0020, WF-IHM-0090, #1383).",
+            risk_occurrence_not_identified(),
+        ),
+        "risk_occurrence_report_stale.json": mocktext.example(
+            f"La survenance de « {OCCURRING.label} » confirmée aujourd'hui avec les compteurs "
+            f"d'un compte rendu lu avant son réexamen du "
+            f"{mocktext.day(OCCURRING.last.at.date())}, qui l'a fait avancer : le compte rendu "
+            f"est périmé, rien n'est fusionné, et la version courante du risque, l'objet que le "
+            f"chemin nomme, est rendue ; l'écran propose de relire le compte rendu (WF-RIS-0060, "
+            f"WF-IHM-0110, #1383).",
+            risk_occurrence_report_stale(),
+        ),
+    }
+
+
 def examples() -> dict[str, JsonObject]:
     """Return the named examples of the entries of a risk, by file name."""
-    created, updated = risk_created(), risk_updated()
+    created, updated, moved = risk_created(), risk_updated(), risk_provision_moved()
     rows = {row.number: row for row in mockamendment.rows()}
     main = {row.number: row for row in mockcore.current()}
     provision = main[cast("int", REWORK.provision_line)]
@@ -341,11 +689,20 @@ def examples() -> dict[str, JsonObject]:
         ),
         "risk_updated.json": mocktext.example(
             f"« {DECLARED.label} », déclaré aujourd'hui (risk_created), modifié : ses actions de "
-            f"mitigation saisies, et sa ligne de provision déplacée sur la tâche que le formulaire "
-            f"désigne, « {_task_label(updated)} » (provision_task_id), le total du devis "
-            f"inchangé ; une version de plus, modifié après sa déclaration (audit.updated_at ; "
-            f"WF-RIS-0010, #786).",
+            f"mitigation saisies, une donnée du projet — ni révision créée, ni annulation, ni "
+            f"abandon qui la défasse —, sa ligne de provision toujours portée par « "
+            f"{_task_label(updated)} » ; une version de plus, modifié après sa déclaration "
+            f"(audit.updated_at ; WF-RIS-0020, #1782).",
             updated,
+        ),
+        "risk_updated_without_current_revision.json": _without_current_revision_example(),
+        "risk_provision_moved.json": mocktext.example(
+            f"« {DECLARED.label} », modifié (risk_updated), sa provision changée : sa ligne "
+            f"déplacée sur la tâche que le formulaire désigne, « {_task_label(moved)} » "
+            f"(provision_task_id), le total du devis inchangé ; une saisie de la révision en "
+            f"cours, annulable et que l'abandon défait ; une version de plus, le même compteur "
+            f"que la modification de son identité (WF-RIS-0010, WF-RIS-0020, #786, #1782).",
+            moved,
         ),
         **_reviews_examples(),
         "task_occurrence_queued.json": mocktext.example(
@@ -372,4 +729,13 @@ def examples() -> dict[str, JsonObject]:
             f"(WF-RIS-0010, #1227).",
             nodes_move_provision_refused(),
         ),
+        "remaining_provision_refused.json": mocktext.example(
+            f"La ligne de provision de « {REWORK.label} », « {provision.label} », réestimée dans "
+            f"la grille de reste à engager : son montant est celui que son risque calcule, et le "
+            f"reste à engager le compte pour ce montant ; la ligne le disait "
+            f"(remaining_entry), et la saisie est refusée, la condition nommée ; rien n'est "
+            f"écrit (WF-RIS-0010, WF-RAE-0010).",
+            remaining_provision_refused(),
+        ),
+        **_occurrence_examples(),
     }

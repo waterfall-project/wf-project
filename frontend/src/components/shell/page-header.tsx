@@ -109,9 +109,14 @@ export function PageHeader({
             {title}
           </h1>
           {helped ? (
-            <span className="ml-2 inline-flex h-[1lh] items-center align-top empty:hidden">
-              <HelpPanel />
-            </span>
+            // A space, not a margin: at the end of a line it collapses, so that a button the last
+            // line of the title has no room for goes to the next line with no indent.
+            <>
+              {" "}
+              <span className="inline-flex h-[1lh] items-center align-top empty:hidden">
+                <HelpPanel />
+              </span>
+            </>
           ) : null}
         </div>
         {subtitle === undefined ? null : (

@@ -32,6 +32,7 @@ Tick what applies; delete the sections that do not.
 - [ ] this pull request targets its epic's branch, `epic/EP-nn`, and names its lot issue: `[US-nnnn/Ln]`, or `[US-nnnn]` for a story of a single lot
 - [ ] each acceptance criterion the lot closes is listed with the test that carries it, and that test cites the requirement
 - [ ] the real size of the lot, from `make lot-size`, is given next to the estimate of its issue; the target is in `docs/roadmap/README.md`, section « Lots »
+- [ ] a `README-fr.md` of `docs/` changed by this lot has the same change, translated, in its neighbouring `README.md`; `make readmes` passes
 - [ ] review findings outside the lot's scope were opened as sub-issues of the lot, `[EP-nn] <nature> : …`, each with its decision, not fixed here
 - [ ] the chain passes, and nothing in the epic's branch is left half-built by this merge
 

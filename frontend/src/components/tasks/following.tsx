@@ -26,8 +26,12 @@ export function Following({
   readonly task: BackgroundTask;
   /** What the command was about or what the user named it, shown as it was typed. */
   readonly subject: string;
-  /** The command that started the task, which a failed task runs again. */
-  readonly command: TaskCommand;
+  /**
+   * The command that started the task, which a failed task runs again; none when running it again
+   * would confirm what the user has not been shown anew (the occurrence of a risk): the entry then
+   * says to start it again from the screen of its object.
+   */
+  readonly command?: TaskCommand | undefined;
   readonly onSucceeded: () => void;
 }) {
   const router = useRouter();

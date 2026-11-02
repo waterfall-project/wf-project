@@ -186,7 +186,6 @@ describe("the tracking of the milestones", () => {
     ]);
     // A milestone that holds draws a horizontal line; one completed ends on the diagonal.
     expect(series[0]?.data).toEqual([
-      ["2025-12-15T16:00:00Z", "2026-04-24T00:00:00Z"],
       ["2026-02-01T09:00:00Z", "2026-04-24T00:00:00Z"],
       ["2026-04-24T00:00:00Z", "2026-04-24T00:00:00Z"],
     ]);
@@ -195,7 +194,7 @@ describe("the tracking of the milestones", () => {
       ["2026-06-03T14:05:00Z", "2026-06-30T00:00:00Z"],
     ]);
     expect(series[2]?.data).toEqual([
-      ["2025-12-15T16:00:00Z", "2025-12-15T16:00:00Z"],
+      ["2026-02-01T09:00:00Z", "2026-02-01T09:00:00Z"],
       ["2026-06-03T14:05:00Z", "2026-06-03T14:05:00Z"],
     ]);
     expect(series.map((each) => each.endLabel?.show)).toEqual([true, true, true]);
@@ -219,7 +218,7 @@ describe("the tracking of the milestones", () => {
         (point) => `Réception usine${at(point)}30 Jun 2026Not completed`,
       ),
     ]);
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(4);
     const figure = screen.getByRole("figure", { name: "Time/time diagram" });
     expect(figure.querySelector("time")).toHaveAttribute("datetime", TRACKING.context.computed_at);
     await expectAccessible(container);
@@ -235,7 +234,7 @@ describe("the tracking of the milestones", () => {
     const tracking = {
       ...TRACKING,
       milestones: [
-        { ...studies, points: studies.points.slice(2) },
+        { ...studies, points: studies.points.slice(1) },
         { ...factory, points: [...factory.points].reverse() },
       ],
     };
@@ -254,12 +253,10 @@ describe("the tracking of the milestones", () => {
     expect(option?.useUTC).toBe(true);
     const yAxis = option?.yAxis as { axisLabel: { formatter: (value: number) => string } };
     expect(yAxis.axisLabel.formatter(Date.parse("2026-05-01T00:00:00Z"))).toBe("May 2026");
-    // The markings run from 15 December to 3 June: a tick on the first of each month, from
-    // December to July, in UTC.
+    // The markings run from 1 February to 3 June: a tick on the first of each month, from
+    // February to July, in UTC.
     const xAxis = option?.xAxis as { axisLabel: { customValues: number[] }; min: number };
     expect(xAxis.axisLabel.customValues.map((tick) => new Date(tick).toISOString())).toEqual([
-      "2025-12-01T00:00:00.000Z",
-      "2026-01-01T00:00:00.000Z",
       "2026-02-01T00:00:00.000Z",
       "2026-03-01T00:00:00.000Z",
       "2026-04-01T00:00:00.000Z",
@@ -267,7 +264,7 @@ describe("the tracking of the milestones", () => {
       "2026-06-01T00:00:00.000Z",
       "2026-07-01T00:00:00.000Z",
     ]);
-    expect(xAxis.min).toBe(Date.parse("2025-12-01T00:00:00Z"));
+    expect(xAxis.min).toBe(Date.parse("2026-02-01T00:00:00Z"));
   });
 });
 
@@ -308,12 +305,12 @@ describe("the cumulative curves", () => {
       "Steps of the reference budget",
     ]);
     expect(series[1]?.data?.slice(-2)).toEqual([
-      ["2026-06-01T00:00:00Z", "1412970.20"],
+      ["2026-05-31T00:00:00Z", "1285933.73"],
       ["2026-06-03T00:00:00Z", "1412970.20"],
     ]);
     expect(series[2]?.data?.[0]).toEqual(["2026-06-03T00:00:00Z", "1412970.20"]);
-    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "68705998.92"]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
+    expect(series[2]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68883103.18"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68241568.05"]);
     // The actual cost cumulates dated documents: by steps; the budget and the projection, spread
     // over durations, by lines.
     expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
@@ -340,7 +337,7 @@ describe("the cumulative curves", () => {
       ["Amendment", "2026-03-10T00:00:00Z"],
     ]);
     // The step is vertical: the curve bears the budget before and after it at its date.
-    expect(lastSeries()[0]?.data?.slice(3, 5)).toEqual([
+    expect(lastSeries()[0]?.data?.slice(4, 6)).toEqual([
       ["2026-03-10T00:00:00Z", "23333.33"],
       ["2026-03-10T00:00:00Z", "26833.33"],
     ]);
@@ -361,12 +358,12 @@ describe("the cumulative curves", () => {
   });
 
   it("lists the cash out by month the API gives with the payment delays, the shifted points as given [WF-IND-0100-A]", () => {
-    // The first points of each series, the months of the cash out entire: the two thousand points
+    // The first six points of each series, the months of the cash out entire: the two thousand points
     // of the example are as many rows of the table of the values, which this test does not read
     // (docs/dev/typescript.md, defect 23).
     const { data } = curves("cost_curve_payment_delays", (data) => ({
       ...data,
-      series: data.series.map((series) => ({ ...series, points: series.points.slice(0, 3) })),
+      series: data.series.map((series) => ({ ...series, points: series.points.slice(0, 6) })),
     }));
     // The studies, paid a month after their work: nothing paid out by the end of March.
     expect(lastSeries()[0]?.data).toContainEqual(["2026-03-31T00:00:00Z", "0.00"]);
@@ -381,7 +378,7 @@ describe("the cumulative curves", () => {
       "March 20261,400.000.00",
       "April 2026101,600.000.00",
       "May 20261,182,933.730.00",
-      "June 2026127,036.47673,290.61",
+      "June 2026127,036.47675,512.54",
     ]);
     expect(data.cash_out_by_month).toHaveLength(43);
   });
@@ -409,7 +406,7 @@ describe("the cumulative curves", () => {
       "Earned value",
       "Actual cost",
     ]);
-    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-30T00:00:00Z", "65430697.64"]);
+    expect(series[0]?.data?.at(-1)).toEqual(["2029-08-31T00:00:00Z", "68241568.05"]);
     expect(series[1]?.data?.at(-1)).toEqual(["2026-06-03T00:00:00Z", "1449858.33"]);
     // A task completed makes a step in the earned value at its date, as the actual cost at the
     // date of a document: both by steps, the planned value by a line.

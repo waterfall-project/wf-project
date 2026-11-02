@@ -1,0 +1,17 @@
+{
+  "summary": "La correspondance du témoin envoyée aujourd'hui avec « Élément d'OTP » déclarée conservée après « Fournisseur » et « Texte de commande », comme le témoin le faisait avant EP-16 : refusée, l'intitulé, comparé sans égard aux accents, doublant celui de l'élément d'OTP, une colonne lue ; l'intitulé en double désigné, celui qu'il double nommé. Rien n'est écrit (WF-REF-0190).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/kept_columns/2",
+        "code": "DUPLICATE_COLUMN_LABEL",
+        "params": {
+          "duplicate_of": "/columns/0/labels/0"
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001546"
+  }
+}

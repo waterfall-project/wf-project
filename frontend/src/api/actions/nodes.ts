@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The server actions of the nodes of a structure — what a computed value depends on
- * (`getComputedValueDependencies`), a cell entered in a grid (`updateTaskFacet`,
+ * (`getComputedValueDependencies`), the node a row number names (`resolveRowNumber`), a cell
+ * entered in a grid (`updateTaskFacet`,
  * `updateEstimateLine`, `setLineRemaining`), the state of a task a card of the Kanban sends
  * (`setTaskProgress`), the predecessors of a task (`setPredecessors`), a
  * task or a line created and a node deleted
@@ -10,11 +11,14 @@
  * inscribed to (`setNodeTracking`), a block pasted from a
  * spreadsheet (`previewPaste`, `applyPaste`), the totals of a filtered reading read anew
  * (`listNodes`), the skeleton of the planning generated on an empty main structure
- * (`generatePlanningSkeleton`) —: the grid asks the server of Next,
+ * (`generatePlanningSkeleton`), the planning start date of a structure written (`updateStructure`)
+ * —: the grid asks the server of Next,
  * which calls the API (§4.3.1), and gets back the outcome the one decoder makes of its answer
  * (`src/api/problem.ts`).
  */
 "use server";
+
+import { refresh } from "next/cache";
 
 import type { components, operations } from "@/api/generated/schema";
 import { decode, type Outcome } from "@/api/problem";
@@ -66,6 +70,23 @@ export async function readComputedDependencies(
     serverClient().GET(
       "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes/{node_id}/dependencies",
       { params: { ...nodePath(structure, nodeId).params, query: { field } } },
+    ),
+  );
+}
+
+/**
+ * Read the node a row number names in the numbering of the whole structure, whatever the search and
+ * the filters of the grid (`resolveRowNumber`, US-0650): its identifier, its label and its kind — or
+ * 404 `NOT_FOUND` for a number no node bears.
+ */
+export async function resolveRowNumber(
+  structure: StructurePath,
+  rowNumber: number,
+): Promise<Outcome<components["schemas"]["RowNumberResolution"]>> {
+  return decode(() =>
+    serverClient().GET(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/rows/{row_number}",
+      { params: { path: { ...structure, row_number: rowNumber } } },
     ),
   );
 }
@@ -325,4 +346,27 @@ export async function generatePlanningSkeleton(
       params: { path: { project_id: projectId, revision_id: revisionId } },
     }),
   );
+}
+
+/**
+ * Write the planning start date of a structure, with the version of the structure read (WF-PLA-0020):
+ * the API answers the tasks it redates, their amounts and the totals, with the version the structure
+ * moved on to — or refuses a day without a working hour (422 `NON_WORKING_DAY`, at `/planning_start_on`)
+ * or a version it no longer has. The page is read anew once it is written: the tasks it redates are
+ * the server's again, in the grid and in the Gantt.
+ */
+export async function updateStructure(
+  structure: StructurePath,
+  update: components["schemas"]["StructureUpdate"],
+): Promise<Outcome<NodesWritten>> {
+  const outcome = await decode(() =>
+    serverClient().PATCH(
+      "/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}",
+      { params: { path: structure }, body: update },
+    ),
+  );
+  if (outcome.kind === "done") {
+    refresh();
+  }
+  return outcome;
 }

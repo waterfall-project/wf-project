@@ -7,8 +7,9 @@
  * (WF-RIS-0030): the banner of the reading context (WF-IHM-0020); the totals of the provisions
  * of the risks retained, by state and their general total, with the risk reserve of the reference
  * revision; the coverage of the risks in the revision (`getProjectRiskCoverage`, WF-RIS-0050); the
- * filter by state; the grid of the risks, sorted, searched and filtered by the server as the
- * address asks (`sort_by`, `search`, `states`, under the names of the contract); the risk matrix
+ * filter by state; the grid of the risks, a page of them, sorted, searched, filtered and paged by
+ * the server as the address asks (`sort_by`, `search`, `states`, `limit`, `offset`, under the names
+ * of the contract), with its pages and « Lignes par page » under it; the risk matrix
  * of the revision; and, when the address names one (`risk`), the detail of a risk — its notes, its
  * provision line, the history of its reviews. Every figure as the API gives it: the front
  * computes, sorts and filters nothing. A read the API refuses, or cannot answer, is thrown for the
@@ -24,10 +25,24 @@ import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
 import { type ProjectReading, readProjectContext } from "@/components/context/reading";
+import { readPage } from "@/components/costs/address";
 import { readValues } from "@/components/grid/filters";
+import { ListPages } from "@/components/grid/list-pages";
 import { PendingAddress } from "@/components/grid/pending-address";
-import { type GridQuery, readGridQuery } from "@/components/grid/query";
-import { readRisk, RISK_STATES, type RiskState, STATES } from "@/components/risks/address";
+import {
+  CONTRACT_ADDRESS,
+  limited,
+  OFFSET,
+  type GridQuery,
+  readGridQuery,
+} from "@/components/grid/query";
+import {
+  readRisk,
+  RISK_STATES,
+  RISKS_LIST,
+  type RiskState,
+  STATES,
+} from "@/components/risks/address";
 import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
@@ -49,6 +64,7 @@ import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-di
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
+import type { ListPage } from "@/navigation/pages";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../../../title";
@@ -66,22 +82,26 @@ export async function generateMetadata({
 }
 
 /**
- * The risks of the revision as the address asks them — sorted, searched, filtered on states —,
- * and the totals of their provisions, those of the risks retained; of each risk, the fields the
- * grid reads alone (`riskRow`).
+ * A page of the risks of the revision as the address asks it — sorted, searched, filtered on
+ * states, from its place —, and the totals of their provisions, those of every risk retained, not
+ * of the page; of each risk, the fields the grid reads alone (`riskRow`).
  */
 async function readRisks(
-  { revision }: GridAddress,
+  { revision, address }: GridAddress,
   states: readonly RiskState[],
   asked: Promise<GridQuery<RiskSortColumn>>,
-): Promise<RiskRows> {
-  const { sort, search } = await asked;
+): Promise<RiskRows & { readonly page: ListPage }> {
+  const query = await asked;
+  const { sort, search } = query;
+  const offset = readPage(address, OFFSET);
   const answer = await readOrFail("listRisks", () =>
     serverClient().GET("/projects/{project_id}/risks", {
       params: {
         path: { project_id: revision.projectId },
         query: {
           revision_id: revision.revisionId,
+          ...limited(query),
+          ...(offset === 0 ? {} : { offset }),
           ...(states.length === 0 ? {} : { states: [...states] }),
           ...(search === undefined ? {} : { search }),
           ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
@@ -89,7 +109,7 @@ async function readRisks(
       },
     }),
   );
-  return { items: answer.items.map(riskRow), totals: answer.totals };
+  return { items: answer.items.map(riskRow), totals: answer.totals, page: answer.meta };
 }
 
 /** The coverage of the risks in the revision: the reserve against what the risks cost. */
@@ -206,7 +226,9 @@ export default async function RisksPage({
   const settings = session.then(
     (kept) => kept?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
   );
-  const asked = settings.then((kept) => readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort));
+  const asked = settings.then((kept) =>
+    readGridQuery(at.address, RISK_SORT_COLUMNS, kept?.sort, CONTRACT_ADDRESS, kept?.page_size),
+  );
   // The risks take neither a sub-project nor a date: the banner shows no filter (#302).
   const reading = readProjectContext(at.pathname, at.context, []);
   // « Identifier un risque » as the revision lists `declare_risk`, and the modification and the review
@@ -253,7 +275,7 @@ export default async function RisksPage({
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.risks} fillWide>
           <RisksHeader
-            count={risks.items.length}
+            count={risks.page.total}
             actions={
               <IdentifyRisk
                 projectId={at.revision.projectId}
@@ -282,8 +304,14 @@ export default async function RisksPage({
           <div
             className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
           >
-            <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1">
+            <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
               <RisksGrid risks={risks} query={query} preferences={preferences} />
+              <ListPages
+                list={RISKS_LIST}
+                texts="risks.pages"
+                page={risks.page}
+                shown={risks.items.length}
+              />
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">

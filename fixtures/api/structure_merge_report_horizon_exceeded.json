@@ -1,0 +1,32 @@
+{
+  "summary": "Une variante déclarée, celle de task_merge_horizon_exceeded : un différentiel de la révision courante qui allonge la « Mise en service » de deux cents mois de travail. Le compte rendu préalable de sa fusion présente la tâche modifiée par sa durée, et le motif qui la refuse : la durée du projet, du début des « Études » le 2 mars 2026 à la fin de la dernière tâche, dépasserait quinze ans, et le compte rendu nomme la tâche de la structure fusionnée qui finit la dernière hors récapitulatives, la « Mise en service », par son nœud et son libellé, comme l'échec de la fusion le ferait ; la confirmation n'est pas offerte. Les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 1 (WF-REV-0050, WF-PLA-0150, #788).",
+  "value": {
+    "main_structure_lock_version": 1,
+    "amendment_lock_version": 1,
+    "creates_current_revision": false,
+    "differences": [
+      {
+        "change": "updated",
+        "target": "task",
+        "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+        "label": "Mise en service",
+        "predecessor_label": null,
+        "fields": [
+          "duration"
+        ]
+      }
+    ],
+    "completed_tasks": [],
+    "refusals": [
+      {
+        "code": "PROJECT_HORIZON_EXCEEDED",
+        "params": {
+          "task": {
+            "node_id": "01926f3a-7c00-7000-8000-000000000565",
+            "label": "Mise en service"
+          }
+        }
+      }
+    ]
+  }
+}

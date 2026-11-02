@@ -1,0 +1,9 @@
+{
+  "summary": "Le compte d'un contributeur désactivé lit son compte avec un jeton encore valable : refusé à chaque requête, ses sessions étant fermées ; le front ne le renvoie pas à une connexion qui bouclerait (WF-ADM-0060, WF-SEC-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "ACCOUNT_DEACTIVATED",
+    "status": 401,
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001630"
+  }
+}

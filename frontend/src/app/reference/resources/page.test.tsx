@@ -25,8 +25,7 @@ type ResourceRole = components["schemas"]["ResourceRole"];
 
 // The settings of the resources, rendered as the server renders them (EP-02, EP-14/L43g, EP-14/L54):
 // what the page asks of each list and shows of it — the categories each saying the type of its
-// nature, and never the natures; the code of the roles it filters on; every role, which names those
-// a refusal gives by their identifiers alone.
+// nature, and never the natures; the code of the roles it filters on.
 const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
   answers: {},
   clients: [],
@@ -77,9 +76,6 @@ vi.mock("next/headers", () => ({
 
 /** A list read whole as a list of choices is: every page, by the largest the contract takes. */
 const WHOLE = { limit: "500", offset: "0" };
-
-/** Every role, deactivated ones too, which a session that writes them reads (EP-14/L54). */
-const EVERY_ROLE = { include_inactive: "true", ...WHOLE };
 
 /** The node of the electrical design office, in the tree of the witness. */
 const BUREAU = "01926f3a-7c00-7000-8000-000000000471";
@@ -193,32 +189,6 @@ describe("the roles", () => {
     expect(queriesOf("GET /reference/resource-roles")[0]).toEqual({ code: "AUT" });
     // The filter shows the code asked, to be changed.
     expect(page).toMatch(/<form aria-label="Code du rôle".*?<input[^>]*value="AUT"/);
-  });
-
-  it("are read every one, the deactivated ones too, for a session that modifies them, and for none other", async () => {
-    // What names the roles a refusal of a calendar gives by their identifiers alone (WF-PLA-0010).
-    await resourcesAt();
-    expect(queriesOf("GET /reference/resource-roles")).toEqual([
-      {},
-      { include_inactive: "true", ...WHOLE },
-    ]);
-    server.clients = [];
-    withdrawn.permissions = ["resource_settings.write"];
-    await resourcesAt();
-    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}]);
-  });
-
-  it("are shown all the same when the API refuses to read every one, their names done without", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/resource-roles": [
-        "resource_roles",
-        { problem: { code: "NOT_FOUND", status: 404 } },
-      ],
-    };
-    const page = await resourcesAt();
-    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}, EVERY_ROLE]);
-    expect(rows(page, "Rôles de ressources").at(-1)).toBe("5 rôles");
   });
 });
 
@@ -392,7 +362,6 @@ describe("the settings of the resources", () => {
         headcount_min: "2",
         offset: "50",
       },
-      EVERY_ROLE,
     ]);
     expect(queriesOf("GET /reference/calendars")).toEqual([
       {
@@ -439,7 +408,6 @@ describe("the settings of the resources", () => {
     });
     expect(queriesOf("GET /reference/resource-roles")).toEqual([
       { include_inactive: "true", monthly_hours_min: "485324.00" },
-      EVERY_ROLE,
     ]);
     const shown = rows(page, "Rôles de ressources");
     expect(shown).toHaveLength(4);
@@ -462,7 +430,6 @@ describe("the settings of the resources", () => {
     });
     expect(queriesOf("GET /reference/resource-roles")).toEqual([
       { monthly_hours_min: "1000", monthly_hours_max: "500" },
-      EVERY_ROLE,
     ]);
     expect(text(page)).toContain(
       "La borne supérieure ne peut précéder la borne inférieure, 1 000. Effectif",
@@ -519,7 +486,7 @@ describe("the settings of the resources", () => {
       org_code: "x".repeat(21),
     });
     expect(queriesOf("GET /reference/org-nodes")).toEqual([{}]);
-    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}, EVERY_ROLE]);
+    expect(queriesOf("GET /reference/resource-roles")).toEqual([{}]);
     expect(queriesOf("GET /reference/calendars")).toEqual([{}, WHOLE]);
   });
 
@@ -582,14 +549,11 @@ describe("the settings of the resources", () => {
     expect(rows(tree, "Arbre d’organisation")).toContain("Aucune ligne ne répond à la demande.");
   });
 
-  it("ask each list its active objects alone when the address does not ask for the deactivated ones, every role read besides, and offer to show them [WF-REF-0150-A]", async () => {
+  it("ask each list its active objects alone when the address does not ask for the deactivated ones, and offer to show them [WF-REF-0150-A]", async () => {
     const page = await resourcesAt();
-    // The roles of the grid without the deactivated ones; every role besides, deactivated ones
-    // too, read to name those a refusal gives by their identifiers alone (EP-14/L54).
+    // The roles of the grid without the deactivated ones, and no list reads them.
     expect(queriesOf("GET /reference/resource-roles")[0]).not.toHaveProperty("include_inactive");
-    expect(LISTS.flatMap(queriesOf).filter((query) => "include_inactive" in query)).toEqual([
-      EVERY_ROLE,
-    ]);
+    expect(LISTS.flatMap(queriesOf).filter((query) => "include_inactive" in query)).toEqual([]);
     expect(page).toMatch(
       /<a[^>]*href="\/reference\/resources\?include_inactive=true"[^>]*>.*?Afficher aussi les désactivés<\/a>/,
     );

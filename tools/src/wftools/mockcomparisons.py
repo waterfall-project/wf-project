@@ -14,7 +14,7 @@ lines (``wftools.sources``).
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from wftools import mockcore, mockdiff, mocktext
 from wftools.mockhistory import (
@@ -45,14 +45,19 @@ from wftools.mockwitness import (
     fixture,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Collection
+
 _amount, _day = mocktext.amount, mocktext.day
 
 
 def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonValue]:
     """Return the deltas of the estimate by nature of cost and by subproject, each named.
 
-    In the order of the identifiers of the natures, then of the subprojects of the universe, those
-    without subproject last (WF-REV-0080, WF-IND-0020).
+    The delta of the budgeted amounts and that of the re-estimated amounts, inflation included,
+    the later's less the earlier's (WF-REV-0080), a key whose two deltas are nil left out. In the
+    order of the identifiers of the natures, then of the subprojects of the universe, those
+    without subproject last (WF-IND-0020).
     """
     natures = {
         nature["cost_type_id"]: nature["label"]
@@ -60,14 +65,19 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
     }
     subprojects = [entry["subproject_id"] for entry in fixture("subprojects")]
     named = labels()
-    by: dict[tuple[str, str], Decimal] = {}
+    nil = (Decimal(0), Decimal(0))
+    by: dict[tuple[str, str], tuple[Decimal, Decimal]] = {}
     for rows, sign in ((before, -1), (after, 1)):
         for row in rows:
             if row.kind != mockcore.ESTIMATE_LINE:
                 continue
             subproject = cast("str | None", estimate_line(row)["subproject_id"]) or "unassigned"
             for key in (("cost_type", nature(row)), ("subproject", subproject)):
-                by[key] = by.get(key, Decimal(0)) + sign * row.amounts.base
+                budgeted, reestimated = by.get(key, nil)
+                by[key] = (
+                    budgeted + sign * row.amounts.budgeted,
+                    reestimated + sign * row.amounts.reestimated,
+                )
     order = [("cost_type", key) for key in natures] + [
         ("subproject", key) for key in [*subprojects, "unassigned"]
     ]
@@ -78,10 +88,11 @@ def _deltas(before: list[mockcore.Row], after: list[mockcore.Row]) -> list[JsonV
             "label": None
             if key == "unassigned"
             else (natures[key] if dimension == "cost_type" else named[key]),
-            "delta": money(by[dimension, key]),
+            "budgeted_delta": money(by[dimension, key][0]),
+            "reestimated_delta": money(by[dimension, key][1]),
         }
         for dimension, key in order
-        if by.get((dimension, key), Decimal(0)) != 0
+        if by.get((dimension, key), nil) != nil
     ]
 
 
@@ -99,8 +110,8 @@ def comparison(
     had (``mockdiff``, C-361); the totals and the meta of the later, as ``listNodes`` gives them,
     the nodes removed not counted, its dates computed when it was marked, after which nothing
     redates it (WF-DAT-0020, #1404), or at the instant of the witness for a revision still in
-    progress, as any reading of such a structure; and the deltas of the estimate at the year of
-    reference, of the lines the reading retains, those removed with them.
+    progress, as any reading of such a structure; and the deltas of the budgeted and of the
+    re-estimated amounts, of the lines the reading retains, those removed with them.
 
     A line is retained by its parent in the later, where the marked tree renders it, and brings
     its whole delta, the later's amount less the earlier's, wherever it was: moved out of the
@@ -135,27 +146,34 @@ def comparison(
     }
 
 
+def by_differences(
+    compared: JsonObject,
+    before: list[mockcore.Row],
+    after: list[mockcore.Row],
+    asked: Collection[str],
+) -> JsonObject:
+    """Return a comparison read by its differences alone, the filter ``difference`` (#1398).
+
+    The nodes whose mark is one of those asked, their ancestors with them (``mockdiff``); the
+    totals and the meta those of the reading without the filter; the deltas those of the lines it
+    retains, its rows ``before`` and ``after``.
+    """
+    nodes = mockdiff.differences(cast("list[JsonObject]", compared["items"]), asked)
+    kept = {cast("str", node["node_id"]) for node in nodes}
+
+    def retained(rows: list[mockcore.Row]) -> list[mockcore.Row]:
+        return [row for row in rows if row.node["node_id"] in kept]
+
+    return {
+        **compared,
+        "items": cast("list[JsonValue]", nodes),
+        "amount_deltas": _deltas(retained(before), retained(after)),
+    }
+
+
 def _label(node: JsonObject) -> str:
     """Return the label of a node rendered whole, from its facet."""
     return cast("str", cast("JsonObject", node[cast("str", node["kind"])])["label"])
-
-
-def _marks(
-    nodes: list[JsonObject],
-) -> tuple[list[JsonObject], list[JsonObject], list[JsonObject], list[JsonObject]]:
-    """Return the nodes of a marked tree added, removed, changed by their values, by their content.
-
-    A task modified with no change of its own is modified by its content alone (``mockdiff``).
-    """
-    added = [node for node in nodes if node["difference"] == mockdiff.ADDED]
-    removed = [node for node in nodes if node["difference"] == mockdiff.REMOVED]
-    modified = [node for node in nodes if node["difference"] == mockdiff.MODIFIED]
-    return (
-        added,
-        removed,
-        [node for node in modified if node["changes"]],
-        [node for node in modified if not node["changes"]],
-    )
 
 
 def _quoted(nodes: list[JsonObject]) -> str:
@@ -167,7 +185,8 @@ def _deltas_text(deltas: list[JsonObject], dimension: str) -> str:
     """Say the deltas of one dimension, each by the label of its key, in the order rendered."""
     return mocktext.listed(
         [
-            f"{_amount(Decimal(cast('str', entry['delta'])))} pour "
+            f"{_amount(Decimal(cast('str', entry['budgeted_delta'])))} budgétés et "
+            f"{_amount(Decimal(cast('str', entry['reestimated_delta'])))} réestimés pour "
             + (
                 "ce qui ne relève d'aucun sous-projet"
                 if entry["label"] is None
@@ -189,11 +208,13 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
     compared = comparison(offer_rows(), rows, OFFER, REFERENCE, N.INSTALLATION)
     nodes = cast("list[JsonObject]", compared["items"])
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
-    added, removed, changed, content = _marks(nodes)
+    added, removed, changed, content = mockdiff.grouped(nodes)
     rerated = (
-        ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre "
-        "et sont réestimées au taux de 2026 de leur catégorie"
-        if all(entry["changes"] == ["reestimated_amount"] for entry in changed)
+        ", lignes de main-d'œuvre que l'avenant ne désigne pas, qui gardent le budget de l'offre, "
+        "sont réestimées au taux de 2026 de leur catégorie — d'une année de référence à l'autre, "
+        "le réestimé vient aussi des taux projetés ou mis à jour (WF-REV-0060, #1754) — et "
+        "changent de sous-projet (`changes` : reestimated_amount, subproject ; #1751)"
+        if all(entry["changes"] == ["reestimated_amount", "subproject"] for entry in changed)
         else ""
     )
     return mocktext.example(
@@ -205,11 +226,15 @@ def comparison_example(rows: list[mockcore.Row]) -> JsonObject:
         f"leur place, en lecture seule, {_quoted(removed)} ; {len(changed)} modifiés par leurs "
         f"propres valeurs, {_quoted(changed)}{rerated} ; et {len(content)} tâches modifiées par "
         f"leur seul contenu, {_quoted(content)} (C-361). Les totaux sont ceux du sous-arbre dans "
-        f"la référence, sans les nœuds retirés ; les écarts du devis à l'année de référence, ceux "
-        f"de ses lignes, retirées comprises, par nature — {_deltas_text(deltas, 'cost_type')} — "
+        f"la référence, sans les nœuds retirés ; les écarts des montants budgétés et réestimés, "
+        f"inflation comprise, ceux de ses lignes, retirées comprises, par nature — "
+        f"{_deltas_text(deltas, 'cost_type')} — "
         f"et par sous-projet — {_deltas_text(deltas, 'subproject')} : l'offre n'en portait aucun, "
         f"les sous-projets ayant été déclarés après la commande, et ses lignes passent de "
-        f"l'ensemble hors sous-projet au sien (WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193).",
+        f"l'ensemble hors sous-projet au sien : chacune compte sous la clé qu'elle porte dans "
+        f"chaque révision, son montant entier en moins hors sous-projet et en plus sous le sien, "
+        f"même inchangé, si bien que la somme des écarts par sous-projet égale celle par nature "
+        f"(WF-REV-0080, WF-DAT-0030, WF-PRJ-0050, #1193, #1751).",
         compared,
     )
 
@@ -227,11 +252,14 @@ def comparison_volume() -> JsonObject:
     """
     compared = comparison(offer_rows(), reference_rows(), OFFER, REFERENCE)
     nodes = cast("list[JsonObject]", compared["items"])
-    added, removed, changed, content = _marks(nodes)
+    added, removed, changed, content = mockdiff.grouped(nodes)
     unchanged = len(nodes) - len(added) - len(removed) - len(changed) - len(content)
     deltas = cast("list[JsonObject]", compared["amount_deltas"])
     by_nature = [entry for entry in deltas if entry["dimension"] == "cost_type"]
-    total = sum((Decimal(cast("str", entry["delta"])) for entry in by_nature), Decimal(0))
+    budgeted, reestimated = (
+        sum((Decimal(cast("str", entry[key])) for entry in by_nature), Decimal(0))
+        for key in ("budgeted_delta", "reestimated_delta")
+    )
     read = mockcore.with_fields(nodes, VOLUME_FIELDS, mockdiff.ALWAYS)
     return mocktext.example(
         f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
@@ -243,9 +271,45 @@ def comparison_volume() -> JsonObject:
         f"à leur place, {mocktext.count(len(changed))} modifiés par leurs propres valeurs, "
         f"{mocktext.count(len(content))} tâches modifiées par leur seul contenu et "
         f"{mocktext.count(unchanged)} inchangés (C-361). Les totaux et la meta sont ceux de "
-        f"`listNodes` sur la référence entière, les écarts du devis à l'année de référence ceux de "
-        f"toute la structure, {_amount(total)} en tout (WF-REV-0080, WF-DAT-0030, #1193, #1201).",
+        f"`listNodes` sur la référence entière, les écarts des montants budgétés et réestimés ceux "
+        f"de toute la structure, {_amount(budgeted)} et {_amount(reestimated)} en tout "
+        f"(WF-REV-0080, WF-DAT-0030, #1193, #1201).",
         {**compared, "items": cast("list[JsonValue]", read)},
+    )
+
+
+def comparison_differences(rows: list[mockcore.Row]) -> JsonObject:
+    """Return the comparison read whole by its additions and its withdrawals alone (#1398).
+
+    ``difference=added,removed``: two of the three marks, to say that they combine and that the
+    ancestors come with the nodes retained, modified by their content; the totals those of the
+    whole reference, the deltas those of the lines retained.
+    """
+    before = offer_rows()
+    compared = by_differences(
+        comparison(before, rows, OFFER, REFERENCE),
+        before,
+        rows,
+        (mockdiff.ADDED, mockdiff.REMOVED),
+    )
+    nodes = cast("list[JsonObject]", compared["items"])
+    deltas = cast("list[JsonObject]", compared["amount_deltas"])
+    added, removed, changed, content = mockdiff.grouped(nodes)
+    ancestors = [node for node in nodes if node in changed or node in content]
+    return mocktext.example(
+        f"De l'offre v1.0 à la révision de référence, rapprochées par lignée sur toute la "
+        f"structure, lues par leurs seuls ajouts et retraits (difference=added,removed) : "
+        f"{mocktext.count(len(nodes))} nœuds dans l'ordre du plan — {len(added)} ajoutés, "
+        f"{_quoted(added)} ; {len(removed)} retirés et rendus à leur place, {_quoted(removed)} ; "
+        f"et leurs ancêtres, {len(ancestors)} tâches modifiées par leur contenu, "
+        f"{_quoted(ancestors)}, si bien que l'arbre filtré reste un arbre. Aucun nœud inchangé "
+        f"n'est rendu, ni aucun nœud modifié qui ne soit l'ancêtre d'un ajout ou d'un retrait. "
+        f"Les totaux sont ceux de "
+        f"la référence entière, que `difference` ne restreint pas ; les écarts des montants "
+        f"budgétés et réestimés, ceux des seules lignes retenues, par nature — "
+        f"{_deltas_text(deltas, 'cost_type')} — et par sous-projet — "
+        f"{_deltas_text(deltas, 'subproject')} (WF-REV-0080, C-361, #1398).",
+        compared,
     )
 
 
@@ -282,6 +346,7 @@ def examples() -> dict[str, JsonObject]:
     identical = mocktext.count(len(core))
     return {
         "comparison.json": comparison_example(rows),
+        "comparison_differences.json": comparison_differences(rows),
         "comparison_moved.json": comparison_moved(rows),
         "comparison_identical.json": mocktext.example(
             "Variante contrefactuelle : l'offre v1.0 comparée à elle-même, son cœur lu seul, "

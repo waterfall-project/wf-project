@@ -66,10 +66,12 @@ fifty-thousand deal the same weight as a million-euro one, and measures nothing.
 | `.github/workflows/` | the chain, run on every pull request |
 | `.claude/agents/` | the agents that frame an epic, deliver its lots, develop and review |
 
-**The specification is in French**, and so is the documentation. It is a formal requirements
-document — every requirement carries an identifier, a rationale and an observable acceptance
-criterion — and translating it would double the source of truth. The contract, the code and
-this file are in English. [README-fr.md](README-fr.md) says all of this in French.
+**The specification is in French**, and so is most of the documentation. It is a formal
+requirements document — every requirement carries an identifier, a rationale and an observable
+acceptance criterion — and translating it would double the source of truth. The contract, the
+code, this file and the README of each `docs/` directory are in English; each of those READMEs
+sits next to its French original, `README-fr.md`, which remains the reference when the two
+differ. [README-fr.md](README-fr.md) says all of this in French.
 
 ### Where to start reading
 

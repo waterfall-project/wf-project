@@ -227,12 +227,15 @@ describe("the tracker of background tasks", () => {
     const { container } = await started(task("task_mark_queued"), { command, subject: "V2" });
 
     await tick();
-    const motive = "Aucun taux horaire n’est défini pour ce rôle et cette année.";
+    // The motive names the categories of labour without a rate, as the failed task gives them.
+    const motive =
+      "Aucun taux horaire n’est défini pour ce rôle et cette année. " +
+      "Sans taux horaire\u00A0: «\u00A0Ingénierie électrique\u00A0» en 2026.";
     expect(ends()).toEqual([
       ["Tâche échouée\u00A0: Marquage d’une révision «\u00A0V2\u00A0».", motive],
     ]);
     expect(within(entries()).getByText("Échouée")).toBeVisible();
-    expect(within(entries()).getByText(motive)).toBeVisible();
+    expect(within(entries()).getByText(/^Aucun taux horaire .* en 2026\.$/)).toBeVisible();
     await expectAccessible(container);
 
     // The relaunch names its task, its name beginning with the label it shows.
@@ -294,16 +297,6 @@ describe("the tracker of background tasks", () => {
     expect(within(entries()).queryByRole("button", { name: "Recharger l’écran" })).toBeNull();
     await tick();
     expect(within(entries()).queryByRole("button", { name: "Recharger l’écran" })).toBeNull();
-  });
-
-  it("shows a bar without a value while the API does not say how far a task has gone", async () => {
-    serve({ [TASK]: "task_running" });
-    // The contract makes the progress optional: a task queued without one.
-    const unmeasured = task("task_mark_queued");
-    delete unmeasured.progress;
-    await started(unmeasured);
-    expect(within(tasksRegion()).getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
-    expect(within(entries()).queryByText(/%/)).toBeNull();
   });
 
   it("stops asking once the shell goes away", async () => {

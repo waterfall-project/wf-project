@@ -38,6 +38,7 @@ REFUSED = {
     ("setBackupSchedule", "/external_copy/retained_count"): (
         "backup_schedule_retention_out_of_range"
     ),
+    ("setIdentitySyncSchedule", "/weekday"): "identity_sync_schedule_weekday_out_of_range",
     ("updateReferenceSettings", "/max_weeks_between_reviews"): "reference_settings_out_of_range",
     ("createNode", "/estimate_line/payment_delay_days"): "node_create_out_of_range",
     ("updateEstimateLine", "/payment_delay_days"): "estimate_line_payment_delay_out_of_range",

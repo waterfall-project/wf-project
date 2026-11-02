@@ -1,0 +1,12 @@
+{
+  "summary": "Le rôle du « Raccordement des borniers », ligne de main-d'œuvre, retiré : une ligne de main-d'œuvre porte un rôle, refusé sur son champ ; rien n'est écrit (WF-DEV-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/resource_role_id","code":"RESOURCE_ROLE_REQUIRED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001619"
+  }
+}

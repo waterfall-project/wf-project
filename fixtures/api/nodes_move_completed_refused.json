@@ -1,5 +1,5 @@
 {
-  "summary": "Sur l'« Avenant 2 — reprise des essais », différentiel non fusionné de la révision courante, les « Borniers » du « Câblage des armoires » déplacés sous les « Études de détail », terminées : aucune ligne ne se déplace vers une tâche terminée, qui se rouvre d'abord depuis le Kanban. Le déplacement est refusé, la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214).",
+  "summary": "Sur la structure principale de la révision courante, le projet En cours, sous les « Études de détail », terminées : les « Borniers » du « Câblage des armoires », non terminé, déplacés sous elles. Aucune ligne de la structure principale ne se déplace vers une tâche terminée, ni depuis elle : la tâche se rouvre d'abord depuis le Kanban ; la phase du projet ne refuse rien (C-358), et un différentiel l'accepterait, son avenant rebudgétant la ligne (WF-REV-0050). Le déplacement est refusé, la condition nommée ; rien ne bouge (WF-DEV-0050, WF-RAE-0030, #1214, #1766).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "code": "STATE_FORBIDS_OPERATION",

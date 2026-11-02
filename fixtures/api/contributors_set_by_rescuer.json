@@ -1,0 +1,13 @@
+{
+  "summary": "Variante contrefactuelle : le compte de Camille Martin, seule cheffe de projet du projet témoin, désactivé, et Dominique Bernard, manager, qui n'en est pas contributeur, portant aussi le rôle « Direction de projet » — la permission du paramétrage du projet et « consulter tous les projets » : la liste qu'il enregistre, Inès Roux passée cheffe de projet, les autres gardés tels qu'il les a lus — la seule saisie ouverte à un non-contributeur ; rendue entière, les chefs de projet d'abord, avec sa version suivante. La liste redevient celle de ses chefs de projet (WF-PRJ-0060, WF-IHM-0110).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "items": [
+      {"user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin","kind":"project_manager","is_active":false},
+      {"user_id":"01926f3a-7c00-7000-8000-000000000306","display_name":"Inès Roux","kind":"project_manager","is_active":true},
+      {"user_id":"01926f3a-7c00-7000-8000-000000000303","display_name":"Alix Moreau","kind":"contributor","is_active":false},
+      {"user_id":"01926f3a-7c00-7000-8000-000000000305","display_name":"Lucas Petit","kind":"contributor","is_active":true}
+    ],
+    "lock_version": 5
+  }
+}

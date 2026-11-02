@@ -21,11 +21,11 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useMemo,
   useRef,
   useState,
-  useTransition,
 } from "react";
 
 import { createAccessRole, deleteAccessRole } from "@/api/actions/access-roles";
@@ -120,7 +120,7 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     setDeleting((before) => new Set(before).add(id));
-    void deleteAccessRole(id)
+    void deleteAccessRole(id, role.lock_version)
       .catch(rejected)
       .then((outcome) => {
         setDeleting((before) => {
@@ -195,9 +195,19 @@ export function CreateRole() {
   const [label, setLabel] = useState("");
   const [refused, setRefused] = useState<string>();
   const noteRefusal = useNoteRefusal();
-  const [pending, startTransition] = useTransition();
+  // Busy from the press to the answer, and lifted in the very update that tells it — not a transition,
+  // whose end would wait for every other write of the table under way (#1484).
+  const [busy, setBusy] = useState(false);
+  // Asked anew at each refusal: the field takes the focus after the commit that says its refusal,
+  // described by it as it is heard (#1484).
+  const [focused, setFocused] = useState<object>();
   const input = useRef<HTMLInputElement>(null);
   const field = useId();
+  useEffect(() => {
+    if (focused !== undefined) {
+      input.current?.focus();
+    }
+  }, [focused]);
   return (
     <form
       aria-label={t("creation")}
@@ -205,38 +215,41 @@ export function CreateRole() {
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (pending) {
+        if (busy) {
           return;
         }
         const parsed = parsedEntry({ type: "text", maxLength: LABEL_LENGTH }, label, locale);
         if ("problem" in parsed) {
           const code = parsed.problem === "required" ? "VALUE_REQUIRED" : "VALUE_TOO_LONG";
           setRefused(problemMessage({ code }, { locale, messages }));
-          input.current?.focus();
+          setFocused({});
           return;
         }
         // The reading the role is created from: its refusal is told on it alone.
         const generation = list?.generation ?? 0;
         const asked = label;
         setRefused(undefined);
-        startTransition(async () => {
-          const outcome = await createAccessRole({ label: asked, permissions: [] }).catch(rejected);
-          if (outcome.kind === "done") {
-            setLabel((typed) => (typed === asked ? "" : typed));
-            say?.(t("created", { name: outcome.data.label }));
-            return;
-          }
-          const at = "problem" in outcome ? outcome.problem.fields : undefined;
-          const own = at?.find(({ pointer }) => pointer === "/label");
-          if (own === undefined) {
-            list?.report({ outcome, generation, names: {} });
-            return;
-          }
-          // Said at its field, out of a notice: noted in the history of the messages.
-          noteRefusal(outcome, { subject: asked });
-          setRefused(problemMessage(own, { locale, messages }));
-          input.current?.focus();
-        });
+        setBusy(true);
+        void createAccessRole({ label: asked, permissions: [] })
+          .catch(rejected)
+          .then((outcome) => {
+            setBusy(false);
+            if (outcome.kind === "done") {
+              setLabel((typed) => (typed === asked ? "" : typed));
+              say?.(t("created", { name: outcome.data.label }));
+              return;
+            }
+            const at = "problem" in outcome ? outcome.problem.fields : undefined;
+            const own = at?.find(({ pointer }) => pointer === "/label");
+            if (own === undefined) {
+              list?.report({ outcome, generation, names: {} });
+              return;
+            }
+            // Said at its field, out of a notice: noted in the history of the messages.
+            noteRefusal(outcome, { subject: asked });
+            setRefused(problemMessage(own, { locale, messages }));
+            setFocused({});
+          });
       }}
     >
       <Label htmlFor={field} className="text-sm whitespace-nowrap">
@@ -256,7 +269,7 @@ export function CreateRole() {
           setLabel(event.target.value);
         }}
       />
-      <Button type="submit" variant="outline" size="sm" aria-busy={pending}>
+      <Button type="submit" variant="outline" size="sm" aria-busy={busy}>
         <Plus aria-hidden="true" />
         {t("create")}
       </Button>

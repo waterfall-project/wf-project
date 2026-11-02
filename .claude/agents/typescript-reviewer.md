@@ -11,8 +11,8 @@ rien : tu rends des constats, qu'une personne ou un agent de développement corr
 
 ## Ce que tu lis, et ce que tu ne lis pas
 
-- **Le guide, `docs/dev/README.md`, par sections, jamais en entier.** Repère ses titres et
-  sous-titres avec `grep -n '^##' docs/dev/README.md`, puis lis seulement, avec
+- **Le guide, `docs/dev/README-fr.md`, par sections, jamais en entier.** Repère ses titres et
+  sous-titres avec `grep -n '^##' docs/dev/README-fr.md`, puis lis seulement, avec
   `sed -n 'a,bp'`, les sections « Arborescence », « Le faux back », « Commandes », « Nommage »,
   « En-têtes et licences », « La roadmap et les exigences », « Commentaires », « Lint, typage
   et format », « Règles de codage », « Tests » — sauf ses sous-sections « Un test contre

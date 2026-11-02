@@ -1,0 +1,11 @@
+{
+  "summary": "Variante contrefactuelle déclarée : le bloc de paste_plan, dont la deuxième ligne donne la ligne 29 au monteur câbleur, « Heures de câblage » ; sa tâche, « Préparation 1.1.1 », le porterait avec l'ingénieur électricien, que la première ligne et la ligne de supervision gardent, et leurs calendriers n'auraient aucun jour en commun : cette ligne est refusée sur sa cellule de rôle, les deux rôles et la tâche nommés par leur libellé, et les deux autres seraient écrites ; confirmé, le collage écrira les deux autres et non celle-ci, abandonné, il n'écrira rien (WF-IHM-0050, WF-PLA-0010). Aucune situation du témoin ne le produit, ses calendriers se recoupant tous du lundi au jeudi : les calendriers sont supposés ici autres.",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "paste_id": "01926f3a-7c00-7000-8000-000000000997",
+    "accepted": 2,
+    "rejected": [
+      {"row":1,"column":"resource_role","code":"TASK_WITHOUT_WORKING_HOURS","params":{"resource_roles":[{"resource_role_id":"01926f3a-7c00-7000-8000-000000000451","code":"ING-ELEC","label":"Ingénieur électricien"},{"resource_role_id":"01926f3a-7c00-7000-8000-000000000454","code":"MONT-CAB","label":"Monteur câbleur"}],"tasks":[{"project_id":"01926f3a-7c00-7000-8000-000000000001","node_id":"01926f3a-7c00-7000-8000-000100000027","label":"Préparation 1.1.1"}]}}
+    ]
+  }
+}

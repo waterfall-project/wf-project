@@ -21,6 +21,7 @@ import { readEveryPage } from "@/api/every-page";
 import { serverClient } from "@/api/server";
 import { ContextBanner } from "@/components/context/context-banner";
 import { ImportPart } from "@/components/exchanges/import-part";
+import { readMappingGap } from "@/components/exchanges/mapping-gap";
 import { ImportReport } from "@/components/exchanges/import-report";
 import { importOffers } from "@/components/exchanges/offers";
 import { readShownImport } from "@/components/exchanges/shown-import";
@@ -111,6 +112,9 @@ export default async function ProjectPage(props: ProjectPageProps) {
   // may read them.
   const mayReadRevisions = session?.permissions.includes("revisions.read") === true;
   const offers = importOffers(read.project);
+  // Only a project without a revision shows its imports here.
+  const gap =
+    revisions.length === 0 ? await readMappingGap(offers, session?.permissions) : undefined;
   // The address of the screen without a report, its context kept.
   const start = contextAddress(address.pathname, read.context);
   // The start of the planning: read at the server, from the revision in progress, which the list of the revisions carries whole (WF-PRJ-0030).
@@ -159,7 +163,7 @@ export default async function ProjectPage(props: ProjectPageProps) {
           />
         )}
         {revisions.length === 0 ? (
-          <ImportPart projectId={address.projectId} offers={offers} start={start} />
+          <ImportPart projectId={address.projectId} offers={offers} start={start} gap={gap} />
         ) : null}
       </Screen>
     </>

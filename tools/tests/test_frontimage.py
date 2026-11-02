@@ -9,9 +9,11 @@ the front prerendered is held without Docker too, on every change of the front
 """
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -231,10 +233,23 @@ def test_the_manifest_of_a_build_on_the_checkout_is_held_without_docker(
 
 
 def dry_run(target: str, tier: str, *variables: str) -> list[str]:
-    """Return the commands make would run for a target in a tier, without running them."""
+    """Return the commands make would run for a target in a tier, without running them.
+
+    The environment of the caller does not leak in: a test that wants E2E_BUILT, E2E_DEV_SERVER or
+    SHARD passes it as a variable of make. MAKEFLAGS is that of a make that runs pytest and carries
+    its variables; MAKELEVEL is its depth. Only MAKEFLAGS is proven to change the dry run (the test
+    below); MAKELEVEL changes nothing of the output under --no-print-directory, so dropping it is
+    a hardening that no test can prove.
+    """
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if name not in {"E2E_BUILT", "E2E_DEV_SERVER", "SHARD", "MAKEFLAGS", "MAKELEVEL"}
+    }
     result = subprocess.run(
         ["make", "--dry-run", "--no-print-directory", target, f"TIER={tier}", *variables],
         cwd=REPOSITORY,
+        env=environment,
         capture_output=True,
         text=True,
         check=True,
@@ -242,16 +257,41 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     return result.stdout.splitlines()
 
 
-@pytest.mark.parametrize(("tier", "build"), [("fast", "pnpm build"), ("full", "playwright test")])
-def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(
-    tier: str, build: str
+BUILD = re.compile(r"pnpm build(?![\w:-])")
+
+
+def builds_the_front(command: str) -> bool:
+    """Tell whether a command of the dry run builds the front, whatever argument it is given."""
+    return BUILD.search(command) is not None
+
+
+@pytest.mark.parametrize(
+    ("command", "builds"),
+    [
+        ("cd frontend && pnpm build", True),
+        ("cd frontend && pnpm build --debug", True),
+        ("cd frontend && pnpm build; echo done", True),
+        ("cd frontend && pnpm build&&pnpm test", True),
+        ("(cd frontend && pnpm build)", True),
+        ("cd frontend && pnpm build:analyze", False),
+        ("cd frontend && pnpm build-all", False),
+        ("cd frontend && pnpm lint", False),
+    ],
+)
+def test_a_build_of_the_front_is_seen_with_or_without_an_argument(
+    command: str, builds: bool
 ) -> None:
+    assert builds_the_front(command) is builds
+
+
+@pytest.mark.parametrize("tier", ["fast", "full"])
+def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(tier: str) -> None:
     # The layout reads the cookies, which keeps every page from being prerendered: a change of it,
     # or of any page, wakes the front family, whose check holds the manifest after the build.
     families = paths.read().touched(["frontend/src/app/layout.tsx"])
     assert "check-front" in {family.target for family in families}
     commands = dry_run("check-front", tier)
-    built = [i for i, command in enumerate(commands) if build in command]
+    built = [i for i, command in enumerate(commands) if builds_the_front(command)]
     held = [i for i, command in enumerate(commands) if "frontimage --manifest" in command]
     assert built
     assert held
@@ -259,13 +299,56 @@ def test_a_change_of_a_page_holds_what_the_build_of_the_front_prerendered(
     assert commands[held[0]].endswith("frontend/.next/prerender-manifest.json")
 
 
-def test_a_part_of_the_paths_alone_builds_nothing_and_holds_no_manifest_left_behind() -> None:
-    commands = dry_run("check-front-e2e", "full", "SHARD=1/3")
-    assert any("playwright test --shard=1/3" in command for command in commands)
-    assert not [command for command in commands if "frontimage --manifest" in command]
+@pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
+def test_the_paths_build_the_front_then_play_against_it(target: str) -> None:
+    # US-0590: every part of the harness plays the front built for production, built as
+    # build-front builds it — with no API to reach (#131) — before Playwright starts it.
+    commands = dry_run(target, "full")
+    built = [i for i, command in enumerate(commands) if builds_the_front(command)]
+    played = [i for i, command in enumerate(commands) if "playwright test" in command]
+    assert len(built) == 1
+    assert played
+    assert built[0] < played[0]
 
 
-def test_the_chain_holds_what_the_build_of_the_measure_prerendered() -> None:
+@pytest.mark.parametrize("target", ["e2e", "e2e-measure", "e2e-service"])
+def test_a_front_built_already_is_not_built_again(target: str) -> None:
+    shard = ["SHARD=1/3"] if target == "e2e" else []
+    commands = dry_run(target, "full", "E2E_BUILT=1", *shard)
+    assert not [command for command in commands if builds_the_front(command)]
+    assert [command for command in commands if "playwright test" in command]
+
+
+@pytest.mark.requirement("WF-QUA-0010-A")
+@pytest.mark.parametrize("target", ["e2e", "check-front"])
+def test_the_dry_run_ignores_the_variables_of_a_make_that_runs_the_tests(
+    target: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Run under a make that exports SHARD (as the parts of the chain do) and its flags, a dry run
+    # would otherwise change its commands: the failure of front / tests (2/2), run 40255427902.
+    # SHARD is proven on e2e (it splits the Playwright run) and MAKEFLAGS on e2e too (E2E_BUILT=1
+    # there drops the build of the front). MAKELEVEL is set for the same make but cannot change the
+    # output under --no-print-directory: nothing here depends on it.
+    alone = dry_run(target, "full")
+    if target == "e2e":
+        assert any(builds_the_front(command) for command in alone)
+    monkeypatch.setenv("SHARD", "2/2")
+    monkeypatch.setenv("MAKEFLAGS", " -- E2E_BUILT=1")
+    monkeypatch.setenv("MAKELEVEL", "1")
+    assert dry_run(target, "full") == alone
+
+
+@pytest.mark.parametrize(
+    ("target", "builds"), [("e2e", False), ("e2e-service", False), ("e2e-measure", True)]
+)
+def test_the_paths_against_the_development_server_build_nothing_but_the_measure_does(
+    target: str, builds: bool
+) -> None:
+    commands = dry_run(target, "full", "E2E_DEV_SERVER=1")
+    assert bool([c for c in commands if builds_the_front(c)]) is builds
+
+
+def test_the_chain_holds_what_the_build_of_the_paths_prerendered() -> None:
     workflow = yaml.safe_load((REPOSITORY / ".github" / "workflows" / "e2e.yml").read_text())
     measured = [
         step["run"]
@@ -273,6 +356,54 @@ def test_the_chain_holds_what_the_build_of_the_measure_prerendered() -> None:
         if step.get("if") == "matrix.part == 'measure'"
     ]
     assert measured == ["make e2e-measure", "make prerendered-front"]
+
+
+def downloaded(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return what the steps of a job download."""
+    return [step["with"] for step in steps if "download-artifact" in step.get("uses", "")]
+
+
+def test_the_chain_builds_the_front_once_and_every_part_plays_that_build() -> None:
+    # US-0590: one job of ci.yml builds the front whenever the paths or the paths against the
+    # service run, and uploads it without Next's cache; each part of the paths, the measure and the
+    # paths against the service wait for it, download it where the build wrote it, and say it is
+    # built: neither e2e.yml nor service.yml builds it again.
+    workflows = REPOSITORY / ".github" / "workflows"
+    chain = yaml.safe_load((workflows / "ci.yml").read_text())["jobs"]
+    build = chain["front-build"]
+    assert build["needs"] == "changes"
+    assert " ".join(build["if"].split()) == (
+        "needs.changes.outputs.tier == 'full' && "
+        "(needs.changes.outputs.front == 'true' || needs.changes.outputs.service == 'true')"
+    )
+    assert [step["run"] for step in build["steps"] if "run" in step][-1] == "make build-front"
+    (building,) = [step for step in build["steps"] if step.get("run") == "make build-front"]
+    assert not [name for name in building.get("env", {}) if name.startswith("E2E_")]
+    (uploaded,) = [
+        step["with"] for step in build["steps"] if "upload-artifact" in step.get("uses", "")
+    ]
+    assert uploaded["path"].split() == ["frontend/.next/", "!frontend/.next/cache/"]
+    # .next is hidden: without the option the action would skip it.
+    assert uploaded["include-hidden-files"] is True
+    assert uploaded["if-no-files-found"] == "error"
+    assert uploaded["retention-days"] == 1
+    played = {"name": uploaded["name"], "path": "frontend/.next/"}
+    for job in ("e2e", "service", "gate"):
+        assert "front-build" in chain[job]["needs"]
+
+    jobs = yaml.safe_load((workflows / "e2e.yml").read_text())["jobs"]
+    assert set(jobs) == {"paths"}
+    paths_job = jobs["paths"]
+    assert paths_job["env"] == {"E2E_BUILT": "1"}
+    assert paths_job["strategy"]["matrix"]["part"] == ["1/3", "2/3", "3/3", "measure"]
+    assert downloaded(paths_job["steps"]) == [played]
+    assert not [s for s in paths_job["steps"] if "build" in s.get("run", "")]
+
+    (service,) = yaml.safe_load((workflows / "service.yml").read_text())["jobs"].values()
+    assert downloaded(service["steps"]) == [played]
+    (checked,) = [step for step in service["steps"] if step.get("run") == "make check-service"]
+    assert checked["env"]["E2E_BUILT"] == "1"
+    assert not [s for s in service["steps"] if "build-front" in s.get("run", "")]
 
 
 def test_a_change_of_what_makes_the_image_wakes_its_check() -> None:

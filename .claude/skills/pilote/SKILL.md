@@ -21,14 +21,18 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
    qui le reprend lira la réponse.
 3. **Les livreurs en cours.** Tu sais lesquels tu as lancés et lesquels ont rendu la main.
    Un livreur rendu : lis son relevé (une vingtaine de lignes) et agis selon « Un relevé ».
-4. **Lancer.** Si aucun livreur ne tourne et qu'il reste un lot prêt, lances-en un, selon
+4. **Les worktrees.** `git worktree list` ne doit pas en montrer plus de deux, le dépôt de
+   travail compris (#1444) : chaque livreur retire ceux de son lot après la fusion. Au-delà,
+   préviens l'utilisateur (« Prévenir ») avec leurs chemins, sans en retirer aucun toi-même —
+   l'un d'eux peut garder un travail non commité —, et continue de piloter.
+5. **Lancer.** Si aucun livreur ne tourne et qu'il reste un lot prêt, lances-en un, selon
    « Lancer un livreur ». **Un seul à la fois** : le poste s'est effondré trois fois sous les
    tests de plusieurs agents (2026-10-19, 21 et 22).
-5. **Se rendormir.** Si un livreur tourne, son retour te réveillera ; programme quand même un
+6. **Se rendormir.** Si un livreur tourne, son retour te réveillera ; programme quand même un
    réveil dans trente minutes environ, au cas où il ne reviendrait pas. Sinon, s'il reste des
    lots mais aucun de prêt — tous bloqués ou en `question` —, programme un réveil dans une
    heure.
-6. **S'arrêter.** Quand plus aucun lot ne reste à livrer, ou que tous les lots restants
+7. **S'arrêter.** Quand plus aucun lot ne reste à livrer, ou que tous les lots restants
    attendent une personne, rends un relevé final, préviens l'utilisateur (« Prévenir ») et
    arrête la boucle.
 

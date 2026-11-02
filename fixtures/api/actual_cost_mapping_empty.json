@@ -1,0 +1,51 @@
+{
+  "summary": "La correspondance de l'extraction des coûts réels d'une installation neuve, telle que l'installation la crée : aucune colonne lue n'a d'intitulé, aucune colonne n'est conservée. Elle est incomplète, et nomme les quatre colonnes exigées qui n'ont aucun intitulé — toutes sauf le poste, facultatif — : l'import des coûts réels est refusé tant qu'elle l'est (WF-REF-0190).",
+  "value": {
+    "columns": [
+      {
+        "column": "wbs_element",
+        "required": true,
+        "labels": []
+      },
+      {
+        "column": "document_number",
+        "required": true,
+        "labels": []
+      },
+      {
+        "column": "document_item",
+        "required": false,
+        "labels": []
+      },
+      {
+        "column": "document_date",
+        "required": true,
+        "labels": []
+      },
+      {
+        "column": "amount",
+        "required": true,
+        "labels": []
+      }
+    ],
+    "kept_columns": [],
+    "is_complete": false,
+    "missing_columns": [
+      "wbs_element",
+      "document_number",
+      "document_date",
+      "amount"
+    ],
+    "lock_version": 1,
+    "audit": {
+      "created_at": "2025-09-01T09:00:00Z",
+      "created_by": {
+        "kind": "platform"
+      },
+      "updated_at": "2025-09-01T09:00:00Z",
+      "updated_by": {
+        "kind": "platform"
+      }
+    }
+  }
+}

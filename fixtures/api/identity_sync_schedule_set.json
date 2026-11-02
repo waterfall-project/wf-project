@@ -1,0 +1,10 @@
+{
+  "summary": "La périodicité enregistrée aujourd'hui par Camille Martin, à partir de la version lue : chaque lundi — 1, le premier jour de la semaine ISO 8601 — à une heure et demie en temps universel ; version 2 (WF-ADM-0070).",
+  "value": {
+    "is_enabled": true,
+    "frequency": "weekly",
+    "at_time": "01:30",
+    "weekday": 1,
+    "lock_version": 2
+  }
+}

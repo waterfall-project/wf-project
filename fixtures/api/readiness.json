@@ -1,0 +1,50 @@
+{
+  "summary": "L'instance prête au 3 juin 2026 à 14 h 04 min 30 s : les sept composants répondent, ceux de l'écran d'état (`system_status`) à la même vérification (WF-EXP-0040).",
+  "value": {
+    "status": "ready",
+    "components": [
+      {
+        "component": "api",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "1.0.0"
+      },
+      {
+        "component": "worker",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "1.0.0"
+      },
+      {
+        "component": "database",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "16.4"
+      },
+      {
+        "component": "cache",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "7.4.1"
+      },
+      {
+        "component": "object_storage",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": null
+      },
+      {
+        "component": "identity_provider",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "26.0.5"
+      },
+      {
+        "component": "metrics",
+        "is_available": true,
+        "checked_at": "2026-06-03T14:04:30Z",
+        "version": "2.53.0"
+      }
+    ]
+  }
+}

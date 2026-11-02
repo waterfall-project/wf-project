@@ -7,10 +7,16 @@
  * removed, in the marks `+`, `-`, `M` of the diff of the grids; the tasks started that the merge will
  * complete; the motives that refuse it, with which the merge is not offered —, then asks the version
  * name the revision produced bears, and confirms with the two counters the report read
- * (`mergeCostStructure`). Abandoning sends nothing: the report is a read. A report gone stale (412)
+ * (`mergeCostStructure`); a merge asked of the last revision marked, the project having none in
+ * progress, says it first creates the revision in progress by copy (`creates_current_revision`, #790).
+ * The revision marked may bear a description, optional, as at the marking (`StructureMerge.description`).
+ * Abandoning sends nothing: the report is a read. A report gone stale (412)
  * offers to read it anew, and the form keeps the name typed. The merge is handed to the worker: the
  * tracker of the shell follows it (WF-IHM-0080), and once it has succeeded the screen says which
- * revision is the reference now.
+ * revision is the reference now. A merge that failed is not run again from the tracker, whose
+ * counters may be stale: it is asked again from the differential, which reads its report anew and
+ * shows it — it is the report shown that the user confirms (WF-IHM-0110), as for the occurrence of
+ * a risk (#1682).
  *
  * The front computes nothing of the report: the lists are in the order received, the counts are the
  * lengths of what the server rendered.
@@ -47,7 +53,11 @@ export interface MergedAmendment {
 }
 
 /** The objects a report counts, in the order it presents them. */
-const COUNTED: readonly Exclude<Target, "actual_cost_line">[] = ["task", "estimate_line", "link"];
+const COUNTED: readonly Exclude<Target, "actual_cost_line" | "cost_structure">[] = [
+  "task",
+  "estimate_line",
+  "link",
+];
 
 /** The changes a report counts, each with the mark of the diff it bears. */
 const COUNTED_CHANGES: readonly {
@@ -97,6 +107,7 @@ function ReportBody({ report }: { readonly report: Report }) {
   const messages = useMessages();
   return (
     <div className="space-y-3">
+      {report.creates_current_revision ? <p role="note">{t("createsRevision")}</p> : null}
       <Counts report={report} />
       {report.completed_tasks.length === 0 ? null : (
         <div className="space-y-1">
@@ -133,6 +144,8 @@ function ReportPanel({
   onRead,
   name,
   onName,
+  description,
+  onDescription,
   names,
 }: {
   readonly amendment: MergedAmendment;
@@ -141,6 +154,8 @@ function ReportPanel({
   readonly onRead: (report: Outcome<Report> | undefined) => void;
   readonly name: string;
   readonly onName: (name: string) => void;
+  readonly description: string;
+  readonly onDescription: (description: string) => void;
   readonly names: ObjectNames;
 }) {
   const t = useTranslations("mergeReport");
@@ -194,6 +209,20 @@ function ReportPanel({
           {t("versionNameHint")}
         </p>
       </div>
+      <div className="space-y-1">
+        <label htmlFor={`${field}-description`} className="block text-sm font-medium">
+          {t("description")}
+        </label>
+        <textarea
+          id={`${field}-description`}
+          value={description}
+          rows={3}
+          onChange={(event) => {
+            onDescription(event.target.value);
+          }}
+          className={`py-1 ${FIELD}`}
+        />
+      </div>
     </div>
   );
 }
@@ -202,7 +231,6 @@ function ReportPanel({
 interface Merged {
   readonly task: BackgroundTask;
   readonly version: string;
-  readonly command: () => Promise<Outcome<BackgroundTask>>;
 }
 
 /** Offer the contractualisation of the amendment a grid reads, as the revision lists it. */
@@ -223,6 +251,7 @@ export function MergeAmendmentCommand({
   const [report, setReport] = useState<Outcome<Report>>();
   const [attempt, setAttempt] = useState(0);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [followed, setFollowed] = useState<Merged>();
   const [reference, setReference] = useState<{ readonly version: string }>();
   const revisions = useRef<HTMLAnchorElement>(null);
@@ -245,6 +274,7 @@ export function MergeAmendmentCommand({
       ? undefined
       : {
           versionName: name.trim(),
+          description: description.trim(),
           mainStructureLockVersion: read.main_structure_lock_version,
           amendmentLockVersion: read.amendment_lock_version,
         };
@@ -276,7 +306,7 @@ export function MergeAmendmentCommand({
         run={run}
         done={() => t("queued", { version: name.trim() })}
         onDone={(task) => {
-          setFollowed({ task, version: name.trim(), command: run });
+          setFollowed({ task, version: name.trim() });
         }}
         reread={{
           label: t("reread"),
@@ -292,6 +322,8 @@ export function MergeAmendmentCommand({
           onRead={onRead}
           name={name}
           onName={setName}
+          description={description}
+          onDescription={setDescription}
           names={names}
         />
       </ConfirmedCommand>
@@ -300,7 +332,6 @@ export function MergeAmendmentCommand({
           key={followed.task.task_id}
           task={followed.task}
           subject={followed.version}
-          command={followed.command}
           onSucceeded={() => {
             setReference({ version: followed.version });
           }}

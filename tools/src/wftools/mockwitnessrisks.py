@@ -24,7 +24,6 @@ from wftools.mockwitness import (
     RISK_SCALE,
     RISKS_IDENTIFIED,
     STUDIES_STARTED,
-    WIRING,
     Event,
     Line,
     N,
@@ -155,7 +154,7 @@ MERGED, COMMISSIONING_TASK = N.MERGED, N.COMMISSIONING
 
 REFERENCE_PROVISIONS = {
     752: (
-        WIRING,
+        N.CONTROL_STATION,
         Line(
             N.REFERENCE_PROVISION_752,
             "Provision — retard de livraison des armoires",

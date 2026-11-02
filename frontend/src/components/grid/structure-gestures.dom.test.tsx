@@ -191,14 +191,10 @@ function remainingGrid(editable: boolean, withCategories = true, nodes: NodeList
 const CREATE_COMPLETED_REFUSED = {
   problem: example("estimate_line_completed_refused") as Problem & { status: 409 },
 };
-/** The refusal of a deletion under a task completed, which the contract has no example of. */
+/** The refusal of the deletion of a line of a task completed, as the fake back gives it (F-01). */
 const COMPLETED_REFUSED = {
-  problem: {
-    code: "STATE_FORBIDS_OPERATION",
-    status: 409,
-    params: { missing_condition: "task_not_completed" },
-  },
-} as const;
+  problem: example("node_delete_line_completed_refused") as Problem & { status: 409 },
+};
 /** The refusal of a deletion sent with a counter no longer the current one, as the fake back gives it (#1210). */
 const STALE_REFUSED = {
   problem: example("node_delete_stale") as Problem & { status: 412 },
@@ -284,6 +280,29 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
       },
     });
     expect(await screen.findByText("« Consommables d’essais » créée.")).toBeVisible();
+  });
+
+  it("inserts a line without a label, which the server composes of its task and its role [WF-DEV-0020-A]", async () => {
+    // Le libellé d'une ligne est facultatif : absent, le serveur compose celui de la tâche et du rôle.
+    const client = serve({ [CREATE]: { example: "estimate_line_created_labelled", status: 201 } });
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    expect(within(dialog).getByRole("textbox", { name: "Libellé" })).toHaveAccessibleDescription(
+      "Facultatif : à défaut, le libellé de la tâche qui porte la ligne, suivi de celui de son rôle.",
+    );
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
+      target: { value: CATEGORY },
+    });
+    await create("   ");
+    expect(created(client)).toEqual({
+      kind: "estimate_line",
+      parent_id: node(TASK)?.node_id,
+      estimate_line: { cost_category_id: CATEGORY, quantity: "1" },
+    });
+    // The label the server composes is its own to give — of the task and of the role, not of the row
+    // acted on, which it is not when the line is inserted below a sister line: told without a name.
+    expect(await screen.findByText("Ligne créée.")).toBeVisible();
   });
 
   it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
@@ -556,6 +575,41 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(messages[0]).toMatchObject({ tone: "refusal", object: "Pièces" });
   });
 
+  it("names the task and both roles a line created would leave without a working hour, as the grid knows them [WF-PLA-0010-A]", async () => {
+    serve({
+      [CREATE]: { problem: example("node_create_without_hours") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(TASK, "Insérer une ligne");
+    await create("Pièces");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(alert).toHaveTextContent("Ingénieur électricien");
+    expect(alert).toHaveTextContent("Monteur câbleur");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+  });
+
+  it("tells the refusal of a manual date on a day without a working hour as `byField` reads it from the contract example, naming the next working day [WF-PLA-0020-A]", async () => {
+    // The envelope says only that the entry is invalid; its field says why (`NON_WORKING_DAY`).
+    // The refusal is told in the alert, at the anchor row of the creation: the new row, created by
+    // nothing, holds no cell to show it at. What is proved is the reading of the example, no more.
+    serve({
+      [CREATE]: { problem: example("node_create_non_working_day") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(TASK, "Insérer au-dessous");
+    await create("Réception provisoire sur site");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      `Refusé à la ligne ${String(node(TASK)?.row_number)}, « Câblage des armoires » :`,
+    );
+    expect(alert).toHaveTextContent("Date sur un jour sans heure travaillée.");
+    expect(alert).toHaveTextContent(
+      "Le samedi 19 décembre n’est pas travaillé sur le calendrier de la tâche ; saisis le lundi 21 décembre.",
+    );
+    expect(alert).not.toHaveTextContent("Les données saisies ne sont pas valides");
+  });
+
   it("says a node to follow that is no sibling by its reason, at the row it was asked from", async () => {
     // The envelope says only that the entry is invalid; its field says why (`NODE_NOT_SIBLING`).
     serve({
@@ -582,8 +636,8 @@ describe("the refusal of a gesture, said to the row in cause", () => {
       [MOVE]: { problem: example("nodes_move_after_not_sibling") as Problem & { status: 422 } },
     });
     const view = render(estimateGrid(), { wrapper: Reading });
-    const risk = rowOf("Risque survenu — Retard de livraison des armoires");
-    await activate(risk);
+    const transport = rowOf("Transport exceptionnel");
+    await activate(transport);
     await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
     await screen.findByRole("alert");
     expect(router.refresh).toHaveBeenCalledTimes(1);
@@ -591,7 +645,7 @@ describe("the refusal of a gesture, said to the row in cause", () => {
       view.rerender(
         estimateGrid(true, true, {
           ...estimate,
-          items: estimate.items.filter((_, index) => index !== risk),
+          items: estimate.items.filter((_, index) => index !== transport),
         }),
       );
       await Promise.resolve();
@@ -615,6 +669,20 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     );
     expect(alert).toHaveTextContent("Condition non remplie");
     expect(router.refresh).not.toHaveBeenCalled();
+  });
+
+  it("names the risks whose provision a deletion would leave without a task, from the refusal of the contract (H-05)", async () => {
+    // The refusal is the main structure's; the row it is told at is the one the deletion was asked from.
+    serve({
+      [DELETE]: {
+        problem: example("node_delete_last_provision_task_refused") as Problem & { status: 409 },
+      },
+    });
+    render(estimateGrid());
+    await choose(LINE, "Supprimer");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Risque concerné\s: «\sRisque de reprise du câblage\s»\./,
+    );
   });
 
   it("marks the row it was asked from, though the active row changed while the write was under way", async () => {

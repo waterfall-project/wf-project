@@ -11,8 +11,8 @@ qui touche l'extension Keycloak. Ce qui suit ne dit que ce qui est propre à ton
 
 ## Ce que tu lis, et ce que tu ne lis pas
 
-- **Le guide, `docs/dev/README.md`, par sections, jamais en entier.** Repère ses titres avec
-  `grep -n '^## ' docs/dev/README.md`, puis lis seulement, avec `sed -n 'a,bp'`, les
+- **Le guide, `docs/dev/README-fr.md`, par sections, jamais en entier.** Repère ses titres avec
+  `grep -n '^## ' docs/dev/README-fr.md`, puis lis seulement, avec `sed -n 'a,bp'`, les
   sections « Arborescence », « Le back et les frontières du noyau », « Commandes »,
   « Nommage », « En-têtes et licences », « La roadmap et les exigences », « Commentaires »,
   « Lint, typage et format », « Règles de codage », « Tests » — sauf sa sous-section « Un
@@ -79,3 +79,9 @@ Commite en français — ce qui change, puis pourquoi —, pousse la branche, et
 selon `docs/dev/agents.md`, en ajoutant pour chaque critère fermé le test qui le porte. Tu
 n'ouvres pas la pull request et tu ne fusionnes rien : c'est l'agent de livraison, ou une
 personne, qui le fait après la revue.
+
+Avant de rendre la main, ne laisse rien derrière toi (`docs/dev/agents.md`, #1444) : une
+branche de travail que tu as tirée à côté de celle du lot se supprime une fois son contenu sur
+la branche du lot (`git branch -d`, qui refuse une branche non fusionnée), et aucune commande
+que tu as lancée en arrière-plan — serveur, Keycloak de test, Chromium — ne tourne encore. La
+branche du lot et ton worktree restent : l'agent de livraison les retire après la fusion.

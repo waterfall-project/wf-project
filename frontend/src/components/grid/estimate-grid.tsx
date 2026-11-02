@@ -98,9 +98,9 @@ export interface EstimateGridProps {
    */
   readonly differential?: boolean | undefined;
   /**
-   * What the amount corrected of inflation is corrected by, which the header of its column names:
-   * the year of reference of the revision and the rate of inflation of the project, as the server
-   * rates them; none, and the column bears no definition.
+   * What the amount re-estimated, inflation included, is corrected by, which the header of its
+   * column names: the year of reference of the revision and the rate of inflation it keeps, as the
+   * server rates them; none, and the column bears a definition that names neither.
    */
   readonly inflation?: { readonly referenceYear: number; readonly rate: string } | undefined;
 }

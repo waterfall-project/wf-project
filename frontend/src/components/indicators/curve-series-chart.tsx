@@ -34,6 +34,7 @@ import {
   useProvenance,
 } from "@/components/chart/chart";
 import { CalculationDate } from "@/components/context/indicator";
+import { useCurrency } from "@/currency/context";
 import { formatLocale, formatMoney, formatMonth, formatPlanningDate } from "@/i18n/format";
 
 /** Cumulative curves, as the API computes them. */
@@ -61,6 +62,7 @@ export interface CurveSeriesChartProps {
 function CurveValues({ curves }: { readonly curves: CurveSeries }) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   /**
    * The heading of the row of a point: the name of its series, said before or after the step when
    * the point shares its date with the one after or before it.
@@ -78,7 +80,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
       ? t("projectIndicators.curves.beforeStep", { series: name })
       : name;
   };
-  const steps = curves.steps ?? [];
+  const steps = curves.steps;
   const months = curves.cash_out_by_month ?? [];
   const caption = "text-left font-medium";
   return (
@@ -105,7 +107,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                   )}
                 </th>
                 <td>{formatPlanningDate(point.date, locale)}</td>
-                <td className="tabular-nums">{formatMoney(point.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(point.amount, locale, currency)}</td>
               </tr>
             )),
           )}
@@ -129,7 +131,7 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                   {formatPlanningDate(step.date, locale)}
                 </th>
                 <td>{t(`enums.CurveSeries.steps.cause.${step.cause}`)}</td>
-                <td className="tabular-nums">{formatMoney(step.amount, locale)}</td>
+                <td className="tabular-nums">{formatMoney(step.amount, locale, currency)}</td>
               </tr>
             ))}
           </tbody>
@@ -151,8 +153,8 @@ function CurveValues({ curves }: { readonly curves: CurveSeries }) {
                 <th scope="row" className="font-normal">
                   {formatMonth(month.month, locale)}
                 </th>
-                <td className="tabular-nums">{formatMoney(month.past, locale)}</td>
-                <td className="tabular-nums">{formatMoney(month.forecast, locale)}</td>
+                <td className="tabular-nums">{formatMoney(month.past, locale, currency)}</td>
+                <td className="tabular-nums">{formatMoney(month.forecast, locale, currency)}</td>
               </tr>
             ))}
           </tbody>
@@ -172,12 +174,13 @@ export function CurveSeriesChart({
 }: CurveSeriesChartProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   const exported = useProvenance(provenance, title, curves.context.computed_at, file);
 
   const option = useCallback(
     (palette: ChartPalette): ChartOption => {
       const tick = new Intl.NumberFormat(formatLocale(locale));
-      const steps = curves.steps ?? [];
+      const steps = curves.steps;
       const lines = curves.series.map((series, index) => ({
         name: t(`enums.CurveSeries.series.name.${series.name}`),
         ...curve(
@@ -195,7 +198,7 @@ export function CurveSeriesChart({
         useUTC: true,
         textStyle: { fontFamily: palette.font, color: palette.text },
         // No legend: each curve is named at its end (`curve`).
-        grid: { left: 80, right: END_LABEL_WIDTH + 16, top: 24, bottom: 32 },
+        grid: { left: 80, right: END_LABEL_WIDTH + 16, top: 32, bottom: 32 },
         xAxis: timeAxis(
           palette,
           formatLocale(locale),
@@ -209,6 +212,14 @@ export function CurveSeriesChart({
         ),
         yAxis: {
           type: "value",
+          // The currency of the amounts is the title of the axis (WF-REF-0140), ticks bare.
+          ...(currency === undefined
+            ? {}
+            : {
+                name: currency,
+                nameLocation: "end" as const,
+                nameTextStyle: { color: palette.text },
+              }),
           axisLine: { show: true, lineStyle: { color: palette.axis } },
           axisLabel: { color: palette.text, formatter: (value: number) => tick.format(value) },
           splitLine: { lineStyle: { color: palette.grid } },
@@ -244,7 +255,7 @@ export function CurveSeriesChart({
         ],
       };
     },
-    [curves, locale, t],
+    [curves, currency, locale, t],
   );
 
   return (

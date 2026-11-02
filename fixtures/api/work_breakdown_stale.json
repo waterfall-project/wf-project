@@ -1,0 +1,10 @@
+{
+  "summary": "La saisie work_breakdown_entered, envoyée avec le compteur 1 de sa lecture quand une autre session a déjà enregistré le lotissement (work_breakdown_saved) : refusée, le compteur courant nommé, 2 ; rien n'est écrit (WF-IHM-0110, #803).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STALE_LOCK_VERSION",
+    "status": 412,
+    "params": {"expected_lock_version":2},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001554"
+  }
+}

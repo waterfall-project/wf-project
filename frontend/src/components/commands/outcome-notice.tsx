@@ -10,9 +10,8 @@
  * it in a region that scrolls (`estimate_lines`, EP-14/L53; `projects`, EP-14/L54); without a
  * session (401), the way to the sign-in page,
  * which comes back here; and, the API out of reach, that it is — the screen stays, it never goes
- * blank. The objects the refusal gives by their identifiers alone are named as the screen read them:
- * those it was given, and those the screen lends every notice under it (`KnownNames`) — every role,
- * which a refusal of a calendar gives by its identifier (`resource_role_ids`, EP-14/L42r).
+ * blank. The objects the refusal gives by their identifiers alone are named as the screen read them,
+ * those it was given (`names`).
  *
  * Every one is an alert: it follows a command the user just gave, and is announced at once — save
  * the lines or the projects listed, which may run to thousands: out of the alert, which would read
@@ -27,7 +26,7 @@
 import { CircleAlert, LogIn, RefreshCw, WifiOff, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useMessages, useTranslations } from "next-intl";
-import { createContext, type ReactNode, useCallback, useContext, useId, useMemo } from "react";
+import { useCallback, useId, useMemo } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
@@ -59,22 +58,8 @@ export type ObjectNames = Readonly<Record<string, string>>;
 
 type Problem = components["schemas"]["Problem"];
 
-/** The names a screen lends every notice under it; none outside such a screen. */
-const Known = createContext<ObjectNames>({});
-
-/**
- * Lend every notice under it the names of objects the screen read, by identifier — every role of the
- * settings of the resources, which a refusal of a calendar gives by its identifier alone.
- */
-export function KnownNames({
-  names,
-  children,
-}: {
-  readonly names: ObjectNames;
-  readonly children: ReactNode;
-}) {
-  return <Known value={names}>{children}</Known>;
-}
+/** No name lent: a refusal noted outside a notice is told with those it carries. */
+const NO_NAMES: ObjectNames = {};
 
 /** The offer to read anew, by a command, what its confirmation carried (412). */
 export interface Reread {
@@ -385,12 +370,11 @@ export interface NotedRefusal {
  * it notes nothing more. Nothing for an outcome done.
  */
 export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefusal) => void {
-  const known = useContext(Known);
-  const say = useSay(known);
+  const say = useSay(NO_NAMES);
   const project = useShownProjectLabel();
   return useCallback(
     (outcome: Outcome<unknown>, { subject, screen, parts }: NotedRefusal = {}) => {
-      const refusal = told(outcome, known, say);
+      const refusal = told(outcome, NO_NAMES, say);
       if (refusal === undefined) {
         return;
       }
@@ -400,7 +384,7 @@ export function useNoteRefusal(): (outcome: Outcome<unknown>, noted?: NotedRefus
       const detail = sentences.length === 0 ? undefined : sentences.join(" ");
       noteMessage(outcome, draftOf(refusal, subject, screen, detail), project(), parts);
     },
-    [known, say, project],
+    [say, project],
   );
 }
 
@@ -422,7 +406,7 @@ export function OutcomeNotice({
   const t = useTranslations("outcome");
   const failure = useTranslations("failure");
   const sentenceId = useSentenceId(id);
-  const told = useTold(outcome, { ...useContext(Known), ...names }, subject);
+  const told = useTold(outcome, names, subject);
   if (told === undefined) {
     return null;
   }

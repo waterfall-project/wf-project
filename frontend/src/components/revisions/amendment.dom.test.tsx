@@ -275,7 +275,7 @@ describe("the contractualisation of an amendment", () => {
     expect(screen.getByRole("link", { name: "Voir les révisions" })).toHaveFocus();
   });
 
-  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered [WF-REV-0050-A]", async () => {
+  it("tells no reference when the merge fails, does not read the page again, and keeps the command offered, the merge asked again from it and not from the tracker [WF-REV-0050-A]", async () => {
     serve({
       [REPORT]: "structure_merge_report",
       [MERGE]: { example: "task_merge_queued", status: 202 },
@@ -292,11 +292,42 @@ describe("the contractualisation of an amendment", () => {
     await tick();
     await tick();
     expect(within(tasksRegion()).getByText("Échouée")).toBeVisible();
+    // The counters the report read may be stale: the tracker offers no run again, and says where
+    // the merge is asked anew, with its report read again (#1682).
+    expect(within(tasksRegion()).queryByRole("button", { name: /^Relancer/ })).toBeNull();
+    expect(
+      within(tasksRegion()).getByText(
+        "Pour relancer cette tâche, repartez de l’écran de son objet.",
+      ),
+    ).toBeVisible();
     closeTasks();
     expect(screen.queryByText(/nouvelle révision de référence/)).toBeNull();
     expect(screen.queryByRole("link", { name: "Voir les révisions" })).toBeNull();
     expect(router.refresh).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Contractualiser l’avenant" })).toBeVisible();
+  });
+
+  it("tells a merge that fails for a post out of the subtree of its lot, naming the two tasks, as the contract gives them [WF-PLA-0170-A]", async () => {
+    serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_merge_outside_work_package"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    await tick();
+    await tick();
+    expect(tasksRegion()).toHaveTextContent(
+      /La tâche d’un poste doit rester dans le sous-arbre de la tâche de son lot\. Tâche du lot\s:\s« Poste de commande »\. Tâche du poste en cause\s:\s« Câblage des armoires »\./,
+    );
+    closeTasks();
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 
   it("names the started task the merge will complete [WF-REV-0050-A]", async () => {
@@ -339,6 +370,38 @@ describe("the contractualisation of an amendment", () => {
     expect(bodies(client, MERGE)).toEqual([]);
   });
 
+  it("joins the description typed to the revision produced, and sends none when it is left empty [WF-REV-0050-A]", async () => {
+    // La description de la fusion, facultative, est celle de la révision marquée qu'elle produit.
+    const client = serve({
+      [REPORT]: "structure_merge_report",
+      [MERGE]: { example: "task_merge_queued", status: 202 },
+      [TASK]: ["task_merge_running", "task_merge_succeeded"],
+    });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Nom de version" }),
+      "Avenant 2",
+    );
+    await userEvent.type(
+      within(form).getByRole("textbox", {
+        name: "Description de la révision produite (facultative)",
+      }),
+      "Essais sur site ajoutés par l’avenant 2",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Confirmer la fusion" }));
+    expect(bodies(client, MERGE)).toEqual([
+      {
+        confirmed: true,
+        version_name: "Avenant 2",
+        description: "Essais sur site ajoutés par l’avenant 2",
+        main_structure_lock_version: 1,
+        amendment_lock_version: 2,
+      },
+    ]);
+  });
+
   it("proposes to read the report again on a stale version (412), and keeps the version name typed [WF-IHM-0110-A]", async () => {
     const client = serve({
       [REPORT]: "structure_merge_report",
@@ -359,6 +422,56 @@ describe("the contractualisation of an amendment", () => {
     expect(client.calls.filter((call) => call.route === REPORT)).toHaveLength(2);
     expect(within(form).getByRole("textbox", { name: "Nom de version" })).toHaveValue("Avenant 2");
   });
+
+  it("is offered on the last revision marked when the project has none in progress, and its report says the merge creates it [WF-REV-0050-A]", async () => {
+    // Lorsque le projet ne comporte pas de révision en cours, elle en crée une au préalable
+    // (conception d'EP-16, « Une fusion sans révision en cours », #790 : le Vérif de WF-REV-0050-A
+    // ne dit pas ce cas).
+    const client = serve({ [REPORT]: "structure_merge_report_without_current_revision" });
+    open(merging(false, "revision_marked_merge_offered"));
+    const form = await openMerge();
+    expect(await within(form).findByRole("note")).toHaveTextContent(
+      "Le projet n’a pas de révision en cours : la fusion la crée d’abord par copie de la dernière révision marquée",
+    );
+    expect(within(form).getByRole("list", { name: "Écarts par objet" })).toBeVisible();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Nom de version" }), "V3");
+    const confirm = within(form).getByRole("button", { name: "Confirmer la fusion" });
+    expect(confirm).not.toHaveAttribute("aria-disabled", "true");
+    expect(client.calls.map((call) => call.route)).toEqual([REPORT]);
+  });
+
+  it("says nothing of a revision created when the project has one in progress [WF-REV-0050-A]", async () => {
+    serve({ [REPORT]: "structure_merge_report" });
+    open(merging());
+    const form = await openMerge();
+    await within(form).findByRole("list", { name: "Écarts par objet" });
+    expect(within(form).queryByRole("note")).toBeNull();
+  });
+
+  it.each([
+    {
+      example: "structure_merge_report_link_forbidden" as const,
+      sentence:
+        /Liaison en cause, la récapitulative d’abord : « Installation sur site » et « Montage des armoires sur site »/,
+    },
+    {
+      example: "structure_merge_report_horizon_exceeded" as const,
+      sentence: /Tâche en cause : « Mise en service »/,
+    },
+  ])(
+    "gives the tasks of a refusal with the motive, and does not offer the confirmation [WF-PLA-0030-A] [WF-PLA-0150-A] ($example)",
+    async ({ example: name, sentence }) => {
+      serve({ [REPORT]: name });
+      open(merging());
+      const form = await openMerge();
+      expect(await within(form).findByRole("alert")).toHaveTextContent(sentence);
+      await userEvent.type(within(form).getByRole("textbox", { name: "Nom de version" }), "V3");
+      expect(within(form).getByRole("button", { name: "Confirmer la fusion" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    },
+  );
 
   it("is not presented for an amendment already merged, and not at all without the offer", () => {
     serve({});

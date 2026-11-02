@@ -88,6 +88,14 @@ describe("the breadcrumb", () => {
     ]);
   });
 
+  it("sits a leaf of platform scope after its function, in its block, a link for a session that may read it [WF-REF-0190-A]", () => {
+    expect(steps("/reference/costs/actual-cost-mapping")).toEqual([
+      { kind: "label", label: "functionGroups.applicationSettings" },
+      { kind: "label", label: "functions.costSettings", href: "/reference/costs" },
+      { kind: "label", label: "functions.actualCostMapping" },
+    ]);
+  });
+
   it("sits the imports and exports after the planning, whose leaf they are", () => {
     expect(steps(`/projects/${PROJECT}/revisions/${REVISION}/exchanges?import=i`)).toEqual([
       { kind: "label", label: "functionGroups.projects", href: "/" },

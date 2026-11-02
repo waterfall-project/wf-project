@@ -21,8 +21,9 @@ import { parametersHref } from "@/components/portfolio/address";
 import { NoProjects } from "@/components/system/empty-states";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { CONTRIBUTOR_PARAMETER, HOME } from "@/navigation/home";
+import { CONTRIBUTOR_PARAMETER, DEFAULT_STATES, HOME } from "@/navigation/home";
 
+import { ProjectStateBadge } from "./project-state-badge";
 import type { ListedProjectPage, ListedProjectRow, ListedProjectSort } from "./project-list-grid";
 import { ProjectListGrid } from "./project-list-view";
 
@@ -76,6 +77,26 @@ export function ContributorFilter({ filtered, mayLift, query }: ContributorFilte
   );
 }
 
+/**
+ * The filter by default of the list by state, said as the filter of the contributor is: shown while
+ * it applies — the states retained are pricing and in progress, by the address, the account's
+ * settings or neither —, and lifted by « Tous les états » of the filter by state beside it.
+ */
+export function DefaultStatesFilter() {
+  const t = useTranslations("projectList.filter");
+  return (
+    <section aria-label={t("defaultLabel")} className="flex flex-wrap items-center gap-2 text-sm">
+      <Badge variant="outline">
+        <ListFilter aria-hidden="true" />
+        {t("defaultStates")}
+      </Badge>
+      {DEFAULT_STATES.map((state) => (
+        <ProjectStateBadge key={state} state={state} />
+      ))}
+    </section>
+  );
+}
+
 /** What the list of projects shows: a page of the projects the server retained. */
 export interface ProjectListProps {
   readonly projects: readonly ListedProjectRow[];
@@ -90,9 +111,9 @@ export interface ProjectListProps {
 /**
  * The projects of a page of the list, or that there is none: only when the list holds none at
  * all, and nothing narrows it but its filter — a page asked beyond its end is no empty list, and
- * leads back into it; a list emptied by states, a period or a search keeps its grid, whose bar and
- * filters change them. The filter that would empty it is lifted by the link the header
- * shows.
+ * leads back into it; a list emptied by states (the states by default count as a filter), a period
+ * or a search keeps its grid, whose bar and filters change them. The filter that would empty it
+ * is lifted by the link the header shows.
  */
 export function ProjectList({
   projects,

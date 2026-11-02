@@ -73,7 +73,8 @@ exigences de domaine dont une phrase de Vérif tient côté front (décision de 
 - les navigateurs et les largeurs d'affichage de WF-CMP-0010 (US-0290, 1366 et 360 points) : EP-13.
   Les 911 points de #1209 ne sont pas une largeur d'US-0290 mais l'agrandissement de 150 % de
   WF-IHM-0100, et le constat reste ici (décision de l'auteur du 2026-10-28) ;
-- les points 1 et 3 de #1384 (les exemples du contrat) : EP-16, US-0640/L6 ; l'issue s'y ferme ;
+- le point 1 de #1384 (les exemples du contrat) : EP-16, US-0640/L6 et US-0660/L3 ; ses points 2
+  et 3 viennent ici (« Constats reçus », US-0770) ;
 - le comportement réel des écrans : l'EPIC de leur domaine.
 
 ## Exigences réalisées
@@ -177,6 +178,8 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1428 — front : l'export PNG du Gantt porte une colonne des noms des tâches (option B de
   l'auteur, #1426) ;
 - #1421 — front : la tenue de la légende des jours chômés dure un tick ;
+- #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation et non
+  « for a tick at most » (US-0750/L1 #1560, décision de l'auteur du 2026-10-28) ;
 - #1144 — front : la largeur mesurée de la barre des grilles denses n'est pas éprouvée au
   redimensionnement (décision de l'auteur du 2026-10-25 : EP-17, non repris par EP-15) ;
 - #1424 — front : deux mineurs du test de provenance de l'écran des chronologies ;
@@ -202,8 +205,16 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1432 — front : `clear` de `cell-writes` hors de la référence synchrone ;
 - #901 — front : la liste garde les refus des lectures passées ;
 - #781 — test : `held()` n'a pas remplacé toutes les retenues faites à la main ;
-- #1384, point 2 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer » (l'issue
-  reste en EP-16 pour ses points 1 et 3, et se ferme avec eux ; #1568 reprend le point ici).
+- #1384, points 2 et 3 — front : le libellé et l'icône de `ReferenceForm` pour « Réexaminer »
+  (#1568 reprend le point 2) ; le succès de « Déclarer survenu », son message et `router.refresh`,
+  non testé faute d'un exemple `task_occurrence_succeeded` de `GET /tasks/{id}` (point 3, reporté
+  ici par décision de l'auteur du 2026-10-28). L'exemple modifie le contrat figé : il passe par une
+  issue « contrat » que l'auteur tranche (`docs/api/DECISIONS.md`). Le point 1 est corrigé en
+  EP-16 ; l'issue porte le label `EP-17` depuis le 2026-11-01 ;
+- #1701 — front : l'historique des messages nomme une ligne de devis créée sans libellé d'après la
+  ligne active (`structure-gestures.tsx`) ;
+- #1500 — doc : l'entrée n° 25 de `docs/dev/typescript.md`, la parenthèse sur `held(…)` et le
+  renvoi à l'audit de #1491 ; **cosmétique**.
 
 **US-0780 — l'administration, la session et le journal d'audit.**
 
@@ -223,6 +234,10 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1180 — front : l'historique des messages et le suivi des tâches survivent à une session
   expirée ;
 - #847 — front : la source commune des rôles répondus n'est éprouvée que dans un sens ;
+- #1673 — front : l'infobulle d'une inscription du journal perd l'instant de la sauvegarde
+  restaurée (`audit-cells.tsx`) ;
+- #1744 — front : la lecture de la session répétée dans le layout, et le titre d'axe en devise des
+  graphiques sans test ;
 - **cosmétiques** : #963 — deux finitions de l'écran et du parcours du journal d'audit (son point 2
   reçoit une phrase, décision de l'auteur du 2026-10-28) ; #967 — deux finitions du parcours et de
   la cellule de l'action du journal ; #990 — « Adresse portée par le compte Compte anonymisé » ;
@@ -236,6 +251,11 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1481 — front : Échap dans le champ de recherche de l'aide ferme le panneau au lieu de vider le
   champ (relevé par US-0670/L1 ; reporté vers EP-17 sur décision de l'auteur du 2026-10-25) ;
 - #902 — test : un test importe `RouterContext` d'un module privé de Next ;
+- #1821 — doc, front : `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment une colonne
+  « Montant corrigé de l'inflation » que la grille de devis intitule « Montant réestimé », et
+  `FBS-4.4.3.md` dit que le devis ne montre pas le montant réestimé (relevé par US-0670b #1811) ;
+- #1822 — front : les incohérences du catalogue `en` — « Reste à engager », « Nouvelle nature »,
+  « Cash-out by month », « Modify the schedule » (relevé par US-0670b #1811) ;
 - **cosmétiques** : #905 — des espaces insécables littéraux dans les tests du front ; #846 — le
   guide dit encore à venir la confirmation de #836 ; #888 — trois mineurs du tour 3 d'US-0350/L5b.
 
@@ -244,6 +264,19 @@ titre s'accorde à l'ouverture ; #1354 retourne à EP-16 (« Ce qui n'en fait pa
 - #1230 — front : quitter un écran de grille de mille tâches coûte plusieurs secondes au navigateur
   (#1218) ; borné : la cause d'abord, un budget, un correctif à la cause (décision de l'auteur du
   2026-10-28).
+
+**Reportés d'EP-16 à sa livraison (2026-11-01)**, label et titre `EP-17`, décision de l'auteur
+du 2026-11-01, à ranger sous l'US qui les règle à l'ouverture des lots ; aucun ne touche le
+contrat :
+
+- #1729 — front : deux composants « Amount » aux propriétés différentes (`portfolio-views.tsx` et
+  `components/amount.tsx`) ;
+- #1804 — spec : WF-IND-0040, l'avancement financier n'est pas le seul indicateur indépendant de la
+  valeur acquise ; une modification de la spécification, que l'auteur intègre, puis la formulation
+  reportée dans `FBS-4.8.1.md` ;
+- #1810 — front : les désactivés du référentiel demandés sous la seule permission de consultation,
+  quand le contrat les réserve à `*.write` (WF-REF-0150 ; relevé par US-0704 #1735, comme C-01
+  #1745).
 
 **La revue du contrat du 2026-10-31.** Les écrans de ce que la revue du contrat a changé, tranché
 par l'auteur le 2026-11-01 : EP-16 en écrit le contrat (US-0704 #1735), et les écrans viennent à

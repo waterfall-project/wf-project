@@ -41,10 +41,6 @@ test("the opening of a second current revision and the designation beyond the co
 test("abandoning the current revision asks for a confirmation that says the return and the irreversibility, then leaves the revision [WF-REV-0010-A]", async ({
   page,
 }) => {
-  // Set aside until US-0590 (#1313) plays the paths against the built front: under load, the
-  // address keeps `revision_id` beyond the five seconds of the assertion once the revision is
-  // abandoned (merge queue runs 40159795179, 40174538368). Decision of the author, 2026-10-25.
-  test.fixme(true, "unstable on the development server until US-0590 #1313 (#1460)");
   await openHydrated(page, `/projects/${PROJECT}/revisions?revision_id=${REVISION}`);
   const main = page.getByRole("main");
   const commands = main.getByRole("region", { name: "Commandes" });

@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { expect, test } from "@playwright/test";
+import { expect, type Route, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openMenu, setExpanded } from "./hydration";
+import { handledAlready, openMenu, setExpanded } from "./hydration";
 
 // The session of the fake back is Camille Martin's, whose role grants the whole catalogue of
 // permissions: every function is offered, and the menu of the account.
@@ -137,6 +137,51 @@ test("the menu of the account leads to the pages of the account", async ({ page 
   await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
 });
 
+test("a page of the account clicked in the menu while its prefetch is on its way keeps its title (#1499)", async ({
+  page,
+}) => {
+  await compile(page.request, "/account/avatar");
+  // The prefetch of the page down to its loading boundary — an RSC request marked as a prefetch,
+  // for no segment — held on the network until the click has fallen, as the load of four workers
+  // holds it. Next 16.4.3 then kept the empty head of the pending prefetch, and the title of the
+  // page was lost for good (vercel/next.js#98684): the menu of the account no longer prefetches.
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/account/avatar*", async (route) => {
+    const headers = route.request().headers();
+    if (
+      headers.rsc === "1" &&
+      headers["next-router-prefetch"] === "1" &&
+      headers["next-router-segment-prefetch"] === undefined
+    ) {
+      await released;
+    }
+    await route.fallback();
+  });
+  await page.goto("/");
+  await openMenu(
+    page.getByRole("button", { name: "Compte de Camille Martin" }),
+    page.getByRole("menu"),
+  );
+  // Hovered first, as a pointer does. Next prefetches a link when it enters the viewport, and
+  // reschedules that prefetch at a higher priority on hover (not in a development build, which
+  // skips it): the hover is here to let a link that prefetches send its prefetch before the click.
+  // Without the fix, it has in nearly every run at four workers (62 out of 64); in the others it
+  // goes out during the click, too late to be held across it, and the run passes.
+  await page.getByRole("menuitem", { name: "Changer l’avatar" }).hover();
+  await expect(page.getByRole("menuitem", { name: "Se déconnecter" })).not.toHaveAttribute(
+    "aria-disabled",
+  );
+  await page.getByRole("menuitem", { name: "Changer l’avatar" }).click();
+  release();
+
+  await expect(page).toHaveURL("/account/avatar");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer l’avatar");
+  await expect(page).toHaveTitle("Changer l’avatar — Waterfall");
+});
+
 test("the bar tells the refusal of a write whose screen was left by « Précédent » before it answered (#863)", async ({
   page,
 }) => {
@@ -156,37 +201,70 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
   const held = new Promise<void>((resolve) => {
     cut = resolve;
   });
-  await page.route("**/account", async (route) => {
-    if (route.request().headers()["next-action"] === undefined) {
-      await route.continue();
-      return;
+  const handlers = new Set<Promise<void>>();
+  const record = async (route: Route): Promise<void> => {
+    try {
+      if (route.request().headers()["next-action"] === undefined) {
+        await route.continue();
+        return;
+      }
+      await held;
+      await route.abort();
+    } catch (error) {
+      // The interception taken away under a request caught as it was: the network served it.
+      if (!handledAlready(error)) {
+        throw error;
+      }
     }
-    await held;
-    await route.abort();
-  });
-  // A choice made before React hydrated the page is lost: it is made again until it holds.
-  const dark = page.getByRole("radio", { name: "Sombre" });
-  await expect(async () => {
-    await dark.click();
-    await expect(dark).toBeChecked({ timeout: 500 });
-  }).toPass();
-  const sent = page.waitForRequest((request) => request.headers()["next-action"] !== undefined);
-  await page.getByRole("button", { name: "Enregistrer" }).click();
-  await sent;
+  };
+  const drain = async (): Promise<void> => {
+    while (handlers.size > 0) {
+      await Promise.allSettled([...handlers]);
+    }
+  };
+  const account = (route: Route): Promise<void> => {
+    const handled = record(route);
+    handlers.add(handled);
+    const settled = (): void => {
+      handlers.delete(handled);
+    };
+    handled.then(settled, settled);
+    return handled;
+  };
+  await page.route("**/account", account);
+  try {
+    // A choice made before React hydrated the page is lost: it is made again until it holds.
+    const dark = page.getByRole("radio", { name: "Sombre" });
+    await expect(async () => {
+      await dark.click();
+      await expect(dark).toBeChecked({ timeout: 500 });
+    }).toPass();
+    const sent = page.waitForRequest((request) => request.headers()["next-action"] !== undefined);
+    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await sent;
 
-  await page.goBack();
-  await expect(page).toHaveURL("/");
-  // The address changes at the popstate already: the screen of the account is gone only once the
-  // home shows in its place.
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
-  await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
-  const bar = page.getByRole("banner");
-  await expect(bar.getByRole("alert")).toHaveCount(0);
-  cut();
-  const alert = bar.getByRole("alert");
-  await expect(alert).toHaveText(
-    /^Une modification qui n’est plus affichée a été refusée\s: elle n’est pas enregistrée\./,
-  );
-  await alert.getByRole("button", { name: "Fermer l’avis" }).click();
-  await expect(alert).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL("/");
+    // The record is held by a local state, not a transition (#1484): the router shows the home at
+    // once, the record still under way, and the screen of the account goes with what would tell its
+    // refusal — released, the write is told by the bar once refused, not before.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
+    await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
+    const bar = page.getByRole("banner");
+    await expect(bar.getByRole("alert")).toHaveCount(0);
+    cut();
+    const alert = bar.getByRole("alert");
+    await expect(alert).toHaveText(
+      /^Une modification qui n’est plus affichée a été refusée\s: elle n’est pas enregistrée\./,
+    );
+    await alert.getByRole("button", { name: "Fermer l’avis" }).click();
+    await expect(alert).toHaveCount(0);
+  } finally {
+    // Whatever the test ended in: the record released, the handlers done, the route taken away
+    // (#1721), and the window of the removal waited for too.
+    cut();
+    await drain();
+    await page.unroute("**/account", account);
+    await drain();
+  }
 });

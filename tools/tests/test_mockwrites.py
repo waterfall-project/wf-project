@@ -29,7 +29,12 @@ from wftools.mockwitness import CABLE_FITTER, CORE
 type Node = dict[str, Any]
 
 STUDIES, REVIEW, ACCEPTANCE, DESIGN_FILE = 521, 524, 525, 526
-VOLUME_WRITES = {"estimate_line_entered.json", "paste_applied.json", "paste_applied_partial.json"}
+VOLUME_WRITES = {
+    "estimate_line_entered.json",
+    "paste_applied.json",
+    "paste_applied_partial.json",
+    "paste_applied_rejudged.json",
+}
 CONTROL_STATION, WIRING, LABOUR, BLOCKS, MILESTONE = 551, 552, 553, 554, 556
 INSTALLATION, MOUNTING, ON_SITE, TESTS, COMMISSIONING, COMMISSIONING_LINE = (
     561,
@@ -134,22 +139,26 @@ def test_a_duration_lengthened_pushes_a_successor_into_the_next_year(
         line = node["estimate_line"]
         entry = amounts[node["node_id"]]
         assert entry["consumption_year"] == 2027
-        assert Decimal(entry["inflated_amount"]) == mockstructure.inflated(
+        assert Decimal(entry["reestimated_amount"]) == mockstructure.inflated(
             Decimal(line["base_amount"]), 2027
         )
-        delta += Decimal(entry["inflated_amount"]) - Decimal(line["inflated_amount"])
-    total = sum(Decimal(amounts[node["node_id"]]["inflated_amount"]) for node in lines_of)
+        # The budget stays projected on the year the reference consumed the line (WF-DEV-0020).
+        assert entry["budgeted_amount"] == line["budgeted_amount"]
+        delta += Decimal(entry["reestimated_amount"]) - Decimal(line["reestimated_amount"])
+    total = sum(Decimal(amounts[node["node_id"]]["reestimated_amount"]) for node in lines_of)
     assert amounts[successor["node_id"]]["consumption_year"] is None
-    assert Decimal(amounts[successor["node_id"]]["inflated_amount"]) == total
-    # The summaries above, whole, and the totals: the corrected amounts move by the same delta.
+    assert Decimal(amounts[successor["node_id"]]["reestimated_amount"]) == total
+    # The summaries above, whole, and the totals: the re-estimated amounts move by the same delta.
     assert [node["task"]["is_summary"] for node in written["ancestors"]] == [True, True]
     for node in written["ancestors"]:
         was = before[node["node_id"]]["task"]
-        assert Decimal(node["task"]["inflated_amount"]) == Decimal(was["inflated_amount"]) + delta
+        assert Decimal(node["task"]["reestimated_amount"]) == (
+            Decimal(was["reestimated_amount"]) + delta
+        )
         assert node["task"]["base_amount"] == was["base_amount"]
     totals = answer["totals"]
-    assert Decimal(written["totals"]["inflated_amount"]) == (
-        Decimal(totals["inflated_amount"]) + delta
+    assert Decimal(written["totals"]["reestimated_amount"]) == (
+        Decimal(totals["reestimated_amount"]) + delta
     )
     assert written["totals"]["base_amount"] == totals["base_amount"]
 
@@ -232,7 +241,7 @@ def test_a_link_set_on_a_task_not_started_redates_what_follows_and_nothing_past(
     assert mounting["predecessors"] == [
         {
             "predecessor_node_id": universe(MILESTONE),
-            "predecessor_row_number": 18,
+            "predecessor_row_number": 13,
             "link_type": "finish_to_start",
             "lag": {"value": "2", "unit": "d"},
         }
@@ -303,25 +312,24 @@ def test_a_role_on_another_calendar_redates_its_task_and_moves_its_successor_in_
     assert moved[COMMISSIONING]["start"]["date"] >= "2027"
     assert sorted(moved) == [MOUNTING, COMMISSIONING]
     assert len(redated["rescheduled"]) == len(moved)
-    # Its line consumed a year later, corrected anew at the inflation of the witness, and the
+    # Its line consumed a year later, re-estimated anew at the inflation of the witness, and the
     # commissioning, which sums it; the mounting, still started in 2026, keeps its lines' year.
     amounts = {int(entry["node_id"][-3:]): entry for entry in redated["reinflated"]}
     assert list(amounts) == [COMMISSIONING, COMMISSIONING_LINE]
     was = read[COMMISSIONING_LINE]["estimate_line"]
     assert amounts[COMMISSIONING_LINE]["consumption_year"] == 2027
-    assert money(amounts[COMMISSIONING_LINE]["inflated_amount"]) == mockstructure.inflated(
+    assert money(amounts[COMMISSIONING_LINE]["reestimated_amount"]) == mockstructure.inflated(
         money(was["base_amount"]), 2027
     )
     assert amounts[COMMISSIONING]["consumption_year"] is None
-    assert (
-        amounts[COMMISSIONING]["inflated_amount"] == amounts[COMMISSIONING_LINE]["inflated_amount"]
+    line_amount = amounts[COMMISSIONING_LINE]["reestimated_amount"]
+    assert amounts[COMMISSIONING]["reestimated_amount"] == line_amount
+    delta = money(line_amount) - money(was["reestimated_amount"])
+    assert money(above[INSTALLATION]["task"]["reestimated_amount"]) == (
+        money(read[INSTALLATION]["task"]["reestimated_amount"]) + delta
     )
-    delta = money(amounts[COMMISSIONING_LINE]["inflated_amount"]) - money(was["inflated_amount"])
-    assert money(above[INSTALLATION]["task"]["inflated_amount"]) == (
-        money(read[INSTALLATION]["task"]["inflated_amount"]) + delta
-    )
-    assert money(redated["totals"]["inflated_amount"]) == (
-        money(whole["totals"]["inflated_amount"]) + delta
+    assert money(redated["totals"]["reestimated_amount"]) == (
+        money(whole["totals"]["reestimated_amount"]) + delta
     )
     assert redated["totals"]["base_amount"] == whole["totals"]["base_amount"]
 
@@ -430,6 +438,62 @@ def test_a_block_partly_refused_writes_its_valid_rows_and_says_the_refused_one_a
     assert partial["totals"] == applied["totals"]
 
 
+def test_the_confirmation_refuses_a_row_moved_to_a_category_deactivated_since_the_preview() -> None:
+    # The reference has no counter: the confirmation judges the accepted rows again (#764). The
+    # row that moves its line to the deactivated category is refused; the one that names the
+    # category its line bears already changes nothing, and is written (#747, point 8).
+    categories, _ = mockwrites.known()
+    deactivated = categories[mockwrites.REJUDGED[0][1]]
+    plan = mockwrites.paste_plan(mockwrites.REJUDGED, mockwrites.PASTES[0])
+    assert plan == mockwrites.paste_plan(mockwrites.BLOCK, mockwrites.PASTES[0])
+    assert (plan["accepted"], plan["rejected"]) == (3, [])
+    lines = mockwrites.pasted_lines(mockwrites.REJUDGED)
+    assert lines[0].category == deactivated != lines[1].category
+    rejudged = cast("dict[str, Any]", _json(mockwrites.paste_applied_rejudged()))
+    assert rejudged["rejected"] == [
+        {"row": 1, "column": "cost_category", "code": "INACTIVE_REFERENCE_OBJECT"}
+    ]
+    written = [node["row_number"] for node in rejudged["nodes"]]
+    assert written == [mockwrites.ROW, mockwrites.ROW + 2]
+    assert [line.number for line in lines] == [mockwrites.LINE + each for each in range(3)]
+    assert [node["estimate_line"]["uses_inactive_object"] for node in rejudged["nodes"]] == [
+        True,
+        False,
+    ]
+    # The rows written are those a block without the refused row writes, its figures alike.
+    partial = cast("dict[str, Any]", _json(mockwrites.paste_applied(mockwrites.UNKNOWN_CATEGORY)))
+    for node, kept in zip(rejudged["nodes"], partial["nodes"], strict=True):
+        assert {**node["estimate_line"], "uses_inactive_object": False} == kept["estimate_line"]
+    assert rejudged["totals"] == partial["totals"]
+    assert rejudged["structure_lock_version"] == mockwrites.ENTERED_VERSION + 1
+    # A cell that names the category of its line is never refused, deactivated or not.
+    assert mockwrites.rejudged(mockwrites.BLOCK, deactivated) == []
+
+
+def test_a_paste_confirmed_after_its_structure_moved_on_is_refused_with_the_current_version() -> (
+    None
+):
+    # The 412 of the confirmation has its example (#752, point 4): the version it names is the
+    # one past the version the plan was judged on, the label entered (#421), whatever was sent.
+    stale = write("paste_stale")
+    applied = write("paste_applied")
+    assert stale == {
+        "code": "STALE_LOCK_VERSION",
+        "status": 412,
+        "params": {"expected_lock_version": mockwrites.ENTERED_VERSION + 1},
+        "correlation_id": mockids.universe(1555),
+    }
+    assert stale["params"]["expected_lock_version"] == applied["structure_lock_version"]
+    assert write("estimate_line_entered")["structure_lock_version"] == mockwrites.ENTERED_VERSION
+    paths = (REPOSITORY / "docs" / "api" / "paths" / "revisions.yaml").read_text(encoding="utf-8")
+    operation = paths.split("operationId: applyPaste\n", 1)[1].split("operationId:", 1)[0]
+    refused = operation.split("      '412':\n", 1)[1].split("      '422':", 1)[0]
+    assert "fixtures/api/paste_stale.json" in refused
+    assert "fixtures/api/paste_applied_rejudged.json" in operation.split("'400'", 1)[0]
+    said = " ".join(operation.split("    parameters:", 1)[0].split())
+    assert "le plan retient aussi le compteur de la structure lu à l'aperçu" in said
+
+
 def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_so() -> None:
     examples = mockwrites.writes()
     said = cast("str", examples["paste_applied_partial.json"]["summary"])
@@ -475,9 +539,9 @@ def test_the_partial_paste_is_the_last_example_of_its_answer_and_its_plan_says_s
 def test_a_block_too_wide_is_refused_by_the_width_of_a_line_in_the_contract() -> None:
     columns = mockwrites.node_columns()
     assert (columns[0], columns[-1]) == ("label", "previous_reestimated_amount")
-    # Its label and sixteen columns, the quantities of the previous review among them (#424).
-    assert mockwrites.line_width(columns) == 17
-    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 17}
+    # Its label and fifteen columns, the quantities of the previous review among them (#424).
+    assert mockwrites.line_width(columns) == 16
+    assert mockwrites.paste_too_wide()["params"] == {"max_columns": 16}
     text = "Other:\n  enum: [a]\nNodeColumn:\n  type: string\n  enum:\n    - label\n    - work\n"
     text += "    - cost_category\n    - hours\nNext:\n"
     assert mockwrites.node_columns(text) == ["label", "work", "cost_category", "hours"]

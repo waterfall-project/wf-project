@@ -3,6 +3,7 @@
 import { expect, type Locator, type Page, type Request, test } from "@playwright/test";
 
 import {
+  edgesBetween,
   rowAt,
   scrollPageToGrid,
   scroller,
@@ -10,14 +11,14 @@ import {
   scrollToPosition,
   withinBox,
 } from "./scroll";
-import { openHydrated, openMenu, WORKING } from "./hydration";
+import { holdRoute, openHydrated, openMenu, pause, WORKING } from "./hydration";
 
 // The fake back serves the first example of `listNodes`, the structure of the witness at the sizes
 // of §4.6.2, its core first (#376): a thousand tasks and five thousand lines, six thousand rows, of
 // which the grid renders those in view. The journeys read it by marks the generator writes, which
 // `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py) holds — the summary task
-// of row 1, « Études », the task of row 2, the task of row 14 over its line and before its sibling
-// of row 16, the first line drawn after the core, row 28, the milestone of row 6000, the totals of
+// of row 1, « Études », the task of row 2, the task of row 15 over its line and before its sibling
+// of row 17, the first line drawn after the core, row 28, the milestone of row 6000, the totals of
 // the answer —, and never count the rows rendered: the row count of the grid says how many there
 // are. The second of §4.6.2 is measured in `opening.spec.ts`. Each path opens the grid hydrated
 // (`openHydrated`) before it scrolls or clicks: the rows follow the scroll, and the sort answers
@@ -72,11 +73,11 @@ test("the indicators of the estimate break the total down by lot, « Lot 1 » na
   const byLot = indicators.getByRole("region", { name: "Par lot" });
   await expect(byLot).toBeVisible();
   // The card holds a list with the lot of the witness, whose posts it contains, with the
-  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56, its
+  // total of its tasks as the first example of `getEstimateIndicators` gives it — 502 434,56 €, its
   // share of the estimate after it (`test_mockdata.py` holds the lot of the volume).
   const lot = byLot.getByRole("listitem");
   await expect(lot).toHaveCount(1);
-  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s\(0,76\s%\)$/);
+  await expect(lot).toHaveText(/^Lot 1\s*502\s434,56\s€\s\(0,73\s%\)$/);
   await expect(indicators.getByText("Par poste")).toHaveCount(0);
 });
 
@@ -172,13 +173,10 @@ test.describe("on a low window", () => {
     expect(await withinBox(grid(page), totals)).toBe(true);
     // The last of the six thousand rows is in view, between the header and the totals.
     expect(await withinBox(grid(page), last)).toBe(true);
-    const [over, row, under] = await Promise.all([
-      header.boundingBox(),
-      last.boundingBox(),
-      totals.boundingBox(),
-    ]);
-    expect(row?.y ?? 0).toBeGreaterThanOrEqual((over?.y ?? 0) + (over?.height ?? 0) - 1);
-    expect((row?.y ?? 0) + (row?.height ?? 0)).toBeLessThanOrEqual((under?.y ?? 0) + 1);
+    // The three boxes read at one moment (#1522).
+    const row = await edgesBetween(last, header, totals);
+    expect(row.top).toBeGreaterThanOrEqual(row.headerBottom - 1);
+    expect(row.bottom).toBeLessThanOrEqual(row.totalsTop + 1);
   });
 
   test("sizes its rows by the root font: enlarged, the rows grow with it and the header and totals stay in view", async ({
@@ -203,8 +201,31 @@ test.describe("on a low window", () => {
   });
 });
 
+const BANNER = "Contexte de lecture";
+
+/** Whether an element shows all its text: nothing of it is cut at the right. */
+function isUncut(element: Locator): Promise<boolean> {
+  return element.evaluate((node) => node.scrollWidth <= node.clientWidth);
+}
+
+/** Whether two boxes share no area. */
+function disjoint(
+  a: { x: number; y: number; width: number; height: number } | null,
+  b: { x: number; y: number; width: number; height: number } | null,
+): boolean {
+  if (a === null || b === null) {
+    return false;
+  }
+  return (
+    a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y
+  );
+}
+
 test.describe("on a narrow window", () => {
-  test.use({ viewport: { width: 700, height: 700 } });
+  // 760 pixels high: the floor of the grid (US-0560) fits under a banner on two rows, the source
+  // of the revision being shown whole; 700 left the page overflowing by 16 pixels, the totals half
+  // out of view.
+  test.use({ viewport: { width: 700, height: 760 } });
 
   test("keeps the label of each row, the header and the totals in view as the grid scrolls sideways [WF-IHM-0060-A]", async ({
     page,
@@ -221,10 +242,8 @@ test.describe("on a narrow window", () => {
       element.scrollLeft = element.scrollWidth;
     });
     await expect.poll(() => box.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
-    const inflated = grid(page).getByRole("columnheader", {
-      name: "Calculé Montant corrigé de l’inflation",
-    });
-    await expect(inflated).toBeInViewport();
+    const last = grid(page).getByRole("columnheader", { name: "Calculé Montant réestimé" });
+    await expect(last).toBeInViewport();
 
     // The label, its header and the caption of the totals stay at the start, beside the row
     // numbers, whatever is scrolled under them.
@@ -237,6 +256,27 @@ test.describe("on a narrow window", () => {
       await expect(pinned).toBeInViewport({ ratio: 1 });
       expect((await pinned.boundingBox())?.x).toBeCloseTo((start?.x ?? 0) + 1 + 48, 0);
     }
+  });
+
+  test("shows the revision a copy is made of whole, beside the chip of an active filter, without overlap [WF-IHM-0020-A]", async ({
+    page,
+  }) => {
+    // Tout écran nomme la révision source avec la révision en cours.
+    await openHydrated(page, GRID);
+    const banner = page.getByRole("region", { name: BANNER });
+    const source = banner.getByText("Copie de « Référence »");
+    await expect(source).toBeVisible();
+    expect(await isUncut(source)).toBe(true);
+
+    await page
+      .getByRole("combobox", { name: "Lot ou poste" })
+      .selectOption({ label: "Lot\u00a0: Lot 1" });
+    const chip = banner.getByRole("list", { name: "Filtres actifs" }).getByRole("listitem");
+    await expect(chip).toHaveText(["Lot : Lot 1, sur la grille seulement"], { timeout: WORKING });
+    await expect(chip).toBeInViewport({ ratio: 1 });
+    await expect(source).toBeInViewport({ ratio: 1 });
+    expect(await isUncut(source)).toBe(true);
+    expect(disjoint(await chip.boundingBox(), await source.boundingBox())).toBe(true);
   });
 
   test("pins the Gantt of the planning at the end, its handle widening it over the columns before it, each of which the active cell scrolls out from under it", async ({
@@ -344,19 +384,27 @@ test("shows the sort asked without waiting for the server actions of the page, i
   // have answered: the preference is written once the sort is shown, and the page opens without
   // any — an action goes to the address the page shows as it is dispatched.
   const dispatched: string[] = [];
-  await page.route(`**${GRID}*`, async (route) => {
+  // The actions held are let go before the test ends, whatever it ends in (#1720).
+  const held = await holdRoute(page, `**${GRID}*`, async (route, released) => {
     if (route.request().headers()["next-action"] !== undefined) {
       dispatched.push(route.request().url());
-      await new Promise((resolve) => setTimeout(resolve, HELD));
+      await pause(HELD, released);
     }
-    await route.continue().catch(() => undefined);
   });
-  await openHydrated(page, GRID);
-  const header = grid(page).getByRole("columnheader", { name: "Calculé Montant (année de réf.)" });
-  await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, { timeout: WORKING });
-  await expect(header).toHaveAttribute("aria-sort", "ascending");
-  expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+  try {
+    await openHydrated(page, GRID);
+    const header = grid(page).getByRole("columnheader", {
+      name: "Calculé Montant (année de réf.)",
+    });
+    await header.getByRole("button").click();
+    await expect(page).toHaveURL(`${GRID}?sort_by=base_amount&sort_order=asc`, {
+      timeout: WORKING,
+    });
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+    expect(dispatched.filter((url) => !url.includes("?sort_by="))).toEqual([]);
+  } finally {
+    await held.release();
+  }
 });
 
 test("shows the sort asked without waiting for the totals a searched grid reads anew after a write", async ({
@@ -372,33 +420,38 @@ test("shows the sort asked without waiting for the totals a searched grid reads 
     request.headers()["next-action"] !== undefined &&
     (request.postData() ?? "").includes("revue") &&
     !(request.postData() ?? "").includes("lock_version");
-  await page.route(`**${REMAINING}*`, async (route) => {
+  // The action held is let go before the test ends, whatever it ends in (#1720).
+  const held = await holdRoute(page, `**${REMAINING}*`, async (route, released) => {
     if (isRetotal(route.request())) {
-      await new Promise((resolve) => setTimeout(resolve, HELD));
+      await pause(HELD, released);
     }
-    await route.continue().catch(() => undefined);
   });
-  await openHydrated(page, `${REMAINING}?search=revue`);
-  // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
-  // progress lists the remaining to commit available, where it lists the estimate unavailable,
-  // and the fake back answers the write whatever is sent.
-  const remaining = remainingGrid(page);
-  const effort = await remaining
-    .getByRole("columnheader", { name: "Charge (h)", exact: true })
-    .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
-  const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
-  await hours.click();
-  await page.keyboard.type("9");
-  const retotal = page.waitForRequest(isRetotal);
-  await page.keyboard.press("Enter");
-  await retotal;
-  await expect(hours.getByRole("textbox")).toHaveCount(0);
-  const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
-  await header.getByRole("button").click();
-  await expect(page).toHaveURL(`${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`, {
-    timeout: WORKING,
-  });
-  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  try {
+    await openHydrated(page, `${REMAINING}?search=revue`);
+    // The effort of row 10, a line of labour, re-estimated: the main structure of the project in
+    // progress lists the remaining to commit available, where it lists the estimate unavailable,
+    // and the fake back answers the write whatever is sent.
+    const remaining = remainingGrid(page);
+    const effort = await remaining
+      .getByRole("columnheader", { name: "Charge (h)", exact: true })
+      .evaluate((th) => (th instanceof HTMLTableCellElement ? th.cellIndex : -1));
+    const hours = rowAt(remaining, 10).getByRole("gridcell").nth(effort);
+    await hours.click();
+    await page.keyboard.type("9");
+    const retotal = page.waitForRequest(isRetotal);
+    await page.keyboard.press("Enter");
+    await retotal;
+    await expect(hours.getByRole("textbox")).toHaveCount(0);
+    const header = remaining.getByRole("columnheader", { name: "Calculé Montant budgété" });
+    await header.getByRole("button").click();
+    await expect(page).toHaveURL(
+      `${REMAINING}?search=revue&sort_by=budgeted_amount&sort_order=asc`,
+      { timeout: WORKING },
+    );
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+  } finally {
+    await held.release();
+  }
 });
 
 test("hides a column chosen in the menu of the columns, and searches the labels on the server, the field keeping the focus", async ({
@@ -426,9 +479,9 @@ test("folds a task over its lines and the tree down to a level, the keyboard goi
 }) => {
   await openHydrated(page, GRID);
   await expect(grid(page)).toHaveAttribute("aria-rowcount", ROW_COUNT);
-  // A task of the core at the third level, over its line, before its next sibling, row 16.
-  const task = grid(page).getByRole("row", { name: /^14 .*Relance du fournisseur/ });
-  const line = grid(page).getByRole("row", { name: /^15 .*Frais de relance/ });
+  // A task of the core at the third level, over its line, before its next sibling, row 17.
+  const task = grid(page).getByRole("row", { name: /^15 .*Relance du fournisseur/ });
+  const line = grid(page).getByRole("row", { name: /^16 .*Frais de relance/ });
   await expect(task).toHaveAttribute("aria-expanded", "true");
   await expect(line).toBeVisible();
 
@@ -440,9 +493,9 @@ test("folds a task over its lines and the tree down to a level, the keyboard goi
   await expect(line).toHaveCount(0);
   await expect(label).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(rowAt(grid(page), 15).getByRole("gridcell").nth(1)).toBeFocused();
-  await expect(rowAt(grid(page), 15)).toHaveAccessibleName(/^16 .*Transport exceptionnel/);
-  await expect(rowAt(grid(page), 15)).toHaveAttribute("aria-level", "3");
+  await expect(rowAt(grid(page), 16).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(rowAt(grid(page), 16)).toHaveAccessibleName(/^17 .*Transport exceptionnel/);
+  await expect(rowAt(grid(page), 16)).toHaveAttribute("aria-level", "3");
 
   // The bar folds the tree whole, down to a level, and unfolds it whole.
   const tree = page.getByRole("button", { name: "Arbre" });

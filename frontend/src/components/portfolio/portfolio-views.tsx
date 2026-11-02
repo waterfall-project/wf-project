@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
+import { ComputableValue } from "@/components/computable-value";
 import { ComputedAmount, ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
 import { CELL, ListTable } from "@/components/projects/project-tables";
@@ -24,7 +25,7 @@ import { Signal } from "@/components/signal/signal";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatDecimal, formatMonth, formatPlanningDate, formatShare } from "@/i18n/format";
 
-import { ComputableValue, Figure, ViewSection } from "./portfolio-value";
+import { Figure, ViewSection } from "./portfolio-value";
 import { PortfolioWorkloadChart } from "./workload-chart";
 
 type Schemas = components["schemas"];
@@ -181,7 +182,10 @@ function Breakdown({
               <ComputedAmount amount={part.amount} />
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {part.share === undefined ? null : formatShare(part.share, locale, bounds)}
+              <ComputableValue
+                value={part.share}
+                format={(share) => formatShare(share, locale, bounds)}
+              />
             </TableCell>
           </TableRow>
         ))}
@@ -305,18 +309,14 @@ export function WorkloadView({ workload }: { readonly workload: Schemas["Portfol
             <TableRow key={role.resource_role_id}>
               <TableCell className={CELL}>{role.label}</TableCell>
               <TableCell className={`${CELL} tabular-nums`}>
-                {role.capacity_monthly_hours === undefined
-                  ? null
-                  : t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
+                {t("hours", { hours: formatDecimal(role.capacity_monthly_hours, locale) })}
               </TableCell>
               {role.months.map((month) => (
                 <TableCell key={month.month} className={`${CELL} tabular-nums`}>
                   <span className="flex flex-col">
                     <span>{t("hours", { hours: formatDecimal(month.hours, locale) })}</span>
                     <span className="inline-flex items-center gap-1">
-                      {month.zone === undefined ? null : (
-                        <Signal zone={month.zone} variant="icon" />
-                      )}
+                      <Signal zone={month.zone} variant="icon" />
                       <ComputableValue
                         value={month.load_ratio}
                         format={(ratio) => formatShare(ratio, locale, bounds)}

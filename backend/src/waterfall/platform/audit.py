@@ -44,7 +44,8 @@ from waterfall.platform.identifiers import new_id
 from waterfall.platform.logs import names_a_secret
 
 # The actions and the natures of objects of the contract (``AuditAction``, ``AuditObjectKind``),
-# in its order; a new one is a change of the contract, then a migration of the constraint.
+# in its order; a new one is a change of the contract, then a migration of the constraint. The
+# actions lag behind the contract until EP-04 (#1577, K-04): test_audit_journal.py names the gaps.
 type AuditAction = Literal[
     "revision_mark",
     "reference_designate",

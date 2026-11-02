@@ -13,6 +13,7 @@ import {
   readValues,
   refusedBounds,
   refusedSides,
+  readFilter,
   valuesHref,
   withoutParameters,
 } from "./filters";
@@ -46,6 +47,16 @@ describe("the filters of a list in the address", () => {
     );
   });
 
+  it("lift the parameter of a non-exhaustive filter whose selection is empty, as writing an empty value did: the address reads the same", () => {
+    const zones = { name: "zones", values: ["nominal", "watch", "alert"], exhaustive: false };
+    const query = new URLSearchParams("zones=watch&sort_by=code");
+    // `filterHref` lifts the parameter for an empty value as for none: no `lifted`, no `zones=`.
+    expect(valuesHref("/p", query, zones, [])).toBe("/p?sort_by=code");
+    expect(valuesHref("/p", query, zones, [])).toBe(
+      filterHref("/p", query, "zones", "", undefined),
+    );
+  });
+
   it("lift every parameter a filter is read from, the rest of the query kept", () => {
     const query = new URLSearchParams("work_package_id=a&order_item_id=b&sort_by=label&q=x");
     expect(withoutParameters("/x", query, ["work_package_id", "order_item_id"])).toBe(
@@ -66,6 +77,25 @@ describe("the filters of a list in the address", () => {
     expect(
       filterHref("/x", pages, "include_inactive", "true", ["role_offset", "calendar_offset"]),
     ).toBe("/x?sort_by=code&include_inactive=true");
+  });
+});
+
+describe("a filter with a default in the address", () => {
+  it("writes its lifted value for none, or every value, so that an address without the parameter keeps meaning the default", () => {
+    const query = new URLSearchParams("sort_by=code&offset=50");
+    const filter = { name: "states", values: ORIGINS, page: "offset", lifted: "all" };
+    expect(valuesHref("/", query, filter, [])).toBe("/?sort_by=code&states=all");
+    expect(valuesHref("/", query, filter, [...ORIGINS])).toBe("/?sort_by=code&states=all");
+    expect(valuesHref("/", query, filter, ["local"])).toBe("/?sort_by=code&states=local");
+  });
+
+  it("reads the values by default for an address that does not name the parameter, and none for one that lifts it", () => {
+    const filter = { name: "states", values: ORIGINS, unnamed: ["local" as const] };
+    expect(readFilter(new URLSearchParams(), filter)).toEqual(["local"]);
+    expect(readFilter(new URLSearchParams("states=all"), filter)).toEqual([]);
+    expect(readFilter(new URLSearchParams("states=identity_provider"), filter)).toEqual([
+      "identity_provider",
+    ]);
   });
 });
 

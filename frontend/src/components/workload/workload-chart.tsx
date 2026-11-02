@@ -91,7 +91,9 @@ function WorkloadValues({ workload }: { readonly workload: WorkloadPlan }) {
                   <td>{formatMonth(month.month, locale)}</td>
                   <td className="tabular-nums">{hours(month.hours)}</td>
                   <td className="tabular-nums">{hours(role.capacity_monthly_hours)}</td>
-                  <td>{month.zone === undefined ? null : <Signal zone={month.zone} />}</td>
+                  <td>
+                    <Signal zone={month.zone} />
+                  </td>
                 </tr>
               )),
         )}

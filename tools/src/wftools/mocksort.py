@@ -12,16 +12,19 @@ ascending order, before them in the descending one; lines of one value in the or
 And the two examples it orders, read on the estimate of the control station: by the amount at the
 year of reference, descending, which reverses the lines under the wiring — the provision of 751 at
 the scale of the structure first (EP-14/L45b) —; by the hours, descending, where the disbursement
-and the provision, which have none, come first.
+and the provision, which have none, come first. And one it filters, by the two bounds of a column
+of a line (``<column>_min``, ``<column>_max``, US-0701/L3, F-06).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Literal, cast, get_args
 
 from wftools import mockcore, mocktext
+from wftools.mockids import universe
 from wftools.mockwitness import CONTROL_STATION, TODAY, N
 
 if TYPE_CHECKING:
@@ -40,7 +43,6 @@ LineColumn = Literal[
     "base_amount",
     "budgeted_amount",
     "reestimated_amount",
-    "inflated_amount",
     "previous_quantity",
     "previous_hours",
     "previous_unit_disbursement",
@@ -109,11 +111,94 @@ def _said(line: JsonObject) -> str:
     return f"« {line['label']} » ({mocktext.amount(Decimal(cast('str', line['base_amount'])))})"
 
 
+BOUNDS = (Decimal(1000), Decimal(10_000))
+"""The bounds of the re-estimated amount the filtered estimate retains, both included."""
+
+
+def bounded(rows: list[mockcore.Row]) -> JsonObject:
+    """Return the estimate of the control station filtered by the bounds of a column of a line.
+
+    ``subtree_of``, ``reestimated_amount_min`` and ``reestimated_amount_max``: the lines of the
+    subtree whose re-estimated amount lies within the bounds, both included, and their tasks for
+    the readability of the tree (README of the contract, WF-IHM-0060, WF-IHM-0130).
+    """
+    below = {CONTROL_STATION.number}
+    for row in rows:
+        if row.parent in below:
+            below.add(row.number)
+    low, high = BOUNDS
+    return mockcore.filtered(
+        rows,
+        lambda row: (
+            row.kind == mockcore.ESTIMATE_LINE
+            and row.number in below
+            and low <= row.amounts.reestimated <= high
+        ),
+    )
+
+
+INVERTED = (date(2026, 5, 1), date(2026, 4, 1))
+"""The period of the start of the tasks asked inverted: its end before its start."""
+
+
+def period_inverted() -> JsonObject:
+    """Return what listNodes answers to a period of the start whose end precedes its start.
+
+    The rule of every period of the contract (README): 422, the end of the column named by
+    VALUE_OUT_OF_RANGE, ``params.minimum`` the start given.
+    """
+    start, end = INVERTED
+    if end >= start:
+        message = "the period asked is not inverted"
+        raise ValueError(message)
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/query/start_to",
+                "code": "VALUE_OUT_OF_RANGE",
+                "params": {"minimum": start.isoformat()},
+            }
+        ],
+        "correlation_id": universe(1075),
+    }
+
+
+def bounds_inverted() -> JsonObject:
+    """Return what listNodes answers to the bounds of a column whose upper bound is the lower.
+
+    The rule of every column of numbers of the contract (README): 422, the upper bound named by
+    VALUE_OUT_OF_RANGE, ``params.minimum`` the lower bound given, in the type of the column — a
+    decimal, in a string, for an amount.
+    """
+    high = BOUNDS[1]
+    return {
+        "code": "VALIDATION_FAILED",
+        "status": 422,
+        "fields": [
+            {
+                "pointer": "/query/reestimated_amount_max",
+                "code": "VALUE_OUT_OF_RANGE",
+                "params": {"minimum": f"{high:.2f}"},
+            }
+        ],
+        "correlation_id": universe(1076),
+    }
+
+
 def examples(rows: list[mockcore.Row]) -> dict[str, JsonObject]:
-    """Return the examples of the estimate of the control station sorted, by file name.
+    """Return the examples of the estimate of the control station sorted or filtered, by file name.
 
     What each says of the order of the lines under the wiring is read from its answer.
     """
+    filtered = bounded(rows)
+    kept = [
+        f"« {cast('JsonObject', item[mockcore.ESTIMATE_LINE])['label']} »"
+        for item in cast("list[JsonObject]", filtered["items"])
+        if item["kind"] == mockcore.ESTIMATE_LINE
+    ]
+    total = cast("JsonObject", filtered["totals"])["reestimated_amount"]
     day = mocktext.day(TODAY.date())
     amount = mocktext.amount
     [provision] = [row.amounts.base for row in rows if row.number == N.PROVISION]
@@ -142,5 +227,31 @@ def examples(rows: list[mockcore.Row]) -> dict[str, JsonObject]:
             f"main-d'œuvre de 12,5 h. Les tâches gardent l'ordre de l'arbre, et les lignes sans "
             f"heures des autres tâches leur place (WF-IHM-0060).",
             by_hours,
+        ),
+        "nodes_estimate_filtered.json": mocktext.example(
+            f"Le devis du lot « Poste de commande » filtré par montant réestimé, de "
+            f"{amount(BOUNDS[0])} à {amount(BOUNDS[1])}, bornes comprises (subtree_of, "
+            f"reestimated_amount_min, reestimated_amount_max), le {day} : les seules lignes "
+            f"retenues, {mocktext.listed(kept)}, et leurs "
+            f"tâches, rendues pour la lisibilité de l'arbre et absentes des totaux ; ni la "
+            f"provision, au-dessus de la borne haute, ni les frais du risque survenu, au-dessous "
+            f"de la borne basse. Les totaux sont ceux des lignes retenues, "
+            f"{amount(Decimal(str(total)))} réestimés (WF-IHM-0060, WF-IHM-0130).",
+            filtered,
+        ),
+        "nodes_period_inverted.json": mocktext.example(
+            f"Les tâches de la structure demandées le {day} par la période de leur début, du "
+            f"{mocktext.day(INVERTED[0])} au {mocktext.day(INVERTED[1])} (start_from, start_to) : "
+            f"la fin de la période précède son début, et le paramètre start_to est refusé, "
+            f"désigné par /query/start_to, le début nommé (README du contrat, WF-IHM-0130).",
+            period_inverted(),
+        ),
+        "nodes_bounds_inverted.json": mocktext.example(
+            f"Les lignes de devis demandées le {day} entre {amount(BOUNDS[1])} et "
+            f"{amount(BOUNDS[0])} réestimés (reestimated_amount_min, reestimated_amount_max) : la "
+            f"borne supérieure précède la borne inférieure, et reestimated_amount_max est "
+            f"refusée, désignée par /query/reestimated_amount_max, la borne inférieure nommée, "
+            f"un décimal en chaîne comme la colonne (README du contrat, WF-IHM-0130).",
+            bounds_inverted(),
         ),
     }

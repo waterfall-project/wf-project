@@ -1,0 +1,12 @@
+{
+  "summary": "Une tâche « Réception provisoire sur site » créée en mode manuel sous l'« Installation sur site », son début envoyé le samedi 19 décembre 2026 : sans ligne de main-d'œuvre, la tâche est sur le calendrier par défaut, qui n'accorde aucune heure ce jour-là. La date est refusée sur son champ, comme à la modification (task_date_non_working_day), et le refus nomme le jour travaillé suivant, le lundi 21 décembre 2026 ; rien n'est créé (WF-PLA-0020, WF-PLA-0010, #1345).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/task/start/date","code":"NON_WORKING_DAY","params":{"date":"2026-12-19","next_working_day":"2026-12-21"}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001563"
+  }
+}

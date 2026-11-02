@@ -71,6 +71,8 @@ export function LifecycleCommands({ project }: { readonly project: Project }) {
               key={project.project_id}
               exits={exits}
               projectId={project.project_id}
+              lockVersion={project.lock_version}
+              hasCurrentRevision={project.current_revision_id != null}
               names={{ [project.project_id]: project.label }}
             />,
           ]}
@@ -84,7 +86,8 @@ type OfferedElsewhere =
   | `edit_${string}`
   | "generate_skeleton"
   | "merge_structure"
-  | "designate_reference";
+  | "designate_reference"
+  | "apply_rate_update";
 
 /** Whether a command of a revision is an export, which the screen of the exchanges offers. */
 function isExport(command: RevisionCommand): boolean {
@@ -94,14 +97,16 @@ function isExport(command: RevisionCommand): boolean {
 /**
  * Whether a command of a revision is offered by a screen of its own — an entry, by its grid; the
  * skeleton, by the empty grid of the planning; the designation of the reference, by the history of
- * the revisions, on the marked revision it designates —, which the list of the commands leaves out.
+ * the revisions, on the marked revision it designates; the application of the rates, by the
+ * proposal it applies —, which the list of the commands leaves out.
  */
 function isOfferedByItsScreen(command: RevisionCommand): boolean {
   return (
     command.startsWith("edit_") ||
     command === "generate_skeleton" ||
     command === "merge_structure" ||
-    command === "designate_reference"
+    command === "designate_reference" ||
+    command === "apply_rate_update"
   );
 }
 
@@ -134,7 +139,12 @@ function RevisionCommandItem({
     return (
       <AbandonCommand
         offer={offer}
-        revision={{ projectId: revision.project_id, revisionId: revision.revision_id, name }}
+        revision={{
+          projectId: revision.project_id,
+          revisionId: revision.revision_id,
+          name,
+          lockVersion: revision.lock_version,
+        }}
         names={names}
       />
     );

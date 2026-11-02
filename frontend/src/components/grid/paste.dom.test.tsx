@@ -72,12 +72,6 @@ function totalAmount(): string | null | undefined {
   return row?.querySelectorAll("td")[10]?.textContent;
 }
 
-/** The total amount corrected for inflation, at the foot of the grid. */
-function totalInflated(): string | null | undefined {
-  const row = screen.getByRole("treegrid", { hidden: true }).querySelector("tfoot tr");
-  return row?.querySelectorAll("td")[11]?.textContent;
-}
-
 beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
@@ -179,7 +173,6 @@ describe("a block pasted from a spreadsheet", () => {
     ]);
     expect(cell(FIRST + 2, "quantity")).toHaveTextContent("24");
     expect(cell(FIRST + 2, "base_amount")).toHaveTextContent(/^42\s379,44/);
-    expect(cell(FIRST + 2, "inflated_amount")).toHaveTextContent(/^42\s379,44/);
     // The tasks above them, recalculated, and the totals of the structure, as the server answered.
     expect(amounts([0, 1, 2])).toEqual([
       "7\u202f469\u202f299,12",
@@ -187,8 +180,6 @@ describe("a block pasted from a spreadsheet", () => {
       "63\u202f757,17",
     ]);
     expect(totalAmount()).toBe("66\u202f144\u202f071,71");
-    // The total corrected for inflation, as the server answered it: lines of later years in it.
-    expect(totalInflated()).toBe("68\u202f962\u202f538,88");
     expect(screen.queryByRole("alert")).toBeNull();
     await vi.waitFor(() => {
       expect(cell(FIRST, "label")).toHaveFocus();
@@ -226,6 +217,19 @@ describe("a block pasted from a spreadsheet", () => {
     });
   });
 
+  it("whose row would leave a task without a working hour names the task and both roles, as the grid knows them [WF-PLA-0010-A]", async () => {
+    serve({ [PREVIEW]: "paste_plan_without_hours" });
+    renderGrid();
+    await pasteOn(cell(FIRST, "label"), copied(BLOCK));
+    const dialog = await screen.findByRole("dialog", { name: "Coller depuis un tableur" });
+    const refused = await within(dialog).findByRole("listitem");
+    expect(refused).toHaveTextContent("Ligne 2 du bloc");
+    expect(refused).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(refused).toHaveTextContent("Ingénieur électricien");
+    expect(refused).toHaveTextContent("Monteur câbleur");
+    expect(refused).toHaveTextContent("Préparation 1.1.1");
+  });
+
   it("is abandoned by its button too, a plan that refuses nothing left unapplied [WF-IHM-0050-A]", async () => {
     const client = serve();
     renderGrid();
@@ -252,7 +256,7 @@ describe("a block pasted from a spreadsheet", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Les données collées ont plus de colonnes que la grille.");
     expect(alert).toHaveTextContent(
-      "La grille accepte au plus 17 colonnes à partir de cette cellule.",
+      "La grille accepte au plus 16 colonnes à partir de cette cellule.",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(client.calls).toEqual([]);
@@ -558,8 +562,9 @@ describe("a block pasted from a spreadsheet", () => {
     const values = wiring.map(Number);
     expect(values).toEqual([...values].sort((a, b) => b - a));
     expect(amounts([2, 3, 4])).toEqual(wiring.map((amount) => formatMoney(amount ?? "", "fr")));
-    // The factory acceptance, a milestone of no amount, stays the last, as in the tree.
-    expect(cell(estimateSorted.items.length - 1, "label")).toHaveTextContent("Réception usine");
+    // The factory acceptance, a milestone of no amount, stays in its place after the wiring, as in
+    // the tree.
+    expect(cell(5, "label")).toHaveTextContent("Réception usine");
   });
 
   it("refuses a block from the line the sort of the estimate moved under its task, saying so, and takes one whose rows follow in the plan (#526)", async () => {

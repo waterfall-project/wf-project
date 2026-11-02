@@ -81,7 +81,7 @@ désignent ; sans sa variable, un tel test échoue en le disant :
 
 On peut prendre ceux de la plateforme de service (ci-dessous) ou lancer des services jetables. Les
 sections « Un test contre PostgreSQL », « Un test contre le stockage objet » et « Un test contre
-Redis » du [guide de développement](docs/dev/README.md) donnent la forme des adresses et les
+Redis » du [guide de développement](docs/dev/README-fr.md) donnent la forme des adresses et les
 commandes.
 
 ## La plateforme de service
@@ -114,7 +114,7 @@ prennent le port 3000.
 ### 1. Les secrets
 
 La plateforme refuse de démarrer sans ses secrets. Aucun fichier ne les porte : le tableau de la
-section « Commandes » du [guide de développement](docs/dev/README.md) les liste. Sur un poste,
+section « Commandes » du [guide de développement](docs/dev/README-fr.md) les liste. Sur un poste,
 des valeurs de poste suffisent, par exemple celles de `.github/workflows/keycloak.yml`. On les
 exporte dans le terminal d'où l'on lancera la plateforme et le front :
 
@@ -211,6 +211,6 @@ make service-down         # arrête la plateforme ; WATERFALL_RESET_DATA=yes sup
 ## Pour aller plus loin
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) : comment changer la spécification, le contrat ou le code.
-- [`docs/dev/README.md`](docs/dev/README.md) : le guide de développement, avec toutes les commandes
+- [`docs/dev/README-fr.md`](docs/dev/README-fr.md) : le guide de développement, avec toutes les commandes
   (« Commandes »), la chaîne (« Chaîne ») et les tests (« Tests »).
 - `make help` : la liste des commandes.

@@ -24,7 +24,12 @@ import type { Period, PeriodRefusals } from "@/components/grid/period";
 import { PeriodFilter } from "@/components/grid/period-filter";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ValuesFilter } from "@/components/grid/values-filter";
-import { PROJECT_STATES, type ProjectState, STATES_PARAMETER } from "@/navigation/home";
+import {
+  EVERY_STATE_VALUE,
+  PROJECT_STATES,
+  type ProjectState,
+  STATES_PARAMETER,
+} from "@/navigation/home";
 
 import { HOME_LIST } from "./home-list";
 import {
@@ -35,7 +40,10 @@ import {
 } from "./project-list-grid";
 import { ProjectStateBadge } from "./project-state-badge";
 
-/** Render the filter of the list by state, each by its badge, those the address names pressed. */
+/**
+ * Render the filter of the list by state, each by its badge, those retained pressed. « Tous les
+ * états » writes `states=all` into the address, an address without `states` meaning the default.
+ */
 export function ProjectStateFilter({ states }: { readonly states: readonly ProjectState[] }) {
   const t = useTranslations("projectList.filter");
   return (
@@ -49,6 +57,8 @@ export function ProjectStateFilter({ states }: { readonly states: readonly Proje
       }))}
       chosen={states}
       page={OFFSET}
+      lifted={EVERY_STATE_VALUE}
+      unnamed={states}
     />
   );
 }

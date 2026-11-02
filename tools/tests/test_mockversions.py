@@ -21,6 +21,7 @@ COUNTERFACTUAL = "Variante contrefactuelle"
 ELSEWHERE = {
     "comparison.json": "the reference 101 compared with the offer 100",
     "volume/comparison_volume.json": "the same comparison, of the whole structure (#1201)",
+    "comparison_differences.json": "the same comparison, by its differences alone (#1398)",
 }
 """The readings of nodes exempt from #421, besides the declared counterfactual variants: the
 comparisons of two marked revisions, which name their nodes by the identifiers of the current
@@ -106,3 +107,35 @@ def test_each_paste_and_the_reestimate_follow_the_entry_before_them() -> None:
         follow = next(node for node in then["nodes"] if node["node_id"] == line["node_id"])
         assert follow["lock_version"] == line["lock_version"] + 1
         assert then["structure_lock_version"] == first["structure_lock_version"] + 1
+
+
+def _revisions(value: Any) -> list[Node]:
+    """Return every revision an example renders, however deep it lies."""
+    if isinstance(value, list):
+        return [found for each in cast("list[Any]", value) for found in _revisions(each)]
+    if not isinstance(value, dict):
+        return []
+    fields = cast("Node", value)
+    keys = {"revision_id", "status", "lock_version", "marked_at"}
+    here = [fields] if keys <= fields.keys() else []
+    return here + [found for each in fields.values() for found in _revisions(each)]
+
+
+def test_two_examples_never_render_one_revision_at_one_version_in_two_states() -> None:
+    # #421 for the revisions (#1352): a revision at a version has one content, so whichever
+    # examples render it, its status and its marking agree. The marking bears a version of its own.
+    states: dict[tuple[str, int], set[tuple[str, str | None]]] = {}
+    for path in sorted(mockwitness.FIXTURES.rglob("*.json")):
+        example = json.loads(path.read_text(encoding="utf-8"))
+        for each in _revisions(example["value"]):
+            key = (each["revision_id"], each["lock_version"])
+            states.setdefault(key, set()).add((each["status"], each["marked_at"]))
+    assert {key for key, found in states.items() if len(found) > 1} == set()
+    assert states
+
+
+def test_the_revisions_are_listed_from_the_most_recent_to_the_oldest() -> None:
+    # listRevisions lists « de la plus récente à la plus ancienne » (contract).
+    for name in ("revisions", "revisions_marked", "revisions_designation_open"):
+        opened = [each["audit"]["created_at"] for each in mockwitness.fixture(name)["items"]]
+        assert opened == sorted(opened, reverse=True), name

@@ -6,14 +6,18 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
+import type { components } from "@/api/generated/schema";
 import { POLL_INTERVAL } from "@/components/tasks/task-entry";
 import { TaskPanel, TasksButton, TaskTracker } from "@/components/tasks/task-tracker";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
 
 import { IdentitySync, type IdentitySyncReport } from "./identity-sync";
+
+type IdentitySyncSchedule = components["schemas"]["IdentitySyncSchedule"];
 
 // The server of Next, as far as the reading needs it: the fake back behind serverClient.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -46,14 +50,18 @@ function report(name: string): IdentitySyncReport {
 }
 
 /** The section of the reading, with the report given, within the shell that follows the tasks. */
-function open(shown: IdentitySyncReport | undefined, startable = true) {
+function open(
+  shown: IdentitySyncReport | undefined,
+  startable = true,
+  schedule: IdentitySyncSchedule = example("identity_sync_schedule") as IdentitySyncSchedule,
+) {
   const tree = (given: IdentitySyncReport | undefined) => (
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <TaskTracker>
         <TasksButton />
         <TaskPanel />
         <main>
-          <IdentitySync report={given} startable={startable} />
+          <IdentitySync report={given} schedule={schedule} startable={startable} />
         </main>
       </TaskTracker>
     </NextIntlClientProvider>
@@ -243,8 +251,17 @@ describe("the reading of the accounts", () => {
     async (answer, sentence) => {
       const client = serve({ [START]: answer });
       open(undefined);
-      await userEvent.click(screen.getByRole("button", { name: "Lire les comptes" }));
-      expect(within(section()).getByRole("alert").textContent).toContain(sentence);
+      // Whether the command was still busy in the commit that told the refusal: the request over,
+      // never while it holds a press (#1484).
+      const start = screen.getByRole("button", { name: "Lire les comptes" });
+      const busyWhenTold = atCommit(
+        section(),
+        () => within(section()).queryByRole("alert") !== null,
+        () => start.getAttribute("aria-busy"),
+      );
+      await userEvent.click(start);
+      expect((await within(section()).findByRole("alert")).textContent).toContain(sentence);
+      expect(busyWhenTold.stop()).toEqual(["false"]);
       expect(screen.queryByText("En attente")).toBeNull();
       expect(client.calls.map((call) => call.route)).toEqual([START]);
     },

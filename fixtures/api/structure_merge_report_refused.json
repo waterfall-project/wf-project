@@ -1,8 +1,9 @@
 {
-  "summary": "Une variante déclarée, celle de task_merge_outside_work_package : le poste « Poste 1.1 » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son lot, et un différentiel de la révision courante qui allonge cette tâche et la range sous « Installation sur site ». Le compte rendu préalable de sa fusion présente l'allongement et le motif qui la refuse : elle sortirait la tâche du poste du sous-arbre de celle de son lot, et le compte rendu nomme les deux tâches par leur nœud et leur libellé, comme l'échec de la fusion le ferait ; la confirmation n'est pas offerte ; les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 2 (WF-REV-0050, WF-PLA-0170).",
+  "summary": "Une variante déclarée, celle de task_merge_outside_work_package : le poste « Poste 1.1 » porté par « Câblage des armoires », sous la récapitulative « Poste de commande », qui porte son lot, et un différentiel de la révision courante qui allonge cette tâche et la range sous « Installation sur site ». Le compte rendu préalable de sa fusion présente l'allongement et le déplacement de la tâche, modifiée par sa durée et son parent (#789), et le motif qui la refuse : elle sortirait la tâche du poste du sous-arbre de celle de son lot, et le compte rendu nomme les deux tâches par leur nœud et leur libellé, comme l'échec de la fusion le ferait ; la confirmation n'est pas offerte ; les compteurs lus sont ceux de la structure principale de la révision courante, 1, comme `structures` le dit, et du différentiel, 2 (WF-REV-0050, WF-PLA-0170).",
   "value": {
     "main_structure_lock_version": 1,
     "amendment_lock_version": 2,
+    "creates_current_revision": false,
     "differences": [
       {
         "change": "updated",
@@ -11,7 +12,8 @@
         "label": "Câblage des armoires",
         "predecessor_label": null,
         "fields": [
-          "duration"
+          "duration",
+          "parent"
         ]
       }
     ],

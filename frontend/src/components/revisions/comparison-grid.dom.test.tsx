@@ -116,8 +116,10 @@ describe("the grid of the comparison of two revisions", () => {
   it("names what changes of a node as the server names it, nothing for a node that keeps its own values [WF-REV-0080-A]", () => {
     render(grid(COMPARISON));
     const wired = indexOfLabel(COMPARISON, "Câblage sur site");
-    expect(COMPARISON.items[wired]?.changes).toEqual(["reestimated_amount"]);
+    // The line changed sub-project between the two revisions: it is modified on that ground too (E-01).
+    expect(COMPARISON.items[wired]?.changes).toEqual(["reestimated_amount", "subproject"]);
     expect(cell(wired, "changes")).toHaveTextContent("Montant réestimé");
+    expect(cell(wired, "changes")).toHaveTextContent("Sous-projet");
     expect(cell(indexOfLabel(COMPARISON, "Installation sur site"), "changes")).toHaveTextContent(
       "",
     );

@@ -6,6 +6,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "main",
       "label": "Structure principale",
+      "planning_start_on": "2026-03-02",
       "is_merged": false,
       "available_commands": [
         {
@@ -38,6 +39,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "amendment",
       "label": "Avenant 1 — extension du poste",
+      "planning_start_on": "2026-03-02",
       "is_merged": true,
       "available_commands": [
         {
@@ -62,6 +64,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "amendment",
       "label": "Avenant 2 — reprise des essais",
+      "planning_start_on": "2026-03-02",
       "is_merged": false,
       "available_commands": [
         {
@@ -86,6 +89,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "risk",
       "label": "Risque de reprise du câblage",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000751",
       "is_merged": false,
       "available_commands": [
@@ -111,6 +115,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "risk",
       "label": "Retard de livraison des armoires",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000752",
       "is_merged": false,
       "available_commands": [
@@ -136,6 +141,7 @@
       "revision_id": "01926f3a-7c00-7000-8000-000000000101",
       "kind": "risk",
       "label": "Indisponibilité de l'automaticien",
+      "planning_start_on": "2026-01-12",
       "risk_id": "01926f3a-7c00-7000-8000-000000000753",
       "is_merged": false,
       "available_commands": [

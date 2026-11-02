@@ -1,0 +1,10 @@
+{
+  "summary": "L'abandon demandé aujourd'hui de « couts-reels-2026-05.xlsx », appliquée ce matin (imports) : ce qu'un import a écrit ne se défait pas par l'abandon, et le refus nomme la condition qui manque ; rien n'est changé (WF-INTF-0080, #1789).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"import_not_applied"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001682"
+  }
+}

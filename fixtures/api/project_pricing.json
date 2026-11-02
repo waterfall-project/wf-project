@@ -5,6 +5,7 @@
     "label": "Extension de la ligne d'essais",
     "code": "PRJ-002",
     "description": null,
+    "client": null,
     "state": "pricing",
     "inflation_rate": "0.03",
     "win_probability": "0.4",

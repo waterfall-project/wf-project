@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +18,7 @@ import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import { WRITE_DELAY } from "@/components/grid/settings";
 
-import { GanttAxis, GanttCell, GanttLegend, GanttRows } from "./gantt";
+import { GanttAxis, GanttCell, GanttLegend, GanttRows, useGanttView } from "./gantt";
 
 // The server of Next, as far as the grid needs it: the preferences it records.
 const server = vi.hoisted((): { client: (ApiClient & FakeClient) | undefined } => ({
@@ -43,11 +44,11 @@ const STRUCTURE = {
 const planning = example("nodes_planning") as NodeList;
 
 /** Render the grid of the planning, its Gantt last, in a language. */
-function renderPlanning(locale: Locale = "fr") {
+function renderPlanning(locale: Locale = "fr", nodes: NodeList = planning) {
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
       <PlanningGrid
-        nodes={planning}
+        nodes={nodes}
         structure={STRUCTURE}
         structureVersion={1}
         filters={{}}
@@ -56,6 +57,19 @@ function renderPlanning(locale: Locale = "fr") {
         undoable
       />
     </NextIntlClientProvider>,
+  );
+}
+
+/** A bare command that zooms in: the gesture alone, without the tooltip of the header. */
+function ZoomIn() {
+  const view = useGanttView();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        view?.zoomTo(1);
+      }}
+    />
   );
 }
 
@@ -125,10 +139,58 @@ describe("the Gantt of the planning", () => {
     ]);
   });
 
+  it("names the link in conflict in the bar of the manual task and in that of its predecessor [WF-PLA-0020-A]", () => {
+    // Une tâche manuelle datée avant la fin calculée de son prédécesseur est signalée dans le Gantt,
+    // avec ce prédécesseur.
+    const [review, desks] = ["Revue de conception", "Pupitres opérateurs"].map((label) =>
+      planning.items.find((node) => node.task?.label === label),
+    );
+    if (review === undefined || desks === undefined) {
+      throw new Error("the example of the planning lacks its tasks");
+    }
+    const conflict = {
+      predecessor_node_id: review.node_id,
+      successor_node_id: desks.node_id,
+      link_type: "finish_to_start" as const,
+    };
+    renderPlanning("fr", {
+      ...planning,
+      items: planning.items.map((node) => {
+        if (node.task === undefined || node.task === null) {
+          return node;
+        }
+        if (node.node_id === desks.node_id) {
+          const link = {
+            predecessor_node_id: review.node_id,
+            predecessor_row_number: review.row_number,
+            link_type: "finish_to_start" as const,
+            lag: { value: "0", unit: "d" as const },
+          };
+          return {
+            ...node,
+            predecessors: [link],
+            task: { ...node.task, link_conflicts: [conflict] },
+          };
+        }
+        return node.node_id === review.node_id
+          ? { ...node, task: { ...node.task, link_conflicts: [conflict] } }
+          : node;
+      }),
+    });
+    const bar = (label: string) => within(ganttOf(label)).getByRole("img");
+    expect(bar("Pupitres opérateurs")).toHaveAccessibleName(
+      "Du 02/03/2026 au 24/04/2026 — Liaison en conflit\u00a0: 5FD vers la ligne 4",
+    );
+    expect(bar("Revue de conception")).toHaveAccessibleName(
+      "Du 13/04/2026 au 24/04/2026 — critique — Liaison en conflit\u00a0: 5FD vers la ligne 4",
+    );
+    expect(bar("Dossier de conception")).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
+  });
+
   it("names each bar by the dates the API gives, a milestone by its day, the critical path in words [WF-PLA-0090-A]", () => {
     renderPlanning();
     const bar = (label: string) => within(ganttOf(label)).getByRole("img");
-    expect(bar("Études")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026");
+    expect(bar("Études")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026 — critique");
     expect(bar("Études de détail")).toHaveAccessibleName("Du 02/03/2026 au 10/04/2026 — critique");
     expect(bar("Pupitres opérateurs")).toHaveAccessibleName("Du 02/03/2026 au 24/04/2026");
     expect(bar("Réception des études")).toHaveAccessibleName("Jalon le 24/04/2026 — critique");
@@ -280,6 +342,108 @@ describe("the Gantt of the planning", () => {
     await waitFor(() => {
       expect(screen.queryByRole("group", { name: "Légende du Gantt" })).toBeNull();
     });
+  });
+
+  // aucune exigence : propre à l'US (US-0530, la date du centre gardée au zoom depuis « Ajusté au
+  // projet ») ; le geste pris juste après le montage (#1473, #1479).
+  it("knows the width of its column from the commit of its mount, for a zoom asked at once", async () => {
+    // The frame of the axis, inset from its column of 400 (`left-2`, `w-[calc(100%-1rem)]`).
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(384);
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(8);
+    const row = planning.items.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    // Mounted as the browser mounts it, outside `act`, which runs every effect before the gesture:
+    // React hands the page back after the commit, and its effects come in a later task. The click
+    // comes at the first moment the page can take it, once the commit of the mount is over.
+    const acting: unknown = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false);
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    const clicked = new Promise<void>((resolve) => {
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        container.querySelector("button")?.click();
+        resolve();
+      });
+      observer.observe(container, { childList: true, subtree: true });
+    });
+    try {
+      root.render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <GanttRows rows={planning.items} scope="mount">
+            <ZoomIn />
+            <GanttAxis width={400} />
+            <GanttCell row={row} />
+          </GanttRows>
+        </NextIntlClientProvider>,
+      );
+      await clicked;
+      const drawing = () => container.querySelector<SVGElement>("svg[style]");
+      await waitFor(() => {
+        expect(drawing()?.style.width).toMatch(/px$/);
+      });
+      // One level finer than the one fitted to a column of 400 — the weeks over their days —, and
+      // the date at the centre of the column at the centre of the frame: 1 464 / 2 − 384 / 2. A
+      // column of no width fitted the coarsest level, and a centre taken on it scrolled nowhere.
+      expect(drawing()).toHaveStyle({ width: "1464px" });
+      expect(drawing()?.parentElement?.scrollLeft).toBe(540);
+    } finally {
+      root.unmount();
+      container.remove();
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", acting);
+    }
+  });
+
+  it("zooms by a wheel given at once after the commit of its mount, with the zoom of that render", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(384);
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockReturnValue(8);
+    const row = planning.items.find((item) => item.task !== null && item.task !== undefined) ?? {
+      node_id: "none",
+    };
+    // Mounted outside `act`, as the browser mounts it: the effects come in a later task, and the
+    // page can take a gesture between the commit and them. Ctrl and the wheel come at the first
+    // moment it can, once the commit of the mount is over.
+    const acting: unknown = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false);
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    // happy-dom keeps no modifier key of a wheel event: Ctrl is held by hand.
+    const wheel = new WheelEvent("wheel", { deltaY: -100, bubbles: true, cancelable: true });
+    Object.defineProperty(wheel, "ctrlKey", { value: true });
+    // Given from a ref above the Gantt: React attaches it in the layout phase of the commit, after
+    // the layout effects of the Gantt and before any passive effect of the page.
+    let given = false;
+    const give = (element: HTMLElement | null) => {
+      if (element !== null && !given) {
+        given = true;
+        element.querySelector("[data-gantt]")?.dispatchEvent(wheel);
+      }
+    };
+    try {
+      root.render(
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <div ref={give}>
+            <GanttRows rows={planning.items} scope="wheel">
+              <GanttAxis width={400} />
+              <GanttCell row={row} />
+            </GanttRows>
+          </div>
+        </NextIntlClientProvider>,
+      );
+      await waitFor(() => {
+        expect(given).toBe(true);
+      });
+      expect(wheel.defaultPrevented).toBe(true);
+      // Zoomed in from the fit: the drawing no longer takes the whole of its column.
+      await waitFor(() => {
+        expect(container.querySelector<SVGElement>("svg[style]")?.style.width).toMatch(/px$/);
+      });
+    } finally {
+      root.unmount();
+      container.remove();
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", acting);
+    }
   });
 
   it("draws nothing outside a grid of the planning", () => {

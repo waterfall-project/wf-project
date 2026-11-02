@@ -12,12 +12,14 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { ListPage } from "@/navigation/pages";
 import { expectAccessible } from "@/test/axe";
+import { atCommit } from "@/test/committed";
 import {
   example,
   type FakeAnswers,
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  type Problem,
 } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
 
@@ -158,6 +160,22 @@ afterEach(() => {
   refresh.mockClear();
   router.refresh.mockClear();
 });
+
+/** A promise the test settles, which holds the answer of the server until then. */
+function held() {
+  const settles: (() => void)[] = [];
+  const until = new Promise<void>((settle) => {
+    settles.push(settle);
+  });
+  return {
+    until,
+    release: () => {
+      for (const settle of settles) {
+        settle();
+      }
+    },
+  };
+}
 
 describe("the creation of a nature or a category", () => {
   it.each([
@@ -453,22 +471,6 @@ describe("the modification of a nature or a category", () => {
 });
 
 describe("a write whose dialog is closed, and the focus", () => {
-  /** A promise the test settles, which holds the answer of the server until then. */
-  function held() {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    return {
-      until,
-      release: () => {
-        for (const settle of settles) {
-          settle();
-        }
-      },
-    };
-  }
-
   it("says the write under way on its button, and once the dialog is closed says what the server did in the list", async () => {
     const answer = held();
     serve({}, { hold: () => answer.until });
@@ -847,16 +849,80 @@ describe("the activation of a nature or a category", () => {
     });
   });
 
-  it("says the refusal of a deactivation above the list, the row as the page read it", async () => {
-    serve({ [TYPE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } });
-    render(natures());
-    await userEvent.click(screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }));
+  it("presents the reactivation of a category deactivated with its nature unavailable, with its condition, and runs nothing when pressed [WF-REF-0010-A]", async () => {
+    const client = serve();
+    // The row the page reads once the nature is deactivated (`cost_type_active` missing).
+    const [cascaded] = (
+      example("volume/cost_categories_type_deactivated") as { items: CostCategory[] }
+    ).items;
+    if (cascaded === undefined) {
+      throw new Error("the example holds a category");
+    }
+    render(categoryList([cascaded]));
+    const command = screen.getByRole("button", {
+      name: "Réactiver «\u00a0Sous-traitance\u00a0»",
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00a0: nature de coût active.",
+    );
+    await userEvent.click(command);
+    expect(announced()).toContain(
+      "La réactivation de «\u00a0Sous-traitance\u00a0» est indisponible. Condition non remplie\u00a0: nature de coût active.",
+    );
+    expect(client.calls).toEqual([]);
+  });
+
+  it("tells the reactivation of a category refused under a deactivated nature, which it names as the one to reactivate first [WF-REF-0010-A]", async () => {
+    const client = serve({
+      [CATEGORY_ACTIVATION]: {
+        problem: example("cost_category_reactivation_refused") as Problem & { status: 409 },
+      },
+    });
+    // The row as the page read it before the nature was deactivated elsewhere: the command is
+    // offered, and the server refuses it.
+    render(categoryList([example("cost_category_deactivated") as CostCategory]));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Réactiver «\u00a0Matériel électrique\u00a0»" }),
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("nature de coût active");
+    expect(alert).toHaveTextContent("Débours");
+    expect(writes(client)).toHaveLength(1);
+  });
+
+  it("says the refusal of a deactivation above the list, the row as the page read it, and no longer busy while a modification of the list still runs", async () => {
+    const modification = held();
+    serve(
+      { [TYPE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
+      { hold: (route) => (route === TYPE ? modification.until : undefined) },
+    );
+    const { container } = render(natures());
+    await userEvent.click(screen.getByRole("button", { name: "Modifier «\u00a0Débours\u00a0»" }));
+    await userEvent.click(
+      within(dialog("Modifier «\u00a0Débours\u00a0»")).getByRole("button", { name: "Enregistrer" }),
+    );
+    await userEvent.keyboard("{Escape}");
+    // Busy no more in the commit that tells the refusal, which waits not for the modification under
+    // way: the state of the command lifted with the answer, never by a transition (#1484).
+    const deactivate = screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" });
+    const busyWhenTold = atCommit(
+      container,
+      () => screen.queryByRole("alert") !== null,
+      () => deactivate.getAttribute("aria-busy"),
+    );
+    await userEvent.click(deactivate);
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Vous n’avez pas la permission nécessaire.",
     );
+    expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(
       screen.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }),
     ).toBeInTheDocument();
+    modification.release();
+    await vi.waitFor(() => {
+      expect(announced()).toContain("«\u00a0Débours et achats\u00a0» enregistrée.");
+    });
   });
 
   it("presses the deactivation from the keyboard, Enter on the cell of the state, the grid one stop", async () => {

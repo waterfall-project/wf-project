@@ -101,6 +101,13 @@ def audit_sort(
     return AuditSort(sort_by, None if sort_order is None else sort_order is SortOrder.desc)
 
 
+PROJECT_OPENS = False
+"""Whether an inscription leads to its project (`AuditProject.can_open`, WF-ADM-0190): never yet.
+
+The service holds no project before EP-04, and a project it does not hold is one no caller may
+consult; EP-04 evaluates it per caller, from the permissions and the contributors (US-0701/L8)."""
+
+
 def audit_event(entry: AuditEntry) -> AuditEvent:
     """Describe an inscription as the contract does, as it was at the moment of the action."""
     actor: dict[str, Any] = (
@@ -124,6 +131,7 @@ def audit_event(entry: AuditEntry) -> AuditEvent:
             "project_id": entry.project_id,
             "code": entry.project_code,
             "label": entry.project_label,
+            "can_open": PROJECT_OPENS,
         }
     )
     return AuditEvent.model_validate(
@@ -189,7 +197,12 @@ def get_audit_facets(session: Transaction) -> AuditFacets:
         {
             "actors": [{"user_id": user_id, "display_name": name} for user_id, name in actors],
             "projects": [
-                {"project_id": project.project_id, "code": project.code, "label": project.label}
+                {
+                    "project_id": project.project_id,
+                    "code": project.code,
+                    "label": project.label,
+                    "can_open": PROJECT_OPENS,
+                }
                 for project in journal_projects(session)
             ],
         }

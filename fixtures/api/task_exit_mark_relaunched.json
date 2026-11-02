@@ -1,0 +1,14 @@
+{
+  "summary": "La sortie du projet témoin relancée, après l'échec de son marquage (task_exit_mark_failed), avec le même corps (project_exit_marking) : une nouvelle tâche, le marquage de la révision 102 sous « Clôture » mis en file, qui n'a pas encore commencé ; la sortie s'appliquera quand il réussira (WF-CYC-0090, WF-ARC-0090, WF-IHM-0080).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000959",
+    "kind": "revision_mark",
+    "status": "queued",
+    "progress": 0,
+    "submitted_at": "2026-06-03T14:10:30Z",
+    "finished_at": null,
+    "problem": null,
+    "result_url": null
+  }
+}

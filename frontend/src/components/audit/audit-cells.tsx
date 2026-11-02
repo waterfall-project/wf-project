@@ -24,6 +24,7 @@ import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
+import { LocalTime } from "@/components/local-time";
 import { formatLocale } from "@/i18n/format";
 
 import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
@@ -70,7 +71,7 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-function useAuditDetails(): (params: AuditParams) => string | undefined {
+function useAuditDetails(params: AuditParams): string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
@@ -88,6 +89,16 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
       }),
     // Attached to the person of the directory who holds its address: it comes from it from now on.
     attached === true && said("attached", { origin: t("enums.UserOrigin.directory") }),
+  ];
+  // The parameters the contract keeps of an action (`AuditParams`): the state a project exited to,
+  // the reason given, the kind of exchange applied; the instant of the backup taken is the cell's own,
+  // written in the time zone of the workstation once the browser has.
+  const action = ({ to_state, reason, import_kind }: AuditParams) => [
+    to_state !== undefined &&
+      said("toState", { state: t(`enums.ProjectExit.to_state.${to_state}`) }),
+    reason != null && reason !== "" && said("reason", { reason }),
+    import_kind !== undefined &&
+      said("importKind", { kind: t(`enums.ExchangeKind.${import_kind}`) }),
   ];
   // A role: the label it bore before, its permissions, those granted and withdrawn.
   const role = (params: AuditParams): (string | false)[] => [
@@ -117,14 +128,15 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
         said("rolesWithdrawn", { count: withdrawn.length, roles: roles(withdrawn) }),
     ];
   };
-  return (params) => {
-    const parts = [...account(params), ...role(params), ...attribution(params)].filter(
-      (part) => part !== false,
-    );
-    return parts.length === 0
-      ? undefined
-      : parts.reduce((first, second) => said("then", { first, second }));
-  };
+  const parts = [
+    ...action(params),
+    ...account(params),
+    ...role(params),
+    ...attribution(params),
+  ].filter((part) => part !== false);
+  return parts.length === 0
+    ? undefined
+    : parts.reduce((first, second) => said("then", { first, second }));
 }
 
 /**
@@ -137,17 +149,26 @@ function useAuditDetails(): (params: AuditParams) => string | undefined {
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
-  const details = useAuditDetails()(event.params);
-  return details === undefined ? (
-    t(event.action)
-  ) : (
+  const said = useTranslations("admin.auditLog.details");
+  const details = useAuditDetails(event.params);
+  const taken = event.params.backup_taken_at;
+  if (details === undefined && taken === undefined) {
+    return t(event.action);
+  }
+  // The instant of a backup restored is written by the browser, in its time zone (`LocalTime`).
+  const time = () => <LocalTime value={taken ?? ""} />;
+  return (
     <span className="flex flex-col text-xs leading-3">
       <span className="overflow-x-clip text-ellipsis whitespace-nowrap">{t(event.action)}</span>
       <span
         title={details}
         className="overflow-x-clip text-ellipsis whitespace-nowrap text-muted-foreground"
       >
-        {details}
+        {taken === undefined
+          ? details
+          : details === undefined
+            ? said.rich("backupTakenAt", { time })
+            : said.rich("backupTakenAfter", { first: details, time })}
       </span>
     </span>
   );
@@ -204,7 +225,10 @@ export function ProjectCell({
   if (project === null) {
     return <span className="text-muted-foreground">{t("noProject")}</span>;
   }
-  const name = t("project", { code: project.code, label: project.label });
+  const name =
+    project.code === null
+      ? project.label
+      : t("project", { code: project.code, label: project.label });
   return href === undefined ? (
     name
   ) : (

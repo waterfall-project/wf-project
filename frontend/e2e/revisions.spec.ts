@@ -61,7 +61,11 @@ test("the revisions of a project, their comparison as the API renders it, its st
   await expect(wiring).toContainText("Montant réestimé");
   const deltas = main.getByRole("table", { name: "Écarts de montants" });
   await expect(deltas.getByRole("row")).toHaveCount(6);
-  await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00");
+  // Both deviations, each under the header that names it: budgeted 3 000,00, re-estimated 3 300,00.
+  await expect(deltas.getByRole("columnheader", { name: "Écart budgété" })).toBeVisible();
+  await expect(deltas.getByRole("columnheader", { name: "Écart réestimé" })).toBeVisible();
+  await expect(deltas.getByRole("row").nth(1)).toContainText("3 000,00 €");
+  await expect(deltas.getByRole("row").nth(1)).toContainText("3 300,00 €");
 });
 
 // The comparison of the volume: the project 300 is served the offer compared to the reference over
@@ -103,4 +107,30 @@ test("the comparison of the whole structure, 5 999 nodes, shows its grid with it
   const elapsed = Date.now() - started;
   test.info().annotations.push({ type: "duration", description: `${elapsed.toString()} ms` });
   expect(elapsed).toBeLessThan(WORKING);
+});
+
+test("retains the differences alone in the comparison: pressed, in the address and the banner, kept through the choice of the pair [WF-REV-0080-A]", async ({
+  page,
+}) => {
+  // The fake back serves the same comparison whatever the address names: what the server retains is
+  // proven on `comparison_differences` by the test of the page (`revisions/page.test.tsx`).
+  await openHydrated(
+    page,
+    `/projects/${PROJECT}/revisions?revision_id=${REVISION}&from_revision_id=${FROM}&to_revision_id=${TO}`,
+  );
+  const main = page.getByRole("main");
+  const only = main.getByRole("button", { name: "Écarts seulement" });
+  await expect(only).toHaveAttribute("aria-pressed", "false");
+  await only.click();
+  await expect(page).toHaveURL(/difference=added%2Cremoved%2Cmodified/, { timeout: WORKING });
+  await expect(only).toHaveAttribute("aria-pressed", "true");
+  const filters = page.getByRole("list", { name: "Filtres actifs" });
+  await expect(filters).toContainText("Écarts seulement");
+  await expect(main.getByRole("grid", { name: "Nœuds comparés" })).toBeVisible();
+  // The choice of the pair carries the filter on.
+  await main.getByRole("button", { name: "Comparer" }).click();
+  await expect(page).toHaveURL(/difference=added/, { timeout: WORKING });
+  await filters.getByRole("link", { name: /Lever le filtre/ }).click();
+  await expect(page).not.toHaveURL(/difference=/, { timeout: WORKING });
+  await expect(only).toHaveAttribute("aria-pressed", "false");
 });

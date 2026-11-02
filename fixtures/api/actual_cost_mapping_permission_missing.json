@@ -1,0 +1,11 @@
+{
+  "summary": "La correspondance de l'extraction des coûts réels enregistrée par une session qui ne porte que la consultation des paramètres de coûts (cost_settings.read) : refusée, la permission de les modifier nommée ; rien n'est écrit (WF-ADM-0100, WF-ADM-0110).",
+  "value": {
+    "code": "PERMISSION_MISSING",
+    "status": 403,
+    "params": {
+      "missing_permission": "cost_settings.write"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001604"
+  }
+}

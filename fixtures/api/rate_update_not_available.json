@@ -1,0 +1,11 @@
+{
+  "summary": "La mise à jour des taux envoyée aujourd'hui pour la révision courante 102, ouverte le 2 février 2026 de la même année de référence que la référence 101 qu'elle copie : sa proposition ne présente aucune catégorie (rate_update_none), et la commande apply_rate_update le dit d'avance — refusée, la condition nommée ; rien n'est écrit (WF-REV-0060, #1351).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "rate_update_available"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001564"
+  }
+}

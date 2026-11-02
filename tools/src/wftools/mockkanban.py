@@ -125,7 +125,8 @@ def milestone_completed() -> JsonObject:
     """Return what setTaskProgress answers when the factory acceptance is completed today.
 
     A milestone without a line goes from not started to completed by a gesture of the Kanban, at
-    the date entered (WF-RAE-0030, WF-PLA-0050). It follows the post attached (`task_attached`),
+    the date entered, which is also its date of start (WF-RAE-0030, WF-PLA-0050, WF-PLA-0130).
+    It follows the post attached (`task_attached`),
     which wrote the milestone: one version further (#421).
     """
     gesture = on_task(COMPLETED_MILESTONE, progress="completed", declared_on=READ_ON)
@@ -238,8 +239,10 @@ def examples() -> dict[str, JsonObject]:
         ),
         "milestone_completed.json": mocktext.example(
             f"Le jalon « {rows[COMPLETED_MILESTONE].label} », sans ligne de devis, terminé "
-            f"depuis le Kanban le {day}, à la date saisie (completed_on), sans avoir démarré ; sa "
-            f"date prévue reste au {_on(facets[COMPLETED_MILESTONE]['finish'])}. Son "
+            f"depuis le Kanban le {day}, à la date saisie (completed_on), sans passer par l'état "
+            f"démarré : terminé sans avoir été démarré, il prend cette date pour date de "
+            f"démarrage (started_on) ; sa date prévue reste au "
+            f"{_on(facets[COMPLETED_MILESTONE]['finish'])}. Son "
             f"prédécesseur, le « {rows[N.WIRING].label} », est encore démarré : rien ne termine "
             f"un jalon seul, et le Kanban, qui signale ceux dont les prédécesseurs sont terminés, "
             f"n'en fait pas une condition. Une version de plus que celle que le rattachement au "
@@ -262,8 +265,9 @@ def examples() -> dict[str, JsonObject]:
         "milestone_reopened.json": mocktext.example(
             f"Le jalon « {rows[REOPENED_MILESTONE].label} », terminé le "
             f"{_on(facets[REOPENED_MILESTONE]['completed_on'])}, rouvert depuis le Kanban : il "
-            f"redevient non démarré, seul cas où une tâche revient à cet état, sa date de "
-            f"terminaison effacée ; une version de plus. Avec lui, sa récapitulative "
+            f"redevient non démarré, seul cas où une tâche revient à cet état, ses dates de "
+            f"démarrage et de terminaison effacées ; une version de plus. Avec lui, sa "
+            f"récapitulative "
             f"« {rows[N.STUDIES].label} », et {totals_said(back)} (WF-RAE-0030).",
             back,
         ),

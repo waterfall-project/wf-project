@@ -24,11 +24,13 @@ const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
+// The address the table is read from: changed, it is another reading of the table.
+const address = vi.hoisted(() => ({ search: "" }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
   usePathname: () => "/admin/users",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(address.search),
 }));
 
 type Schemas = components["schemas"];
@@ -48,6 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  address.search = "";
   router.push.mockClear();
   router.replace.mockClear();
   refresh.mockReset();
@@ -198,4 +201,137 @@ describe("the link to set the password", () => {
       expect(command).toHaveFocus();
     },
   );
+});
+
+describe("the email of the link to set the password", () => {
+  const ROUTE = "POST /users/{user_id}/invitation";
+
+  it("has the email sent again to a local account, says it went and gives the hand back, the link untouched [WF-ADM-0140-A]", async () => {
+    const client = serve({ [ROUTE]: { status: 204 } });
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+    });
+    await userEvent.click(command);
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Courriel de fixation du mot de passe renvoyé à « Camille Martin ».",
+      );
+    });
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/invitation`,
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(command).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("tells a provider that sends no email as a refusal, never as an email sent [WF-ADM-0140-A]", async () => {
+    serve({
+      [ROUTE]: {
+        problem: {
+          code: "COMPONENT_UNAVAILABLE",
+          status: 503,
+          params: { component: "identity_provider" },
+        },
+      },
+    });
+    render(accounts());
+    await userEvent.click(
+      within(grid()).getByRole("button", {
+        name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeVisible();
+    });
+    expect(told().textContent).not.toContain("renvoyé");
+    // The way out the contract names: the link, to hand over by another channel.
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Aucun courriel n’a pu partir pour « Camille Martin » : remettez-lui le lien de fixation par un autre canal, avec la commande « Lien ».",
+      );
+    });
+  });
+
+  it("presents the email of a deactivated local account unavailable, naming the condition it lacks, and asks nothing [WF-ADM-0140-A]", async () => {
+    const client = serve({});
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Alix Moreau »",
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription("Condition non remplie\u00a0: compte actif.");
+    await userEvent.click(command);
+    expect(writes(client)).toEqual([]);
+  });
+
+  it.each([
+    ["the account deactivated since it was read", "invitation_deactivated", "compte actif"],
+    ["the account no longer local", "invitation_not_local", "compte créé dans Waterfall"],
+  ] as const)(
+    "tells above the table the email the server refuses — %s —, naming the condition it lacks [WF-ADM-0140-A]",
+    async (_, refusal, condition) => {
+      const client = serve({
+        [ROUTE]: { problem: example(refusal) as Problem & { status: 409 } },
+      });
+      render(accounts());
+      await userEvent.click(
+        within(grid()).getByRole("button", {
+          name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+        }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        new RegExp(`Condition non remplie\\s*: ${condition}\\.`),
+      );
+      expect(told().textContent).not.toContain("renvoyé");
+      expect(writes(client)).toHaveLength(1);
+    },
+  );
+
+  it("asks one email per account at a time: a second press while the first waits asks nothing [WF-ADM-0140-A]", async () => {
+    const held = holdRoute(ROUTE);
+    const client = serve({ [ROUTE]: { status: 204 } }, held.timing);
+    render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+    });
+    await userEvent.click(command);
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "true");
+    });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(command);
+    held.release();
+    await waitFor(() => {
+      expect(told().textContent).toContain("renvoyé");
+    });
+    expect(writes(client).map(([, path]) => path)).toEqual([
+      `/users/${account("Martin").user_id}/invitation`,
+    ]);
+    expect(command).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("tells a refusal answered once the table is read otherwise on the shell alone, and frees the command [WF-ADM-0140-A]", async () => {
+    const held = holdRoute(ROUTE);
+    serve(
+      { [ROUTE]: { problem: example("invitation_deactivated") as Problem & { status: 409 } } },
+      held.timing,
+    );
+    const { rerender } = render(accounts());
+    const command = within(grid()).getByRole("button", {
+      name: "Renvoyer le courriel de fixation du mot de passe de « Camille Martin »",
+    });
+    await userEvent.click(command);
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "true");
+    });
+    // Another reading of the table: the sort changed while the email was asked.
+    address.search = "sort_by=last_name";
+    rerender(accounts());
+    held.release();
+    await waitFor(() => {
+      expect(command).toHaveAttribute("aria-busy", "false");
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });

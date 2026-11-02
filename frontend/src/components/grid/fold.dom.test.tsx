@@ -50,7 +50,7 @@ const nested = example("nodes_nested") as NodeList;
 const INSTALLATION = "Installation sur site";
 const CONTROL_ROOM = "Poste de commande";
 const WIRING = "Câblage des armoires";
-const OCCURRED = "Risque survenu — Retard de livraison des armoires";
+const OCCURRED = "Retard de livraison des armoires";
 const REMINDER = "Relance du fournisseur";
 const TRANSPORT = "Transport exceptionnel";
 const ACCEPTANCE = "Réception usine";
@@ -340,8 +340,8 @@ describe("the tree of the grid of the planning", () => {
       INSTALLATION,
       CONTROL_ROOM,
       WIRING,
-      OCCURRED,
       ACCEPTANCE,
+      OCCURRED,
       ASSEMBLY,
       COMMISSIONING,
     ]);

@@ -19,7 +19,7 @@ années après le départ de ceux qui y ont répondu la première fois.
 > et le contrat d'interface viennent d'abord ; le dépôt porte aussi l'outillage et la chaîne
 > par lesquels passe chaque ligne du produit, et un front qui montre chaque écran contre un
 > contrat simulé (EP-02). Le back vient ensuite, EPIC par EPIC, comme le planifie
-> [`docs/roadmap`](docs/roadmap/README.md), en commençant par les comptes et les habilitations (EP-03).
+> [`docs/roadmap`](docs/roadmap/README-fr.md), en commençant par les comptes et les habilitations (EP-03).
 
 ## Ce qui le distingue
 
@@ -70,10 +70,12 @@ elle ne mesure rien.
 | `.github/workflows/` | la chaîne, exécutée sur chaque pull request |
 | `.claude/agents/` | les agents qui cadrent un EPIC, en livrent les lots, développent et relisent |
 
-**La spécification est en français**, comme la documentation. C'est un document d'exigences
-formel — chacune porte un identifiant, un motif et un critère de vérification observable — et
-le traduire doublerait la source de vérité. Le contrat, le code et le README principal sont en
-anglais. [README.md](README.md) dit tout ceci en anglais.
+**La spécification est en français**, comme l'essentiel de la documentation. C'est un document
+d'exigences formel — chacune porte un identifiant, un motif et un critère de vérification
+observable — et le traduire doublerait la source de vérité. Le contrat, le code, le README
+principal et le README de chaque répertoire de `docs/` sont en anglais ; chacun de ces README est
+accompagné de son original français, `README-fr.md`, qui fait foi en cas d'écart.
+[README.md](README.md) dit tout ceci en anglais.
 
 ### Par où commencer
 
@@ -85,9 +87,9 @@ anglais. [README.md](README.md) dit tout ceci en anglais.
   engendrée depuis Word pour qu'une machine puisse la lire.
 - [`docs/spec/revue/constats/`](docs/spec/revue/constats/) — les revues. C'est là que
   vit le raisonnement : ce qui n'allait pas, ce qui l'a remplacé, et pourquoi.
-- [`docs/roadmap/README.md`](docs/roadmap/README.md) — dans quel ordre le produit se
+- [`docs/roadmap/README-fr.md`](docs/roadmap/README-fr.md) — dans quel ordre le produit se
   construit, et comment le travail passe d'un EPIC au code relu.
-- [`docs/dev/README.md`](docs/dev/README.md) — le guide de développement : où vit chaque
+- [`docs/dev/README-fr.md`](docs/dev/README-fr.md) — le guide de développement : où vit chaque
   chose, et quel contrôle tient chaque règle.
 
 ## Comment le travail se fait

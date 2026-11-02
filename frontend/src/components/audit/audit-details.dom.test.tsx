@@ -70,15 +70,16 @@ describe("what an action did, under the action, in the language of its reader", 
     expect(read(bare, "en")[1]).toBe("No permission");
   });
 
-  it("names the origin of an account created, and the first roles its request gave it", () => {
+  it("names the origin of an account created, and the first roles an attribution of its own gave it after", () => {
     expect(read(inscription("user_create", "Dominique Bernard"), "fr")[1]).toBe(
       "Importé de l’annuaire",
     );
     const created = inscription("user_create", "Léa Garnier");
     expect(read(created, "fr")[1]).toBe("Créé dans Waterfall");
     expect(read(created, "en")[1]).toBe("Created in Waterfall");
+    // An account is born with no role, and its roles are attributed under a request of their own (A-01).
     const given = inscription("user_access_roles_set", "Léa Garnier");
-    expect(given.correlation_id).toBe(created.correlation_id);
+    expect(given.correlation_id).not.toBe(created.correlation_id);
     expect(read(given, "fr")[1]).toBe("Rôle donné : Chiffreur");
   });
 

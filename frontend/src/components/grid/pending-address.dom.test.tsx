@@ -97,11 +97,11 @@ describe("the address a screen asked, once the history goes back over it (#557)"
     // « Précédent » to the address the search was sent from, then a sort: the search given up stays.
     showAt("subproject_id=unassigned");
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /réf\./ })).getByRole("button"),
     );
     expect(lastAsked()).toEqual({
       subproject_id: "unassigned",
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
   });
@@ -115,11 +115,11 @@ describe("the address a screen asked, once the history goes back over it (#557)"
     await userEvent.type(field(), "{Enter}");
     expect(lastAsked()).toEqual({ subproject_id: "unassigned" });
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /réf\./ })).getByRole("button"),
     );
     expect(lastAsked()).toEqual({
       subproject_id: "unassigned",
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
   });
@@ -141,9 +141,9 @@ describe("the address a screen asked, once the history goes back over it (#557)"
     // A sort clicked before the server answers: it carries the search sent, and arrives in its
     // place, Next dropping the navigation of the search alone.
     await userEvent.click(
-      within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
+      within(screen.getByRole("columnheader", { name: /réf\./ })).getByRole("button"),
     );
-    expect(lastAsked()).toEqual({ search: "rev", sort_by: "inflated_amount", sort_order: "asc" });
+    expect(lastAsked()).toEqual({ search: "rev", sort_by: "base_amount", sort_order: "asc" });
     showAt(new URLSearchParams(lastAsked()).toString());
     expect(field()).toHaveValue("revue");
   });

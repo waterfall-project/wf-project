@@ -150,7 +150,7 @@ export function MilestoneChart({ tracking, provenance }: MilestoneChartProps) {
                 </td>
                 <td>{formatPlanningDate(point.forecast_date, locale)}</td>
                 <td>
-                  {milestone.completed_on === null || milestone.completed_on === undefined
+                  {milestone.completed_on === null
                     ? t("notCompleted")
                     : formatPlanningDate(milestone.completed_on, locale)}
                 </td>

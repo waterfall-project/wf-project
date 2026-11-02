@@ -37,6 +37,7 @@ export function auditColumns<Row extends { readonly audit: Audit }, Totals>(): G
   ): GridColumn<Row, AuditSort, Totals> => ({
     key: field,
     label,
+    help: `audit.${label}`,
     format: "text",
     width: INSTANT_WIDTH,
     contract: field,
@@ -50,6 +51,7 @@ export function auditColumns<Row extends { readonly audit: Audit }, Totals>(): G
   ): GridColumn<Row, AuditSort, Totals> => ({
     key: field,
     label,
+    help: `audit.${label}`,
     format: "text",
     width: AUTHOR_WIDTH,
     contract: field,

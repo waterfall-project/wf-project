@@ -11,6 +11,10 @@
         "marked_at": "2026-02-01T09:00:00Z",
         "is_reference": true,
         "reference_year": 2026,
+        "inflation_rate": "0.03",
+        "win_probability": "1",
+        "source_revision_id": "01926f3a-7c00-7000-8000-000000000100",
+        "source_version_name": "Offre v1.0",
         "available_commands": [
           {
             "command": "edit_planning",
@@ -49,6 +53,13 @@
           },
           {
             "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "apply_rate_update",
             "is_available": false,
             "missing_conditions": [
               "revision_draft"
@@ -110,7 +121,7 @@
             "display_name": "Camille Martin"
           }
         },
-        "lock_version": 2
+        "lock_version": 3
       },
       {
         "revision_id": "01926f3a-7c00-7000-8000-000000000100",
@@ -121,6 +132,10 @@
         "marked_at": "2025-12-15T16:00:00Z",
         "is_reference": false,
         "reference_year": 2025,
+        "inflation_rate": "0.03",
+        "win_probability": "1",
+        "source_revision_id": null,
+        "source_version_name": null,
         "available_commands": [
           {
             "command": "edit_planning",
@@ -159,6 +174,13 @@
           },
           {
             "command": "merge_structure",
+            "is_available": false,
+            "missing_conditions": [
+              "revision_draft"
+            ]
+          },
+          {
+            "command": "apply_rate_update",
             "is_available": false,
             "missing_conditions": [
               "revision_draft"

@@ -21,7 +21,7 @@ import { type ReactNode, useOptimistic, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { readValues, type ValuesAddress, valuesHref } from "./filters";
+import { readFilter, readValues, type ValuesAddress, valuesHref } from "./filters";
 import { usePendingAddress } from "./pending-address";
 
 /** A value a list may be filtered on, with what names it: a text, or a badge drawn. */
@@ -39,8 +39,10 @@ export function ValuesFilter<Value extends string>({
   chosen,
   page,
   exhaustive,
+  lifted,
+  unnamed,
   shaded = false,
-}: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive"> & {
+}: Pick<ValuesAddress<Value>, "name" | "page" | "exhaustive" | "lifted" | "unnamed"> & {
   /** The name of the group of buttons: what the filter filters on. */
   readonly label: string;
   /** The text of the button that lifts the filter. */
@@ -57,7 +59,14 @@ export function ValuesFilter<Value extends string>({
 }) {
   const pathname = usePathname();
   const { request } = usePendingAddress();
-  const filter = { name, values: values.map(({ value }) => value), page, exhaustive };
+  const filter = {
+    name,
+    values: values.map(({ value }) => value),
+    page,
+    exhaustive,
+    lifted,
+    unnamed,
+  };
   // The values asked, pressed until the server answers for them: the buttons would otherwise show
   // the address until the navigation arrives — the choice seemingly undone for as long as the page
   // is read anew —, and again the address should another navigation replace it.
@@ -67,12 +76,7 @@ export function ValuesFilter<Value extends string>({
   const change = (make: (asked: readonly Value[]) => readonly Value[]) => {
     startTransition(() => {
       request((query) => {
-        const href = valuesHref(
-          pathname,
-          query,
-          filter,
-          make(readValues(query, name, filter.values)),
-        );
+        const href = valuesHref(pathname, query, filter, make(readFilter(query, filter)));
         // As the address asked names them: every value of an exhaustive filter lifts it.
         show(readValues(new URLSearchParams(href.split("?")[1] ?? ""), name, filter.values));
         return href;

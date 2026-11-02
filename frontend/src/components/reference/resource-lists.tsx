@@ -27,10 +27,8 @@
  */
 import { CalendarDays, Network, Timer, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { KnownNames } from "@/components/commands/outcome-notice";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import {
   type Bounds,
@@ -425,31 +423,6 @@ export function ResourceRoleList({
       </ReferenceSection>
     </CommandedList>
   );
-}
-
-/** A role, as a refusal names it by its identifier: by its label and its code. */
-type NamedRole = Pick<ResourceRole, "resource_role_id" | "code" | "label">;
-
-/**
- * Lend every notice of the lists under it the names of every role the page read, by identifier, each
- * by its label and its code: what names the roles a refusal of a calendar gives by their identifiers
- * alone (`resource_role_ids`, WF-PLA-0010, EP-14/L42r); none when the page did not read them.
- */
-export function RoleNames({
-  roles = [],
-  children,
-}: {
-  readonly roles?: readonly NamedRole[] | undefined;
-  readonly children: ReactNode;
-}) {
-  const t = useTranslations("problemDetails");
-  const names = Object.fromEntries(
-    roles.map(({ resource_role_id, code, label }) => [
-      resource_role_id,
-      t("codedName", { code, label }),
-    ]),
-  );
-  return <KnownNames names={names}>{children}</KnownNames>;
 }
 
 /** The parameters of the address the calendars read, their filter among them. */

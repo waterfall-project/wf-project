@@ -1,0 +1,14 @@
+{
+  "summary": "La lecture des comptes passée aujourd'hui à une périodicité hebdomadaire sans que son jour soit choisi : refusée, une hebdomadaire exigeant son jour, le champ désigné ; rien n'est écrit (WF-ADM-0070).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/weekday",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001597"
+  }
+}

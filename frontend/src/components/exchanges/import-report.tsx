@@ -3,9 +3,15 @@
 /**
  * The report of an import, as `getImport` gives it (WF-INTF-0080): the file, its kind and where
  * the import stands, when it was opened and until when its report applies; then, once analysed,
- * the lines read, the reasons that ask for an explicit confirmation, each line rejected by its
- * place in the file and its motive, and each difference with the existing data, with the fields it
- * changes named as the columns of their grid. Every sentence
+ * the lines read, of which those left as they are, the reasons that ask for an explicit
+ * confirmation, each line rejected by its place in the file — its tab, when the file has tabs, and
+ * its row — and its motive, each task the file dates or lasts otherwise than Waterfall computes it,
+ * with the columns that differ (WF-INTF-0040), each value of the file
+ * kept and signalled, each task the import completes at the date of the review the file bears, and
+ * each difference with the existing data — a line of
+ * actual cost by its document and its item (US-0630) —, with the fields it changes named as the
+ * columns of their grid, and what the import ignores — the columns of an
+ * extraction of actual costs by the label the file gives them (WF-REF-0190). Every sentence
  * is the catalogue's, written from the codes the API gives (WF-ARC-0110): a motive from its code
  * and parameters, as a refusal is; the label of a line, which comes from the file or the project,
  * as it is. The front counts, sorts and filters nothing: the lists are in the order received.
@@ -23,7 +29,7 @@ import { NODE_COLUMNS, type NodeColumn } from "@/components/grid/nodes";
 import { CELL, ICON, ListTable } from "@/components/projects/project-tables";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { Catalogue } from "@/i18n/catalogues";
-import { formatDecimal } from "@/i18n/format";
+import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
 import { IMPORT_STEPS } from "./offers";
@@ -43,6 +49,7 @@ type DifferenceField = NonNullable<Difference["fields"]>[number];
 const ACTUAL_COST_COLUMNS = {
   document_date: true,
   document_number: true,
+  document_item: true,
   amount: true,
   subproject: true,
 } as const satisfies Record<keyof Catalogue["enums"]["ActualCostColumn"], true>;
@@ -77,18 +84,27 @@ const MARKED: Readonly<Record<Difference["change"], RowDifference | undefined>> 
 const HEADING = "text-sm font-semibold";
 const MUTED = "text-sm text-muted-foreground";
 
-/** The lines of the file rejected, each by its row and its motive, in the order received. */
+/**
+ * The lines of the file rejected, each by its place — the tab that bears it, as the file names it,
+ * when the file has tabs (ANNEXE B, WF-INTF-0180), and its row — and its motive, in the order
+ * received. A file without tabs, a planning MS Project, shows no column of tabs.
+ */
 function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
   const t = useTranslations("exchanges.report");
   const locale = useLocale();
   const messages = useMessages();
+  const tabbed = rejected.some(({ sheet }) => sheet != null);
   return (
     <div className="space-y-1">
       <h3 className={HEADING}>{t("rejected", { count: rejected.length })}</h3>
       {rejected.length === 0 ? null : (
-        <ListTable label={t("rejectedTable")} columns={[t("row"), t("motive")]}>
+        <ListTable
+          label={t("rejectedTable")}
+          columns={tabbed ? [t("sheet"), t("row"), t("motive")] : [t("row"), t("motive")]}
+        >
           {rejected.map((line, index) => (
-            <TableRow key={`${String(line.row)}-${String(index)}`}>
+            <TableRow key={`${line.sheet ?? ""}-${String(line.row)}-${String(index)}`}>
+              {tabbed ? <TableCell className={CELL}>{line.sheet}</TableCell> : null}
               <TableCell className={`${CELL} tabular-nums`}>
                 {formatDecimal(String(line.row), locale)}
               </TableCell>
@@ -97,6 +113,29 @@ function Rejections({ rejected }: { readonly rejected: Report["rejected"] }) {
           ))}
         </ListTable>
       )}
+    </div>
+  );
+}
+
+/**
+ * The reasons that reject the whole file (`refusals`, WF-INTF-0040, WF-PLA-0150, WF-PLA-0170), each
+ * by its sentence, the tasks it names by their labels, in the order received: nothing is applied,
+ * not even the lines accepted.
+ */
+function Refusals({ refusals }: { readonly refusals: Report["refusals"] }) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  const messages = useMessages();
+  return (
+    <div role="alert" className="space-y-1 text-destructive">
+      <h3 className={HEADING}>{t("refusals", { count: refusals.length })}</h3>
+      <ul className="list-inside list-disc text-sm">
+        {refusals.map((refusal, index) => (
+          <li key={`${refusal.code}-${String(index)}`}>
+            {problemMessage(refusal, { locale, messages })}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -129,8 +168,8 @@ export function Differences({
     if (field === "subproject") {
       return t("enums.NodeColumn.subproject");
     }
-    if (field === "parent") {
-      return t("enums.ImportDifferenceField.parent");
+    if (field === "parent" || field === "planning_start_on") {
+      return t(`enums.ImportDifferenceField.${field}`);
     }
     return isNodeColumn(field) ? t(`enums.NodeColumn.${field}`) : undefined;
   };
@@ -169,7 +208,14 @@ export function Differences({
                 {t(`enums.ImportDifference.target.${difference.target}`)}
               </TableCell>
               <TableCell className={CELL}>
-                {difference.label ?? t("exchanges.report.unnamed")}
+                {difference.label == null
+                  ? t("exchanges.report.unnamed")
+                  : difference.document_item == null
+                    ? difference.label
+                    : t("exchanges.report.labelItem", {
+                        label: difference.label,
+                        item: difference.document_item,
+                      })}
               </TableCell>
               <TableCell className={CELL}>
                 {format.list(fieldsOf(difference), { type: "conjunction" })}
@@ -182,13 +228,140 @@ export function Differences({
   );
 }
 
+/**
+ * What the import ignores, each kind by its name, its count and the names of what it ignores when
+ * the file gives them — for the columns of an extraction of actual costs, the labels as the file
+ * carries them (WF-REF-0190), left as they are.
+ */
+function Ignored({ ignored }: { readonly ignored: Report["ignored"] }) {
+  const t = useTranslations();
+  const format = useFormatter();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("exchanges.report.ignored")}</h3>
+      <ul className="list-inside list-disc text-sm">
+        {ignored.map(({ kind, count, labels }) => {
+          const name = t(`enums.ImportIgnoredKind.${kind}`);
+          return (
+            <li key={kind}>
+              {labels.length === 0
+                ? t("exchanges.report.ignoredCount", { kind: name, count })
+                : t("exchanges.report.ignoredItem", {
+                    kind: name,
+                    count,
+                    names: format.list(labels, { type: "conjunction" }),
+                  })}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * What the import keeps as the file bears it and signals, or corrects: each task by its label, the
+ * column that bears the value, the kind of signal and its sentence, from the code and the parameters
+ * the API gives, as a refusal of an entry is (WF-INTF-0040, WF-PLA-0020), in the order received.
+ */
+function Signals({ signals }: { readonly signals: Report["signals"] }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const messages = useMessages();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("exchanges.report.signals", { count: signals.length })}</h3>
+      <ListTable
+        label={t("exchanges.report.signalsTable")}
+        columns={[
+          t("exchanges.report.task"),
+          t("exchanges.report.column"),
+          t("exchanges.report.signal"),
+          t("exchanges.report.motive"),
+        ]}
+      >
+        {signals.map((signal, index) => (
+          <TableRow key={`${signal.lineage_id ?? "new"}-${signal.code}-${String(index)}`}>
+            <TableCell className={CELL}>{signal.label}</TableCell>
+            <TableCell className={CELL}>{t(`enums.NodeColumn.${signal.column}`)}</TableCell>
+            <TableCell className={CELL}>{t(`enums.ImportSignal.code.${signal.code}`)}</TableCell>
+            <TableCell className={CELL}>{problemMessage(signal, { locale, messages })}</TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
+/**
+ * The tasks the file dates or lasts otherwise than Waterfall computes them from their durations,
+ * their links and their calendars, each by its label and the columns that differ, named as the
+ * columns of the planning (WF-INTF-0040), in the order received: what Waterfall computes prevails,
+ * and nothing is to confirm.
+ */
+function DateMismatches({ mismatches }: { readonly mismatches: Report["date_mismatches"] }) {
+  const t = useTranslations();
+  const format = useFormatter();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>
+        {t("exchanges.report.dateMismatches", { count: mismatches.length })}
+      </h3>
+      <ListTable
+        label={t("exchanges.report.dateMismatchesTable")}
+        columns={[t("exchanges.report.task"), t("exchanges.report.fields")]}
+      >
+        {mismatches.map((task, index) => (
+          <TableRow key={`${task.lineage_id ?? "new"}-${String(index)}`}>
+            <TableCell className={CELL}>{task.label}</TableCell>
+            <TableCell className={CELL}>
+              {format.list(
+                task.fields.map((field) => t(`enums.NodeColumn.${field}`)),
+                { type: "conjunction" },
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
+/**
+ * The tasks the import completes, each with the date it takes: the date of the review the file
+ * bears, which the analysis read (WF-INTF-0120, WF-INTF-0130), in the order received. An import
+ * never leaves the date null (the contract); only a merge does, and it shows no date.
+ */
+function CompletedTasks({ completed }: { readonly completed: Report["completed_tasks"] }) {
+  const t = useTranslations("exchanges.report");
+  const locale = useLocale();
+  return (
+    <div className="space-y-1">
+      <h3 className={HEADING}>{t("completed", { count: completed.length })}</h3>
+      <ListTable label={t("completedTable")} columns={[t("task"), t("completedOn")]}>
+        {completed.map((task) => (
+          <TableRow key={task.lineage_id}>
+            <TableCell className={CELL}>{task.label}</TableCell>
+            <TableCell className={CELL}>
+              {task.completed_on === null ? null : formatPlanningDate(task.completed_on, locale)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </ListTable>
+    </div>
+  );
+}
+
 /** What the analysis found: lines read, reasons to confirm, lines rejected, differences. */
 function Findings({ report }: { readonly report: Report }) {
   const t = useTranslations();
-  const reasons = report.requires_confirmation_reasons ?? [];
+  const reasons = report.requires_confirmation_reasons;
   return (
     <div className="space-y-3">
-      <p className="text-sm">{t("exchanges.report.read", { count: report.read_count })}</p>
+      <p className="text-sm">
+        {t("exchanges.report.read", { count: report.read_count })}{" "}
+        {t("exchanges.report.unchanged", { count: report.unchanged_count })}
+      </p>
       {reasons.length === 0 ? null : (
         <div className="space-y-1">
           <h3 className={HEADING}>{t("exchanges.report.reasons")}</h3>
@@ -201,10 +374,33 @@ function Findings({ report }: { readonly report: Report }) {
           </ul>
         </div>
       )}
+      {report.refusals.length === 0 ? null : <Refusals refusals={report.refusals} />}
       <Rejections rejected={report.rejected} />
       <Differences differences={report.differences} />
+      {report.date_mismatches.length === 0 ? null : (
+        <DateMismatches mismatches={report.date_mismatches} />
+      )}
+      {report.signals.length === 0 ? null : <Signals signals={report.signals} />}
+      {report.completed_tasks.length === 0 ? null : (
+        <CompletedTasks completed={report.completed_tasks} />
+      )}
+      {report.ignored.length === 0 ? null : <Ignored ignored={report.ignored} />}
     </div>
   );
+}
+
+/**
+ * What the import may still be asked: a file the report rejects whole is applied no more, and only
+ * its abandonment stays offered (`import_file_accepted`, WF-INTF-0040). The contract lists no
+ * commands on an import (`Import` has no `available_commands`; the project's offer is not about
+ * one import), so the screen derives from the report the one rule it needs: no apply when the
+ * report refuses.
+ */
+function stepsOf(entry: Import): (typeof IMPORT_STEPS)[Import["status"]] {
+  const steps = IMPORT_STEPS[entry.status];
+  return entry.report != null && entry.report.refusals.length > 0
+    ? { ...steps, apply: false }
+    : steps;
 }
 
 /** The import a report is of, what the server offers of its kind, and where the screen started. */
@@ -236,10 +432,14 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
         <dd>
           <LocalTime value={entry.created_at} />
         </dd>
-        <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
-        <dd>
-          <LocalTime value={entry.expires_at} />
-        </dd>
+        {entry.expires_at === null ? null : (
+          <>
+            <dt className="text-muted-foreground">{t("exchanges.report.expiresAt")}</dt>
+            <dd>
+              <LocalTime value={entry.expires_at} />
+            </dd>
+          </>
+        )}
         {entry.report?.format_version == null ? null : (
           <>
             <dt className="text-muted-foreground">{t("exchanges.report.formatVersion")}</dt>
@@ -261,7 +461,7 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
         importId={entry.import_id}
         filename={entry.filename}
         offer={offer}
-        steps={IMPORT_STEPS[entry.status]}
+        steps={stepsOf(entry)}
         start={start}
         then={then}
       />

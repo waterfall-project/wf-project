@@ -1,0 +1,14 @@
+{
+  "summary": "Une chronologie créée sur le projet témoin sous un nom vide : refusée, chaque chronologie portant un nom ; rien n'est écrit (WF-PLA-0140).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/label",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001551"
+  }
+}

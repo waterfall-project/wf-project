@@ -37,6 +37,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "label",
       label: "label",
+      help: "portfolioProjects.label",
       format: "text",
       width: 280,
       pinned: true,
@@ -47,6 +48,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "code",
       label: "code",
+      help: "portfolioProjects.code",
       format: "text",
       width: 96,
       contract: "code",
@@ -55,6 +57,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "state",
       label: "state",
+      help: "portfolioProjects.state",
       format: "text",
       width: 112,
       contract: "state",
@@ -64,6 +67,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "reference_budget",
       label: "referenceBudget",
+      help: "portfolioProjects.referenceBudget",
       format: "money",
       width: 136,
       contract: "reference_budget",
@@ -72,6 +76,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "current_estimate",
       label: "currentEstimate",
+      help: "portfolioProjects.currentEstimate",
       format: "money",
       width: 136,
       contract: "current_estimate",
@@ -80,6 +85,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "win_probability",
       label: "winProbability",
+      help: "portfolioProjects.winProbability",
       format: "percent",
       width: 104,
       contract: "win_probability",
@@ -88,6 +94,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "project_manager_projection",
       label: "projectManagerProjection",
+      help: "portfolioProjects.projectManagerProjection",
       format: "money",
       width: 136,
       contract: "project_manager_projection",
@@ -96,6 +103,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "delta_to_reference",
       label: "deltaToReference",
+      help: "portfolioProjects.deltaToReference",
       format: "money",
       width: 128,
       contract: "delta_to_reference",
@@ -104,6 +112,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "cost_index",
       label: "costIndex",
+      help: "portfolioProjects.costIndex",
       format: "decimal",
       width: 112,
       contract: "cost_index",
@@ -113,6 +122,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "schedule_index",
       label: "scheduleIndex",
+      help: "portfolioProjects.scheduleIndex",
       format: "decimal",
       width: 112,
       contract: "schedule_index",
@@ -122,6 +132,7 @@ export const PROJECT_GRID: GridConfig<ProjectRow, ProjectSortColumn, ProjectPage
     {
       key: "last_marked_at",
       label: "lastMarkedAt",
+      help: "portfolioProjects.lastMarkedAt",
       format: "text",
       width: 168,
       contract: "last_marked_at",

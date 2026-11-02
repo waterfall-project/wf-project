@@ -44,13 +44,14 @@ User:
       properties:
         available_commands:
           type: array
-          maxItems: 3
+          maxItems: 5
           description: >-
             Commandes du compte que l'appelant a la permission d'exercer, chacune disponible ou
             non, avec les conditions qui lui manquent (WF-IHM-0090), dans l'ordre de
-            `UserCommand` : au plus trois, celle qui change son état, son anonymisation s'il est
-            désactivé, et l'attribution de ses rôles. Une commande absente de la liste n'est pas
-            présentée ; la liste est vide pour
+            `UserCommand` : au plus cinq, celle qui change son état, son anonymisation s'il est
+            désactivé, l'attribution de ses rôles, et pour un compte local non anonymisé, le lien
+            de fixation de son mot de passe et le renvoi de son invitation. Une commande absente
+            de la liste n'est pas présentée ; la liste est vide pour
             qui lit les comptes sans la permission de les modifier (`users.write`, WF-ADM-0100),
             et `set_access_roles` n'y est que pour qui porte aussi celle de modifier les rôles
             d'habilitation (`access_roles.write`, WF-ADM-0090).
@@ -75,16 +76,29 @@ UserCreated:
             de fixation ; faux quand il ne l'a pas envoyé — installation sans messagerie
             (WF-CMP-0030), serveur de courriel en échec, fournisseur injoignable : le compte existe
             pourtant, et l'écran propose aussitôt le lien à remettre par un autre canal
-            (`createPasswordSetupLink`).
+            (`createPasswordSetupLink`). Le courriel se renvoie ensuite (`resendInvitation`).
 
 UserCommand:
   type: string
-  enum: [deactivate, reactivate, anonymize, set_access_roles]
+  enum:
+    - deactivate
+    - reactivate
+    - anonymize
+    - set_access_roles
+    - create_password_link
+    - resend_invitation
   description: >-
     Commandes portées par un compte (WF-IHM-0090) : le désactiver et le réactiver, par
     `setUserActivation` — aucune ne le supprime (WF-ADM-0060) —, l'anonymiser, par
-    `anonymizeUser` (WF-ADM-0060), et lui attribuer ses rôles d'habilitation, par
-    `setUserAccessRoles` (WF-ADM-0090). Un compte ne porte que celle qui change son état :
+    `anonymizeUser` (WF-ADM-0060), lui attribuer ses rôles d'habilitation, par
+    `setUserAccessRoles` (WF-ADM-0090), obtenir le lien de fixation de son mot de passe, par
+    `createPasswordSetupLink`, et lui renvoyer le courriel qui le porte, par `resendInvitation`
+    (WF-ADM-0140). Ces deux dernières ne se listent que pour un compte local non anonymisé : un
+    compte de l'annuaire ou d'un fournisseur externe ne les porte jamais, pas plus qu'un compte
+    anonymisé, retiré du fournisseur d'identité (WF-ADM-0060) — un état définitif retire la
+    commande, comme sur un projet clos ; elles sont disponibles pour un compte actif, et
+    indisponibles pour un compte désactivé, `is_active_account` manquante (décision de l'auteur
+    du 2026-11-01, #1737). Un compte ne porte que celle qui change son état :
     `deactivate` s'il est actif, `reactivate` s'il est désactivé — indisponible pour un compte
     anonymisé, `is_not_anonymized` manquante, l'anonymisation étant irréversible ; il porte
     `anonymize` s'il est désactivé, comme `reactivate` qu'elle suit — disponible tant qu'il n'est
@@ -100,7 +114,8 @@ UserCommand:
     davantage reste possible (WF-IHM-0090 : n'est indisponible que ce qui l'est) ; seule une
     attribution qui lui retirerait l'une d'elles est refusée, par le 409 `LAST_ADMINISTRATOR` de
     `setUserAccessRoles`, qui dépend des rôles envoyés. Toute autre commande listée est
-    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé.
+    disponible, hors `reactivate` et `anonymize` d'un compte anonymisé, et
+    `create_password_link` et `resend_invitation` d'un compte désactivé.
 
 UserCommandAvailability:
   type: object
@@ -126,9 +141,11 @@ UserAccount:
     - anonymized_at
     - is_active
     - origin
+    - org_node_id
     - org_node_label
     - access_role_ids
     - access_role_labels
+    - has_avatar
     - audit
     - lock_version
   properties:
@@ -181,7 +198,9 @@ UserAccount:
         Libellés des rôles de `access_role_ids`, résolus à la lecture, dans le même
         ordre. Le front ne rapproche pas les rôles des comptes (WF-ARC-0020).
       items: { type: string }
-    has_avatar: { type: boolean }
+    has_avatar:
+      type: boolean
+      description: Vrai quand le compte porte un avatar (WF-ADM-0080) ; faux, l'image par défaut.
     audit: { $ref: ../common.yaml#/Audit }
     lock_version: { $ref: ../common.yaml#/LockVersion }
 
@@ -208,15 +227,16 @@ UserSelf:
 UserCreate:
   type: object
   required: [last_name, first_name, email]
+  description: >-
+    Un compte local naît sans rôle, comme un compte lu de l'annuaire (WF-ADM-0070) : ses rôles
+    lui sont attribués ensuite par `setUserAccessRoles`, sous la permission de modifier les rôles
+    d'habilitation (WF-ADM-0090, WF-ADM-0100).
   properties:
     last_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     first_name: { type: string, minLength: 1, pattern: '\S', maxLength: 100 }
     email: { type: string, format: email, maxLength: 254 }
     org_node_id:
       anyOf: [{ $ref: ../common.yaml#/Uuid }, { type: 'null' }]
-    access_role_ids:
-      type: array
-      items: { $ref: ../common.yaml#/Uuid }
 
 UserUpdate:
   type: object
@@ -272,7 +292,7 @@ DisplayPreferences:
     Les préférences sont relues avec le compte à chaque requête : leur taille est bornée
     (#874) — cent grilles, cent chronologies et cent graphiques au plus, des noms de grille, de
     colonne, de filtre, de chronologie, de tâche et de graphique de 64 caractères au plus ; par grille, 64 colonnes
-    masquées ou élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
+    masquées, 64 connues, 64 élargies et 20 filtres au plus, la valeur d'un filtre de 500 caractères au
     plus ; par chronologie, 64 tâches placées au plus. Une préférence qui passe une borne est
     refusée par 422 `VALUE_TOO_LONG`, au pointeur de l'objet, de la liste ou du texte en
     défaut ; un nom trop long, au pointeur de l'objet qui le porte.
@@ -293,7 +313,12 @@ DisplayPreferences:
         Mode d'affichage. `default` — ou, à la lecture, l'absence du champ — suit le
         réglage du poste ; `light` ou `dark` prime dès qu'il est choisi. Une préférence de présentation
         (WF-ADM-0040).
-    highlight_tasks_added_after_reference: { type: boolean }
+    highlight_tasks_added_after_reference:
+      type: boolean
+      description: >-
+        La préférence qui distingue visuellement les tâches ajoutées après la révision de
+        référence et, dans le reste à engager, les lignes dont le montant budgété est nul : une
+        seule préférence pour les deux (WF-ADM-0040, WF-RAE-0040). Absente, faux.
     grids:
       type: object
       maxProperties: 100
@@ -369,6 +394,24 @@ GridPreferences:
       type: array
       maxItems: 64
       items: { type: string, maxLength: 64 }
+      description: >-
+        Les clés des colonnes que l'utilisateur a masquées. Une colonne qu'elle nomme est masquée ;
+        une colonne qu'elle ne nomme pas est montrée si la grille la connaissait
+        (`known_columns`), et prend sinon ce que la grille lui donne par défaut.
+    known_columns:
+      type: array
+      maxItems: 64
+      items: { type: string, maxLength: 64 }
+      description: >-
+        Les clés des colonnes que la grille offrait quand ses préférences ont été écrites pour la
+        dernière fois — le front la récrit à chaque écriture de la grille, entière comme le reste.
+        Une colonne absente de cette liste est une colonne que la grille a reçue depuis : masquée
+        si la grille la masque par défaut, montrée sinon, sauf si `hidden_columns` la nomme. Une
+        colonne nouvelle masquée par défaut le reste ainsi pour un compte qui a déjà réglé la
+        grille, et une colonne que le compte a choisi d'afficher le reste (EP-16/US-0650, #1260).
+        Facultative : absente — un compte qui ne l'a jamais écrite —, elle vaut une liste vide, et
+        toute colonne masquée par défaut que `hidden_columns` ne nomme pas est masquée. Le serveur
+        la garde telle qu'elle est écrite, sans connaître les colonnes d'aucune grille.
     column_widths:
       type: object
       maxProperties: 64
@@ -393,7 +436,12 @@ GridPreferences:
       type: object
       description: >-
         La recherche et les filtres de la grille, tels que son adresse les écrit : chaque
-        paramètre sous son nom, avec sa valeur en texte.
+        paramètre sous son nom, avec sa valeur en texte. Le serveur les garde tels qu'ils sont
+        écrits, sans connaître les paramètres d'aucune grille. Ainsi la liste des projets de
+        l'accueil, la grille `projects`, garde sous `states` les états choisis, séparés par des
+        virgules comme l'adresse les écrit (`states=pricing,in_progress,completed`) ; un compte
+        qui n'en a rien écrit prend le défaut de l'écran, Créé, Chiffrage et En cours, que le
+        contrat ne porte pas (WF-PTF-0030, WF-IHM-0060 ; #1401, #1747).
       maxProperties: 20
       propertyNames: { maxLength: 64 }
       additionalProperties: { type: string, maxLength: 500 }
@@ -414,8 +462,18 @@ PermissionCode:
     déclaration de survenance d'un risque emporte la fusion qu'elle déclenche et n'exige
     pas `structure_merge` (WF-ADM-0100). La consultation du journal d'audit
     (`audit_log.read`, WF-SEC-0030) est celle de la fonction que la spécification lui donne
-    sous l'administration, FBS-1.5 « Journal d'audit ». L'énumération est le catalogue : une permission
-    nouvelle est une modification du contrat.
+    sous l'administration, FBS-1.5 « Journal d'audit ». Les permissions de consultation des
+    paramètres applicatifs (FBS-3) ouvrent ce que toute session ne lit pas déjà : les objets
+    actifs du référentiel — nœuds, rôles de ressources, calendriers, natures et catégories — se
+    lisent par toute session ouverte, vocabulaire des projets (FBS-4), et leurs désactivés comme
+    leurs écritures relèvent de la permission de modifier la fonction. `cost_settings.read`
+    ouvre la grille des taux horaires (`getHourlyRateGrid`), les taux d'une catégorie
+    (`listHourlyRates`) et la correspondance de l'extraction des coûts réels
+    (`getActualCostMapping`), 404 sans elle ; `resource_settings.read`,
+    `risk_settings.read` et `indicator_settings.read` ouvrent la présentation des écrans de leur
+    fonction (`UserSelf.permissions`, WF-IHM-0090), leurs données actives se lisant par
+    ailleurs. Le catalogue les garde toutes (WF-ADM-0100 ; décision de l'auteur du 2026-11-01, #1745).
+    L'énumération est le catalogue : une permission nouvelle est une modification du contrat.
   enum:
     # FBS-1 — Administration.
     - users.read
@@ -477,7 +535,7 @@ PermissionCode:
 
 Permission:
   type: object
-  required: [code, kind]
+  required: [code, kind, fbs_code]
   properties:
     code: { $ref: '#/PermissionCode' }
     kind:
@@ -519,7 +577,7 @@ AccessRoleWrite:
 
 AccessRoleUpdate:
   description: >-
-    Modification d'un rôle d'accès : porte le compteur lu,
+    Modification d'un rôle d'habilitation : porte le compteur lu,
     qu'une création n'a pas.
   allOf:
     - $ref: '#/AccessRoleWrite'

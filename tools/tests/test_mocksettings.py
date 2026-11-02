@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests of the writes of the common settings: what each answer changes, what each refusal names.
 
-They try the examples of `updateReferenceSettings` (EP-14/L42h, and L42m for #659) against the
-reading of the settings they follow and against the contract, not the Vérif of a requirement: none
-cites one (WF-QUA-0010, « un test qui ne couvre aucune exigence »).
+They try the examples of `updateReferenceSettings` (EP-14/L42h, and L42m for #659, and the name of
+the company of EP-16/US-0600) against the reading of the settings they follow and against the
+contract, not the Vérif of a requirement: none cites one (WF-QUA-0010, « un test qui ne couvre
+aucune exigence »). The name of the company is the Vérif of WF-EXP-0020-A only on an exported
+estimate, which EP-07 tries.
 """
 
 import json
@@ -29,6 +31,10 @@ OUTSIDE = "THRESHOLD_NOT_BETWEEN_ZERO_AND_ONE"
 """The motive of a threshold that is not strictly between 0 and 1 (EP-14/L42m)."""
 FEWEST, MOST_WEEKS = 1, 104
 """The bounds of the delay between two reviews, in weeks (`max_weeks_between_reviews`)."""
+LONGEST_NAME = 200
+"""The most characters the name of the company holds (`company_name`, EP-16/US-0600)."""
+COMPANY, RENAMED = "Delmas Automatismes", "Delmas Automatismes Industriels"
+"""The name of the company of the witness, and the one the screen of the cost settings writes."""
 
 ZONE_OF_P1_G4 = 3
 """The rank of the cell of the lowest probability and the highest severity, p1/g4:
@@ -71,7 +77,7 @@ def test_the_matrix_written_changes_its_bounds_and_one_zone_and_nothing_else() -
     # The zone the form of the matrix changes in its test, so that the answer shows it in place of
     # the reading (#659).
     assert changed == {ZONE_OF_P1_G4: ("watch", "alert")}
-    for key in ("currency_code", "default_language", "index_thresholds"):
+    for key in ("currency_code", "company_name", "default_language", "index_thresholds"):
         assert written[key] == read[key], key
     assert written["max_weeks_between_reviews"] == read["max_weeks_between_reviews"]
     assert written["lock_version"] == read["lock_version"] + 1
@@ -80,7 +86,90 @@ def test_the_matrix_written_changes_its_bounds_and_one_zone_and_nothing_else() -
 def test_the_thresholds_written_keep_the_matrix() -> None:
     read, written = fixture("reference_settings"), fixture("reference_settings_thresholds_updated")
     assert written["risk_matrix"] == read["risk_matrix"]
+    assert written["company_name"] == read["company_name"]
     assert written["lock_version"] == read["lock_version"] + 1
+
+
+# --- The name of the company (EP-16/US-0600) ----------------------------------------------------
+
+
+def test_the_name_written_changes_the_name_and_nothing_else() -> None:
+    read, written = fixture("reference_settings"), fixture("reference_settings_company_updated")
+    assert (read["company_name"], written["company_name"]) == (COMPANY, RENAMED)
+    unchanged = set(read) - {"company_name", "audit", "lock_version"}
+    assert {key: written[key] for key in unchanged} == {key: read[key] for key in unchanged}
+    assert written["audit"]["created_at"] == read["audit"]["created_at"]
+    assert set(written) == set(read)
+    assert written["lock_version"] == read["lock_version"] + 1
+    # The answer is an example of the operation, after those the fake back served before it.
+    answers = _operation().split("'200':", 1)[1].split("'400':", 1)[0]
+    cited = re.findall(r"fixtures/api/(\w+)\.json", answers)
+    assert cited[0] == "reference_settings_thresholds_updated"
+    assert cited[-1] == "reference_settings_company_updated"
+
+
+def test_an_empty_name_is_refused_at_its_field_and_nothing_is_written() -> None:
+    refused = fixture("reference_settings_company_refused")
+    assert (refused["status"], refused["code"]) == (422, "VALIDATION_FAILED")
+    assert refused["fields"] == [{"pointer": "/company_name", "code": "VALUE_REQUIRED"}]
+    said = _operation().split("'422':", 1)[1].split("content:", 1)[0]
+    assert "`/company_name` par `VALUE_REQUIRED`" in said
+    assert "`VALUE_TOO_LONG`" in said.split("/company_name", 1)[1].split(";", 1)[0]
+
+
+def test_the_name_is_written_under_the_permission_of_the_cost_settings() -> None:
+    # The refusal of a session without it names it, as it names those of the matrix and thresholds.
+    forbidden = " ".join(_operation().split("'403':", 1)[1].split("content:", 1)[0].split())
+    assert "`cost_settings.write` pour le nom de l'entreprise" in forbidden
+    text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
+    write = " ".join(_block(text, "ReferenceSettingsWrite").split())
+    assert "le nom de l'entreprise (`cost_settings.write`)" in write
+
+
+def test_the_name_is_required_read_optional_written_and_bounded_alike() -> None:
+    text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
+    read, write = _block(text, "ReferenceSettings"), _block(text, "ReferenceSettingsWrite")
+    assert "\n    - company_name\n" in read
+    assert "required: [lock_version]" in write
+    for block in (read, write):
+        found = re.search(r"\n    company_name:\n(?P<rest>(?:      .*\n)+)", block)
+        assert found is not None
+        assert "minLength: 1\n" in found["rest"]
+        assert f"maxLength: {LONGEST_NAME}\n" in found["rest"]
+        assert "pattern: '\\S'\n" in found["rest"]
+
+
+def test_the_pattern_of_the_name_refuses_blanks_and_the_bound_is_two_hundred() -> None:
+    # In the read and the written schema alike, the sub-block of company_name carries a pattern
+    # which, read as a regular expression by `re` (not as JSON Schema), refuses a name of blanks
+    # only and accepts one with a letter, and a maxLength that is the bound the 422 describes.
+    text = (SCHEMAS / "reference.yaml").read_text(encoding="utf-8")
+    for name in ("ReferenceSettings", "ReferenceSettingsWrite"):
+        found = re.search(r"\n    company_name:\n(?P<rest>(?:      .*\n)+)", _block(text, name))
+        assert found is not None
+        pattern = re.search(r"pattern: '(?P<p>.*)'\n", found["rest"])
+        assert pattern is not None
+        regex = re.compile(pattern["p"])
+        assert regex.search(COMPANY) is not None
+        assert all(regex.search(blank) is None for blank in ("", " ", " \t\n "))
+        assert f"maxLength: {LONGEST_NAME}\n" in found["rest"]
+
+
+def test_every_reading_of_the_settings_bears_the_name_of_the_company() -> None:
+    # Every example of the schema of the settings, all but the name written, bears the name of the
+    # witness: the matrix and the thresholds written leave it as it was.
+    named: dict[str, str] = {}
+    for path in sorted(mockwitness.FIXTURES.glob("reference_settings*.json")):
+        value: Entry = json.loads(path.read_text(encoding="utf-8"))["value"]
+        if "lock_version" in value:
+            named[path.stem] = value["company_name"]
+    assert named == {
+        "reference_settings": COMPANY,
+        "reference_settings_company_updated": RENAMED,
+        "reference_settings_matrix_updated": COMPANY,
+        "reference_settings_thresholds_updated": COMPANY,
+    }
+    assert all(name.strip() and len(name) <= LONGEST_NAME for name in named.values())
 
 
 # --- The refusal of a value out of its range (#659, point 1) ------------------------------------
@@ -210,7 +299,7 @@ def test_every_threshold_and_delay_of_the_examples_lies_within_its_range() -> No
             assert ZERO < Decimal(threshold) < ONE, (path.name, key)
         if "max_weeks_between_reviews" in value:
             assert FEWEST <= value["max_weeks_between_reviews"] <= MOST_WEEKS, path.name
-    assert len(found) == 5, found
+    assert len(found) == 6, found
 
 
 @pytest.mark.parametrize(
@@ -218,6 +307,7 @@ def test_every_threshold_and_delay_of_the_examples_lies_within_its_range() -> No
     [
         "reference_settings_bounds_refused",
         "reference_settings_thresholds_refused",
+        "reference_settings_company_refused",
         "reference_settings_out_of_range",
     ],
 )

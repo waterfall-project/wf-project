@@ -1,0 +1,10 @@
+{
+  "summary": "La suppression demandée du « Câblage des armoires », démarré : une tâche démarrée ou terminée ne peut pas être supprimée ; refusée par la condition qui manque, task_not_started, l'écran renvoyant à la mise à zéro de son reste à engager ; rien n'est supprimé (WF-PLA-0070, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"task_not_started"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001648"
+  }
+}

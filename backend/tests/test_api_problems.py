@@ -19,7 +19,7 @@ from support import PLATFORM_SECRETS, Logs, found_in
 
 from waterfall.api.app import create_app
 from waterfall.api.authentication import Services
-from waterfall.api.contract.models import DisplayPreferences, Problem
+from waterfall.api.contract.models import DisplayPreferences, FieldProblem, Problem
 from waterfall.platform.errors import (
     BadRequestError,
     ConflictError,
@@ -73,6 +73,8 @@ class Span(BaseModel):
         return self
 
 
+CABLE_FITTER = {"resource_role_id": str(UUID(int=454)), "code": "MONT-CAB", "label": "Monteur"}
+
 ERRORS: dict[str, Exception] = {
     "bad": BadRequestError("MALFORMED_REQUEST"),
     "unauthenticated": UnauthenticatedError("SESSION_EXPIRED"),
@@ -90,6 +92,13 @@ ERRORS: dict[str, Exception] = {
         ),
     ),
     "down": UnavailableError("COMPONENT_UNAVAILABLE", {"component": "database"}),
+    "uncoded": UnprocessableError(
+        "TASK_WITHOUT_WORKING_HOURS",
+        {
+            "resource_roles": [CABLE_FITTER],
+            "projects": [{"project_label": "Rénovation", "project_code": None}],
+        },
+    ),
     "unknown_code": ServiceError("NO_SUCH_CODE"),
     "unexpected": RuntimeError(f"cannot connect to {PLATFORM_SECRETS['WATERFALL_DATABASE_URL']}"),
 }
@@ -102,6 +111,11 @@ def build_app(services: Services) -> FastAPI:
     @app.get("/fail/{kind}")
     def fail(kind: str) -> None:
         raise ERRORS[kind]
+
+    @app.post("/refusals")
+    def refuse(params: dict[str, Any]) -> None:
+        code = "TASK_WITHOUT_WORKING_HOURS"
+        raise UnprocessableError(code, params)
 
     @app.post("/entries")
     def enter(entry: Entry) -> Entry:
@@ -167,6 +181,11 @@ def problem_of(response: Any) -> Problem:
     return Problem.model_validate_json(response.content)
 
 
+def params_of(field: FieldProblem) -> dict[str, Any] | None:
+    """Read the parameters of a field refused as they travel, typed by the contract or not."""
+    return None if field.params is None else field.params.model_dump(exclude_unset=True)
+
+
 @pytest.mark.parametrize(
     ("kind", "status", "code"),
     [
@@ -197,10 +216,95 @@ def test_the_parameters_and_the_fields_of_an_exception_travel_in_the_envelope(
     }
     fields = problem_of(client.get("/fail/refused")).fields
     assert fields is not None
-    assert [(f.pointer, f.code.value, f.params) for f in fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in fields] == [
         ("/label", "VALUE_REQUIRED", None),
         ("/amount", "VALUE_OUT_OF_RANGE", {"minimum": 0}),
     ]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_null_the_typed_parameters_carry_travels_and_nothing_absent_is_sent(
+    app: FastAPI,
+) -> None:
+    # The parameters several refusals share are typed by the contract (`ProblemParams`, #768):
+    # the code of a project without one is null, and stays so in the envelope; what the error
+    # does not give — its fields, here — is absent, never null.
+    response = TestClient(app).get("/fail/uncoded")
+    body = response.json()
+    assert body["params"] == {
+        "resource_roles": [CABLE_FITTER],
+        "projects": [{"project_label": "Rénovation", "project_code": None}],
+    }
+    assert "fields" not in body
+    problem = problem_of(response)
+    assert problem.params is not None
+    assert problem.params.projects is not None
+    assert problem.params.projects[0].project_code is None
+
+
+ROLE = {"resource_role_id": str(UUID(int=454)), "code": "MONT-CAB", "label": "Monteur"}
+TASK = {"project_id": str(UUID(int=1)), "node_id": str(UUID(int=2)), "label": "Câblage"}
+IMPORTED = {"lineage_id": str(UUID(int=3)), "label": "Câblage"}
+LINE = {
+    "structure_id": str(UUID(int=4)),
+    "structure_label": "Principale",
+    "node_id": str(UUID(int=5)),
+    "row_number": 2,
+    "label": "Essais",
+}
+SHAPES: list[tuple[str, Any]] = [
+    ("columns", ["wbs_element", "document_number"]),
+    ("estimate_lines", [LINE]),
+    ("missing_columns", [{"column": "amount", "labels": ["Montant", "Amount"]}]),
+    ("resource_roles", [ROLE]),
+    ("subproject", {"subproject_id": str(UUID(int=6)), "label": "Poste"}),
+    ("tasks", [TASK]),
+    ("tasks", [IMPORTED]),
+]
+"""Each typed parameter by its name and a value of a shape the contract gives: `tasks` twice, a task
+named by its node and a task imported, named by its lineage (`ProblemImportedTask`)."""
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize(("name", "value"), SHAPES)
+def test_a_valid_typed_parameter_leaves_the_envelope_as_it_was_given(
+    app: FastAPI, name: str, value: Any
+) -> None:
+    response = TestClient(app).post("/refusals", json={name: value})
+    assert (response.status_code, response.json()["params"]) == (422, {name: value})
+
+
+INVALID_SHAPES: list[dict[str, Any]] = [
+    {"resource_roles": [{"code": "MONT-CAB"}]},
+    {"tasks": [{"label": "Câblage"}]},
+    {"subproject": "SP-1"},
+    {"missing_columns": [{"column": "unknown", "labels": []}]},
+    {"columns": ["unknown"]},
+]
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+@pytest.mark.parametrize("params", INVALID_SHAPES)
+def test_a_typed_parameter_of_a_shape_the_contract_does_not_give_is_an_internal_error(
+    app: FastAPI, params: dict[str, Any]
+) -> None:
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/refusals", json=params, headers={"X-Correlation-ID": "trace-shape"}
+    )
+    problem = problem_of(response)
+    assert (response.status_code, problem.code.value) == (500, "INTERNAL_ERROR")
+    assert problem.correlation_id == "trace-shape"
+    assert problem.params is None
+
+
+@pytest.mark.requirement("WF-ARC-0110-A")
+def test_a_typed_parameter_given_as_none_is_left_out_but_an_open_one_travels(
+    app: FastAPI,
+) -> None:
+    response = TestClient(app).post(
+        "/refusals", json={"subproject": None, "tasks": None, "other": None, "columns": []}
+    )
+    assert response.json()["params"] == {"other": None, "columns": []}
 
 
 @pytest.mark.requirement("WF-OBS-0020-A")
@@ -311,7 +415,7 @@ def test_the_values_of_a_body_that_are_refused_are_a_422_with_one_field_each(
     problem = problem_of(response)
     assert (response.status_code, problem.code.value) == (422, "VALIDATION_FAILED")
     assert problem.fields is not None
-    assert {(f.pointer, f.code.value): f.params for f in problem.fields} == {
+    assert {(f.pointer, f.code.value): params_of(f) for f in problem.fields} == {
         ("/label", "VALUE_TOO_LONG"): None,
         ("/amount", "VALUE_OUT_OF_RANGE"): {"minimum": 0},
         ("/on", "DATE_INVALID"): None,
@@ -340,7 +444,7 @@ def test_a_query_parameter_that_is_refused_is_named_under_query(app: FastAPI) ->
     problem = problem_of(response)
     assert response.status_code == 422
     assert problem.fields is not None
-    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
         ("/query/page", "VALUE_OUT_OF_RANGE", {"maximum": 9})
     ]
 
@@ -385,7 +489,7 @@ def test_an_integer_out_of_an_enumeration_of_integers_alone_is_a_value_out_of_ra
     sent = {"theme": 3, "grids": {"users": {"page_size": 30}}}
     problem = problem_of(TestClient(app).post("/preferences", json=sent))
     assert problem.fields is not None
-    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
         ("/theme", "VALIDATION_FAILED", None),
         ("/grids/users/page_size", "VALUE_OUT_OF_RANGE", None),
     ]
@@ -415,7 +519,7 @@ def test_only_an_integer_sent_to_an_enumeration_of_integers_is_out_of_its_range(
     problem = problem_of(TestClient(app).post("/counted", json=sent))
     assert problem.fields is not None
     [(name, _)] = sent.items()
-    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
         (f"/{name}", code, None)
     ]
 
@@ -458,7 +562,7 @@ def test_a_path_parameter_that_is_not_an_identifier_is_a_422_on_its_own_field(
     problem = problem_of(response)
     assert (response.status_code, problem.code.value) == (422, "VALIDATION_FAILED")
     assert problem.fields is not None
-    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
         ("/path/year", "VALUE_OUT_OF_RANGE", {"minimum": 2000})
     ]
 
@@ -478,7 +582,7 @@ def test_an_exclusive_bound_is_a_validation_failed_the_contract_has_no_parameter
 ) -> None:
     problem = problem_of(TestClient(app).get("/stock", params=parameters))
     assert problem.fields is not None
-    assert [(f.pointer, f.code.value, f.params) for f in problem.fields] == [
+    assert [(f.pointer, f.code.value, params_of(f)) for f in problem.fields] == [
         (pointer, "VALIDATION_FAILED", None)
     ]
 

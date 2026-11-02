@@ -3,7 +3,7 @@
 /*
  * The guard of the tooltips of the commands (US-0580, #1071): a button bears `CommandTooltip`, never
  * a `title`, which the browser shows late, unstyled, without the dark theme, and never on the focus
- * of the keyboard. The rule is in `docs/dev/README.md`, « Les infobulles des commandes »; nothing
+ * of the keyboard. The rule is in `docs/dev/README.md`, « The tooltips of the commands »; nothing
  * else holds it: the sources are read, as the guard of `useId` reads them, here by the parser of
  * TypeScript, which tells an attribute of an element from a word of a comment or of a text.
  *

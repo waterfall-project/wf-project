@@ -44,8 +44,8 @@ test("reaches the journal of audit from the navigation of the administration, an
   // Each date in the local time of the workstation, once the browser has written it.
   await expect(grid.getByRole("row").nth(1).locator("time")).not.toBeEmpty();
   // The totals, how many the server retained, in view: their cells stick to the foot of the grid.
-  await expect(grid.getByRole("row").last()).toHaveText("36 inscriptions");
-  const totals = grid.getByRole("gridcell", { name: "36 inscriptions" });
+  await expect(grid.getByRole("row").last()).toHaveText("37 inscriptions");
+  const totals = grid.getByRole("gridcell", { name: "37 inscriptions" });
   await expect.poll(() => withinBox(grid, totals)).toBe(true);
   // Nothing modifies nor deletes an inscription: no command (WF-SEC-0030).
   await expect(

@@ -395,7 +395,7 @@ def test_a_bundle_that_is_not_an_object_fails_with_a_message(
 
 def test_a_failure_points_to_the_guide(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert run(tmp_path, TWIN, {}) == 1
-    assert "« Clés de traduction »" in capsys.readouterr().err
+    assert "« Translation keys »" in capsys.readouterr().err
 
 
 @pytest.mark.requirement("WF-QUA-0070-A")

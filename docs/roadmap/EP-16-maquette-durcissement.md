@@ -14,7 +14,7 @@ issue: 1312
 EP-15 réalise les ajustements que la validation de l'auteur a décidés. EP-16 **fige le contrat**
 avant les EPIC de domaine, qui le serviront tel quel : tout ce qui touche le contrat, ou peut le
 toucher, y est soldé, et le reste sort (décision de l'auteur du 2026-10-22, au cadrage). Il y a
-quatre parts :
+cinq parts :
 - les mineurs du contrat et du faux back reportés d'EP-14 et d'EP-15, et les constats de contrat que
   les lots d'EP-15 ont relevés en livrant (#1345 à #1398) ;
 - ce que la reprise de la spécification du 2026-10-22 (#1306, constats C-366 à C-375, #1304)
@@ -26,7 +26,10 @@ quatre parts :
 - les aides en ligne des écrans que les cinq écrans clés d'EP-15 ne couvrent pas, et la recherche
   de l'aide, reprises d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : elles décrivent
   les écrans tels que les lots d'EP-16 les laissent, et leur relecture par l'auteur ne doit pas
-  tenir `epic/EP-15` ouverte.
+  tenir `epic/EP-15` ouverte ;
+- le contrat aligné sur la spécification 1.0.0 avant le gel, sur la revue du 2026-10-28
+  (`docs/api/2026-10-28-contrat-avant-gel.md`) : ses bloquants et ses majeurs, au contrat, au faux
+  back et aux écrans (recadrage du 2026-10-28).
 
 Recadré d'un bloc le 2026-10-25 (#1445), avec une règle qui prime : **ne reste dans EP-16 que ce qui
 concerne le durcissement ou le contrat ; tout le reste part à EP-17.**
@@ -58,11 +61,20 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
 - l'adoption par les écrans de ce que le contrat décrit — ce qu'EP-14/L42s y a écrit (#1142, #779),
   puis ce qu'US-0640 y ajoute —, qui peut encore y faire apparaître un manque — US-0660 ;
 - les aides des autres écrans et la recherche de l'aide, reprises d'EP-15 (#1445) — US-0670 ;
+- l'aide en anglais, traduite des aides françaises que l'auteur a relues le 2026-11-01 (décision de
+  l'auteur du 2026-11-01) — US-0670b ;
 - le compte rendu préalable de la survenance d'un risque, une lecture nouvelle du contrat
   (#1383) — US-0680 ;
 - l'adresse de retour de la connexion durcie, une redirection ouverte (#1429) — US-0690 ;
 - le filtre des écarts d'un différentiel et de la comparaison, et le décompte de la matrice des
-  risques, au contrat puis aux écrans (#1398, part contrat de #1395) — US-0700.
+  risques, au contrat puis aux écrans (#1398, part contrat de #1395) — US-0700 ;
+- les bloquants et les majeurs de la revue du 2026-10-28 qui touchent le modèle, les règles de
+  calcul et les gestes du contrat, au contrat et au faux back — US-0701 ;
+- ceux qui touchent la forme des refus — une seule forme par refus, les codes et les conditions
+  morts, le 500, les refus sans code ni exemple, le compteur des écritures concurrentes — US-0702 ;
+- l'adoption par les écrans de ce qu'US-0701 et US-0702 écrivent au contrat — US-0703 ;
+- les majeurs de la revue du contrat du 2026-10-31, tranchés par l'auteur le 2026-11-01, au contrat,
+  à ses fixtures et à `docs/api/DECISIONS.md` — US-0704.
 
 ## Ce qui n'en fait pas partie
 
@@ -83,29 +95,35 @@ chaque point de #1304 va à son EPIC de domaine, qui le reçoit dans ses « Cons
   ou le contrat ; tout le reste part à EP-17 —, les constats du front ajoutés au label depuis le
   cadrage et les ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat :
   - les mineurs du front relevés par les derniers lots d'EP-15 : #1421, #1424, #1430, #1432, #1386,
-    #1364, #1377, et le point 2 de #1384 (le libellé de `ReferenceForm`) ;
+    #1364, #1377, et le point 2 de #1384 (le libellé de `ReferenceForm`), repris par #1568 ;
   - deux défauts visibles du front : #1438 (« Déclarer un risque » sur l'écran des révisions ne fait
     rien) et #1428 (l'export PNG du Gantt sans les noms des tâches) ;
   - les ajustements de la validation du 2026-10-23 qui ne demandent que le front ou le guide :
     #1396 (le Kanban filtré), #1397 (la projection sur `kinds`), #1399 (ce que le faux back
-    n'applique pas), #1400 (l'écran du projet mène à sa révision), #1401 (la liste des projets
-    filtrée par défaut), et la part front de #1395 (la matrice sur fond blanc, la couleur sur les
-    bulles, les seuls risques identifiés) — sa part contrat, le décompte de `cells`, reste ici
-    (US-0700) ;
-- la version anglaise de l'aide en ligne : décidée par l'auteur au dernier lot d'US-0670, après la
-  relecture de toutes les aides, elle se constate avec WF-IHM-0140, qu'EP-11 clôt ;
+    n'applique pas), #1400 (l'écran du projet mène à sa révision), et la part front de #1395 (la
+    matrice sur fond blanc, la couleur sur les bulles, les seuls risques identifiés) — sa part
+    contrat, le décompte de `cells`, reste ici (US-0700) ;
+- la relecture de l'aide anglaise par l'auteur : traduite des aides françaises relues, elle n'en
+  demande pas (décision de l'auteur du 2026-11-01) ;
 - les navigateurs et les largeurs d'affichage (US-0290, #92), et les dépendances sans version
-  corrigée (#1291) : EP-13, reportés le 2026-10-22.
+  corrigée (#1291) : EP-13, reportés le 2026-10-22 ;
+- de la revue du 2026-10-28 (recadrage du 2026-10-28) :
+  - ses 87 mineurs, corrigibles sans rompre le contrat : après le gel, chacun en issue « contrat »
+    que l'auteur tranche — sauf ceux qui touchent un fichier qu'un lot d'US-0701 ou d'US-0702
+    modifie déjà, que ce lot corrige ;
+  - les filtres de colonnes de `listNodes` présentés dans les trois grilles (F-06) : EP-17 ; leurs
+    paramètres, eux, entrent au contrat avant le gel (US-0701) ;
+  - le service de ce que les trois US écrivent au contrat : l'EPIC de domaine de chaque opération.
 
 ## Exigences réalisées
 
 | Exigence | Titre | Portée | US |
 |---|---|---|---|
-| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-04 | US-0600 |
-| `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-04 | US-0610 |
-| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-04 | US-0610 |
+| `WF-EXP-0020-A` | Amorçage d'une installation neuve | début — close en EP-07 | US-0600 |
+| `WF-PRJ-0080-A` | Attributs d’un projet | début — close en EP-07 | US-0610 |
+| `WF-PRJ-0050-A` | Sous-projets | début — close en EP-09 | US-0610 |
 | `WF-REF-0190-A` | Correspondance de l’extraction des coûts réels | début — close en EP-09 | US-0620 |
-| `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670 |
+| `WF-IHM-0140-A` | Aide en ligne | début — close en EP-11 | US-0670, US-0670b |
 
 Les autres travaux ne réalisent aucune exigence en propre. Comme en EP-14 et en EP-15, leurs tests
 citent les exigences du domaine dont le Vérif tient côté front, et l'EPIC du domaine les clôt.
@@ -119,6 +137,9 @@ Ajoutées au contrat :
   (US-0680, #1383).
 
 Leurs noms se fixent à la conception.
+
+Ajoutées par le recadrage du 2026-10-28 (US-0701) : `getIdentitySyncSchedule`,
+`setIdentitySyncSchedule` (A-02), `resendInvitation` (A-04), `updateCostStructure` (E-01).
 
 Modifiées :
 - `risks` : `declareRiskOccurrence` — les deux compteurs lus (US-0680) ; `listRisks` — la
@@ -136,9 +157,12 @@ Modifiées :
 - `exchanges` : `openImport`, `getImport` — le refus tant que la correspondance est incomplète, la
   colonne exigée absente, les colonnes ignorées, le poste (US-0620, US-0630) ;
 - `costs` : `listActualCosts` — le poste (US-0630) ;
-- `me` : `updateMyPreferences` — les colonnes connues (US-0650) ;
+- `me` : `updateMyPreferences`, `GridPreferences` — les colonnes connues (US-0650), et le choix
+  d'états de la liste des projets de l'accueil (US-0640/L6, #1401) ;
 - les opérations que touchent les constats d'US-0640, sans en ajouter : la liste se fixe à la
-  conception.
+  conception ;
+- celles que touchent les bloquants et les majeurs de la revue du 2026-10-28 (US-0701, US-0702) :
+  la liste, par famille, est dans la conception.
 
 ## Préalables
 
@@ -153,9 +177,10 @@ EP-15 livré.
 - les EPIC de domaine nomment, dans leurs « Constats reçus », le service de chaque point de #1304 ;
 - `make check` passe sur la branche de l'EPIC ; les parcours de bout en bout s'y jouent contre le
   front construit, en local comme dans la chaîne ;
-- chaque code de la table des fonctions qui a un écran a son aide en français, relue par l'auteur ;
-  les listes des pages à venir (`SCREENS_TO_COME`, `NOTIONS_TO_COME`) sont vides ; la version
-  anglaise est décidée, et son écart écrit sous WF-IHM-0140 (US-0670) ;
+- chaque code de la table des fonctions qui a un écran a son aide en français, relue par l'auteur
+  (relecture du 2026-11-01, sans retouche) ; les listes des pages à venir (`SCREENS_TO_COME`,
+  `NOTIONS_TO_COME`) sont vides (US-0670) ; chaque page et chaque notion a sa traduction anglaise,
+  que l'interface anglaise ouvre (US-0670b) ;
 - chaque constat ajouté au label `EP-16` depuis le cadrage du 2026-10-22 est placé : corrigé par un
   lot, reporté vers EP-17 et listé dans son fichier, ou fermé avec sa décision.
 
@@ -190,7 +215,15 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1368 — question : « Identifier un risque » sans révision en cours — écarté, par US-0640/L6 ;
 - #1379 — contrat : les exemples de l'encart et de l'analyse échouée — US-0640/L6 ;
 - #1384 — front, contrat : deux risques dérivés d'exemples dans les tests (point 1) — US-0640/L6 ;
-  son point 2, le libellé de `ReferenceForm`, est d'EP-17 ;
+  son point 2, le libellé de `ReferenceForm`, repris par #1568 (EP-17, US-0770/L2) ;
+- #870 — contrat : `Contributor.display_name` et `ContributorSuggestion.display_name` nullables,
+  pour le nom d'un contributeur anonymisé. Reporté à EP-04 le 2026-10-11, rendu à EP-16 au cadrage
+  d'EP-04 (décision de l'auteur du 2026-10-28) : une modification du contrat, qu'EP-16 fige —
+  US-0640/L6. EP-04 sert le champ tel que le contrat figé le dit, et le front le nomme par
+  `useAccountNaming` (US-0930 d'EP-04) ;
+- #1577 — contrat : `AuditAction` sans `project_create` ni `revision_abandon` (WF-SEC-0030), relevé
+  au cadrage d'EP-04. Décision de l'auteur du 2026-10-28 : corrigé par US-0640/L6b #1594, avant
+  le gel (US-0640/L5 #1333) ;
 - #1352 — contrat : la révision 101 à la version 2 sous deux états, l'ordre de `revisions.json` —
   US-0640/L4 ;
 - #1398 — contrat, front : un filtre « Écarts seulement » (décision de l'auteur du 2026-10-23) —
@@ -199,11 +232,37 @@ harnais (décisions des 2026-10-22 au 2026-10-25) :
 - #1342 — e2e : deux expressions de test trop larges, un en-tête à resserrer — US-0590, avec #1309
   (décision de l'auteur du 2026-10-25) ;
 - #1444 — outillage : les agents suppriment la branche locale et le worktree d'un lot — US-0590 ;
+- #1401 — contrat, front : la liste des projets filtrée par défaut sur Chiffrage et En cours. Rendu
+  à EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28, #1312) : le choix d'états
+  différent du défaut, gardé en préférence comme « Lignes par page », demande le contrat, et EP-17
+  ne touche pas le contrat. Décisions de l'auteur du 2026-10-28 : **le choix d'états est une
+  préférence** — une clé de `grids` pour la liste de l'accueil, écrite au contrat par US-0640/L6
+  #1457, avant le gel (US-0640/L5 #1333) — et **la part front** (le filtre par défaut, « Tous les
+  états » dans l'adresse, les totaux) **est US-0660/L4 #1571** ;
+- #1539 — front : la légende du Gantt rendue par le serveur, tenue jusqu'à l'hydratation (relevé
+  par US-0590f). Décision de l'auteur du 2026-10-28 : corrigé par le prochain lot qui touche le
+  Gantt du planning. Aucun lot restant d'EP-16 ne le touche (US-0700/L2 touche la grille d'un
+  différentiel, non le Gantt) : il est donc reporté → EP-17, US-0750/L1 #1560, au plus tard à la
+  livraison d'EP-16 (titre et label changés alors) ; un lot d'EP-16 qui toucherait le Gantt d'ici
+  là le corrige ;
+- #1512 — front : retirer `prefetch={false}` du menu du compte à la montée vers Next 16.5
+  (relevé par US-0590e). Décision de l'auteur du 2026-10-28 : reporté à EP-13 (dépendances), listé
+  dans son fichier ;
+- #1354 — tests : `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx`, instables sous
+  charge dans la suite front. Rendu à EP-16 au cadrage d'EP-17 (décision de l'auteur du 2026-10-28 :
+  la stabilité des tests relève d'EP-16) — repris par le rejeu sous charge d'US-0590g/L2 #1545 ;
 - la stabilité restante des parcours, revenue d'EP-17 le 2026-10-25 (le durcissement) — US-0590b :
   #1263 (le rendu serveur du Kanban à 3,2 s, le parcours d'accessibilité d'`/admin/access-roles` à
   1 420 actions), #1145 (les cinq parcours qui échouaient au palier complet local), #776 (l'e2e « on
   a narrow window » de `grid.spec` sous concurrence), #1264 (trois choix d'une ligne sans ordre
-  déterminé, dans des tests du back et `latest_report`) ;
+  déterminé, dans des tests du back et `latest_report`), et, par la décision de l'auteur du
+  2026-10-25, #1473 et #1479 (le Gantt sur le front construit), #1474 (des tests unitaires hors
+  délai sous la couverture) et #1477 (`context.spec.ts:24` sous charge) ;
+- le durcissement restant des tests, relevé par les revues d'US-0590b (décision de l'auteur du
+  2026-10-26) — US-0590d : #1483 (le gestionnaire de molette du Gantt, L1), #1485 (le commentaire
+  du test de `latest_report`, L1), #1486 (le `make --dry-run` de `test_frontimage.py`, L1), #1487
+  (`MFLAGS` de `harness.test.ts`, L1) et #1484 (les mises à jour après un `await` dans une
+  transition, 26 fichiers, L2) ;
 - #1429 — front : l'adresse de retour de la connexion ne refuse ni tabulation ni saut de ligne
   (sécurité) — US-0690.
 
@@ -249,11 +308,57 @@ Relevés au cadrage d'EP-15 (2026-10-18) et reportés d'EP-14 — US-0660 :
 - #779 — front : le refus d'une saisie qui laisserait une tâche sans heure ne nomme ni les rôles ni
   la tâche.
 
+Relevés par les revues des lots d'EP-16 et corrigés par US-0660/L3 #1458 (décisions de l'auteur des
+2026-10-27 et 2026-10-28, cadrage d'EP-17) :
+
+- #1518 — front : la liste des statuts d'une lecture facultative est écrite deux fois (relevé par
+  US-0620/L3) ;
+- #1524 — front : le détail d'une ligne de coût la nomme par sa pièce seule, sans son poste (relevé
+  par US-0630/L2) ;
+- #1533 — front : un refus à deux motifs sur le même champ ne dit que le premier (`byField`).
+
+#1525 (le test de la colonne « Poste » cite WF-CRE-0040-A, dont le Vérif ne nomme pas les colonnes)
+est reporté à EP-09 #1340 (titre et label `EP-09`).
+
+Relevés par la revue du contrat avant le gel (2026-10-28,
+`docs/api/2026-10-28-contrat-avant-gel.md`, 174 constats : 4 bloquants, 83 majeurs, 87 mineurs), au
+recadrage du 2026-10-28 — US-0701, US-0702 et US-0703 :
+
+- les 4 bloquants (D-01, E-01, H-01, L-01) et les 83 majeurs, chacun sous l'US qui le règle (tableau
+  de la conception) ; ils ne sont pas des issues : la revue les numérote, et la pull request du lot
+  nomme ceux qu'elle solde ;
+- les 87 mineurs : après le gel, en issues « contrat » (« Ce qui n'en fait pas partie ») ;
+- trois points de la spécification que le recadrage laisse à l'auteur, en issues « Specification
+  finding » rattachées à l'EPIC : #1595, WF-IHM-0110, l'historique annulable tenu par le serveur
+  (E-06) ; #1596, WF-PLA-0130, la date de terminaison d'une tâche terminée par un import, qui est la
+  date de la revue que porte le fichier, comme WF-INTF-0120 et WF-INTF-0130 le disent (I-09) ;
+  #1597, WF-RAE-0020, le sens de la marge du reste à engager, que la décision #466 fixe (G-07).
+
+Relevés par la revue du contrat du 2026-10-31 (`docs/api/2026-10-31-contrat-spec-et-fixtures.md`,
+120 constats : 31 majeurs, 89 mineurs), tranchés point par point par l'auteur le 2026-11-01 —
+US-0704 :
+
+- les 31 majeurs, et quatre mineurs réglés avec G-03 (D-11, E-10, A-05, I-06) : une issue
+  « contrat » par point, ou par groupe de points liés, sous #1735 ; chaque décision est écrite dans
+  `docs/api/DECISIONS.md` ;
+- cinq points de la spécification, en issues « Specification finding » rattachées à l'EPIC et
+  traitées à part : #1730, WF-ADM-0070, un compte local naît sans rôle (A-01) ; #1741,
+  WF-ADM-0160, la planification des sauvegardes conservée à travers la restauration (B-02) ;
+  #1757, WF-REV-0100 et WF-DAT-0010, la révision suivante ne reprend ni un différentiel fusionné
+  ni le devis d'un risque survenu (E-04) ; #1760, WF-RIS-0060 et WF-RIS-0050, la trace des lignes
+  issues d'un risque survenu (E-04) ; #1765, WF-DEV-0050 et WF-INTF-0100, les lignes d'une tâche
+  terminée saisissables dans un différentiel (F-01, I-05) ;
+- le service, à l'EPIC de son domaine (EP-03, livré, pour une branche de correction ; EP-04 à
+  EP-10, EP-13), et les écrans, à EP-17 (décision de l'auteur du 2026-11-01) : ils ne sont pas
+  d'EP-16, et le fichier de leur EPIC les liste ;
+- les 89 mineurs restants : après le gel, en issues « contrat ».
+
 Les autres constats du label `EP-16` passent à EP-17 ou à EP-13 (« Ce qui n'en fait pas partie ») :
 leur label et leur titre changent au cadrage, et le fichier de leur EPIC les liste. Le recadrage du
 2026-10-25 a fait de même pour les constats du front ajoutés au label depuis le 2026-10-22 et pour les
 ajustements de la validation du 2026-10-23 qui ne touchent pas le contrat : titre `[EP-17]`, label
-`EP-17`, listés dans le fichier d'EP-17.
+`EP-17`, listés dans le fichier d'EP-17 — à l'exception de #1401, rendu ici le 2026-10-28 (voir
+ci-dessus).
 
 ## Conception
 
@@ -287,7 +392,7 @@ une variable locale rejoue les parcours contre `next dev`.
     - la mesure de la seconde ne la suit jamais, et se joue toujours contre le front construit ;
     - le harnais refuse de démarrer quand elle est posée dans la chaîne (`CI` défini), en le
       disant ;
-    - le guide la documente (`docs/dev/README.md`, « Un parcours de bout en bout ») ;
+    - le guide la documente (`docs/dev/README-fr.md`, « Un parcours de bout en bout ») ;
     - le préchauffage ne revient pas pour elle : un rejeu local se joue sur peu de fichiers, et la
       première compilation d'une route s'y attend.
   - Le build est celui de `make build-front`, qui ne joint aucune API pendant la construction
@@ -469,6 +574,17 @@ et ses exemples.
   `kind`, ou un 404 si aucun nœud ne porte ce numéro.
 - **Les colonnes connues** (US-0650) : `GridPreferences.known_columns`, au plus 64 clés, écrit par
   `updateMyPreferences`.
+- **Le choix d'états de la liste de l'accueil** (#1401, décision de l'auteur du 2026-10-28 : une
+  préférence ; écrit par US-0640/L6) : sans changer le schéma, une clé de `grids` nommée pour la
+  liste des projets de l'accueil, dont `filters.states` garde les états choisis sous le nom que
+  l'adresse leur donne ; le défaut — Chiffrage et En cours — reste celui de l'écran (US-0660/L4),
+  et un compte qui n'a rien écrit le prend. Le nom de la clé se fixe au lot, avec son exemple et son
+  entrée dans `DECISIONS.md` ; le serveur garde le filtre tel qu'il est écrit, comme pour toute
+  grille. `getPortfolioProjects` et `PortfolioStates` ne changent pas.
+- **Les actions du journal d'audit** (#1577, décision de l'auteur du 2026-10-28 ; écrit par
+  US-0640/L6b #1594) : `AuditAction` gagne `project_create` (avant `revision_mark`) et
+  `revision_abandon` (après `revision_mark`), dans l'ordre de WF-SEC-0030, avec leurs `params` (le
+  code et le libellé du projet ; la révision abandonnée par son projet). `AuditObjectKind` ne change pas.
 - **Les mineurs** (US-0640) : chaque constat, point par point, selon sa proposition, sauf ce que
   « Ce que le cadrage décide » tranche autrement ; aucune opération nouvelle. Les constats des lots
   d'EP-15 (US-0640/L6) : `RevisionCommand.apply_rate_update` avec ses conditions et un exemple
@@ -478,7 +594,12 @@ et ses exemples.
   dit le refus entier d'un collage ancré sur un nœud retiré (#1361) ; celle de
   `ProjectCommand.declare_risk` dit `revision_in_progress` (#1368) ; les exemples `revisions` portant
   0103 et `task_import_analysis_failed` (#1379), `risk_dismissed_category_deactivated` et
-  `risk_uncited` (#1384).
+  `risk_uncited` (#1384) ; avec la préférence d'états de la liste de l'accueil (#1401).
+- **Le nom d'un contributeur anonymisé** (#870, décision de l'auteur du 2026-10-28 ; écrit par
+  US-0640/L6) : `Contributor.display_name` et `ContributorSuggestion.display_name` deviennent
+  nullables, comme `ActorRef.display_name`, avec un exemple de contributeur anonymisé. Le nom nul
+  dit un compte anonymisé : le service, qui ne rend ni le nom (WF-ADM-0060) ni une phrase
+  (WF-ARC-0110), et le front qui le nomme (`useAccountNaming`) sont d'EP-04.
 - **La survenance d'un risque** (US-0680, #1383) : `getRiskOccurrenceReport`
   (`GET /projects/{project_id}/risks/{risk_id}/occurrence`), une lecture qui n'écrit rien et rend
   `RiskOccurrenceReport` — `main_structure_lock_version`, `risk_lock_version`, `differences`
@@ -496,8 +617,9 @@ et ses exemples.
   `RiskMatrix.cells` dit que le décompte par case ne compte que les risques identifiés, comme les
   bulles ; `totals` reste sur les trois états (WF-RIS-0040 ; #1395, part contrat).
 - **La version du contrat** : `info.version` passe de `1.0.0-draft` à `1.0.0` par le dernier lot
-  de contrat d'EP-16 (US-0640/L5), après tous les lots qui touchent le contrat ou peuvent y revenir ;
-  les lots de rédaction de l'aide et US-0690 peuvent le suivre.
+  de contrat d'EP-16 (US-0640/L5), qui vient en dernier, à la fin de l'EPIC, après tous les autres
+  lots — les lots de rédaction de l'aide (US-0670/L3 à L5) et US-0690 compris — (décision de l'auteur
+  du 2026-10-28).
 
 ### Le faux back et le témoin
 
@@ -516,7 +638,10 @@ et ses exemples.
   `mockriskwrites` engendre `risk_occurrence_report` et `nodes_risk_estimate` (US-0680).
 - Le marquage de la révision 101 porte une version de plus, le test de #421 s'étend aux révisions,
   `revisions.json` est trié du plus récent au plus ancien (#1352, US-0640/L4) ; les exemples de
-  #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367).
+  #1379 et #1384 sont écrits (US-0640/L6) ; `risks` et `risks_empty` portent `meta` (#1367) ; un
+  contributeur anonymisé porte un `display_name` nul (#870, US-0640/L6) ; le journal du témoin
+  (`mockaudit`) reçoit les inscriptions `project_create` (création de PRJ-001, le 6 octobre 2025) et
+  `revision_abandon` (#1577, US-0640/L6b #1594).
 
 ### Le front
 
@@ -553,7 +678,9 @@ et ses exemples.
   contrat. Puis (L3) ce qu'US-0640/L6 écrit : `revision-commands.tsx` offre « Appliquer la mise à
   jour des taux » comme la révision la liste (#1351) ; le registre des risques reçoit `ListPages` et
   `PageSizeChoice` (#1367) ; le refus `NON_WORKING_DAY` d'une tâche créée se dit à la cellule par
-  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384).
+  `byField` (#1345) ; les tests du risque lisent les exemples nouveaux (#1384). Puis (L4 #1571)
+  la liste des projets de l'accueil : le filtre d'état par défaut, son adresse
+  (`navigation/home.ts`), ses totaux, et la préférence qu'US-0640/L6 écrit pour elle (#1401).
 - **US-0670, l'aide** : la conception d'EP-15 (« L'aide en ligne et les infobulles ») fait foi —
   `frontend/help/fr/<code>.md`, la structure fixe de #1075, `functions.json` pour clé, les
   définitions des colonnes dans les catalogues, `SCREENS_TO_COME` et `NOTIONS_TO_COME`
@@ -569,7 +696,8 @@ et ses exemples.
   la provision et les refus, confirme avec les deux compteurs ou abandonne, remet la survenance à
   `TaskTracker`.
 - **US-0690** : `navigation/login.ts` refuse tout caractère de contrôle dans l'adresse de retour,
-  par la garde qu'`isScreen` (`held-writes.ts`) emploie déjà.
+  par la garde partagée `navigation/application-path.ts` (`isApplicationPath`), qu'emploient
+  `returnTarget` et `isScreen` (`components/notices/message-history.ts`).
 - **US-0700** : le filtre « Écarts seulement » dans l'adresse des grilles de planning et de devis
   d'un différentiel et de l'écran de comparaison, dit dans le bandeau des filtres actifs, absent sur
   la principale et le devis propre d'un risque.
@@ -577,7 +705,8 @@ et ses exemples.
 ### Le harnais (US-0590)
 
 - `playwright.config.ts` remplace `developmentServer()` et `productionServer()` par un seul
-  serveur `next start`, sur `E2E_FRONT_PORT`.
+  serveur `next start`, sur `E2E_FRONT_PORT` ; US-0590b en démarre un par worker des parcours, sur
+  les ports qui suivent (#1477), et garde un seul front pour la mesure, le service et `next dev`.
   - Le build se fait avant, comme `build-front`, sauf si `E2E_BUILT` dit qu'il est déjà fait.
   - `E2E_DEV_SERVER=1`, en local seulement, remplace ce serveur par `next dev` pour les parcours.
     Posée avec `CI`, elle fait échouer le lancement, avec un message qui le dit.
@@ -600,7 +729,14 @@ et ses exemples.
   concurrence des parcours, l'ordre non déterminé —, jamais par une attente plus longue ; la règle
   provisoire de #1145 disparaît du guide avec lui. #1230, une lenteur du produit, reste à EP-17.
   Écarté : une US nouvelle, alors que le README nomme `[US-nnnnb]` la part détachée d'une US à un
-  seul lot.
+  seul lot. **Décision de l'auteur du 2026-10-25** (#1460, #1466) : le lot se livre avant US-0590c,
+  et sa condition des trois paliers complets joués avant d'arrêter son contenu est levée — son
+  travail est de les obtenir ; son périmètre s'élargit à toute la stabilité des tests, jamais
+  reportée à EP-17, et à leur durée — la file de fusion, visée en 8 à 12 minutes, et le palier local
+  du front ; il reprend le correctif du Gantt (#1473, #1479), décidé pour US-0590c, et #1474. Ce
+  qui en est fait : un front construit par worker des parcours (#1477), l'axe du Gantt qui dit sa
+  largeur dans le commit qui le dessine, le parcours au clavier qui ne restyle plus la page entière
+  à chaque Tab (#1263), Vitest sur quatre workers au plus (#1474).
 - **US-0590c, la montée de Next en 16.4** (#1466 ; décision de l'auteur du 2026-10-25) : les trois
   avis de sécurité du 2026-10-25 ne sont corrigés qu'à partir de 16.4.1, une version mineure qui
   remanie la navigation côté client (vercel/next.js#96252, #97397, #95439) ; au premier passage de
@@ -611,38 +747,413 @@ et ses exemples.
   qui présumait l'ancien —, jamais par une attente plus longue, et relit `node_modules/next/dist/docs/`
   à la version montée. Il suit US-0590, sur le front construit, ou le précède sur décision de
   l'auteur. Écarté : fusionner #1465 en l'état, deux parcours rouges.
+- **US-0590d, le durcissement restant des tests** (#1489 ; décision de l'auteur du 2026-10-26 : la
+  stabilité des tests relève d'EP-16, jamais d'EP-17, et leur durée s'optimise au mieux). Deux lots,
+  après US-0590c et US-0670/L1, avant les lots de contrat.
+  - L1 (#1490) : `useLayoutEffect` pour le gestionnaire de molette du Gantt et un test du geste pris
+    juste après le rendu (#1483, même classe que #1473) ; SHARD, MAKEFLAGS et MAKELEVEL retirés du
+    `make --dry-run` de `test_frontimage.py`, avec un test sous `SHARD=2/2` (#1486) ; la ligne
+    `MFLAGS` de `harness.test.ts` retirée (#1487) ; le commentaire du test de `latest_report` réécrit
+    (#1485) ; et la durée par étape de la chaîne relevée.
+  - L2 (#1491) : l'audit des 26 fichiers à `startTransition(async` (#1484), puis leurs correctifs.
+    Une mise à jour d'état faite après un `await` n'appartient pas à la transition : la forme de
+    correction est la transition imbriquée de `restore-dialog.tsx` (e7688292), pas une abstraction
+    écrite d'avance ; le défaut s'écrit dans `docs/dev/typescript.md`. Décision de l'auteur du
+    2026-10-26 (#1491, option B), qui précise cette forme après l'audit : la transition imbriquée
+    vaut pour les dialogues modaux ; une commande en ligne qui peut tourner en même temps qu'une
+    autre tient son geste par un état « occupé » local, levé dans la même mise à jour que la
+    réponse, parce que React 19 fait attendre une transition imbriquée jusqu'à la fin de toutes les
+    actions asynchrones de la page ; un refus dit à un champ qui prend le focus déplace ce focus dans
+    un effet, après le commit du refus ; une réponse portée par un magasin externe est sans objet.
+    La taille de L2 dépend de
+    l'audit : au-delà de 1 500 lignes ou de 800 de production, le livreur la coupe en L2 (dialogues)
+    et L3 (le reste). Coupé à la mesure (1 085 lignes, 516 de production) : L2 (#1491) les dialogues
+    et le focus d'un champ refusé, L3 (#1496) les commandes en ligne à l'état local.
+  - La durée : en chaîne, le chemin critique mesuré (run 40261263854) est `front-build` (62 s) puis
+    la plus longue des parts, `service / paths` (316 s) ou `e2e / paths` (288 / 271 / 222 s). L1
+    relève la durée par étape de ces travaux et n'agit que si une étape dépasse 10 % du chemin
+    critique, sans qu'un test perde une assertion ; aucun gain n'est promis.
+  - Décisions écartées : une abstraction partagée pour la transition (avant l'audit) ;
+    `useEffect` ou une écriture pendant le rendu pour la molette ; fermer #1485 et #1487 sans suite.
+- **US-0590e, la stabilité d'un parcours sous charge** (#1499 ; décision de l'auteur du 2026-10-26 :
+  la stabilité des tests relève d'EP-16, jamais d'EP-17). `shell.spec.ts:120` (« the menu of the
+  account leads to the pages of the account ») reçoit parfois `""` à `toHaveTitle("Changer l’avatar —
+  Waterfall")` (l. 137), alors que le `h1` de la même page a déjà passé son assertion. Il passe seul
+  et n'a jamais été reproduit en file ; relevé par le palier complet local d'US-0590d/L3. Un lot,
+  après US-0610/L2 et avant US-0620. Il commence par reproduire (charge, nombre de workers), avant
+  tout correctif, et dit sa cause dans la pull request. Le correctif tombe où la cause est — le
+  test, l'environnement ou le code de production —, sans attente allongée, `retries`, `fixme` ni
+  seuil baissé : il attend la condition que le titre suit, pas plus de temps. Pistes à départager par
+  la reproduction, aucune n'est posée comme cause : (a) la métadonnée que Next diffuse en flux après
+  une navigation côté client (`generateMetadata` de la page de l'avatar passe par `screenMetadata`),
+  qui arrive après le `h1` sous charge ; (b) un titre réellement perdu, défaut du produit ; (c) la
+  saturation d'un `next start` partagé, de la classe de `context.spec.ts:24`. À relire à la version
+  montée : `node_modules/next/dist/docs/` (`generate-metadata`, `streaming`, `htmlLimitedBots`).
+  Part détachée d'US-0590, comme US-0590b, c et d : US-0590 reste `fini`, le lot ne la rouvre que
+  par sa lettre. Écarté : le report vers EP-17, que la décision du 2026-10-26 interdit.
+- **US-0590f, la stabilité de `planning.spec.ts:23` sous charge** (#1522 ; décision de l'auteur du
+  2026-10-27 : la récidive, deux occurrences au palier complet local du front dans des lots qui ne
+  touchent pas le planning — US-0630/L1 #1323, puis US-0650/L1 #1326 —, ouvre le lot de stabilité ;
+  la stabilité relève d'EP-16, jamais d'EP-17). L'assertion de la ligne 43, `withinBox(grid, « Total
+  — 1 000 tâches »)`, reçoit `false`. Elle est prise d'un seul coup, juste après les `columnheader`
+  visibles, et le parcours passe seul (15 sur 15). Un lot, après US-0640/L1 et avant US-0640/L2,
+  sans dépendance de code.
+  - **La cause d'abord.** Reproduire avant tout correctif, à six workers, la charge du palier
+    complet local, puis dire la cause dans la pull request.
+  - **Une sonde déterministe.** Un test qui échoue sans le correctif et passe avec. Il ne dépend pas
+    de la charge : il force l'ordre des événements que la charge fait arriver par hasard (la
+    disposition de la grille retardée, la mesure prise avant). La pull request dit lequel des trois
+    porte la cause : test, environnement ou production.
+  - **Pistes à départager par la reproduction, aucune posée comme cause** :
+    - (a) la grille n'a pas fini de se disposer à la mesure, comme #1473 et #1479 (largeur apprise
+      par un effet après le montage) ;
+    - (b) un défaut du produit : une mise en page qui change après le premier rendu ;
+    - (c) la boîte de défilement ou la fenêtre encore en mouvement sous charge.
+  - **Le correctif tombe où la cause est.** Il ne passe ni par une attente allongée, ni par
+    `retries`, `fixme` ou un seuil baissé. Un `expect.poll` sur `withinBox` n'est admis que si la
+    pull request montre que l'état attendu est atteint puis tenu, et non une valeur qui passe un
+    instant.
+  - **L'audit borné.** Une fois la cause connue, le lot lit les sept autres fichiers qui mesurent
+    `withinBox` d'un seul coup, sans `expect.poll` : `grid.spec.ts`, `remaining.spec.ts:93`,
+    `portfolio.spec.ts:69`, `projects.spec.ts:70`, `reference.spec.ts:133`, `risks.spec.ts:50`,
+    `keyboard.spec.ts:145`. Il corrige ceux qui ont la même cause. Tout autre constat devient une
+    issue `[EP-16] e2e : …`, rattachée au lot, avec sa décision.
+  - **Le budget.** 90 minutes de reproduction au total, quelles que soient les hypothèses
+    essayées. Passé ce délai sans cause trouvée, le lot passe `question` dans son issue, avec ce
+    qui a été essayé, comme US-0590e avec #1505. Il ne livre aucun correctif au hasard et ne
+    reporte rien vers EP-17.
+  - **Décisions écartées.**
+    - Le report vers EP-17, que les décisions des 2026-10-25 et 2026-10-26 interdisent.
+    - Corriger sur l'hypothèse de #1473 et #1479, qui n'a pas été observée pour `:23`.
+    - Allonger une attente, `retries`, `fixme`, baisser un seuil : ils masquent la cause.
+    - `expect.poll` partout, d'office : sur une géométrie il peut passer à un instant où la boîte
+      n'est pas à sa place finale, et déplacer le défaut.
+    - Ne toucher que la ligne 43, ou réécrire tous les `withinBox` d'office : le premier laisse la
+      même cause ailleurs, le second grossit le lot au-delà de sa cause.
+    - Un plafond en nombre de passes : la charge se mesure en temps de poste.
+    - Quatre workers, comme US-0590e : les deux occurrences viennent du palier à six.
+    - Y rattacher #1529 et #1528 (tests unitaires du front, d'une autre nature, en sonnet) : ils
+      vont à US-0660/L3 #1458.
+- **US-0590g, la stabilité du harnais sous charge** (#1540, #1541 ; décision de l'auteur du
+  2026-10-28 : la stabilité des tests relève d'EP-16, jamais d'EP-17). Deux lots, après les lots
+  qui touchent le contrat ou y reviennent et avant US-0640/L5. Aucune table, aucune opération, aucun
+  fichier du contrat : seuls `frontend/e2e/` et le guide changent.
+  - **L1, le parcours au Tab (#1540).** La durée de `walkByTab` est proportionnelle au nombre de
+    contrôles d'un écran et à la latence d'un aller-retour, que la charge multiplie. Il en fait deux
+    par élément : la touche, puis `focusNow`. La mesure passe dans la page.
+    - La sonde (`focus-probe.ts`) écoute la touche Tab au `keyup`, quand le focus a déjà bougé, et
+      range dans la page le relevé que `focus()` donnait, par le même code. Le parcours presse un lot
+      de touches, puis lit les relevés d'un seul `evaluate`. Il reste un aller-retour par élément,
+      celui de la touche, que le clavier réel impose.
+    - La page cesse d'enregistrer quand le focus revient au premier élément. Les touches de la fin
+      d'un lot ne changent rien à `Walk`, et le décompte (`take`, `Tally`) reste côté test.
+    - Ce que le parcours dit ne change pas, ni `Walk`, ni `faults`, ni `lost`, ni l'ordre des
+      relevés. Le lot le prouve de deux façons : les cas de `tab-walk.spec.ts` rendent les mêmes
+      résultats, et un cas nouveau compte les appels à `evaluate` d'une page de fixture.
+    - Le lot choisit la taille du lot de touches et la dit dans la pull request avec sa mesure, sans
+      charge puis sous charge.
+    - Écartée : `focusin`, qui ne se déclenche ni quand le focus reste sur l'élément — le piège que
+      le parcours doit voir —, ni quand il quitte le document. Écartée aussi : relever le délai du
+      test, que l'issue interdit, et réduire les écrans parcourus, qui retire de la vérification.
+  - **L2, le rejeu de #1541.** Il commence par rejouer `projects.spec.ts:103`, `planning.spec.ts:400`
+    et `undo.spec.ts:20` sous la charge de #1540 sur `epic/EP-16`, L1 fusionné : le parcours au Tab
+    est le test le plus long du palier, et sa durée fait une part de la charge que subissent les
+    autres. Ce qui suit dépend du rejeu.
+    - Un test qui tombe encore : reproduire, dire la cause, sonde déterministe, correction à la cause
+      — la méthode d'US-0590f, avec son budget de 90 minutes.
+    - Un test qui ne tombe plus : #1541 le dit « non reproduit », avec les passages rejoués.
+    - La charge n'est pas outillée dans le dépôt : elle tient au poste (nombre de cœurs), et un
+      outil de plus à entretenir pour un lot ne vaut pas sa reproductibilité. La pull request dit la
+      charge réelle. Écartée : une cible `make`.
+    - Le `compile(...)` de `projects.spec.ts` et ses semblables, vestiges du serveur de
+      développement, ne sont retirés que si la cause les désigne.
+    - La charge artificielle de #1540 (six workers, `make e2e WORKERS=6 E2E_BUILT=1`, douze à dix-huit
+      boucles de shell actives, charge moyenne de 27 à 28 sur douze cœurs) n'est pas la référence de
+      la tenue des tests (décision de l'auteur, 2026-11-01, #1725). La référence est le palier complet
+      local sans charge ajoutée et la file de fusion ; cette charge reste un outil de diagnostic, et
+      un dépassement qu'elle seule provoque n'est pas un défaut à corriger : aucun lot de stabilité
+      pour ceux que #1725 relève.
 - Les instructions des agents reçoivent la règle de fin de lot (#1444) : branche locale et branches
   de travail supprimées, worktree retiré, aucun processus du lot encore vivant.
+
+### Le recadrage du 2026-10-28 : le contrat aligné sur la spécification 1.0.0
+
+La revue du 2026-10-28 (`docs/api/2026-10-28-contrat-avant-gel.md`) conclut que le contrat, une fois
+les quatre lots de contrat restants livrés, « ne peut pas être figé sans rompre avec la
+spécification 1.0.0 ». Le recadrage du même jour la reprend dans EP-16, avant le gel, par trois US :
+US-0701 (le modèle et les règles de calcul), US-0702 (la forme des refus), US-0703 (les écrans).
+Rien n'y touche une table ni un module du noyau : EP-16 n'écrit que le contrat, ses exemples, leurs
+générateurs (`tools/src/wftools/mock*.py`) et le front ; le service va aux EPIC de domaine.
+
+**Les décisions de l'auteur (2026-10-28).** Chacune réécrit dans `DECISIONS.md` la décision
+antérieure qu'elle contredit, en citant la date du changement de la spécification.
+
+- **Le tri** : les 4 bloquants et les 83 majeurs avant le gel ; les 87 mineurs après, en issues
+  « contrat », sauf ceux d'un fichier qu'un lot d'US-0701 ou d'US-0702 modifie déjà, que ce lot
+  corrige. Écartés : tout avant le gel (deux ou trois lots de plus, sans changement incompatible à
+  la clé) ; les seuls bloquants (les majeurs sont des changements incompatibles, qui reviendraient
+  un par un après le gel).
+- **La règle des autres majeurs** : quand la spécification est claire, la proposition de la revue
+  s'applique et la décision antérieure contredite est réécrite ; un lot ne pose une question que
+  s'il doit inventer une forme que ni la spécification ni la revue ne donnent. Écarté : une question
+  par majeur, une quinzaine de plus, sans choix réel.
+- **L'inflation (L-01)** : les montants budgété et réestimé sont « inflation comprise, à l'année de
+  consommation » (WF-DEV-0020, WF-DEV-0050, glossaire) ; `base_amount` reste le montant aux taux de
+  l'année de référence, avant inflation ; `inflated_amount` disparaît. Réécrit : EP-02/L7 (#235) et
+  EP-02/L29 (#352). Écarté : garder #235 et #352 et faire corriger la spécification — elle a tranché
+  les 10 et 22 octobre, et le glossaire, WF-RIS-0050 et le budget de référence en dépendent.
+- **La sortie (D-01, L-02)** : `ProjectExit` reçoit le sort de la révision en cours, exigé quand le
+  projet en porte une — marquer, avec nom de version et description, ou abandonner ; marquer rend
+  202 `BackgroundTaskRef`, la sortie s'appliquant quand la tâche réussit ; abandonner, ou sortir
+  sans révision en cours, rend 200 `Project`. Écartés : toujours 200, le marquage fait dans la
+  requête (contraire à WF-ARC-0090) ; toujours 202, quand rien n'est à calculer.
+- **Projet terminal et révision marquée (D-05, J-01, J-02)** : 409 `STATE_FORBIDS_OPERATION` et leur
+  `missing_condition` partout ; `PROJECT_TERMINAL` et `REVISION_MARKED` sortent d'`ErrorCode`.
+  Réécrits : L42k et US-0640/L1 #803. Écartés : 409 hors grille et 403 sur la grille (deux règles
+  pour un même fait) ; 403 partout (contraire à L42a, L42i, L42l et à la lecture commune des
+  conditions par le front).
+- **L'historique annulable (E-06, L-18)** : tenu par le serveur ; le contrat dit la session (le
+  jeton), une pile par révision et par utilisateur, sa fin au marquage et à l'abandon, et au moins
+  cinquante niveaux ; une issue de spécification demande de corriger WF-IHM-0110. Écarté : le front
+  qui rejoue l'inverse de chaque saisie — `undo` et `redo` retirés, et chaque écriture devant rendre
+  l'état antérieur.
+- **La date de terminaison par import (I-09)** : la date de la revue que porte le fichier
+  (WF-INTF-0120, WF-INTF-0130), connue dès l'analyse ; `ExportRequest` reçoit cette date, le jour
+  par défaut, pour l'export du reste à engager ; la fusion garde le jour de son application. Réécrit
+  : EP-02/L35. Issue de spécification sur WF-PLA-0130. Écarté : le jour de l'application.
+- **La marge du reste à engager (G-07)** : la décision #466 reste ; issue de spécification sur
+  WF-RAE-0020. Le contrat ne change pas. Écarté : suivre le Vérif et changer le signe.
+- **La date de début de planning (E-01)** : `CostStructure.planning_start_on`, exigé ;
+  `updateCostStructure` (`PATCH …/structures/{structure_id}`) l'écrit avec le libellé et le
+  `lock_version`, sous la commande de planification de la structure, rend 200 `NodesWritten` et
+  refuse un jour sans heure travaillée par 422 `NON_WORKING_DAY`. Écarté : la date seule sans le
+  libellé (un second PATCH viendrait pour le libellé).
+- **Les risques** : la probabilité ne s'écrit que par `reviewRisk` — `RiskUpdate` défini en propre,
+  sans `probability` (H-04 ; écarté : un réexamen implicite produit par `updateRisk`, deux chemins
+  pour la même grandeur) ; `Risk.provision_amount` d'un survenu ou d'un écarté est la provision de
+  la révision de référence, `0.00` s'il n'y était pas identifié, et `mockhistory` s'aligne (H-03 ;
+  écarté : un second champ) ; `Risk.occurrence_cost`, et la couverture le compare à la réserve
+  (H-01, H-02 ; réécrit : la décision du 2026-10-06 sur « le coût réestimé des lignes issues des
+  risques survenus ») ; `StructureCreate.kind` réduit à `amendment` (E-09 ; écarté : une règle pour
+  `risk_id`, deux chemins pour le même objet).
+- **La plateforme** : `getIdentitySyncSchedule` et `setIdentitySyncSchedule`, symétriques de
+  `BackupSchedule` (A-02 ; écarté : un paramètre d'exploitation, contraire à « choisie par un
+  utilisateur habilité ») ; `resendInvitation`, `POST /users/{user_id}/invitation` (A-04 ; écarté :
+  le renvoi par la console du fournisseur d'identité) ; `SystemStatus.operating_parameters`, chaque
+  paramètre que le §4.5.1 cite avec sa valeur par défaut, la liste relevée par le lot (A-03 ;
+  écarté : les cinq de la revue seulement) ; `AuditParams` reçoit `to_state` et `reason`
+  (`project_exit`), `backup_taken_at` (`restore`), `import_kind` (`import_apply`), et « jusqu'à
+  l'EPIC qui les réalise » disparaît (B-02 ; écarté : aucun paramètre) ; `AuditEvent` garde son nom,
+  et une décision assume `event` et `User` face à la table 10 (B-06 ; écarté : le renommage en
+  `audit_entry`, un chemin et un client changés sans gain de sens).
+- **La devise (C-02)** : `getReferenceSettings` lisible par toute session ouverte, sans 404 ;
+  l'écriture garde ses permissions par champ. Écarté : `Installation.currency_code`, lisible sans
+  session, quand la devise ne sert qu'à qui voit un montant.
+- **Le format d'un import (I-10)** : `openImport` lit l'en-tête — format, version, intitulés — avant
+  de mettre l'analyse en file, et refuse par 422 ; l'analyse ne refuse plus de format. Écarté : le
+  refus porté par l'échec de la tâche d'analyse, qui change les exemples et le front.
+- **Le compteur (E-13, E-24, « Doutes »)** : `lock_version` exigé et 412 sur `abandonRevision`,
+  `exitProject`, `designateReferenceRevision`, `deleteRisk`, `deleteSubproject` ; le `PUT` du
+  périmètre suivi reste idempotent, sans compteur, et l'exception s'écrit. Écartés : exigé partout
+  (l'idempotence de `tracked-scope` est déjà décidée) ; inchangé (contraire à la convention).
+- **Le portefeuille** : `horizon_months`, les mois à partir de celui de la date de calcul, 6 par
+  défaut ; la courbe en S les fait précéder des douze mois passés (G-04 ; écartés : le futur seul
+  partout, un paramètre de plus) ; `from` et `to` sur la structure des coûts et la courbe en S, avec
+  la règle de période et le 422 existants, et les projets terminés sans effet, dit, sur le plan de
+  charge et la santé du pilotage (G-05 ; écarté : la période sur les quatre vues).
+- **Les filtres de colonnes (F-06)** : leurs paramètres entrent au contrat et au faux back avant le
+  gel ; leur présentation dans les trois grilles va à EP-17, en constat reporté. Écartés : contrat
+  et grilles avant le gel (un lot de front de plus) ; tout après le gel.
+- **Les écrans** : US-0703 fait adopter par les écrans tout ce qu'US-0701 et US-0702 changent,
+  administration comprise ; les aides d'US-0670/L4 et L5 en dépendent. L'aide des écrans
+  d'administration, rédigée par US-0670/L2 déjà fusionné, est mise à jour par le lot d'US-0703 qui
+  change ces écrans. Écartés : les seuls écrans existants, les gestes nouveaux de l'administration
+  allant à EP-17 ; le front tenu au vert seulement (les aides décriraient des écrans qui changent).
+
+**Les constats, par US.** Les identifiants sont ceux de la revue ; un doublon (« aussi ») suit le
+constat qu'il double.
+
+| US | Bloquants et majeurs |
+|---|---|
+| US-0701 — plateforme | A-01, A-02, A-03, A-04, B-01, B-02, B-03, B-04, B-05, B-06, C-02, C-03, K-04 |
+| US-0701 — projets et révisions | D-01, D-02, D-06, D-07, E-01, E-02, E-03, E-04, E-06, E-08, E-09, E-10, E-11, L-01, L-05, L-14, L-16 |
+| US-0701 — arbre commun | F-01, F-02, F-06 (paramètres), F-07, F-08, F-09, F-10, F-13, F-14 |
+| US-0701 — risques | H-01, H-02, H-03, H-04, M-01, M-04, M-05 |
+| US-0701 — indicateurs et portefeuille | G-01, G-02, G-03, G-04, G-05, G-06, M-02, M-03, M-06, M-07, M-08, M-09, M-10, M-11 |
+| US-0701 — échanges | I-01, I-02, I-03, I-04, I-05, I-07, I-08, I-09, I-10, I-11 |
+| US-0702 | C-01, D-03, D-05, D-10, E-05, E-07, F-03, F-04, F-05, F-11, I-06, J-02, J-03, J-06, J-07, J-10, J-11 ; et, décidés avec eux, les mineurs E-12, E-13, E-14, E-24, H-08, I-17, A-05 |
+| US-0703 | la part écran de chacun des constats ci-dessus qui change ce qu'un écran montre ou demande |
+
+**Les modifications du contrat, par famille.**
+
+- `access`, `platform`, `system`, `audit` : les opérations de la périodicité et du renvoi ;
+  `SystemStatus.operating_parameters` ; `BackupSchedule` aux champs exigés et sa rétention sur
+  toutes les sauvegardes non marquées (B-04, B-05) ; `AuditProject.code` nullable (B-01) ;
+  `AuditParams` (B-02) ; ce qui fait mener une inscription au projet (B-03) ; `structure_merge` dans
+  `AuditAction` (K-04) ; le rôle prédéfini « Manager » du témoin (A-01).
+- `reference` : `getReferenceSettings` lisible par toute session (C-02) ; le code comptable non
+  blanc (C-03).
+- `projects` : `ProjectExit` et la réponse d'`exitProject` ; `lose` absente d'un projet En cours
+  (D-02) ; l'inscription d'un chef de projet par un non-contributeur (D-06) ; le code projet borné
+  (D-07).
+- `revisions` : les montants (L-01) ; `planning_start_on` et `updateCostStructure` (E-01) ; les deux
+  écarts de la comparaison (E-02) ; le taux d'inflation, la probabilité de gain et la révision
+  source lisibles sur la révision (E-03, L-05) ; la description de la fusion et ses grandeurs (E-04,
+  L-14) ; l'historique annulable dit et `UndoResult` qui rend `NodesWritten` (E-06, E-08) ;
+  `StructureCreate` (E-09) ; les images des taux conservés (E-11) ; le plan de charge sur une
+  révision marquée (L-16) ; les récapitulatives, la liaison en conflit, les colonnes, le libellé
+  composé, la catégorie tenue du rôle, la ligne de provision, le jalon terminé, le mode d'une
+  récapitulative (F-01 à F-14) ; les paramètres de filtre de `listNodes` (F-06).
+- `risks` : `occurrence_cost`, la couverture, `provision_amount`, `RiskUpdate`, la réserve cumulée,
+  l'abandon qui ramène l'évaluation, le placement des tâches fusionnées (H-01 à H-04, M-01, M-04,
+  M-05).
+- `analysis`, `indicators`, `portfolio` : les courbes au pas du mois, conservées au marquage ; les
+  indicateurs exigés ; l'évolution trimestrielle ; `horizon_months` ; la période des projets
+  terminés ; la couverture agrégée ; les décaissements ; la contribution d'une offre ; le reste à
+  engager d'une ligne non réestimée ; la revue précédente ; le diagramme temps/temps ; l'avancement
+  d'une récapitulative (G-01 à G-06, M-02, M-03, M-06 à M-11).
+- `exchanges` : le journal des imports, le rejet pour élément d'OTP, la date de début de planning et
+  la récapitulative manuelle au compte rendu, les lignes de provision, l'export stocké, la lecture
+  d'un import, la date de la revue, le format à l'ouverture, le libellé ambigu (I-01 à I-11).
+- Transversal (US-0702) : le README du contrat dit la règle unique des refus d'état ; `ErrorCode` et
+  `CommandCondition` sans valeur morte ; le 500 ; `fields` en 422 ; le compteur des cinq écritures.
+
+**Le faux back et le témoin.** Les exemples restent engendrés : L-01 change le calcul des montants
+au plus bas des générateurs (`mockstructure`), et tous les exemples qui portent un montant se
+régénèrent par `make mock-data` ; les courbes et indicateurs (`mockcurves`, `mockindicators`,
+`mockportfolio`, `mockportfoliotime`), les risques (`mockhistory`, `mockwitnessrisks`,
+`mockriskwrites`), l'audit (`mockaudit`) et les échanges (`mockexchanges`) suivent leurs constats.
+Aucun exemple n'est écrit à la main.
+
+**Le front.** Un lot de contrat ne casse pas la chaîne : il adapte le front que le client régénéré
+casse, sans rien présenter de nouveau. US-0703 présente ensuite le nouveau : la confirmation de
+sortie, la date de début de planning dans la grille de planning, les colonnes du devis
+(`components/grid/estimate.tsx`, `nodes.tsx`, `computed-nodes.ts`), le coût à la survenance et la
+modification du risque sans probabilité, la devise avec chaque montant (`formatMoney`, quatorze
+appels), l'administration (périodicité, renvoi, paramètres d'exploitation) et les messages des refus
+qui changent de forme.
+
+**L'ordre.** US-0701 se construit après US-0640/L6 #1457 et L6b #1594, qui touchent `risks`,
+`audit` et `revisions`, et après US-0680/L1 #1453, qui touche la survenance ; L-01 en premier, parce
+que tous les montants et tous les calculs en dépendent. US-0702 vient après US-0701, pour donner sa
+forme aux refus des opérations qu'US-0701 ajoute. Chaque lot d'US-0703 suit le lot de contrat qu'il
+adopte. US-0670/L3 à L5 suivent US-0703 ; le gel vient toujours en dernier.
 
 ### L'ordre de construction
 
 1. **US-0590 en tête**, seule : la file de fusion stable sert tous les lots qui suivent ;
-   **US-0590c** aussitôt après, la montée de Next en 16.4 sur le front construit ; **US-0590b**
-   quand trois paliers complets ont été joués sur le front construit, son contenu arrêté sur ce
-   qui tombe encore.
+   **US-0590b** aussitôt après, la stabilité et la durée des tests, que la file attendait — le
+   Gantt la rejetait trois fois de suite —, sans attendre trois paliers complets ; **US-0590c**
+   ensuite, la montée de Next en 16.4 sur le front construit (décision de l'auteur du 2026-10-25,
+   qui inverse l'ordre de US-0590b et US-0590c) ; **US-0590d** après US-0590c et US-0670/L1, avant
+   les lots de contrat (le durcissement restant des tests, décision de l'auteur du 2026-10-26) ;
+   **US-0590e** après US-0610/L2 et avant US-0620 (la stabilité d'un parcours sous charge, #1499,
+   décision de l'auteur du 2026-10-26) ; **US-0590f** après US-0640/L1 et avant US-0640/L2 (la
+   stabilité d'un second parcours sous charge, #1522, décision de l'auteur du 2026-10-27).
 2. **US-0670/L1** aussitôt après : du code déjà écrit, qui profite de la file stable ; puis
    **US-0670/L2** (les aides de l'administration et du portefeuille, dont aucun écran ne change en
-   EP-16), quand l'auteur peut la relire.
+   EP-16), qui se fusionne comme les autres lots : l'auteur relit après coup (décision du
+   2026-10-26, #1139).
 3. **Les contrats ensuite**, avant le front qui les consomme : US-0600 et US-0610 (petits, en un lot
    de contrat), US-0620 et US-0630 (la correspondance et le poste, qui touchent les mêmes schémas
    des échanges), US-0650, US-0680/L1, US-0700/L1.
-4. **US-0640**, les mineurs du contrat (L1 à L4, L6), en parallèle des écrans : ils ne touchent pas
-   les mêmes schémas. Chaque point se relit d'abord sur EP-15 livré.
-5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L3) en dernier
-   des fronts, parce qu'elle peut faire revenir au contrat.
-6. **Le gel** (US-0640/L5) : le contrat est figé, `info.version` passe à `1.0.0`. La règle d'après
-   s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
-   domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans
-   `DECISIONS.md`.
-7. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet, en fin d'EPIC : elles
+4. **US-0640**, les mineurs du contrat (L1 à L4, L6 ; L7, le front de la fusion, après L3), en
+   parallèle des écrans : ils ne touchent pas les mêmes schémas. Chaque point se relit d'abord sur
+   EP-15 livré.
+5. **Le front de chaque US** après son contrat ; US-0690 à tout moment ; US-0660 (L1 à L4) en
+   dernier des fronts, parce qu'elle peut faire revenir au contrat ; **US-0670/L6** (#1583, le plan
+   de charge agrégé, correction de #1580) avant le gel, au cas où il touche le contrat des
+   préférences.
+6. **US-0590g**, la stabilité du harnais sous charge (décision de l'auteur du 2026-10-28) : L1 (le
+   parcours au Tab), puis L2 (le rejeu de #1541, sur `epic/EP-16` avec L1). Elle ne touche pas le
+   contrat ; elle se place après les lots d'écran et de contrat (US-0660/L3 #1458, US-0640/L6
+   #1457).
+7. **US-0701, US-0702 puis US-0703**, le contrat aligné sur la spécification 1.0.0 (recadrage du
+   2026-10-28) : US-0701 après US-0640/L6 et L6b et US-0680/L1, L-01 en tête ; US-0702 après
+   US-0701 ; chaque lot d'US-0703 après le lot de contrat qu'il adopte.
+8. **US-0670/L3, L4 puis L5**, les aides du référentiel et du projet : elles suivent US-0703,
    décrivent les écrans tels que tous les lots les laissent, et ne touchent pas le contrat ; L5
-   porte la décision de la langue et passe l'US `fini`.
+   porte la décision de la langue et passe l'US `fini`. Leurs pull requests se fusionnent comme
+   celles des autres lots : l'auteur relit après coup, à 18 h 30, et ouvre des issues (décision du
+   2026-10-26, #1139).
+9. **US-0704**, le contrat qui suit les majeurs de la revue du 2026-10-31 (décision de l'auteur du
+   2026-11-01) : après US-0703, avant le gel ; ses décisions d'abord (#1799), puis son
+   implémentation en un seul lot, dans une pull request dédiée.
+10. **Le gel** (US-0640/L5 #1333), **en dernier, à la fin de l'EPIC**, dépendant de tous les autres
+    lots — US-0670/L3 à L5, US-0690 et US-0701 à US-0704 compris (décisions de l'auteur du
+    2026-10-28 et du 2026-11-01) : le contrat est figé, `info.version` passe à `1.0.0`. La règle
+    d'après s'écrit en tête de `docs/api/DECISIONS.md` : une modification du contrat par un EPIC de
+    domaine passe par une issue « contrat » que l'auteur tranche, et s'inscrit dans `DECISIONS.md`.
+
+### Trois lots détachés du 2026-10-31
+
+Décisions de l'auteur du 2026-10-30 et du 2026-10-31 (#1672, #1635, #1576), cadrées sans rouvrir le
+reste du plan. Aucune table, aucune migration, aucun module du noyau, aucune modification du
+contrat : le contrat et le faux back sont inchangés.
+
+- **L'avis de G-05** (US-0703/L9 #1688). Une note (`role="note"`) de `PerimeterBar`, une phrase de
+  catalogue par vue — « Les projets terminés sont sans effet sur le plan de charge. », « Les projets
+  terminés sont sans effet sur la santé du pilotage. » —, affichée dès que `completed` est retenu,
+  même avec d'autres états. Il se lit sur `answer.scope.states`, ce que le serveur a retenu ;
+  écarté : `perimeter.states`, car une adresse sans `states` laisse le serveur choisir et
+  `PerimeterBar` ne suppose aucun défaut. `completed` seul ; écarté : nommer aussi `pricing` sur la
+  santé du pilotage, où le contrat le dit sans effet — sans objet, décision de l’auteur du 2026-10-31 (#1691). Écarté :
+  laisser l'avis au contrat seul, qui le dit déjà sans qu'aucun écran le dise.
+- **La sonde d'hydratation** (US-0590h #1689). Un helper partagé du harnais, dans
+  `frontend/e2e/hydration.ts` ou un module voisin : son gestionnaire ignore une route déjà traitée
+  et le retrait de la route attend les gestionnaires en vol. Écartés : (A) garder `networkidle`,
+  qui réduit la course sans la fermer ; (B) `unrouteAll({ behavior: "ignoreErrors" })`, qui avale
+  les erreurs du gestionnaire.
+- **Le rejet après la coupure de Redis** (US-0590i #1690). Un test qui attend l'événement de coupure
+  du client, ou coupe la reconnexion le temps de l'assertion, plutôt que de compter sur l'ordre ;
+  écartée : toute attente allongée.
+- **Deux parts détachées d'US-0590**, plutôt que des lots d'US-0590g : US-0590g/L2 est un rejeu à
+  cause inconnue, qui la passe `fini`, et lui ajouter un lot déplacerait cette fin.
+- **L'ordre.** US-0703/L9 après US-0703/L8 #1619, avant US-0670/L3 #1451, qui l'attend avec L4 et
+  L5. US-0590h puis US-0590i après US-0590g/L1 #1544 ; US-0590g/L2 #1545 les attend (ordre, non
+  code), pour que son rejeu sous charge ne se fasse plus sur un harnais qui a ces défauts. Le gel
+  #1333 attend déjà tous les lots.
+
+### Un lot détaché du 2026-11-01 : l'aide en anglais
+
+Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452 : « français seul pour
+la version 1.0, aucune traduction de l'aide dans EP-16 »). Aucune table, aucune migration, aucun
+module du noyau, aucune modification du contrat.
+
+- **La relecture des aides françaises est faite.** L'auteur a relu, le 2026-11-01, toutes les aides
+  françaises que US-0670 laisse sur `epic/EP-16` — les 59 pages d'écran et les 10 notions de
+  `frontend/help/fr/` — et elles conviennent telles qu'elles sont : aucune retouche, aucune issue de
+  relecture. Ce point de la définition de fini est tenu.
+- **L'aide anglaise en est la traduction, sans relecture** (US-0670b #1811). Traduite de pages
+  relues, elle ne repasse pas par l'auteur ; sa pull request se fusionne comme les autres. Écarté :
+  une relecture de l'anglais à 18 h 30, comme le français, qui retarderait le gel pour un texte dont
+  le fond est déjà validé.
+- **Les mêmes fichiers, par langue.** `frontend/help/en/` reprend les noms des fichiers du français,
+  notions comprises : un nom de notion est une clé, non un mot affiché, et les liens entre pages
+  restent les mêmes. Le contenu est traduit fidèlement, rien n'y est ajouté ni retiré ; seuls
+  changent les exemples de saisie, que l'interface anglaise attend autrement (`d`, `wk`, FS/SS,
+  #1441), et les libellés cités, pris au catalogue `en`.
+- **La langue est celle de l'interface.** `HELP_LANGUAGE` disparaît : l'action `readHelp` reçoit la
+  langue (`Locale`) et la valide comme la cible, la lecture et l'index sont tenus par langue, les
+  titres de la structure fixe aussi. Écarté : un repli sur la page française quand l'anglaise
+  manque, qui laisserait une page oubliée passer pour écrite — une page manquante reste un échec,
+  dans chaque langue.
+- **Le glossaire.** La spécification n'existe qu'en français : une notion anglaise garde la forme de
+  ses citations du glossaire, traduites ; la comparaison mot à mot reste sur le français, et le test
+  tient en anglais le même nombre de citations et les mêmes liens.
+- **Un seul lot, hors cible de taille** (≈ 2 800 lignes, dont ≈ 2 450 de Markdown ; décision de
+  l'auteur du 2026-11-01, comme pour US-0704). Écarté : deux lots (la mécanique, les notions et
+  FBS-1 à FBS-3, puis FBS-4) — la revue d'une traduction sans relecture ne porte que sur la
+  mécanique et la fidélité au français, qu'un découpage n'allège pas.
+- **L'ordre.** Après US-0670/L5 #1452 ; avant le gel #1333, qui attend tous les lots. Une part
+  détachée d'US-0670, plutôt qu'un lot L7 : US-0670 est `fini`, et lui ajouter un lot la
+  rouvrirait.
 
 ---
 
 ## US-0590 — Les parcours de bout en bout joués contre le front construit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1313
@@ -672,7 +1183,23 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   disparaît du guide ;
 - propre à l'US (US-0590c) : `next` ≥ 16.4.1 et `happy-dom` ≥ 21.0.4, aucune alerte Dependabot
   ouverte sur ces paquets ; `context.spec.ts:24` et `shell.spec.ts:140` verts sur trois paliers
-  complets, sans `fixme` ni attente allongée, leur cause écrite dans la pull request.
+  complets, sans `fixme` ni attente allongée, leur cause écrite dans la pull request ;
+- propre à l'US (US-0590d) : la molette Ctrl du Gantt, donnée juste après un rendu, zoome avec les
+  valeurs de ce rendu (test du geste pris juste après le rendu, qui échoue sans `useLayoutEffect`) ;
+  le `make --dry-run` de `test_frontimage.py` donne les mêmes commandes avec `SHARD=2/2` dans
+  l'environnement ; `harness.test.ts` ne retire plus `MFLAGS` ; le commentaire du test de
+  `latest_report` dit que seul le cas croissant tombe sûrement ;
+- propre à l'US (US-0590d) : les 26 fichiers de `frontend/src` à `startTransition(async` sont audités,
+  chacun « corrigé » ou « sans objet » avec sa raison ; une mise à jour d'après un `await` est posée
+  dans la transition imbriquée quand le geste est un dialogue modal, ou, pour une commande en ligne
+  qui peut tourner en même temps qu'une autre, tenue par un état « occupé » local levé dans la même
+  mise à jour que la réponse (écart : décision de l'auteur du 2026-10-26, option B de #1491 — React 19
+  fait attendre une transition imbriquée jusqu'à la fin de toutes les actions asynchrones de la
+  page ; reformulation de #1498) ; un test relève l'état au commit qui la montre, et
+  `docs/dev/typescript.md` dit le défaut ;
+- propre à l'US (US-0590d) : la durée par étape de `service / paths` et des parts de `e2e / paths`
+  est relevée dans la pull request ; une étape qui dépasse 10 % du chemin critique est abrégée sans
+  qu'un test perde une assertion, sinon la pull request le dit.
 
 **Notes de réalisation.**
 - Le harnais construit déjà le front pour la mesure de la seconde (US-0110/L2, port 3101) : l'US
@@ -690,14 +1217,247 @@ ne rejette plus un lot parce que le serveur de développement sert quatre worker
   US-0590c (#1466), parce qu'elle fait tomber deux parcours de navigation : v0.1.0 reste en 16.3.8,
   seul le déni de service par Server Actions concernant Waterfall (aucun `use cache`, aucun
   `next/image`).
+- Décision de l'auteur du 2026-10-25 (#1460, #1466) : US-0590b se livre avant US-0590c, sa
+  condition des trois paliers complets levée ; son périmètre s'élargit à toute la stabilité des
+  tests et à leur durée, et il reprend le correctif du Gantt (#1473, #1479) et #1474. Tout s'y
+  corrige à sa cause : ni délai allongé, ni `retries`, ni `fixme`, ni seuil baissé.
+- US-0590b : `planning.spec.ts:530` et `:562` tombaient parce que l'axe du Gantt n'apprenait la
+  largeur de sa colonne que dans un effet, une tâche après le montage — un défaut du produit, qu'un
+  test du geste pris juste après le montage tient (`gantt.dom.test.tsx`) ; `context.spec.ts:24`
+  parce qu'un seul `next start` rendait en série les pages des workers (3 échecs sur 60 sous six
+  workers, aucun avec un front par worker) ; le parcours au clavier d'`/admin/access-roles`, à 84
+  de ses 90 s, parce qu'une feuille posée et retirée à chaque Tab restylait toute la page (66 s) ;
+  les tests unitaires de #1474 parce que Vitest prenait douze workers sur un poste dont le débit
+  plafonne à quatre (300 s au lieu de 325, le test le plus lent 1,9 s au lieu de 5,4). Le rendu
+  serveur du Kanban (#1263), 0,1 s sur le front construit, et les parcours de #1145 et de #776 ne
+  tombent plus. US-0590 est `fini` (US-0590d/L3 : finie).
+- Décision de l'auteur du 2026-10-26 : US-0590d (#1489) reprend les constats restants des revues
+  d'US-0590b (#1483 à #1487), en deux lots, et mesure la durée de la chaîne ; elle se livre après
+  US-0590c et US-0670/L1, avant les lots de contrat.
+- US-0590d/L2 : l'audit des fichiers à `startTransition(async` est dans #1491, avec la raison de
+  chaque classement. Transition imbriquée, dans les dialogues modaux : `restore-dialog.tsx`,
+  `reference-form.tsx`, `user-dialogs.tsx`, `breakdown-commands.tsx`, `contributor-commands.tsx`.
+  Focus dans un effet, après le commit du refus : `reference-form.tsx`, `role-commands.tsx`,
+  `user-dialogs.tsx`, `breakdown-commands.tsx`. Sans objet : `backup-schedule.tsx`, `held.ts`,
+  `timeline-commands.tsx`, `subproject-commands.tsx`, `kanban.tsx`, `account-menu.tsx`,
+  `task-entry.tsx` et la tâche remise au suivi (un magasin externe). Le défaut est le n° 25
+  de `docs/dev/typescript.md`.
+- US-0590d/L3 (#1496) : état « occupé » local, dans les commandes en ligne qui peuvent tourner en
+  même temps qu'une autre : `reference/commands.tsx`, `backup-commands.tsx` (lancement, marquage
+  et dépôt), `command.tsx`, `confirmed-command.tsx`, `exit-command.tsx`, `mark-command.tsx`,
+  `export-form.tsx`, `file-drop.tsx`, `import-commands.tsx`, `report-commands.tsx`,
+  `author-filter.tsx`, `identity-sync.tsx`, la création en ligne de `role-commands.tsx`,
+  `avatar-form.tsx`, `preferences-form.tsx`. US-0590c, US-0590d/L1 et L2 fusionnés, l'US est finie.
 
 **Hors périmètre.** #1230, la lenteur du navigateur à quitter une grille de mille tâches : EP-17.
 
 ---
 
+## US-0590e — La stabilité d'un parcours sous charge
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1505
+
+**En tant que** développeur, **je veux** que `shell.spec.ts:120` ne reçoive plus un titre vide sous
+charge, **afin que** la file de fusion ne rejette plus un lot sur un échec qui disparaît au rejeu
+(#1499).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause du titre vide est écrite dans la pull request, après une reproduction qui
+  la montre — la charge, le nombre de workers, le test qui échoue —, avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec ; le test ou le code de production
+  est corrigé à sa cause, et la pull request dit lequel des trois (test, environnement, production)
+  la porte ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à quatre workers, voient `shell.spec.ts:120` vert, et la file de fusion verte du premier coup ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b, c et d) ; US-0590 reste `fini`.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1500 (deux mineurs de rédaction de `docs/dev/typescript.md`), qui se corrige
+avec le prochain lot qui touche ce fichier ; #1230 : EP-17.
+
+---
+
+## US-0590f — La stabilité de `planning.spec.ts:23` sous charge
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1534
+
+**En tant que** développeur, **je veux** que la cellule « Total — 1 000 tâches » du parcours
+d'ouverture de la grille de planning soit mesurée dans la fenêtre sous charge, **afin que** le
+palier complet local du front et la file de fusion ne rejettent plus un lot sur un échec qui
+disparaît au rejeu (#1522).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause est écrite dans la pull request, après une reproduction qui la montre
+  — la charge, le nombre de workers, le test qui échoue —, avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec, sans dépendre de la charge ; le
+  test ou le code de production est corrigé à sa cause, et la pull request dit lequel des trois
+  (test, environnement, production) la porte ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front
+  TIER=full`), à six workers, voient `planning.spec.ts:23` vert, et la file de fusion verte du
+  premier coup ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé ; un
+  `expect.poll` sur `withinBox` n'est admis que si la pull request montre que l'état attendu est
+  atteint puis tenu ;
+- propre à l'US : les sept autres fichiers qui mesurent `withinBox` d'un seul coup sont audités
+  une fois la cause connue ; ceux qui ont la même cause sont corrigés, les autres constats
+  deviennent des issues rattachées au lot.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b à e) ; US-0590 reste `fini`.
+- Budget : 90 minutes de reproduction au total ; passé ce délai sans cause, le lot passe
+  `question` dans son issue, avec ce qui a été essayé.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1528 et #1529 : US-0660/L3 #1458 ; #1230 : EP-17.
+
+---
+
+## US-0590g — La stabilité du harnais sous charge : le parcours au Tab et trois parcours non examinés
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1543
+
+**En tant que** développeur, **je veux** que le parcours au Tab d'`accessibility.spec.ts` tienne ses
+90 s sous la charge du palier complet local, et que `projects.spec.ts:103`, `planning.spec.ts:400`
+et `undo.spec.ts:20` ne tombent plus sous charge, **afin que** le palier complet local du front et
+la file de fusion ne rejettent plus un lot sur la saturation du poste (#1540, #1541).
+
+**Critères d'acceptation.**
+
+- propre à l'US (#1540, la mesure) : le parcours au Tab ne fait plus qu'un aller-retour vers le
+  navigateur par élément atteint, celui de la touche : la mesure de l'élément n'a plus le sien, la
+  page la garde et le parcours la lit par lots. Un test de `tab-walk.spec.ts` le vérifie sans
+  dépendre de la charge. Ce que le parcours vérifie ne change pas : `faults(walk)`, `lost` et les
+  rubriques de `Walk` ;
+- propre à l'US (#1540, la tenue) : sous la charge artificielle qu'a relevée #1540 (six workers,
+  `make e2e WORKERS=6 E2E_BUILT=1`, douze à dix-huit boucles actives), trois passages successifs
+  voient le parcours au Tab de FBS-1.2, de FBS-2.7 et de FBS-4.8 sous les 90 s du test ;
+- propre à l'US (#1541, le rejeu) : avant tout correctif, `projects.spec.ts:103`,
+  `planning.spec.ts:400` et `undo.spec.ts:20` sont rejoués sous cette charge sur `epic/EP-16`, et
+  l'issue du lot dit lesquels échouent encore.
+  - Pour chacun qui échoue : la reproduction (la charge, le nombre de workers, le test), la cause,
+    un test qui échoue sans le correctif et passe avec sans dépendre de la charge, et le lieu de la
+    cause — test, environnement ou production.
+  - Pour chacun qui ne tombe plus : #1541 le ferme « non reproduit », sans correctif, avec les
+    passages rejoués consignés dans l'issue ;
+- propre à l'US (#1354, le rejeu) : `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx`,
+  instables sous charge dans la suite front, sont rejoués de la même façon, avant tout correctif,
+  par L2 #1545 : un test qui tombe encore est corrigé à sa cause (l'attente qui dépend du temps
+  rendue déterministe), sans attente allongée ; un test qui ne tombe plus fait fermer #1354 « non
+  reproduit », avec les passages rejoués consignés dans l'issue ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé, aucun
+  délai de test relevé ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à six workers, voient ces quatre parcours verts, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (deux lots, comme US-0590b et d) ; US-0590 reste `fini`.
+- Décision de l'auteur du 2026-10-28 (#1312) : #1540 et #1541 forment un lot de stabilité du
+  harnais d'EP-16, placé avant le gel du contrat (US-0640/L5 #1333), qui vient en dernier, sans
+  dépendance de code.
+- Budget de reproduction de #1541 : 90 minutes au total, comme US-0590f. Passé ce délai sans cause,
+  le lot passe `question` dans son issue, avec ce qui a été essayé, sans correctif au hasard ni
+  report vers EP-17.
+- Pistes pour #1541, aucune tenue pour cause :
+  - `planning.spec.ts:400` et `undo.spec.ts:20` s'ouvrent déjà par `openHydrated` : si la cause est
+    un écran hydraté après le shell, ils passent peut-être déjà ;
+  - `projects.spec.ts:103` s'ouvre par `page.goto` et un clic de menu, sans `openHydrated`, après un
+    `compile(...)` hérité du serveur de développement.
+- #1354 (`restore-dialog.dom.test.tsx`, `backup-deposit.dom.test.tsx`) est rendu à EP-16 au cadrage
+  d'EP-17 (décision de l'auteur du 2026-10-28) et rattaché à cette US : il est repris par le rejeu
+  sous charge de L2 #1545, avec le même budget de 90 minutes.
+- Le rejeu sous charge est une exécution lourde : elle attend son tour derrière `HEAVY_LOCK`.
+- Voir la conception, « Le harnais (US-0590) ».
+
+**Hors périmètre.** #1539 (le Gantt : EP-17, US-0750/L1 #1560, faute de lot d'EP-16 qui le
+touche) ; #1230 : EP-17 ; ajouter ou retirer un écran du parcours d'accessibilité.
+
+---
+
+## US-0590h — La sonde d'hydratation ferme sa course avec sa route
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1689
+
+**En tant que** développeur, **je veux** que la sonde d'hydratation des parcours ferme sa course avec
+la route des scripts par un helper commun du harnais, **afin que** le palier complet local du front
+et la file de fusion ne rejettent plus un lot sur « Route is already handled » (#1635).
+
+**Critères d'acceptation.**
+
+- propre à l'US : un helper partagé du harnais pose la route des scripts tenus et la retire : son
+  gestionnaire ignore une route déjà traitée, et le retrait attend les gestionnaires en vol ;
+- propre à l'US : `indicators.spec.ts:173` et `planning.spec.ts:120` l'emploient, et
+  `indicators.spec.ts` n'attend plus `networkidle` ;
+- propre à l'US : un test du helper échoue sans le correctif et passe avec, sans dépendre de la
+  charge : une requête arrive après le dernier silence et avant le retrait de la route ;
+- propre à l'US : les autres routes du harnais (`exchanges`, `grid`, `shell`, `tasks`) sont
+  auditées ; celles de même forme prennent le helper, les autres constats deviennent des issues
+  rattachées au lot ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme`, aucun seuil baissé ;
+- propre à l'US : trois passages successifs du palier complet local (`make check-front TIER=full`),
+  à six workers, voient ces deux parcours verts, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot, comme US-0590b à f) ; US-0590 reste `fini`.
+- Décision de l'auteur du 2026-10-30 (#1635) : l'option C, un helper partagé.
+- Voir la conception, « Trois lots détachés du 2026-10-31 ».
+
+**Hors périmètre.** Le parcours au Tab et le rejeu sous charge (US-0590g).
+
+---
+
+## US-0590i — La stabilité de `store.test.ts:142` sous charge
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : aucune
+- **issue** : #1690
+
+**En tant que** développeur, **je veux** que le test du rejet après la coupure de Redis ne dépende
+plus de l'ordre entre la coupure et la reconnexion du client, **afin que** le palier rapide de la
+pull request et la file de fusion ne rejettent plus un lot sur un échec qui disparaît au rejeu
+(#1576).
+
+**Critères d'acceptation.**
+
+- propre à l'US : la cause est écrite dans la pull request, après une reproduction sous charge,
+  avant tout correctif ;
+- propre à l'US : un test échoue sans le correctif et passe avec, sans dépendre de la charge ; il
+  attend l'événement de coupure du client, ou coupe la reconnexion le temps de l'assertion ; la pull
+  request dit si la cause est dans le test ou dans le code de production ;
+- propre à l'US : aucune attente allongée, aucun `retries`, aucun `fixme` ;
+- propre à l'US : trois passages successifs de `frontend/src/session` sous charge voient ce test
+  vert, et la file de fusion verte du premier coup.
+
+**Notes de réalisation.**
+- Part détachée d'US-0590 (un lot) ; US-0590 reste `fini`.
+- Budget : 90 minutes de reproduction ; passé ce délai sans cause, le lot passe `question`.
+- Voir la conception, « Trois lots détachés du 2026-10-31 ».
+
+**Hors périmètre.** `restore-dialog.dom.test.tsx` et `backup-deposit.dom.test.tsx` (#1354, US-0590g/L2
+#1545).
+
+---
+
 ## US-0600 — Le nom de l'entreprise utilisatrice
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-EXP-0020-A`
 - **opérations** : `getReferenceSettings`, `updateReferenceSettings`
 - **issue** : #1314
@@ -712,7 +1472,7 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
   et le catalogue des permissions. » : constaté par EP-03 (US-0420), livré ;
 - écart : `WF-EXP-0020-A` — « La création d'un projet est refusée et nomme les prérequis manquants,
   jusqu'à ce qu'une catégorie de coût de main-d'œuvre et un rôle de ressource aient été saisis. » :
-  le service du projet — EP-04, qui clôt l'exigence ;
+  le service du projet — EP-04 ; EP-07 clôt l'exigence ;
 - écart : `WF-EXP-0020-A` — « Une seconde exécution de l'installation ne crée ni compte, ni
   calendrier, ni nature supplémentaire ; elle produit un nouveau lien, qui remplace le précédent,
   tant que l'administrateur n'a pas fixé son mot de passe, et aucun lien ensuite. » : constaté par
@@ -748,7 +1508,7 @@ connaît, **afin que** les fichiers exportés disent de quelle entreprise ils vi
 
 ## US-0610 — Le client d'un projet et le code d'un sous-projet
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-PRJ-0080-A`, `WF-PRJ-0050-A`
 - **opérations** : `createProject`, `getProject`, `updateProject`, `listProjects`,
   `createSubproject`, `updateSubproject`, `listSubprojects`, `openImport`, `getImport`
@@ -770,7 +1530,7 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
   - les transitions qui ne l'exigent pas : le service, EP-04 ;
   - la présentation du devis exporté : EP-07 ;
 - écart : `WF-PRJ-0050-A` — « Un projet se chiffre sans aucun sous-projet. » : constaté par EP-02 ;
-  EP-04 clôt ;
+  EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La création de deux sous-projets de même code dans un même projet est
   refusée. » : le service — EP-04 ;
 - écart : `WF-PRJ-0050-A` — « La création d'un sous-projet de code « SP/01 », « Synthèse » ou de
@@ -779,16 +1539,16 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
     (ci-dessous) ;
   - le refus par le service : EP-04 ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet portant des coûts réels est refusée. » :
-  constaté par EP-14 contre le faux back ; EP-04 clôt ;
+  constaté par EP-14 contre le faux back ; EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet cité par une révision marquée est
-  refusée. » : constaté par EP-14/L42l ; EP-04 clôt ;
+  refusée. » : constaté par EP-14/L42l ; EP-09 clôt ;
 - écart : `WF-PRJ-0050-A` — « La suppression d'un sous-projet que porte une ligne de devis de la
   révision en cours est refusée ; elle aboutit une fois cette ligne passée à un autre
   sous-projet. » : la seconde moitié demande le service — EP-04 ;
 - écart : `WF-PRJ-0050-A` — « Le passage à un autre sous-projet d'une ligne d'une tâche démarrée,
   dont le sous-projet a reçu des coûts réels, est refusé et nomme ce sous-projet ; celui d'une ligne
   d'une tâche non démarrée aboutit, comme celui de la ligne de provision d'un risque identifié. » :
-  constaté par EP-15 (US-0480) ; EP-04 clôt ;
+  constaté par EP-15 (US-0480) ; EP-09 clôt ;
 - propre à l'US : un projet porte le nom de son client, facultatif.
   - `createProject` et `updateProject` l'écrivent, `getProject` le lit.
   - Le formulaire de création et l'écran des paramètres du projet le saisissent et l'effacent, quel
@@ -814,7 +1574,7 @@ le fichier de reste à engager range chaque sous-projet dans son onglet.
 
 ## US-0620 — La correspondance de l'extraction des coûts réels
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0190-A`
 - **opérations** : `getActualCostMapping`, `setActualCostMapping`, ajoutées au contrat ;
   `getProject`, `openImport`, `getImport`
@@ -892,7 +1652,7 @@ Waterfall une colonne que nous n'avons pas choisie.
 
 ## US-0630 — Le poste d'une ligne de coût
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre ; le service clôt WF-INTF-0140, WF-CRE-0010 et WF-DAT-0110 en
   EP-09
 - **opérations** : `listActualCosts`, `getImport`
@@ -920,9 +1680,10 @@ donne en deux lignes.
 
 ## US-0640 — Les mineurs du contrat et du faux back
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
-- **opérations** : celles que les constats touchent, sans en ajouter — dont `applyPaste`,
+- **opérations** : celles que les constats touchent, sans en ajouter — dont `updateMyPreferences`
+  (#1401), `applyPaste`,
   `createRisk`, `updateRisk`, `updateEstimateLine`, `updateCalendar`, `undoLastChange`,
   `redoLastUndo`, `createTimeline`, `deleteTimeline`, `setWorkBreakdown`, `getImport`,
   `getStructureMergeReport`, `mergeCostStructure`
@@ -956,12 +1717,33 @@ refus décrits.
 - Les constats des lots d'EP-15 — #1345, #1351, #1352, #1361, #1367, #1368, #1379, #1384 (point 1) —
   sont tranchés dans « Ce que le cadrage décide » (recadrage du 2026-10-25) ; leur part front est
   d'US-0660.
+- L6 #1457 écrit aussi le nom nul d'un contributeur anonymisé (#870, décision de l'auteur du
+  2026-10-28) : `Contributor.display_name` et `ContributorSuggestion.display_name` nullables,
+  avec un exemple et son entrée dans `DECISIONS.md` ; le lot que le pilote retient par défaut, l'auteur n'en
+  ayant nommé aucun autre.
+- L6b #1594, qui dépend de L6 #1457, écrit `project_create` et `revision_abandon` dans
+  `AuditAction` (#1577, décision de l'auteur du 2026-10-28) : leurs `params`, les deux
+  inscriptions de `mockaudit` et l'entrée de `DECISIONS.md`. US-0640/L5 #1333, qui fige le
+  contrat, dépend de L6b.
+- L6 #1457 écrit aussi la préférence d'états de la liste de l'accueil (#1401, décision de l'auteur
+  du 2026-10-28), parmi ses constats de contrat : une clé de `grids`, son exemple et son entrée
+  dans `DECISIONS.md` (« Les modifications du contrat »). Si le lot devient trop gros à la
+  lecture, le livreur le dit dans l'issue plutôt que de le découper.
+- L3 #1331 écrit la fusion sans révision en cours (#790) au contrat et dans le témoin ; sa part front
+  est **L7 #1584** (décision de l'auteur du 2026-10-28, dépend de L3) : la commande `merge_structure`
+  offerte sur le différentiel de la dernière révision marquée, le compte rendu qui dit
+  `creates_current_revision`, et les échecs `LINK_CYCLE`, `PROJECT_HORIZON_EXCEEDED` et
+  `LINK_FORBIDDEN` avec leurs paramètres.
+- L5 #1333, qui fige le contrat (`info.version` à `1.0.0`), vient **en dernier**, à la fin de
+  l'EPIC (décision de l'auteur du 2026-10-28) : il dépend de tous les autres lots, US-0670/L3 à L5,
+  US-0690, US-0590g, US-0660 et L6 et L7 compris, et, depuis le recadrage du 2026-10-28, ceux
+  d'US-0701, US-0702 et US-0703.
 
 ---
 
 ## US-0650 — La résolution d'un numéro de ligne, et les colonnes connues d'une grille
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `resolveRowNumber`, ajoutée au contrat ; `setPredecessors`, `getMe`,
   `updateMyPreferences`
@@ -992,7 +1774,7 @@ par une version ne bouscule pas la grille que j'ai réglée.
 
 ## US-0660 — Ce que le contrat décrit, adopté par les écrans
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : celles des six points de #1142, celles des saisies que refuse
   `TASK_WITHOUT_WORKING_HOURS`, et celles qu'US-0640/L6 modifie — `listRisks`, `createNode`, les
@@ -1020,17 +1802,34 @@ déjà, **afin que** chaque refus et chaque indisponibilité me nomment ce qui l
   registre des risques reçoit « Lignes par page » et sa pagination, ses totaux restant ceux de tous
   les risques retenus (#1367) ; le refus d'une tâche créée avec une date manuelle un jour chômé se dit
   à la cellule (#1345) ; les tests du risque lisent les exemples nouveaux du contrat (#1384) ;
+- propre à l'US (L4 #1571, #1401 ; décision de l'auteur du 2026-10-23, complétée le 2026-10-28) :
+  la liste des projets s'ouvre filtrée sur **Chiffrage et En cours** :
+  - le filtre par défaut se dit comme le filtre « contributeur », visible tant qu'il s'applique ; il
+    se lève par « Tous les états » et se change comme aujourd'hui ;
+  - une adresse sans `states` vaut le défaut ; « Tous les états » a son expression dans l'adresse
+    et se lit au serveur sans filtre ; les liens du filtre gardent le reste de l'adresse ;
+  - un choix d'états différent du défaut se garde en préférence, comme « Lignes par page », par ce
+    qu'US-0640/L6 écrit au contrat avant le gel ;
+  - les totaux suivent les états retenus (WF-IHM-0130) ; « Voir tous les projets » ne change pas ;
 - propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
 
 **Notes de réalisation.** Ces constats ne demandent que le front, mais ils peuvent révéler un
 manque du contrat, comme EP-15 l'a souvent constaté : c'est ce qui les garde en EP-16 (principe de
 l'auteur du 2026-10-22). Le titre et le troisième lot viennent du recadrage du 2026-10-25.
+- L4 #1571 (décision de l'auteur du 2026-10-28) porte la part front de #1401 : la liste des
+  projets de l'accueil s'ouvre filtrée sur Chiffrage et En cours. Son contrat — le choix d'états en
+  préférence de la liste de l'accueil — est écrit par US-0640/L6 #1457, avant le gel (US-0640/L5
+  #1333) ; L4 en dépend.
+- L3 #1458 corrige aussi trois constats des revues de lots : #1518 (la liste des statuts d'une
+  lecture facultative, écrite deux fois), #1524 (le détail d'une ligne de coût sans son poste) et
+  #1533 (un refus à deux motifs sur le même champ, que `byField` ne dit qu'à moitié). #1525 est
+  reporté à EP-09 #1340.
 
 ---
 
 ## US-0670 — Les aides des autres écrans et la recherche de l'aide
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre ; `getComputedValueDependencies`, déjà lue par les infobulles
 - **issue** : #1447
@@ -1057,9 +1856,10 @@ suis.
   constaté par EP-15 (US-0580/L2), inchangé ici ; EP-11 clôt.
 - écart : `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'aide n'existe
   qu'en français, et une interface en anglais la montre telle quelle ; ses exemples de saisie
-  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `w`, FS/SS
-  (#1441) ; la version anglaise se décide après la relecture par l'auteur de toutes les aides, au
-  dernier lot de cette US, et le test de complétude l'exigera alors ; EP-11 clôt.
+  (« 2 j », « 1 sem », FD/DD) ne valent pas dans l'interface anglaise, qui attend `d`, `wk`, FS/SS
+  (#1441) ; toutes les aides françaises sont écrites depuis US-0670/L5 (#1452), et relues par
+  l'auteur le 2026-11-01 ; la version anglaise, décidée le même jour, est la part détachée
+  US-0670b (#1811), qui solde cet écart : le critère y est tenu ; EP-11 clôt.
 - propre à l'US : la recherche de l'aide porte sur les titres des pages et des notions, côté client,
   sur l'index rendu avec le panneau ; elle a son libellé dans les deux catalogues ;
 - propre à l'US : la section « Ses colonnes » du panneau se rend depuis les clés
@@ -1079,8 +1879,8 @@ suis.
   correspondance (US-0620), le client (US-0610), le poste (US-0630), le nom de l'entreprise
   (US-0600), les colonnes nouvelles (US-0650), le compte rendu de survenance (US-0680), le filtre des
   écarts (US-0700) ;
-- propre à l'US : la pull request d'un lot de rédaction ne se fusionne qu'après la relecture de
-  l'auteur, dite dans son issue.
+- propre à l'US : les lots de rédaction (L2 à L5) se fusionnent comme les autres ; l'auteur relit
+  après coup, à 18 h 30, et ouvre des issues (décision de l'auteur du 2026-10-26, #1139).
 
 **Notes de réalisation.** Reprise d'EP-15 par la décision de l'auteur du 2026-10-25 (#1445) : les
 lots US-0580/L3b, L4 et L5 deviennent US-0670/L1, L2 et L4, et deux lots s'y ajoutent par la coupe
@@ -1088,20 +1888,87 @@ du recadrage (L3, le référentiel et les notions ; L5, les indicateurs et la la
 fusionnés d'US-0580 ayant dépassé leur estimation d'un facteur ≈ 1,7. L1 (la recherche et « Ses
 colonnes », code déjà écrit sur `lot/US-0580/L3b`, à rebaser sur `epic/EP-16`) vient juste après
 US-0590 ; L2 (l'administration et le portefeuille, écrans qu'EP-16 ne change pas) peut le suivre ;
-L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent. La conception d'EP-15
+L3, L4 et L5 viennent en fin d'EPIC, après les lots d'écran qu'ils décrivent — ceux d'US-0703
+compris, depuis le recadrage du 2026-10-28 — et avant le gel du contrat (US-0640/L5), qui vient en
+dernier. L6 #1583 (décision de l'auteur du 2026-10-28) corrige
+#1580 : l'écran du plan de charge agrégé (`portfolio/workload/page.tsx`) conserve l'horizon, le
+seuil de sous-charge et le filtre en préférences d'affichage au lieu de paramètres de l'adresse
+(WF-PTF-0060-A, WF-ADM-0040, WF-IHM-0060), puis la phrase de `FBS-2.2.md` qui le décrit ; elle se
+place avant le gel, au cas où `DisplayPreferences` n'aurait pas où ranger ces préférences, et
+dépend d'US-0670/L2. La conception d'EP-15
 (« L'aide en ligne et les infobulles ») fait foi pour la mécanique. Un lot d'EP-16 qui ajoute un
 code à la table des fonctions l'inscrit dans `SCREENS_TO_COME` avec le lot de cette US qui l'écrit
-(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue.
+(US-0620/L2 pour FBS-3.1.3), sans quoi le test de complétude échoue. L4 (#1439, option 1)
+rattache la page d'un projet (`/projects/P`) au bloc des projets, FBS-4, dont l'aide décrit
+la liste et la page — le fil d'Ariane l'y range déjà — ; restent sans aide, par exclusion, les écrans
+hors de la table des fonctions : le compte (`/account`), l'avatar (`/account/avatar`), les pages
+d'erreur (adresse inconnue, panne) et de session (`/login/unavailable`). L4 laisse FBS-4.8 et ses
+sections à L5, qui les écrit avec la décision de la langue.
 
-**Hors périmètre.** La version anglaise elle-même (EP-11, après la décision de l'auteur) ; un
-tutoriel guidé ; une documentation hors de l'application ; les défauts d'écran que les aides
+**Relecture de l'auteur (2026-11-01).** Toutes les aides françaises — 59 pages d'écran, 10
+notions — conviennent telles que US-0670/L5 les laisse : aucune retouche demandée. La version
+anglaise est décidée le même jour et détachée en US-0670b (#1811), sans relecture.
+
+**Hors périmètre.** La version anglaise elle-même (US-0670b) ; un tutoriel guidé ; une
+documentation hors de l'application ; les défauts d'écran que les aides
 révèlent, qui deviennent des constats (#1438 → EP-17).
+
+---
+
+## US-0670b — L'aide en ligne en anglais
+
+- **statut** : fini
+- **exigences** : `WF-IHM-0140-A`
+- **opérations** : aucune
+- **issue** : #1811
+
+**En tant qu'**utilisateur de l'interface en anglais, **je veux** que l'aide en ligne s'affiche en
+anglais, avec les exemples de saisie que cette interface attend, **afin de** me servir de Waterfall
+dans ma langue sans lire une aide française.
+
+**Critères d'acceptation.**
+
+- `WF-IHM-0140-A` — « L’aide s’affiche dans la langue de l’utilisateur. » : l'interface anglaise
+  ouvre l'aide anglaise, la française l'aide française ; chaque page d'écran et chaque notion de
+  `frontend/help/fr/` a sa traduction dans `frontend/help/en/`, sous le même nom de fichier, dans
+  la structure fixe dite en anglais ; le test de complétude (`help.test.ts`) exige un fichier par
+  code et par notion dans chaque langue, et une page manquante est un échec dans chaque langue ;
+  ses exemples de saisie sont ceux de l'interface anglaise (`d`, `wk`, FS/SS, #1441) ;
+- propre à l'US : la traduction est fidèle au français relu, sans rien y ajouter ni retirer ; les
+  libellés des commandes et des colonnes cités sont ceux du catalogue `en` ; un écart entre une
+  page et son écran devient un constat, non une correction ;
+- propre à l'US : une notion anglaise garde la forme de ses citations du glossaire, traduites ; le
+  test tient en anglais le même nombre de citations et les mêmes liens qu'en français, la
+  comparaison mot à mot au glossaire restant sur le français ;
+- propre à l'US : l'action `readHelp` reçoit la langue et la valide comme la cible ; l'index de la
+  recherche est tenu par langue ; le panneau porte `lang` à la langue de la page rendue ;
+- propre à l'US : la pull request se fusionne comme les autres lots, sans relecture de l'auteur
+  (décision de l'auteur du 2026-11-01).
+
+**Notes de réalisation.**
+- Part détachée d'US-0670 (un lot) ; US-0670 reste `fini`.
+- Décision de l'auteur du 2026-11-01, qui remplace celle du 2026-10-31 (#1452) ; un seul lot, hors
+  cible de taille.
+- Voir la conception, « Un lot détaché du 2026-11-01 : l'aide en anglais ».
+- Réalisé en un lot (`lot/US-0670b`) : l'écart « L’aide s’affiche dans la langue de
+  l’utilisateur. », écrit sous US-0670, est tenu ici. `frontend/help/en/` porte les 69 fichiers
+  du français, sous les mêmes noms ; `HELP_LANGUAGE` a disparu : `readHelp` reçoit la langue de
+  l'interface et la refuse hors de `LOCALES`, la lecture, l'index — un par langue, gardé par le
+  processus — et les titres de la structure fixe (`SCREEN_HEADINGS`, `NOTION_HEADINGS`) sont par
+  langue, et le panneau dit sur la page la langue où elle a été lue. Les exemples de saisie sont
+  ceux du catalogue `en` : « 2 d », « 1 wk », « 1 mo », « 3FS+2 d; 5SS » — l'unité de la semaine
+  s'écrit `wk` dans l'interface anglaise (`enums.DurationUnit.w`), non `w`. Les deux noms d'onglet
+  réservés du fichier de reste à engager, « Synthèse » et « Hors sous-projet », restent en français
+  dans la page anglaise des sous-projets : Waterfall les écrit ainsi quelle que soit la langue.
+
+**Hors périmètre.** Une retouche du contenu des aides ; une autre langue ; la spécification en
+anglais ; les défauts d'écran que la traduction révèle, qui deviennent des constats.
 
 ---
 
 ## US-0680 — Déclarer survenu un risque avec son compte rendu préalable
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre ; le service clôt WF-RIS-0060 en EP-08
 - **opérations** : `getRiskOccurrenceReport`, ajoutée au contrat ; `declareRiskOccurrence`,
   `getRisk`, `listNodes`
@@ -1138,7 +2005,7 @@ EP-08.
 
 ## US-0690 — L'adresse de retour de la connexion durcie
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1449
@@ -1162,7 +2029,7 @@ défauts du front proposés avec lui (#1438, #1428) sont partis à EP-17.
 
 ## US-0700 — Le filtre des écarts d'un différentiel, et le décompte de la matrice des risques
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `listNodes`, `compareRevisions` (filtre `difference`, ajouté) ;
   `getProjectRiskMatrix`, `getPortfolioRisks` (`cells` précisé)
@@ -1189,9 +2056,201 @@ ses lignes à la main, et de lire une matrice qui ne se contredit pas.
 
 **Notes de réalisation.** Les décisions de l'auteur du 2026-10-23 dans #1398 et #1395 font foi ; les
 « à trancher au lot » qu'elles nomment — les totaux sous le filtre, la structure sans écart — se
-tranchent au lot de contrat et s'écrivent dans `DECISIONS.md`. La part front de #1395 et les cinq
-autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399, #1400, #1401) sont d'EP-17
-(règle du recadrage du 2026-10-25).
+tranchent au lot de contrat et s'écrivent dans `DECISIONS.md`. La part front de #1395 et quatre
+des cinq autres ajustements de la validation du 2026-10-23 (#1396, #1397, #1399, #1400) sont d'EP-17
+(règle du recadrage du 2026-10-25) ; le cinquième, #1401, est rendu à EP-16 (« Constats reçus »).
 
 **Hors périmètre.** La pagination d'un différentiel, écartée par #1193 et #1201 ; tout filtre qui
 calculerait côté front.
+
+---
+
+## US-0701 — Le contrat rattrape la spécification 1.0.0
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : `getIdentitySyncSchedule`, `setIdentitySyncSchedule`, `resendInvitation`,
+  `updateCostStructure`, ajoutées au contrat ; celles que touchent les bloquants et les majeurs de
+  modèle et de calcul de la revue du 2026-10-28 — dont `exitProject`, `getSystemStatus`,
+  `getReferenceSettings`, `listAuditEvents`, `getBackupSchedule`, `setBackupSchedule`,
+  `setContributors`, `listRevisions`, `mergeCostStructure`, `createCostStructure`,
+  `compareRevisions`, `listNodes`, `createNode`, `updateEstimateLine`, `setPredecessors`,
+  `deleteNode`, `undoLastChange`, `redoLastUndo`, `updateRisk`, `declareRiskOccurrence`,
+  `getProjectRiskCoverage`, `getProjectIndicators`, `getProjectWorkload`, `openImport`,
+  `getImport`, `requestExport`, les vues du portefeuille ; la liste par famille est dans la
+  conception
+- **issue** : #1598
+
+**En tant que** développeur, **je veux** que le contrat dise, avant d'être figé, ce que la
+spécification 1.0.0 exige depuis ses passes des 9, 10 et 22 octobre, **afin que** les EPIC de
+domaine servent un contrat qui ne contredit pas la spécification, et qu'aucun changement de sens
+d'un champ existant ne vienne après le gel.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque bloquant et chaque majeur de la revue du 2026-10-28 rangé sous US-0701
+  dans la conception est soldé.
+  - Appliqué : dans `docs/api`, avec ses exemples, le faux back et le témoin régénérés.
+  - Ou écarté : avec sa raison, dans `DECISIONS.md`.
+  - Une décision de `DECISIONS.md` que la spécification contredit est réécrite, en citant la date
+    du changement de la spécification et la décision du recadrage.
+- propre à l'US (L-01, décision de l'auteur du 2026-10-28) : les montants budgété et réestimé
+  d'une ligne, d'une tâche, des totaux, des indicateurs et de la comparaison sont « inflation
+  comprise, à l'année de consommation » ; le montant aux taux de l'année de référence, avant
+  inflation, est le seul autre montant de la ligne, et `inflated_amount` disparaît. Les décisions
+  #235 et #352 sont réécrites. Sur le témoin, une ligne dont la tâche se place deux ans après
+  l'année de référence, avec une inflation de 2 %, a un montant réestimé supérieur de 4,04 % à son
+  montant aux taux de l'année de référence (WF-DEV-0050).
+- propre à l'US (D-01) : la sortie d'un projet qui porte une révision en cours reçoit le sort de
+  cette révision — la marquer, avec un nom de version, ou l'abandonner — et la refuse sans lui ;
+  marquer rend 202 et une tâche de fond, abandonner rend 200. L'exemple de la sortie montre que
+  « après la sortie, le projet n'a plus de révision en cours, et ses indicateurs se lisent dans sa
+  dernière révision marquée » (WF-CYC-0090).
+- propre à l'US (E-01) : chaque structure porte sa date de début de planning, que
+  `updateCostStructure` écrit et qui redate les tâches automatiques sans prédécesseur ; un exemple
+  montre qu'« avancer cette date d'une semaine l'avance d'autant, ainsi que ses successeurs
+  automatiques » (WF-PLA-0020). L'import MS Project la lit et le compte rendu présente son
+  changement (I-03, K-05).
+- propre à l'US (H-01, H-02, M-01, H-03) : le risque survenu porte son coût à la survenance, et la
+  couverture le compare à la réserve ; sur le témoin, « la terminaison des tâches issues d'un risque
+  survenu ne change ni le coût des survenus ni l'écart de couverture » (WF-RIS-0050). La provision
+  d'un risque survenu ou écarté est celle qu'il portait dans la révision de référence, nulle s'il
+  n'y était pas identifié.
+- propre à l'US (H-04) : la probabilité d'un risque ne s'écrit que par le réexamen ; la
+  modification d'un risque ne la reçoit plus.
+- propre à l'US (A-02, A-03, A-04, C-02) : la périodicité de la lecture des comptes se lit et se
+  règle, quotidienne par défaut ; l'écran d'état reçoit les paramètres d'exploitation du §4.5.1,
+  dont la durée de validité du cache ; le courriel de fixation du mot de passe se renvoie ; la
+  devise se lit par toute session ouverte.
+- propre à l'US (E-06) : l'historique annulable reste tenu par le serveur ; le contrat dit sa
+  session (le jeton), sa pile par révision et par utilisateur, sa fin au marquage et à l'abandon, et
+  au moins cinquante niveaux.
+- propre à l'US (I-09) : la date de terminaison d'une tâche terminée par un import est la date de la
+  revue que porte le fichier, connue dès l'analyse ; l'export du reste à engager reçoit cette date,
+  le jour par défaut ; la fusion garde le jour de son application.
+- propre à l'US (F-06) : `listNodes` se filtre sur chaque colonne des trois grilles, par les bornes
+  et les périodes de la convention du README du contrat.
+
+**Notes de réalisation.**
+- Les décisions du recadrage du 2026-10-28 sont écrites dans la conception, « Le recadrage du
+  2026-10-28 » ; pour tout majeur où la spécification est claire, la règle est de la suivre et de
+  réécrire la décision antérieure contredite.
+- K-04 (`amendment_merge` devient `structure_merge`) touche l'énumération qu'US-0640/L6b #1594
+  modifie : il se fait dans ce lot, ou après lui, selon le plan de lots.
+- Les mineurs ne sont pas de l'US, sauf ceux d'un fichier qu'un lot modifie déjà.
+
+**Hors périmètre.** Les écrans (US-0703) ; la forme des refus (US-0702) ; le service.
+
+---
+
+## US-0702 — Une seule forme pour chaque refus
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : toutes celles qui déclarent un refus d'état, un code d'`ErrorCode` ou un compteur
+  — dont `createTimeline`, `deleteTimeline`, `generatePlanningSkeleton`, `exitProject`,
+  `markRevision`, `abandonRevision`, `createRevision`, `designateReferenceRevision`,
+  `createCostStructure`, `deleteNode`, `setTaskProgress`, `setNodeTracking`,
+  `declareRiskOccurrence`, `deleteRisk`, `deleteSubproject`, `requestExport`,
+  `getBackgroundTaskResult`, `setActualCostTrackedScope`, `undoLastChange`, et les trois listes du
+  référentiel sans le 403 d'`include_inactive`
+- **issue** : #1599
+
+**En tant que** développeur, **je veux** qu'un même refus ait partout le même statut, le même code
+et ses paramètres, avec un exemple, **afin que** le service et le front n'aient qu'un chemin par
+refus, et que le gel ne fige pas un catalogue qui porte des codes que rien ne rend.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque bloquant et chaque majeur de la revue rangé sous US-0702 dans la
+  conception est soldé, comme pour US-0701.
+- propre à l'US (D-05, J-01, J-02, décision de l'auteur du 2026-10-28) : un projet terminal et une
+  révision marquée se refusent partout par 409 `STATE_FORBIDS_OPERATION` et leur
+  `missing_condition` ; `PROJECT_TERMINAL` et `REVISION_MARKED` sortent du catalogue ; les décisions
+  L42k et US-0640/L1 #803 sont réécrites.
+- propre à l'US (J-03, J-11) : chaque code d'`ErrorCode` et chaque `CommandCondition` est rendu par
+  au moins une opération, avec un exemple, ou retiré.
+- propre à l'US (E-07) : l'annulation d'une modification reprise depuis est refusée par un code qui
+  nomme l'objet en conflit ; un exemple montre que « l'annulation d'une modification qu'un autre
+  contributeur a depuis reprise est refusée en nommant l'objet en conflit » (WF-IHM-0110).
+- propre à l'US (J-07, J-10) : le 500 est déclaré, avec son `correlation_id` ; une propriété
+  inconnue de `fields` se refuse comme les autres paramètres de requête, par 422.
+- propre à l'US : les refus que la revue relève sans code, condition ni exemple ont les trois (D-03,
+  E-05, E-12 à E-14, F-03 à F-05, F-11, H-08, I-06, I-17, A-05, C-01).
+- propre à l'US (décision de l'auteur du 2026-10-28) : `abandonRevision`, `exitProject`,
+  `designateReferenceRevision`, `deleteRisk` et `deleteSubproject` exigent le `lock_version` et
+  déclarent le 412 ; le `PUT` du périmètre suivi des coûts réels reste idempotent, sans compteur,
+  et cette exception est écrite.
+
+**Notes de réalisation.** La règle de L42a — « le refus d'une commande qu'un état rend indisponible
+est `STATE_FORBIDS_OPERATION` » — devient celle de tout le contrat ; le README du contrat la dit.
+
+**Hors périmètre.** Les messages des refus aux écrans (US-0703).
+
+---
+
+## US-0703 — Les écrans adoptent le contrat aligné
+
+- **statut** : fini
+- **exigences** : aucune en propre
+- **opérations** : celles qu'US-0701 et US-0702 ajoutent ou modifient, côté front
+- **issue** : #1600
+
+**En tant que** chef de projet, manager ou administrateur, **je veux** que les écrans montrent et
+demandent ce que le contrat aligné décrit, **afin que** la maquette figée avec le contrat soit celle
+que les EPIC de domaine serviront, et que les aides des derniers lots d'US-0670 décrivent des écrans
+qui ne changeront plus.
+
+**Critères d'acceptation.**
+
+- propre à l'US : la confirmation de la sortie d'un projet qui porte une révision en cours demande
+  de la marquer, avec un nom de version, ou de l'abandonner ; une sortie qui marque suit sa tâche de
+  fond comme un marquage.
+- propre à l'US : la grille de planning présente et fait saisir la date de début de planning de la
+  structure ; le compte rendu d'un import MS Project dit son changement.
+- propre à l'US : la grille de devis présente le montant aux taux de l'année de référence et le
+  montant réestimé inflation comprise, et ne présente pas le montant budgété ; les totaux, les
+  indicateurs et la comparaison suivent le sens nouveau des montants.
+- propre à l'US : la fiche et le registre des risques disent le coût à la survenance d'un survenu ;
+  la modification d'un risque ne fait plus saisir sa probabilité, que seul le réexamen change.
+- propre à l'US : la devise s'affiche avec chaque montant, pour toute session.
+- propre à l'US : l'administration fait régler la périodicité de la lecture des comptes et renvoyer
+  le courriel de fixation du mot de passe ; l'écran d'état présente les paramètres d'exploitation,
+  dont la durée de validité du cache.
+- propre à l'US : chaque refus qu'US-0702 change de forme se dit à l'écran par son code et ses
+  paramètres, sur un exemple du contrat, et aucun test ne garde une enveloppe disparue.
+- propre à l'US (L9 #1688, G-05) : les écrans du plan de charge et de la santé du pilotage disent,
+  quand le filtre d'états contient `completed`, qu'un projet terminé y est sans effet.
+- propre à l'US : un manque du contrat que cette adoption révèle est corrigé au contrat, dans l'US.
+
+**Notes de réalisation.** Les aides d'US-0670/L4 et L5 décrivent les écrans qu'US-0703 laisse :
+elles en dépendent. Les filtres de colonnes des grilles (F-06) ne sont pas de l'US : EP-17.
+
+**Hors périmètre.** Les filtres de colonnes des trois grilles (EP-17) ; les mineurs de la revue.
+
+## US-0704 — Le contrat suit les majeurs de la revue du 2026-10-31
+
+- **statut** : fini
+- **exigences** : celles que citent les constats tranchés, nommées par chaque issue « contrat »
+- **opérations** : celles que nomment les issues « contrat » rattachées à #1735
+- **issue** : #1735
+
+**En tant qu'**auteur du contrat, **je veux** que les majeurs de la revue du contrat du 2026-10-31
+soient tranchés point par point, puis portés au contrat, à ses fixtures et à `DECISIONS.md`, **afin
+que** le gel ne fige ni un statut, ni une énumération, ni un champ exigé, ni un corps que la
+spécification 1.0.1 contredit.
+
+**Critères d'acceptation.**
+
+- propre à l'US : chaque majeur de la revue du 2026-10-31 a une décision de l'auteur, écrite dans
+  `DECISIONS.md` et portée au contrat, à ses fixtures et à ses générateurs, comme son issue
+  « contrat » le dit.
+- propre à l'US : le client engendré est régénéré, et la vérification de types et les tests du
+  front qu'il casse sont corrigés dans l'US.
+
+**Notes de réalisation.** Les décisions sont écrites d'abord, dans `DECISIONS.md` (#1799) ;
+l'implémentation suit, en un seul lot, non découpé malgré sa taille, dans une pull request dédiée
+(décisions de l'auteur du 2026-11-01). Les issues de spécification sont citées, non portées.
+
+**Hors périmètre.** La spécification (cinq issues à part) ; le service, aux EPIC de domaine ; les
+écrans, à EP-17 ; les 89 mineurs restants, après le gel.

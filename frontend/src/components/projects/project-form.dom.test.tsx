@@ -60,6 +60,7 @@ const CREATE = "POST /projects";
 const UPDATE = "PATCH /projects/{project_id}";
 const witness = example("project") as Project;
 const pricing = example("project_pricing") as Project;
+const completed = example("project_completed") as Project;
 
 /** Serve the fake back, and give it back to read its calls. */
 function serve(answers: FakeAnswers = {}, timing: FakeTiming = {}): FakeClient {
@@ -141,7 +142,12 @@ describe("the creation of a project", () => {
     expect(client.calls.map(({ route, body }) => ({ route, body }))).toEqual([
       {
         route: CREATE,
-        body: { label: "Rénovation du poste de livraison", code: null, description: null },
+        body: {
+          label: "Rénovation du poste de livraison",
+          code: null,
+          client: null,
+          description: null,
+        },
       },
     ]);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -173,6 +179,44 @@ describe("the creation of a project", () => {
       expect(router.push).not.toHaveBeenCalled();
     },
   );
+
+  it("takes the name of the client, optional, and sends it with the project [WF-PRJ-0080-A]", async () => {
+    // Le nom du client est saisissable à tout moment et n'est exigé par aucune transition.
+    const client = serve();
+    const form = await openCreation();
+    const name = within(form).getByRole("textbox", { name: "Client" });
+    expect(name).not.toHaveAttribute("aria-required");
+    expect(name).toHaveAttribute("maxlength", "300");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    await userEvent.type(name, "Papeteries de la Vienne");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    expect(client.calls[0]?.body).toEqual({
+      label: "Rénovation",
+      code: null,
+      client: "Papeteries de la Vienne",
+      description: null,
+    });
+  });
+
+  it("sends a client typed as spaces only as none [WF-PRJ-0080-A]", async () => {
+    const client = serve();
+    const form = await openCreation();
+    await userEvent.type(within(form).getByRole("textbox", { name: "Libellé" }), "Rénovation");
+    await userEvent.type(within(form).getByRole("textbox", { name: "Client" }), "   ");
+    await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
+    await vi.waitFor(() => {
+      expect(router.push).toHaveBeenCalled();
+    });
+    expect(client.calls[0]?.body).toEqual({
+      label: "Rénovation",
+      code: null,
+      client: null,
+      description: null,
+    });
+  });
 
   it("notes the project created once, with the screen of the project created", async () => {
     forgetMessages();
@@ -275,6 +319,7 @@ describe("the modification of a project", () => {
         body: {
           label: witness.label,
           code: "PRJ-001",
+          client: "Papeteries de la Vienne",
           description: "Remplacement des automates et de la supervision du poste de commande.",
           order_received_on: null,
           inflation_rate: "0.035",
@@ -292,6 +337,46 @@ describe("the modification of a project", () => {
     );
     expect(screen.getByRole("button", { name: "Modifier le projet" })).toHaveFocus();
     await expectAccessible(document.body);
+  });
+
+  it("shows the client of the project, and erases it by leaving the field empty [WF-PRJ-0080-A]", async () => {
+    // Le nom du client est saisissable à tout moment : saisi, puis effacé, il part nul.
+    const client = serve();
+    const form = await openModification();
+    const name = within(form).getByRole("textbox", { name: "Client" });
+    expect(name).toHaveValue("Papeteries de la Vienne");
+    await userEvent.clear(name);
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    expect(client.calls[0]?.body).toMatchObject({ client: null });
+  });
+
+  it("shows no client the project does not have, and enters one on a project without [WF-PRJ-0080-A]", async () => {
+    const client = serve();
+    const form = await openModification({ ...witness, client: null });
+    const name = within(form).getByRole("textbox", { name: "Client" });
+    expect(name).toHaveValue("");
+    await userEvent.type(name, "Aciéries du Nord");
+    await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
+    await vi.waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    expect(client.calls[0]?.body).toMatchObject({ client: "Aciéries du Nord" });
+  });
+
+  it("says the client on the settings, and offers no command to modify a terminal project, which lists none [WF-PRJ-0080-A]", () => {
+    // Le nom du client se saisit tant que le projet n'est pas terminal.
+    serve();
+    render(inFrench(<ProjectIdentity project={completed} />));
+    const settings = screen.getByLabelText("Paramètres du projet");
+    expect(settings).toHaveTextContent("ClientPapeteries de la Vienne");
+    expect(screen.queryByRole("button", { name: "Modifier le projet" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
+    render(inFrench(<ProjectIdentity project={{ ...witness, client: null }} />));
+    expect(screen.getByLabelText("Paramètres du projet")).toHaveTextContent("ClientNon renseigné");
   });
 
   it("refuses a date half entered before asking anything, rather than sending none", async () => {

@@ -1,0 +1,12 @@
+{
+  "summary": "Ce dont dépend la catégorie de la ligne de main-d'œuvre du devis : son rôle de ressource, dont elle tient sa catégorie ; aucune ligne (WF-IHM-0030, WF-DEV-0020).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "node_id": "01926f3a-7c00-7000-8000-000000000553",
+    "field": "estimate_line.cost_category_id",
+    "depends_on": [
+      "resource_role"
+    ],
+    "rows": []
+  }
+}

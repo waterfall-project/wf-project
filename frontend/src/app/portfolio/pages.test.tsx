@@ -6,15 +6,18 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PerimeterBarProps } from "@/components/portfolio/perimeter";
 import type { ProjectsGridProps } from "@/components/portfolio/projects-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { PageSearchParams } from "@/navigation/context";
 import {
+  behindTheContract,
   example,
   type FakeAnswers,
   type FakeClient,
   fakeClient,
   type Problem,
+  type Route,
 } from "@/test/fixtures";
 import { queryOfCall } from "@/test/queries";
 
@@ -26,18 +29,30 @@ import ProjectsPage, { generateMetadata as projectsTitle } from "./projects/page
 import RisksPage, { generateMetadata as risksTitle } from "./risks/page";
 import WorkloadPage, { generateMetadata as workloadTitle } from "./workload/page";
 
-const server = vi.hoisted((): { answers: FakeAnswers; clients: FakeClient[] } => ({
-  answers: {},
-  clients: [],
-}));
+const server = vi.hoisted(
+  (): {
+    answers: FakeAnswers;
+    clients: FakeClient[];
+    behind: { readonly route: Route; readonly problem: Problem } | undefined;
+  } => ({
+    answers: {},
+    clients: [],
+    behind: undefined,
+  }),
+);
 
 vi.mock("@/api/server", () => ({
   serverClient: () => {
     const client = fakeClient(server.answers);
     server.clients.push(client);
-    return client;
+    // A read the service, behind the contract, does not serve yet: answered what the contract no
+    // longer declares for it.
+    const behind = server.behind;
+    return behind === undefined ? client : behindTheContract(client, behind.route, behind.problem);
   },
 }));
+/** The answer of the service to the read of the nodes of organisation, until EP-05 (#1746). */
+const NODES_NOT_SERVED: Problem = { code: "NOT_FOUND", status: 404 };
 // The grid renders as it would, and keeps what its page handed it.
 const grids = vi.hoisted((): { projects: ProjectsGridProps[] } => ({ projects: [] }));
 vi.mock("@/components/portfolio/projects-grid", async (original) => {
@@ -51,6 +66,19 @@ vi.mock("@/components/portfolio/projects-grid", async (original) => {
     },
   };
 });
+// The perimeter bar renders as it would, and keeps what its page handed it.
+const bars = vi.hoisted((): { props: PerimeterBarProps[] } => ({ props: [] }));
+vi.mock("@/components/portfolio/perimeter", async (original) => {
+  const actual = await original<typeof import("@/components/portfolio/perimeter")>();
+  const { createElement } = await import("react");
+  return {
+    ...actual,
+    PerimeterBar: (props: PerimeterBarProps) => {
+      bars.props.push(props);
+      return createElement(actual.PerimeterBar, props);
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
@@ -58,7 +86,11 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 // The session of the contract, the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+const kept = vi.hoisted(
+  (): { grids: Record<string, { page_size?: number; filters?: Record<string, string> }> } => ({
+    grids: {},
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -118,7 +150,9 @@ function queryOf(route: string): Record<string, string> {
 beforeEach(() => {
   kept.grids = {};
   grids.projects = [];
+  bars.props = [];
   server.clients = [];
+  server.behind = undefined;
   server.answers = {
     "GET /me": "me",
     "GET /portfolio/projects": "volume/portfolio_projects",
@@ -190,7 +224,7 @@ describe("the screens of the portfolio", () => {
     const page = text(await render(ProjectsPage));
     expect(page).toContain("In progress and Pricing · 300 projects · calculated on 3 Jun 2026");
     expect(page).toMatch(
-      /Order book .*2,662,620,197\.64 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
+      /Order book .*2,665,431,068\.05 Gross pipeline .*317,939,400\.00 Weighted pipeline .*146,660,510\.00 Delivered .*0\.00 Conversion rate 40%/,
     );
     const [grid] = grids.projects;
     expect(grid?.projects).toHaveLength(300);
@@ -207,22 +241,24 @@ describe("the screens of the portfolio", () => {
     const markup = await render(PerformancePage, { as_of: "2026-06-03" });
     expect(queryOf("GET /portfolio/performance")).toEqual({ as_of: "2026-06-03" });
     const page = text(markup);
-    expect(page).toContain("In progress · 269 projects · calculated on 3 Jun 2026");
-    expect(page).toMatch(/Cost index 0\.94 Nominal Schedule index 0\.91 Nominal/);
-    expect(page).toMatch(/At the observed rate .*2,829,607,199\.61 .*166,987,001\.97/);
+    expect(page).toContain(
+      "In progress · 269 projects · period from 4 Jun 2025 to 3 Jun 2026 · calculated on 3 Jun 2026",
+    );
+    expect(page).toMatch(/Cost index 0\.941 Nominal Schedule index 0\.9088 Nominal/);
+    expect(page).toMatch(/At the observed rate .*2,832,594,354\.58 .*167,163,286\.53/);
     expect(page).toContain(
       "Cost index Nominal 169 Cost index Watch 47 Cost index Alert 53 Schedule index Nominal 152",
     );
     expect(page).toContain(
-      "Q3 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
+      "Q2 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date. Q3 2025 Not computable — No actual cost at the calculation date. Not computable — No planned value at the calculation date.",
     );
   });
 
-  it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost", async () => {
+  it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost, over the period of the projects completed [WF-PTF-0010-A]", async () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
-    expect(queryOf("GET /portfolio/cost-structure")).toEqual({});
+    expect(queryOf("GET /portfolio/cost-structure")).toEqual({ from: "2025-01-01" });
     expect(page).toContain("The actual cost is not broken down by nature");
-    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,464,441,108\.70 55%/);
+    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,465,987,087\.43 55%/);
     expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
   });
 
@@ -254,6 +290,61 @@ describe("the screens of the portfolio", () => {
     expect(text(markup)).toContain("Ingénieur électricien 658,654 h");
   });
 
+  it("leads an address that names none of the horizon, the threshold and the node to those the account kept, the perimeter carried over [WF-PTF-0060-A]", async () => {
+    kept.grids = {
+      portfolio_workload: {
+        filters: {
+          horizon_months: "12",
+          under_load_threshold: "0.5",
+          org_node_id: TECHNICAL_DIRECTION,
+        },
+      },
+    };
+    const refusal = await render(WorkloadPage, { states: "completed" }).catch(
+      (error: unknown) => error,
+    );
+    const { digest } = refusal as { digest: string };
+    expect(digest).toContain("NEXT_REDIRECT");
+    const target = digest.split(";")[2] ?? "";
+    expect(target.split("?")[0]).toBe("/portfolio/workload");
+    expect(Object.fromEntries(new URLSearchParams(target.split("?")[1]))).toEqual({
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+      org_node_id: TECHNICAL_DIRECTION,
+      states: "completed",
+    });
+  });
+
+  it("restores the settings the address leaves out, and keeps the one it names [WF-PTF-0060-A]", async () => {
+    kept.grids = {
+      portfolio_workload: { filters: { horizon_months: "12", under_load_threshold: "0.5" } },
+    };
+    const refusal = await render(WorkloadPage, { org_node_id: TECHNICAL_DIRECTION }).catch(
+      (error: unknown) => error,
+    );
+    const target = (refusal as { digest: string }).digest.split(";")[2] ?? "";
+    expect(Object.fromEntries(new URLSearchParams(target.split("?")[1]))).toEqual({
+      horizon_months: "12",
+      under_load_threshold: "0.5",
+      org_node_id: TECHNICAL_DIRECTION,
+    });
+  });
+
+  it("reads the address as it is when it names every setting, whatever the account kept [WF-PTF-0060-A]", async () => {
+    kept.grids = { portfolio_workload: { filters: { horizon_months: "12" } } };
+    await render(WorkloadPage, { horizon_months: "24", under_load_threshold: "0.3" });
+    expect(queryOf("GET /portfolio/workload")).toEqual({
+      horizon_months: "24",
+      under_load_threshold: "0.3",
+    });
+  });
+
+  it("asks no horizon, and restores none, for a horizon written empty, the default [WF-PTF-0060-A]", async () => {
+    kept.grids = { portfolio_workload: { filters: { horizon_months: "12" } } };
+    await render(WorkloadPage, { horizon_months: "" });
+    expect(queryOf("GET /portfolio/workload")).toEqual({});
+  });
+
   it("heads its columns with the months of the horizon, and names the node the server retained", async () => {
     server.answers = {
       ...server.answers,
@@ -278,24 +369,41 @@ describe("the screens of the portfolio", () => {
     expect(markup).toContain('<option value="36" selected="">36 months</option>');
   });
 
-  it("stands without a node to choose when the API does not find the nodes of organisation", async () => {
+  it("asks the period of the projects completed for the S-curve, whatever its horizon, and keeps the horizon when the period is refused [WF-PTF-0010-A] [WF-PTF-0100-A]", async () => {
+    await render(CostCurvePage, { states: "completed", from: "2025-01-01", horizon_months: "12" });
+    expect(queryOf("GET /portfolio/cost-curve")).toEqual({
+      states: "completed",
+      from: "2025-01-01",
+      horizon_months: "12",
+    });
     server.answers = {
       ...server.answers,
-      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
+      "GET /portfolio/cost-curve": {
+        problem: example("portfolio_period_inverted") as Problem & { status: 422 },
+      },
     };
+    const markup = await render(CostCurvePage, {
+      from: "2026-03-31",
+      to: "2026-01-01",
+      horizon_months: "12",
+    });
+    expect(text(markup)).toContain("The view is not read: the server refuses the period asked.");
+    expect(markup).toContain('<option value="12" selected="">12 months</option>');
+  });
+
+  it("stands without a node to choose where the service does not serve the nodes of organisation yet (404, EP-05)", async () => {
+    // The contract declares no 404 for the active nodes (C-01); the service, behind it, answers one.
+    server.behind = { route: "GET /reference/org-nodes", problem: NODES_NOT_SERVED };
     const markup = await render(ProjectsPage);
-    expect(text(markup)).toMatch(/Order book .*2,662,620,197\.64/);
+    expect(text(markup)).toMatch(/Order book .*2,665,431,068\.05/);
     expect(grids.projects[0]?.projects).toHaveLength(300);
     expect(markup).not.toContain("Organisation node");
   });
 
-  it("stands without a node to choose on a view that takes one, when the API does not find the nodes", async () => {
-    server.answers = {
-      ...server.answers,
-      "GET /reference/org-nodes": { problem: { code: "NOT_FOUND", status: 404 } },
-    };
+  it("stands without a node to choose on a view that takes one, where the service does not serve the nodes yet (404, EP-05)", async () => {
+    server.behind = { route: "GET /reference/org-nodes", problem: NODES_NOT_SERVED };
     const markup = await render(PerformancePage);
-    expect(text(markup)).toMatch(/Cost index 0\.94 Nominal/);
+    expect(text(markup)).toMatch(/Cost index 0\.941 Nominal/);
     expect(markup).not.toContain("Organisation node");
   });
 
@@ -306,7 +414,7 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain("Cumulative costs of the portfolio");
     expect(page).toContain("Reference budget 31 Dec 2025 210,664,042.15");
     expect(page).toContain("Actual cost 3 Jun 2026 1,285,133,439.68");
-    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,593,192.97");
+    expect(page).toContain("Project manager’s projection 30 Nov 2026 2,143,620,318.36");
     // Without the payment delays, the server details no cash-out: no second chart.
     expect(page).not.toContain("Cash-out by month");
     expect(markup).toContain(
@@ -328,7 +436,7 @@ describe("the screens of the portfolio", () => {
     const page = text(markup);
     expect(page).toContain("Cumulative cash-out of the portfolio");
     expect(page).toContain("Cash-out by month");
-    expect(page).toContain("June 2026 19,713,579.42 31,415,024.64");
+    expect(page).toContain("June 2026 19,713,579.42 31,417,246.57");
     expect(markup).toContain('href="/portfolio/cost-curve?horizon_months=24"');
     expect(page).toContain("Back to the cumulative costs");
   });
@@ -371,7 +479,12 @@ describe("the screens of the portfolio", () => {
   const NODE = { org_node_id: DESIGN_OFFICE };
   it.each([
     ["performance", PerformancePage, "GET /portfolio/performance", { ...DATE, ...PERIOD, ...NODE }],
-    ["cost structure", CostStructurePage, "GET /portfolio/cost-structure", { ...DATE, ...NODE }],
+    [
+      "cost structure",
+      CostStructurePage,
+      "GET /portfolio/cost-structure",
+      { ...DATE, ...PERIOD, ...NODE },
+    ],
     ["risks", RisksPage, "GET /portfolio/risks", { ...DATE, ...PERIOD }],
     [
       "workload",
@@ -379,7 +492,12 @@ describe("the screens of the portfolio", () => {
       "GET /portfolio/workload",
       { ...DATE, ...NODE, horizon_months: "12", under_load_threshold: "0.4" },
     ],
-    ["S-curve", CostCurvePage, "GET /portfolio/cost-curve", { ...DATE, horizon_months: "12" }],
+    [
+      "S-curve",
+      CostCurvePage,
+      "GET /portfolio/cost-curve",
+      { ...DATE, ...PERIOD, horizon_months: "12" },
+    ],
     ["health of the steering", PilotHealthPage, "GET /portfolio/pilot-health", DATE],
   ] as const)(
     "sends of the perimeter what the %s takes, and that alone",
@@ -394,6 +512,34 @@ describe("the screens of the portfolio", () => {
     expect(page).toContain(
       "Delivered and conversion rate over the period from 4 Jun 2025 to 3 Jun 2026",
     );
+  });
+});
+
+describe("the notice that a project completed has no effect", () => {
+  it.each([
+    ["the aggregated workload", WorkloadPage, "workload", ["in_progress", "pricing"]],
+    ["the project control health", PilotHealthPage, "pilotHealth", ["in_progress"]],
+  ] as const)(
+    "is asked of the perimeter of %s on the states the server retained, none said while it retains no completed project [WF-PTF-0060-A] [WF-PTF-0110-A]",
+    async (_view, page, view, states) => {
+      const markup = await render(page);
+      const [bar, ...more] = bars.props;
+      expect(more).toEqual([]);
+      expect(bar?.completedWithoutEffect).toBe(view);
+      expect(bar?.retained).toEqual(states);
+      expect(markup).not.toContain(CATALOGUES.en.portfolio.perimeter.completedWithoutEffect[view]);
+    },
+  );
+
+  it.each([
+    ["the projects", ProjectsPage],
+    ["the performance", PerformancePage],
+    ["the structure of the costs", CostStructurePage],
+    ["the risks", RisksPage],
+    ["the S-curve", CostCurvePage],
+  ])("is not asked of the perimeter of %s [WF-PTF-0010-A]", async (_view, page) => {
+    await render(page);
+    expect(bars.props.map((bar) => bar.completedWithoutEffect)).toEqual([undefined]);
   });
 });
 
@@ -417,6 +563,8 @@ describe("a period of the portfolio the server refuses", () => {
     ["the value", ProjectsPage, "GET /portfolio/value" as const],
     ["the performance", PerformancePage, "GET /portfolio/performance" as const],
     ["the risks", RisksPage, "GET /portfolio/risks" as const],
+    ["the structure of the costs", CostStructurePage, "GET /portfolio/cost-structure" as const],
+    ["the S-curve", CostCurvePage, "GET /portfolio/cost-curve" as const],
   ])(
     "says at the field of its end the period %s are refused for, the start named, the view unread and the perimeter kept",
     async (_view, page, route) => {

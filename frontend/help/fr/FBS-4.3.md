@@ -17,6 +17,7 @@ En tête de l’écran :
 
 Au-dessus de la grille :
 
+- **Date de début de planning** dit le jour où commencent les tâches automatiques sans prédécesseur, tel que le serveur le donne. **Modifier la date de début de planning**, là où la structure se saisit, demande le nouveau jour et le confirme : le serveur redate les tâches qui en dépendent, et refuse un jour sans heure travaillée au calendrier par défaut, en nommant le jour travaillé suivant.
 - **Lot ou poste** filtre la grille sur la tâche qui porte un lot ou un poste du lotissement, avec ses subordonnées et ses ancêtres. Le bandeau montre le filtre et permet de le lever.
 - **Rechercher un libellé** retient les tâches dont le libellé contient le texte saisi.
 - **Colonnes** choisit les colonnes montrées ; **Arbre** plie tout, déplie tout, ou plie jusqu’à un niveau.

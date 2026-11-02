@@ -60,9 +60,11 @@ const SUFFIXES: Readonly<Record<Locale, Readonly<Record<LagUnit, string>>>> = {
   },
 };
 
-// The rows the grid read: row 3 is the task `T3`, and so on; none for any other.
-const ROWS = new Map([
+// The rows the grid read: row 3 is the task `T3`, and so on; row 4 the server was asked, which no
+// task bears; none known yet for any other.
+const ROWS = new Map<number, string | null>([
   [3, "T3"],
+  [4, null],
   [5, "T5"],
   [12, "T12"],
 ]);
@@ -170,9 +172,16 @@ describe("the predecessors typed as Microsoft Project writes them", () => {
     expect(sent(text)).toEqual({ problem: "notPredecessors" });
   });
 
-  it("refuses a row no row read has, saying so [WF-PLA-0030-A]", () => {
+  it("refuses a row no task bears, saying so [WF-PLA-0030-A]", () => {
     expect(sent("3FD;4")).toEqual({ problem: "unknownRow" });
     expect(sent("0")).toEqual({ problem: "unknownRow" });
+  });
+
+  // aucune exigence : propre à l'US (US-0650, un numéro hors des lignes lues).
+  it("names the rows to ask the server, each once, unless a link is refused", () => {
+    expect(sent("3FD;7;9DD+1 j;7")).toEqual({ unresolved: [7, 9] });
+    expect(sent("7;4")).toEqual({ problem: "unknownRow" });
+    expect(sent("7;3XX")).toEqual({ problem: "notPredecessors" });
   });
 
   it("goes back to the text it was typed as, in the language, a plain link as its row alone [WF-PLA-0030-A]", () => {

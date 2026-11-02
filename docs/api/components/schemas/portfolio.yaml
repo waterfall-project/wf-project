@@ -1,15 +1,25 @@
 # Portefeuille (FBS-2). Aucune donnée en propre : ces vues somment ce que les
-# projets portent déjà, lisent les indicateurs conservés (WF-DAT-0040) et ne
-# permettent aucune saisie (WF-PTF-0030). Un indice de portefeuille est un rapport
-# de sommes, jamais une moyenne d'indices (WF-PTF-0020).
+# projets portent déjà et ne permettent aucune saisie (WF-PTF-0030). Au jour courant,
+# chaque projet contribue par sa révision courante — la révision en cours, ou la
+# dernière marquée quand il n'en a pas, avec le coût réel du jour (WF-IND-0010,
+# WF-PTF-0010) ; à une date passée, par les indicateurs conservés (WF-DAT-0040). Un
+# indice de portefeuille est un rapport de sommes, jamais une moyenne d'indices
+# (WF-PTF-0020).
 
 PortfolioScope:
   type: object
-  required: [states, as_of, org_node_label, project_count]
-  description: Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010).
+  required: [states, as_of, from, to, org_node_id, org_node_label, project_count]
+  description: >-
+    Périmètre effectivement retenu, renvoyé avec chaque vue (WF-PTF-0010). Au jour courant,
+    chaque projet y contribue par sa révision courante : la révision en cours, ou la dernière
+    révision marquée quand il n'en a pas — un projet dont la revue vient d'être marquée
+    contribue par elle (WF-PTF-0010, WF-IND-0010).
   properties:
     states:
       type: array
+      description: >-
+        Les états demandés (`states`), ou les projets en cours sans demande, que la vue en
+        compte ou non chacun : la même règle pour toutes les vues (WF-PTF-0010).
       items: { $ref: projects.yaml#/ProjectState }
     as_of: { $ref: ../common.yaml#/PlanningDate }
     from:
@@ -29,7 +39,20 @@ PortfolioScope:
 
 PortfolioProjectRow:
   type: object
-  required: [project_id, label, state, can_open, last_marked_at]
+  required:
+    - project_id
+    - code
+    - label
+    - state
+    - can_open
+    - reference_budget
+    - current_estimate
+    - win_probability
+    - project_manager_projection
+    - delta_to_reference
+    - cost_index
+    - schedule_index
+    - last_marked_at
   description: >-
     Ligne de la liste des projets (WF-PTF-0040). Un projet que l'appelant ne peut pas ouvrir y
     figure sous son libellé et son code, compte dans les totaux, et `can_open` est faux
@@ -86,7 +109,11 @@ PortfolioValue:
     delivered: { $ref: ../common.yaml#/Money }
     conversion_rate:
       allOf: [{ $ref: indicators.yaml#/Computable }]
-      description: À quatre décimales (README, « Une part… »).
+      description: >-
+        Les offres passées de Chiffrage à En cours sur celles passées de Chiffrage à En cours
+        ou à Perdu dans la période, qu'elles soient ou non du périmètre ; une offre abandonnée
+        ne compte pas (WF-PTF-0050). À quatre décimales (README, « Une part… ») ; non
+        calculable sans aucune, `no_offer_out_of_pricing`.
 
 PortfolioWorkload:
   type: object
@@ -132,7 +159,7 @@ PortfolioWorkload:
       type: array
       items:
         type: object
-        required: [resource_role_id, label, months]
+        required: [resource_role_id, label, capacity_monthly_hours, months]
         properties:
           resource_role_id: { $ref: ../common.yaml#/Uuid }
           label: { type: string }
@@ -143,7 +170,7 @@ PortfolioWorkload:
               Un mois par mois de `months`, dans le même ordre, un mois sans charge compris.
             items:
               type: object
-              required: [month, hours, load_ratio]
+              required: [month, hours, load_ratio, zone]
               properties:
                 month: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
                 hours: { $ref: ../common.yaml#/Hours }
@@ -151,12 +178,29 @@ PortfolioWorkload:
                   allOf: [{ $ref: indicators.yaml#/Computable }]
                   description: >-
                     La charge sur la capacité, à quatre décimales (README, « Une part… »).
-                zone: { $ref: reference.yaml#/AlertZone }
+                zone:
+                  allOf: [{ $ref: reference.yaml#/AlertZone }]
+                  description: >-
+                    La zone du mois, classée par le serveur : `alert` quand la charge dépasse
+                    la capacité, `watch` quand le taux de charge est sous
+                    `under_load_threshold`, un rôle sans charge compris, `nominal` sinon
+                    (WF-PTF-0060, WF-IHM-0070).
 
 PortfolioPerformance:
   type: object
-  required: [scope, cost_index, schedule_index, projections, zone_distribution, quarterly]
-  description: Indices agrégés, répartition par zone et évolution trimestrielle (WF-PTF-0070).
+  required:
+    - scope
+    - reference_budget
+    - cost_index
+    - schedule_index
+    - cost_variance
+    - schedule_variance
+    - projections
+    - zone_distribution
+    - quarterly
+  description: >-
+    Indices agrégés, répartition par zone et évolution trimestrielle, sur les seuls projets en
+    cours du périmètre (WF-PTF-0070).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     reference_budget: { $ref: ../common.yaml#/Money }
@@ -175,7 +219,14 @@ PortfolioPerformance:
         négatif en retard — une valeur acquise de 400 pour une valeur planifiée de 500 donne -100
         (WF-IND-0080, glossaire), sommé sur le
         périmètre.
-    projections: { $ref: indicators.yaml#/Projections }
+    projections:
+      allOf: [{ $ref: indicators.yaml#/Projections }]
+      description: >-
+        `at_budget` et `project_manager` sont les sommes des projections des projets en
+        cours ; `at_observed_rate` est le budget de référence agrégé divisé par l'indice de
+        coût agrégé, non calculable tant qu'il ne l'est pas (WF-PTF-0070, WF-PTF-0020) : deux
+        projets de budget 1 000, de valeur acquise 400 et 500 et de coût réel 500 et 500
+        donnent 2 222, non 2 250.
     zone_distribution:
       type: array
       items:
@@ -189,6 +240,12 @@ PortfolioPerformance:
           project_count: { type: integer, minimum: 0 }
     quarterly:
       type: array
+      description: >-
+        Un point par trimestre civil que la période touche (`from`, `to` ; par défaut les
+        douze mois qui finissent à la date de calcul, `scope.from` et `scope.to`), du plus
+        ancien au plus récent : chaque indice est le rapport des sommes des projets en cours
+        à cette date (WF-PTF-0020), lu au dernier jour du trimestre selon WF-PTF-0010, et à
+        la date de calcul pour le trimestre qui la contient (WF-PTF-0070).
       items:
         type: object
         required: [quarter, cost_index, schedule_index]
@@ -203,14 +260,25 @@ PortfolioCostStructure:
   description: >-
     Ventilation par nature du budget de référence et du reste à engager, et
     main-d'œuvre par nœud d'organisation. Aucune ventilation du coût réel par
-    nature (WF-PTF-0080).
+    nature (WF-PTF-0080). Les projets en cours et terminés du périmètre contribuent pour
+    tout, un projet en chiffrage inclus par son devis courant pondéré par sa probabilité de
+    gain (WF-PTF-0020, WF-PTF-0080).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     budget_by_cost_type:
       type: array
+      description: >-
+        Le budget de référence agrégé par nature, hors lignes de provision (WF-IND-0020) ; le
+        devis pondéré d'un projet en chiffrage inclus en tient lieu, hors lignes de provision
+        comme lui : une offre à 40 % dont le devis porte une ligne de provision pour risques
+        de 50 n'ajoute rien à sa nature ici (WF-PTF-0080, WF-RIS-0050).
       items: { $ref: indicators.yaml#/AmountByKey }
     remaining_by_cost_type:
       type: array
+      description: >-
+        Le reste à engager agrégé par nature, provisions comprises ; le devis pondéré d'un
+        projet en chiffrage inclus en tient lieu, provisions comprises : la même ligne de
+        provision de 50 y ajoute 20 à sa nature (WF-PTF-0080).
       items: { $ref: indicators.yaml#/AmountByKey }
     labor_by_org_node:
       type: array
@@ -220,12 +288,19 @@ PortfolioRisks:
   type: object
   required: [scope, identified_total, heaviest, matrix, coverage, period_outcome]
   description: >-
-    Risques tous projets confondus, avec la couverture des risques agrégée : chaque
-    montant est la somme de celui des projets en cours du périmètre (WF-PTF-0090,
-    WF-RIS-0050).
+    Risques tous projets confondus, avec la couverture des risques agrégée (WF-PTF-0090,
+    WF-RIS-0050). Le total, les plus lourds et la matrice comptent les risques identifiés
+    des projets du périmètre, ceux d'un projet en chiffrage inclus et leurs provisions sans
+    pondération (WF-PTF-0020, WF-PTF-0090). La réserve et la couverture sont les sommes de
+    celles des projets en cours et terminés du périmètre ; un projet en chiffrage n'y entre
+    pas, n'ayant pas de référence (WF-PTF-0090).
   properties:
     scope: { $ref: '#/PortfolioScope' }
-    identified_total: { $ref: ../common.yaml#/Money }
+    identified_total:
+      allOf: [{ $ref: ../common.yaml#/Money }]
+      description: >-
+        Le total des provisions des risques identifiés des projets du périmètre, celles d'un
+        projet en chiffrage inclus sans pondération (WF-PTF-0090, WF-PTF-0020).
     heaviest:
       type: array
       items:
@@ -247,9 +322,11 @@ PortfolioRisks:
     coverage:
       allOf: [{ $ref: risks.yaml#/RiskCoverageTotals }]
       description: >-
-        Couverture des risques agrégée : la somme des réserves de référence des projets en
-        cours, face aux sommes de leurs provisions restantes et du coût de leurs risques
-        survenus, et l'écart de couverture agrégé, différence des sommes (WF-PTF-0090,
+        Couverture des risques agrégée : la somme des réserves pour risques des projets en
+        cours et terminés du périmètre, face aux sommes de leurs provisions restantes et des
+        coûts à la survenance de leurs risques survenus, avec en regard la somme des réestimés
+        des lignes qui en sont issues, et l'écart de couverture agrégé, différence des
+        sommes ; un projet en chiffrage n'y entre pas, n'ayant pas de référence (WF-PTF-0090,
         WF-RIS-0050).
     period_outcome:
       type: object
@@ -266,7 +343,13 @@ PortfolioCostCurve:
     des projets du périmètre (WF-IND-0100) — le budget de référence, le coût réel jusqu'à
     la date de calcul, la projection du chef de projet au-delà. Demandée avec les délais de
     paiement, elle somme les décaissements des projets et `cash_out_by_month` les détaille
-    par mois (WF-PTF-0100).
+    par mois (WF-PTF-0100). Elle court sur les douze mois qui précèdent celui de la date de
+    calcul, puis sur les `horizon_months` mois à partir de lui, au pas du mois comme
+    `CurveSeries` (WF-IND-0100). Un projet en chiffrage inclus y apporte les courbes de son
+    devis courant, pondérées par sa probabilité de gain : hors lignes de provision pour le
+    budget de référence, provisions comprises pour la projection — une offre à 40 % dont le
+    devis porte 100 hors provisions et une provision de 50 apporte 40 au budget cumulé final
+    et 60 à la projection (WF-PTF-0100).
   properties:
     scope: { $ref: '#/PortfolioScope' }
     payment_delays:

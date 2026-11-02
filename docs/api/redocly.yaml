@@ -71,6 +71,15 @@ rules:
     assertions:
       required: ['503']
     message: 'Une opération gardée par le jeton `bearer` déclare `503`.'
+  # Toute opération peut rencontrer une erreur inattendue, que le service rend en 500
+  # `INTERNAL_ERROR` avec son identifiant de corrélation (WF-OBS-0020) : elle le déclare, par la
+  # réponse partagée `InternalError`, pour que le client engendré lise ce refus typé (J-07).
+  rule/operation-declares-500:
+    subject:
+      type: Responses
+    assertions:
+      required: ['500']
+    message: 'Toute opération déclare `500` (`InternalError`).'
   # Une opération qui reçoit un corps déclare le 400 d'un corps illisible et le 422 d'un champ
   # manquant ou refusé : le service les rend pour toute opération à corps (#748).
   rule/operation-with-body-declares-400-and-422:

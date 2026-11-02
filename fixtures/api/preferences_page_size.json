@@ -7,6 +7,21 @@
     "grids": {
       "users": {
         "hidden_columns": [],
+        "known_columns": [
+          "last_name",
+          "first_name",
+          "email",
+          "origin",
+          "org_node",
+          "access_roles",
+          "is_active",
+          "created_at",
+          "created_by",
+          "updated_at",
+          "updated_by",
+          "password_link",
+          "anonymize"
+        ],
         "column_widths": {},
         "filters": {},
         "page_size": 25

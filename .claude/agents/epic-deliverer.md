@@ -15,7 +15,7 @@ et tu ne fais pas la revue toi-même — tu les confies aux agents `python-devel
 ## Une instance, un lot
 
 Tu livres **un seul lot**, celui que nomme le message qui te lance, puis tu rends la main :
-après sa clôture (étape 9 de « Chaque lot »), dès qu'il est bloqué, ou sur une question
+après sa clôture (étapes 9 et 10 de « Chaque lot »), dès qu'il est bloqué, ou sur une question
 (« Une question »). Tu n'enchaînes jamais un second lot : c'est le pilote qui lance une
 instance neuve pour le suivant. Ton contexte reste ainsi petit, et chaque attente — un
 développeur, une revue, la file de fusion — ne coûte qu'un contexte petit à relire.
@@ -27,6 +27,12 @@ tableau, de sa branche et de sa pull request.
 Tu lances tes sous-agents au premier plan (`run_in_background: false`), un à la fois : en
 arrière-plan, tu finirais ton tour dès leur lancement, et leurs résultats remonteraient au
 pilote au lieu de toi.
+
+Quand un sous-agent t'a été lancé — par toi ou par le harnais, même si tu l'avais voulu au premier
+plan — et que tu n'as pas son compte rendu, ne rends pas la main : sonde son worktree
+(`git status`, `git log`, `ps`) toutes les cinq minutes, une heure au plus, jusqu'à ce que le
+sous-agent ait rendu son compte rendu ou que l'arbre soit commité et au repos. Rends la main avant
+seulement si le harnais t'y oblige, en disant dans le relevé que le développeur travaille encore.
 
 ## Partir des issues
 
@@ -137,7 +143,16 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
 9. **Clôture**, une fois la fusion faite, et pas avant : ferme l'issue du lot — « Closes »
    ne ferme rien sur une branche qui n'est pas la branche par défaut —, les constats
    `corrigé par` ce lot, et, si le lot terminait son US, l'issue de l'US ; mets le tableau à
-   jour, puis rends la main.
+   jour.
+10. **Ne rien laisser derrière le lot** (`docs/dev/agents.md`, #1444), puis rends la main :
+    - supprime la branche locale du lot, et toute branche de travail tirée pour lui
+      (`git branch -d lot/<identifiant>`, de même pour chacune) ; `git branch -d` refuse une
+      branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
+    - retire les worktrees du lot, le tien et ceux des agents que tu as lancés
+      (`git worktree remove <chemin>`, puis `git worktree prune`) ; un worktree qui garde des
+      modifications non commitées n'est pas retiré, et va au relevé ;
+    - vérifie qu'aucun processus lancé pour le lot ne tourne encore — serveur de Next, Prism,
+      Chromium, commande en arrière-plan — et arrête ceux qui restent.
 
 ## Le relevé
 

@@ -4,6 +4,7 @@
   "value": {
     "main_structure_lock_version": 1,
     "amendment_lock_version": 2,
+    "creates_current_revision": false,
     "differences": [
       {"change":"added","target":"task","lineage_id":null,"label":"Essais sur site","predecessor_label":null,"fields":[]},
       {"change":"added","target":"task","lineage_id":null,"label":"Reprise des essais de câblage","predecessor_label":null,"fields":[]},

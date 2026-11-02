@@ -31,6 +31,7 @@
             examples:
               ok: { $ref: ../../../fixtures/api/liveness.json }
               maintenance: { $ref: ../../../fixtures/api/liveness_maintenance.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /installation:
@@ -54,6 +55,7 @@
             examples:
               witness: { $ref: ../../../fixtures/api/installation.json }
               english: { $ref: ../../../fixtures/api/installation_english.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /health/ready:
@@ -78,6 +80,9 @@
                 components:
                   type: array
                   items: { $ref: ../components/schemas/platform.yaml#/ComponentHealth }
+            examples:
+              witness: { $ref: ../../../fixtures/api/readiness.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /metrics:
@@ -88,14 +93,26 @@
     summary: Métriques au format Prometheus
     description: >-
       Métriques de requêtes, de tâches de fond et de composants de données, collectées
-      par Prometheus et reprises par l'écran d'état (WF-OBS-0010, WF-ADM-0130).
+      par Prometheus et reprises par l'écran d'état (WF-OBS-0010, WF-ADM-0130) ; la
+      disponibilité de chaque composant de données et du fournisseur d'identité y est sondée à
+      chaque collecte. Servi en HTTP, sur le réseau interne au cluster seulement (TFX-09,
+      WF-SEC-0010) : l'entrée publique ne le route pas et répond 404. `security` est vide parce
+      que Prometheus ne porte pas de jeton ; le point n'expose ni donnée de projet, ni identité,
+      ni secret.
     responses:
       '200':
         description: Exposition Prometheus.
         content:
           text/plain:
             schema: { type: string }
-      '404': { $ref: ../components/responses.yaml#/NotFound }
+      '404':
+        description: >-
+          Demandé par l'entrée publique, que le point de métriques n'emprunte pas (WF-SEC-0010) :
+          `NOT_FOUND`, sans paramètre.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
 
 /system/status:
   get:
@@ -103,10 +120,12 @@
     tags: [system]
     summary: Écran d'état du système
     description: >-
-      Disponibilité de chaque composant, espace de stockage, version installée,
-      dernières synchronisation, sauvegarde et test de restauration, et alertes en
-      cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030,
-      WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130).
+      Disponibilité de chaque composant et sa version, espace de stockage, version installée,
+      valeurs en vigueur des paramètres d'exploitation — dont la durée de validité du cache
+      (§4.5.1) —, dernières lecture des comptes, sauvegarde et test de restauration, et alertes
+      en cours, dont l'échec d'une sauvegarde planifiée ou de sa copie externe (WF-OBS-0030,
+      WF-ADM-0170). Accessible sans qu'aucun projet ne soit ouvert (WF-ADM-0130). Lisible sous
+      la permission de consulter l'état du système (`system_status.read`, WF-ADM-0100).
     responses:
       '200':
         description: État courant.
@@ -120,6 +139,7 @@
               copy_failed: { $ref: ../../../fixtures/api/system_status_copy_failed.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks:
@@ -168,7 +188,17 @@
               none: { $ref: ../../../fixtures/api/tasks_none.json }
               running: { $ref: ../../../fixtures/api/tasks_running.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
-      '422': { $ref: ../components/responses.yaml#/UnprocessableEntity }
+      '422':
+        description: >-
+          Un filtre refusé, `VALIDATION_FAILED`, `fields` désignant chaque paramètre en défaut :
+          un statut hors de `BackgroundTaskStatus`, `/query/status` par le motif
+          `VALIDATION_FAILED` ; une date mal formée, `/query/finished_since` par `DATE_INVALID`.
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              status_invalid: { $ref: ../../../fixtures/api/tasks_status_invalid.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}:
@@ -195,15 +225,25 @@
               restore_backup_newer_version: { $ref: ../../../fixtures/api/task_restore_backup_newer_version.json }
               interrupted_by_restore: { $ref: ../../../fixtures/api/task_interrupted_by_restore.json }
               import_succeeded: { $ref: ../../../fixtures/api/task_import_succeeded.json }
+              import_analysis_failed: { $ref: ../../../fixtures/api/task_import_analysis_failed.json }
               relaunched: { $ref: ../../../fixtures/api/task_mark_relaunched.json }
               export_succeeded: { $ref: ../../../fixtures/api/task_export_succeeded.json }
               restore_verification_failed: { $ref: ../../../fixtures/api/task_restore_verification_failed.json }
               merge_outside_work_package: { $ref: ../../../fixtures/api/task_merge_outside_work_package.json }
+              merge_link_cycle: { $ref: ../../../fixtures/api/task_merge_link_cycle.json }
+              merge_link_forbidden: { $ref: ../../../fixtures/api/task_merge_link_forbidden.json }
+              merge_horizon_exceeded: { $ref: ../../../fixtures/api/task_merge_horizon_exceeded.json }
               merge_running: { $ref: ../../../fixtures/api/task_merge_running.json }
               merge_succeeded: { $ref: ../../../fixtures/api/task_merge_succeeded.json }
+              exit_mark_running: { $ref: ../../../fixtures/api/task_exit_mark_running.json }
+              exit_mark_succeeded: { $ref: ../../../fixtures/api/task_exit_mark_succeeded.json }
+              exit_mark_failed: { $ref: ../../../fixtures/api/task_exit_mark_failed.json }
+              exit_mark_relaunched: { $ref: ../../../fixtures/api/task_exit_mark_relaunched.json }
+              exit_mark_relaunched_succeeded: { $ref: ../../../fixtures/api/task_exit_mark_relaunched_succeeded.json }
               identity_sync_succeeded: { $ref: ../../../fixtures/api/identity_sync_succeeded.json }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }
 
 /tasks/{task_id}/result:
@@ -213,14 +253,19 @@
     summary: Résultat d'une tâche de fond
     description: >-
       Télécharge le fichier qu'une tâche a produit — export MS Project, Excel ou image
-      d'arborescence. Le fichier est engendré à la demande et n'est pas stocké
-      (WF-DAT-0120).
+      d'arborescence. Le worker l'a déposé sur le stockage objet, où il attend son
+      téléchargement : il est supprimé à l'issue de son premier téléchargement complet, ou au
+      terme de vingt-quatre heures s'il n'a pas été téléchargé ; un téléchargement interrompu le
+      laisse en place, et se reprend (WF-DAT-0120, WF-ARC-0040). Un résultat supprimé — déjà
+      téléchargé jusqu'au bout, ou expiré — est un 404, et la tâche rend alors `result_url` nul ;
+      de même une tâche qui ne produit pas de fichier, comme un marquage. Une tâche qui n'a pas
+      abouti n'a pas encore de résultat : 409 (WF-ARC-0090).
     parameters:
       - $ref: ../components/parameters.yaml#/TaskId
     responses:
       '200':
         description: >-
-          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportRequest.kind`) :
+          Le fichier, en pièce jointe nommée, de la nature de l'export (`ExportKind`) :
           un devis ou un reste à engager en classeur Excel
           (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `.xlsx`), un
           planning MS Project en XML (`application/xml`, `.xml`), l'image de l'arborescence en
@@ -245,5 +290,15 @@
             schema: { type: string, format: binary }
       '401': { $ref: ../components/responses.yaml#/Unauthorized }
       '404': { $ref: ../components/responses.yaml#/NotFound }
-      '409': { $ref: ../components/responses.yaml#/Conflict }
+      '409':
+        description: >-
+          La tâche n'a pas abouti — en file, en cours ou en échec (`BackgroundTaskRef.status`) :
+          `STATE_FORBIDS_OPERATION`, `params.missing_condition` à `task_succeeded` (WF-ARC-0090 ;
+          A-05, US-0702/L2).
+        content:
+          application/problem+json:
+            schema: { $ref: ../components/common.yaml#/Problem }
+            examples:
+              not_succeeded: { $ref: ../../../fixtures/api/task_result_not_succeeded.json }
+      '500': { $ref: ../components/responses.yaml#/InternalError }
       '503': { $ref: ../components/responses.yaml#/ServiceUnavailable }

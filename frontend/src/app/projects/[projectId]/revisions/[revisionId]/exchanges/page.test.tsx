@@ -143,6 +143,38 @@ describe("the screen of the imports and exports", () => {
     expect(text(await exchangesAt())).toContain("Import an estimate");
   });
 
+  it("says on the import of actual costs unavailable the columns without a label, with the way to the correspondence, to a session that reads the cost settings [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+      "GET /reference/actual-cost-mapping": "actual_cost_mapping_empty",
+    };
+    const markup = await exchangesAt();
+    expect(text(markup)).toContain(
+      "Required columns without a label in the mapping: WBS element, Document no., Document date, Amount. Set the mapping of the extraction",
+    );
+    expect(links(markup)).toContain("/reference/costs/actual-cost-mapping");
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([
+      "/reference/actual-cost-mapping?",
+    ]);
+  });
+
+  it("reads and links no correspondence for a session that may not read the cost settings, the condition alone being said [WF-REF-0190-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /me": "me_auditor",
+      "GET /projects/{project_id}": "project_actual_cost_mapping_incomplete",
+    };
+    const markup = await exchangesAt();
+    expect(links(markup)).not.toContain("/reference/costs/actual-cost-mapping");
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([]);
+  });
+
+  it("reads no correspondence while the import of actual costs is available [WF-REF-0190-A]", async () => {
+    await exchangesAt();
+    expect(calls("GET /reference/actual-cost-mapping")).toEqual([]);
+  });
+
   it("is not found for a session that neither reads the planning nor is listed an import (#521)", async () => {
     // A session of no role, and the project as one who may exercise none of its commands reads
     // it: no import listed. The pair is wanted: the universe has no realistic reader who neither
@@ -223,7 +255,7 @@ describe("the screen of the imports and exports", () => {
     );
     expect(text(page)).toContain("5 lines read.");
     expect(text(page)).toContain(
-      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
+      "2 lines rejected Tab Line Reason Hors lot 3 Unknown task. Value read in the file: “Essais de compatibilité électromagnétique”. Hors lot 5 Unknown resource role. Value read in the file: “Soudeur (SOUD)”.",
     );
     expect(text(page)).toContain(
       "3 differences with the existing data Change Object Label Fields Added Estimate line Essais de continuité Updated Estimate line Assistance à la reprise des essais Hours Removed Estimate line Câblage sur site",
@@ -246,10 +278,10 @@ describe("the screen of the imports and exports", () => {
     const french = text(await exchangesAt({ import: IMPORT }, "fr"));
     const english = text(await exchangesAt({ import: IMPORT }, "en"));
     expect(french).toContain(
-      "2 lignes rejetées Ligne Motif 3 Tâche inconnue. 5 Rôle de ressource inconnu.",
+      "2 lignes rejetées Onglet Ligne Motif Hors lot 3 Tâche inconnue. Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ». Hors lot 5 Rôle de ressource inconnu. Valeur lue dans le fichier : « Soudeur (SOUD) ».",
     );
     expect(english).toContain(
-      "2 lines rejected Line Reason 3 Unknown task. 5 Unknown resource role.",
+      "2 lines rejected Tab Line Reason Hors lot 3 Unknown task. Value read in the file: “Essais de compatibilité électromagnétique”. Hors lot 5 Unknown resource role. Value read in the file: “Soudeur (SOUD)”.",
     );
   });
 
@@ -274,7 +306,7 @@ describe("the screen of the imports and exports", () => {
     // charged anew on its sub-project; an invoice whose amount changed in the ERP.
     const english = text(await exchangesAt({ import: IMPORT }));
     expect(english).toContain(
-      "2 differences with the existing data Change Object Label Fields Updated Actual cost line AV-2026-0388 Subproject Updated Actual cost line FA-2026-0412 Amount",
+      "2 differences with the existing data Change Object Label Fields Updated Actual cost line AV-2026-0388 Subproject Updated Actual cost line FA-2026-0412, item 10 Amount",
     );
     server.answers = {
       ...server.answers,

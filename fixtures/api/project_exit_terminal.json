@@ -1,0 +1,10 @@
+{
+  "summary": "L'abandon demandé du projet témoin, « Modernisation du poste de commande », terminé aujourd'hui (project_completed) : aucune transition ne part d'un état terminal, et le projet n'en liste plus aucune ; refusé par la condition qui manque, project_not_terminal ; rien n'est écrit (WF-CYC-0080, WF-CYC-0100, WF-IHM-0090).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {"missing_condition":"project_not_terminal"},
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001638"
+  }
+}

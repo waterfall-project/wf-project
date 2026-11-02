@@ -6,7 +6,9 @@
  * permission of modification of the screen's function (WF-ADM-0100) — the page hands over only what
  * that session may write: the risk matrix, its six bounds and its sixteen zones (FBS-3.3,
  * WF-REF-0160), under `risk_settings.write`; the thresholds of the indices and the delay between two
- * reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`. Each form sends the
+ * reviews (FBS-3.4, WF-REF-0170, WF-REF-0180), under `indicator_settings.write`; the name of the
+ * company, which the exported files bear (WF-EXP-0020), under `cost_settings.write`, beside the
+ * currency. Each form sends the
  * part of its screen alone with the version read (`updateReferenceSettings`), never a field of the
  * other screen; neither the currency, which is not modified (WF-REF-0140), nor the default language
  * of the installation, which is EP-03's, is offered.
@@ -36,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
-import { type Draft, type FormField, ReferenceForm, WritingNote } from "./reference-form";
+import { type Draft, type FormField, ReferenceForm, required, WritingNote } from "./reference-form";
 import {
   DurationUnitFigures,
   IndexThresholdTable,
@@ -289,6 +291,34 @@ function IndicatorForm({ settings, ...handlers }: SettingsFormProps) {
   );
 }
 
+/** The field of the name of the company, and the longest name the contract takes. */
+const COMPANY = "company_name";
+const COMPANY_LENGTH = 200;
+
+/** The form of the name of the company, a single required text. */
+function CompanyForm({ settings, ...handlers }: SettingsFormProps) {
+  const t = useTranslations("reference.companyForm");
+  const ask = (values: Draft) =>
+    updateReferenceSettings({
+      company_name: values[COMPANY] ?? "",
+      lock_version: settings.lock_version,
+    });
+  return (
+    <ReferenceForm<ReferenceSettings>
+      kind="settings"
+      title={t("modify")}
+      hint={t("hint")}
+      creating={false}
+      fields={[required(COMPANY, t("name"), COMPANY_LENGTH)]}
+      initial={{ [COMPANY]: settings.company_name }}
+      ask={ask}
+      target="update company_name"
+      answering={(answer) => answer}
+      {...handlers}
+    />
+  );
+}
+
 /** The three constants of the units of duration, by the name of each in the contract. */
 const UNITS = [
   ["hoursPerDay", "hours_per_day"],
@@ -476,5 +506,29 @@ export function DurationUnitSettings({ units }: { readonly units: DurationUnits 
     >
       {(shown) => <DurationUnitFigures units={shown} />}
     </SettingsWriter>
+  );
+}
+
+/**
+ * The name of the company beside the currency, and its form, for a session that may modify the cost
+ * settings (WF-EXP-0020).
+ */
+export function CompanySettings({ settings }: { readonly settings: ReferenceSettings }) {
+  const t = useTranslations("reference.companyForm");
+  return (
+    <SettingsWriter settings={settings} command={t("modify")} saved={t("saved")} form={CompanyForm}>
+      {(shown) => <CompanyName name={shown.company_name} />}
+    </SettingsWriter>
+  );
+}
+
+/** The name of the company, read: what a session that may not modify it sees. */
+export function CompanyName({ name }: { readonly name: string }) {
+  const t = useTranslations("reference.companyForm");
+  return (
+    <dl className="text-sm">
+      <dt className="inline text-muted-foreground">{t("name")}</dt>{" "}
+      <dd className="inline font-semibold">{name}</dd>
+    </dl>
   );
 }

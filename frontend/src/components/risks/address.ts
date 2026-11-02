@@ -10,13 +10,21 @@
  * Pure, and neither server nor client: the page reads, the screen writes.
  */
 import type { components } from "@/api/generated/schema";
+import { CONTRACT_ADDRESS, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
+import type { PagedList } from "@/navigation/pages";
 
 /** The state of a risk, as the contract names it. */
 export type RiskState = components["schemas"]["RiskState"];
 
 /** The parameter of the address the states filtered on go by, as the contract names it. */
 export const STATES = "states";
+
+/**
+ * The list of the risks: its search, its sort, its page and the size of its pages, and the states
+ * it filters on (`readingOf` tells two addresses that read it alike).
+ */
+export const RISKS_LIST: PagedList = pagedList(CONTRACT_ADDRESS, STATES);
 
 /** The parameter of the address that names the risk whose detail shows. */
 export const RISK = "risk";

@@ -30,7 +30,10 @@ import {
   type FakeTiming,
   fakeClient,
 } from "./fixtures";
+import { SHOWN } from "./grid-preferences";
 import { estimateReference } from "./reference";
+
+export { SHOWN };
 
 /** What the mocks of `@/api/server` and `next/navigation` of a test file read. */
 export const server: { client: ApiClient | undefined } = { client: undefined };
@@ -59,10 +62,14 @@ export const STEERING = "01926f3a-7c00-7000-8000-000000001000";
 export const CUSTOMER = "01926f3a-7c00-7000-8000-000000001001";
 export const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
 export const TESTS = "01926f3a-7c00-7000-8000-000000000802";
-export const SHOWN = { hidden_columns: [] };
 
 export const planning = example("nodes_planning") as NodeList;
 export const estimate = example("nodes_estimate") as NodeList;
+/**
+ * The installation on site, whose lines, of tasks not started, name their sub-project among the
+ * fields they accept: those of the estimate, under tasks completed or started, no longer do (F-01).
+ */
+export const installation = example("nodes_installation") as NodeList;
 export const timelines: readonly ChoiceOption[] = (example("timelines") as Timeline[]).map(
   (each) => ({
     id: each.timeline_id,
@@ -86,26 +93,28 @@ export const AVAILABLE: CommandOffer = { is_available: true, missing_conditions:
 export const [STUDIES, DETAIL, , REVIEW, MILESTONE] = [0, 1, 2, 3, 4];
 export const LABOUR = indexOf(estimate, "Raccordement des borniers");
 export const PROVISION = indexOf(estimate, "Provision — risque de reprise du câblage");
-export const REMINDER = indexOf(estimate, "Frais de relance");
-export const FREIGHT = indexOf(estimate, "Affrètement");
-export const THREE = [LABOUR, indexOf(estimate, "Borniers"), REMINDER] as const;
+export const WIRING = indexOf(installation, "Câblage sur site");
+export const COMMISSIONING = indexOf(installation, "Mise en service sur site");
+export const THREE = [
+  WIRING,
+  indexOf(installation, "Assistance aux essais de câblage"),
+  COMMISSIONING,
+] as const;
 
 /**
- * The estimate with three lines that name their sub-project (a variant, never served as an answer):
- * the labour and the terminals, which are made to name it, and the reminder, which names it already;
- * the first two bear « Poste de commande », the third none.
+ * The installation on site with three lines that name their sub-project (a variant of
+ * `nodes_installation`, never served as an answer), the task of the commissioning between the
+ * second and the third: the first two bear « Poste de commande », as they are read; the third, made
+ * to bear none.
  */
 export function threeLines(): NodeList {
-  const read = structuredClone(estimate);
-  // The provision is a computed line: it never names its sub-project, and the selection leaves it aside.
-  for (const index of [THREE[0], THREE[1]]) {
-    read.items[index]?.editable_fields.push("estimate_line.subproject_id");
-  }
+  const read = structuredClone(installation);
   const third = read.items[THREE[2]]?.estimate_line;
   if (third === undefined || third === null) {
     throw new Error("the example holds no such line");
   }
   third.subproject_id = null;
+  third.subproject_label = null;
   return read;
 }
 
@@ -151,9 +160,9 @@ export function planningGrid(
   );
 }
 
-/** The grid of the estimate, entered or not. */
+/** The grid of the estimate, entered or not: the installation on site, unless another is given. */
 export function estimateGrid(
-  nodes: NodeList = estimate,
+  nodes: NodeList = installation,
   editable = true,
   preferences: GridPreferences | null = SHOWN,
 ) {
@@ -172,11 +181,11 @@ export function estimateGrid(
   );
 }
 
-/** The grid of the remaining to commit, its sub-projects given or not. */
+/** The grid of the remaining to commit on the installation on site, its sub-projects given or not. */
 export function remainingGrid(offered: readonly ChoiceOption[] | null = subprojects) {
   return intl(
     <RemainingGrid
-      nodes={estimate}
+      nodes={installation}
       structure={STRUCTURE}
       structureVersion={1}
       filters={{ progress: ["started"] }}

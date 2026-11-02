@@ -28,9 +28,9 @@ export function estimatedRevision(
 }
 
 /**
- * Whether a deletion lacks, `project_not_terminal` aside, the passing of the estimate lines that bear
- * its sub-project alone — which the estimate lifts. A citation by a marked revision or actual costs,
- * which no line passed lifts, lead nowhere.
+ * Whether a deletion lacks the passing of the estimate lines that bear its sub-project alone —
+ * which the estimate lifts. A citation by a marked revision or actual costs, which no line passed
+ * lifts, lead nowhere.
  */
 export function leadsToEstimate(missing: readonly CommandCondition[]): boolean {
   const lifted = missing.filter((condition) => condition !== "project_not_terminal");

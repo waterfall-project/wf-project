@@ -9,6 +9,8 @@
     "probability": "0.2",
     "severity": "0.00",
     "provision_amount": "0.00",
+    "occurrence_cost": null,
+    "occurred_reestimated_amount": null,
     "state": "identified",
     "structure_id": "01926f3a-7c00-7000-8000-000000000208",
     "provision_node_id": "01926f3a-7c00-7000-8000-000000000585",

@@ -150,12 +150,13 @@ export function EndLog({ log }: { readonly log: readonly EndLine[] }) {
   );
 }
 
-/** How far a running task has gone, when the API says it; a bar without a value otherwise. */
+/** How far a running task has gone, as the API says it. */
 function Progress({
   name,
   progress,
 }: {
   readonly name: string;
+  /** None while the progress is not known yet: a bar without a value. */
   readonly progress: number | undefined;
 }) {
   const t = useTranslations("tasks");
@@ -169,9 +170,7 @@ function Progress({
         aria-valuenow={progress}
         className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
       >
-        {progress === undefined ? null : (
-          <div className="h-full bg-primary" style={{ width: `${String(progress)}%` }} />
-        )}
+        <div className="h-full bg-primary" style={{ width: `${String(progress ?? 0)}%` }} />
       </div>
       {progress === undefined ? null : <span>{t("progress", { progress })}</span>}
     </div>
@@ -414,7 +413,12 @@ export function TaskEntry({
           <X aria-hidden />
         </Button>
       </div>
-      {isPolled(entry) ? <Progress name={name} progress={task.progress} /> : null}
+      {isPolled(entry) ? (
+        <Progress
+          name={name}
+          progress={entry.progressUnknown === true ? undefined : task.progress}
+        />
+      ) : null}
       {interrupted === undefined ? null : <Interruption refusal={interrupted} />}
       {task.status === "succeeded" ? <ReloadScreen onShown={onScreenShown} /> : null}
       {givesFile(task) ? <DownloadResult entry={entry} name={name} dispatch={dispatch} /> : null}

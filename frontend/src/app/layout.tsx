@@ -17,6 +17,8 @@ import { listRunningTasks } from "@/api/actions/tasks";
 import type { BackgroundTask } from "@/api/problem";
 import { Shell, type ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE, sidebarOpen } from "@/components/ui/sidebar-state";
+import { CurrencyProvider } from "@/currency/context";
+import { requestCurrency } from "@/currency/request";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { requestLanguage } from "@/i18n/request";
 import { LAST_CONTEXT_COOKIE, rememberedAddress } from "@/navigation/context";
@@ -62,28 +64,35 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // mode, and whose permissions the navigation offers; the language is the request's, read
   // once, whatever else asks for it. The tasks of the user are asked once the session is known
   // to be open: none for a request without one, and the document goes without waiting for them.
-  const [state, { locale, preference }, jar] = await Promise.all([
+  // The currency every amount of the page carries is read for an open session only, once, as
+  // soon as the session is known and while the language and the cookies are read.
+  const [state, { locale, preference }, jar, currency] = await Promise.all([
     requestSessionState(),
     requestLanguage(),
     cookies(),
+    requestSessionState().then((opened) =>
+      opened.kind === "open" ? requestCurrency() : undefined,
+    ),
   ]);
   const account = state.kind === "open" ? state.account : undefined;
   const theme = themePreference(account);
   return (
     <html lang={locale} data-theme={forcedTheme(theme)} className={GeistSans.variable}>
       <body>
-        <Shell
-          locale={locale}
-          account={account}
-          preference={preference}
-          theme={theme}
-          permissions={offered(state)}
-          remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
-          sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
-          running={account === undefined ? undefined : running()}
-        >
-          {children}
-        </Shell>
+        <CurrencyProvider currency={currency}>
+          <Shell
+            locale={locale}
+            account={account}
+            preference={preference}
+            theme={theme}
+            permissions={offered(state)}
+            remembered={rememberedAddress(jar.get(LAST_CONTEXT_COOKIE)?.value)}
+            sidebarOpen={sidebarOpen(jar.get(SIDEBAR_COOKIE)?.value)}
+            running={account === undefined ? undefined : running()}
+          >
+            {children}
+          </Shell>
+        </CurrencyProvider>
       </body>
     </html>
   );

@@ -1,0 +1,14 @@
+{
+  "summary": "Les tâches de l'appelant demandées avec un statut que les tâches de fond n'ont pas, « done » : refusé, le paramètre désigné ; rien n'est lu (WF-ARC-0090).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/query/status",
+        "code": "VALIDATION_FAILED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001599"
+  }
+}

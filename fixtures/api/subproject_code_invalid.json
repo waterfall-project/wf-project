@@ -1,0 +1,19 @@
+{
+  "summary": "Un sous-projet créé, ou les essais et mise en service recodés, sous SP/01, un code que l'ERP pourrait donner mais qu'aucun onglet du fichier de reste à engager ne peut porter : refusé, le code désigné par son motif, la barre oblique qu'il porte nommée, que le formulaire dit au champ ; rien n'est écrit (WF-PRJ-0050).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/code",
+        "code": "SUBPROJECT_CODE_INVALID",
+        "params": {
+          "forbidden_characters": [
+            "/"
+          ]
+        }
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001544"
+  }
+}

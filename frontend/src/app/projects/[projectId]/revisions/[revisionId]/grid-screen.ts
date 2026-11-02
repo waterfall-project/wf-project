@@ -51,6 +51,11 @@ import {
   type StructurePath,
   type TaskField,
 } from "@/components/grid/nodes";
+import {
+  differenceQuery,
+  type DifferenceValue,
+  readDifferenceFilter,
+} from "@/components/grid/difference-filter";
 import { type BreakdownItem, breakdownItems } from "@/components/grid/planning-attachment";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
@@ -123,6 +128,13 @@ export interface GridReading<N extends NodeField, T extends TaskField, L extends
    */
   readonly byBreakdown?: boolean;
   /**
+   * Whether the grid offers « Écarts seulement » (`difference`, US-0700) — the planning and the
+   * estimate —, which the address names and the server applies, on a differential alone: the main
+   * structure and the own estimate of a risk bear no difference, and read as if the address said
+   * nothing of it. Not offered, when none is given.
+   */
+  readonly byDifference?: boolean;
+  /**
    * Whether the screen cannot do without the work breakdown, as the reading context says — the
    * planning, where the attachment of a task is entered (WF-PLA-0170) —: a refusal of it then
    * fails the screen, as any read it needs. Never, when none is given. It is judged on the reading
@@ -157,6 +169,8 @@ export interface GridScreen<Row> {
   readonly structure: StructurePath;
   /** The version of the structure read, which every write of the grid goes on from (#201, #819.7). */
   readonly structureVersion: number;
+  /** The planning start date of the structure read (`CostStructure.planning_start_on`). */
+  readonly planningStart: string;
   /**
    * The structure read and those of the revision, which the banner names and offers; none for a
    * grid that reads the main structure alone (`GridReading.chooses`).
@@ -198,6 +212,11 @@ export interface GridScreen<Row> {
    * was read or not: the banner shows it active all the same.
    */
   readonly breakdownFilter: BreakdownFilter | undefined;
+  /**
+   * The differences the reading retains, as the address names them, on a differential of a grid
+   * that offers the filter (`GridReading.byDifference`); none otherwise.
+   */
+  readonly difference: readonly DifferenceValue[] | undefined;
 }
 
 /** A structure of a revision, as `listCostStructures` lists it. */
@@ -246,7 +265,14 @@ function readStructure(
  */
 async function readStructureNodes<N extends NodeField, T extends TaskField, L extends LineField>(
   at: GridAddress,
-  { kinds, fields, progress, narrowed, chooses = false }: GridReading<N, T, L>,
+  {
+    kinds,
+    fields,
+    progress,
+    narrowed,
+    chooses = false,
+    byDifference = false,
+  }: GridReading<N, T, L>,
   breakdown: BreakdownFilter | undefined,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
@@ -262,6 +288,9 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
   const { sort, search } = await asked;
   const subproject = context.parameters.get("subproject_id");
   const structure = { ...path, structure_id: read.structure_id };
+  // Read on a differential alone, where each node bears a difference.
+  const difference =
+    byDifference && read.kind === "amendment" ? readDifferenceFilter(at.address) : undefined;
   const filters: NodeFilters = {
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
     ...(search === undefined ? {} : { search }),
@@ -269,6 +298,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     ...(progress === undefined ? {} : { progress }),
     ...narrowed,
     ...breakdownQuery(breakdown),
+    ...differenceQuery(difference),
   };
   const answer = await readOrFail("listNodes", () =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
@@ -287,6 +317,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     kind: read.kind,
     structure,
     structureVersion: read.lock_version,
+    planningStart: read.planning_start_on,
     structures: chooses
       ? { read: listedStructure(read), listed: structures.map(listedStructure) }
       : undefined,
@@ -297,6 +328,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     summaryDepth: answer.meta.summary_depth,
     scheduledAt: answer.meta.scheduled_at,
     filters,
+    difference,
   };
 }
 

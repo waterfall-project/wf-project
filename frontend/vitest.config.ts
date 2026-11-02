@@ -15,7 +15,17 @@
  * - `lint`, for the guards that run ESLint on code, typed, which take a minute or more each: a
  *   project of their own, which the chain plays on a runner of its own while the two others are
  *   spread over two more (`make check-front-tests`, `.github/workflows/front.yml`).
+ *
+ * A worker for each processor but one, as Vitest takes by itself outside watch mode, four at most
+ * (`workers`, #1474). The one left is the main process's, which gathers the results, and under
+ * coverage the coverage of every worker. The workstation, a laptop of twelve processors, gained
+ * nothing beyond four, and each test only ran slower: the coverage of the whole suite took 325 s on
+ * twelve workers, 319 s on six and 300 s on four, its slowest test of a component 5.4 s — past its
+ * five seconds —, 4.4 s and 1.9 s. A runner of the chain, four processors, plays on three: on four
+ * of the workstation's cores, the coverage of the half `2/2` took 121 s on four workers and 131 s
+ * on three, but 29 of its tests passed the second on four, 11 on three.
  */
+import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -28,11 +38,21 @@ const LINT = [
   "src/theme/colour-guard.test.ts",
 ];
 
+/**
+ * The workers of a run on so many processors: one for each but one, as Vitest takes by itself
+ * outside watch mode, the one left to the main process, which gathers the results and the coverage
+ * of the workers; four at most (#1474).
+ */
+export function workers(processors: number): number {
+  return Math.min(4, Math.max(1, processors - 1));
+}
+
 export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   test: {
+    maxWorkers: workers(availableParallelism()),
     projects: [
       {
         extends: true,

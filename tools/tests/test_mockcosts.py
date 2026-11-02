@@ -129,8 +129,10 @@ def test_an_invoice_has_an_identifier_of_its_own_family_and_a_number_of_its_own(
     numbers = [line.number for line in invoices]
     assert numbers == list(range(GENERATED + 1, GENERATED + len(invoices) + 1))
     assert not hand & set(numbers)
-    documents = [line.document for line in mockcosts.lines()]
-    assert len(documents) == len(set(documents))
+    # A line is its document and its item (D-4): no two lines of the witness share both.
+    identified = [(line.document, line.item) for line in mockcosts.lines()]
+    assert len(identified) == len(set(identified))
+    assert all(line.item == mockcosts.INVOICE_ITEM for line in invoices)
     [family] = [
         each for each in mockids.IDENTIFIERS if each.what == "lignes de coût réel engendrées"
     ]
@@ -147,7 +149,7 @@ def test_the_consultation_lists_the_invoices_with_the_lines_written_by_hand() ->
     items = cast("list[Node]", consulted["items"])
     dates = [item["document_date"] for item in items]
     assert dates == sorted(dates, reverse=True)
-    assert len(items) == len(COSTS) + len(mockcosts.drawn()) == 27
+    assert len(items) == len(COSTS) + len(mockcosts.drawn()) == 28
     tracked = sum(Decimal(item["amount"]) for item in items if item["is_in_tracked_scope"])
     assert Decimal(cast("Node", consulted["totals"])["tracked"]) == tracked
     [screens] = [item for item in items if item["subproject_id"] == universe(801)]

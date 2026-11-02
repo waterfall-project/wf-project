@@ -110,6 +110,14 @@ describe("a duration typed with the suffix of its unit", () => {
   });
 });
 
+describe("an amount validated", () => {
+  it("is shown with the currency of the installation, until the server answers [WF-REF-0140-A]", () => {
+    const kind = { type: "money", nullable: false } as const;
+    expect(shownEntry(kind, "1234.5", "en")).toBe("1,234.50");
+    expect(shownEntry(kind, "1234.5", "en", "EUR")).toBe("€1,234.50");
+  });
+});
+
 describe("a date of planning typed", () => {
   it("is read in the short form of the language, as the cell starts from it, or in its ISO form", () => {
     const kind = { type: "date" } as const;

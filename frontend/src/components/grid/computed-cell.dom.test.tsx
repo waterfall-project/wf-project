@@ -18,6 +18,7 @@ import {
   unreachable,
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { DenseGrid } from "./dense-grid";
 import { ESTIMATE_GRID } from "./estimate";
@@ -90,7 +91,7 @@ function planningOf(nodes: NodeList) {
         structureVersion={1}
         filters={{}}
         query={NO_QUERY}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );
@@ -110,7 +111,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structure={STRUCTURE}
           structureVersion={1}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       ) : (
         <PlanningGrid
@@ -119,7 +120,7 @@ function renderGrid(grid: "estimate" | "planning", locale: Locale = "fr", nodes?
           structureVersion={1}
           filters={{}}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       )}
     </NextIntlClientProvider>,
@@ -179,13 +180,13 @@ afterEach(() => {
 });
 
 // Number, label, category, role, quantity, hours, unit disbursement, sub-project, payment delay,
-// inactive object, amount at the year of reference, amount corrected for inflation.
+// inactive object, amount at the year of reference.
+const CATEGORY = 2;
 const QUANTITY = 4;
 const HOURS = 5;
 const DISBURSEMENT = 6;
 const SUBPROJECT = 7;
 const REFERENCE = 10;
-const INFLATED = 11;
 // Number, label, description, mode, duration, start, finish, progress, physical progress, float,
 // predecessors, Gantt.
 const DURATION = 4;
@@ -210,7 +211,6 @@ describe("a value of a grid the server computes", () => {
     expect(amount).toHaveClass("bg-muted");
     expect(amount).toHaveAccessibleName(/^Calculé 1\s000,00$/);
     expect(within(amount).getByRole("img", { name: "Calculé" })).toBeInTheDocument();
-    expect(cell(labour, INFLATED)).toHaveAccessibleName(/^Calculé 1\s000,00$/);
 
     // A try to enter it is refused, beside it, naming what the server says it depends on;
     // nothing opens to type.
@@ -443,11 +443,28 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
   });
 
-  it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on (EP-14/L42p)", async () => {
-    // The fake back answers what the quantity of the provision depends on
-    // (`dependencies_provision`): the contract has no answer for its sub-project (#764), and the
-    // test reads only the field asked, never the answer's.
-    const client = serve({ [DEPENDENCIES]: "dependencies_provision" });
+  it("marks the category of a line of labour, the one of its role, and names the role it depends on [WF-DEV-0020-A]", async () => {
+    // La catégorie d'une ligne de main-d'œuvre est celle de son rôle, calculée ; celle d'un débours se saisit.
+    const client = serve({ [DEPENDENCIES]: "dependencies_labour_category" });
+    renderGrid("estimate");
+    const labour = cell("Raccordement des borniers", CATEGORY);
+    expect(labour).toHaveClass("bg-muted");
+    expect(labour).toHaveAccessibleName(/^Calculé/);
+    expect(labour).toHaveAttribute("aria-haspopup", "dialog");
+    expect(cell("Borniers", CATEGORY)).toHaveClass("bg-background");
+    expect(cell("Borniers", CATEGORY)).not.toHaveAttribute("aria-haspopup");
+    await userEvent.click(labour);
+    expect((await said()).paragraphs.slice(1, 3)).toEqual([
+      "Catégorie ne se saisit pas : Waterfall calcule cette valeur.",
+      "Le rôle d’une ligne de main-d’œuvre détermine sa catégorie de coût.",
+    ]);
+    expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.cost_category_id"]);
+  });
+
+  it("marks the sub-project of a provision, the one its risk designates, and asks what it depends on [WF-RIS-0010-A]", async () => {
+    // The fake back answers what the sub-project of the provision depends on, its risk
+    // (`dependencies_provision_subproject`).
+    const client = serve({ [DEPENDENCIES]: "dependencies_provision_subproject" });
     renderGrid("estimate");
     const provision = cell("Provision — risque de reprise du câblage", SUBPROJECT);
     // Out of any sub-project, computed all the same: shaded, marked Σ and named so.
@@ -537,7 +554,7 @@ describe("a value of a grid the server computes", () => {
           totals={estimate.totals}
           totalsCaption={() => "Total"}
           query={NO_QUERY}
-          preferences={{ hidden_columns: [] }}
+          preferences={SHOWN}
         />
       </NextIntlClientProvider>,
     );

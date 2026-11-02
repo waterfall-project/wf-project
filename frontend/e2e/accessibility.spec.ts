@@ -21,7 +21,8 @@
  *
  * The matrix of the risks, unfolded behind its command, is audited too, in both modes, and the
  * estimate of the amendment with the tooltip of Undo open, its keys and its condition shown
- * (US-0580), and the planning with the panel of its help open by F1.
+ * (US-0580), and the planning with the panel of its help open by F1 — in French, and in English
+ * (US-0670b).
  *
  * What these tests leave unproven is written in the note of US-0200 (EP-14): what a gesture opens
  * — a dialog, a menu, the editor of a cell — is not walked, nor what a closed `details` holds.
@@ -30,7 +31,9 @@
  * parts of the chain, not as a file. The session of the fake back grants the whole catalogue of
  * permissions: every command a screen can offer is offered. A browser in French.
  */
-import { expect, type Page, test } from "@playwright/test";
+import path from "node:path";
+
+import { expect, type Page, type PlaywrightWorkerOptions, test } from "@playwright/test";
 
 import { type AxeBreach, axeAudit } from "./axe";
 import { untilHydrated, WORKING } from "./hydration";
@@ -94,6 +97,47 @@ async function resize(page: Page, size: (typeof WINDOWS)[number]): Promise<void>
         requestAnimationFrame(() => requestAnimationFrame(resolve));
       }),
   );
+}
+
+/** The modes of the trace that record every run of a test; the others are left as they are. */
+const EVERY_RUN: readonly string[] = [
+  "on",
+  "retain-on-failure",
+  "retain-on-first-failure",
+  "retain-on-failure-and-retries",
+];
+
+/**
+ * Trace the rest of the test without a snapshot of the page at each action: the walk presses Tab
+ * hundreds of times, and a DOM snapshot per key weighed more than the walk itself under load
+ * (#1540). The trace keeps its actions, its screenshots and its sources, and the walk says its
+ * faults in what it found. `test.use({ trace })` cannot do it for one test, a describe group
+ * being refused an option that forces a new worker: the tracing the harness started for the test
+ * is restarted with the same options, the snapshots left out, and ends as it would have.
+ *
+ * Only the modes that record the first run of a test are handled (`EVERY_RUN`). `on-first-retry`,
+ * `on-all-retries` and `off` are left as they are: they record nothing on the first run, where
+ * the walk is, and a retry is not a run to rework here. The restart relies on how the harness
+ * ends the trace it opened: `stopChunk` when the context is torn down, which closes the tracing
+ * restarted here as well, with the title below, the one the harness gives. Checked in Playwright
+ * 1.64.1 (`lib/index.js`, `_startTraceChunkOnContextCreation` and `_stopTracing`); to check again
+ * at each rise of its version.
+ */
+async function withoutSnapshots(
+  page: Page,
+  trace: PlaywrightWorkerOptions["trace"],
+): Promise<void> {
+  const options = typeof trace === "string" ? { mode: trace } : trace;
+  if (!EVERY_RUN.includes(options.mode)) return;
+  const { screenshots = true, sources = true } = typeof trace === "string" ? {} : trace;
+  const { tracing } = page.context();
+  await tracing.stop();
+  const info = test.info();
+  const title = [
+    `${path.relative(info.project.testDir, info.file)}:${String(info.line)}`,
+    ...info.titlePath.slice(1),
+  ].join(" \u203A ");
+  await tracing.start({ screenshots, snapshots: false, sources, title });
 }
 
 /** The breaches of the rules of the labels and the descriptions, or of every other rule. */
@@ -260,11 +304,48 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
         });
       });
     }
+
+    // The same panel in an interface in English (US-0670b): the English help, said English.
+    test.describe("a browser asking for English, the help open", () => {
+      test.use({ colorScheme: "light", locale: "en-US" });
+
+      test(`${screen.code} ${screen.route}, in English, the panel of the help open by F1: the English page of the screen, said English, no breach of axe's rules for WCAG A and AA [WF-IHM-0140-A]`, async ({
+        page,
+      }) => {
+        await page.setViewportSize(WINDOWS[0]);
+        await page.goto(screen.address);
+        await expect(page.locator("html")).toHaveAttribute("lang", "en");
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText("Planning", {
+          timeout: WORKING,
+        });
+        await untilHydrated(page);
+        const help = page.getByRole("button", { name: "Help", exact: true });
+        await help.focus();
+        await page.keyboard.press("F1");
+        const panel = page.getByRole("dialog", { name: "Planning" });
+        await expect(panel.getByRole("heading", { name: "Its commands" })).toBeVisible({
+          timeout: WORKING,
+        });
+        await expect(panel).toContainText("The grid is a single tab stop");
+        await expect(panel.getByRole("heading", { level: 2, name: "Planning" })).toHaveAttribute(
+          "lang",
+          "en",
+        );
+        await expect(panel.locator('[lang="fr"]')).toHaveCount(0);
+        const { breaches } = await axeAudit(page);
+        expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        await expect(help).toBeFocused();
+      });
+    });
   }
 
   test(`${screen.code} ${screen.route}: Tab reaches every control, each seen in the window with its focus shown, and comes back to the first without a trap, at 1366 points and at 911, where it reaches all it reached at 1366 [WF-IHM-0100-A]`, async ({
     page,
+    trace,
   }) => {
+    await withoutSnapshots(page, trace);
     await open(page, screen);
     const walks: Walk[] = [];
     for (const size of WINDOWS) {

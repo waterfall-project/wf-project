@@ -389,7 +389,7 @@ def main(arguments: list[str]) -> int:
     if found:
         print(
             "  each key goes into every catalogue, one per value the contract codes: "
-            "docs/dev/README.md, « Clés de traduction »",
+            "docs/dev/README.md, « Translation keys »",
             file=sys.stderr,
         )
         return 1

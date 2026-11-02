@@ -1,5 +1,5 @@
 {
-  "summary": "La matrice des risques de la révision courante : 4 niveaux de probabilité bornés à 10, 30 et 60 %, 4 de gravité bornés à 1, 5 et 10 % du budget de référence (`reference_settings`) ; chaque case avec sa zone et le nombre de ses risques — les 3 du registre, la gravité lue sur le budget de référence de toute la structure, 65 430 697,64 : 1 250 000,00 pour « Risque de reprise du câblage », 1,91 %, au niveau 2, 200,00 pour « Retard de livraison des armoires », moins de 0,01 %, au niveau 1 et 12 000 000,00 pour « Indisponibilité de l'automaticien », 18,34 %, au niveau 4 —, chacun aussi un point à ses valeurs exactes, sa probabilité, sa gravité en montant et en part du budget, sa provision, son état et la zone de sa case, que le graphique place sans rien calculer et que l'écran filtre par état (#1053) ; et les totaux de provisions (WF-RIS-0040, WF-REF-0160).",
+  "summary": "La matrice des risques de la révision courante : 4 niveaux de probabilité bornés à 10, 30 et 60 %, 4 de gravité bornés à 1, 5 et 10 % du budget de référence (`reference_settings`) ; chaque case avec sa zone et le nombre de ses seuls risques identifiés, comme les bulles, que le serveur compte — le seul encore identifié, « Risque de reprise du câblage » (#1395) — ; les 3 du registre, la gravité lue sur le budget de référence de toute la structure, 68 241 568,05 : 1 250 000,00 pour « Risque de reprise du câblage », 1,83 %, au niveau 2, 200,00 pour « Retard de livraison des armoires », moins de 0,01 %, au niveau 1 et 12 000 000,00 pour « Indisponibilité de l'automaticien », 17,58 %, au niveau 4, chacun un point à ses valeurs exactes, sa probabilité, sa gravité en montant et en part du budget, sa provision, son état et la zone de sa case, que le graphique place sans rien calculer et que l'écran filtre par état (#1053) ; et les totaux de provisions, sur les trois états (WF-RIS-0040, WF-REF-0160).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": {
     "probability_levels": [
@@ -18,12 +18,12 @@
       {"probability_level":1,"severity_level":1,"count":0,"zone":"nominal"},
       {"probability_level":1,"severity_level":2,"count":0,"zone":"nominal"},
       {"probability_level":1,"severity_level":3,"count":0,"zone":"nominal"},
-      {"probability_level":1,"severity_level":4,"count":1,"zone":"watch"},
+      {"probability_level":1,"severity_level":4,"count":0,"zone":"watch"},
       {"probability_level":2,"severity_level":1,"count":0,"zone":"nominal"},
       {"probability_level":2,"severity_level":2,"count":0,"zone":"nominal"},
       {"probability_level":2,"severity_level":3,"count":0,"zone":"watch"},
       {"probability_level":2,"severity_level":4,"count":0,"zone":"watch"},
-      {"probability_level":3,"severity_level":1,"count":1,"zone":"nominal"},
+      {"probability_level":3,"severity_level":1,"count":0,"zone":"nominal"},
       {"probability_level":3,"severity_level":2,"count":1,"zone":"watch"},
       {"probability_level":3,"severity_level":3,"count":0,"zone":"watch"},
       {"probability_level":3,"severity_level":4,"count":0,"zone":"alert"},
@@ -33,9 +33,9 @@
       {"probability_level":4,"severity_level":4,"count":0,"zone":"alert"}
     ],
     "points": [
-      {"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage","probability":"0.4","severity_amount":"1250000.00","severity_ratio":{"is_computable":true,"value":"0.0191","reason":null},"provision_amount":"500000.00","state":"identified","zone":"watch"},
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000751","label":"Risque de reprise du câblage","probability":"0.4","severity_amount":"1250000.00","severity_ratio":{"is_computable":true,"value":"0.0183","reason":null},"provision_amount":"500000.00","state":"identified","zone":"watch"},
       {"risk_id":"01926f3a-7c00-7000-8000-000000000752","label":"Retard de livraison des armoires","probability":"0.3","severity_amount":"200.00","severity_ratio":{"is_computable":true,"value":"0.000003","reason":null},"provision_amount":"60.00","state":"occurred","zone":"nominal"},
-      {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","probability":"0.05","severity_amount":"12000000.00","severity_ratio":{"is_computable":true,"value":"0.1834","reason":null},"provision_amount":"600000.00","state":"dismissed","zone":"watch"}
+      {"risk_id":"01926f3a-7c00-7000-8000-000000000753","label":"Indisponibilité de l'automaticien","probability":"0.05","severity_amount":"12000000.00","severity_ratio":{"is_computable":true,"value":"0.1758","reason":null},"provision_amount":"600000.00","state":"dismissed","zone":"watch"}
     ],
     "totals": {"identified":"500000.00","occurred":"60.00","dismissed":"600000.00","total":"1100060.00","reserve":"850060.00"}
   }

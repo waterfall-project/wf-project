@@ -669,7 +669,9 @@ def test_a_refresh_token_idle_beyond_its_two_hours_is_refused(local_account: Acc
     # obtained — the exchange of the code takes what it takes (#860). The return to the sign-in,
     # then to the screen aimed at, is the front's (frontend/e2e/service/).
     tokens = tokens_of(local_account.email, PASSWORD)
-    assert tokens["refresh_expires_in"] == 7200
+    # Keycloak returns the remaining lifetime, not the configured one: the exchange of the code
+    # can cost a second or more under load (#1510).
+    assert 7190 <= tokens["refresh_expires_in"] <= 7200
     with realm_set(ssoSessionIdleTimeout=1):
         time.sleep(2.1)
         again = refreshed(tokens["refresh_token"])

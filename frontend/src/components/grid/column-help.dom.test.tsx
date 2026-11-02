@@ -16,8 +16,7 @@ import { EstimateGrid, type EstimateGridProps } from "./estimate-grid";
 import type { NodeList } from "./nodes";
 
 // The headers of the columns of a grid carry their definition in a tooltip (US-0580/L2, #1137): the
-// definition of the catalogue (`columns.<grid>.<column>.help`), and, for the amount corrected of
-// inflation, the year of reference of the revision and the rate of inflation of the project.
+// definition of the catalogue (`columns.<grid>.<column>.help`).
 
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 
@@ -36,10 +35,9 @@ const STRUCTURE = {
 };
 const installation = example("nodes_installation") as NodeList;
 const revision = example("revision") as components["schemas"]["Revision"];
-const project = example("project") as components["schemas"]["Project"];
 
 /** The grid of the estimate of the witness, in a language, given what corrects its amounts. */
-function renderGrid(inflation: EstimateGridProps["inflation"], locale: Locale = "fr") {
+function renderGrid(locale: Locale = "fr", inflation?: EstimateGridProps["inflation"]) {
   server.client = fakeClient({});
   return render(
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
@@ -69,49 +67,55 @@ afterEach(() => {
 });
 
 describe("the tooltip of the header of a column", () => {
-  it("names the year of reference and the rate of inflation on the header of the amount corrected of inflation, from the revision and the project [WF-IHM-0140-A]", async () => {
-    renderGrid({ referenceYear: revision.reference_year, rate: project.inflation_rate });
-    const header = screen.getByRole("columnheader", { name: /Montant corrigé de l’inflation/ });
-    await userEvent.hover(header);
-    const tooltip = await screen.findByRole("tooltip");
-    // The witness: reference year 2026, inflation of 3 %.
-    expect(revision.reference_year).toBe(2026);
-    expect(project.inflation_rate).toBe("0.03");
-    expect(tooltip).toHaveTextContent(/année de référence \(2026\)/);
-    expect(tooltip).toHaveTextContent(/taux d’inflation du projet \(3\s%/);
-    expect(header).toHaveAccessibleDescription(/2026.*3\s%/);
-  });
-
-  it("opens on the focus of the keyboard and speaks the language of the reader [WF-IHM-0140-A]", async () => {
-    renderGrid({ referenceYear: 2027, rate: "0.025" }, "en");
-    const header = screen.getByRole("columnheader", { name: /Amount corrected for inflation/ });
-    header.focus();
-    const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip).toHaveTextContent(/from the reference year \(2027\)/);
-    expect(tooltip).toHaveTextContent(/inflation rate of the project \(2\.5% a year\)/);
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("tooltip")).toBeNull();
-    expect(header).toHaveFocus();
-  });
-
-  it("gives every other column its definition of the catalogue, and the amount corrected of inflation one that names neither year nor rate when the revision is unknown", async () => {
-    renderGrid(undefined);
+  it("gives a column its definition of the catalogue [WF-IHM-0140-A]", async () => {
+    renderGrid();
     const quantity = screen.getByRole("columnheader", { name: /Qté/ });
     await userEvent.hover(quantity);
     expect(await screen.findByRole("tooltip")).toHaveTextContent(
       CATALOGUES.fr.columns.estimate.quantity.help,
     );
-    await userEvent.unhover(quantity);
-    const inflated = screen.getByRole("columnheader", { name: /Montant corrigé de l’inflation/ });
-    await userEvent.hover(inflated);
-    const plain = CATALOGUES.fr.columns.estimate.inflatedAmountStatic.help;
+  });
+
+  it("opens on the focus of the keyboard and speaks the language of the reader [WF-IHM-0140-A]", async () => {
+    renderGrid("en");
+    const header = screen.getByRole("columnheader", { name: /Amount \(reference year\)/ });
+    header.focus();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent(CATALOGUES.en.columns.estimate.referenceAmount.help);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(header).toHaveFocus();
+  });
+
+  it("names the year of reference and the rate of inflation on the header of the amount re-estimated, from the revision [WF-IHM-0140-A]", async () => {
+    renderGrid("fr", { referenceYear: revision.reference_year, rate: revision.inflation_rate });
+    const header = screen.getByRole("columnheader", { name: /Montant réestimé/ });
+    await userEvent.hover(header);
+    const tooltip = await screen.findByRole("tooltip");
+    // The witness: reference year 2026, inflation of 3 %.
+    expect(revision.reference_year).toBe(2026);
+    expect(revision.inflation_rate).toBe("0.03");
+    expect(tooltip).toHaveTextContent(/année de référence \(2026\)/);
+    expect(tooltip).toHaveTextContent(/taux d’inflation de la révision \(3\s%/);
+    expect(header).toHaveAccessibleDescription(/2026.*3\s%/);
+  });
+
+  it("speaks the language of the reader on that header, and names neither year nor rate when the revision is unknown [WF-IHM-0140-A]", async () => {
+    const { unmount } = renderGrid("en", { referenceYear: 2027, rate: "0.025" });
+    const header = screen.getByRole("columnheader", { name: /Re-estimated amount/ });
+    header.focus();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent(/reference year \(2027\)/);
+    expect(tooltip).toHaveTextContent(/inflation rate of the revision \(2\.5% a year\)/);
+    unmount();
+    renderGrid("fr");
+    const plain = screen.getByRole("columnheader", { name: /Montant réestimé/ });
+    await userEvent.hover(plain);
     await waitFor(() => {
-      expect(inflated).toHaveAccessibleDescription(plain);
+      expect(plain).toHaveAccessibleDescription(
+        CATALOGUES.fr.columns.estimate.reestimatedAmountStatic.help,
+      );
     });
-    expect(plain).toBe(
-      "Montant corrigé de l’inflation de l’année de référence de la révision à l’année de consommation de la ligne, au taux d’inflation du projet.",
-    );
-    // Neither the year nor the rate of the example of the contract.
-    expect(inflated).not.toHaveAccessibleDescription(/2026|3\s?%/);
+    expect(plain).not.toHaveAccessibleDescription(/2026|3\s?%/);
   });
 });

@@ -4,6 +4,7 @@
   "value": {
     "cost_line_id": "01926f3a-7c00-7000-8000-000000000c04",
     "document_number": "FA-2026-0295",
+    "document_item": "10",
     "document_date": "2026-03-20",
     "amount": "650.00",
     "project_id": "01926f3a-7c00-7000-8000-000000000001",
@@ -12,7 +13,7 @@
     "subproject_label": null,
     "is_in_tracked_scope": true,
     "excluded_reason": null,
-    "passthrough": {"Fournisseur":"Traiteur Lumière","Texte de commande":"Réception du client sur site","Élément d'OTP":"WF.PRJ-001/SP-REC"},
+    "passthrough": {"Fournisseur":"Traiteur Lumière","Texte de commande":"Réception du client sur site"},
     "audit": {"created_at":"2026-04-03T08:30:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2026-06-03T14:05:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}}
   }
 }

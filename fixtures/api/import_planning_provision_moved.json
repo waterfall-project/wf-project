@@ -1,0 +1,101 @@
+{
+  "summary": "Une variante déclarée, celle de structure_merge_report_provision_moved : la ligne de provision du « Risque de reprise du câblage », que le témoin porte sur le « Câblage des armoires », démarré, est ici portée par le « Montage des armoires sur site », non démarré, où le formulaire du risque l'aurait déplacée (provision_task_id) ; et l'import, analysé aujourd'hui à 13 h 53, d'un planning MS Project exporté de Waterfall puis retravaillé, que la liste des imports ne reprend pas, qui ne porte plus cette tâche : 999 tâches lues. Le compte rendu présente le retrait du montage, de ses deux lignes et de sa liaison à la « Mise en service » qui le suivait ; la ligne de provision, qu'un import ne retire jamais, passe sur la tâche parente de la tâche retirée, « Installation sur site », et le compte rendu le signale par un écart de la ligne sur son parent. Le calendrier du fichier est ignoré et dit ; aucun motif ne rejette le fichier, et l'application reste offerte (WF-RIS-0010, WF-INTF-0040 ; #789).",
+  "value": {
+    "import_id": "01926f3a-7c00-7000-8000-000000000a19",
+    "kind": "ms_project_schedule",
+    "filename": "planning-montage-fournisseur.xml",
+    "structure_id": "01926f3a-7c00-7000-8000-000000000201",
+    "revision_id": "01926f3a-7c00-7000-8000-000000000102",
+    "period_from": null,
+    "period_to": null,
+    "status": "analysed",
+    "created_at": "2026-06-03T13:52:00Z",
+    "expires_at": "2026-06-04T13:53:00Z",
+    "report": {
+      "format_version": null,
+      "read_count": 999,
+      "unchanged_count": 999,
+      "rejected": [],
+      "refusals": [],
+      "differences": [
+        {
+          "change": "updated",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000655",
+          "label": "Provision — risque de reprise du câblage",
+          "predecessor_label": null,
+          "fields": [
+            "parent"
+          ]
+        },
+        {
+          "change": "removed",
+          "target": "link",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000665",
+          "label": "Mise en service",
+          "predecessor_label": "Montage des armoires sur site",
+          "fields": []
+        },
+        {
+          "change": "removed",
+          "target": "task",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000662",
+          "label": "Montage des armoires sur site",
+          "predecessor_label": null,
+          "fields": []
+        },
+        {
+          "change": "removed",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000663",
+          "label": "Câblage sur site",
+          "predecessor_label": null,
+          "fields": []
+        },
+        {
+          "change": "removed",
+          "target": "estimate_line",
+          "lineage_id": "01926f3a-7c00-7000-8000-000000000664",
+          "label": "Assistance aux essais de câblage",
+          "predecessor_label": null,
+          "fields": []
+        }
+      ],
+      "ignored": [
+        {
+          "kind": "calendars",
+          "count": 1,
+          "labels": [
+            "Standard"
+          ]
+        }
+      ],
+      "completed_tasks": [],
+      "date_mismatches": [],
+      "signals": [],
+      "requires_confirmation_reasons": []
+    },
+    "task": {
+      "task_id": "01926f3a-7c00-7000-8000-000000000922",
+      "kind": "import_analysis",
+      "status": "succeeded",
+      "progress": 100,
+      "submitted_at": "2026-06-03T13:52:00Z",
+      "finished_at": "2026-06-03T13:53:00Z",
+      "problem": null,
+      "result_url": null
+    },
+    "available_commands": [
+      {
+        "command": "apply",
+        "is_available": true,
+        "missing_conditions": []
+      },
+      {
+        "command": "abandon",
+        "is_available": true,
+        "missing_conditions": []
+      }
+    ]
+  }
+}

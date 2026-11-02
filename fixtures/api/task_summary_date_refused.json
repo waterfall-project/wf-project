@@ -1,0 +1,12 @@
+{
+  "summary": "La date de fin du « Poste de commande », récapitulative, saisie : elle tire ses dates de ses subordonnées. « La tentative de modifier la date de fin d'une tâche récapitulative est refusée en nommant ses subordonnées » : ses 3 subordonnées directes, sur son champ ; rien n'est écrit (WF-PLA-0040, WF-IHM-0030).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/finish","code":"SUMMARY_TASK_DERIVED","params":{"subordinate_node_ids":["01926f3a-7c00-7000-8000-000000000552","01926f3a-7c00-7000-8000-000000000556","01926f3a-7c00-7000-8000-000000000541"]}}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001617"
+  }
+}

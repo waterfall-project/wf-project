@@ -1,5 +1,5 @@
 {
-  "summary": "L'arbre d'organisation lu par une session qui ne peut pas modifier les paramètres de ressources : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une commande (WF-REF-0070, WF-IHM-0090).",
+  "summary": "L'arbre d'organisation lu par une session qui ne peut pas modifier les paramètres de ressources, sans permission du référentiel au besoin, toute session ouverte lisant les actifs (#1745) : les nœuds actifs seuls, dans l'ordre de l'arbre, aucun avec une commande (WF-REF-0070, WF-IHM-0090).",
   "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
   "value": [
     {"org_node_id":"01926f3a-7c00-7000-8000-000000000470","code":"DT","label":"Direction technique","parent_id":null,"parent_label":null,"level":1,"is_active":true,"available_commands":[],"audit":{"created_at":"2025-09-01T09:00:00Z","created_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"},"updated_at":"2025-09-01T09:00:00Z","updated_by":{"kind":"user","user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}},"lock_version":1},

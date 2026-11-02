@@ -108,7 +108,6 @@ export const REMAINING_GRID: GridConfig<RemainingNode, NodeSortColumn, NodeTotal
       align: "center",
       width: 44,
       icon: Contrast,
-      contract: "progress",
       sorts: false,
       value: (node) => node.task?.progress,
       render: (node) => <ProgressCell node={node} />,

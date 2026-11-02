@@ -32,6 +32,20 @@
         "command": "set_access_roles",
         "is_available": true,
         "missing_conditions": []
+      },
+      {
+        "command": "create_password_link",
+        "is_available": false,
+        "missing_conditions": [
+          "is_active_account"
+        ]
+      },
+      {
+        "command": "resend_invitation",
+        "is_available": false,
+        "missing_conditions": [
+          "is_active_account"
+        ]
       }
     ],
     "audit": {

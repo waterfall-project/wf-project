@@ -50,6 +50,15 @@
       "used_bytes": 41875931136,
       "available_bytes": 172922789888
     },
+    "operating_parameters": {
+      "cache_validity_seconds": 600,
+      "background_task_retention_days": 30,
+      "avatar_max_bytes": 2097152,
+      "task_queue_age_threshold_seconds": 900,
+      "storage_usage_threshold": "0.85",
+      "error_rate_threshold": "0.05",
+      "error_rate_window_seconds": 300
+    },
     "last_identity_sync": {
       "at": "2026-06-03T02:00:00Z",
       "succeeded": true,

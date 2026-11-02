@@ -37,6 +37,7 @@ import { updateChartPreferences } from "@/api/actions/preferences";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { useKeptWriter } from "@/components/grid/settings";
 import { usePendingAddress } from "@/components/grid/pending-address";
+import { useCurrency } from "@/currency/context";
 import { formatMoney, formatPercent, formatLocale } from "@/i18n/format";
 import type { PortfolioScope } from "@/components/portfolio/address";
 import { usePortfolioExport } from "@/components/portfolio/provenance";
@@ -171,6 +172,7 @@ export function RiskBubbleChart({
 }: RiskBubbleChartProps) {
   const t = useTranslations();
   const locale = useLocale();
+  const currency = useCurrency();
   const points = useMemo(() => shownPoints(matrix.points, states), [matrix.points, states]);
   const missing = useMemo(() => unplotted(points), [points]);
   const open = useCallback(
@@ -320,11 +322,16 @@ export function RiskBubbleChart({
               line(t("risks.matrix.tooltip.probability"), formatPercent(point.probability, locale)),
               line(
                 t("risks.matrix.tooltip.severity"),
-                `${formatMoney(point.severity_amount, locale)} (${formatPercent(ratio, locale)})`,
+                `${formatMoney(point.severity_amount, locale, currency)} (${formatPercent(ratio, locale)})`,
               ),
+              // The provision of a risk occurred or dismissed is the one of the reference (H-03).
               line(
-                t("risks.matrix.tooltip.provision"),
-                formatMoney(point.provision_amount, locale),
+                t(
+                  point.state === "identified"
+                    ? "risks.matrix.tooltip.provision"
+                    : "risks.matrix.tooltip.referenceProvision",
+                ),
+                formatMoney(point.provision_amount, locale, currency),
               ),
               line(t("risks.matrix.tooltip.state"), stateName(point.state)),
               line(t("risks.matrix.tooltip.zone"), t(`enums.AlertZone.${point.zone}`)),
@@ -370,7 +377,7 @@ export function RiskBubbleChart({
         ],
       };
     },
-    [matrix, points, locale, t],
+    [matrix, points, locale, currency, t],
   );
 
   return (

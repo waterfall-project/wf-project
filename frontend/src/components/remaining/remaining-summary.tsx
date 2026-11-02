@@ -23,6 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { ComputableValue } from "@/components/computable-value";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
 import { formatMoney, formatShare } from "@/i18n/format";
@@ -34,13 +35,19 @@ export type RemainingIndicators = components["schemas"]["RemainingIndicators"];
 /** The name of a key of a breakdown: the label the server gives, « out of any sub-project ». */
 function useKeyName() {
   const t = useTranslations();
-  return (item: { readonly key: string; readonly label?: string }) =>
+  return (item: { readonly key: string; readonly label?: string | null }) =>
     item.label ??
     (item.key === UNASSIGNED ? t("enums.Scope.unassigned") : t("remainingSummary.unnamed"));
 }
 
 /** The cards of the indicators: the total and the deviations, the breakdowns, the coverage. */
-function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
+function Figures({
+  indicators,
+  currency,
+}: {
+  readonly indicators: RemainingIndicators;
+  readonly currency: string | undefined;
+}) {
   const t = useTranslations("remainingSummary");
   const bounds = useTranslations("share");
   const locale = useLocale();
@@ -48,16 +55,16 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
   const reference = indicators.delta_to_reference;
   const previous = indicators.delta_to_previous_revision;
   const { context } = indicators;
-  const money = (amount: string) => formatMoney(amount, locale);
+  const money = (amount: string) => formatMoney(amount, locale, currency);
   return (
     <FiguresGrid>
       <FiguresCard title={t("title")} context={context}>
         <FiguresList>
           <ComputedTotal name={t("total")} amount={indicators.total} />
-          {reference === null || reference === undefined ? null : (
+          {reference === null ? null : (
             <ComputedTotal name={t("deltaToReference")} amount={reference} />
           )}
-          {previous === null || previous === undefined ? null : (
+          {previous === null ? null : (
             <ComputedTotal name={t("deltaToPrevious")} amount={previous} />
           )}
         </FiguresList>
@@ -67,13 +74,16 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
           <ul className="space-y-1 text-xs leading-snug">
             {indicators.by_cost_type.map((item) => (
               <li key={item.key} className="tabular-nums">
-                {item.share === undefined
-                  ? t("amount", { name: name(item), amount: money(item.amount) })
-                  : t("amountShare", {
-                      name: name(item),
-                      amount: money(item.amount),
-                      share: formatShare(item.share, locale, bounds),
-                    })}
+                {t.rich("amountShare", {
+                  name: name(item),
+                  amount: money(item.amount),
+                  share: () => (
+                    <ComputableValue
+                      value={item.share}
+                      format={(share) => formatShare(share, locale, bounds)}
+                    />
+                  ),
+                })}
               </li>
             ))}
           </ul>
@@ -107,8 +117,11 @@ function Figures({ indicators }: { readonly indicators: RemainingIndicators }) {
 /** Render the indicators of the remaining to commit, or say them unavailable. */
 export function RemainingSummary({
   indicators,
+  currency,
 }: {
   readonly indicators: RemainingIndicators | undefined;
+  /** The currency of the installation, which every amount carries; none when it is unknown. */
+  readonly currency: string | undefined;
 }) {
   const t = useTranslations("remainingSummary");
   return indicators === undefined ? (
@@ -118,6 +131,6 @@ export function RemainingSummary({
       </FiguresCard>
     </FiguresGrid>
   ) : (
-    <Figures indicators={indicators} />
+    <Figures indicators={indicators} currency={currency} />
   );
 }

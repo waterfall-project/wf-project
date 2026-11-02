@@ -44,7 +44,7 @@ describe("the layout of the Gantt", () => {
       from: at("2026-03-02"),
       to: at("2026-04-25"),
       nature: "summary",
-      critical: false,
+      critical: true,
     });
     expect(detailed && layout.bar(detailed)).toEqual({
       from: at("2026-03-02"),

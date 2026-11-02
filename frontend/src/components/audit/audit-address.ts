@@ -75,9 +75,11 @@ export const AUDIT_LIST: PagedList = pagedList(
  * that a value the contract adds is a fault of typing until it is listed here.
  */
 const EVERY_ACTION: Readonly<Record<AuditAction, null>> = {
+  project_create: null,
   revision_mark: null,
+  revision_abandon: null,
   reference_designate: null,
-  amendment_merge: null,
+  structure_merge: null,
   risk_occurrence: null,
   project_exit: null,
   cost_line_exclude: null,

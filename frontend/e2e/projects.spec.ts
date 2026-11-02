@@ -52,6 +52,21 @@ test("the home sorts its projects and filters them by state on the server, from 
     "/?sort_by=code&sort_order=asc",
   );
   const states = page.getByRole("group", { name: "Filtre par état" });
+  // The filter by default is said, Chiffrage and En cours pressed (US-0660/L4, #1401).
+  await expect(
+    page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
+  ).toBeVisible();
+  await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(states.getByRole("button", { name: "Perdu" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  // « Tous les états » lifts it, the rest of the address kept, and says so in the address.
+  await states.getByRole("button", { name: "Tous les états" }).click();
+  await expect(page).toHaveURL("/?sort_by=code&sort_order=asc&states=all", { timeout: WORKING });
   await expect(states.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -100,7 +115,7 @@ test("the home filters its projects by the period of their last modification on 
   await expect(apply).toBeFocused();
 });
 
-test("a project, its settings and its lifecycle show what the fake back serves, and offer the commands the project lists: its modification, those of its lists, and the exits", async ({
+test("a project, its settings and its lifecycle show what the fake back serves, and offer the commands the project lists: its modification, those of its lists, and the exits [WF-CYC-0060]", async ({
   page,
 }) => {
   // Every screen after the first is reached by a click, and awaited five seconds: compiled
@@ -112,7 +127,9 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
     "Modernisation du poste de commande",
   );
   await expect(main.getByRole("definition").first()).toHaveText("PRJ-001");
-  await expect(main.getByRole("button")).toHaveCount(0);
+  // The page offers no command: its one button is the help, of the projects, FBS-4 (#1439).
+  await expect(main.getByRole("button")).toHaveCount(1);
+  await expect(main.getByRole("button", { name: "Aide", exact: true })).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "Fonctions" });
   await nav.getByRole("link", { name: "Paramètres de projets" }).click();
@@ -137,11 +154,13 @@ test("a project, its settings and its lifecycle show what the fake back serves, 
   await expect(main.getByRole("region", { name: "Prochain état" })).toContainText(
     "seules les sorties du cycle de vie restent",
   );
-  await expect(main.getByRole("region", { name: "Commandes" }).getByRole("button")).toHaveText([
+  // Déclarer perdu depuis En cours n'y figure pas : la perte n'est possible que depuis Chiffrage.
+  const exits = main.getByRole("region", { name: "Commandes" });
+  await expect(exits.getByRole("button")).toHaveText([
     "Terminer le projet",
-    "Déclarer le projet perdu",
     "Abandonner le projet",
   ]);
+  await expect(exits.getByRole("button", { name: "Déclarer le projet perdu" })).toHaveCount(0);
 });
 
 test("creates a project from the home, then modifies the identity of a project on its settings, the mock-up saying the fake back keeps nothing (EP-02/L44a) [WF-PRJ-0080-A]", async ({
@@ -200,7 +219,7 @@ test("creates a project from the home, then modifies the identity of a project o
   await expect(main.getByRole("alert")).toHaveCount(0);
 });
 
-test("an exit of the lifecycle is confirmed, naming the state it leads to, before the API applies it", async ({
+test("an exit of the lifecycle is confirmed, naming the state it leads to and asking what becomes of the current revision, before the API applies it [WF-CYC-0090] [WF-CYC-0090-A]", async ({
   page,
 }) => {
   await openHydrated(page, `${PROJECT}/lifecycle`);
@@ -211,6 +230,13 @@ test("an exit of the lifecycle is confirmed, naming the state it leads to, befor
   await expect(confirmation).toContainText("Terminé");
   await expect(confirmation).toContainText("passeront en lecture seule");
   await confirmation.getByRole("textbox", { name: "Motif (facultatif)" }).fill("Recette prononcée");
+  // The project carries the current revision 102: marking it asks for a version name, abandoning
+  // it does not. The fake back answers the first example of the exit, a 200: the marking, which
+  // answers a task (202), is proved by the tests of the component (`exit-command.dom.test.tsx`).
+  await confirmation.getByRole("radio", { name: /^Marquer la révision en cours/ }).check();
+  await expect(confirmation.getByRole("textbox", { name: "Nom de version" })).toBeVisible();
+  await confirmation.getByRole("radio", { name: /^Abandonner la révision en cours/ }).check();
+  await expect(confirmation.getByRole("textbox", { name: "Nom de version" })).toHaveCount(0);
   await confirmation.getByRole("button", { name: "Confirmer la sortie" }).click();
   await expect(commands.getByRole("status").filter({ hasText: /./ })).toHaveText(
     /^Le projet est passé à l’état «\s?Terminé\s?»\.$/,

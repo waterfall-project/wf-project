@@ -1,0 +1,14 @@
+{
+  "summary": "Le nom de l'entreprise écrit aujourd'hui vide par l'écran des paramètres de coûts : refusé, désigné par /company_name — le nom est obligatoire ; rien n'est écrit, et l'entreprise garde le nom de Delmas Automatismes (WF-EXP-0020).",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {
+        "pointer": "/company_name",
+        "code": "VALUE_REQUIRED"
+      }
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001543"
+  }
+}

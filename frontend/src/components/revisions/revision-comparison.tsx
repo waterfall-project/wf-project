@@ -18,17 +18,19 @@
  */
 import { GitCompareArrows } from "lucide-react";
 import Form from "next/form";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
+import { DifferencesOnly } from "@/components/grid/differences-only";
+import { DIFFERENCE_PARAMETER, type DifferenceValue } from "@/components/grid/difference-filter";
 import { CELL, ListSection, ListTable } from "@/components/projects/project-tables";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { TableCell, TableRow } from "@/components/ui/table";
 import type { GridPreferences } from "@/components/grid/settings";
-import { formatMoney } from "@/i18n/format";
+import { Amount } from "@/components/amount";
 import {
   type ProjectContext,
   REVISION_PARAMETER,
@@ -72,13 +74,24 @@ export interface RevisionComparisonProps {
   readonly compared: ComparedRevisions | undefined;
   /** What the API gives for them, if they were asked. */
   readonly comparison: RevisionComparison | undefined;
+  /** The differences the address retains (`difference`, US-0700); none, every node. */
+  readonly difference: readonly DifferenceValue[] | undefined;
   /** The settings of the grid of the comparison the session read, if any. */
   readonly preferences: GridPreferences | undefined;
 }
 
 /** The context the choice carries on: the revision of the screen, and its filters. */
-function ContextFields({ context }: { readonly context: ProjectContext }) {
+function ContextFields({
+  context,
+  difference,
+}: {
+  readonly context: ProjectContext;
+  readonly difference: readonly DifferenceValue[] | undefined;
+}) {
   const carried = [...context.parameters];
+  if (difference !== undefined) {
+    carried.push([DIFFERENCE_PARAMETER, difference.join(",")]);
+  }
   if (context.revisionId !== undefined) {
     carried.unshift([REVISION_PARAMETER, context.revisionId]);
   }
@@ -125,13 +138,14 @@ function ComparisonForm({
   action,
   context,
   compared,
-}: Pick<RevisionComparisonProps, "action" | "context" | "compared"> & {
+  difference,
+}: Pick<RevisionComparisonProps, "action" | "context" | "compared" | "difference"> & {
   readonly marked: readonly NamedRevision[];
 }) {
   const t = useTranslations("revisionScreen.comparison");
   return (
     <Form action={action} scroll={false} className="flex flex-wrap items-end gap-3">
-      <ContextFields context={context} />
+      <ContextFields context={context} difference={difference} />
       <RevisionSelect
         name="from_revision_id"
         label={t("from")}
@@ -176,10 +190,12 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
   const t = useTranslations("revisionScreen.comparison");
   const dimension = useTranslations("enums.RevisionComparison.amount_deltas.dimension");
   const unassigned = useTranslations("enums.Scope")("unassigned");
-  const locale = useLocale();
   return (
     <Part title={t("deltas")} empty={deltas.length === 0 ? t("noDeltas") : undefined}>
-      <ListTable label={t("deltas")} columns={[t("dimension"), t("key"), t("delta")]}>
+      <ListTable
+        label={t("deltas")}
+        columns={[t("dimension"), t("key"), t("budgetedDelta"), t("reestimatedDelta")]}
+      >
         {deltas.map((delta) => (
           <TableRow key={`${delta.dimension}:${delta.key}`}>
             <TableCell className={CELL}>{dimension(delta.dimension)}</TableCell>
@@ -187,7 +203,10 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
               {delta.key === UNASSIGNED ? unassigned : (delta.label ?? t("unnamed"))}
             </TableCell>
             <TableCell className={`${CELL} tabular-nums`}>
-              {formatMoney(delta.delta, locale)}
+              <Amount value={delta.budgeted_delta} />
+            </TableCell>
+            <TableCell className={`${CELL} tabular-nums`}>
+              <Amount value={delta.reestimated_delta} />
             </TableCell>
           </TableRow>
         ))}
@@ -199,13 +218,16 @@ function Deltas({ deltas }: { readonly deltas: readonly AmountDelta[] }) {
 /** What the API gives for the two revisions compared. */
 function ComparisonResult({
   comparison,
+  difference,
   preferences,
 }: {
   readonly comparison: RevisionComparison;
+  readonly difference: readonly DifferenceValue[] | undefined;
   readonly preferences: GridPreferences | undefined;
 }) {
   return (
     <div className="space-y-3">
+      <DifferencesOnly filter={difference} />
       <ComparisonGrid
         rows={comparisonRows(comparison.items)}
         totals={comparison.totals}
@@ -226,6 +248,7 @@ export function RevisionComparisonSection({
   context,
   compared,
   comparison,
+  difference,
   preferences,
 }: RevisionComparisonProps) {
   const t = useTranslations("revisionScreen.comparison");
@@ -236,9 +259,19 @@ export function RevisionComparisonSection({
       icon={GitCompareArrows}
       empty={marked.length < 2 ? t("needsTwo") : undefined}
     >
-      <ComparisonForm marked={marked} action={action} context={context} compared={compared} />
+      <ComparisonForm
+        marked={marked}
+        action={action}
+        context={context}
+        compared={compared}
+        difference={difference}
+      />
       {comparison === undefined ? null : (
-        <ComparisonResult comparison={comparison} preferences={preferences} />
+        <ComparisonResult
+          comparison={comparison}
+          difference={difference}
+          preferences={preferences}
+        />
       )}
     </ListSection>
   );

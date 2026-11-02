@@ -1316,6 +1316,10 @@ j'entre déjà dans les autres outils de l'entreprise.
 - `WF-SEC-0020-A` — « La désactivation d'un compte connecté sur deux postes interrompt les deux à leur requête suivante. »
 - `WF-SEC-0020-A` — « Un jeton de rafraîchissement inactif au-delà de deux heures est refusé, et l'utilisateur est ramené à l'écran de connexion puis, reconnecté, à l'écran visé. »
 - `WF-SEC-0020-A` — « Un utilisateur qui se déconnecte ne peut plus agir avec ses jetons. »
+- écart : `WF-SEC-0020-A` — « Une adresse de retour qui ne désigne pas un écran de Waterfall —
+  l'adresse d'un autre site, un chemin qui commence par « // », ou qui contient une barre oblique
+  inverse ou un caractère de contrôle — ramène à l'accueil après la connexion. » : ajouté par la
+  spécification 1.0.1 (#1589) ; la garde de l'adresse de retour est d'US-0690 (#1449).
 - écart : `WF-SEC-0020-A` — la déconnexion « sur tous ses postes » : un poste dont la session
   est révoquée n'a plus de droits ; « Se déconnecter » y mène à la connexion, qui redemande
   les identifiants, mais ne ferme pas les postes du même compte reconnectés depuis la
@@ -1450,7 +1454,8 @@ qu'elle se soit connectée.
 - écart : `WF-ADM-0070-A` — « Une personne retirée de l’annuaire voit son compte désactivé à la synchronisation suivante, et ses actes restent consultables. » : le compte est désactivé ici ; ses actes —
   révisions marquées, contributeurs inscrits — arrivent en EP-04, qui clôt l'exigence.
 - `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. »
-- `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité. »
+- écart : `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité, sans rôle. » : « sans rôle » est de la spécification 1.0.2 (#1730) ; le contrat
+  retire `access_role_ids` de `UserCreate` (#1731), et le service suit en EP-03 (#1732).
 - `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. »
 - `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
   tâche planifiée de lecture, quotidienne par défaut.
@@ -1746,8 +1751,9 @@ réglages — sur une autre machine.
 - `WF-ADM-0150-A` — « Une sauvegarde déclenchée apparaît dans la liste avec sa date, sa taille et une vérification réussie. »
 - `WF-ADM-0150-A` — « Elle peut être téléchargée ou copiée vers un emplacement externe. » : par le téléchargement ; la copie vers un
   emplacement externe paramétré relève de la planification — EP-13.
-- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit et la liste des sauvegardes, qui gardent leurs inscriptions et leurs sauvegardes ; le journal nomme la restauration. » : constaté ici pour les comptes, les rôles, la liste des sauvegardes
-  et le référentiel présent ; les projets et les révisions arrivent en EP-04, qui clôt
+- écart : `WF-ADM-0160-A` — « Après restauration d’une sauvegarde, la plateforme présente exactement les projets, révisions et comptes qu’elle contenait à la date de la sauvegarde, et rien de postérieur, hors le journal d’audit, la liste des sauvegardes et leur planification, qui gardent leurs inscriptions, leurs sauvegardes et leurs réglages ; le journal nomme la restauration. » : constaté ici pour les comptes, les rôles, la liste des sauvegardes
+  et le référentiel présent ; la planification conservée est de la spécification 1.0.2 (#1741)
+  et du service en EP-13 (#1743) ; les projets et les révisions arrivent en EP-04, qui clôt
   l'exigence.
 - `WF-ADM-0160-A` — « La confirmation nomme la date de la sauvegarde. »
 - `WF-ADM-0160-A` — « Aucune restauration partielle n’est proposée. »

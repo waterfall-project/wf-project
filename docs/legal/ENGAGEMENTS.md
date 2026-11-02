@@ -2,7 +2,7 @@
 
 Version : 1.0 du 18 octobre 2026, applicable à compter de sa fusion dans `main`, avec
 l'accord de contribution ([`CLA.md`](CLA.md)) dont il est la contrepartie (article 6.2).
-[`README.md`](README.md) dit ce que chaque engagement écarte, et pourquoi il a été retenu.
+[`README-fr.md`](README-fr.md) dit ce que chaque engagement écarte, et pourquoi il a été retenu.
 
 Waterfall pourra avoir des offres payantes. Ce document dit ce qu'elles ne feront jamais à
 l'édition communautaire : celle que ce dépôt publie, sous ses licences libres. Chaque engagement

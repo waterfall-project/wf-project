@@ -236,7 +236,11 @@ export function AccountMenu({ account, language, theme }: AccountMenuProps) {
               const Icon = ACCOUNT_ICONS[page];
               return (
                 <DropdownMenuItem key={page} asChild>
-                  <Link href={route}>
+                  {/* No prefetch: Next 16.4.3 loses the title of a page clicked while its prefetch
+                      is on its way (vercel/next.js#98684, #1499). To remove on the move to Next
+                      16.5, once vercel/next.js#99829 is checked to be in it; the walk of e2e/shell.spec.ts (#1499) stays
+                      after the removal, and proves that Next 16.5 fixes the defect. */}
+                  <Link href={route} prefetch={false}>
                     <Icon aria-hidden="true" />
                     {t(label)}
                   </Link>

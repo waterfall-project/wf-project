@@ -1,5 +1,5 @@
 {
-  "summary": "L'autre issue du marquage de la révision courante demandé à 14 h 05 : échoué à 14 h 07, un rôle de la révision n'a pas de taux horaire pour l'année de ses charges.",
+  "summary": "L'autre issue du marquage de la révision courante demandé à 14 h 05 : échoué à 14 h 07 sans rien figer, l'ingénierie électrique, la catégorie des lignes de câblage, n'ayant pas de taux horaire pour 2026, l'année de référence de la révision ; le motif la nomme, comme missing_rates (WF-DEV-0010, WF-IHM-0080).",
   "value": {
     "task_id": "01926f3a-7c00-7000-8000-000000000931",
     "kind": "revision_mark",
@@ -9,7 +9,16 @@
     "finished_at": "2026-06-03T14:07:00Z",
     "problem": {
       "code": "HOURLY_RATE_MISSING",
-      "status": 422
+      "status": 422,
+      "params": {
+        "missing_rates": [
+          {
+            "cost_category_id": "01926f3a-7c00-7000-8000-000000000402",
+            "label": "Ingénierie électrique",
+            "year": 2026
+          }
+        ]
+      }
     },
     "result_url": null
   }

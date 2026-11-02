@@ -93,20 +93,35 @@ OPERATIONS = {
             "node_created_child",
             "estimate_line_created",
             "estimate_line_created_after_subtask",
+            "estimate_line_created_labelled",
         ],
     ),
-    "deleteNode": ("200", ["node_summary_deleted"]),
+    "deleteNode": ("200", ["node_summary_deleted", "node_summary_emptied"]),
     "moveNodes": ("200", ["nodes_moved", "nodes_indented"]),
     "setNodeTracking": ("200", ["node_tracked"]),
-    "updateEstimateLine": ("200", ["estimate_line_updated_amendment"]),
-    "previewPaste": ("200", ["paste_plan_amendment", "paste_plan_amendment_skipping"]),
+    "updateEstimateLine": (
+        "200",
+        [
+            "estimate_line_updated_amendment",
+            "estimate_line_payment_delay_amendment",
+            "estimate_line_rebudgeted_amendment",
+        ],
+    ),
+    "previewPaste": (
+        "200",
+        [
+            "paste_plan_amendment",
+            "paste_plan_amendment_skipping",
+            "paste_plan_amendment_target_removed",
+        ],
+    ),
     "applyPaste": ("200", ["paste_applied_amendment", "paste_applied_amendment_skipping"]),
 }
 REFUSALS = {
     "createNode": [
-        "estimate_line_completed_refused",
         "node_create_horizon_exceeded",
         "node_create_after_not_sibling",
+        "estimate_line_category_mismatch",
     ],
     "updateTaskFacet": [
         "task_date_computed_refused",
@@ -123,7 +138,6 @@ REFUSALS = {
         "nodes_move_after_not_sibling",
         "nodes_indent_forbidden",
         "nodes_move_cycle_refused",
-        "nodes_move_completed_refused",
     ],
     "setNodeTracking": ["node_tracking_milestone_refused"],
     "deleteNode": ["node_delete_stale"],

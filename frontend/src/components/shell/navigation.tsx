@@ -275,7 +275,7 @@ function PlatformBlock({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            {entries.map(({ key, href, label: name, icon: EntryIcon, current }) => (
+            {entries.map(({ key, href, label: name, icon: EntryIcon, current, leaves = [] }) => (
               <SidebarMenuSubItem key={key}>
                 <SidebarMenuSubButton>
                   <Link href={href} aria-current={current || undefined}>
@@ -283,6 +283,20 @@ function PlatformBlock({
                     <span>{name}</span>
                   </Link>
                 </SidebarMenuSubButton>
+                {leaves.length === 0 ? null : (
+                  <SidebarMenuSub>
+                    {leaves.map((leaf) => (
+                      <SidebarMenuSubItem key={leaf.key}>
+                        <SidebarMenuSubButton>
+                          <Link href={leaf.href} aria-current={leaf.current || undefined}>
+                            <leaf.icon aria-hidden="true" />
+                            <span>{leaf.label}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuSubItem>
             ))}
           </SidebarMenuSub>

@@ -186,7 +186,7 @@ describe("the filter of the list by state", () => {
     await user.click(pricing);
     expect(await lastAddress()).toBe("/?states=lost");
     await user.click(screen.getByRole("button", { name: "Tous les états" }));
-    expect(await lastAddress()).toBe("/");
+    expect(await lastAddress()).toBe("/?states=all");
   });
 
   it("lifts the filter when the last state is chosen too: every state is every project", async () => {
@@ -198,7 +198,17 @@ describe("the filter of the list by state", () => {
       ),
     );
     await user.click(screen.getByRole("button", { name: "Abandonné" }));
-    expect(await lastAddress()).toBe("/?sort_by=code");
+    expect(await lastAddress()).toBe("/?states=all&sort_by=code");
+  });
+
+  it("goes on from the states retained when the address names none, and lifts them by « Tous les états » (WF-IHM-0130)", async () => {
+    const user = userEvent.setup();
+    page.search = "sort_by=code";
+    render(inFrench(<ProjectStateFilter states={["pricing", "in_progress"]} />));
+    await user.click(screen.getByRole("button", { name: "Perdu" }));
+    expect(await lastAddress()).toBe("/?sort_by=code&states=pricing%2Cin_progress%2Clost");
+    await user.click(screen.getByRole("button", { name: "Tous les états" }));
+    expect(await lastAddress()).toBe("/?sort_by=code&states=all");
   });
 
   it("turns a page from a state chosen under way to the first page of the projects", async () => {

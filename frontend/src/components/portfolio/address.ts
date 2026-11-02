@@ -6,11 +6,11 @@
  * separated by commas (`explode: false`); the period of the projects completed and of the
  * statistics of a period, `from` and `to`; the date of calculation, `as_of`; the node of
  * organisation whose roles the labour lines are restricted to, `org_node_id` — and the parameters
- * of a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses at the
- * consultation, `under_load_threshold` (WF-PTF-0060), neither kept from one consultation to the
- * next —; and, for the list of the projects alone, the zones of their indices it retains, `zones`
- * (WF-PTF-0040, WF-IHM-0130). A choice only changes the address, and the page reads anew: the server computes, sorts and
- * filters, the front nothing (WF-ARC-0020).
+ * of a view: its horizon, `horizon_months`, and the threshold of under-load the user chooses,
+ * `under_load_threshold` (WF-PTF-0060), which the workload keeps with its node from one consultation
+ * to the next (`kept-workload-address.ts`) —; and, for the list of the projects alone, the zones of
+ * their indices it retains, `zones` (WF-PTF-0040, WF-IHM-0130). A choice only changes the address,
+ * and the page reads anew: the server computes, sorts and filters, the front nothing (WF-ARC-0020).
  *
  * Pure, and neither server nor client: the page reads, the screen writes.
  */

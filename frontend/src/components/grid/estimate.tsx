@@ -5,12 +5,13 @@
  * (`listNodes`), its tasks and the lines they bear, each row numbered and marked by the icon of
  * its nature; the label, the quantity, the effort, the unit disbursement, and the two amounts the
  * server computes and never lets anyone enter, of a line as of a task, summary included — the
- * amount at the year of reference (`base_amount`, WF-DEV-0030) and the amount corrected for
- * inflation, projected on the year of consumption (WF-DEV-0040) —, never the budgeted nor the
- * re-estimated amount (#235). The figures and the sub-project of a provision are computed too,
- * from its risk, which its node says (`computed_fields`, WF-IHM-0030). The totals are those of the
- * answer: the hours and the two amounts of the lines retained, never the amounts of the tasks, which
- * would count them twice.
+ * amount at the rates of the year of reference, before inflation (`base_amount`, WF-DEV-0030), and
+ * the amount re-estimated, inflation included, projected on the year of consumption
+ * (`reestimated_amount`, WF-DEV-0020, WF-DEV-0050) —, never the budgeted amount, which is that of
+ * the reference and not of this grid. The figures and the sub-project
+ * of a provision are computed too, from its risk, which its node says (`computed_fields`,
+ * WF-IHM-0030). The totals are those of the answer: the hours and the two amounts of the lines
+ * retained, never the amounts of the tasks, which would count them twice.
  *
  * Each column sorts by the column of the contract of the same name. The category, the role and
  * the sub-project of a line are named by the labels the server resolves, the object active or
@@ -24,10 +25,10 @@
  * chosen from their lists, its quantity, its effort, its unit disbursement and
  * its payment delay, each written alone by `updateEstimateLine`, where the node names the field
  * among those it accepts (`editable_fields`, #219) and not among those it computes — a line of
- * labour takes no unit disbursement nor payment delay, another no role nor effort, a provision
- * none of them (WF-DEV-0020), which the grid never deduces from the nature of the category —; the
- * label of a task by `updateTaskFacet` (`estimateGrid`). Its sub-project is chosen in the menu of
- * its cell, not entered in its column: hidden until shown, the column only reads it (US-0480).
+ * labour takes no unit disbursement, another no role nor effort, a provision none of them
+ * (WF-DEV-0020), which the grid never deduces from the nature of the category —; the label of a task
+ * by `updateTaskFacet` (`estimateGrid`). Its sub-project is chosen in the menu of its cell, not
+ * entered in its column: hidden until shown, the column only reads it (US-0480).
  */
 import { ToggleLeft } from "lucide-react";
 
@@ -69,7 +70,7 @@ import {
  */
 export const ESTIMATE_FIELDS = {
   node: [],
-  task: ["base_amount", "inflated_amount"],
+  task: ["base_amount", "reestimated_amount"],
   line: [
     "cost_category_id",
     "cost_category_label",
@@ -82,7 +83,7 @@ export const ESTIMATE_FIELDS = {
     "payment_delay_days",
     "uses_inactive_object",
     "base_amount",
-    "inflated_amount",
+    "reestimated_amount",
   ],
 } as const satisfies AnyNodeFields;
 
@@ -108,6 +109,9 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       help: "estimate.category",
       format: "text",
       width: 160,
+      // The category of a line of labour is the one of its role, computed (WF-DEV-0020, F-09): the
+      // cell says so where the node names it among its computed fields.
+      computed: computedWhereNamed("estimate_line.cost_category_id"),
       contract: "cost_category",
       value: (node) => node.estimate_line?.cost_category_label,
     },
@@ -190,7 +194,8 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       render: (node) => <InactiveObjectCell node={node} />,
     },
     // The two amounts of WF-DEV-0050, of a line, of a task — the sum of its subtree — and of
-    // the totals, as the server gives them.
+    // the totals, as the server gives them: the amount at the rates of the year of reference, and
+    // the amount re-estimated, inflation included, whose header names the year and the rate.
     {
       key: "base_amount",
       label: "referenceAmount",
@@ -203,15 +208,15 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
       total: (totals) => totals.base_amount,
     },
     {
-      key: "inflated_amount",
-      label: "inflatedAmount",
-      help: "estimate.inflatedAmountStatic",
+      key: "reestimated_amount",
+      label: "reestimatedAmount",
+      help: "estimate.reestimatedAmountStatic",
       format: "money",
       width: 128,
-      computed: computedAmount("inflated_amount"),
-      contract: "inflated_amount",
-      value: (node) => node.task?.inflated_amount ?? node.estimate_line?.inflated_amount,
-      total: (totals) => totals.inflated_amount,
+      computed: computedAmount("reestimated_amount"),
+      contract: "reestimated_amount",
+      value: (node) => node.task?.reestimated_amount ?? node.estimate_line?.reestimated_amount,
+      total: (totals) => totals.reestimated_amount,
     },
   ],
 };
@@ -436,8 +441,8 @@ function entered(
 }
 
 /**
- * What the amount corrected of inflation is corrected by, as its header names it (WF-IHM-0140): the
- * year of reference of the revision and the rate of inflation of the project, formatted.
+ * What the amount re-estimated, inflation included, is corrected by, as its header names it
+ * (WF-IHM-0140): the year of reference of the revision and the rate of inflation it keeps, formatted.
  */
 export interface EstimateInflation {
   readonly year: string;
@@ -445,18 +450,17 @@ export interface EstimateInflation {
 }
 
 /**
- * The column of the amount corrected of inflation, defined by the year and the rate that correct it:
- * its definition is a sentence with its values, which only the screen that reads the revision and the
- * project knows; without them the column keeps a definition that names neither; the other columns
- * are as they are.
+ * The column of the amount re-estimated, defined by the year and the rate that correct it: its
+ * definition is a sentence with its values, which only the screen that reads the revision knows;
+ * without them the column keeps a definition that names neither; the other columns are as they are.
  */
 function inflated(
   column: GridColumn<EstimateNode, NodeSortColumn, NodeTotals>,
   inflation: EstimateInflation | undefined,
 ): GridColumn<EstimateNode, NodeSortColumn, NodeTotals> {
-  return inflation === undefined || column.key !== "inflated_amount"
+  return inflation === undefined || column.key !== "reestimated_amount"
     ? column
-    : { ...column, help: "estimate.inflatedAmount", helpValues: { ...inflation } };
+    : { ...column, help: "estimate.reestimatedAmount", helpValues: { ...inflation } };
 }
 
 /**

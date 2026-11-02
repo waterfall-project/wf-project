@@ -1,0 +1,32 @@
+{
+  "summary": "Une variante déclarée : un différentiel de la révision courante qui donne à la « Réception usine » la « Mise en service » pour prédécesseur, qu'elle précède déjà par le « Montage des armoires sur site ». Sa fusion, demandée à 14 h 07 min 30 s, échoue à 14 h 07 min 50 s sans rien fusionner : elle fermerait une boucle de liaisons, et l'échec en nomme les tâches par leur nœud et leur libellé, « Réception usine », « Montage des armoires sur site » et « Mise en service », comme son compte rendu préalable (structure_merge_report_link_cycle) ; la révision courante reste inchangée (WF-PLA-0030, WF-REV-0050, WF-IHM-0080, #788).",
+  "value": {
+    "task_id": "01926f3a-7c00-7000-8000-000000000952",
+    "kind": "structure_merge",
+    "status": "failed",
+    "progress": 20,
+    "submitted_at": "2026-06-03T14:07:30Z",
+    "finished_at": "2026-06-03T14:07:50Z",
+    "problem": {
+      "code": "LINK_CYCLE",
+      "status": 422,
+      "params": {
+        "cycle": [
+          {
+            "node_id": "01926f3a-7c00-7000-8000-000000000556",
+            "label": "Réception usine"
+          },
+          {
+            "node_id": "01926f3a-7c00-7000-8000-000000000562",
+            "label": "Montage des armoires sur site"
+          },
+          {
+            "node_id": "01926f3a-7c00-7000-8000-000000000565",
+            "label": "Mise en service"
+          }
+        ]
+      }
+    },
+    "result_url": null
+  }
+}

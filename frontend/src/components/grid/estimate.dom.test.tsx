@@ -8,8 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
+import { SHOWN } from "@/test/grid-preferences";
 
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
@@ -37,6 +38,8 @@ const STRUCTURE = {
 };
 // A role of the reference data, deactivated.
 const AUTOMATION_ENGINEER = "01926f3a-7c00-7000-8000-000000000453";
+const COMMISSIONING = "01926f3a-7c00-7000-8000-000000000451";
+const FITTER = "01926f3a-7c00-7000-8000-000000000454";
 // The rows of the estimate, by their index: its line of labour, its disbursement, its provision.
 const LABOUR = 2;
 const DISBURSEMENT = 3;
@@ -65,7 +68,7 @@ function grid(nodes: NodeList) {
         tasksEditable
         query={NO_QUERY}
         filters={{}}
-        preferences={{ hidden_columns: [] }}
+        preferences={SHOWN}
       />
     </NextIntlClientProvider>
   );
@@ -96,8 +99,83 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("the refusal of a cell that would leave a task without a working hour (#779)", () => {
+  it("names the task by its label and the role by the label the grid knows, from the refusal of the contract [WF-PLA-0010-A]", async () => {
+    const client = fakeClient({
+      [LINE]: { problem: example("estimate_line_without_hours") as Problem & { status: 422 } },
+    });
+    server.client = client;
+    render(grid(estimate));
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle" }),
+      "Monteur câbleur",
+    );
+    await userEvent.keyboard("{Tab}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Une tâche n’aurait plus aucune heure travaillée");
+    expect(alert).toHaveTextContent("Rôle dont le calendrier n’a aucune heure");
+    expect(alert).toHaveTextContent("Monteur câbleur");
+    expect(alert).toHaveTextContent("Tâche en cause");
+    expect(alert).toHaveTextContent("Câblage des armoires");
+    expect(written(client)).toEqual([
+      { resource_role_id: "01926f3a-7c00-7000-8000-000000000454", lock_version: 1 },
+    ]);
+  });
+
+  it("names the roles of the refusal of the contract as it gives them, though the roles the session reads do not hold the monteur câbleur [WF-PLA-0010-A]", async () => {
+    // An estimator reads the active roles alone (`resource_settings.read` missing), and here not the
+    // monteur câbleur: no line of the grid bears it, no role read names it; the refusal of the contract
+    // names it itself (#1684).
+    const client = fakeClient({
+      [LINE]: { problem: example("estimate_line_without_hours") as Problem & { status: 422 } },
+    });
+    server.client = client;
+    // The line of labour bears another role, so that none shown is the monteur câbleur.
+    const read = structuredClone(estimate);
+    const labour = read.items[LABOUR]?.estimate_line;
+    if (labour !== undefined && labour !== null) {
+      labour.resource_role_id = COMMISSIONING;
+      labour.resource_role_label = "Ingénieur électricien";
+    }
+    const reference = estimateReference();
+    render(
+      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+        <EstimateGrid
+          nodes={read}
+          structure={STRUCTURE}
+          structureVersion={1}
+          reference={{
+            ...reference,
+            roles: reference.roles?.filter((role) => role.active && role.id !== FITTER),
+          }}
+          editable
+          tasksEditable
+          query={NO_QUERY}
+          filters={{}}
+          preferences={SHOWN}
+        />
+      </NextIntlClientProvider>,
+    );
+    cell(LABOUR, "resource_role").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Rôle" }),
+      "Technicien de mise en service",
+    );
+    await userEvent.keyboard("{Tab}");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Rôle dont le calendrier n’a aucune heure : Monteur câbleur (MONT-CAB).",
+    );
+    expect(alert).toHaveTextContent("Câblage des armoires");
+    expect(alert).not.toHaveTextContent("000000000454");
+  });
+});
+
 describe("the sub-project, the payment delay and the deactivated object of a line (#349)", () => {
-  it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, the sub-project being chosen from the menu of the cell", async () => {
+  it("presents the sub-project and the payment delay of a line as the server gives them, and enters the delay where the node accepts it, on a line of labour as on a disbursement, the sub-project being chosen from the menu of the cell [WF-DEV-0020-A]", async () => {
     const client = serve();
     const read = structuredClone(estimate);
     const disbursement = read.items[DISBURSEMENT]?.estimate_line;
@@ -109,10 +187,10 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
     expect(cell(PROVISION, "subproject")).toHaveTextContent(/^$/);
     expect(cell(DISBURSEMENT, "payment_delay_days")).toHaveTextContent(/^30$/);
     expect(cell(LABOUR, "payment_delay_days")).toHaveTextContent(/^0$/);
-    // A line of labour shows the delay the server gives, nought, without entering it — its node
-    // does not accept it —; a disbursement takes one, a whole number of days, which the contract
-    // takes as an integer.
-    expect(cell(LABOUR, "payment_delay_days")).toHaveAttribute("aria-readonly", "true");
+    // A line of labour takes a delay as a disbursement does, its node accepting it (#785): the cell
+    // follows `editable_fields`, with no rule of its own; a delay is a whole number of days, which
+    // the contract takes as an integer.
+    expect(cell(LABOUR, "payment_delay_days")).not.toHaveAttribute("aria-readonly");
     cell(DISBURSEMENT, "payment_delay_days").focus();
     await userEvent.keyboard("{Enter}");
     const field = screen.getByRole("textbox", { name: "Délai de paiement (j)" });
@@ -133,6 +211,17 @@ describe("the sub-project, the payment delay and the deactivated object of a lin
       expect(written(client)).toHaveLength(1);
     });
     expect(written(client)).toEqual([{ payment_delay_days: 45, lock_version: 1 }]);
+    // The same on a line of labour: the delay is entered and sent as the node accepts it.
+    cell(LABOUR, "payment_delay_days").focus();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.keyboard("20{Enter}");
+    await vi.waitFor(() => {
+      expect(written(client)).toHaveLength(2);
+    });
+    expect(written(client)).toEqual([
+      { payment_delay_days: 45, lock_version: 1 },
+      { payment_delay_days: 20, lock_version: 1 },
+    ]);
   });
 
   it("marks the lines that bear a deactivated role, as the server says it, and keeps them readable [WF-REF-0010-A]", async () => {

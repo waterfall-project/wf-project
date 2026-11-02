@@ -33,6 +33,5 @@ describe("the basis a link opens the workload on (#1069)", () => {
     expect(estimateBasis({ state: "in_progress", reference_revision_id: null })).toBe(
       "current_remaining",
     );
-    expect(estimateBasis({ state: "in_progress" })).toBe("current_remaining");
   });
 });

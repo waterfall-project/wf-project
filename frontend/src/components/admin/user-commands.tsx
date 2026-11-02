@@ -36,7 +36,7 @@ import {
   useState,
 } from "react";
 
-import { anonymizeUser, createPasswordSetupLink } from "@/api/actions/users";
+import { anonymizeUser, createPasswordSetupLink, resendInvitation } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import type { Outcome } from "@/api/problem";
 import { useAccountNaming } from "@/components/account/account-name";
@@ -102,6 +102,14 @@ export interface UserWrites {
   readonly giveLink: (user: User, name: string, trigger: HTMLElement) => void;
   /** Whether a link is asked or shown: every command of the link waits until it is closed. */
   readonly linking: boolean;
+  /**
+   * Have the identity provider send again the email of the link of an account (`resendInvitation`),
+   * and say that it went; a refusal — no email leaves an installation without a mail server, 503 —
+   * is told on the reading it was asked from, never as a sent email.
+   */
+  readonly resend: (user: User, name: string, trigger: HTMLElement) => void;
+  /** The accounts whose email is asked and not yet answered. */
+  readonly resending: ReadonlySet<string>;
   /** Ask the confirmation of the anonymisation of an account, from the command pressed. */
   readonly anonymize: (user: User, back: HTMLElement | null) => void;
   /** Say in the region of the table what a command did, or the condition it lacks. */
@@ -181,7 +189,11 @@ function Writes({ children }: { readonly children: ReactNode }) {
   const [creating, setCreating] = useState<Opening>();
   const [given, setGiven] = useState<Given>();
   const [linking, setLinking] = useState(false);
-  // The same, as the last press left it: two presses may come before a render.
+  const [resending, setResending] = useState<ReadonlySet<string>>(() => new Set());
+  // The accounts whose email is asked, as the last press left them: a second press of the same
+  // command may come before the render that marks it busy.
+  const resendHeld = useRef(new Set<string>());
+  // Whether a link is asked or shown, as the last press left it: two presses may come before a render.
   const linkHeld = useRef(false);
   // The account whose anonymisation is asked — kept while the confirmation closes —, and whether
   // the confirmation is open.
@@ -293,6 +305,39 @@ function Writes({ children }: { readonly children: ReactNode }) {
     },
     [list, releaseLink],
   );
+  const resend = useCallback(
+    (user: User, name: string, trigger: HTMLElement) => {
+      const id = user.user_id;
+      if (resendHeld.current.has(id)) {
+        return;
+      }
+      resendHeld.current.add(id);
+      setResending(new Set(resendHeld.current));
+      const generation = list?.generation ?? 0;
+      void resendInvitation(id)
+        .catch(rejected)
+        .then((outcome) => {
+          resendHeld.current.delete(id);
+          setResending(new Set(resendHeld.current));
+          if (outcome.kind === "done") {
+            say(t("resent", { name }), { object: name });
+          } else {
+            list?.report({
+              outcome,
+              generation,
+              names: {},
+              target: `invitation ${id}`,
+              back: trigger,
+            });
+            // No email left: the way out is the link, handed over by another channel.
+            if ("problem" in outcome && outcome.problem.status === 503) {
+              say(t("resendUnsent", { name }), { noted: false });
+            }
+          }
+        });
+    },
+    [list, say, t],
+  );
   const create = useCallback((trigger: HTMLElement) => {
     setCreating({ trigger });
   }, []);
@@ -310,10 +355,26 @@ function Writes({ children }: { readonly children: ReactNode }) {
       create,
       giveLink,
       linking,
+      resend,
+      resending,
       anonymize,
       say,
     }),
-    [answered, asked, busy, latest, run, reserve, create, giveLink, linking, anonymize, say],
+    [
+      answered,
+      asked,
+      busy,
+      latest,
+      run,
+      reserve,
+      create,
+      giveLink,
+      linking,
+      resend,
+      resending,
+      anonymize,
+      say,
+    ],
   );
   return (
     <WritesContext value={writes}>

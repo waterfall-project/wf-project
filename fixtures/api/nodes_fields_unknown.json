@@ -1,0 +1,12 @@
+{
+  "summary": "La structure principale du témoin lue avec fields=task.duration_days, une propriété que le nœud n'a pas — sa durée est task.duration : refusée comme tout paramètre de requête, le paramètre désigné ; rien n'est lu (WF-ARC-0110, WF-IHM-0130).",
+  "description": "Exemple engendré par `make mock-data` (`wftools.mockdata`) : il ne se retouche pas.",
+  "value": {
+    "code": "VALIDATION_FAILED",
+    "status": 422,
+    "fields": [
+      {"pointer":"/query/fields","code":"FIELD_NOT_ACCEPTED"}
+    ],
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001621"
+  }
+}

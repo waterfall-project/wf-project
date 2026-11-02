@@ -24,6 +24,7 @@ import {
   Milestone,
   Pencil,
   Percent,
+  RefreshCw,
   ShieldAlert,
   ShieldPlus,
   Stamp,
@@ -78,6 +79,8 @@ export const REVISION_COMMAND_ICONS: Readonly<
   edit_remaining: Hourglass,
   edit_risks: ShieldAlert,
   declare_risk: ShieldPlus,
+  // The application of the rate update the revision is offered (EP-16/US-0640).
+  apply_rate_update: RefreshCw,
   create_structure: ListTree,
   merge_structure: GitMerge,
   mark: Stamp,

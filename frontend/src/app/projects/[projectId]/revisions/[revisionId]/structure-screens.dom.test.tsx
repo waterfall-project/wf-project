@@ -124,10 +124,12 @@ function lastAsked(): URLSearchParams {
   return new URLSearchParams(href.split("?")[1] ?? "");
 }
 
-/** Sort the grid by its inflated amount, from the button of its header. */
-async function sortByInflation() {
+/** Sort the grid by its amount at the year of reference, from the button of its header. */
+async function sortByReferenceAmount() {
   await userEvent.click(
-    within(screen.getByRole("columnheader", { name: /inflation/ })).getByRole("button"),
+    within(
+      screen.getByRole("columnheader", { name: /^Calculé Montant \(année de réf\.\)$/ }),
+    ).getByRole("button"),
   );
 }
 
@@ -169,6 +171,7 @@ beforeEach(() => {
   server.clients = [];
   server.answers = {
     "GET /me": "me",
+    "GET /reference/settings": "reference_settings",
     "GET /projects/{project_id}": "project",
     "GET /projects/{project_id}/revisions": "revisions",
     "GET /projects/{project_id}/revisions/{revision_id}": "revision",
@@ -198,10 +201,10 @@ describe("the address the banner and the grid of a screen ask from", () => {
   it("chooses the structure from the sort asked and not arrived yet, the sort kept", async () => {
     render(await tree(ESTIMATE, ""));
     const arrive = holdNavigations();
-    await sortByInflation();
+    await sortByReferenceAmount();
     await chooseAmendment();
     expect(Object.fromEntries(lastAsked())).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
       structure: AMENDMENT,
     });
@@ -212,10 +215,10 @@ describe("the address the banner and the grid of a screen ask from", () => {
     render(await tree(ESTIMATE, ""));
     const arrive = holdNavigations();
     await chooseAmendment();
-    await sortByInflation();
+    await sortByReferenceAmount();
     expect(Object.fromEntries(lastAsked())).toEqual({
       structure: AMENDMENT,
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
     await arrive();
@@ -261,10 +264,10 @@ describe("the chip that lifts a filter of the banner", () => {
   it("lifts the lot from the sort asked and not arrived yet, the sort kept", async () => {
     render(await tree(ESTIMATE, `work_package_id=${LOT}`));
     const arrive = holdNavigations();
-    await sortByInflation();
+    await sortByReferenceAmount();
     await liftFilter();
     expect(Object.fromEntries(lastAsked())).toEqual({
-      sort_by: "inflated_amount",
+      sort_by: "base_amount",
       sort_order: "asc",
     });
     await arrive();

@@ -1,0 +1,11 @@
+{
+  "summary": "Le réexamen qui rendrait identifié un risque écarté du projet créé aujourd'hui, « Rénovation du poste de livraison », dont la structure principale a perdu sa seule tâche depuis que le risque a été écarté : refusé, la condition manquante nommée — au moins une tâche, sans laquelle la ligne de provision recréée n'aurait pas de tâche où se ranger, comme à la déclaration ; rien n'est écrit. Une variante contrefactuelle : les risques écartés du témoin sont sur une structure qui porte des tâches (WF-RIS-0010, #787).",
+  "value": {
+    "code": "STATE_FORBIDS_OPERATION",
+    "status": 409,
+    "params": {
+      "missing_condition": "at_least_one_task"
+    },
+    "correlation_id": "01926f3a-7c00-7000-8000-000000001558"
+  }
+}

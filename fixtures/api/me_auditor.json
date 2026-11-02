@@ -41,6 +41,16 @@
           "hidden_columns": [
             "correlation"
           ],
+          "known_columns": [
+            "occurred_at",
+            "actor",
+            "action",
+            "object_kind",
+            "object",
+            "history",
+            "project",
+            "correlation"
+          ],
           "column_widths": {
             "occurred_at": 220
           },

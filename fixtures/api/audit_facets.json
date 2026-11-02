@@ -6,7 +6,7 @@
       {"user_id":"01926f3a-7c00-7000-8000-000000000301","display_name":"Camille Martin"}
     ],
     "projects": [
-      {"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande"}
+      {"project_id":"01926f3a-7c00-7000-8000-000000000001","code":"PRJ-001","label":"Modernisation du poste de commande","can_open":true}
     ]
   }
 }

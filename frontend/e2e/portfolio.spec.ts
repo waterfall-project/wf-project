@@ -158,6 +158,18 @@ test("exports the S-curve of the portfolio as a PNG image named after the date o
   expect(download?.suggestedFilename()).toBe("couts-cumules-portefeuille-2026-06-03.png");
 });
 
+test("offers the period of the projects completed to the S-curve and the structure of the costs, and keeps it in the address [WF-PTF-0010-A]", async ({
+  page,
+}) => {
+  for (const route of [COST_CURVE, "/portfolio/cost-structure"]) {
+    await page.goto(`${route}?states=completed&from=2025-01-01&to=2025-12-31`);
+    const period = page.getByRole("form", { name: "Période et date de calcul" });
+    await expect(period).toBeVisible();
+    await expect(period.getByLabel("Du", { exact: true })).toHaveValue("2025-01-01");
+    await expect(period.getByLabel("Au", { exact: true })).toHaveValue("2025-12-31");
+  }
+});
+
 test("draws the aggregated workload in stacked bars with the dashed capacity of the perimeter, the table of the roles under it, and exports it as a PNG image [WF-PTF-0060-A] [WF-IHM-0130-A]", async ({
   page,
 }) => {
