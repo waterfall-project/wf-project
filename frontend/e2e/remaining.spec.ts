@@ -172,11 +172,11 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await main.getByRole("searchbox", { name: "Rechercher une tâche" }).fill("ETUDES");
   await main.getByRole("searchbox", { name: "Rechercher une tâche" }).press("Enter");
   await expect(page).toHaveURL(/[?&]q=ETUDES(&|$)/, { timeout: WORKING });
-  await expect(page.getByRole("heading", { name: /^Terminées\s+2 sur 27$/ })).toBeVisible({
+  await expect(page.getByRole("heading", { name: /^Terminées\s*2 sur 27$/ })).toBeVisible({
     timeout: WORKING,
   });
   await expect(completed.getByRole("listitem")).toHaveCount(2);
-  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s*0 sur 925$/ })).toBeVisible();
   // The tasks ready narrow the tasks not started alone. The label lifted first, so that the count
   // of the column not started holds to the filter of the tasks ready alone: the example has none
   // ready (the factory acceptance waits for the wiring), so the 925 cards all go, and the tasks
@@ -186,7 +186,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(page).not.toHaveURL(/[?&]q=/, { timeout: WORKING });
   await main.getByRole("checkbox", { name: "Tâches prêtes" }).check();
   await expect(page).toHaveURL(/[?&]ready=1(&|$)/, { timeout: WORKING });
-  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible({
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s*0 sur 925$/ })).toBeVisible({
     timeout: WORKING,
   });
   await expect(page.getByRole("heading", { name: "Démarrées", exact: true })).toBeVisible();
