@@ -1,7 +1,7 @@
 ---
 id: EP-16
 titre: Le contrat figé — ses mineurs soldés, la reprise de la spécification du 2026-10-22 au contrat, au faux back et aux écrans, des parcours joués contre le front construit, et les aides des autres écrans
-statut: en cours
+statut: livré
 depend_de: EP-15
 famille: front
 issue: 1312
