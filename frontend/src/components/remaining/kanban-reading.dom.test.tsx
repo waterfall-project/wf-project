@@ -224,7 +224,7 @@ describe("the Kanban once a gesture is answered", () => {
     expect(status).toHaveTextContent("Réception usine : colonne « Terminées ».");
   });
 
-  it("keeps shown under the tasks ready the milestone just reopened, until the reading of the tasks brings its predecessors", async () => {
+  it("keeps shown under the tasks ready the milestone just reopened, until the reading of the tasks brings its predecessors [WF-RAE-0030-A]", async () => {
     // The answer of a gesture does not carry the predecessors of the task: the card stays shown
     // under « Tâches prêtes », rather than vanish under the hand that moved it (US-0730).
     serve({ [PROGRESS]: "milestone_reopened" });
