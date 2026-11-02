@@ -505,7 +505,8 @@ describe("the grid of the access roles", () => {
     );
     await confirmDeletion("Administrateur");
     const alert = await screen.findByRole("alert");
-    // textContent: the matcher folds the no-break spaces of the catalogue text, not the DOM's.
+    // toHaveTextContent folds the whitespace of the DOM, U+202F included, but not that of the
+    // expected text: textContent compares the two as they are.
     expect(alert.textContent).toContain(CATALOGUES.fr.errors.STALE_LOCK_VERSION);
     expect(told().textContent).toBe("");
     const administrator = roles.find((role) => role.label === "Administrateur");
