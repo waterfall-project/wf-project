@@ -821,6 +821,14 @@
     "empty": "No task.",
     "milestone": "Milestone",
     "milestoneDue": "Its predecessors are completed: milestone to complete.",
+    "readyToStart": "Ready to start",
+    "filters": {
+      "label": "Search a task",
+      "placeholder": "Search a label",
+      "ready": "Ready tasks"
+    },
+    "count": "{shown} of {total}",
+    "noMatch": "No task matches.",
     "finish": "Finish on {date}",
     "finishOverdue": "Finish overdue",
     "completedOn": "Completed on {date}",
@@ -830,6 +838,8 @@
     "unplaced": "{label}: the answer does not say which column the task is in; the tasks are read again.",
     "updating": "Updating…",
     "outdated": "Not up to date",
+    "updatingTold": "{label}: updating.",
+    "outdatedTold": "{label}: not up to date.",
     "retry": "Retry",
     "eventDate": "Date of the event",
     "dateRequired": "Enter the date of the event.",

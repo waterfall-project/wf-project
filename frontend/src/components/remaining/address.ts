@@ -8,9 +8,16 @@
  * more: the user makes the tasks not started appear to re-estimate them (WF-RAE-0040). A link
  * changes the address, and the page reads anew: the front filters nothing (WF-ARC-0020).
  *
+ * The Kanban of the start of the tasks reads two parameters of its own: `q`, the label of a task
+ * it is searched for by, and `ready`, `1` to keep among the tasks not started those whose
+ * predecessors are all completed. Both live in the address alone, kept in no preference nor
+ * session (decision of the author, 2026-10-28); the server renders the tasks, the Kanban only
+ * shows the ones that match what the server said (`predecessors_completed`, WF-ARC-0020).
+ *
  * Pure, and neither server nor client.
  */
 import type { components } from "@/api/generated/schema";
+import { SEARCH_LENGTH } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 
 /** The state of a task, as the contract names it. */
@@ -59,6 +66,57 @@ export function progressHref(pathname: string, query: URLSearchParams, notStarte
     next.set(PROGRESS, STARTED_AND_NOT.join(","));
   } else {
     next.delete(PROGRESS);
+  }
+  const text = next.toString();
+  return text === "" ? pathname : `${pathname}?${text}`;
+}
+
+/** The parameter of the address the label a Kanban card is searched by goes by. */
+export const LABEL = "q";
+
+/** The parameter of the address the filter of the tasks ready to start goes by. */
+export const READY = "ready";
+
+/** What the Kanban of the start of the tasks keeps of the tasks it is given. */
+export interface KanbanFilters {
+  /** The text the label of a task holds; empty, no filter. */
+  readonly text: string;
+  /** Whether the tasks not started keep the ones whose predecessors are all completed. */
+  readonly ready: boolean;
+}
+
+/** The filters of the Kanban the address names: none for a parameter it does not carry. */
+export function readKanbanFilters(search: SearchParameters): KanbanFilters {
+  return {
+    text: (search.get(LABEL) ?? "").trim().slice(0, SEARCH_LENGTH),
+    ready: search.get(READY) === "1",
+  };
+}
+
+/**
+ * The address of the same screen with the label searched or the tasks ready asked — or lifted, for
+ * an empty text, or for `false` —, the rest of its query kept: the reading context, the filters
+ * of the other.
+ */
+export function kanbanFilterHref(
+  pathname: string,
+  query: URLSearchParams,
+  change: Partial<KanbanFilters>,
+): string {
+  const next = new URLSearchParams(query);
+  if (change.text !== undefined) {
+    if (change.text === "") {
+      next.delete(LABEL);
+    } else {
+      next.set(LABEL, change.text);
+    }
+  }
+  if (change.ready !== undefined) {
+    if (change.ready) {
+      next.set(READY, "1");
+    } else {
+      next.delete(READY);
+    }
   }
   const text = next.toString();
   return text === "" ? pathname : `${pathname}?${text}`;

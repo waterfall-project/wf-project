@@ -373,7 +373,8 @@ export interface CardState {
 /** The title of a card: its number, the mark of a milestone, its label, and when it ends. */
 function CardTitle({ card }: { readonly card: KanbanCard }) {
   const t = useTranslations("kanban");
-  const due = card.is_milestone && card.state === "not_started" && card.predecessors_completed;
+  const ready = card.state === "not_started" && card.predecessors_completed;
+  const due = card.is_milestone && ready;
   return (
     <>
       <p className="flex items-baseline gap-2">
@@ -386,6 +387,12 @@ function CardTitle({ card }: { readonly card: KanbanCard }) {
         <span className="font-medium">{card.label}</span>
       </p>
       <CardDate card={card} />
+      {ready ? (
+        <p className="flex items-center gap-1.5 text-xs font-medium">
+          <CircleCheck aria-hidden="true" className="size-3.5 shrink-0" />
+          {t("readyToStart")}
+        </p>
+      ) : null}
       {due ? (
         <p className="flex items-center gap-1.5 text-xs font-medium">
           <Flag aria-hidden="true" className="size-3.5 shrink-0" />
@@ -396,7 +403,12 @@ function CardTitle({ card }: { readonly card: KanbanCard }) {
   );
 }
 
-/** The mark of a card answered: the tasks are being read anew, or that reading did not reach it. */
+/**
+ * The mark of a card answered: the tasks are being read anew, or that reading did not reach it. The
+ * text is no live region of its own — a card among a thousand would each carry one: the board tells
+ * assistive technology in its one permanent region (`kanban.tsx`) —, and the button of the retry is
+ * no part of a text a region would read again.
+ */
 function CardReading({
   reading,
   retry,
@@ -408,7 +420,7 @@ function CardReading({
   const helps = useTranslations("commands");
   if (reading === "updating") {
     return (
-      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <LoaderCircle
           aria-hidden="true"
           className="size-3.5 animate-spin motion-reduce:animate-none"
@@ -419,8 +431,8 @@ function CardReading({
   }
   if (reading === "outdated") {
     return (
-      <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="after:ml-1.5 after:content-['—']">{t("outdated")}</span>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <p>{t("outdated")}</p>
         <CommandTooltip label={t("retry")} help={helps("retryReading.help")}>
           <Button
             type="button"
@@ -432,7 +444,7 @@ function CardReading({
             {t("retry")}
           </Button>
         </CommandTooltip>
-      </p>
+      </div>
     );
   }
   return null;

@@ -8,7 +8,16 @@ Three columns, in the order the server gives: **Not started**, **Started**, **Co
 
 The Kanban reads the draft revision, whatever the revision of the context: on a marked revision, which has no task to start, it says so and shows nothing.
 
+A task not started all of whose predecessors are completed bears **Ready to start**, by an icon and a text, whether a filter is active or not; on a milestone, it comes beside “milestone to complete”. The server says which tasks are ready: the screen computes nothing of it.
+
 ## Its commands
+
+**Finding a task.** Two filters, above the columns, write the address of the screen — they are kept in no preference nor session, and a copied page carries them:
+
+- **Search a task**: the label, whatever the case and the accents, in the three columns at once; `Enter` applies it, an emptied field lifts the filter.
+- **Ready tasks**: in the Not started column alone, keeps the tasks ready to start; the Started and Completed columns do not change.
+
+When a filter hides cards, the header of the column says how many are shown, “4 of 12”, which screen readers read too. A chosen card that a filter hides is no longer chosen: `Tab` goes back to the first card shown of its column.
 
 Each card makes the gestures its task offers, and only those, through its menu, by dragging it to a column, or with the keyboard:
 

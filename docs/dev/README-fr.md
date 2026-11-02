@@ -1135,7 +1135,13 @@ Kanban du démarrage des tâches, FBS-4.5.3, est une feuille de la fonction,
 `…/revisions/[r]/kanban`, où l'en-tête de la grille mène : toutes les tâches non démarrées, les
 démarrées et les terminées avec leur date, telles que les rend
 `listStartableTasks`, chacune une carte, un jalon non démarré dont les prédécesseurs sont terminés
-signalé à terminer (`predecessors_completed`, un texte et une icône) ; aucun pourcentage. La page
+signalé à terminer (`predecessors_completed`, un texte et une icône), et toute tâche non démarrée
+dont ils sont terminés signalée « prête à démarrer » de même ; aucun pourcentage. Deux filtres,
+qui vivent dans l'adresse seule (`q`, le libellé, sans égard à la casse ni aux accents ; `ready`,
+`1`), la lisent par `remaining/address.ts` et l'écrivent par `router.replace` : `Kanban` en
+filtre ce que le serveur rend (`kanban-filter.ts`) — le libellé dans les trois colonnes, les tâches
+prêtes dans la colonne Non démarrée seule —, l'en-tête d'une colonne dont des cartes sont
+masquées dit « n sur N », et une carte choisie qu'un filtre masque perd le choix. La page
 découpe les cartes (`kanban-cards.ts` : ce que la carte montre et ses gestes, jamais le nœud entier
 d'un millier de tâches) et lit la structure principale de la révision (`listCostStructures`), où les
 gestes s'écrivent. Une carte se choisit au clic ou aux flèches (haut et bas dans la colonne, gauche
