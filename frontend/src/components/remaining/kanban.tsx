@@ -414,9 +414,12 @@ export function Kanban({
               <h2 className="text-sm font-semibold">
                 {t(title)}
                 {listed.length < total ? (
-                  <span className="ml-1.5 font-normal text-muted-foreground">
-                    {t("count", { shown: listed.length, total })}
-                  </span>
+                  <>
+                    {" "}
+                    <span className="ml-0.5 font-normal text-muted-foreground">
+                      {t("count", { shown: listed.length, total })}
+                    </span>
+                  </>
                 ) : null}
               </h2>
               {listed.length === 0 ? (

@@ -120,6 +120,14 @@ describe("the filters of the Kanban", () => {
     expect(screen.getByRole("heading", { name: "Terminées" })).toBeInTheDocument();
   });
 
+  it("separates the title of a column from its count by a real space, which a screen reader hears", () => {
+    board({ text: "", ready: true });
+    // The name is computed from the text, not from the margin: « Non démarrées2 sur 4 » would be
+    // read as one word. The matcher folds white space, so the text itself is what is compared.
+    const heading = screen.getByRole("heading", { name: /^Non démarrées\s2 sur 4$/ });
+    expect(heading.textContent).toBe("Non démarrées 2 sur 4");
+  });
+
   it("counts the cards a label hides in every column", () => {
     board({ text: "études", ready: false });
     expect(screen.getByRole("heading", { name: "Terminées 2 sur 4" })).toBeInTheDocument();
