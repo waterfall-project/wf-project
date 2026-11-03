@@ -2788,6 +2788,47 @@ already gives wins, its service is not started, and the job of the chain, which 
 not changed. `make slot-release` removes them with the service platform. In a linked worktree
 without a slot, the two targets fail, saying `make slot`.
 
+**The trial at N = 4** (EP-19, outside the epic). The proof of EP-19 is played at N = 2, on the
+current workstation. Four deliverers together are only tried when the new machine arrives, and the
+author plays it; N remains a number the author sets, no admission deduces it from the free memory.
+The steps:
+
+1. **Set N.** `WATERFALL_SLOTS` is a variable of the environment of the user's profile
+   (`export WATERFALL_SLOTS=4` in `~/.profile` or `~/.bashrc`), an integer from 1 to 9, and it is
+   read in every session: the pilot's, its deliverers', and the `make` commands of each. Open new
+   sessions after the change; `make slots` prints the N they see.
+2. **Start empty.** No container left by a previous lot (`docker ps`), no slot taken
+   (`make slots`), the main repository up to date. Note the memory and the processors of the
+   workstation.
+3. **Go up in steps**, N = 2 then 3 then 4, replaying step 4 at each; go to the next step only if
+   the previous one is clean.
+4. **Play N deliverers together**, on lots of an epic with no « Pas avec » between them, or by
+   hand: N worktrees, each its `make slot`, and in each, together, `make test-back`, then
+   `make coverage-front` and `make e2e` without `TESTS` — the heavy runs —, finally
+   `make check BASE=origin/epic/EP-nn`. A `make slot-release` at the end of each.
+5. **Measure**, at each step:
+   - the memory of the workstation at its peak (`free -m` every ten seconds during the trial) and
+     the use of swap: it is what made the workstation collapse (2026-10-19, 21, 22);
+   - the duration of each heavy run, compared with that of a deliverer alone; is the share of the
+     processors, `WATERFALL_PROCESSORS` (the workstation divided by N), too narrow, or too wide?
+   - the wait of the admission: the runs that say they wait for a heavy slot, and how long; with N
+     deliverers and N heavy runs admitted, it should be short;
+   - the ports and the names: `make slots` shows each slot taken by a different worktree, no test
+     fails on a port or a Compose project already taken (`docker ps`: one project per slot), and
+     `make slot-release` leaves the slot without container or volume;
+   - the services of the tests (`tmpfs`): no database or Redis shared between slots, no collision
+     of data between two deliverers;
+   - the merge queue and the tracking table: no line of the table overwritten (`make tracking`), no
+     conflict the plan had not foreseen (« Pas avec »);
+   - the cost of the deliverers: the context and the tokens per lot, compared with N = 1.
+6. **Raise N, or keep it.** Keep the N of the step as long as none of these measures signals the
+   start of a collapse: memory near the limit or swap in use, the duration of a step more than
+   multiplied by N, an admission wait that grows. At the first symptom, go back down one notch
+   (`WATERFALL_SLOTS=<N − 1>`) and open an `outil` issue with the measures. With N = 4 settled, the
+   pilot launches up to four deliverers; beyond that, N does not exceed 9, the limit of the ports.
+7. **Write the result** in the issue of the trial: the N kept, the measures, what will have to be
+   tuned (the share of the processors, the number of workers).
+
 ## The chain
 
 The chain is made of GitHub Actions workflows (`.github/workflows/`):
