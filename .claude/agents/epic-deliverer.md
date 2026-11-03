@@ -148,6 +148,8 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
     - supprime la branche locale du lot, et toute branche de travail tirée pour lui
       (`git branch -d lot/<identifiant>`, de même pour chacune) ; `git branch -d` refuse une
       branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
+    - retire les services de test et la plateforme de service de ton lot, et rends ton créneau :
+      `make slot-release`, lancé dans le worktree du lot, avant de le retirer ;
     - retire les worktrees du lot, le tien et ceux des agents que tu as lancés
       (`git worktree remove <chemin>`, puis `git worktree prune`) ; un worktree qui garde des
       modifications non commitées n'est pas retiré, et va au relevé ;

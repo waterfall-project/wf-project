@@ -19,6 +19,15 @@ returns the code of the command.
 It sets ``WATERFALL_PROCESSORS``, the processors divided by N and at least 1, for the workers of
 the command; ``processors`` prints the same number, for a Makefile that runs no heavy run.
 
+``run --services db,redis,storage`` (US-1110) also gives the command the services of the tests it
+needs: once the heavy slot is taken, if any — never before, a service removed while the run waited
+is started again —, for each service whose variable (``WATERFALL_TEST_DATABASE_URL``,
+``WATERFALL_TEST_REDIS_URL``, ``WATERFALL_TEST_STORAGE_URL``) the environment does not give, it
+runs ``make test-services`` once and sets the variable on the port of the slot. A variable the
+environment gives wins, and its service is not started: the chain, which starts its own, is not
+changed. ``--heavy`` and ``--services`` go together or alone: a run of one file waits for no slot
+and still has its services.
+
 The same N bounds the worktrees of the lots, each of which takes a slot of 1 to N (``claim``,
 ``make slot``) that gives it its ports, its projects of Compose and the tags of its images; the
 main repository — and every runner of the chain, a main repository too — is at slot 0, on the
@@ -75,6 +84,14 @@ SLOT_OFFSETS = {
     "E2E_FRONT_PORT": 40,
 }
 """The service platform, the fake back and the first front of the paths, in the block of a slot."""
+TEST_SERVICES = {
+    "db": ("postgres", "WATERFALL_TEST_DATABASE_URL", "WATERFALL_TEST_POSTGRES_PORT"),
+    "redis": ("redis", "WATERFALL_TEST_REDIS_URL", "WATERFALL_TEST_REDIS_PORT"),
+    "storage": ("storage", "WATERFALL_TEST_STORAGE_URL", "WATERFALL_TEST_STORAGE_PORT"),
+}
+"""The services of the tests a run may ask for: the Compose service, its variable, its port."""
+TEST_STORAGE_CREDENTIALS = "GK000000000000000000000001:test-only-storage-secret"
+"""The key of the tests on their storage: its identifier, then its secret, as compose.test.yaml."""
 PORTS_OF_BEFORE = {
     "WATERFALL_POSTGRES_PORT": 5432,
     "WATERFALL_REDIS_PORT": 6379,
@@ -193,15 +210,77 @@ def run_command(command: Sequence[str], environment: Mapping[str, str]) -> int:
     return 128 - code if code < 0 else code
 
 
-def run_heavy(command: Sequence[str], environment: Mapping[str, str]) -> int:
-    """Run the command in a free slot, on its share of the processors; return its code."""
+def run_prepared(
+    command: Sequence[str],
+    environment: Mapping[str, str],
+    *,
+    heavy: bool,
+    services: Sequence[str],
+) -> int:
+    """Run the command: in a free slot if heavy, then with its services, in that order (US-1110).
+
+    The services start once the slot is taken, not before: a run that waited for its turn finds
+    them there, whatever was removed in the meantime.
+    """
     slots = slot_count(environment)
-    descriptor = wait_for_slot(lock_paths(environment, slots))
+    descriptor = wait_for_slot(lock_paths(environment, slots)) if heavy else None
     try:
-        child_environment = {**environment, "WATERFALL_PROCESSORS": str(processor_share(slots))}
+        child_environment = dict(environment)
+        if heavy:
+            child_environment["WATERFALL_PROCESSORS"] = str(processor_share(slots))
+        child_environment |= start_test_services(services, child_environment)
         return run_command(command, child_environment)
     finally:
-        os.close(descriptor)
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def start_test_services(services: Sequence[str], environment: Mapping[str, str]) -> dict[str, str]:
+    """Start the test services whose variable the environment lacks; return the variables to set.
+
+    ``make test-services SERVICES=<those>``, run in the worktree, starts them under the project of
+    the slot, on its ports, and waits for them to answer; it does nothing when they run. A port the
+    environment gives is the one the Makefile uses too, so the URL follows it. Nothing is run, and
+    the slot is not asked, when every variable is given.
+    """
+    missing = [
+        TEST_SERVICES[name] for name in services if not environment.get(TEST_SERVICES[name][1])
+    ]
+    if not missing:
+        return {}
+    worktree = current_worktree()
+    here = worktree.path if worktree else Path.cwd()
+    default = ports(slot_here(environment, worktree))
+    command = [
+        "make",
+        "--no-print-directory",
+        "-C",
+        str(here),
+        "test-services",
+        f"SERVICES={' '.join(service for service, _, _ in missing)}",
+    ]
+    try:
+        done = subprocess.run(command, env=dict(environment), stdout=sys.stderr, check=False)
+    except FileNotFoundError as error:
+        message = f"cannot start the services of the tests: {error.strerror}"
+        raise RegisterError(message) from error
+    if done.returncode:
+        message = f"{' '.join(command)} failed with code {done.returncode}"
+        raise RegisterError(message)
+    return {
+        variable: service_url(variable, environment.get(port) or str(default[port]))
+        for _, variable, port in missing
+    }
+
+
+def service_url(variable: str, port: str) -> str:
+    """Return the URL a test service answers at, on the port given: the form the tests read."""
+    address = f"127.0.0.1:{port}"
+    if variable == "WATERFALL_TEST_DATABASE_URL":
+        return f"postgresql://postgres@{address}/postgres"
+    if variable == "WATERFALL_TEST_REDIS_URL":
+        return f"redis://{address}/0"
+    return f"http://{TEST_STORAGE_CREDENTIALS}@{address}"
 
 
 # --- The slots of the worktrees (US-1100) ---------------------------------------------------------
@@ -516,12 +595,28 @@ def which(environment: Mapping[str, str], *, listed: bool) -> int:
     return 0
 
 
+def services_list(raw: str) -> tuple[str, ...]:
+    """Return the test services a comma-separated list names; refuse one that is not known."""
+    names_asked = tuple(name for name in raw.split(",") if name)
+    unknown = [name for name in names_asked if name not in TEST_SERVICES]
+    if unknown or not names_asked:
+        message = f"{raw!r} is not a list of test services among {', '.join(TEST_SERVICES)}"
+        raise argparse.ArgumentTypeError(message)
+    return names_asked
+
+
 def parser() -> argparse.ArgumentParser:
     """Return the parser of the sub-commands."""
     main = argparse.ArgumentParser(prog="slots.py", description=(__doc__ or "").splitlines()[0])
     commands = main.add_subparsers(dest="action", required=True)
-    run = commands.add_parser("run", help="run a command once a slot is free")
-    run.add_argument("--heavy", action="store_true", required=True, help="a heavy run")
+    run = commands.add_parser("run", help="run a command once a slot is free, its services started")
+    run.add_argument("--heavy", action="store_true", help="a heavy run: wait for a free slot")
+    run.add_argument(
+        "--services",
+        type=services_list,
+        default=(),
+        help=f"the test services the command needs, among {', '.join(TEST_SERVICES)}",
+    )
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- <command…>")
     commands.add_parser("processors", help="print the share of the processors of one heavy run")
     commands.add_parser("claim", help="take a slot for this worktree, or say the one it holds")
@@ -549,10 +644,13 @@ def run_action(options: argparse.Namespace, environment: Mapping[str, str]) -> i
         print(processor_share(slot_count(environment)))
         return 0
     command = options.command[1:] if options.command[:1] == ["--"] else options.command
-    if not command:
-        print("slots: run --heavy needs a command after --", file=sys.stderr)
+    if not (options.heavy or options.services):
+        print("slots: run needs --heavy, --services, or both", file=sys.stderr)
         return 2
-    return run_heavy(command, environment)
+    if not command:
+        print("slots: run needs a command after --", file=sys.stderr)
+        return 2
+    return run_prepared(command, environment, heavy=options.heavy, services=options.services)
 
 
 def main(

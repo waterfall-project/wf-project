@@ -443,7 +443,7 @@ contre le service sans se heurter.
 
 ## US-1110 — Les services de test d'un lot démarrés et retirés par le Makefile
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1885
