@@ -3399,8 +3399,9 @@ parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quar
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier d'au moins 1, rien d'autre), moins que
-Playwright n'en prend de lui-même — la moitié des processeurs — sur un poste chargé, où
+(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
+worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
+lui-même — la moitié des processeurs, plafonnée à quarante — sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 

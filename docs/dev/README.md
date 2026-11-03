@@ -3378,8 +3378,9 @@ front of the paths takes as many as it has workers, starting from it (below), fo
 block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
 browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, like
 each of the chain's runners (« The chain »), and `make e2e WORKERS=<n>` plays them on `n` workers
-(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer of at least 1, nothing else), fewer than
-Playwright takes on its own — half the processors — on a loaded workstation, where
+(`E2E_WORKERS`, which `playwright.config.ts` reads; an integer from 1 to 40, nothing else: one front per
+worker, and a slot's block holds only forty), fewer than Playwright takes on its own — half the
+processors, capped at forty — on a loaded workstation, where
 paths fail by timeout (#736). With `WATERFALL_API_ADDRESS`, the harness plays
 against the API it names and starts no fake back.
 

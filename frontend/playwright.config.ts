@@ -95,19 +95,31 @@ function processors(): number {
   return chosen;
 }
 
+// The fronts of the paths are one for each worker, on the ports from the first on: a slot owns forty
+// of them in its block of a hundred (`20000 + 100·i`, offsets 40 to 79), and a forty-first would take
+// a port of the next slot's block in silence (#1902).
+const MAX_WORKERS = 40;
+
 /**
  * The workers the environment names (`E2E_WORKERS`), or Playwright's own: half the processors — of
  * the share `make` gave the run (`WATERFALL_PROCESSORS`, US-1090), the workstation's when none is
- * given. A share that is not a whole number of 1 or more is refused.
+ * given. A share that is not a whole number of 1 or more is refused. Workers named above the forty
+ * fronts of a slot's block are refused; Playwright's own share is held to forty rather than refused,
+ * on a machine of more than eighty processors (#1902).
  */
 function workers(): number {
   const named = process.env.E2E_WORKERS;
   if (named === undefined || named === "") {
-    return Math.max(1, Math.floor(processors() / 2));
+    return Math.min(MAX_WORKERS, Math.max(1, Math.floor(processors() / 2)));
   }
   const chosen = Number(named);
   if (!Number.isInteger(chosen) || chosen < 1) {
     throw new Error(`E2E_WORKERS must be a whole number of workers, 1 or more: ${named}`);
+  }
+  if (chosen > MAX_WORKERS) {
+    throw new Error(
+      `E2E_WORKERS must be ${String(MAX_WORKERS)} at most: a front is started for each worker, and the block of ports of a slot holds ${String(MAX_WORKERS)} of them (${named})`,
+    );
   }
   return chosen;
 }
