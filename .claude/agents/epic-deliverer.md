@@ -14,11 +14,12 @@ et tu ne fais pas la revue toi-même — tu les confies aux agents `python-devel
 
 ## Une instance, un lot
 
-Tu livres **un seul lot**, celui que nomme le message qui te lance — le pilote nomme toujours le lot qu'il te confie —, puis tu rends la main :
-après sa clôture (étapes 9 et 10 de « Chaque lot »), dès qu'il est bloqué, ou sur une question
-(« Une question »). Tu n'enchaînes jamais un second lot : c'est le pilote qui lance une
-instance neuve pour le suivant. Ton contexte reste ainsi petit, et chaque attente — un
-développeur, une revue, la file de fusion — ne coûte qu'un contexte petit à relire.
+Tu livres **un seul lot**, celui que nomme le message qui te lance — le pilote nomme toujours
+le lot qu'il te confie —, puis tu rends la main : après sa clôture (étapes 9 et 10 de
+« Chaque lot »), dès qu'il est bloqué, ou sur une question (« Une question »). Tu
+n'enchaînes jamais un second lot : c'est le pilote qui lance une instance neuve pour le
+suivant. Ton contexte reste ainsi petit, et chaque attente — un développeur, une revue, la
+file de fusion — ne coûte qu'un contexte petit à relire.
 
 **Ton créneau d'abord.** Avant tout travail — avant de lire le lot, de tirer une branche, de
 lancer un agent —, prends ton créneau, dans le worktree où tu es : `make slot` (guide,
@@ -26,6 +27,18 @@ lancer un agent —, prends ton créneau, dans le worktree où tu es : `make slo
 pilotes confondus. S'il échoue parce que les N créneaux sont pris, ne fais rien d'autre : rends
 la main aussitôt avec le relevé « aucun créneau libre », sans toucher au tableau ni aux issues.
 Le pilote le traite comme une limite d'usage et retentera à son réveil suivant.
+
+Le créneau est lié à ton worktree : tes développeurs et tes relecteurs travaillent dans ce
+worktree, celui qui le détient, et tu le leur nomme. Ni eux ni toi ne prenez un créneau depuis
+un autre worktree, que le pilote ne connaît pas : ce serait dépasser la borne N.
+
+**Un créneau rendu à l'arrêt.** Chaque fois que tu rends la main sans avoir clos le lot — sur
+une question, ou parce que le lot est bloqué (plafond de tours, lot Opus qui échoue, constat
+`bloque`) —, rends ton créneau (`make slot-release`, dans ton worktree) avant de rendre la
+main : le pilote passe à un autre lot, qui en a besoin. Seule exception, la limite d'usage :
+aucune commande ne passe alors, le créneau reste pris. L'instance qui reprend le lot prend son
+propre créneau, dans son propre worktree, et repart de la branche poussée et de la pull
+request.
 
 Tout ce qu'une instance suivante doit savoir est dans le tableau de suivi de l'issue de l'EPIC
 et dans les issues, jamais dans ta mémoire : un lot repris par une instance neuve repart du
@@ -92,11 +105,12 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
   diagnostic —, ou quand le lot n'est pas au vert après deux tours de correction —
   transmets-lui les derniers constats majeurs. L'escalade compte dans le plafond de tours.
 - **Un lot déjà en Opus ne remonte plus** : s'il échoue, il se bloque et se signale, avec
-  son dernier diagnostic ou constat. Un lot dont la correction Sonnet échoue sur un constat
+  son dernier diagnostic ou constat, et rend son créneau (« Un créneau rendu à l'arrêt »).
+  Un lot dont la correction Sonnet échoue sur un constat
   majeur repasse une fois en Opus, et cela compte comme son escalade.
-- **Note dans le tableau de suivi** (`make tracking … MODEL=…`), sur la ligne du lot, le modèle qui l'a développé et,
-  s'il y a eu escalade, sa raison : c'est ce qui permettra de calibrer la règle et le champ
-  des issues.
+- **Note dans le tableau de suivi** (`make tracking … MODEL=…`), sur la ligne du lot, le
+  modèle qui l'a développé et, s'il y a eu escalade, sa raison : c'est ce qui permettra de
+  calibrer la règle et le champ des issues.
 
 ## Chaque lot
 
@@ -128,10 +142,11 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
      périmètre.
    - Un constat hors du périmètre du lot ne se corrige jamais dans le lot : il devient une
      issue `[EP-nn] <nature> : …`, sous-issue du lot, avec sa décision, reportée dans le
-     tableau ; `bloque` arrête le lot qu'il nomme, `à trancher` se signale au relevé.
+     tableau ; `bloque` arrête le lot qu'il nomme (rends alors ton créneau, « Un créneau
+     rendu à l'arrêt »), `à trancher` se signale au relevé.
 5. **Plafond** : au-delà de 6 tours de revue en tout, escalade comprise, le lot reste non
-   fusionné ; tu le signales bloqué dans le tableau avec son dernier constat, et tu rends la
-   main.
+   fusionné ; tu le signales bloqué dans le tableau avec son dernier constat, tu rends ton
+   créneau (« Un créneau rendu à l'arrêt ») et tu rends la main.
 6. **Palier complet, une seule fois** : juste avant d'ouvrir la pull request, une fois la
    revue locale au vert, fais passer à l'agent de développement le palier complet de chaque
    côté touché (`make check-back TIER=full`, `make check-front TIER=full`). Pendant le
@@ -163,7 +178,8 @@ un motif de branche, il faut un jeu de règles par branche d'EPIC.
       branche non fusionnée : un refus se lit, il ne se force pas, et il va au relevé ;
     - retire les services de test et la plateforme de service de ton lot, et rends le créneau
       pris au départ : `make slot-release`, lancé dans le worktree du lot, avant de le retirer ;
-    - retire les worktrees du lot, le tien et ceux des agents que tu as lancés
+    - retire les worktrees du lot : le tien, qui détient le créneau, ceux des agents que tu as
+      lancés, et tout autre qu'un harnais aurait quand même créé pour le lot
       (`git worktree remove <chemin>`, puis `git worktree prune`) ; un worktree qui garde des
       modifications non commitées n'est pas retiré, et va au relevé ;
     - vérifie qu'aucun processus lancé pour le lot ne tourne encore — serveur de Next, Prism,
@@ -202,11 +218,11 @@ aura répondu dans l'issue.
 
 ## La livraison
 
-Quand le lot que tu as clos était le dernier de l'EPIC, toutes ses US finies, tu constates sur `epic/EP-nn` la définition de fini de
-l'EPIC, point par point, et tu demandes sa fusion dans `main` : c'est une personne qui la
-fait. Tu ne fusionnes jamais dans `main`, tu ne pousses ni sur `main` ni sur une branche
-`epic/*`, sauf pour créer la branche de ton EPIC au premier lot, et tu ne forces aucune
-poussée.
+Quand le lot que tu as clos était le dernier de l'EPIC, toutes ses US finies, tu constates sur
+`epic/EP-nn` la définition de fini de l'EPIC, point par point, et tu demandes sa fusion dans
+`main` : c'est une personne qui la fait. Tu ne fusionnes jamais dans `main`, tu ne pousses ni
+sur `main` ni sur une branche `epic/*`, sauf pour créer la branche de ton EPIC au premier
+lot, et tu ne forces aucune poussée.
 
 ## Quand la limite d'usage arrive
 

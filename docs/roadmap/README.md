@@ -295,9 +295,10 @@ body itself, several deliverers would overwrite one another there. It has two pa
   its pull request, and the model that developed it, with the reason for the escalation if there
   was one; and its **« Pas avec »** column: the lots of the epic with which it is not delivered
   at the same time (`—` if there are none). It is symmetric — if L2 is « pas avec » L1, L1 is
-  with L2 —, and the framer fills it in, at the lot plan, for two lots that no dependency
-  separates and that touch the same file. The pilot does not launch two lots so marked
-  together, even when their dependencies allow it. The template of a lot has the same field;
+  also « pas avec » L2 —, and the framer fills it in, at the lot plan, for two lots that no
+  dependency separates and that touch the same file. The pilot does not launch a lot whose
+  « pas avec » lot is started and not merged (`en cours`, `en revue`, `question`, `bloqué`),
+  even when their dependencies allow it. The template of a lot has the same field;
 - **Open findings**: each finding that is not closed, the issue it is attached to, and
   its decision.
 

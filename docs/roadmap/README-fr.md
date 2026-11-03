@@ -294,9 +294,10 @@ plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
   sa pull request, et le modèle qui l'a développé, avec la raison de l'escalade s'il y en a
   eu une ; et sa colonne **« Pas avec »** : les lots de l'EPIC avec lesquels il ne se livre
   pas en même temps (`—` s'il n'y en a pas). Elle est symétrique — si L2 est « pas avec » L1,
-  L1 l'est avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
-  dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas ensemble deux
-  lots ainsi marqués, même quand leurs dépendances le permettent. Le gabarit d'un lot a le
+  L1 l'est aussi avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
+  dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas un lot dont un
+  lot « pas avec » est commencé et non fusionné (`en cours`, `en revue`, `question`, `bloqué`),
+  même quand leurs dépendances le permettent. Le gabarit d'un lot a le
   même champ ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.

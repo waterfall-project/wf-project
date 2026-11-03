@@ -54,8 +54,9 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   worktrees dans son dépôt, dépôt principal compris. Un livreur sans créneau rend la main sans
   rien faire, avec le relevé « aucun créneau libre », que le pilote traite comme une limite
   d'usage.
-- **« Pas avec ».** Le pilote ne lance jamais ensemble deux lots que le tableau de suivi dit
-  « pas avec » l'un l'autre, même quand leurs dépendances le permettent : le cadreur marque
+- **« Pas avec ».** Le pilote ne lance jamais un lot dont un lot « pas avec » est commencé et
+  non fusionné (`en cours`, `en revue`, `question`, `bloqué`), même quand leurs dépendances le
+  permettent : le cadreur marque
   ainsi deux lots qu'aucune dépendance ne sépare et qui touchent un même fichier, pour que la
   file de fusion n'ait pas à attraper tard un conflit que le plan savait.
 - **Les questions.** Un livreur ne parle pas à l'utilisateur : une question bloquante devient
@@ -138,7 +139,8 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   non commités compris. Il peut demander un créneau : depuis US-1100, dans un worktree lié qui
   n'en tient pas, les cibles qui en ont besoin (`build-keycloak`, `check-front-image`, `e2e`,
   `e2e-measure`…) échouent en disant `make slot`. Le livreur prend son créneau avant tout
-  travail ; un développeur qui voit ce refus le rapporte, ou prend le créneau (`make slot`).
+  travail, et ses développeurs travaillent dans son worktree, celui qui le détient ; un
+  développeur qui voit ce refus ne prend pas de créneau, il le rapporte au livreur.
   Un agent de revue, lui, ne lance que des commandes qui n'écrivent
   rien de versionné.
 

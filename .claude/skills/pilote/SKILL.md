@@ -31,13 +31,15 @@ relevés et les commentaires dont tu as besoin, rien de plus, et borne les sorti
    le dépôt principal compris — deux à N = 1 (#1444) : chaque livreur retire ceux de son lot
    après la fusion. Au-delà, préviens l'utilisateur (« Prévenir ») avec leurs chemins, sans en
    retirer aucun toi-même — l'un d'eux peut garder un travail non commité —, et continue de
-   piloter.
+   piloter. Le worktree resté d'un lot arrêté (question, bloqué) se signale comme les autres.
 6. **Lancer.** Lance un livreur par lot prêt, selon « Lancer un livreur », tant qu'il reste un
    créneau libre : autant de livreurs que de lots prêts et de créneaux libres, pas davantage.
    **Jamais plus de N livreurs sur le poste** : il s'est effondré trois fois sous les tests de
    plusieurs agents (2026-10-19, 21 et 22) ; à N = 1, un seul à la fois. **Jamais un lot dont
-   un lot « Pas avec » tourne** — un livreur que tu as lancé, ou un lot `en cours` ou `en revue`
-   au tableau —, même quand ses dépendances le permettent : il attend que l'autre soit fusionné.
+   un lot « Pas avec » est commencé et non fusionné** (`en cours`, `en revue`, `question`,
+   `bloqué`, ou un livreur que tu as lancé) : un lot arrêté garde sa branche et sa pull request,
+   et lancer son partenaire ferait revenir le conflit à la reprise. Même quand ses dépendances
+   le permettent, il attend que l'autre soit fusionné.
    Le plan a marqué ces deux lots parce qu'ils touchent un même fichier.
 7. **Se rendormir.** Si un livreur tourne, son retour te réveillera ; programme quand même un
    réveil dans trente minutes environ, au cas où il ne reviendrait pas. Sinon, s'il reste des

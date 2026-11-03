@@ -67,10 +67,11 @@ qui touche l'extension Keycloak. Ce qui suit ne dit que ce qui est propre à ton
 - **Le créneau.** Depuis US-1100, dans un worktree lié sans créneau, les cibles qui en ont
   besoin — `build-keycloak`, `check-front-image`, `e2e`, `e2e-measure`… — échouent en disant
   `make slot`, et un `make check` qui touche la famille keycloak ou l'image du front échoue
-  donc ainsi. Le livreur prend le créneau avant tout travail : si tu vois ce refus, rapporte-le,
-  ou prends-le (`make slot`, dans ton worktree). Les services de test (PostgreSQL, Redis,
-  stockage) sont démarrés et retirés par le Makefile, pour ce créneau : tu ne les lances ni ne
-  les arrêtes toi-même (le garde refuse `docker compose … down` hors du Makefile).
+  donc ainsi. Le livreur prend le créneau avant tout travail, et tu travailles dans son
+  worktree, celui qui le détient : si tu vois ce refus, ne prends pas de créneau, rapporte-le
+  au livreur dans ton compte rendu. Les services de test (PostgreSQL, Redis, stockage) sont
+  démarrés et retirés par le Makefile, pour ce créneau : tu ne les lances ni ne les
+  arrêtes toi-même (le garde refuse `docker compose … down` hors du Makefile).
 - **Trois échecs sur la même cause, et tu t'arrêtes.** Si le même contrôle, ou le même test,
   échoue trois fois, pas de quatrième tentative : rends la main avec le diagnostic — ce que
   tu as essayé, ce que tu soupçonnes, ce qui reste rouge. L'agent de livraison décide de la
