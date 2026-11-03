@@ -18,7 +18,14 @@ import {
 import { RateUpdate } from "@/components/revisions/revision-parts";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  type FakeTiming,
+  fakeClient,
+  held,
+} from "@/test/fixtures";
 
 import { RevisionCommands } from "./object-commands";
 
@@ -424,7 +431,7 @@ describe("the application of the rate update", () => {
       command: "Abandonner la révision en cours",
       confirm: "Confirmer l’abandon",
       route: ABANDON,
-      answer: { status: 204 } as const,
+      serving: (timing: FakeTiming) => fakeClient({ [ABANDON]: { status: 204 } }, timing),
       screen: () => commands(),
     },
     {
@@ -432,14 +439,15 @@ describe("the application of the rate update", () => {
       command: "Appliquer la mise à jour des taux",
       confirm: "Confirmer la mise à jour",
       route: RATES,
-      answer: { example: "rate_update_applied", status: 200 } as const,
+      serving: (timing: FakeTiming) =>
+        fakeClient({ [RATES]: { example: "rate_update_applied", status: 200 } }, timing),
       screen: () => <RateUpdate proposal={example("rate_update") as never} apply={apply} />,
     },
   ])(
     "keeps the command of $name inactive while it is written, and lifts it with the answer",
-    async ({ command, confirm, route, answer, screen: page }) => {
+    async ({ command, confirm, route, serving, screen: page }) => {
       const wait = held();
-      const client = fakeClient({ [route]: answer }, wait.timing);
+      const client = serving(wait.timing);
       server.client = client;
       show(page());
       const opener = screen.getByRole("button", { name: command });
