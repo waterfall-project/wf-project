@@ -207,7 +207,7 @@ describe("the settings of the resources", () => {
       "GET /reference/resource-roles": "resource_roles_reader",
       "GET /reference/calendars": "calendars_reader",
     };
-    expect(await resourcesAt()).not.toMatch(/Nouveau|Modifier|Désactiver|Désigner|Maquette/);
+    expect(await resourcesAt()).not.toMatch(/Nouveau|Modifier|Désactiver|Désigner/);
     expect(queriesOf("GET /reference/cost-types")).toEqual([]);
   });
 

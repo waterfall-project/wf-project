@@ -213,7 +213,7 @@ describe("the screen of the planning", () => {
     expect(page).toMatch(/<th(?:(?!<\/th>).)*>Attached to</);
   });
 
-  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says nothing of the fake back", async () => {
+  it("reads the work breakdown whole for its filter alone on a revision that may not be planned, and says the fake back applies no filter", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}": "revision_marked",
@@ -223,7 +223,7 @@ describe("the screen of the planning", () => {
     const [read] = callsOf(BREAKDOWN);
     expect(read?.query.toString()).toBe("");
     expect(page).toContain(`<option value="${ITEM}">Order item: Poste 1.1</option>`);
-    expect(page).not.toContain("Mock-up:");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
   });
 });
 

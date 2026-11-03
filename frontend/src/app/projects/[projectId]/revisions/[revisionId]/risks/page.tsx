@@ -62,6 +62,7 @@ import { RisksGrid } from "@/components/risks/risks-grid";
 import { RiskStateFilter } from "@/components/risks/state-filter";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import type { PageSearchParams } from "@/navigation/context";
 import { functionHref, functionOf } from "@/navigation/functions";
 import type { ListPage } from "@/navigation/pages";
@@ -282,6 +283,7 @@ export default async function RisksPage({
               />
             }
           />
+          <MockupNotice lists />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
               <ProvisionSummary totals={risks.totals} />

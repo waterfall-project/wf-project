@@ -145,7 +145,7 @@ function TimelinesScreen({
             )
           }
         />
-        {offer?.is_available === true ? <MockupNotice /> : null}
+        <MockupNotice lists />
         <TimelineBody timelines={timelines} shown={shown?.timeline.timeline_id}>
           {body}
         </TimelineBody>

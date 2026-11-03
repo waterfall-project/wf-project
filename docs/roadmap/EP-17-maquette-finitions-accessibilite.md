@@ -1048,7 +1048,7 @@ franchit.
 
 ## US-0760 — Ce que le faux back n'applique pas, dit
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1553

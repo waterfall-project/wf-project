@@ -1041,7 +1041,7 @@ created by their name and the timeline shown is deleted after confirmation, as t
 `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). The server selects what each one draws
 (#463): the tree asks for the summary tasks down to the level of the address (`summaries_only`,
 `max_level`), a timeline the tasks inscribed in it (`timeline_id`). The fake back ignoring these
-filters, each one applies the same criterion again to the response (`summaryTree`,
+filters ("What the fake back does not do"), each one applies the same criterion again to the response (`summaryTree`,
 `inscribedTo`): an idempotent filter, which changes nothing against a server that honours them, a
 temporary gap of EP-02 removed with the back of EP-03. The tree offers exactly the levels the
 structure has, from the first to that of its deepest summary task, which the server says whatever
@@ -1297,7 +1297,7 @@ grid, or to the list —, and only as long as the list reads as at the moment of
 parameters it reads (`listReads`), the sort of another list of the screen not counting there. In a
 grid, the command is out of the tabbing, and Enter on its cell presses it (`CELL_COMMAND`,
 `grid-keyboard.ts`). The fake back ignoring the filters, the pages and `include_inactive`, and
-keeping nothing, the tests test what the screen asks for; the service will honour it in EP-05.
+keeping nothing ("What the fake back does not do"), the tests test what the screen asks for; the service will honour it in EP-05.
 
 ### Cost settings: types and categories
 
@@ -2603,6 +2603,16 @@ an API the environment names (`WATERFALL_API_ADDRESS`), the harness sets only
 The fake back serves readings. It keeps no state: a created project does not appear in
 the next list. It serves the front lots that precede their back lot and the tests of the
 front that only read, never to put a write to the proof.
+
+### What the fake back does not do
+
+Prism renders the first example of the operation whatever the request: it reads no parameter. On a
+screen of `make dev` it therefore applies no filter, no search, no sort, no pagination (`limit` and
+`offset` are sent, but the bar is computed on the `meta` of the example, which concludes to a single
+page), no `kinds`, no `fields`, no `include_inactive` — and it keeps nothing. A screen that depends
+on them is badly judged on the mock-up (#1399): judging these gestures falls to the front tests,
+which test the request the screen makes, and to the service. The screens of lists and grids say it
+through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the

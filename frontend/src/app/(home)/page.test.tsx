@@ -96,7 +96,7 @@ const EVERY_STATE = "created,pricing,in_progress,completed,lost,abandoned";
 const DEFAULT_STATES = "pricing,in_progress";
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 /** The notice that the fake back keeps nothing, for a session that may create a project. */
-const MOCKUP = CATALOGUES.en.mockup.notKept;
+const MOCKUP = `${CATALOGUES.en.mockup.notKept} ${CATALOGUES.en.mockup.notFiltered}`;
 
 /** What a page says, its tags left out: the texts a reader reads, one space apart. */
 function text(markup: string): string {
@@ -376,7 +376,8 @@ describe("the home, the list of projects", () => {
     server.answers = { ...server.answers, "GET /me": "me_estimator" };
     const html = await home();
     expect(text(html)).not.toContain("Create a project");
-    expect(html).not.toContain('role="note"');
+    // Its list still says what the fake back does not apply: the one note of the screen.
+    expect(html.match(/<p role="note"/g)).toHaveLength(1);
   });
 
   it("titles the tab with the list of projects", async () => {

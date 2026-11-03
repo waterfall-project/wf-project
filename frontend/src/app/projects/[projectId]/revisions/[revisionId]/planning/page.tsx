@@ -254,7 +254,7 @@ export default async function PlanningPage({
           offer={findOffer(screen.reading.revision?.available_commands ?? [], "merge_structure")}
           revision={revision}
         />
-        {editable || skeleton?.is_available === true ? <MockupNotice /> : null}
+        <MockupNotice lists />
         {screen.breakdown === undefined ? null : (
           <BreakdownFilterChoice choices={screen.breakdown} />
         )}

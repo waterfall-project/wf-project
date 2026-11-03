@@ -53,6 +53,7 @@ import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import { FUNCTION_DENSITY, FUNCTION_ICONS, LEAF_ICONS } from "@/components/shell/function-display";
 import { PageHeader, Screen } from "@/components/shell/page-header";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { buttonVariants } from "@/components/ui/button";
 import type { PageSearchParams } from "@/navigation/context";
 import { estimateBasis, onBasis } from "@/components/workload/workload-basis";
@@ -316,6 +317,7 @@ export default async function EstimatePage({
             <ExchangesLink project={screen.reading.project} kind="estimate" context={at.context} />
           }
         />
+        <MockupNotice lists />
         <EstimateSummary
           indicators={indicators}
           missingRates={missingRates}

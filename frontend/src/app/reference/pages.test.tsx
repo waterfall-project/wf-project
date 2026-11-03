@@ -265,7 +265,7 @@ describe("the settings of the costs", () => {
       "GET /reference/cost-categories": "volume/cost_categories_reader",
     };
     const read = await costsAt();
-    for (const offered of ["Nouvelle", "Modifier", "Désactiver", "Maquette"]) {
+    for (const offered of ["Nouvelle", "Modifier", "Désactiver"]) {
       expect(read).not.toContain(offered);
     }
   });
