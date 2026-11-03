@@ -1077,7 +1077,7 @@ back ne change pas ; une couche devant Prism est écartée.
 
 ## US-0770 — Les commandes et les écritures retenues
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune en propre
 - **opérations** : aucune en propre
 - **issue** : #1554

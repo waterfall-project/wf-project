@@ -30,6 +30,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 
 import ProjectPage, { generateMetadata as projectMetadata } from "./[projectId]/page";
@@ -369,11 +370,8 @@ describe("the witness path", () => {
   });
 
   it("reads the session, the structures and the reading context together, and waits for the session only to read the nodes", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    server.timing = { hold: (route) => (route === "GET /me" ? held : undefined) };
+    const answer = held();
+    server.timing = { hold: (route) => (route === "GET /me" ? answer.until : undefined) };
     const routes = () => server.clients.flatMap((client) => client.calls).map((call) => call.route);
     const params = Promise.resolve({ projectId: PROJECT, revisionId: REVISION });
     const page = EstimatePage({ params, searchParams: NO_SEARCH });
@@ -388,7 +386,7 @@ describe("the witness path", () => {
       );
     });
     expect(nodesCall()).toBeUndefined();
-    answer();
+    answer.release();
     await page;
     expect(nodesCall()).toBeDefined();
   });

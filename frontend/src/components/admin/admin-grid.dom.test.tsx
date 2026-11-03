@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -17,7 +17,8 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { refusedBounds } from "@/components/grid/filters";
 import { NO_AUDIT } from "@/test/accounts";
-import { example, type FakeClient, fakeClient, type Problem } from "@/test/fixtures";
+import { example, type FakeClient, fakeClient, held, type Problem } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 import { keysOf } from "@/test/grid-preferences";
 
 import { AccessRoleList, type RoleFilters, UserList } from "./account-lists";
@@ -490,6 +491,36 @@ describe("the grid of the access roles", () => {
     );
     expect(told().textContent).toBe("");
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("holds a link clicked once the deletion is confirmed, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
+    page.path = "/admin/access-roles";
+    const answer = held();
+    server.client = fakeClient(
+      { [ROLE]: { problem: { code: "ACCESS_ROLE_IN_USE", status: 409 } } },
+      answer.timing,
+    );
+    render(roleList(true));
+    const link = heldLink();
+    try {
+      const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+      await userEvent.click(
+        within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+      );
+      await confirmDeletion("Administrateur");
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.ACCESS_ROLE_IN_USE,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 
   it("tells the 412 of a deletion as that of a rename, and offers to read the page anew [WF-IHM-0110-A]", async () => {

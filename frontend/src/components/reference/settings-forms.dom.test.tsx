@@ -18,6 +18,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -294,11 +295,8 @@ describe("the form of the risk matrix", () => {
   });
 
   it("keeps its command inactive while a write of the dialog closed is under way, shows its answer, then opens on the version it brings (#661)", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    const client = serve({ [UPDATE]: "reference_settings_matrix_updated" }, { hold: () => until });
+    const answer = held();
+    const client = serve({ [UPDATE]: "reference_settings_matrix_updated" }, answer.timing);
     const form = await openRisks();
     await save(form);
     await vi.waitFor(() => {
@@ -317,9 +315,7 @@ describe("the form of the risk matrix", () => {
     expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     await vi.waitFor(() => {
       expect(said()).toHaveTextContent("Matrice de risques enregistrée.");
     });
@@ -433,11 +429,8 @@ describe("the form of the name of the company", () => {
   });
 
   it("keeps its command inactive while a write of the dialog closed is under way, then frees it with the name written", async () => {
-    let release!: () => void;
-    const until = new Promise<void>((settle) => {
-      release = settle;
-    });
-    const client = serve({ [UPDATE]: "reference_settings_company_updated" }, { hold: () => until });
+    const answer = held();
+    const client = serve({ [UPDATE]: "reference_settings_company_updated" }, answer.timing);
     const form = await openCompany();
     await retype(within(form).getByRole("textbox", { name: /Nom de l’entreprise/ }), "Delmas SA");
     await save(form);
@@ -455,7 +448,7 @@ describe("the form of the name of the company", () => {
     expect(command).toHaveAccessibleDescription("Enregistrement en cours…");
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
-    release();
+    answer.release();
     await vi.waitFor(() => {
       expect(said()).toHaveTextContent("Nom de l’entreprise enregistré.");
     });
@@ -563,26 +556,21 @@ describe("the form of the thresholds and the delay", () => {
   });
 
   it("tells above the settings a refusal answered once the dialog is gone, and frees its command", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
+    const answer = held();
     serve(
       {
         [UPDATE]: {
           problem: example("reference_settings_thresholds_refused") as Problem & { status: 422 },
         },
       },
-      { hold: () => until },
+      answer.timing,
     );
     const form = await openIndicators();
     await save(form);
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     const command = screen.getByRole("button", { name: "Modifier les seuils et le délai" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Les données saisies ne sont pas valides.",
     );
@@ -592,19 +580,15 @@ describe("the form of the thresholds and the delay", () => {
   });
 
   it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so", async () => {
-    const settles: (() => void)[] = [];
-    failing.until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
+    const answer = held();
+    failing.until = answer.until;
     serve({ [UPDATE]: "reference_settings_thresholds_updated" });
     const form = await openIndicators();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     const command = screen.getByRole("button", { name: "Modifier les seuils et le délai" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
     expect(command).not.toHaveAttribute("aria-disabled");
     await userEvent.click(command);

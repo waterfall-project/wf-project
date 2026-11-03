@@ -14,7 +14,7 @@ import { SESSION_LOST_DIGEST } from "@/components/system/failure";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { atCommit } from "@/test/committed";
-import { example, fakeClient, type Problem } from "@/test/fixtures";
+import { example, fakeClient, held, type Problem } from "@/test/fixtures";
 
 import { Command } from "./command";
 import { commandIcon, PROJECT_COMMAND_ICONS, REVISION_COMMAND_ICONS } from "./icons";
@@ -340,14 +340,11 @@ describe("the outcome of a command", () => {
   });
 
   it("tells its outcome and is no longer busy while another async action of the page still runs", async () => {
-    let settle: () => void = () => undefined;
-    const until = new Promise<void>((resolve) => {
-      settle = resolve;
-    });
+    const answer = held();
     const conflict = refusal("conflict", { code: "STATE_FORBIDS_OPERATION", status: 409 });
     const { container } = french(
       <>
-        <OtherAction until={until} />
+        <OtherAction until={answer.until} />
         {available(() => Promise.resolve(conflict))}
       </>,
     );
@@ -369,8 +366,8 @@ describe("the outcome of a command", () => {
     expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(other).toHaveAttribute("aria-busy", "true");
     await act(async () => {
-      settle();
-      await until;
+      answer.release();
+      await answer.until;
     });
     expect(other).toHaveAttribute("aria-busy", "false");
   });

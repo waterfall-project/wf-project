@@ -24,6 +24,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 import { allShown, PREFERENCES, recordedAside } from "@/test/grid-preferences";
 import { estimateReference } from "@/test/reference";
@@ -359,11 +360,8 @@ describe("the sort, the search and the totals, asked of the server", () => {
   });
 
   it("navigates to the sort asked without waiting for its preference, and nothing more once the grid is gone", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    const client = serve({ [PREFERENCES]: "preferences" }, { hold: () => held });
+    const answer = held();
+    const client = serve({ [PREFERENCES]: "preferences" }, answer.timing);
     const { unmount, ask } = renderGrid(witness);
     await userEvent.click(
       within(screen.getByRole("columnheader", { name: /réf\./ })).getByRole("button"),
@@ -378,7 +376,7 @@ describe("the sort, the search and the totals, asked of the server", () => {
       expect(recorded(client)).toHaveLength(1);
     });
     unmount();
-    answer();
+    answer.release();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(router.push).toHaveBeenCalledTimes(1);
   });
@@ -770,13 +768,10 @@ describe("the writing of the settings", () => {
   });
 
   it("tells nothing of an earlier write refused after a later one succeeded", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     const client = serve(
       { [PREFERENCES]: [{ problem: { code: "SESSION_REQUIRED", status: 401 } }, "preferences"] },
-      { hold: (_route, index) => (index === 0 ? held : undefined) },
+      { hold: (_route, index) => (index === 0 ? answer.until : undefined) },
     );
     renderGrid(witness);
     await widen();
@@ -788,7 +783,7 @@ describe("the writing of the settings", () => {
       expect(recorded(client)).toHaveLength(2);
     });
     // The second write succeeded; the first, refused, answers only now.
-    answer();
+    answer.release();
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByRole("alert")).toBeNull();
   });

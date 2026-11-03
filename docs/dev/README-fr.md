@@ -355,8 +355,13 @@ l'écriture attendue dans `startTransition(async …)`. L'écran quitté reste d
 réponse, et une écriture refusée pendant qu'il est quitté vers un autre chemin — faite avant la
 traversée ou après — va à la barre, même quand ce qui l'a demandée dit le dire encore (`told`),
 puisqu'il s'en va avec l'écran (`away` de `holdNavigation`, `useHeldWrites`) ; ramené à son chemin
-avant le refus, l'écran le dit lui-même. Cela tient tant que le routeur garde cet ordre, peut-être un
-défaut amont. Une écriture encore en route quand
+avant le refus, l'écran le dit lui-même. Ramené après le refus, avant que le routeur n'ait montré
+l'entrée traversée — « Suivant » pressé pendant qu'il la lit —, l'écran, qui n'est jamais parti, le
+dit aussi, et la barre retire ce qu'elle en disait (`broughtBack`, #1476) : le refus est dit deux
+fois, l'un après l'autre, jamais en même temps, et noté une fois dans l'historique des messages, par
+l'identité de sa réponse. Jusqu'à sa réponse, l'écriture attendue dans la transition retient encore
+les clics : l'écran quitté par « Précédent », toujours affiché, ne la libère qu'en partant. Cela
+tient tant que le routeur garde cet ordre, peut-être un défaut amont. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui
 survit à chacun, le dit par un avis qu'on ferme (`LeftRefusals`, `refusedLeft` de
 `held-writes.ts`, #863), et l'inscrit dans l'historique des messages avec son refus et l'écran

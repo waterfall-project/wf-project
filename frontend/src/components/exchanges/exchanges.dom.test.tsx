@@ -20,6 +20,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 import { heldLink } from "@/test/held-link";
@@ -233,17 +234,14 @@ describe("the first step of an import", () => {
   });
 
   it("follows the analysis but stays where the user went when the import opens after the screen was left", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     const client = fakeClient(
       {
         [UPLOAD]: { example: "file_upload", status: 201 },
         [OPEN]: { example: "import_analysing", status: 202 },
         [TASK]: "task_running",
       },
-      { hold: (route) => (route === OPEN ? held : undefined) },
+      { hold: (route) => (route === OPEN ? answer.until : undefined) },
     );
     server.client = client;
     open(importCommands());
@@ -258,7 +256,7 @@ describe("the first step of an import", () => {
       expect(routes(client)).toEqual([UPLOAD, OPEN]);
     });
     window.history.replaceState(null, "", `/projects/${PROJECT}/lifecycle`);
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(screen.queryByRole("form")).toBeNull();
     });
@@ -627,11 +625,8 @@ describe("the report of an import", () => {
   });
 
   it("stays where the user went when the abandonment answers after another import was opened", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    const client = fakeClient({ [ABANDON]: { status: 204 } }, { hold: () => held });
+    const answer = held();
+    const client = fakeClient({ [ABANDON]: { status: 204 } }, answer.timing);
     server.client = client;
     open(report(example("import_analysed") as Import));
     const abandon = screen.getByRole("button", { name: "Abandonner l’import" });
@@ -640,7 +635,7 @@ describe("the report of an import", () => {
       expect(client.calls).toHaveLength(1);
     });
     window.history.replaceState(null, "", `${START}&import=01926f3a-7c00-7000-8000-000000000a10`);
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(abandon).toHaveAttribute("aria-busy", "false");
     });
@@ -663,18 +658,15 @@ describe("the report of an import", () => {
   });
 
   it("tells the refusal of an abandonment under the import it was asked for, not the next one", async () => {
-    let answer!: () => void;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       { [ABANDON]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      { hold: () => held },
+      answer.timing,
     );
     const { rerender } = open(report(example("import_analysed") as Import));
     await userEvent.click(screen.getByRole("button", { name: "Abandonner l’import" }));
     rerender(shell(report(example("import_planning_mismatch") as Import)));
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Abandonner l’import" })).toHaveAttribute(
         "aria-busy",
@@ -922,13 +914,10 @@ describe("the request of an export", () => {
   });
 
   it("holds a link clicked while the export is asked, and does not follow it when the server refuses it (#688)", async () => {
-    let release: () => void = () => undefined;
-    const released = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     server.client = fakeClient(
       { [EXPORT]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      { hold: () => released },
+      answer.timing,
     );
     open(exportForm("revision_estimator"));
     const link = heldLink();
@@ -937,7 +926,7 @@ describe("the request of an export", () => {
       await userEvent.click(within(form).getByRole("button", { name: "Demander l’export" }));
       link.click();
       await act(async () => {
-        release();
+        answer.release();
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
       await settled(form);

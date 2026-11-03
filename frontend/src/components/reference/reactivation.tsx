@@ -184,15 +184,20 @@ export function Reactivations({
   readonly fill?: boolean;
   readonly children: ReactNode;
 }) {
-  const [reported, setReported] = useState<readonly Kept[]>([]);
   const [told, setTold] = useState<Told>();
   const reading = readingOf(useSearchParams(), reads);
-  // Each reading the list is on is counted: one come back to after another is a new one.
-  const [read, setRead] = useState({ reading, generation: 0 });
+  // Each reading the list is on is counted: one come back to after another is a new one. The
+  // refusals told are those of the reading the list is on, forgotten with it, and one asked from a
+  // reading left, answered after, is never kept (#901).
+  const [read, setRead] = useState<{
+    readonly reading: string;
+    readonly generation: number;
+    readonly reported: readonly Kept[];
+  }>({ reading, generation: 0, reported: [] });
   if (read.reading !== reading) {
-    setRead({ reading, generation: read.generation + 1 });
+    setRead({ reading, generation: read.generation + 1, reported: [] });
   }
-  const { generation } = read;
+  const { generation, reported } = read;
   const list = useRef<HTMLDivElement>(null);
   const counted = useRef(0);
   // The list tells a refusal on the reading it was asked from alone: read otherwise, it releases
@@ -202,10 +207,19 @@ export function Reactivations({
   const report = useCallback((refusal: Reported) => {
     counted.current += 1;
     const key = counted.current;
-    setReported((before) => [
-      ...before.filter((kept) => refusal.target === undefined || kept.target !== refusal.target),
-      { ...refusal, key },
-    ]);
+    setRead((before) =>
+      before.generation === refusal.generation
+        ? {
+            ...before,
+            reported: [
+              ...before.reported.filter(
+                (kept) => refusal.target === undefined || kept.target !== refusal.target,
+              ),
+              { ...refusal, key },
+            ],
+          }
+        : before,
+    );
   }, []);
   const refocus = useCallback((back?: HTMLElement | null) => {
     if (back?.isConnected === true) {
@@ -243,23 +257,24 @@ export function Reactivations({
       )}
     >
       <ToldConditions told={told?.generation === generation ? told : undefined} />
-      {reported
-        .filter((each) => each.generation === generation)
-        .map((each) => (
-          <OutcomeNotice
-            key={each.key}
-            outcome={each.outcome}
-            names={each.names}
-            subject={each.subject}
-            onClear={() => {
-              setReported((before) => before.filter((kept) => kept.key !== each.key));
-            }}
-            onDismissed={() => {
-              refocus(each.back);
-            }}
-            dismissible
-          />
-        ))}
+      {reported.map((each) => (
+        <OutcomeNotice
+          key={each.key}
+          outcome={each.outcome}
+          names={each.names}
+          subject={each.subject}
+          onClear={() => {
+            setRead((before) => ({
+              ...before,
+              reported: before.reported.filter((kept) => kept.key !== each.key),
+            }));
+          }}
+          onDismissed={() => {
+            refocus(each.back);
+          }}
+          dismissible
+        />
+      ))}
       <Report value={value}>{children}</Report>
     </div>
   );

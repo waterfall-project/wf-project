@@ -9,8 +9,9 @@
  * (`ACCESS_ROLE_IN_USE`, WF-ADM-0090); its renaming is the entry of its label (`admin-grids.tsx`).
  * What a write did is said in the region of the table, named after it; a refusal, above it by the
  * catalogue of the codes of error, on the reading it was asked from alone (`Reactivations`). The
- * roles answered are shared with the matrix (`RoleAnswers`). Every prop is data, never a function
- * (défaut n° 12 de `typescript.md`).
+ * roles answered are shared with the matrix (`RoleAnswers`). The navigations of the page wait for
+ * each write, and do not take place when it is refused (`held` of the list, #688). Every prop is
+ * data, never a function (défaut n° 12 de `typescript.md`).
  */
 "use client";
 
@@ -30,9 +31,9 @@ import {
 
 import { createAccessRole, deleteAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
+import { useHeldCommand } from "@/components/commands/held";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useNoteRefusal } from "@/components/commands/outcome-notice";
-import { rejected } from "@/components/commands/rejection";
 import { parsedEntry } from "@/components/grid/cell-values";
 import { useSaid } from "@/components/notices/said";
 import { CellCommand } from "@/components/reference/cell-command";
@@ -108,6 +109,10 @@ function Deletion({ children }: { readonly children: ReactNode }) {
   const t = useTranslations("admin.accessRoles");
   const say = useContext(Say);
   const list = useListReport();
+  // The list, which tells the refusal, holds the navigations while the deletion answers: the
+  // confirmation is closed meanwhile (#688, #889).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   // The role whose deletion is asked — kept while the confirmation closes —, and whether it is open.
   const [asked, setAsked] = useState<{ readonly role: AccessRole; readonly open: boolean }>();
   const [deleting, setDeleting] = useState<ReadonlySet<string>>(() => new Set());
@@ -120,20 +125,18 @@ function Deletion({ children }: { readonly children: ReactNode }) {
     // The reading the role is deleted from: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     setDeleting((before) => new Set(before).add(id));
-    void deleteAccessRole(id, role.lock_version)
-      .catch(rejected)
-      .then((outcome) => {
-        setDeleting((before) => {
-          const after = new Set(before);
-          after.delete(id);
-          return after;
-        });
-        if (outcome.kind === "done") {
-          say?.(t("deleted", { name: role.label }));
-        } else {
-          list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
-        }
+    void held(deleteAccessRole(id, role.lock_version)).then((outcome) => {
+      setDeleting((before) => {
+        const after = new Set(before);
+        after.delete(id);
+        return after;
       });
+      if (outcome.kind === "done") {
+        say?.(t("deleted", { name: role.label }));
+      } else {
+        list?.report({ outcome, generation, names: {}, target: `delete ${id}` });
+      }
+    });
   };
   const name = asked?.role.label ?? "";
   return (
@@ -192,6 +195,10 @@ export function CreateRole() {
   const messages = useMessages();
   const say = useContext(Say);
   const list = useListReport();
+  // The list holds the navigations while the creation answers, its refusal told above it or at the
+  // field (#688, #889).
+  const own = useHeldCommand();
+  const held = list?.held ?? own;
   const [label, setLabel] = useState("");
   const [refused, setRefused] = useState<string>();
   const noteRefusal = useNoteRefusal();
@@ -230,26 +237,24 @@ export function CreateRole() {
         const asked = label;
         setRefused(undefined);
         setBusy(true);
-        void createAccessRole({ label: asked, permissions: [] })
-          .catch(rejected)
-          .then((outcome) => {
-            setBusy(false);
-            if (outcome.kind === "done") {
-              setLabel((typed) => (typed === asked ? "" : typed));
-              say?.(t("created", { name: outcome.data.label }));
-              return;
-            }
-            const at = "problem" in outcome ? outcome.problem.fields : undefined;
-            const own = at?.find(({ pointer }) => pointer === "/label");
-            if (own === undefined) {
-              list?.report({ outcome, generation, names: {} });
-              return;
-            }
-            // Said at its field, out of a notice: noted in the history of the messages.
-            noteRefusal(outcome, { subject: asked });
-            setRefused(problemMessage(own, { locale, messages }));
-            setFocused({});
-          });
+        void held(createAccessRole({ label: asked, permissions: [] })).then((outcome) => {
+          setBusy(false);
+          if (outcome.kind === "done") {
+            setLabel((typed) => (typed === asked ? "" : typed));
+            say?.(t("created", { name: outcome.data.label }));
+            return;
+          }
+          const at = "problem" in outcome ? outcome.problem.fields : undefined;
+          const own = at?.find(({ pointer }) => pointer === "/label");
+          if (own === undefined) {
+            list?.report({ outcome, generation, names: {} });
+            return;
+          }
+          // Said at its field, out of a notice: noted in the history of the messages.
+          noteRefusal(outcome, { subject: asked });
+          setRefused(problemMessage(own, { locale, messages }));
+          setFocused({});
+        });
       }}
     >
       <Label htmlFor={field} className="text-sm whitespace-nowrap">

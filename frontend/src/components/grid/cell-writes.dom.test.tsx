@@ -719,6 +719,48 @@ describe("the totals read anew behind a refusal told", () => {
     expect(readMessages().messages.map((message) => message.sentence)).toEqual([
       "Vous devez vous connecter.",
     ]);
+    // The notice tells the refusal of the write, not that of the totals behind it.
+    expect(result.current.outcome?.kind).toBe("stale");
     expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("tells by the notice alone, never noted beside it, the refusal of the totals answered in the tick the notice before was cleared (#1432)", async () => {
+    forgetMessages();
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    const lost: Outcome<never> = {
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    };
+    let totals: (outcome: Outcome<NodeTotals>) => void = () => undefined;
+    const retotal = () =>
+      new Promise<Outcome<NodeTotals>>((resolve) => {
+        totals = resolve;
+      });
+    const { result } = writes<EstimateNode, NodeTotals>(
+      { ...NODES, retotal },
+      { address: ADDRESS, rows: nodes.items, totals: nodes.totals },
+    );
+    const { entry, refuse, answer } = held<EstimateNode, NodeTotals>();
+    await enter(result.current, TASK, "label", entry, "x");
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    // The first refused, told by the notice; the second done, which reads the totals anew.
+    await refuse(0, stale);
+    await answer(1, (from) => nodeAnswered(from, { hours: "14" }, undefined, 1));
+    expect(result.current.outcome).toBe(stale);
+    // The notice cleared, and the totals refused, before any render.
+    await act(async () => {
+      result.current.clear();
+      totals(lost);
+      await settled();
+    });
+    // One entry: the notice tells the refusal of the totals, and the screen notes what it tells;
+    // the writes note nothing beside it.
+    expect(result.current.outcome).toBe(lost);
+    expect(readMessages().messages).toEqual([]);
   });
 });

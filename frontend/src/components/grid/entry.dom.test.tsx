@@ -16,6 +16,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   unreachable,
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
@@ -625,19 +626,14 @@ describe("the keyboard of a grid", () => {
   });
 
   it("shows what was validated until the server answers, then the row it answered", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      {},
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({}, answer.until);
     render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^15$/);
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-busy", "true");
-    answer();
+    answer.release();
     await vi.waitFor(() => {
       expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
     });
@@ -760,13 +756,8 @@ describe("a write the server refuses", () => {
   });
 
   it("drops an answer that comes once the page has been read at another address", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [LINE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [LINE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } }, answer.until);
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
@@ -777,7 +768,7 @@ describe("a write the server refuses", () => {
     rerender(grid("fr", nodes));
     expect(cell(last, "hours")).toHaveTextContent(/^12,5$/);
     await act(async () => {
-      answer();
+      answer.release();
       await Promise.resolve();
     });
     expect(screen.queryByRole("alert")).toBeNull();
@@ -787,13 +778,8 @@ describe("a write the server refuses", () => {
 
 describe("a write under way while the page is read anew at its address", () => {
   it("keeps the cell pending and takes the answer that comes after the page read anew", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      {},
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({}, answer.until);
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
@@ -802,7 +788,7 @@ describe("a write under way while the page is read anew at its address", () => {
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^15$/);
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-busy", "true");
     await act(async () => {
-      answer();
+      answer.release();
       await Promise.resolve();
     });
     await vi.waitFor(() => {

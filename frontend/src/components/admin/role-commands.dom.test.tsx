@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -13,7 +13,15 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { NO_AUDIT } from "@/test/accounts";
 import { atCommit, atFocus } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+  held,
+} from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
 import { MatrixWrites } from "./permission-matrix";
@@ -69,8 +77,8 @@ function inFrench(children: ReactNode) {
 }
 
 /** Serve the fake back, its answers held as the test says, and give it back to read its calls. */
-function serve(answers: FakeAnswers, hold?: () => Promise<unknown>): FakeClient {
-  const client = fakeClient(answers, hold === undefined ? {} : { hold });
+function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -127,19 +135,38 @@ describe("the creation of a role in line", () => {
   });
 
   it("keeps a label typed while the server answers the one sent", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [CREATED]: { example: "access_role_created", status: 201 } },
-      () => new Promise((settle) => (answer = settle)),
-    );
+    const answer = held();
+    serve({ [CREATED]: { example: "access_role_created", status: 201 } }, answer.timing);
     render(inFrench(table()));
     const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
     await userEvent.type(label, "CG{Enter}D");
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(told().textContent).toBe("« Contrôle de gestion » créé.");
     });
     expect(label).toHaveValue("CGD");
+  });
+
+  it("holds a link clicked while the creation answers, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
+    const answer = held();
+    serve({ [CREATED]: { problem: { code: "PERMISSION_MISSING", status: 403 } } }, answer.timing);
+    render(inFrench(table()));
+    const link = heldLink();
+    try {
+      await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "CG{Enter}");
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.PERMISSION_MISSING,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 
   it("refuses at its field a label left blank, as the entry of the grid does, and asks nothing", async () => {
