@@ -21,6 +21,7 @@ import {
   type FakeTiming,
   held,
 } from "@/test/fixtures";
+import { dismissLeftRefusals, refusedLeft } from "@/navigation/held-writes";
 import { heldLink } from "@/test/held-link";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
@@ -32,6 +33,7 @@ import { RoleAnswers } from "./role-answers";
 // once a role is written, and the address it reads.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
+const page = vi.hoisted(() => ({ search: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -39,7 +41,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/admin/access-roles",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(page.search),
 }));
 
 type Schemas = components["schemas"];
@@ -102,6 +104,8 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   forgetMessages();
+  page.search = "";
+  dismissLeftRefusals();
 });
 
 afterEach(() => {
@@ -211,6 +215,35 @@ describe("the creation of a role in line", () => {
         object: "CG",
       }),
     ]);
+  });
+
+  it("tells a label refused at its field by the field alone, the list read anew meanwhile: the bar of the shell does not tell it too (#1476)", async () => {
+    const answer = held();
+    serve(
+      {
+        "PATCH /me/preferences": "preferences",
+        [CREATED]: {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/label", code: "VALUE_TOO_LONG" }],
+          },
+        },
+      },
+      answer.timing,
+    );
+    const { rerender } = render(inFrench(table()));
+    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    await userEvent.type(label, "CG{Enter}");
+    // The list searched meanwhile: it tells nothing of the reading now shown.
+    page.search = "search=Manager";
+    rerender(inFrench(table()));
+    answer.release();
+    await waitFor(() => {
+      expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    });
+    expect(refusedLeft()).toEqual([]);
+    expect(readMessages().messages).toHaveLength(1);
   });
 });
 

@@ -237,24 +237,31 @@ export function CreateRole() {
         const asked = label;
         setRefused(undefined);
         setBusy(true);
-        void held(createAccessRole({ label: asked, permissions: [] })).then((outcome) => {
-          setBusy(false);
-          if (outcome.kind === "done") {
-            setLabel((typed) => (typed === asked ? "" : typed));
-            say?.(t("created", { name: outcome.data.label }));
-            return;
-          }
-          const at = "problem" in outcome ? outcome.problem.fields : undefined;
-          const own = at?.find(({ pointer }) => pointer === "/label");
-          if (own === undefined) {
-            list?.report({ outcome, generation, names: {} });
-            return;
-          }
-          // Said at its field, out of a notice: noted in the history of the messages.
-          noteRefusal(outcome, { subject: asked });
-          setRefused(problemMessage(own, { locale, messages }));
-          setFocused({});
-        });
+        // Whether the field tells the refusal: the list, read anew meanwhile, is not asked to tell it
+        // too, the bar of the shell neither — the field is on the form, whatever the list shows.
+        // `told` is read once the answer is in, after the `then` below has set it.
+        let atField = false;
+        void held(createAccessRole({ label: asked, permissions: [] }), () => atField).then(
+          (outcome) => {
+            setBusy(false);
+            if (outcome.kind === "done") {
+              setLabel((typed) => (typed === asked ? "" : typed));
+              say?.(t("created", { name: outcome.data.label }));
+              return;
+            }
+            const at = "problem" in outcome ? outcome.problem.fields : undefined;
+            const own = at?.find(({ pointer }) => pointer === "/label");
+            if (own === undefined) {
+              list?.report({ outcome, generation, names: {} });
+              return;
+            }
+            // Said at its field, out of a notice: noted in the history of the messages.
+            atField = true;
+            noteRefusal(outcome, { subject: asked });
+            setRefused(problemMessage(own, { locale, messages }));
+            setFocused({});
+          },
+        );
       }}
     >
       <Label htmlFor={field} className="text-sm whitespace-nowrap">

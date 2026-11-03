@@ -9,7 +9,13 @@ import type { ShellProps } from "@/components/shell/shell";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { useCurrency } from "@/currency/context";
 import { LAST_CONTEXT_COOKIE } from "@/navigation/context";
-import { type FakeAnswers, type FakeClient, type FakeTiming, fakeClient } from "@/test/fixtures";
+import {
+  type FakeAnswers,
+  type FakeClient,
+  type FakeTiming,
+  fakeClient,
+  held,
+} from "@/test/fixtures";
 
 import RootLayout, { generateMetadata } from "./layout";
 
@@ -243,11 +249,8 @@ describe("RootLayout", () => {
 
   it("renders the document without waiting for the tasks of the user", async () => {
     // The list never answers: the document is rendered all the same, the promise still pending.
-    request(
-      "fr",
-      {},
-      { hold: (route) => (route === "GET /tasks" ? new Promise(() => undefined) : undefined) },
-    );
+    const { until } = held();
+    request("fr", {}, { hold: (route) => (route === "GET /tasks" ? until : undefined) });
     const html = await page();
     expect(html).toContain('aria-label="Compte de Camille Martin"');
     expect(html).toContain("<p>page</p>");

@@ -729,7 +729,7 @@ describe("the writes refused once their screen is gone (#863)", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("tell once a refusal the bar told while « Précédent » left the screen, which « Suivant » brought back before it went: the screen tells it, the bar takes it back, the history notes it once (#1476)", async () => {
+  it("leave a refusal the bar told while « Précédent » left the screen, which « Suivant » brought back before it went: the screen tells it, the bar takes it back, the history keeps a single entry (#1476)", async () => {
     // The router of Next 16.4 shows the entry traversed to once the action under way has answered,
     // and reads it first: « Suivant » pressed meanwhile brings the screen back, never unmounted.
     forgetMessages();
