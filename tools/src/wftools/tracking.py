@@ -30,7 +30,7 @@ import sys
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 
 from wftools.slots import runtime_directory
 
@@ -62,7 +62,11 @@ def lock_path(environment: Mapping[str, str], issue: int) -> Path:
 @contextmanager
 def locked(path: Path) -> Generator[None]:
     """Hold the exclusive lock of an issue, waiting for whoever has it."""
-    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+    try:
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+    except OSError as error:
+        message = f"cannot open the lock {path}: {error.strerror}"
+        raise TrackingError(message) from error
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX)
         yield
@@ -84,9 +88,25 @@ def gh(arguments: list[str], stdin: str | None = None) -> str:
     return result.stdout
 
 
+def answer(arguments: list[str], *keys: str) -> dict[str, object]:
+    """Run ``gh`` and return its JSON answer; an unexpected one is refused, not left as a trace."""
+    name = " ".join(arguments[:2])
+    try:
+        data: object = json.loads(gh(arguments))
+    except json.JSONDecodeError as error:
+        message = f"gh {name} did not answer JSON"
+        raise TrackingError(message) from error
+    if not isinstance(data, dict):
+        refuse(f"gh {name} did not answer an object")
+    result = cast("dict[str, object]", data)
+    if any(key not in result for key in keys):
+        refuse(f"gh {name} answered without {' and '.join(keys)}")
+    return result
+
+
 def read_body(issue: int) -> str:
     """Return the body of an issue, exactly."""
-    return str(json.loads(gh(["issue", "view", str(issue), "--json", "body"]))["body"])
+    return str(answer(["issue", "view", str(issue), "--json", "body"], "body")["body"])
 
 
 def write_body(issue: int, body: str) -> None:
@@ -96,7 +116,7 @@ def write_body(issue: int, body: str) -> None:
 
 def read_finding(number: int) -> tuple[str, bool]:
     """Return the title of the issue of a finding, and whether it is closed."""
-    data = json.loads(gh(["issue", "view", str(number), "--json", "title,state"]))
+    data = answer(["issue", "view", str(number), "--json", "title,state"], "title", "state")
     return str(data["title"]), str(data["state"]).upper() == "CLOSED"
 
 
@@ -111,11 +131,18 @@ def cells(line: str) -> list[str]:
     return [cell.strip() for cell in PIPE.split(split_ending(line)[0].strip())[1:-1]]
 
 
+def escape(value: str) -> str:
+    """Return a value as a cell holds it: a pipe is escaped, so it adds no column."""
+    return PIPE.sub(r"\\|", value)
+
+
 def set_cell(line: str, index: int, value: str) -> str:
     """Return the row with one cell replaced; the other cells keep their bytes."""
     text, ending = split_ending(line)
     pieces = PIPE.split(text)
-    pieces[index + 1] = f" {value} "
+    if index + 1 >= len(pieces) - 1:
+        refuse(f"the row is shorter than the header of its table: {text.strip()}")
+    pieces[index + 1] = f" {escape(value)} "
     return "|".join(pieces) + ending
 
 
@@ -184,7 +211,10 @@ def change_lot(lines: list[str], lot: str, changes: dict[str, str]) -> None:
     story, _, label = lot.partition("/")
     names = columns(lines, span, ["Lot", *changes])
     for index in story_rows(lines, span, story):
-        cell = cells(lines[index])[names["Lot"]]
+        row = cells(lines[index])
+        if len(row) <= max(names.values()):
+            refuse(f"the row is shorter than the header of its table: {lines[index].strip()}")
+        cell = row[names["Lot"]]
         found = LOT_LABEL.match(cell)
         if (label and found and found.group() == label) or (not label and cell == SINGLE_LOT):
             for name, value in changes.items():
@@ -203,7 +233,7 @@ def change_story(lines: list[str], story: str, status: str) -> None:
 
 def finding_cell(number: int, title: str) -> str:
     """Return the first cell of a finding: its number, then its title without the epic's prefix."""
-    return f"#{number} {TITLE_PREFIX.sub('', title).strip()}".replace("|", "\\|")
+    return escape(f"#{number} {TITLE_PREFIX.sub('', title).strip()}")
 
 
 def emphasize(decision: str) -> str:
@@ -266,7 +296,10 @@ def change_finding(
     elif attached is None or decision is None:
         refuse(f"the finding #{number} is not in the table: give ATTACHED and DECISION")
     else:
-        new = f"| {finding_cell(number, title)} | {attached} | {emphasize(decision)} |"
+        new = (
+            f"| {finding_cell(number, title)} | {escape(attached)} | "
+            f"{escape(emphasize(decision))} |"
+        )
         add_finding(lines, span, start, new)
 
 
@@ -320,6 +353,10 @@ def validate(options: argparse.Namespace) -> None:
         refuse("give at least one of STATE, PR or MODEL with LOT")
     if options.us and options.status is None:
         refuse("give STATUS with US")
+    for name in ("state", "pr", "model", "status", "attached", "decision"):
+        value = getattr(options, name)
+        if value is not None and ("\n" in value or "\r" in value):
+            refuse(f"{name.upper()} holds a line break: a cell is one line")
 
 
 def main(arguments: list[str]) -> int:
@@ -328,6 +365,8 @@ def main(arguments: list[str]) -> int:
     try:
         validate(options)
         if options.finding is not None:
+            # Read before the lock on purpose: the title and the state of the finding's issue
+            # do not depend on the body of the epic's issue.
             options.finding_issue = read_finding(options.finding)
         with locked(lock_path(os.environ, options.issue)):
             body = read_body(options.issue)

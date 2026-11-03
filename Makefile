@@ -592,11 +592,17 @@ test-services-down: ## Remove the services of the tests of the slot of this work
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
 
+# A variable of the table is taken only when it comes from the command line of make: one exported
+# on the workstation (PR, STATE, MODEL…) must not overwrite a cell of the shared table. Make
+# exports the command-line variables to the recipe; an empty value is ignored.
+tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
+
 tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
-	@$(WFTOOLS).tracking $${ISSUE:+--issue "$$ISSUE"} $${LOT:+--lot "$$LOT"} $${US:+--us "$$US"} \
-		$${FINDING:+--finding "$$FINDING"} $${STATE:+--state "$$STATE"} $${PR:+--pr "$$PR"} \
-		$${MODEL:+--model "$$MODEL"} $${STATUS:+--status "$$STATUS"} \
-		$${ATTACHED:+--attached "$$ATTACHED"} $${DECISION:+--decision "$$DECISION"}
+	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
+		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
+		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
+		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)

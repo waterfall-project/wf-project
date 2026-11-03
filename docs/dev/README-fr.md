@@ -2722,7 +2722,10 @@ dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
 le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
 déjà là, ou le retire quand son issue est fermée. Les colonnes se repèrent par leur en-tête ; la
-cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas. Elle relit le corps
+cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur à saut de
+ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est échappé. Elle ne
+prend une variable que sur la ligne de commande de make (une `PR` exportée sur le poste ne change
+rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
 sous un verrou du poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
 

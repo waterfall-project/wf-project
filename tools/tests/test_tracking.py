@@ -346,3 +346,106 @@ def test_the_lock_is_the_one_of_the_issue_in_the_runtime_directory(issue: Issue)
     assert tracking.lock_path({}, 7) == Path(os.sep, "tmp", "waterfall-tracking-7.lock")
     issue.run("--us", "US-1080", "--status", "x")
     assert (issue.directory / "waterfall-tracking-7.lock").exists()
+
+
+def test_a_pipe_in_a_value_adds_no_column(issue: Issue) -> None:
+    """US-1120: a pipe in a value is escaped in the cell, as in a title; the row keeps its cells."""
+    code, _ = issue.run("--lot", "US-1090", "--state", "a|b")
+    assert code == 0
+    ((before, after),) = changed_lines(BODY, issue.body)
+    assert "a\\|b" in after
+    assert len(tracking.cells(after)) == len(tracking.cells(before))
+    issue.finding(1890, "[EP-19] outil : formes d'arrêt", "OPEN")
+    code, _ = issue.run("--finding", "1890", "--decision", "x|y")
+    assert code == 0
+    assert "| x\\|y |" in issue.body
+
+
+def test_a_line_break_in_a_value_is_refused(issue: Issue) -> None:
+    """US-1120: a cell is one line: a break in any value is refused, nothing written."""
+    for option in ("--state", "--pr", "--model"):
+        code, error = issue.run("--lot", "US-1090", option, "a\nb")
+        assert code == 1
+        assert "line break" in error
+    for option in ("--attached", "--decision"):
+        code, error = issue.run("--finding", "1890", option, "a\rb")
+        assert code == 1
+        assert "line break" in error
+    code, _ = issue.run("--us", "US-1080", "--status", "a\nb")
+    assert code == 1
+    assert issue.body == BODY
+    assert issue.writes == 0
+
+
+def test_a_row_shorter_than_the_header_is_refused_by_name(issue: Issue) -> None:
+    """US-1120: a truncated row is said in a message that names it, not left as a trace."""
+    short = "| 2 | US-1090 #1883 | fini | lot unique |\n"
+    issue.set_body(BODY.replace(LOT_ROW.format("fusionné", "#1898"), short))
+    before = issue.body
+    code, error = issue.run("--lot", "US-1090", "--state", "x")
+    assert code == 1
+    assert "shorter" in error
+    assert "US-1090" in error
+    assert "Traceback" not in error
+    assert issue.body == before
+
+
+def test_an_unexpected_answer_of_gh_or_an_unusable_lock_is_said_without_a_trace(
+    issue: Issue,
+) -> None:
+    """US-1120: not JSON, a JSON without the key, a lock that cannot be opened: all said."""
+    (issue.directory / "issue-9.json").write_text("not json")
+    (issue.directory / "issue-10.json").write_text("{}")
+    for number in ("9", "10"):
+        code, error = issue.run("--finding", number, "--attached", "a", "--decision", "d")
+        assert code == 1
+        assert error.startswith("tracking: ")
+        assert "Traceback" not in error
+    (issue.directory / "waterfall-tracking-7.lock").mkdir()
+    code, error = issue.run("--us", "US-1080", "--status", "x")
+    assert code == 1
+    assert error.startswith("tracking: ")
+    assert "Traceback" not in error
+
+
+def make_tracking(issue: Issue, variables: list[str], environment: dict[str, str]) -> int:
+    """Run ``make tracking`` of the repository, on the fake ``gh``, and return its code."""
+    process = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-C",
+            str(REPOSITORY),
+            "tracking",
+            f"WFTOOLS={sys.executable} -m wftools",
+            "ISSUE=7",
+            *variables,
+        ],
+        env={
+            **os.environ,
+            "PATH": f"{issue.bin}{os.pathsep}{os.environ['PATH']}",
+            "PYTHONPATH": str(REPOSITORY / "tools" / "src"),
+            "XDG_RUNTIME_DIR": str(issue.directory),
+            "FAKE_GH_DIR": str(issue.directory),
+            **environment,
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    return process.returncode
+
+
+def test_make_takes_only_the_variables_of_its_command_line(issue: Issue) -> None:
+    """US-1120: PR in the environment of the workstation does not reach the table; STATE does."""
+    environment = {"PR": "x", "MODEL": "m", "ATTACHED": "z", "DECISION": "d"}
+    code = make_tracking(issue, ["LOT=US-1090", "STATE=l'état | à voir"], environment)
+    assert code == 0
+    assert changed_lines(BODY, issue.body) == [
+        (LOT_ROW.format("fusionné", "#1898"), LOT_ROW.format("l'état \\| à voir", "#1898"))
+    ]
+    # An empty value is ignored, so a call with nothing else to change is refused.
+    before = issue.body
+    assert make_tracking(issue, ["LOT=US-1090", "STATE="], environment) != 0
+    assert issue.body == before

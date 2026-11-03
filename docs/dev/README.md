@@ -2702,7 +2702,10 @@ through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a stor
 changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`, which adds the finding
 (the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
 removes it when its issue is closed. The columns are found by their header; the target refuses,
-non-zero code and body unchanged, a line it does not find. It reads the body again under a lock of
+non-zero code and body unchanged, a line it does not find, a value with a line break and a row of
+the table shorter than its header; a `|` in a value is escaped. It takes a variable only from the
+command line of make (a `PR` exported on the workstation changes nothing) and ignores an empty
+value (`STATE=`). It reads the body again under a lock of
 the workstation of its own for the issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
 (`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
 
