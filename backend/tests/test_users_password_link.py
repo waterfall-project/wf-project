@@ -253,6 +253,7 @@ def test_a_link_made_is_inscribed_by_its_author_without_anything_of_the_link(
     )
 
 
+@pytest.mark.requirement("WF-ADM-0140-A")
 def test_a_link_made_for_an_account_deactivated_meanwhile_is_neither_inscribed_nor_given(
     database: Database, session: Session
 ) -> None:

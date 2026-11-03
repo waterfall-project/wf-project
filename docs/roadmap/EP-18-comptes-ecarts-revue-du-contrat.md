@@ -120,6 +120,15 @@ renommées `[EP-18]` et passées au label `EP-18` à l'ouverture des issues :
 - #1738 — le lien de fixation et le renvoi de l'invitation, commandes du compte (A-04)
   → US-1070.
 
+Relevés par les revues des trois US, tranchés par l'auteur le 2026-11-03 : le lot de finitions
+#1874 les solde, après les trois US —
+
+- #1866 — contrat : le refus du renvoi de l'invitation ne dit pas pourquoi le courriel n'est pas
+  parti : écarté, l'issue est fermée ;
+- #1868 — un test du lien de fixation ne cite pas son exigence : corrigé par #1874 ;
+- #1873 — outil : les bornes des paramètres de requête déclarées à la main confrontées au
+  contrat : reporté → EP-05 (« Constats reçus » de son fichier).
+
 ## Conception
 
 Courte : chaque issue porte déjà sa proposition, ses fichiers et ses tests, et fait foi pour le
@@ -162,6 +171,8 @@ et `user-cells.tsx`. EP-17 n'est pas suspendu : seul US-0780/L1 attend EP-18, et
 suivi d'EP-17 (#1547) le dit dans sa colonne « Dépend de » ; EP-17 reprend `main` comme après
 toute fusion. EP-05 dépend d'EP-18 (`depend_de: EP-16, EP-18`). Décisions de l'auteur du
 2026-11-02.
+Le lot de finitions #1874 vient en dernier, après US-1070 : il n'a pas d'US, ne change aucun
+critère ni statut, et clôt l'EPIC (décision de l'auteur du 2026-11-03).
 
 **Décisions.**
 
