@@ -13,7 +13,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import ADMINISTRATION, account, role
+from access_rows import ADMINISTRATION, account, anonymized_account, role
 from realm import KEY, TestRealm
 from support import ContractClient, bearer
 
@@ -450,24 +450,111 @@ def available(command: str, *missing: str) -> dict[str, Any]:
     return {"command": command, "is_available": not missing, "missing_conditions": list(missing)}
 
 
+LINK = (available("create_password_link"), available("resend_invitation"))
+DEACTIVATED_LINK = (
+    available("create_password_link", "is_active_account"),
+    available("resend_invitation", "is_active_account"),
+)
+LINK_COMMANDS = ("create_password_link", "resend_invitation")
+
+
+def link_commands(listed: list[dict[str, Any]]) -> list[str]:
+    """Give the commands of the link and of the invitation an account lists, in its order."""
+    return [each["command"] for each in listed if each["command"] in LINK_COMMANDS]
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, "users.write")])
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_a_local_account_lists_its_link_and_its_invitation_for_users_write_alone(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # « Le lien de fixation est le seul élément d'authentification qu'il présente » : the account
+    # says its link and its invitation, available while it is active. They come from
+    # ``users.write`` alone: this caller may not attribute the roles, and has them all the same.
+    assert commands(api, headers, table["Roux Inès"]) == [available("deactivate"), *LINK]
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_the_link_and_the_invitation_of_a_deactivated_local_account_are_unavailable(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # « la commande [...] est présentée indisponible en nommant la condition manquante » : its
+    # link and its invitation lack ``is_active_account``, after the attribution of its roles.
+    assert commands(api, headers, table["Moreau Alix"])[-2:] == list(DEACTIVATED_LINK)
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_an_account_of_the_directory_or_of_a_provider_lists_neither_link_nor_invitation(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # « Un compte importé n'a pas d'écran de mot de passe » : it authenticates with its directory.
+    for name in ("Bernard Dominique", "de Vries Anna", "Lefèvre Sacha"):
+        assert link_commands(commands(api, headers, table[name])) == []
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_an_anonymized_local_account_lists_neither_link_nor_invitation(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # « sa réactivation est refusée » : the anonymisation is irreversible, so the account lists
+    # no command that would give it a password again, while it lists the reactivation unavailable.
+    gone = anonymized_account(database)
+    listed = commands(api, headers, gone)
+    assert link_commands(listed) == []
+    assert [each["command"] for each in listed][:2] == ["reactivate", "anonymize"]
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT,)])
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_a_reader_without_users_write_lists_neither_link_nor_invitation(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # « Un utilisateur sans la permission [...] ne voit pas cette commande » : the table and
+    # the account list none of them.
+    assert commands(api, headers, table["Roux Inès"]) == []
+    assert all(each["available_commands"] == [] for each in read(api, headers)["items"])
+
+
+@pytest.mark.parametrize("caller_permissions", [(CONSULT, "users.write")])
+@pytest.mark.requirement("WF-IHM-0090-A")
+def test_the_table_and_the_caller_list_the_link_and_the_invitation_of_a_local_account(
+    api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
+) -> None:
+    # The table (listUsers) says what the account (getUser) does.
+    items = {each["user_id"]: each for each in read(api, headers)["items"]}
+    assert link_commands(items[str(table["Roux Inès"])]["available_commands"]) == list(
+        LINK_COMMANDS
+    )
+    assert link_commands(items[str(table["Bernard Dominique"])]["available_commands"]) == []
+
+
 @pytest.mark.parametrize("caller_permissions", [(CONSULT, *ADMINISTRATION)])
 def test_an_account_carries_the_commands_its_reader_may_exercise(
     api: ContractClient, headers: dict[str, str], table: dict[str, UUID]
 ) -> None:
     # WF-IHM-0090: the one that changes the state, the anonymisation of a deactivated account,
-    # then the attribution of the roles.
+    # the attribution of the roles, then, for a local account, its link and its invitation.
     assert commands(api, headers, table["Roux Inès"]) == [
         available("deactivate"),
         available("set_access_roles"),
+        *LINK,
     ]
     assert commands(api, headers, table["Moreau Alix"]) == [
         available("reactivate"),
         available("anonymize"),
         available("set_access_roles"),
+        *DEACTIVATED_LINK,
     ]
     # The caller is the only active account that holds the administration: its deactivation is
     # unavailable, the attribution of its roles is not (WF-ADM-0120).
-    alone = [available("deactivate", "last_administrator"), available("set_access_roles")]
+    alone = [
+        available("deactivate", "last_administrator"),
+        available("set_access_roles"),
+        *LINK,
+    ]
     assert commands(api, headers, CALLER) == alone
     listed = read(api, headers, "?search=camille")["items"]
     assert [each["available_commands"] for each in listed] == [alone]
@@ -479,10 +566,11 @@ def test_the_attribution_of_the_roles_is_offered_only_to_who_may_change_the_role
 ) -> None:
     # Giving a role is managing the roles (FBS-1.2, WF-ADM-0090, #834): who changes the accounts
     # alone is offered the change of their state, not the attribution of their roles.
-    assert commands(api, headers, table["Roux Inès"]) == [available("deactivate")]
+    assert commands(api, headers, table["Roux Inès"]) == [available("deactivate"), *LINK]
     assert commands(api, headers, table["Moreau Alix"]) == [
         available("reactivate"),
         available("anonymize"),
+        *DEACTIVATED_LINK,
     ]
 
 

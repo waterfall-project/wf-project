@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from waterfall.core.users.accounts import lock_account
+from waterfall.core.users.commands import IS_ACTIVE_ACCOUNT, anonymized
 from waterfall.core.users.identity import LOCAL, inscribe
 from waterfall.core.users.states import ACTIVE
 from waterfall.core.users.tables import UserAccount
@@ -23,7 +24,6 @@ from waterfall.platform.errors import ConflictError
 STATE_FORBIDS_OPERATION = "STATE_FORBIDS_OPERATION"
 # The conditions a link lacks, named by the 409 of ``createPasswordSetupLink`` (CommandCondition).
 IS_LOCAL_ACCOUNT = "is_local_account"
-IS_ACTIVE_ACCOUNT = "is_active_account"
 
 
 def not_local() -> ConflictError:
@@ -34,12 +34,16 @@ def not_local() -> ConflictError:
 def lock_link_holder(session: Session, user_id: UUID) -> UserAccount:
     """Lock the account a link is asked for and read it under the lock; refuse it if it has none.
 
-    Refused if unknown (404), not local, or deactivated (409) — by the first condition it lacks,
-    as the contract says. The lock keeps it local and active until the transaction ends.
+    Refused if unknown (404), not local, anonymised, or deactivated (409) — by the first condition
+    it lacks, in that order, as the contract says: the anonymisation is irreversible, and says so
+    before the deactivation it implies. The lock keeps it local, whole and active until the
+    transaction ends.
     """
     account = lock_account(session, user_id)
     if account.origin != LOCAL:
         raise not_local()
+    if account.anonymized_at is not None:
+        raise anonymized()
     if account.state != ACTIVE:
         raise ConflictError(STATE_FORBIDS_OPERATION, {"missing_condition": IS_ACTIVE_ACCOUNT})
     return account

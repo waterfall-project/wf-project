@@ -11,7 +11,7 @@ by its caller.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from waterfall.api.actors import actor_ref
 from waterfall.api.authentication import Caller, Transaction, caller
@@ -200,7 +200,12 @@ def patch_access_role(
     dependencies=WRITE,
     status_code=204,
 )
-def remove_access_role(access_role_id: UUID, account: Caller, session: Transaction) -> Response:
-    """Mark a role deleted, unless an account holds it (WF-ADM-0090)."""
-    delete_role(session, access_role_id, Act(account.user_id, utc_now()))
+def remove_access_role(
+    access_role_id: UUID,
+    lock_version: Annotated[int, Query(ge=0)],
+    account: Caller,
+    session: Transaction,
+) -> Response:
+    """Mark a role deleted unless stale (412) or held (WF-ADM-0090)."""
+    delete_role(session, access_role_id, lock_version, Act(account.user_id, utc_now()))
     return Response(status_code=204)

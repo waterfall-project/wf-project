@@ -10,13 +10,15 @@ the order it holds them, and with the commands its reader may exercise, each ava
 
 A local account is created in the identity provider, then in Waterfall, and its holder invited by
 the extension of Keycloak (WF-ADM-0070, WF-ADM-0140), which also makes the link that sets its
-password for an authorized user to hand over. No call to the provider is made inside a
-transaction (#669): what Waterfall would refuse is refused before the provider is asked, the
-account is written once the provider has created it, and withdrawn from the provider if Waterfall
-refuses it after all, a role deleted or an address taken meanwhile. An account deactivated, or
-withdrawn all its roles, has its sessions closed by the provider once the write is committed
-(WF-SEC-0020). A local account to anonymise is removed from it before the anonymisation is
-written, once checked: while the provider does not answer, nothing is written (WF-ADM-0060).
+password for an authorized user to hand over. It is born without a role: its roles are given by
+the management of the roles alone, so that who changes the accounts alone never gives one the
+administration (#1732). No call to the provider is made inside a transaction (#669): what
+Waterfall would refuse is refused before the provider is asked, the account is written once the
+provider has created it, and withdrawn from the provider if Waterfall refuses it after all, an
+address taken meanwhile. An account deactivated, or withdrawn all its roles, has its sessions
+closed by the provider once the write is committed (WF-SEC-0020). A local account to anonymise is
+removed from it before the anonymisation is written, once checked: while the provider does not
+answer, nothing is written (WF-ADM-0060).
 """
 
 from collections.abc import Mapping, Sequence
@@ -24,7 +26,7 @@ from dataclasses import replace
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -43,7 +45,6 @@ from waterfall.api.contract.models import (
     UserOrigin,
     UserRolesWrite,
     UserUpdate,
-    Uuid,
 )
 from waterfall.api.evaluation import Acting, Requires
 from waterfall.api.queries import (
@@ -56,15 +57,12 @@ from waterfall.api.queries import (
 from waterfall.core.access_roles.interface import (
     Actor,
     HeldRole,
-    give_first_roles,
     guard_deactivation,
     holding_one_of,
     labels_held,
-    lock_administrators,
     roles_held_by,
     set_access_roles,
     sole_administrator,
-    unknown_roles,
 )
 from waterfall.core.users.interface import (
     Account,
@@ -83,7 +81,6 @@ from waterfall.core.users.interface import (
     check_account_anonymization,
     check_account_change,
     create_local_account,
-    display_name,
     identity_faults,
     inscribe_password_link,
     list_accounts,
@@ -98,7 +95,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
-from waterfall.platform.keycloak import IdentityProviderError
+from waterfall.platform.keycloak import IdentityProviderError, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
 
@@ -177,6 +174,7 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
             is_active=account.is_active,
             is_anonymized=account.anonymized_at is not None,
             is_last_administrator=account.user_id == last,
+            is_local=account.origin == LOCAL,
         )
         commands = account_commands(state, may_change=may_change, may_attribute=may_attribute)
         fields = account_fields(account, held[account.user_id])
@@ -291,46 +289,29 @@ def get_user(user_id: UUID, actor: Acting, session: Transaction) -> User:
     return users(session, actor, [read_account(session, user_id)])[0]
 
 
-def check_new_account(
-    session: Session, identity: Identity, role_ids: Sequence[UUID] | None
-) -> None:
+def check_new_account(session: Session, identity: Identity) -> None:
     """Refuse an account Waterfall would refuse, before the provider creates it.
 
-    Each field in fault, the roles included — sent null if ``None`` —, is named (422); then an
-    address another account holds is refused (409). The roles and the address are read again when
-    the account is written.
+    Each field in fault is named (422); then an address another account holds is refused (409).
+    The address is read again when the account is written.
     """
-    roles = (
-        (FieldError("/access_role_ids", VALIDATION_FAILED),)
-        if role_ids is None
-        else unknown_roles(session, role_ids)
-    )
-    refuse((*identity_faults(identity.email, identity.org_node_id), *roles))
+    refuse(identity_faults(identity.email, identity.org_node_id))
     holder = address_holder(session, identity.email)
     if holder is not None:
         raise address_taken(holder)
 
 
 def write_new_account(
-    session: Session,
-    created: tuple[Identity, str],
-    role_ids: Sequence[UUID],
-    actor: Actor,
-    act: Act,
+    session: Session, created: tuple[Identity, str], actor: Actor, act: Act
 ) -> User:
-    """Write the local account the provider holds under its subject, with its first roles.
+    """Write the local account the provider holds under its subject, without a role.
 
-    ``created`` is its identity and that subject. The roles are read again under the guard of the
-    last administrator, and the address by the unique index: refused, nothing is written. With
-    roles, the lock of the guard is taken first: the creation, inscribed, holds its author's row
-    for share, which a deactivation or an attribution of that author locks after the guard.
+    ``created`` is its identity and that subject. The address is read again by the unique index:
+    refused, nothing is written. Giving no role, the creation takes no administration from anyone
+    and gives it to no one: it runs outside the guard of the last administrator (WF-ADM-0120).
     """
     identity, subject = created
-    if role_ids:
-        lock_administrators(session)
     account = create_local_account(session, identity, subject, act)
-    label = display_name(account.first_name, account.last_name)
-    give_first_roles(session, (account.user_id, label), role_ids, act)
     return users(session, actor, [account])[0]
 
 
@@ -346,18 +327,6 @@ def withdraw(admin: KeycloakAdmin, subject: str) -> None:
         logger.exception("account.withdrawal_failed", subject=subject)
 
 
-class PendingUserCreate(UserCreate):
-    """The body of createUser, with the roles the service still gives an account it creates.
-
-    The contract has a local account born without a role since #1731 (US-0704): its roles are given
-    by setUserAccessRoles, under the permission to modify the access roles. Until the service
-    follows it (#1732, EP-03), it reads them here as it did: the body admits properties the
-    contract does not declare, and this one, no longer declared, is read all the same.
-    """
-
-    access_role_ids: list[Uuid] | None = None
-
-
 @router.post(
     "/users",
     operation_id="createUser",
@@ -366,20 +335,21 @@ class PendingUserCreate(UserCreate):
     response_model_exclude_unset=True,
 )
 def post_user(
-    body: PendingUserCreate, account: Caller, actor: Acting, services: ServicesOf
+    body: UserCreate, account: Caller, actor: Acting, services: ServicesOf
 ) -> UserCreated:
     """Create a local account in the provider and in Waterfall, and invite its holder.
 
     A local account is born without a password: its holder sets one by the link the extension
     mails, or that an authorized user obtains (WF-ADM-0050, WF-ADM-0070, WF-ADM-0140). The answer
-    says whether the mail left: when it did not, the link is given by hand (#816).
+    says whether the mail left: when it did not, the link is given by hand (#816). It is born
+    without a role too, which setUserAccessRoles alone gives, under the permission to change the
+    roles (WF-ADM-0090, #1732): roles sent in the body, which the contract does not declare, are
+    ignored as any property it does not declare.
     """
     org_node_id = None if body.org_node_id is None else body.org_node_id.root
     identity = Identity(body.last_name, body.first_name, body.email, org_node_id)
-    role_ids = [role_id.root for role_id in body.access_role_ids or ()]
-    sent_null = "access_role_ids" in body.model_fields_set and body.access_role_ids is None
     with services.database.transaction() as session:
-        check_new_account(session, identity, None if sent_null else role_ids)
+        check_new_account(session, identity)
     admin = services.keycloak_admin
     subject = admin.create_account(LocalIdentity(body.last_name, body.first_name, body.email))
     if subject is None:
@@ -390,7 +360,7 @@ def post_user(
     act = Act(account.user_id, utc_now())
     try:
         with services.database.transaction() as session:
-            created = write_new_account(session, (identity, subject), role_ids, actor, act)
+            created = write_new_account(session, (identity, subject), actor, act)
     except Exception:
         withdraw(admin, subject)
         raise
@@ -666,3 +636,31 @@ def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> 
         inscribe_password_link(session, user_id, act)
     logger.info("account.password_link_made", user_id=str(user_id))
     return given
+
+
+@router.post(
+    "/users/{user_id}/invitation",
+    operation_id="resendInvitation",
+    dependencies=WRITE,
+    status_code=204,
+)
+def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> Response:
+    """Have the provider send again the mail that carries the link of a local account (WF-ADM-0140).
+
+    Judged as the link is: an account that is not local, anonymised or deactivated has none (409),
+    and no mail leaves. A mail the provider does not send is never presented as sent: 503
+    (WF-EXP-0040), the link remaining to be handed over by another channel. The sending is
+    inscribed as the request of a link is, once the mail has left, the account read again under a
+    lock (#669). An account anonymised or deactivated between the sending and that inscription is
+    answered 409 though the mail has left: the defect of the request of a link, which the design
+    accepts.
+    """
+    with services.database.transaction() as session:
+        holder = password_link_holder(session, user_id)
+    if not invite(services.keycloak_admin, holder.subject, user_id):
+        raise unavailable()
+    act = Act(account.user_id, utc_now())
+    with services.database.transaction() as session:
+        inscribe_password_link(session, user_id, act)
+    logger.info("account.invitation_sent", user_id=str(user_id))
+    return Response(status_code=204)

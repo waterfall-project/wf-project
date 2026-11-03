@@ -102,7 +102,10 @@ def _inscribe(
 def give_first_roles(
     session: Session, account: tuple[UUID, str | None], role_ids: Sequence[UUID], act: Act
 ) -> None:
-    """Give an account just created its first roles, and inscribe them; or refuse them (422).
+    """Give the administrator the bootstrap creates its first roles, and inscribe them.
+
+    An account created by the API is born without a role (#1732); only the bootstrap gives one.
+    Unknown roles are refused (422).
 
     The roles are read under the lock of the guard, which the deletion of a role holds while it
     counts the holders: a role deleted meanwhile is unknown here, and one given here is held
