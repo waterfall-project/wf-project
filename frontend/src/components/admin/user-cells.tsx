@@ -254,10 +254,9 @@ export function RolesCell({
  * named after it — unavailable, by the condition it lacks, while the account is deactivated —; none
  * when the account does not list it: another account sets no password in Waterfall, an anonymised
  * one is withdrawn from the identity provider (WF-ADM-0060), a session without `users.write` reads
- * none. Marked
- * busy while a write of its row is under way, or a link asked or shown — one at a time —, and
- * unavailable the while, or while a deactivation asked is unanswered: no link is given for an account
- * being deactivated (WF-ADM-0140), and a press asks nothing.
+ * none. Marked busy while a write of its row is under way, or a link asked or shown — one at a
+ * time —, and unavailable the while, or while a deactivation asked is unanswered: no link is given
+ * for an account being deactivated (WF-ADM-0140), and a press asks nothing.
  */
 export function SetupLinkCommand({ user }: { readonly user: User }) {
   const t = useTranslations("admin.users");

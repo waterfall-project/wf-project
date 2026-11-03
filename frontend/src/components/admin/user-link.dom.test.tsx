@@ -6,7 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { account, accounts, grid, heldActivation, holdRoute, told, writes } from "@/test/accounts";
+import {
+  account,
+  accounts,
+  grid,
+  heldActivation,
+  holdRoute,
+  told,
+  users,
+  writes,
+} from "@/test/accounts";
 import {
   example,
   type FakeAnswers,
@@ -83,21 +92,6 @@ describe("the link to set the password", () => {
     });
     // Given once, the link is shown no more.
     expect(screen.queryByDisplayValue(link)).toBeNull();
-  });
-
-  it("presents the link of a deactivated local account unavailable, naming the condition it lacks, and asks nothing [WF-IHM-0090-A]", async () => {
-    const client = serve({});
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Alix Moreau »",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie : compte actif.");
-    await userEvent.click(command);
-    expect(told().textContent).toBe(
-      "Lien de fixation du mot de passe de « Alix Moreau » : Condition non remplie : compte actif.",
-    );
-    expect(writes(client)).toEqual([]);
   });
 
   it("marks the link of an account busy and unavailable while its deactivation is asked, a press asking nothing", async () => {
@@ -363,8 +357,14 @@ function linkCommands(): HTMLElement[] {
 describe("the commands of the link, as the account lists them", () => {
   it("presents both commands of the local accounts that list them, and none of an imported account, which lists none [WF-ADM-0140-A]", () => {
     render(accounts());
-    // Five local accounts, two commands each; the two imported accounts have none.
-    expect(linkCommands()).toHaveLength(10);
+    // Two commands for each account that lists both; the imported accounts list none.
+    const listed = users.items.filter(({ available_commands: offers }) =>
+      ["create_password_link", "resend_invitation"].every((command) =>
+        offers.some((offer) => offer.command === command),
+      ),
+    );
+    expect(listed.length).toBeGreaterThan(0);
+    expect(linkCommands()).toHaveLength(2 * listed.length);
     for (const last of ["Bernard", "Lefèvre"]) {
       expect(
         within(grid()).queryByRole("button", {
@@ -409,6 +409,7 @@ describe("the commands of the link, as the account lists them", () => {
       expect(command).toHaveAttribute("aria-disabled", "true");
       expect(command).toHaveAccessibleDescription(/Condition non remplie\s*: compte actif\./);
       await userEvent.click(command);
+      expect(told().textContent).toMatch(/Condition non remplie\s*: compte actif\./);
     }
     expect(writes(client)).toEqual([]);
   });
