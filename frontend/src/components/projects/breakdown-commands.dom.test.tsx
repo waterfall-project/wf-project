@@ -471,6 +471,14 @@ describe("the work breakdown edited in its grid", () => {
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription("Une valeur est requise.");
     expect(within(dialog).queryByText(/^Poste «/)).toBeNull();
+    // The second refusal of the label is out of the field, told by the notice under the dialog,
+    // whose reasons are noted with the first: both said in the history of the messages.
+    expect(field).not.toHaveAccessibleDescription(/trop longue/);
+    expect(readMessages().messages).toEqual([
+      expect.objectContaining({
+        detail: "Une valeur est requise. La valeur est trop longue.",
+      }),
+    ]);
   });
 
   it("names the element a refusal points at when it is not the one the dialog writes", async () => {

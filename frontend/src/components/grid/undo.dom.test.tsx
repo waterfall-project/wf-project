@@ -10,6 +10,7 @@ import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
 import { costRow } from "@/components/costs/cost-grid";
 import { CostsGrid } from "@/components/costs/costs-grid";
+import { ContextMenuItem } from "@/components/ui/context-menu";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -19,9 +20,8 @@ import { estimateReference } from "@/test/reference";
 import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
-import { CellMenu, type MenuCommands } from "./undo-commands";
-import { ContextMenuItem } from "@/components/ui/context-menu";
 import type { GridQuery } from "./query";
+import { CellMenu, type MenuCommands } from "./undo-commands";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
