@@ -815,6 +815,23 @@ def test_an_unknown_role_deleted_without_a_version_is_refused_on_the_version(
 
 
 @pytest.mark.requirement("WF-ADM-0090-A")
+def test_an_unknown_role_updated_without_a_version_is_refused_on_the_version(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # The counter is required by the body (``AccessRoleUpdate``): the request is validated before
+    # the handler looks the role up, as for the deletion — 422 on the body, not 404 — and nothing
+    # is written.
+    sent: dict[str, object] = {"label": "Devis", "permissions": []}
+    refused = problem(api.patch(f"{ROLES}/{UNKNOWN}", headers=headers, json=sent))
+    assert refused == (
+        422,
+        "VALIDATION_FAILED",
+        [{"pointer": "/lock_version", "code": "VALUE_REQUIRED"}],
+    )
+    assert (labels(api, headers), journal(database)) == ([], [])
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
 def test_a_role_held_is_judged_stale_before_it_is_judged_held_and_held_when_read(
     api: ContractClient, database: Database, headers: dict[str, str]
 ) -> None:
