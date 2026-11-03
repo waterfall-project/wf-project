@@ -191,7 +191,9 @@ describe("the summary of the estimate", () => {
 
   it("leads a session that may read the reference but not write it to see the rates, by a link bearing the icon of the function", () => {
     const html = summary("estimate_indicators", "missing_rates", estimator);
-    expect(text(html)).toContain("Ingénierie électrique — 2026 Voir les taux horaires Chiffres clés Indicateurs");
+    expect(text(html)).toContain(
+      "Ingénierie électrique — 2026 Voir les taux horaires Chiffres clés Indicateurs",
+    );
     expect(html).toMatch(
       /<a [^>]*href="\/reference\/costs"[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Voir les taux horaires<\/a>/,
     );

@@ -177,7 +177,7 @@ test("creates a project from the home, then modifies the identity of a project o
   await compile(page.request, CREATED);
   await page.goto("/");
   const main = page.getByRole("main");
-  await expect(main.getByRole("note")).toContainText("le service simulé répond");
+  await expect(main.getByRole("note")).toContainText("le service simulé ne conserve");
 
   // No project is opened here, nothing witnesses the hydration: the creation is pressed again
   // until React opens its form, and never once it is open.

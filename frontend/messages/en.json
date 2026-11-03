@@ -1874,7 +1874,7 @@
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service keeps no write; a reloaded page shows its original data.",
-    "notFiltered": "Filters, search, sort and pages ignored."
+    "notFiltered": "Filters, search, sort and pages are ignored."
   },
   "tasks": {
     "label": "Background tasks",

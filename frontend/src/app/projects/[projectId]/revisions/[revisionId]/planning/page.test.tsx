@@ -124,7 +124,7 @@ describe("the screen of the planning", () => {
     const command = SKELETON.exec(page)?.[0] ?? "";
     expect(command).not.toBe("");
     expect(command).not.toContain(" aria-disabled=");
-    expect(page).toContain("Mock-up: the simulated service answers each write");
+    expect(page).toContain("Mock-up: the simulated service keeps no write");
   });
 
   it("enters the attachment from the work breakdown read whole, and offers no skeleton beside the tasks", async () => {

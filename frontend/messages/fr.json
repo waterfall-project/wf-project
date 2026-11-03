@@ -1873,7 +1873,7 @@
     "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
-    "notKept": "Maquette : le service simulé ne conserve aucune écriture ; une page rechargée montre ses données d’origine.",
+    "notKept": "Maquette : le service simulé ne conserve aucune écriture ; une page rechargée montre ses données d’origine.",
     "notFiltered": "Filtres, recherche, tri et pages ignorés."
   },
   "tasks": {
