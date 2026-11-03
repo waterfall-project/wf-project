@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
+import { readFileSync } from "node:fs";
+
 import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
@@ -20,6 +22,23 @@ import { rowAt, scrollToPosition, withinBox } from "./scroll";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
+
+/**
+ * The width the column of the names of the exported Gantt takes: `namesWidth` of
+ * `gantt-image.ts`, the longest label indented by its level, over the tasks of the fake back.
+ */
+function expectedNamesWidth(): number {
+  const { value } = JSON.parse(
+    readFileSync(`${import.meta.dirname}/../../fixtures/api/volume/nodes_thousand.json`, "utf-8"),
+  ) as { value: { items: { level: number; task?: { label: string } }[] } };
+  let longest = 0;
+  for (const { level, task } of value.items) {
+    if (task) {
+      longest = Math.max(longest, Math.max(level - 1, 0) * 12 + task.label.length * 6);
+    }
+  }
+  return Math.min(Math.max(longest + 12, 96), 320);
+}
 
 test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort [WF-IHM-0060-A]", async ({
   page,
@@ -50,8 +69,9 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
-  // Row 39 is past the rows in view as the grid opens: scrolled to, so that it is checked in the
-  // window whatever the height of the grid, never in the margin the grid renders around it. The
+  // Row 39, the 20th task, may lie past the rows in view as the grid opens, in a short grid:
+  // scrolled to, so that it is checked in the window whatever the height of the grid, never in
+  // the margin the grid renders around it. The
   // critical path, marked by its icon, whatever the colour.
   const critical = await scrollToPosition(grid, 20);
   await expect(critical).toHaveAccessibleName(/^39 .*Revue 1\.1\.3/);
@@ -194,7 +214,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   // Row 9, « Câblage des armoires », in automatic mode: the server names its start and its finish
   // among the fields it computes. Its label written, Tab goes along the cells it takes — the
   // description, the mode, the duration —, past its dates, to its attachment, the last; validated,
-  // that one places the cursor on row 10, at the label the row was started from. The fake back
+  // that one places the cursor on row 13, at the label the row was started from. The fake back
   // answers `updateTaskFacet` by its first example: the task of row 9 renamed. What each other cell
   // sends is proven on the examples by `planning-entry.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -688,9 +708,10 @@ test("exports the Gantt as a PNG image over its whole extent at the level chosen
   await expect.poll(() => axisFrame(header)).toBeDefined();
   const drawing = await axisFrame(header);
   const [width, height] = await exported();
-  // The column of the names takes its room to the left of the bars, between its bounds (#1428).
+  // The column of the names takes its room to the left of the bars (#1428): the width of the
+  // rule of `namesWidth` — 12 points an indent a level, 6 a character, 12 for the edges, between
+  // 96 and 320 —, over the labels of the thousand tasks the fake back serves.
   const names = width - ((drawing?.width ?? 0) + 32);
-  expect(names).toBeGreaterThanOrEqual(96);
-  expect(names).toBeLessThanOrEqual(320);
+  expect(names).toBe(expectedNamesWidth());
   expect(height).toBe(fittedHeight + 24);
 });
