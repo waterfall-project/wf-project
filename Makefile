@@ -101,7 +101,7 @@ heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # of one file that does not wait.
 # An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
 # to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
-WATERFALL_PROCESSORS ?= $(or $(shell $(if $(WATERFALL_SLOTS),WATERFALL_SLOTS='$(WATERFALL_SLOTS)') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))

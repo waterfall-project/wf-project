@@ -248,10 +248,12 @@ HEAVY_TARGETS = {
 }
 
 
-def plan(tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+def plan(
+    tmp_path: Path, *arguments: str, extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Return the dry run of make, free of the variables of the make that runs this test."""
     outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_PROCESSORS", "WATERFALL_SLOTS")
-    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    environment = {k: v for k, v in os.environ.items() if k not in outer} | (extra or {})
     return subprocess.run(
         ["make", "--dry-run", *arguments],
         cwd=REPOSITORY,
@@ -295,3 +297,27 @@ def test_make_names_an_invalid_slot_count_whatever_the_target(tmp_path: Path) ->
     assert refused.returncode != 0
     assert "WATERFALL_SLOTS" in refused.stderr
     assert plan(tmp_path, "lint-front", "WATERFALL_SLOTS=x").returncode == 0
+
+
+def test_a_single_quote_in_the_slot_count_runs_nothing(tmp_path: Path) -> None:
+    """US-1090: a quote in WATERFALL_SLOTS does not reach the shell; make names the setting."""
+    witness = tmp_path / "witness"
+    for value in (f"1'; touch {witness}; echo '", "it's"):
+        refused = plan(tmp_path, "test-tools", "TESTS=x", f"WATERFALL_SLOTS={value}")
+        assert refused.returncode != 0
+        assert "WATERFALL_SLOTS must be an integer from 1 to 9" in refused.stderr
+        assert "syntax error" not in refused.stderr
+        assert not witness.exists()
+
+
+def test_an_empty_slot_count_is_refused_as_the_tool_refuses_it(tmp_path: Path) -> None:
+    """US-1090: a WATERFALL_SLOTS set to nothing has the verdict of the tool, whatever make."""
+    run = start(tmp_path, [sys.executable, "-c", "pass"], "")
+    run.communicate(timeout=60)
+    assert run.returncode == 2
+    refused = plan(tmp_path, "test-tools", "TESTS=x", "WATERFALL_SLOTS=")
+    assert refused.returncode != 0
+    assert "WATERFALL_SLOTS must be an integer from 1 to 9" in refused.stderr
+    from_environment = plan(tmp_path, "test-tools", "TESTS=x", extra={"WATERFALL_SLOTS": ""})
+    assert from_environment.returncode != 0
+    assert "WATERFALL_SLOTS must be an integer from 1 to 9" in from_environment.stderr
