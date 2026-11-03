@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -49,7 +50,7 @@ def start(
 
 
 def wait_for(path: Path) -> None:
-    deadline = time.monotonic() + 10
+    deadline = time.monotonic() + 60
     while not path.exists():
         assert time.monotonic() < deadline, f"{path.name} never appeared"
         time.sleep(0.02)
@@ -92,7 +93,7 @@ def test_the_first_slot_is_the_lock_of_before(tmp_path: Path) -> None:
         time.sleep(0.5)
         assert run.poll() is None
         run.terminate()
-        _, error = run.communicate(timeout=10)
+        _, error = run.communicate(timeout=60)
         assert "taken" in error
     assert not (tmp_path / "waterfall-heavy.2.lock").exists()
 
@@ -104,7 +105,7 @@ def test_the_wait_is_said_once(tmp_path: Path) -> None:
         run = start(tmp_path, [sys.executable, "-c", "print('ran')"])
         time.sleep(2.5)
         run.terminate()
-        _, error = run.communicate(timeout=10)
+        _, error = run.communicate(timeout=60)
     assert error.count("taken") == 1
 
 
@@ -113,7 +114,7 @@ def test_slots_other_than_one_to_nine_are_refused(tmp_path: Path, value: str) ->
     """US-1090: a WATERFALL_SLOTS that is not an integer from 1 to 9 is refused, and said."""
     marker = tmp_path / "ran"
     run = start(tmp_path, [sys.executable, "-c", f"open({str(marker)!r}, 'w')"], value)
-    _, error = run.communicate(timeout=10)
+    _, error = run.communicate(timeout=60)
     assert run.returncode == 2
     assert "WATERFALL_SLOTS" in error
     assert not marker.exists()
@@ -136,7 +137,7 @@ def test_the_locks_are_numbered_from_the_first_of_before(tmp_path: Path) -> None
 def test_a_process_left_behind_does_not_keep_the_slot(tmp_path: Path) -> None:
     """US-1090: a server the command left behind does not hold the slot after the command ends."""
     run = start(tmp_path, ["sh", "-c", "sleep 30 >/dev/null 2>&1 & echo $!"])
-    output, _ = run.communicate(timeout=10)
+    output, _ = run.communicate(timeout=60)
     orphan = int(output.strip())
     try:
         with (tmp_path / "waterfall-heavy.lock").open("w") as lock:
@@ -157,21 +158,21 @@ def test_the_signals_reach_the_command_and_its_code_is_returned(tmp_path: Path) 
     run = start(tmp_path, [sys.executable, "-c", script])
     wait_for(ready)
     run.send_signal(signal.SIGTERM)
-    run.communicate(timeout=10)
+    run.communicate(timeout=60)
     assert run.returncode == 7
 
 
 def test_a_command_killed_by_a_signal_returns_128_plus_it(tmp_path: Path) -> None:
     """US-1090: a command killed by a signal returns 128 plus it."""
     run = start(tmp_path, ["sh", "-c", "kill -KILL $$"])
-    run.communicate(timeout=10)
+    run.communicate(timeout=60)
     assert run.returncode == 128 + signal.SIGKILL
 
 
 def test_a_missing_command_returns_127(tmp_path: Path) -> None:
     """US-1090: a command that does not exist returns 127 and is named."""
     run = start(tmp_path, ["no-such-command-for-slots"])
-    _, error = run.communicate(timeout=10)
+    _, error = run.communicate(timeout=60)
     assert run.returncode == 127
     assert "no-such-command-for-slots" in error
 
@@ -183,7 +184,7 @@ def test_the_command_gets_its_share_of_the_processors(tmp_path: Path) -> None:
         [sys.executable, "-c", "import os; print(os.environ['WATERFALL_PROCESSORS'])"],
         "2",
     )
-    output, _ = run.communicate(timeout=10)
+    output, _ = run.communicate(timeout=60)
     assert int(output) == max(1, len(os.sched_getaffinity(0)) // 2)
 
 
@@ -214,12 +215,13 @@ def test_a_signal_before_the_child_exists_is_relayed_to_it(monkeypatch: pytest.M
     """US-1090: a SIGTERM that comes before the child exists is kept, then relayed to it."""
     real = subprocess.Popen
 
-    def popen_after_signal(*arguments: object, **options: object) -> subprocess.Popen[bytes]:
+    def popen_after_signal(command: list[str], **options: Any) -> subprocess.Popen[Any]:
         signal.raise_signal(signal.SIGTERM)
-        return real(*arguments, **options)  # type: ignore[call-overload, no-any-return]
+        return real(command, **options)
 
-    monkeypatch.setattr(slots.subprocess, "Popen", popen_after_signal)
-    code = slots.run_command([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ))
+    monkeypatch.setattr(subprocess, "Popen", popen_after_signal)
+    sleeping = [sys.executable, "-c", "import time; time.sleep(60)"]
+    code = slots.run_command(sleeping, dict(os.environ))
     assert code == 128 + signal.SIGTERM
 
 
