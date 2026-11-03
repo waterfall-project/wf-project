@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { type ApiClient, createApiClient } from "@/api/client";
+import { ACCOUNT_REFUSALS } from "@/api/problem-kind";
 import { fakeClient } from "@/test/fixtures";
 
 import { requestSession, requestSessionState } from "./request";
@@ -51,14 +52,12 @@ describe("the session of a request", () => {
     expect(await requestSessionState()).toMatchObject({ kind: "open" });
   });
 
-  it.each([
-    ["ACCOUNT_DEACTIVATED", "deactivated"],
-    ["ACCOUNT_NOT_ADMITTED", "not_admitted"],
-  ] as const)(
+  it.each(Object.entries(ACCOUNT_REFUSALS))(
     "tells an account refused (%s) from a session that is none: the screen says it, no sign-in leads back",
     async (code, kind) => {
+      // Every code of the list of the refusals of an account, never two written again here (#1005).
       server.client = fakeClient({
-        "GET /me": { problem: { code, status: 401 } },
+        "GET /me": { problem: { code: code as keyof typeof ACCOUNT_REFUSALS, status: 401 } },
       });
       expect(await requestSessionState()).toEqual({ kind });
       expect(await requestSession()).toBeUndefined();

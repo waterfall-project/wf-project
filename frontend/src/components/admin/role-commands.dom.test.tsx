@@ -335,6 +335,37 @@ describe("the renaming of a role in its cell", () => {
       lock_version: renamed.lock_version,
     });
   });
+  it("renames a role whose permission was checked, before the page is read anew, from the version and the permissions that write answered: the source is shared the other way too (#847)", async () => {
+    const client = serve({ [WRITTEN]: ["access_role_updated", "access_role_renamed"] });
+    const shown = permissions.filter(({ code }) => code === "planning.write");
+    render(inFrench(tableAndMatrix(shown)));
+    await userEvent.click(
+      await screen.findByRole("checkbox", {
+        name: "«\u00a0Modifier la planification\u00a0» pour «\u00a0Manager\u00a0»",
+      }),
+    );
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+    labelCell("Manager").focus();
+    await userEvent.keyboard("Resp{Enter}");
+    await waitFor(() => {
+      expect(client.calls).toHaveLength(2);
+    });
+    // The renaming leaves from the role the checking answered, not from the role read.
+    const checked = example("access_role_updated") as Schemas["AccessRole"];
+    const manager = roles.find((role) => role.label === "Manager");
+    expect(checked.lock_version).toBeGreaterThan(manager?.lock_version ?? 0);
+    expect(client.calls[1]?.body).toEqual({
+      label: "Resp",
+      permissions: checked.permissions,
+      lock_version: checked.lock_version,
+    });
+  });
+
   it("names the column of a role renamed and each of its cells in the matrix by the label the server answered, before the page is read anew (#976) [WF-ADM-0010-A]", async () => {
     serve({ [WRITTEN]: "access_role_renamed" });
     const shown = permissions.filter(({ code }) => code === "planning.write");

@@ -9,8 +9,9 @@
  * asks under the names of the contract (`sort_by`, `sort_order`, `search`, `origins`,
  * `org_node_id`, `access_role_ids`, `is_active`, `include_inactive`, the periods and the authors of
  * the creation and of the last modification — `created_at_from`, `updated_by_user_id`… —,
- * `offset`), a period the API refuses (422) leaving the grid unread and said at its field, the
- * authors offered those of the page, others found by a search of the accounts; the nodes offered in
+ * `offset`), any refusal of the API (422) standing for the list, filters kept, a period said at its
+ * field, the authors offered those of the page, an account chosen as an author that the page does
+ * not offer read by its names (`readChosenAuthors`); the nodes offered in
  * the order of the tree, the roles as `listAccessRoles` gives them — none to a session that may not
  * read them; the deactivated accounts listed unless the address says `include_inactive=false`.
  * Every figure as the API gives it: the front sorts, filters and pages nothing. An address that
@@ -106,8 +107,11 @@ async function readRoles() {
   return (roles ?? []).map((role) => ({ id: role.access_role_id, label: role.label }));
 }
 
-/** The refusal of a period the server cannot apply — its end before its start (422). */
-const PERIOD_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
+/**
+ * Any refusal of the filters of the list (422): it stands for the list, filters kept; a period the
+ * server cannot apply — its end before its start — is said at its field.
+ */
+const LIST_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /** Render the accounts of the page the address asks for. */
 export default async function UsersPage({
@@ -146,7 +150,7 @@ export default async function UsersPage({
     roles.map((role) => role.id),
   );
   const [read, nodes, report, schedule] = await Promise.all([
-    readOrRefused("listUsers", PERIOD_REFUSED, () =>
+    readOrRefused("listUsers", LIST_REFUSED, () =>
       serverClient().GET("/users", {
         params: {
           query: usersQuery({ query, origins, orgNode, accessRoles, active, audit, offset }),
@@ -164,7 +168,6 @@ export default async function UsersPage({
       serverClient().GET("/identity-sync-schedule"),
     ),
   ]);
-  // A period refused leaves the list unread, the side said at its field.
   const users =
     read.kind === "read" ? read.data : { items: [], meta: { limit: 0, offset: 0, total: 0 } };
   // Any refusal stands for the list, a period said at its field: never an empty list.

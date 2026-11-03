@@ -22,9 +22,9 @@ These commands are offered only to whoever may modify the accounts; to the other
 - **Access roles**: the list of the roles of the installation, to check or uncheck, none, one or several. The server refuses the roles that would take from the last administrator their permissions.
 - **Link** gives the link to set the password of an account created in Waterfall, to hand over by another channel: it serves only once, will not be shown again, and asking for another one voids the previous one. Unavailable for a deactivated account (“active account”).
 - **Email** has the identity provider send again, to the address of an account created in Waterfall, the email that bears the link to set the password: for a holder who did not receive it, lost it or let it expire. A previous link ceases to hold, and the sending is written in the audit log. Unavailable for a deactivated account (“active account”). When the provider cannot send it — an installation without mail, a mail server failing —, the screen says the refusal, never an email sent: **Link** then gives the link to hand over by another channel.
-- **Anonymise**, once confirmed, erases the last name, the first name and the address of a deactivated account, from the table as from the audit log; the operation is final, and the account is no longer reactivated. Offered to the deactivated account alone, unavailable once the account is anonymised.
+- **Anonymise**, once confirmed in a dialog that says all it does, erases the last name, the first name and the address of a deactivated account, from the table as from the audit log, removes its avatar and, for an account created in Waterfall, removes it from the identity provider; the operation is final, and the account is no longer reactivated. Offered to the deactivated account alone, unavailable once the account is anonymised.
 
-While a write of a row is in progress, the commands of that row wait for its answer.
+While a write of a row is in progress, the commands of that row wait for its answer; a confirmation of anonymisation that comes in the meantime writes nothing and says so. While a link is asked or shown, the state switch of the accounts waits too: no link is given for an account being deactivated, and no account is deactivated while its link is on the way.
 
 Above the table, for all:
 

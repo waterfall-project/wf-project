@@ -22,6 +22,8 @@
  *
  * While a write of its row is under way, whatever its cell, each is marked busy, and the switch, the
  * roles, the link and the anonymisation unavailable: a press asks nothing (`UserWrites.busy`).
+ * The switch waits too while a link is asked or shown (`UserWrites.linking`), as the link waits for a
+ * deactivation asked: the invariant holds both ways (#949).
  *
  * In a dense grid, each is out of the order of tabulation, the grid being one stop: Enter on its cell
  * presses it (`CELL_COMMAND`). Every prop is data, never a function (défaut n° 12 de `typescript.md`).
@@ -84,6 +86,11 @@ export function StateSwitch({ user }: { readonly user: User }) {
   const offer = findOffer(user.available_commands, command);
   const asked = writes?.asked.get(user.user_id);
   const busy = writes?.busy.has(user.user_id) === true;
+  // A link asked or shown holds the switch as a deactivation asked holds the link: no link is
+  // given for an account being deactivated, nor an account deactivated while its link is on the
+  // way (WF-ADM-0140, #949).
+  const linking = writes?.linking === true;
+  const held = busy || linking;
   const active = asked?.is_active ?? user.is_active;
   if (offer === undefined || writes === undefined) {
     return <ActiveState active={user.is_active} />;
@@ -102,8 +109,8 @@ export function StateSwitch({ user }: { readonly user: User }) {
           tabIndex={-1}
           {...{ [CELL_COMMAND]: "" }}
           aria-label={t("activeUser", { name })}
-          aria-busy={busy}
-          {...(busy && lacking === undefined ? { "aria-disabled": true } : {})}
+          aria-busy={held}
+          {...(held && lacking === undefined ? { "aria-disabled": true } : {})}
           className={UNAVAILABLE}
           onCheckedChange={(checked) => {
             if (lacking !== undefined) {
@@ -111,8 +118,9 @@ export function StateSwitch({ user }: { readonly user: User }) {
               list?.tell(name, offer, command);
               return;
             }
-            if (busy) {
-              // Marked busy and unavailable: the write of the row under way is answered first.
+            if (held) {
+              // Marked busy and unavailable: the write of the row under way, or the link asked, is
+              // answered first.
               return;
             }
             writes.run(user, {

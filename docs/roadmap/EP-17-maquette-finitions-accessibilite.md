@@ -1126,7 +1126,7 @@ du guide se relit à sa lumière.
 
 ## US-0780 — L'administration, la session et le journal d'audit
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-ADM-0060-A`
 - **opérations** : `getUser`, `deleteAccessRole`
 - **issue** : #1555

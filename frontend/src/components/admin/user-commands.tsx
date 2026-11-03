@@ -89,7 +89,10 @@ export interface UserWrites {
   readonly busy: ReadonlySet<string>;
   /** The account as it stands now: the one last answered, or the one read when it is as new. */
   readonly latest: (read: User) => User;
-  /** Write an account by its switch or its roles, unless a write of it is under way. */
+  /**
+   * Write an account by its switch, its roles or the confirmation of its anonymisation; when a
+   * write of it is under way, nothing is written and the region of the table says so (#941).
+   */
   readonly run: (shown: User, write: UserWrite) => void;
   /**
    * Write an account once the writes of its row under way are answered — a name entered —, its
@@ -257,6 +260,9 @@ function Writes({ children }: { readonly children: ReactNode }) {
     (shown: User, write: UserWrite) => {
       const id = shown.user_id;
       if (asking.current.has(id)) {
+        // A write of the row under way (a name entered, say, while the confirmation was open): the
+        // press writes nothing, and says it (#941).
+        say(t("rowBusy", { name: naming.person(shown) }), { noted: false });
         return;
       }
       setAsked((before) => new Map(before).set(id, write.asked));
@@ -281,7 +287,7 @@ function Writes({ children }: { readonly children: ReactNode }) {
         }
       });
     },
-    [list, held, reserve],
+    [list, held, reserve, say, t, naming],
   );
   const releaseLink = useCallback(() => {
     linkHeld.current = false;

@@ -2557,8 +2557,9 @@
       "giveLink": "Hand over the link",
       "anonymized": "Account anonymised.",
       "anonymizationTitle": "Anonymise “{name}”?",
-      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, and the account is never reactivated.",
-      "keep": "Keep"
+      "anonymizationFinal": "The anonymisation of “{name}” is irreversible: its last name, first name and address are erased, from the table as from the audit log, its avatar is removed, a local account is removed from the identity provider, and the account is never reactivated.",
+      "keep": "Keep",
+      "rowBusy": "A write of “{name}” is under way: nothing was written, ask again once it is answered."
     },
     "identitySync": {
       "title": "Reading of the identity provider accounts",
@@ -2586,7 +2587,7 @@
       "unnamed": "No name at the provider",
       "address": "Address: {email}",
       "subject": "Identifier at the provider: {subject}",
-      "carrier": "Address held by the account <name></name>"
+      "carrier": "Address held by: <name></name>"
     },
     "accessRoles": {
       "title": "Access roles",

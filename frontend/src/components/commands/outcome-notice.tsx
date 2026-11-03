@@ -48,6 +48,7 @@ import {
   useNoteMessage,
 } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
+import { useEndedSession } from "@/components/tasks/session-end";
 import { asksIdentifiers, loginHref } from "@/navigation/login";
 
 /**
@@ -132,10 +133,13 @@ export function useSignInHref(reauthenticate = false): string {
  * screen of failure offers it too, when a read wanted a session. A plain link, never one of the
  * router: `/login` sends the browser to another site, which the router would fetch, and prefetch
  * — each time starting a sign-in for nothing. For a session closed (`SESSION_REVOKED`), the sign-in
- * asks for the identifiers again (#855).
+ * asks for the identifiers again (#855). Offered because the session is over, it wipes what the
+ * session left in the tab (`useEndedSession`).
  */
 export function SignIn({ reauthenticate = false }: { readonly reauthenticate?: boolean }) {
   const t = useTranslations("outcome");
+  // A sign-in is offered where the session is found ended: nothing of it stays for the next (#1180).
+  useEndedSession();
   return (
     <a
       href={useSignInHref(reauthenticate)}
