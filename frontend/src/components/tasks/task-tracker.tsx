@@ -460,6 +460,11 @@ export function TaskTracker({ signedIn = false, accountId, running, children }: 
     let saved: Tracking["tasks"] | undefined;
     const save = () => {
       const { tasks, restored: back } = store.read().tracking;
+      // Once the session is found ended (`SignIn`), the stores are wiped and own no account: the
+      // tasks of that session are not written again.
+      if (accountId !== undefined && !isOwner(accountId)) {
+        return;
+      }
       if (back && tasks !== saved) {
         saved = tasks;
         saveTasks(tasks);
@@ -467,7 +472,7 @@ export function TaskTracker({ signedIn = false, accountId, running, children }: 
     };
     save();
     return store.subscribe(save);
-  }, [store]);
+  }, [store, accountId]);
   const commands = useMemo<TrackerCommands>(
     () => ({
       track: (task, launch = {}) => {
