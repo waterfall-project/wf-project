@@ -187,6 +187,7 @@ afterEach(() => {
   router.push.mockClear();
   router.replace.mockClear();
   refresh.mockReset();
+  router.refresh.mockClear();
 });
 
 describe("the grid of the accounts", () => {
@@ -489,6 +490,59 @@ describe("the grid of the access roles", () => {
     );
     expect(told().textContent).toBe("");
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("tells the 412 of a deletion as that of a rename, and offers to read the page anew [WF-IHM-0110-A]", async () => {
+    page.path = "/admin/access-roles";
+    const client = fakeClient({
+      [ROLE]: { problem: example("access_role_delete_stale") as Problem & { status: 412 } },
+    });
+    server.client = client;
+    render(roleList(true));
+    const grid = screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    await confirmDeletion("Administrateur");
+    const alert = await screen.findByRole("alert");
+    // toHaveTextContent folds the whitespace of the DOM, U+202F included, but not that of the
+    // expected text: textContent compares the two as they are.
+    expect(alert.textContent).toContain(CATALOGUES.fr.errors.STALE_LOCK_VERSION);
+    expect(told().textContent).toBe("");
+    const administrator = roles.find((role) => role.label === "Administrateur");
+    expect(client.calls[0]?.query.get("lock_version")).toBe(String(administrator?.lock_version));
+    await userEvent.click(within(alert).getByRole("button", { name: "Recharger" }));
+    expect(router.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("no longer offers to delete, once the page is read anew, a role an account holds since [WF-ADM-0090-A]", async () => {
+    page.path = "/admin/access-roles";
+    const client = fakeClient({
+      [ROLE]: { problem: example("access_role_delete_stale") as Problem & { status: 412 } },
+    });
+    server.client = client;
+    const { rerender } = render(roleList(true));
+    const grid = () => screen.getByRole("grid", { name: "Rôles d’habilitation" });
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00a0Administrateur\u00a0»" }),
+    );
+    await confirmDeletion("Administrateur");
+    await userEvent.click(
+      within(await screen.findByRole("alert")).getByRole("button", { name: "Recharger" }),
+    );
+    // The reading itself comes from the server after the refresh, which is a stub here: the page
+    // read anew is simulated by the props the server would send, a holder having come since.
+    const read = roles.map((role) =>
+      role.label === "Administrateur" ? { ...role, holder_count: 1 } : role,
+    );
+    rerender(roleList(true, NO_QUERY, NO_ROLE_FILTER, read));
+    expect(screen.queryByRole("alert")).toBeNull();
+    const deletion = within(grid()).getByRole("button", {
+      name: "Supprimer «\u00a0Administrateur\u00a0»",
+    });
+    expect(deletion).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(deletion);
+    expect(client.calls).toHaveLength(1);
   });
 
   it("presents the deletion of a role an account holds unavailable, naming the condition, as the server would refuse it", async () => {

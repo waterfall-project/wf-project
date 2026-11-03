@@ -44,6 +44,8 @@ ROLES = "/api/v1/access-roles"
 UNKNOWN = UUID("7d1e5b0a-3c94-4f2e-9a68-5b20c4e1f9d3")
 SUBJECT = "7d3e2b10-5c4a-4e8f-9b21-6a0f3c8d1e42"
 CALLER = UUID("0192a1b2-0000-7000-8000-00000000ca11")
+# The version of a role no write has touched, as a deletion carries it.
+VERSION = {"lock_version": 0}
 # The role of the caller, and the permissions it gives unless a test says otherwise.
 CALLER_ROLE = "Habilitations de l'appelant"
 CONSULT_AND_CHANGE = ("access_roles.read", "access_roles.write")
@@ -666,7 +668,7 @@ def test_a_predefined_role_is_renamed_changed_and_deleted_when_no_account_holds_
         1,
         CAMILLE,
     )
-    assert api.delete(f"{ROLES}/{unheld}", headers=headers).status_code == 204
+    assert api.delete(f"{ROLES}/{unheld}", headers=headers, params=VERSION).status_code == 204
     assert labels(api, headers) == ["Administrateur", "Pilote"]
 
 
@@ -734,7 +736,7 @@ def test_a_deleted_role_is_no_longer_read_its_row_kept_and_its_deletion_inscribe
     # journal d'audit et les attributions passées citent » — the side of the writes.
     deleted = role(database, "Auditeur", permissions=("audit_log.read",))
     role(database, "Chiffreur")
-    response = api.delete(f"{ROLES}/{deleted}", headers=headers)
+    response = api.delete(f"{ROLES}/{deleted}", headers=headers, params=VERSION)
     assert (response.status_code, response.content) == (204, b"")
     assert api.get(f"{ROLES}/{deleted}", headers=headers).status_code == 404
     assert labels(api, headers) == ["Chiffreur"]
@@ -763,10 +765,86 @@ def test_a_deleted_role_is_neither_changed_nor_deleted_again(
     deleted = role(database, "Auditeur", deleted=True)
     for path in (f"{ROLES}/{deleted}", f"{ROLES}/{uuid4()}"):
         sent: dict[str, object] = {"label": "Auditrice", "permissions": [], "lock_version": 0}
-        response = api.request(method, path, headers=headers, json=sent)
+        response = api.request(method, path, headers=headers, json=sent, params=VERSION)
         assert problem(response)[:2] == (404, "NOT_FOUND")
     row = kept(database, deleted)
     assert (row.label, row.lock_version, journal(database)) == ("Auditeur", 0, [])
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_a_role_deleted_at_a_stale_version_is_refused_naming_the_current_one_and_kept(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # The rule of the version, on which the cancellation of an action rests: a deletion of a role
+    # another has written since is refused (412), nothing is deleted nor inscribed.
+    written = role(database, "Chiffreur")
+    change: dict[str, object] = {"label": "Devis", "permissions": [], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{written}", headers=headers, json=change).status_code == 200
+    stale = api.delete(f"{ROLES}/{written}", headers=headers, params=VERSION)
+    assert (stale.status_code, stale.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    assert stale.json()["params"] == {"expected_lock_version": 1}
+    row = kept(database, written)
+    assert (row.label, row.deleted_at, row.lock_version) == ("Devis", None, 1)
+    assert [entry.action for entry in journal(database)] == ["access_role_update"]
+    read = api.delete(f"{ROLES}/{written}", headers=headers, params={"lock_version": 1})
+    assert read.status_code == 204
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+@pytest.mark.parametrize("sent", [{}, {"lock_version": "-1"}, {"lock_version": "x"}])
+def test_a_role_deleted_without_a_valid_version_is_refused_on_it_and_kept(
+    api: ContractClient, database: Database, headers: dict[str, str], sent: dict[str, str]
+) -> None:
+    # Without the version, or with one that is no integer positive or null: 422 on the query.
+    written = role(database, "Chiffreur")
+    response = api.delete(f"{ROLES}/{written}", headers=headers, params=sent)
+    refused = problem(response)
+    assert refused[:2] == (422, "VALIDATION_FAILED")
+    assert [field["pointer"] for field in refused[2]] == ["/query/lock_version"]
+    assert (kept(database, written).deleted_at, journal(database)) == (None, [])
+
+
+@pytest.mark.requirement("WF-IHM-0110-A")
+def test_an_unknown_role_deleted_without_a_version_is_refused_on_the_version(
+    api: ContractClient, headers: dict[str, str]
+) -> None:
+    # The request is validated before the handler looks the role up: 422 on the query, not 404.
+    refused = problem(api.delete(f"{ROLES}/{UNKNOWN}", headers=headers))
+    assert refused[:2] == (422, "VALIDATION_FAILED")
+    assert [field["pointer"] for field in refused[2]] == ["/query/lock_version"]
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+def test_an_unknown_role_updated_without_a_version_is_refused_on_the_version(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # The counter is required by the body (``AccessRoleUpdate``): the request is validated before
+    # the handler looks the role up, as for the deletion — 422 on the body, not 404 — and nothing
+    # is written.
+    sent: dict[str, object] = {"label": "Devis", "permissions": []}
+    refused = problem(api.patch(f"{ROLES}/{UNKNOWN}", headers=headers, json=sent))
+    assert refused == (
+        422,
+        "VALIDATION_FAILED",
+        [{"pointer": "/lock_version", "code": "VALUE_REQUIRED"}],
+    )
+    assert (labels(api, headers), journal(database)) == ([], [])
+
+
+@pytest.mark.requirement("WF-ADM-0090-A")
+def test_a_role_held_is_judged_stale_before_it_is_judged_held_and_held_when_read(
+    api: ContractClient, database: Database, headers: dict[str, str]
+) -> None:
+    # « La suppression d'un rôle est refusée tant qu'un compte le porte. » — the version first:
+    # 412 at a stale one, then 409 at the version read, whatever the holders.
+    held = role(database, "Chiffreur", holders=(holder(database),))
+    change: dict[str, object] = {"label": "Devis", "permissions": [], "lock_version": 0}
+    assert api.patch(f"{ROLES}/{held}", headers=headers, json=change).status_code == 200
+    stale = api.delete(f"{ROLES}/{held}", headers=headers, params=VERSION)
+    assert (stale.status_code, stale.json()["code"]) == (412, "STALE_LOCK_VERSION")
+    current = api.delete(f"{ROLES}/{held}", headers=headers, params={"lock_version": 1})
+    assert problem(current) == (409, "ACCESS_ROLE_IN_USE", [])
+    assert kept(database, held).deleted_at is None
 
 
 @pytest.mark.requirement("WF-ADM-0090-A")
@@ -777,7 +855,7 @@ def test_a_role_an_account_holds_is_not_deleted(
     # « La suppression d'un rôle est refusée tant qu'un compte le porte. » — a deactivated
     # account holds it too.
     held = role(database, "Chiffreur", holders=(holder(database, active=active),))
-    assert problem(api.delete(f"{ROLES}/{held}", headers=headers)) == (
+    assert problem(api.delete(f"{ROLES}/{held}", headers=headers, params=VERSION)) == (
         409,
         "ACCESS_ROLE_IN_USE",
         [],
@@ -798,7 +876,7 @@ def test_the_administrator_role_its_holder_holds_is_not_deleted(
     held = role(
         database, "Administrateur", permissions=ADMINISTRATOR, is_predefined=True, holders=(CALLER,)
     )
-    assert problem(api.delete(f"{ROLES}/{held}", headers=headers))[:2] == (
+    assert problem(api.delete(f"{ROLES}/{held}", headers=headers, params=VERSION))[:2] == (
         409,
         "ACCESS_ROLE_IN_USE",
     )

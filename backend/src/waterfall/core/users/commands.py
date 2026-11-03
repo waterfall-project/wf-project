@@ -19,6 +19,9 @@ NOT_ANONYMIZED_CONDITION = "is_not_anonymized"
 # The condition the anonymisation of an active account lacks: only a deactivated one is anonymised
 # (WF-ADM-0060).
 DEACTIVATED_CONDITION = "is_deactivated_account"
+# The condition the link of a deactivated account lacks, and the resending of its invitation: it
+# may not sign in (WF-ADM-0060).
+IS_ACTIVE_ACCOUNT = "is_active_account"
 
 
 def anonymized() -> ConflictError:
@@ -41,11 +44,12 @@ class CommandAvailability:
 
 @dataclass(frozen=True, slots=True)
 class AccountState:
-    """What the commands of an account depend on: its state, and whether it is the last one."""
+    """What the commands of an account depend on: its state, its origin, and if it is the last."""
 
     is_active: bool
     is_anonymized: bool = False
     is_last_administrator: bool = False
+    is_local: bool = False
 
 
 def account_commands(
@@ -60,7 +64,10 @@ def account_commands(
     unavailable once it is anonymised; and, for a
     reader who may also change the roles (``may_attribute``, FBS-1.2, WF-ADM-0090), the
     attribution of its roles, always available: giving it more stays possible, and a withdrawal is
-    refused by the roles sent (WF-IHM-0090).
+    refused by the roles sent (WF-IHM-0090). For a local account not anonymised, and for the sole
+    permission to change the accounts, the link that sets its password and the resending of its
+    invitation follow, available while it is active, else lacking ``is_active_account``
+    (WF-ADM-0140, WF-ADM-0060); an account of the directory or of a provider has neither.
     """
     if not may_change:
         return ()
@@ -76,4 +83,10 @@ def account_commands(
         )
     if may_attribute:
         commands.append(CommandAvailability("set_access_roles"))
+    if state.is_local and not state.is_anonymized:
+        lacking = () if state.is_active else (IS_ACTIVE_ACCOUNT,)
+        commands += (
+            CommandAvailability("create_password_link", lacking),
+            CommandAvailability("resend_invitation", lacking),
+        )
     return tuple(commands)
