@@ -1394,8 +1394,9 @@ against the fake back, which keeps nothing, it therefore survives the re-reads �
 no row, the re-read page files it where the server retains it. What a write did is said in the
 region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
 like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
-under its header, for whoever writes — a written row remaining shown as the server rendered it as
-long as the screen stays open — (`MockupNotice`, `components/shell/mockup-notice.tsx`, to be taken
+under its header, for whoever writes — the note fits in 150 characters with that of the lists, and does
+not say that a written row remains shown as the server rendered it as long as the screen stays open —
+(`MockupNotice`, `components/shell/mockup-notice.tsx`, to be taken
 up by each screen of the mockup whose commands write, removed when the screen is plugged into the
 service of its epic). The entry of a rate remains that of the grid.
 

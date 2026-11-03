@@ -781,6 +781,7 @@
     "pending": "Reading what it depends on…"
   },
   "estimateSummary": {
+    "fold": "Key figures",
     "title": "Estimate indicators",
     "total": "Estimate total",
     "provisions": "Identified provisions",
@@ -1872,8 +1873,8 @@
     "leftRefused": "{count, plural, one {A change no longer shown was refused: it is not saved.} other {# changes no longer shown were refused: they are not saved.}}"
   },
   "mockup": {
-    "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data.",
-    "notFiltered": "Filters, search, sort and pages are ignored: the simulated service always returns the same example."
+    "notKept": "Mock-up: the simulated service keeps no write; a reloaded page shows its original data.",
+    "notFiltered": "Filters, search, sort and pages ignored."
   },
   "tasks": {
     "label": "Background tasks",

@@ -85,7 +85,7 @@ describe("the summary of the estimate", () => {
     const html = summary("estimate_indicators", "missing_rates_none");
     expect(text(html)).toMatch(
       new RegExp(
-        `^Indicateurs du devis Total du devis 68 923 691,06 ` +
+        `^Chiffres clés Indicateurs du devis Total du devis 68 923 691,06 ` +
           `Provisions identifiées 500 000,00 Écart avec la référence -349 860,00 ` +
           `Écart avec la révision marquée précédente -349 860,00 ` +
           `Par nature de coût Main-d'œuvre 9 528 887,59 \\(13,83 %\\) ` +
@@ -184,14 +184,14 @@ describe("the summary of the estimate", () => {
   it("names each category whose hourly rate the calculation lacks, with its year, and leads to the reference", () => {
     const html = summary("estimate_indicators", "missing_rates");
     expect(text(html)).toMatch(
-      /^Taux horaires manquants Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence : Ingénierie électrique — 2026 Renseigner les taux horaires Indicateurs du devis/,
+      /^Taux horaires manquants Le devis ne peut pas être calculé tant que ces catégories de coût n’ont pas de taux horaire pour son année de référence : Ingénierie électrique — 2026 Renseigner les taux horaires Chiffres clés Indicateurs du devis/,
     );
     expect(html).toMatch(/<a [^>]*href="\/reference\/costs"/);
   });
 
   it("leads a session that may read the reference but not write it to see the rates, by a link bearing the icon of the function", () => {
     const html = summary("estimate_indicators", "missing_rates", estimator);
-    expect(text(html)).toContain("Ingénierie électrique — 2026 Voir les taux horaires Indicateurs");
+    expect(text(html)).toContain("Ingénierie électrique — 2026 Voir les taux horaires Chiffres clés Indicateurs");
     expect(html).toMatch(
       /<a [^>]*href="\/reference\/costs"[^>]*><svg[^>]*aria-hidden="true"[^>]*>.*?<\/svg>Voir les taux horaires<\/a>/,
     );
@@ -200,7 +200,7 @@ describe("the summary of the estimate", () => {
   it("names the missing rates without a way to a reference the session may not read", () => {
     // No session: no permission at all.
     const html = summary("estimate_indicators", "missing_rates", []);
-    expect(text(html)).toContain("Ingénierie électrique — 2026 Indicateurs");
+    expect(text(html)).toContain("Ingénierie électrique — 2026 Chiffres clés Indicateurs");
     expect(html).not.toContain("<a ");
   });
 

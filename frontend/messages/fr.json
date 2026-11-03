@@ -781,6 +781,7 @@
     "pending": "Lecture de ce dont elle dépend…"
   },
   "estimateSummary": {
+    "fold": "Chiffres clés",
     "title": "Indicateurs du devis",
     "total": "Total du devis",
     "provisions": "Provisions identifiées",
@@ -1872,8 +1873,8 @@
     "leftRefused": "{count, plural, one {Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.} other {# modifications qui ne sont plus affichées ont été refusées : elles ne sont pas enregistrées.}}"
   },
   "mockup": {
-    "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine.",
-    "notFiltered": "Filtres, recherche, tri et pages ignorés : le service simulé rend toujours le même exemple."
+    "notKept": "Maquette : le service simulé ne conserve aucune écriture ; une page rechargée montre ses données d’origine.",
+    "notFiltered": "Filtres, recherche, tri et pages ignorés."
   },
   "tasks": {
     "label": "Tâches de fond",

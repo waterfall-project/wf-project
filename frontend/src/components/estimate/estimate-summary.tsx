@@ -9,7 +9,8 @@
  * sub-project and by work package (#220) —, with the date they are computed at (WF-IHM-0020), or
  * that they are unavailable when the API did not give them.
  *
- * The figures lie in cards (`FiguresCard`, US-0550): the total with its deviations, then one card for each breakdown.
+ * The figures lie in cards (`FiguresCard`, US-0550): the total with its deviations, then one card for each breakdown,
+ * folded into a summary below 1024 points of width (`FoldingFigures`, US-0710, #1209, US-0760).
  *
  * Every figure is the API's, formatted in the language of the interface from its exact string:
  * nothing is summed, nor divided, nor hidden by a rule of the front (WF-ARC-0020). A deviation
@@ -28,6 +29,7 @@ import type { components, operations } from "@/api/generated/schema";
 import { platformOffer } from "@/components/commands/offer";
 import { ComputableValue } from "@/components/computable-value";
 import { FigureTerm, FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { FoldingFigures } from "@/components/folding-figures";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney, formatShare } from "@/i18n/format";
 import { functionOf } from "@/navigation/functions";
@@ -275,7 +277,9 @@ export function EstimateSummary({
           </FiguresCard>
         </FiguresGrid>
       ) : (
-        <Figures indicators={indicators} currency={currency} />
+        <FoldingFigures title={t("fold")}>
+          <Figures indicators={indicators} currency={currency} />
+        </FoldingFigures>
       )}
     </div>
   );

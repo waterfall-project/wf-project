@@ -1402,8 +1402,9 @@ survit donc aux relectures — ; une création n'ajoute aucune ligne, la page re
 serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
 désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
 (`useListReport`). Le faux back ne gardant rien, l'écran le dit
-sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle que le serveur l'a rendue
-tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
+sous son en-tête, pour qui écrit — la note tient en 150 signes avec celle des listes, et ne dit pas
+qu'une ligne écrite reste montrée telle que le serveur l'a rendue tant que l'écran reste ouvert —
+(`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
 par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
 service de son EPIC). La saisie d'un taux reste celle de la grille.
 
