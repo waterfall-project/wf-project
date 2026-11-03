@@ -71,33 +71,62 @@ test("poses the title of the second line of the action only where the browser cu
 }) => {
   await page.goto(JOURNAL);
   const grid = page.getByRole("grid", { name: "Journal d’audit" });
-  await expect(grid.getByRole("row", { name: /Créé par le fournisseur d’identité/ })).toBeVisible({
-    timeout: WORKING,
-  });
-  // Each second line, with its title and the browser's own measure of its text.
-  const lines = () =>
-    grid.locator("span.text-ellipsis").evaluateAll((spans) =>
-      spans.map((span) => ({
-        titled: span.hasAttribute("title"),
-        cut: span.scrollWidth > span.clientWidth,
-      })),
+  const created = grid.getByRole("row", { name: /Créé par le fournisseur d’identité/ });
+  await expect(created).toBeVisible({ timeout: WORKING });
+  // The second line of each cell of the action that has one, under the line of the action itself.
+  const SECOND = 'td[data-column="action"] > span > span:nth-child(2)';
+  const lines = grid.locator(SECOND);
+  await expect(lines).not.toHaveCount(0);
+  const origin = created.locator(SECOND);
+  await expect(origin).toHaveText("Créé par le fournisseur d’identité");
+  // The lines whose title says otherwise than the browser's own measure of their text.
+  const mismatches = () =>
+    lines.evaluateAll(
+      (spans) =>
+        spans.filter((span) => span.hasAttribute("title") !== span.scrollWidth > span.clientWidth)
+          .length,
     );
-  const mismatches = async () => {
-    const read = await lines();
-    return read.length === 0 ? -1 : read.filter(({ titled, cut }) => titled !== cut).length;
+  // As the fonts of the workstation lay the journal out, a title exactly where a text is cut.
+  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
+
+  // The width of the column, given by its handle step by step to the bound it tells: once the cells
+  // have taken it, the titles have followed.
+  const handle = grid.getByRole("separator", { name: "Largeur de la colonne Action" });
+  const cell = created.locator('td[data-column="action"]');
+  const widen = async (bound: "aria-valuemin" | "aria-valuemax") => {
+    const width = Number(await handle.getAttribute(bound));
+    const key = bound === "aria-valuemin" ? "ArrowLeft" : "ArrowRight";
+    await handle.focus();
+    // A step of the keyboard moves it by a few points: a hundred cover any width it takes.
+    for (let step = 0; step < 100; step += 1) {
+      if (Number(await handle.getAttribute("aria-valuenow")) === width) {
+        break;
+      }
+      await page.keyboard.press(key);
+    }
+    await expect(handle).toHaveAttribute("aria-valuenow", String(width));
+    await expect
+      .poll(() => cell.evaluate((td) => Math.round(td.getBoundingClientRect().width)))
+      .toBe(width);
+    await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
   };
-  // Whatever the fonts and the width of the workstation, a title is posed exactly where the browser
-  // cuts the text short: the equivalence holds at each width, and both its sides are met.
-  const titledCount = async () => (await lines()).filter(({ titled }) => titled).length;
-  const untitledCount = async () => (await lines()).filter(({ titled }) => !titled).length;
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
-  await expect.poll(titledCount, { timeout: WORKING }).toBeGreaterThan(0);
-  // A line that is not cut carries no title.
-  await expect.poll(untitledCount, { timeout: WORKING }).toBeGreaterThan(0);
-  await page.setViewportSize({ width: 1920, height: 900 });
-  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
-  await expect.poll(untitledCount, { timeout: WORKING }).toBeGreaterThan(0);
+  // At its narrowest, no second line holds — whatever the fonts, no sentence holds in the few dozen
+  // points of the cell —: each is cut, and carries its whole text as its title.
+  await widen("aria-valuemin");
+  await expect(origin).toHaveAttribute("title", "Créé par le fournisseur d’identité");
+  expect(
+    await lines.evaluateAll((spans) =>
+      spans.every(
+        (span) =>
+          span.scrollWidth > span.clientWidth && span.getAttribute("title") === span.textContent,
+      ),
+    ),
+  ).toBe(true);
+  // At its widest, the origin of the account — a few words, in hundreds of points whatever the
+  // fonts — is shown whole, and its title is gone.
+  await widen("aria-valuemax");
+  await expect(origin).not.toHaveAttribute("title");
+  expect(await origin.evaluate((span) => span.scrollWidth <= span.clientWidth)).toBe(true);
 });
 
 test("sorts the journal on its columns both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
