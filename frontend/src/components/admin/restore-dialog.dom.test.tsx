@@ -23,6 +23,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
@@ -153,12 +154,7 @@ describe("the restoration of the platform", () => {
   });
 
   it("stays open while the restoration is asked, closed neither by Escape nor by « Annuler », and tells the refusal that answers it", async () => {
-    let release = () => undefined as unknown;
-    const answered = new Promise((settle) => {
-      release = () => {
-        settle(undefined);
-      };
-    });
+    const answer = held();
     serve(
       {
         [RESTORE]: {
@@ -166,7 +162,7 @@ describe("the restoration of the platform", () => {
         },
       },
       {},
-      { hold: (route) => (route === RESTORE ? answered : undefined) },
+      { hold: (route) => (route === RESTORE ? answer.until : undefined) },
     );
     render(backupList());
     await userEvent.click(
@@ -183,7 +179,7 @@ describe("the restoration of the platform", () => {
     expect(cancel).toBeDisabled();
     await userEvent.click(cancel);
     expect(screen.getByRole("dialog", { name: "Restaurer la plateforme" })).toBe(dialog);
-    release();
+    answer.release();
     // Refused while a backup runs: the condition that lacks, as the command said it in the list.
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Condition non remplie : aucune sauvegarde en cours.",

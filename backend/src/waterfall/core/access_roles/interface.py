@@ -4,14 +4,14 @@
 
 The catalogue, delivered and not modifiable (WF-ADM-0100); the roles, composed, read, changed and
 deleted (WF-ADM-0090); the roles an account holds, its effective permissions and the evaluation
-of an action against them (WF-ADM-0110); the first roles of an account created, and the roles of
-an account set, under the guard (``attributions``); the description of the three predefined roles,
+of an action against them (WF-ADM-0110); the first roles of the administrator the bootstrap
+creates — an account created by the API is born without a role (#1732) —, and the roles of an
+account set, under the guard (``attributions``); the description of the three predefined roles,
 for the bootstrap (WF-ADM-0010); the guard of the last administrator, which every write that may
 take the administration from an account runs under, the deactivation of an account by its own
 refusal, that account read, and the lock of the rule, which a write takes before any of the rows it
-locks — a write of many accounts before any of their rows, a creation with roles before its
-author's (WF-ADM-0120); and what the table of the accounts filters and sorts
-of the roles each one holds (``listUsers``).
+locks — a write of many accounts before any of their rows (WF-ADM-0120); and what the table of the
+accounts filters and sorts of the roles each one holds (``listUsers``).
 """
 
 from waterfall.core.access_roles.administrators import (
@@ -26,7 +26,6 @@ from waterfall.core.access_roles.attributions import (
     Attribution,
     give_first_roles,
     set_access_roles,
-    unknown_roles,
 )
 from waterfall.core.access_roles.evaluation import (
     PERMISSION_MISSING,
@@ -97,6 +96,5 @@ __all__ = [
     "roles_held_by",
     "set_access_roles",
     "sole_administrator",
-    "unknown_roles",
     "update_role",
 ]

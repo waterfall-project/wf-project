@@ -587,19 +587,15 @@ describe("the schedule of the backups", () => {
   });
 
   it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so above the schedule", async () => {
-    const settles: (() => void)[] = [];
-    failing.until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
+    const answer = held();
+    failing.until = answer.until;
     serve();
     const form = await openForm();
     await save(form);
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     const command = screen.getByRole("button", { name: "Modifier la planification" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
     expect(command).not.toHaveAttribute("aria-disabled");
     await userEvent.click(command);
@@ -746,7 +742,7 @@ describe("the test of an external location", () => {
   });
 
   it("says the answer of the last test asked alone: one answered after it is left to fall (défaut n° 1)", async () => {
-    const releases: (() => void)[] = [];
+    const answer = held();
     const client = serve(
       {
         [TEST]: [
@@ -759,14 +755,7 @@ describe("the test of an external location", () => {
         ],
       },
       {
-        hold: (_route, index) =>
-          index === 0
-            ? new Promise((release) => {
-                releases.push(() => {
-                  release(undefined);
-                });
-              })
-            : undefined,
+        hold: (_route, index) => (index === 0 ? answer.until : undefined),
       },
     );
     const form = await openForm();
@@ -777,9 +766,7 @@ describe("the test of an external location", () => {
     await vi.waitFor(() => {
       expect(within(form).getByRole("status")).toHaveTextContent(/^« secours-lyon » éprouvé/);
     });
-    for (const release of releases) {
-      release();
-    }
+    answer.release();
     // Both answered, the test is no longer under way: the first answer, a refusal, fell.
     await vi.waitFor(() => {
       expect(test).toHaveTextContent("Tester l’emplacement");

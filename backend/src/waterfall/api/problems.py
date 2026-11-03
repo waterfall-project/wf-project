@@ -151,6 +151,8 @@ def _field_of(fault: Mapping[str, Any]) -> FieldError:
         code = ErrorCode.VALUE_REQUIRED
     elif kind in {"string_too_long", "too_long"}:
         code = ErrorCode.VALUE_TOO_LONG
+        # The bound the service applies, read from the fault: a text, a list, an object, a key.
+        params["max_length"] = fault["ctx"]["max_length"]
     elif kind in {"string_too_short", "too_short"}:
         # Only an empty value, where one value at least is asked, is a value that is lacking.
         lacking = fault.get("ctx", {}).get("min_length") == 1 and _is_empty(fault.get("input"))

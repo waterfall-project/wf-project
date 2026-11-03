@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  broughtBack,
   dismissLeftRefusals,
   gestureBegun,
   heldClick,
@@ -138,6 +139,34 @@ describe("the writes refused once their screen is gone (#863)", () => {
     back.answer(false);
     await settled();
     expect(refusedLeft().length).toBe(2);
+  });
+
+  it("take back from the bar a write refused while its screen was away once the screen is brought back telling it, not one it tells no more (#1476)", async () => {
+    const screen = { away: true };
+    const away = () => screen.away;
+    const elsewhere = () => true;
+    const held = underWay();
+    const asked = underWay();
+    const untold = underWay();
+    const other = underWay();
+    // Held still by its screen; released, its dialog telling it; released, told by nothing more;
+    // and a write of another screen, away still.
+    holdNavigation(held.write, undefined, undefined, away);
+    holdNavigation(asked.write, () => true, undefined, away)();
+    holdNavigation(untold.write, () => false, undefined, away)();
+    holdNavigation(other.write, () => true, undefined, elsewhere);
+    for (const write of [held, asked, untold, other]) {
+      write.answer(false);
+    }
+    await settled();
+    expect(refusedLeft().length).toBe(4);
+    screen.away = false;
+    broughtBack(away);
+    expect(refusedLeft().length).toBe(2);
+    // Nothing more to take back: the same list.
+    const left = refusedLeft();
+    broughtBack(away);
+    expect(refusedLeft()).toBe(left);
   });
 
   it("keep once a write refused while its screen is away, released after", async () => {

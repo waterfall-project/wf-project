@@ -408,6 +408,7 @@ def test_a_header_that_cannot_be_read_is_a_malformed_request(app: FastAPI) -> No
     assert (response.status_code, problem_of(response).code.value) == (400, "MALFORMED_REQUEST")
 
 
+@pytest.mark.requirement("WF-ARC-0110-A")
 def test_the_values_of_a_body_that_are_refused_are_a_422_with_one_field_each(
     app: FastAPI,
 ) -> None:
@@ -416,7 +417,7 @@ def test_the_values_of_a_body_that_are_refused_are_a_422_with_one_field_each(
     assert (response.status_code, problem.code.value) == (422, "VALIDATION_FAILED")
     assert problem.fields is not None
     assert {(f.pointer, f.code.value): params_of(f) for f in problem.fields} == {
-        ("/label", "VALUE_TOO_LONG"): None,
+        ("/label", "VALUE_TOO_LONG"): {"max_length": 5},
         ("/amount", "VALUE_OUT_OF_RANGE"): {"minimum": 0},
         ("/on", "DATE_INVALID"): None,
     }

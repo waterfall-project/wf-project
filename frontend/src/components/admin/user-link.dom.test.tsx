@@ -6,7 +6,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { account, accounts, grid, heldActivation, holdRoute, told, writes } from "@/test/accounts";
+import {
+  account,
+  accounts,
+  grid,
+  heldActivation,
+  holdRoute,
+  told,
+  users,
+  writes,
+} from "@/test/accounts";
 import {
   example,
   type FakeAnswers,
@@ -83,21 +92,6 @@ describe("the link to set the password", () => {
     });
     // Given once, the link is shown no more.
     expect(screen.queryByDisplayValue(link)).toBeNull();
-  });
-
-  it("presents the link of a deactivated local account unavailable, naming the condition it lacks, and asks nothing", async () => {
-    const client = serve({});
-    render(accounts());
-    const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Alix Moreau »",
-    });
-    expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie : compte actif.");
-    await userEvent.click(command);
-    expect(told().textContent).toBe(
-      "Lien de fixation du mot de passe de « Alix Moreau » : Condition non remplie : compte actif.",
-    );
-    expect(writes(client)).toEqual([]);
   });
 
   it("marks the link of an account busy and unavailable while its deactivation is asked, a press asking nothing", async () => {
@@ -333,5 +327,114 @@ describe("the email of the link to set the password", () => {
       expect(command).toHaveAttribute("aria-busy", "false");
     });
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+type User = ReturnType<typeof account>;
+
+/** The account as it lists its commands, the two of the link left out or kept as given. */
+function listing(lastName: string, keep: readonly string[]): User {
+  const shown = account(lastName);
+  return {
+    ...shown,
+    available_commands: shown.available_commands.filter(
+      ({ command }) =>
+        (command !== "create_password_link" && command !== "resend_invitation") ||
+        keep.includes(command),
+    ),
+  };
+}
+
+const LINK = "Lien de fixation du mot de passe de";
+const RESEND = "Renvoyer le courriel de fixation du mot de passe de";
+
+function linkCommands(): HTMLElement[] {
+  return within(grid()).queryAllByRole("button", {
+    name: (name) => name.startsWith(LINK) || name.startsWith(RESEND),
+  });
+}
+
+describe("the commands of the link, as the account lists them", () => {
+  it("presents both commands of the local accounts that list them, and none of an imported account, which lists none [WF-ADM-0140-A]", () => {
+    render(accounts());
+    // Two commands for each account that lists both; the imported accounts list none.
+    const listed = users.items.filter(({ available_commands: offers }) =>
+      ["create_password_link", "resend_invitation"].every((command) =>
+        offers.some((offer) => offer.command === command),
+      ),
+    );
+    expect(listed.length).toBeGreaterThan(0);
+    expect(linkCommands()).toHaveLength(2 * listed.length);
+    for (const last of ["Bernard", "Lefèvre"]) {
+      expect(
+        within(grid()).queryByRole("button", {
+          name: (name) => name.includes(last) && (name.startsWith(LINK) || name.startsWith(RESEND)),
+        }),
+      ).toBeNull();
+    }
+  });
+
+  it("deduces nothing from the origin: an account that lists them has them presented [WF-ARC-0020-A]", () => {
+    const given = {
+      ...account("Bernard"),
+      available_commands: account("Martin").available_commands,
+    };
+    render(accounts(true, [given]));
+    expect(linkCommands()).toHaveLength(2);
+  });
+
+  it("deduces nothing from the state: an active account that lists the link unavailable has it presented so, naming the condition listed [WF-ARC-0020-A]", () => {
+    const martin = account("Martin");
+    const given: User = {
+      ...martin,
+      available_commands: martin.available_commands.map((offer) =>
+        offer.command === "create_password_link"
+          ? { ...offer, is_available: false, missing_conditions: ["is_active_account"] }
+          : offer,
+      ),
+    };
+    render(accounts(true, [given]));
+    const command = within(grid()).getByRole("button", { name: (name) => name.startsWith(LINK) });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(/compte actif/);
+  });
+
+  it("presents the commands of a deactivated account unavailable, naming `is_active_account`, as it lists them [WF-IHM-0090-A]", async () => {
+    const client = serve({});
+    render(accounts(true, [account("Moreau")]));
+    for (const name of [LINK, RESEND]) {
+      const command = within(grid()).getByRole("button", {
+        name: (shown) => shown.startsWith(name),
+      });
+      expect(command).toHaveAttribute("aria-disabled", "true");
+      expect(command).toHaveAccessibleDescription(/Condition non remplie\s*: compte actif\./);
+      await userEvent.click(command);
+      expect(told().textContent).toMatch(/Condition non remplie\s*: compte actif\./);
+    }
+    expect(writes(client)).toEqual([]);
+  });
+
+  it("presents neither command to a session without `users.write` [WF-IHM-0090-A]", () => {
+    render(accounts(false));
+    expect(linkCommands()).toEqual([]);
+  });
+
+  it("presents neither command of an anonymised account, which lists none [WF-ADM-0060-A]", () => {
+    const anonymised: User = {
+      ...listing("Moreau", []),
+      anonymized_at: "2026-06-01T10:00:00Z",
+    };
+    render(accounts(true, [anonymised]));
+    expect(linkCommands()).toEqual([]);
+  });
+
+  it("presents only the command the account lists [WF-ARC-0020-A]", () => {
+    render(accounts(true, [listing("Martin", ["resend_invitation"])]));
+    expect(
+      within(grid()).queryByRole("button", { name: (name) => name.startsWith(LINK) }),
+    ).toBeNull();
+    expect(
+      within(grid()).getByRole("button", { name: (name) => name.startsWith(RESEND) }),
+    ).toBeInTheDocument();
   });
 });

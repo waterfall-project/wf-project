@@ -247,7 +247,11 @@ test("the bar tells the refusal of a write whose screen was left by « Précéde
     await expect(page).toHaveURL("/");
     // The record is held by a local state, not a transition (#1484): the router shows the home at
     // once, the record still under way, and the screen of the account goes with what would tell its
-    // refusal — released, the write is told by the bar once refused, not before.
+    // refusal — released, the write is told by the bar once refused, not before. The record is held
+    // on the network until `cut()`, which comes after these assertions and nowhere before them:
+    // that alone makes the home shown and « Mon compte » gone prove the router did not wait for the
+    // record (#1476). The bar without a notice proves no more than that nothing was told before the
+    // refusal, which `cut()` alone brings.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projets");
     await expect(page.getByRole("heading", { name: "Mon compte" })).toHaveCount(0);
     const bar = page.getByRole("banner");
