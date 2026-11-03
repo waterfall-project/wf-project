@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 import yaml
 
-from wftools import REPOSITORY, frontimage, paths
+from wftools import REPOSITORY, frontimage, paths, slots
 
 MANIFEST = json.dumps({"routes": {"/_global-error": {}, "/icon.svg": {}}, "dynamicRoutes": {}})
 ADDRESS = "127.0.0.1:32768"
@@ -239,13 +239,14 @@ def dry_run(target: str, tier: str, *variables: str) -> list[str]:
     SHARD passes it as a variable of make. MAKEFLAGS is that of a make that runs pytest and carries
     its variables; MAKELEVEL is its depth. Only MAKEFLAGS is proven to change the dry run (the test
     below); MAKELEVEL changes nothing of the output under --no-print-directory, so dropping it is
-    a hardening that no test can prove.
+    a hardening that no test can prove. The ports and names of slot 0 are given: the dry run is the
+    same in a worktree of a lot that holds no slot (US-1100).
     """
     environment = {
         name: value
         for name, value in os.environ.items()
         if name not in {"E2E_BUILT", "E2E_DEV_SERVER", "SHARD", "MAKEFLAGS", "MAKELEVEL"}
-    }
+    } | slots.variables(0)
     result = subprocess.run(
         ["make", "--dry-run", "--no-print-directory", target, f"TIER={tier}", *variables],
         cwd=REPOSITORY,

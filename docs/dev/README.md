@@ -2685,7 +2685,8 @@ clients its state names and that the files it applies do not declare, and withou
 test client would take those of the realm with it.
 The directory keeps its data in a volume, like the databases: bootstrapped again, it would give its
 people other identifiers than those Keycloak keeps; `WATERFALL_RESET_DATA=yes` deletes it
-with them.
+with them. The ports given here are those of the main repository, at slot 0; a worktree of a lot
+has those of the block of its slot (« The slots of the worktrees », below).
 
 `BASE` is `origin/main` by default; a lot is compared with the branch of its epic.
 
@@ -2708,6 +2709,54 @@ A run of one single file (`TESTS`) does not wait. It also sets `WATERFALL_PROCES
 processors divided by N, at least 1: the workers of pytest (`-n`, eight at most for the back), of
 Vitest and of Playwright follow it, except `WORKERS`. At N = 1 the share is the whole workstation:
 nothing changes.
+
+**The slots of the worktrees** (US-1100). Each worktree of a lot takes a slot from 1 to N — the
+same `WATERFALL_SLOTS` —, which gives it its ports, its Compose projects and the tags of its
+images: two deliverers play the end-to-end paths, the tests of Keycloak or the paths against the
+service together without colliding. The main repository, like every runner of the chain, is at
+slot 0: its ports and its names are those of before the slots.
+
+| Command             | What it does                                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing   |
+| `make slot-release` | removes the containers and the volumes of the slot of the worktree — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so               |
+| `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                               |
+
+The register of the workstation is `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/`
+without `XDG_RUNTIME_DIR`, like the locks of the heavy runs: a file `<i>` per slot taken, which
+holds the path of the worktree (`git rev-parse --show-toplevel`) and the moment it was taken,
+written under an exclusive lock of the register (`tools/src/wftools/slots.py claim`, `release`,
+`list`). A slot whose worktree no longer exists is free; whoever takes a slot first removes what a
+holder left in it (`docker compose -p <project> down --volumes`, for each of its two projects),
+the lock of the register held until that removal has succeeded, as `make slot-release` holds it: a
+`make slot` started meanwhile waits, saying so, and if Docker fails, the slot is not taken, and the
+next `make slot` does the removal again. `slots.py which` says the slot of the current worktree.
+
+At slot i from 1 to 9, the ports are those of the block `20000 + 100·i`, below the range of the
+ephemeral ports of Linux; at slot 0, those of before:
+
+| What listens                                              | Variable                                                                                          | Slot 0                 | Slot i                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------ |
+| PostgreSQL, Redis and Garage of the services of the tests | `WATERFALL_TEST_POSTGRES_PORT`, `WATERFALL_TEST_REDIS_PORT`, `WATERFALL_TEST_STORAGE_PORT`        | 20000, 20001, 20002    | `20000 + 100·i`, `+ 1`, `+ 2`  |
+| PostgreSQL and Redis of the service platform              | `WATERFALL_POSTGRES_PORT`, `WATERFALL_REDIS_PORT`                                                 | 5432, 6379             | `+ 10`, `+ 11`                 |
+| the API, Keycloak, Mailpit, the Prism proxy               | `WATERFALL_API_PORT`, `WATERFALL_KEYCLOAK_PORT`, `WATERFALL_MAILPIT_PORT`, `WATERFALL_PROXY_PORT` | 8000, 8443, 8025, 4210 | `+ 12`, `+ 13`, `+ 14`, `+ 15` |
+| the fake back of the paths                                | `E2E_API_PORT`                                                                                    | 4110                   | `+ 20`                         |
+| the fronts of the paths, one per worker                   | `E2E_FRONT_PORT`, the first                                                                       | 3100 and the following | `+ 40` to `+ 79`               |
+
+The names carry the number of the slot: at slot i, the Compose projects `waterfall-service-s<i>`
+(`WATERFALL_SERVICE_PROJECT`) and `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), the images
+`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`, which `compose.service.yaml` reads) and
+`waterfall-front:check-s<i>` (`WATERFALL_FRONT_CHECK_IMAGE`, which `wftools.frontimage` reads); at
+slot 0, `waterfall-service`, `waterfall-test`, `waterfall-keycloak` and `waterfall-front:check`.
+The Makefile gives each target what it needs, except what the environment gives already: the
+service platform — `service-up`, `service-install`, `service-logs`, `service-down`,
+`keycloak-authority`, `test-keycloak`, `e2e-service` — gets its project, the image of Keycloak and
+its six ports; `build-keycloak`, the image of Keycloak; `e2e`, `e2e-measure` and `e2e-service`, the
+ports of the fake back and of the fronts; `check-front-image`, the image of the front. In a linked
+worktree that holds no slot, these targets fail before starting anything, saying `make slot`; the
+others do not ask for it. `make production-trial`, outside the slots — ports 80 and 443, project
+`waterfall-production-trial` —, runs at slot 0 alone: from the worktree of a lot, it fails at once,
+saying so.
 
 ## The chain
 
@@ -3287,12 +3336,16 @@ viewport.
 `make e2e`: Playwright starts the fake back (`make mock`) and the front, plays the paths
 in Chromium, then stops both — it signals their whole process group, without which
 the servers that `make` and `pnpm` start would survive. It always starts its own
-servers, on ports of its own — 4110 for the fake back, 3100 for the front —, never those of
-`make dev`, and its fake back serves a variant of the contract written under `frontend/.e2e/`, which
-`make dev` does not read: a port already taken makes the launch fail saying so. `E2E_API_PORT`
-and `E2E_FRONT_PORT` move the ports, for two copies of the repository on the same workstation — the front of the
-paths takes as many as it has workers, starting from it (below); a port
-that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
+servers, on ports of its own — those of the slot of the worktree (« Commands », « The slots of
+the worktrees »): 4110 for the fake back and 3100 for the front in the main repository, at slot 0,
+`20000 + 100·i + 20` and `+ 40` at slot i of a worktree of a lot, which runs `make slot` first —,
+never those of `make dev`, and its fake back serves a variant of the contract written under
+`frontend/.e2e/`, which `make dev` does not read: a port already taken makes the launch fail
+saying so. Two worktrees at two slots thus play their paths at the same time, with
+`WATERFALL_SLOTS` of at least 2, without which the second waits for the first to end.
+`E2E_API_PORT` and `E2E_FRONT_PORT`, set in the environment, prevail over those of the slot — the
+front of the paths takes as many as it has workers, starting from it (below), forty at most in a
+block; a port that is not an integer from 1 to 65535 is refused. `make e2e-browsers` installs the
 browser. `make e2e SHARD=i/N` plays only the i-th of N shards of the paths, like
 each of the chain's runners (« The chain »), and `make e2e WORKERS=<n>` plays them on `n` workers
 (`E2E_WORKERS`, which `playwright.config.ts` reads; an integer of at least 1, nothing else), fewer than
@@ -3361,12 +3414,13 @@ admits the fixed token of the fake back only on that condition, and does not rep
 
 `make e2e-service` plays against the real service the paths of the Playwright project `service`
 (`frontend/e2e/service/`, US-0340), alongside those of the fake back, which remain. It starts the
-service platform (`make service-up`), its realm applied with the address of the front of the
-paths, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, which follows `E2E_FRONT_PORT`), and
+service platform (`make service-up`), under the project and on the ports of the slot of the
+worktree (« Commands »), its realm applied with the address of the front of the
+paths, `http://127.0.0.1:3100` at slot 0 (`WATERFALL_FRONT_ADDRESS`, which follows `E2E_FRONT_PORT`), and
 the one through which Keycloak reaches it from its container, `http://host.docker.internal:3100`
 (`WATERFALL_FRONT_BACKCHANNEL`), whatever the ones the environment exports; then
 Prism as a proxy between the front and the API
-(`prism proxy --errors`, service `contract-proxy`, on `127.0.0.1:4210`, which
+(`prism proxy --errors`, service `contract-proxy`, on `127.0.0.1:4210` at slot 0, which
 `WATERFALL_PROXY_PORT` moves), which serves the variant of the fake back written in
 `docs/api/waterfall.proxy.json`: a response outside its schema becomes a 500 error
 (`VIOLATIONS`), an address outside the contract a 404 (`NO_PATH_MATCHED_ERROR`), a request outside

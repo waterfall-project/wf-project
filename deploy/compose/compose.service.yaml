@@ -61,11 +61,12 @@ x-keycloak-database: &keycloak-database
   KC_DB_PASSWORD: ${WATERFALL_KEYCLOAK_DATABASE_PASSWORD:?export WATERFALL_KEYCLOAK_DATABASE_PASSWORD}
 
 # One image, three commands: Keycloak, the application of the realm, and the service that applies it
-# again after a restoration (deploy/keycloak/Dockerfile).
+# again after a restoration (deploy/keycloak/Dockerfile). Tagged after the slot of the worktree, which
+# the Makefile gives (US-1100): two worktrees build theirs side by side.
 x-keycloak: &keycloak
   build:
     context: ../keycloak
-  image: waterfall-keycloak
+  image: ${WATERFALL_KEYCLOAK_IMAGE:-waterfall-keycloak}
 
 services:
   postgres:

@@ -408,6 +408,10 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
       const environment = { ...process.env };
       delete environment.MAKEFLAGS;
       delete environment.MAKELEVEL;
+      // The ports of slot 0, which a worktree with no slot of its own would otherwise lack: the
+      // Makefile takes them from the environment before it asks the registry of slots (US-1100).
+      environment.E2E_API_PORT = "4110";
+      environment.E2E_FRONT_PORT = "3100";
       const run = execFileSync(
         "make",
         [

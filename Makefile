@@ -22,8 +22,10 @@ PROXY_SPEC := $(API)/waterfall.proxy.json
 # The same bundle in JSON, which the repository tools read without a YAML parser.
 JSON_BUNDLE := $(API)/waterfall.bundle.json
 COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
-# Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too.
-COMPOSE_SERVICE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+# Prism is named at the version pinned below: the proxy of `make e2e-service` runs it too. The
+# platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
+COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
+COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
 # The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
 COMPOSE_PRODUCTION := docker compose -f deploy/compose/compose.prod.yaml -f deploy/compose/compose.prod.local.yaml
 # The root of the authority of Keycloak's front end on the service platform (#680), copied out of
@@ -33,8 +35,6 @@ KEYCLOAK_AUTHORITY := $(abspath deploy/compose/.authority/root.crt)
 # Where the browser reaches Keycloak on the service platform, as compose.service.yaml says it: its
 # port alone moves, its front end serving localhost and 127.0.0.1 only (#735).
 KEYCLOAK_ADDRESS = https://localhost:$${WATERFALL_KEYCLOAK_PORT:-8443}/auth
-# The image of Keycloak, under the name the service platform runs it by (compose.service.yaml).
-KEYCLOAK_IMAGE := waterfall-keycloak
 TOOLS   := tools
 # The tools of the specification and of the contract, held to the same rules as the others.
 DOC_TOOLS := ../docs/api/tools ../docs/spec/tools
@@ -61,7 +61,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check \
+	lint-shell check slot slot-release slots \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
@@ -102,6 +102,27 @@ heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
 # to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
 WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
+
+# The slot of the worktree (US-1100): its ports, its projects of Compose and the tags of its images,
+# so that two worktrees play the paths, try Keycloak or run the service platform side by side. The
+# main repository — a runner of the chain too — is at slot 0, on the ports and under the names of
+# before; a worktree of a lot takes a slot of 1 to N (make slot), the block of ports 20000 + 100·i.
+# A target that needs them is given each of its variables by slot-export, unless the environment
+# gives it; they are asked once, of the register (slots.py which --variables). In a linked worktree
+# without a slot, such a target stops, saying make slot; the others never ask.
+slot-variables = $(eval slot-variables := $(or $(shell $(SLOTS) which --variables),$(error no slot for this worktree: run make slot)))$(slot-variables)
+slot-value = $(patsubst $(1)=%,%,$(filter $(1)=%,$(slot-variables)))
+slot-export = $(foreach name,$(2),$(eval $(1): export $(name) ?= $$(call slot-value,$(name))))
+SLOT_SERVICE := WATERFALL_SERVICE_PROJECT WATERFALL_KEYCLOAK_IMAGE WATERFALL_POSTGRES_PORT \
+	WATERFALL_REDIS_PORT WATERFALL_API_PORT WATERFALL_KEYCLOAK_PORT WATERFALL_MAILPIT_PORT \
+	WATERFALL_PROXY_PORT
+SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
+$(call slot-export,service-up service-install keycloak-authority service-logs service-down \
+	test-keycloak e2e-service,$(SLOT_SERVICE))
+$(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
+$(call slot-export,e2e e2e-measure e2e-service,$(SLOT_PATHS))
+$(call slot-export,check-front-image,WATERFALL_FRONT_CHECK_IMAGE)
+
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -238,7 +259,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_FRONT_CLIENT_SECRET=stand-in WATERFALL_SERVICE_CLIENT_SECRET=stand-in \
 		WATERFALL_INSTALLATION_CLIENT_SECRET=stand-in \
 		WATERFALL_STORAGE_SECRET=stand-in WATERFALL_STORAGE_RPC_SECRET=stand-in \
-		$(COMPOSE_SERVICE) --profile e2e --profile install config --quiet
+		$(COMPOSE_SERVICE_FILE) --profile e2e --profile install config --quiet
 	@WATERFALL_DOMAIN=waterfall.localhost WATERFALL_ACME_EMAIL=stand-in WATERFALL_IMAGE_TAG=stand-in \
 		WATERFALL_ADMIN_EMAIL=stand-in WATERFALL_SERVER_ACTIONS_KEY=stand-in \
 		WATERFALL_POSTGRES_ADMIN_PASSWORD=stand-in WATERFALL_POSTGRES_PASSWORD=stand-in WATERFALL_SERVICE_DATABASE_PASSWORD=stand-in \
@@ -254,7 +275,7 @@ lint-compose: ## Validate the Compose files
 		docker compose -f deploy/compose/compose.demo.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
-	@docker build $(call build-cache-from,keycloak) --tag $(KEYCLOAK_IMAGE) deploy/keycloak
+	@docker build $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
 
 # The cache of the builds of the images on GitHub Actions (type=gha, .github/actions/build-cache):
 # every build of an image reads it, under the name of the image (wftools.images); after a merge,
@@ -285,8 +306,10 @@ images: ## Build the images front, waterfall and keycloak, tagged by commit, by 
 # WATERFALL_HTTPS_PORT): started, bootstrapped, its API's liveness and the sign-in of its first
 # administrator held, then removed with its volumes (wftools.production). Its secrets come from the
 # environment, as production.env.example names them; the project of Compose is
-# WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial).
-production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets)
+# WATERFALL_PRODUCTION_PROJECT (waterfall-production-trial). Outside the slots, at slot 0 alone: from
+# the worktree of a lot, it would take the ports 80 and 443 of the workstation (US-1100).
+production-trial: ## Start the production platform on the images of WATERFALL_IMAGE_TAG (the commit by default) under a local name, bootstrap it, hold its liveness and the sign-in of its first administrator, back it up and restore it by the API with WATERFALL_TRIAL_RESTORATION=1, then remove it (needs its secrets); at slot 0 alone, the main repository
+	@[ "$$($(SLOTS) which 2>/dev/null)" = 0 ] || { echo "make production-trial runs at slot 0 alone, from the main repository, never from the worktree of a lot" >&2; exit 1; }
 	@$(WFTOOLS).production
 
 # The tests marked keycloak, which the other tests of the back deselect, against the Keycloak of the
@@ -509,13 +532,9 @@ e2e-measure: install-front $(call e2e-build) ## The measure of the second of §4
 # paths. Through it, each path signs in as an account of its own, on several workers. The address
 # must be the one the platform was first bootstrapped with: a bootstrap run again ignores another
 # one (the guide, « Un parcours de bout en bout »).
-E2E_FRONT_PORT ?= 3100
-WATERFALL_PROXY_PORT ?= 4210
 E2E_ADMIN_EMAIL ?= administrateur@waterfall.test
-e2e-service: export WATERFALL_FRONT_ADDRESS := http://127.0.0.1:$(E2E_FRONT_PORT)
-e2e-service: export WATERFALL_FRONT_BACKCHANNEL := http://host.docker.internal:$(E2E_FRONT_PORT)
-e2e-service: export E2E_FRONT_PORT := $(E2E_FRONT_PORT)
-e2e-service: export WATERFALL_PROXY_PORT := $(WATERFALL_PROXY_PORT)
+e2e-service: export WATERFALL_FRONT_ADDRESS = http://127.0.0.1:$(E2E_FRONT_PORT)
+e2e-service: export WATERFALL_FRONT_BACKCHANNEL = http://host.docker.internal:$(E2E_FRONT_PORT)
 e2e-service: export E2E_PART = service
 e2e-service: export WATERFALL_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
 e2e-service: export E2E_ADMIN_EMAIL := $(E2E_ADMIN_EMAIL)
@@ -534,6 +553,17 @@ e2e-service: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end pat
 		NODE_EXTRA_CA_CERTS=$(KEYCLOAK_AUTHORITY) && \
 		export E2E_INSTALLATION_LINK E2E_CONTRACT_PROXY E2E_SERVICE_DATABASE WATERFALL_API_ADDRESS WATERFALL_KEYCLOAK_ADDRESS WATERFALL_REDIS_URL NODE_EXTRA_CA_CERTS && \
 		$(PNPM) exec playwright test
+
+# The slot of the worktree, among the N of WATERFALL_SLOTS, in the register of the workstation
+# ($XDG_RUNTIME_DIR/waterfall-slots, /tmp/waterfall-slots without it), whatever the repository.
+slot: ## Take a slot of 1 to N for this worktree of a lot — its ports and its names —, or say the one it holds; fails, naming the holders, when all are taken
+	@$(SLOTS) claim
+
+slot-release: ## Remove the containers and volumes of the slot of this worktree — the service platform, the services of the tests —, then free it
+	@$(SLOTS) release
+
+slots: ## Print N, then the slots taken on the workstation and their worktrees
+	@$(SLOTS) list
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
