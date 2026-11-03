@@ -2716,6 +2716,19 @@ code de production, tests et le reste (documentation, configuration, contrat), l
 engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
 dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 
+`make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
+`gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,
+`US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
+donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
+le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
+déjà là, ou le retire quand son issue est fermée. Les colonnes se repèrent par leur en-tête ; la
+cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur à saut de
+ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est échappé. Elle ne
+prend une variable que sur la ligne de commande de make (une `PR` exportée sur le poste ne change
+rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
+sous un verrou du poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+(`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
+
 Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
 couverture du back et du front, `make test-tools`, la construction du front pour la production,
 les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de

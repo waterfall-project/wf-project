@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -591,6 +591,18 @@ test-services-down: ## Remove the services of the tests of the slot of this work
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
+
+# A variable of the table is taken only when it comes from the command line of make: one exported
+# on the workstation (PR, STATE, MODEL…) must not overwrite a cell of the shared table. Make
+# exports the command-line variables to the recipe; an empty value is ignored.
+tracking_option = $(if $(filter command line,$(origin $(1))),$${$(1):+$(2) "$$$(1)"})
+
+tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+	@$(WFTOOLS).tracking $(call tracking_option,ISSUE,--issue) $(call tracking_option,LOT,--lot) \
+		$(call tracking_option,US,--us) $(call tracking_option,FINDING,--finding) \
+		$(call tracking_option,STATE,--state) $(call tracking_option,PR,--pr) \
+		$(call tracking_option,MODEL,--model) $(call tracking_option,STATUS,--status) \
+		$(call tracking_option,ATTACHED,--attached) $(call tracking_option,DECISION,--decision)
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
