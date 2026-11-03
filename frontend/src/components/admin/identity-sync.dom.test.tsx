@@ -102,16 +102,15 @@ afterEach(() => {
 });
 
 describe("the reading of the accounts", () => {
-  it("gives the hand back as soon as the reading is queued, follows it to its end, and the user sees it ended and its report [WF-ARC-0090-A]", async () => {
+  it("gives the hand back as soon as the reading is queued, follows it to its end, and the user sees it ended [WF-ARC-0090-A]", async () => {
     // La lecture des comptes ne tient aucune requête au-delà de la création de la tâche, et
     // l'utilisateur en voit l'aboutissement : the command answers with the task queued, the
-    // tracker reads it until it has succeeded, announces it, and offers to read the screen anew,
-    // where the report of the reading shows.
+    // tracker reads it until it has succeeded, announces it, and offers to read the screen anew.
     const client = serve({
       [START]: { example: "identity_sync_queued", status: 202 },
       [TASK]: "identity_sync_succeeded",
     });
-    const { show } = open(report("identity_sync_report"));
+    open(report("identity_sync_report"));
 
     await userEvent.click(within(section()).getByRole("button", { name: "Lire les comptes" }));
     expect(client.calls.map((call) => call.route)).toEqual([START]);
@@ -133,11 +132,8 @@ describe("the reading of the accounts", () => {
     await userEvent.click(within(tasks).getByRole("button", { name: "Recharger l’écran" }));
     expect(router.refresh).toHaveBeenCalledOnce();
 
-    // The screen read anew, the panel closed, shows the report the server then serves: that of a
-    // reading that flagged something, which tells it from the one shown before. That the reading
-    // ended is proved above, by the tracker, not by this report (#984).
-    show(report("identity_sync_report_flagged"));
-    expect(within(section()).getByText("2 comptes créés, sans rôle")).toBeVisible();
+    // No report is asserted: the contract serves none for that task, so the test proves the end of
+    // the reading and the offer to read the screen anew, not the report that screen then shows (#984).
   });
 
   it("presents what the last reading did, the last administrator kept and reported, a person without an address named by her identifier at the provider, a person whose address an account holds named by that account, each by the motive of the catalogue [WF-ADM-0070-A]", async () => {

@@ -330,16 +330,17 @@ describe("the anonymisation of an account", () => {
     const held = heldActivation();
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
     render(accounts());
-    const reactivation = within(grid()).getByRole("switch", {
+    const activation = within(grid()).getByRole("switch", {
       name: "Compte de «\u00a0Alix Moreau\u00a0» actif",
     });
     await userEvent.click(
       within(grid()).getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }),
     );
     const confirmation = await screen.findByRole("alertdialog");
-    // The reactivation of her row begins behind the dialog, which no pointer reaches.
+    // A write of the activation of her row begins behind the dialog, which no pointer reaches; the
+    // route is served the one example of the contract, which the test does not read.
     act(() => {
-      reactivation.click();
+      activation.click();
     });
     await waitFor(() => {
       expect(writes(client)).toHaveLength(1);
@@ -354,7 +355,7 @@ describe("the anonymisation of an account", () => {
     });
     held.release();
     await waitFor(() => {
-      expect(reactivation).toHaveAttribute("aria-busy", "false");
+      expect(activation).toHaveAttribute("aria-busy", "false");
     });
     expect(writes(client)).toHaveLength(1);
   });
@@ -735,11 +736,12 @@ describe("the creation of a local account", () => {
     await waitFor(() => {
       expect(offer).toHaveAttribute("aria-busy", "false");
     });
-    // The link of Martin closed over the creation: `focusBack` gives the focus to the cell of Martin,
-    // behind the modal dialog of the creation, which stays open (#951). In a browser the focus trap
-    // of Radix pulls a focus that leaves its scope back into the dialog (`FocusScope`, on `focusin`);
-    // happy-dom does not run it, so the cell is where the focus falls here.
-    expect(martinLink.closest("td")).toHaveFocus();
+    // The link of Martin closed over the creation (#951): the creation stays open, alone, and the
+    // focus is not left in the dialog of the link, gone. Which element holds it otherwise is a
+    // browser's to say: its trap (Radix `FocusScope`) pulls it back into the creation, which
+    // happy-dom does not run, so this test does not say it.
+    expect(screen.queryByRole("dialog", { name: /Camille Martin/ })).toBeNull();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(screen.getByRole("dialog", { name: "Créer un compte local" })).toBeVisible();
     expect(offer).not.toHaveAttribute("aria-disabled");
     await userEvent.click(offer);

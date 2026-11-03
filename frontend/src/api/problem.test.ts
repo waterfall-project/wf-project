@@ -492,7 +492,7 @@ describe("a read a screen can do without, and says why when it is refused", () =
   });
 });
 
-describe("the refusals of the account itself (#1005)", () => {
+describe("the refusals of the account itself (#1005) [WF-ADM-0060-A]", () => {
   it.each(Object.keys(ACCOUNT_REFUSALS))(
     "tells %s a 401 that refuses the account, led nowhere, and no other status",
     (code) => {

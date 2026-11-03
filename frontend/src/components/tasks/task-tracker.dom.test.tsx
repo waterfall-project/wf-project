@@ -442,14 +442,11 @@ describe("the tracker of background tasks", () => {
   );
 
   it("wipes a task interrupted for want of a session, even for the account that reconnects (#1180) [WF-SEC-0020-A]", async () => {
-    const account = "00000000-0000-4000-8000-0000000000a1";
     serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
     const identified = (page: ReactNode) => (
       <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <TaskTracker accountId={account}>
-          <header>
-            <TasksButton />
-          </header>
+        <TaskTracker accountId="00000000-0000-4000-8000-0000000000a1">
+          <TasksButton />
           <TaskPanel />
           {page}
         </TaskTracker>
@@ -458,13 +455,10 @@ describe("the tracker of background tasks", () => {
     const view = render(identified(<Starting given={task("task_mark_queued")} />));
     await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
     await tick();
-    // The sign-in is offered: the session is found ended, the tab keeps nothing of it.
     expect(within(entries()).getByRole("link", { name: "Se connecter" })).toBeVisible();
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(window.sessionStorage.getItem(OWNER_KEY)).toBeNull();
-
-    // The same account signs in again and the tab reloads: no task is followed on.
-    view.unmount();
+    view.unmount(); // the same account signs in again, the tab reloads: no task is followed on
     const client = serve({ [TASK]: "task_succeeded" });
     render(identified(<Screen name="Planning" />));
     await tick();

@@ -53,7 +53,7 @@ describe("the session of a request", () => {
   });
 
   it.each(Object.entries(ACCOUNT_REFUSALS))(
-    "tells an account refused (%s) from a session that is none: the screen says it, no sign-in leads back",
+    "tells an account refused (%s) from a session that is none: the screen says it, no sign-in leads back [WF-ADM-0060-A]",
     async (code, kind) => {
       // Every code of the list of the refusals of an account, never two written again here (#1005).
       server.client = fakeClient({

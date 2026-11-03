@@ -335,7 +335,8 @@ describe("the renaming of a role in its cell", () => {
       lock_version: renamed.lock_version,
     });
   });
-  it("renames a role whose permission was checked, before the page is read anew, from the version and the permissions that write answered: the source is shared the other way too (#847)", async () => {
+
+  it("renames a role whose permission was checked from the version and permissions the write answered, the source shared the other way too (#847)", async () => {
     const client = serve({ [WRITTEN]: ["access_role_updated", "access_role_renamed"] });
     const shown = permissions.filter(({ code }) => code === "planning.write");
     render(inFrench(tableAndMatrix(shown)));

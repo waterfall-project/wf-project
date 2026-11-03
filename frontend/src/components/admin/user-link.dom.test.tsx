@@ -126,33 +126,33 @@ describe("the link to set the password", () => {
       held.timing,
     );
     render(accounts());
-    const martin = within(grid()).getByRole("switch", {
+    const petitSwitch = within(grid()).getByRole("switch", {
       name: "Compte de «\u00a0Lucas Petit\u00a0» actif",
     });
-    expect(martin).not.toHaveAttribute("aria-disabled");
+    expect(petitSwitch).not.toHaveAttribute("aria-disabled");
     await userEvent.click(
       within(grid()).getByRole("button", {
         name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
       }),
     );
     await waitFor(() => {
-      expect(martin).toHaveAttribute("aria-busy", "true");
+      expect(petitSwitch).toHaveAttribute("aria-busy", "true");
     });
-    expect(martin).toHaveAttribute("aria-disabled", "true");
+    expect(petitSwitch).toHaveAttribute("aria-disabled", "true");
     // Pressed, the switch asks nothing: no account is deactivated while its link is on the way.
-    await userEvent.click(martin);
-    expect(martin).toBeChecked();
+    await userEvent.click(petitSwitch);
+    expect(petitSwitch).toBeChecked();
     held.release();
     const dialog = await screen.findByRole("dialog", {
       name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
     });
     // Still held while the link is shown, and free once it is closed.
-    expect(martin).toHaveAttribute("aria-disabled", "true");
+    expect(petitSwitch).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
     await waitFor(() => {
-      expect(martin).not.toHaveAttribute("aria-disabled");
+      expect(petitSwitch).not.toHaveAttribute("aria-disabled");
     });
-    expect(martin).toHaveAttribute("aria-busy", "false");
+    expect(petitSwitch).toHaveAttribute("aria-busy", "false");
     expect(writes(client).map(([route]) => route)).toEqual(["POST /users/{user_id}/password-link"]);
   });
 
