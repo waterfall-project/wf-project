@@ -409,8 +409,8 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     # the planning and the timelines read it also by the rank of a task among the tasks, the grid
     # of the planning showing the tasks alone (`kinds`, US-0750/L1), which
     # `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds. The
-    # refusal of computed.spec.ts what summary_dependencies.json says of row 1: a change of the
-    # generator that moves them fails here. Those of the core are in the window as the grid
+    # refusal that computed.spec.ts reads is what summary_dependencies.json says of row 1: a change
+    # of the generator that moves them fails here. Those of the core are in the window as the grid
     # opens; the others are scrolled to.
     assert answer["totals"] == {
         "task_count": 1_000,
@@ -544,8 +544,10 @@ def test_the_ranks_among_the_tasks_the_planning_journeys_read(
     assert (rank[5], rank[6]) == (4, 5)
     # context.spec.ts: rowAt(grid, 1..5) on the amendment, the tasks of its subtree in this order,
     # the line of the amendment being out of the projection.
-    amendment = cast("list[Node]", json.loads(json.dumps(mockamendment.nodes_amendment()["items"])))
-    tasks = [node for node in amendment if node["kind"] == "task"]
+    amendment = mockamendment.nodes_amendment()["items"]
+    assert isinstance(amendment, list)
+    amended: list[Node] = [node for node in amendment if isinstance(node, dict)]
+    tasks = [node for node in amended if node["kind"] == "task"]
     assert [(node["task"]["label"], node["difference"]) for node in tasks[:5]] == [
         ("Installation sur site", "modified"),
         ("Montage des armoires sur site", "modified"),
