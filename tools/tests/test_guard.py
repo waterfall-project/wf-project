@@ -111,6 +111,7 @@ def test_a_kill_of_a_pid_or_of_the_group_of_a_process_passes(command: str) -> No
         "docker rm -f wf-*",
         "docker stop wf-s?-pg",
         "docker container stop $(docker ps -q)",
+        "docker container -D stop $(docker ps -q)",
         "docker container rm -f wf-*",
         "docker ps -q | xargs docker container kill",
         "docker restart $(docker ps -q)",
@@ -154,6 +155,9 @@ def test_a_docker_compose_stop_outside_the_makefile_is_refused(command: str) -> 
         'rm -f "$(git rev-parse --git-dir)/index.lock"',
         "rm -f $GIT_DIR/HEAD.lock",
         "rm -f .git/*.lock",
+        "cd .git && rm index.lock",
+        "cd .git; rm -f *.lock",
+        "rm -f x/.git/index.lock/",
     ],
 )
 def test_the_removal_of_a_lock_of_git_is_refused(command: str) -> None:
@@ -279,6 +283,8 @@ def test_a_line_nested_beyond_measure_is_judged_as_one_not_cut() -> None:
         "docker stop 3f2a9c1b7d4e",
         "docker stop -t 5 wf-s3-pg wf-s3-redis",
         "docker container stop wf-s3-pg",
+        "docker container -D stop wf-s3-pg",
+        "cd /tmp && rm foo.lock",
         "docker ps -q --filter name=wf-s3",
         "docker compose ps",
         "docker compose -p wf-slot-1 up -d",

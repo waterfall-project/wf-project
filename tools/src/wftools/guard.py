@@ -352,13 +352,19 @@ def _line(text: str, depth: int, *, piped: bool = False) -> str | None:
     except ValueError:
         found = _FORBIDDEN.search(text)
         return None if found is None else f"a line it cannot cut, which names `{found.group()}`"
-    return next(
-        (form for words in split if (form := _simple(words, depth, piped=piped)) is not None),
-        None,
-    )
+    moved = False
+    for words in split:
+        if (form := _simple(words, depth, piped=piped, moved=moved)) is not None:
+            return form
+        # A `cd` into a directory of git: the relative paths that follow are read from there.
+        if words[:1] == ["cd"] and any(".git" in word.split("/") for word in words[1:]):
+            moved = True
+    return None
 
 
-def _simple(words: list[str], depth: int, *, piped: bool = False) -> str | None:
+def _simple(
+    words: list[str], depth: int, *, piped: bool = False, moved: bool = False
+) -> str | None:
     """Judge a simple command, past its assignments and the prefixes that run it."""
     index = 0
     while index < len(words):
@@ -378,7 +384,7 @@ def _simple(words: list[str], depth: int, *, piped: bool = False) -> str | None:
                 return _line(line, depth + 1, piped=piped)
         else:
             check = _CHECKS.get(name)
-            command = _Command(name, words[index + 1 :], piped=piped, depth=depth)
+            command = _Command(name, words[index + 1 :], piped=piped, depth=depth, moved=moved)
             return None if check is None else check(command)
     return None
 
@@ -391,6 +397,8 @@ class _Command(NamedTuple):
     piped: bool
     """Run by ``xargs``: its arguments come from a pipe."""
     depth: int
+    moved: bool = False
+    """Run after a ``cd`` into a directory of git, on the same line."""
 
 
 def _pattern(command: _Command) -> str | None:
@@ -439,8 +447,11 @@ def _docker(command: _Command) -> str | None:
     if words[0] == "compose":
         return _compose(command._replace(name="docker compose", arguments=words[1:]))
     # `docker container stop` is `docker stop`.
-    container = words[0] == "container" and len(words) > 1
-    verb, rest = (words[1], words[2:]) if container else (words[0], words[1:])
+    if words[0] == "container":
+        words = words[_DOCKER.skip(words, 1) :]
+        if not words:
+            return None
+    verb, rest = words[0], words[1:]
     if "prune" in {verb, *rest[:1]}:
         return "`docker … prune`: it removes what the other lots hold"
     if verb in _CONTAINER_STOPS:
@@ -472,9 +483,9 @@ def _compose(command: _Command) -> str | None:
 
 def _unlink(command: _Command) -> str | None:
     for argument in command.arguments:
-        directories, _, last = argument.rpartition("/")
+        directories, _, last = argument.rstrip("/").rpartition("/")
         lock = last.endswith(".lock")
-        in_git = ".git" in directories.split("/")
+        in_git = ".git" in directories.split("/") or (command.moved and lock)
         # A directory computed by a substitution or a variable is `git rev-parse --git-dir`.
         if (in_git and (lock or last[-1:] in {"*", "?", "]"})) or (lock and "$" in directories):
             return (
