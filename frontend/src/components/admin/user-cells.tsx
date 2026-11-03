@@ -14,9 +14,8 @@
  *   sent, and refuses by `LAST_ADMINISTRATOR` those that would take its permissions from the last
  *   administrator (WF-ADM-0120);
  * - the link by which the holder of a local account sets its password (`createPasswordSetupLink`),
- *   offered to a local account alone — another sets none in Waterfall, an anonymised one is withdrawn
- *   from the identity provider —, unavailable while it is deactivated, as the server would refuse it
- *   (`is_active_account`);
+ *   and the resending of the invitation, each as the account lists it: none for another account or an
+ *   anonymised one, unavailable while it is deactivated (`is_active_account`);
  * - the anonymisation, offered to a deactivated account only and unavailable once it is anonymised,
  *   its reactivation unavailable too (WF-ADM-0060): confirmed first, being irreversible
  *   (`AnonymizeCommand`).
@@ -37,7 +36,7 @@ import { setUserAccessRoles, setUserActivation } from "@/api/actions/users";
 import { useAccountNaming } from "@/components/account/account-name";
 import { useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
-import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { findOffer, UNAVAILABLE } from "@/components/commands/offer";
 import { CELL_COMMAND } from "@/components/grid/grid-keyboard";
 import { CellCommand } from "@/components/reference/cell-command";
 import { useListReport } from "@/components/reference/reactivation";
@@ -250,16 +249,12 @@ export function RolesCell({
   );
 }
 
-/** A link asked of a deactivated account: the server would refuse it (`is_active_account`). */
-const DEACTIVATED: CommandOffer = {
-  is_available: false,
-  missing_conditions: ["is_active_account"],
-};
-
 /**
- * The command that asks the link of a local account, named after it — unavailable while the account
- * is deactivated, as the server would refuse it —; none for another account, which sets no password
- * in Waterfall, nor for an anonymised one, withdrawn from the identity provider (WF-ADM-0060). Marked
+ * The command that asks the link of a local account, as the account lists it (`create_password_link`),
+ * named after it — unavailable, by the condition it lacks, while the account is deactivated —; none
+ * when the account does not list it: another account sets no password in Waterfall, an anonymised
+ * one is withdrawn from the identity provider (WF-ADM-0060), a session without `users.write` reads
+ * none. Marked
  * busy while a write of its row is under way, or a link asked or shown — one at a time —, and
  * unavailable the while, or while a deactivation asked is unanswered: no link is given for an account
  * being deactivated (WF-ADM-0140), and a press asks nothing.
@@ -271,11 +266,12 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
   const writes = useUserWrites();
   const unmet = useUnmet();
   const name = useAccountNaming().person(user);
-  if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
+  const offer = findOffer(user.available_commands, "create_password_link");
+  if (offer === undefined || writes === undefined) {
     return null;
   }
   const command = t("password_link.command", { name });
-  const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
+  const lacking = offer.is_available ? undefined : unmet(offer);
   const busy = writes.busy.has(user.user_id) || writes.linking;
   const held = busy || writes.asked.get(user.user_id)?.is_active === false;
   return (
@@ -304,9 +300,9 @@ export function SetupLinkCommand({ user }: { readonly user: User }) {
 }
 
 /**
- * The command that has the email of the link sent again to a local account, named after it —
- * unavailable while the account is deactivated, as the server would refuse it (`is_active_account`) —;
- * none for another account, nor for an anonymised one (WF-ADM-0140). Marked busy while a write of its
+ * The command that has the email of the link sent again to a local account, as the account lists it
+ * (`resend_invitation`), named after it — unavailable, by the condition it lacks, while the account
+ * is deactivated —; none when it does not list it (WF-ADM-0140). Marked busy while a write of its
  * row is under way or the email is asked, and unavailable the while: a press asks nothing.
  */
 export function ResendInvitationCommand({ user }: { readonly user: User }) {
@@ -316,11 +312,12 @@ export function ResendInvitationCommand({ user }: { readonly user: User }) {
   const writes = useUserWrites();
   const unmet = useUnmet();
   const name = useAccountNaming().person(user);
-  if (user.origin !== "local" || user.anonymized_at !== null || writes === undefined) {
+  const offer = findOffer(user.available_commands, "resend_invitation");
+  if (offer === undefined || writes === undefined) {
     return null;
   }
   const command = t("resend_invitation.command", { name });
-  const lacking = user.is_active ? undefined : unmet(DEACTIVATED);
+  const lacking = offer.is_available ? undefined : unmet(offer);
   const busy = writes.busy.has(user.user_id) || writes.resending.has(user.user_id);
   const held = busy || writes.asked.get(user.user_id)?.is_active === false;
   return (

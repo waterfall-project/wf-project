@@ -311,7 +311,7 @@ phrase de l'écran qui citerait la borne.
 
 ## US-1070 — Le compte dit ses commandes du lien
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-ADM-0140-A`, `WF-IHM-0090-A`, `WF-ARC-0020-A`, `WF-ADM-0060-A`
 - **opérations** : `listUsers`, `getUser`, `getMe`, `createPasswordSetupLink`, `resendInvitation`
 - **issue** : #1855
