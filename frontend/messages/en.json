@@ -2116,6 +2116,7 @@
       "partialKinds": "The work packages and order items show only what the filter by kind retains.",
       "retained": "{kind, select, order_item {{count, plural, one {# order item} other {# order items}}} work_package {{count, plural, one {# work package} other {# work packages}}} other {{count, plural, one {# deliverable} other {# deliverables}}}}",
       "noneRetained": "No element retained",
+      "noOrderItem": "No order item",
       "element": "{kind, select, order_item {the order item} work_package {the work package} other {the deliverable}} “{label}”",
       "createWorkPackage": "New work package",
       "add": "{kind, select, work_package {Add an order item} other {Add a deliverable}}",
@@ -2132,7 +2133,8 @@
       "added": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” added.",
       "renamed": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} renamed “{label}”.",
       "deleted": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}” deleted.",
-      "refusedFor": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}”: {problem}"
+      "refusedFor": "{kind, select, order_item {Order item} work_package {Work package} other {Deliverable}} “{label}”: {problem}",
+      "gone": "{kind, select, order_item {The order item} work_package {The work package} other {The deliverable}} “{label}” is no longer in the work breakdown read: nothing was sent. Reload the page."
     },
     "transitions": {
       "title": "History of states",

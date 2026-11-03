@@ -10,6 +10,7 @@ import type { components } from "@/api/generated/schema";
 import type { ApiClient } from "@/api/client";
 import { costRow } from "@/components/costs/cost-grid";
 import { CostsGrid } from "@/components/costs/costs-grid";
+import { ContextMenuItem } from "@/components/ui/context-menu";
 import { CATALOGUES } from "@/i18n/catalogues";
 import type { Locale } from "@/i18n/locale";
 import { expectAccessible } from "@/test/axe";
@@ -20,6 +21,7 @@ import { EstimateGrid } from "./estimate-grid";
 import type { NodeList, NodeSortColumn } from "./nodes";
 import { PlanningGrid } from "./planning-grid";
 import type { GridQuery } from "./query";
+import { CellMenu, type MenuCommands } from "./undo-commands";
 
 // The server of Next, as far as the grid needs it, as for the other tests of the grid.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
@@ -370,5 +372,46 @@ describe("what no command undoes", () => {
     await userEvent.pointer({ keys: "[MouseRight]", target: cell });
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+describe("the menu of a cell, a command of the screen having taken the focus", () => {
+  it("gives the focus back to the cell on a menu opened anew, whatever a command that opened nothing told the one before", async () => {
+    // The command tells the menu it took the focus and opens no dialog, the menu staying open:
+    // the next opening starts from no command having taken it (#806).
+    const commands: MenuCommands = ({ took }) => (
+      <ContextMenuItem
+        onSelect={(event) => {
+          event.preventDefault();
+          took();
+        }}
+      >
+        Prendre
+      </ContextMenuItem>
+    );
+    render(
+      inLanguage(
+        <CellMenu offered={undefined} commands={commands} disabled={false}>
+          <div tabIndex={0} data-testid="cell">
+            <table>
+              <tbody>
+                <tr>
+                  <td data-column="label" data-row="0">
+                    cellule
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CellMenu>,
+      ),
+    );
+    const target = screen.getByText("cellule");
+    await userEvent.pointer({ keys: "[MouseRight]", target });
+    await userEvent.click(screen.getByRole("menuitem", { name: "Prendre" }));
+    // Opened anew while still open, as a second right click does.
+    fireEvent.contextMenu(target);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByTestId("cell")).toHaveFocus();
   });
 });

@@ -4,7 +4,7 @@
 
 La dernière colonne de la [grille de planning](FBS-4.3.2.md), épinglée à droite : chaque ligne y dessine sa tâche sur l’échelle du temps, alignée sur la grille. Une tâche est une barre — pleine sur le chemin critique, creuse ailleurs —, une récapitulative un crochet, un jalon un losange ; les liaisons joignent les tâches comme leur type le dit. Rien ne s’y lit à la seule couleur : chaque barre est nommée par ses dates, et « critique » quand elle l’est. Les jours chômés du calendrier de la tâche sont hachurés.
 
-Le Gantt se lit, il ne se saisit pas : les dates changent par la grille. Une ligne pliée dans la grille l’est aussi dans le Gantt ; le bouton qui précède le crochet d’une récapitulative la plie ou la déplie.
+Le Gantt se lit, il ne se saisit pas : les dates changent par la grille. Dans une grille vide — une structure sans tâche, ou une recherche qui n’en retient aucune —, il n’a aucune ligne à dessiner, et l’image exportée ne porte alors ni nom ni barre. Une ligne pliée dans la grille l’est aussi dans le Gantt ; le bouton qui précède le crochet d’une récapitulative la plie ou la déplie.
 
 ## Ses commandes
 

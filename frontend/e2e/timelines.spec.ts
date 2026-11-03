@@ -13,7 +13,9 @@ import { scrollToPosition } from "./scroll";
 // proven by `choice-menu.dom.test.tsx`; the journey proves the menu, the answer shown in the column
 // that the account shows, and the sentence the screen says, in a browser. The journey reads the
 // structure by a mark the generator writes (`test_the_marks_the_journeys_read`): row 5, the task
-// « Revue de conception », not yet inscribed to a timeline.
+// « Revue de conception », not yet inscribed to a timeline; and by ranks among the tasks, which
+// `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (tools/tests/
+// test_mockstructure.py): row 5 is the 4th task, row 6, the milestone after it, the 5th.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;

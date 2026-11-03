@@ -2,7 +2,7 @@
 
 ## What the screen shows
 
-The grid of the screen of [planning](FBS-4.3.md): a row per task of the structure read, in the order of the plan, each summary task above its subordinates, the handle and the row number at the start, the Gantt in the last column. The totals of the answer are in the footer. The planning shows no estimate line: they are read in the estimate.
+The grid of the screen of [planning](FBS-4.3.md): a row per task of the structure read, in the order of the plan, each summary task above its subordinates, the handle and the row number at the start, the Gantt in the last column. The totals of the answer are in the footer. A search or a filter that retains no task, on a structure that has some, leaves an empty grid that says so — “No row matches the request.”, total “no task” — and does not offer the skeleton, which is for a structure with no task. The planning shows no estimate line: they are read in the estimate.
 
 A task is entered with the keyboard, cell by cell, where the structure read lists “Edit the schedule” available: its label, its description, its scheduling mode, its duration, its dates when they are not calculated, its predecessors, its attachment to the work breakdown. An entry refused is said above the grid, and its cell is marked.
 

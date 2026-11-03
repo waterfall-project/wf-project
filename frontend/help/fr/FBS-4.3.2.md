@@ -2,7 +2,7 @@
 
 ## Ce que montre l’écran
 
-La grille de l’écran de [planification](FBS-4.3.md) : une ligne par tâche de la structure lue, dans l’ordre du plan, chaque récapitulative au-dessus de ses subordonnées, la poignée et le numéro de ligne en tête, le Gantt en dernière colonne. Les totaux de la réponse sont en pied. Le planning ne montre aucune ligne de devis : elles se lisent au devis.
+La grille de l’écran de [planification](FBS-4.3.md) : une ligne par tâche de la structure lue, dans l’ordre du plan, chaque récapitulative au-dessus de ses subordonnées, la poignée et le numéro de ligne en tête, le Gantt en dernière colonne. Les totaux de la réponse sont en pied. Une recherche ou un filtre qui ne retient aucune tâche, sur une structure qui en a, laisse une grille vide qui le dit — « Aucune ligne ne répond à la demande », total « aucune tâche » — et n’offre pas le squelette, réservé à une structure sans tâche. Le planning ne montre aucune ligne de devis : elles se lisent au devis.
 
 Une tâche se saisit au clavier, cellule par cellule, là où la structure lue liste « Modifier le planning » disponible : son libellé, sa description, son mode de planification, sa durée, ses dates quand elles ne sont pas calculées, ses prédécesseurs, son rattachement au lotissement. Une saisie refusée est dite au-dessus de la grille, et sa cellule est marquée.
 

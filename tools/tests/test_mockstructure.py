@@ -15,7 +15,15 @@ from typing import Any, cast
 
 import pytest
 
-from wftools import mockcore, mockdata, mockhistory, mockids, mockstructure, mockwitness
+from wftools import (
+    mockamendment,
+    mockcore,
+    mockdata,
+    mockhistory,
+    mockids,
+    mockstructure,
+    mockwitness,
+)
 from wftools.mockcalendar import Calendar, Instant
 from wftools.mockids import PREFIX
 from wftools.mockwitness import GENERATED, N
@@ -397,9 +405,12 @@ def test_a_line_names_its_category_role_and_subproject_as_the_universe_does(
 
 def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) -> None:
     # The end-to-end paths of the front read the structure by these rows (grid.spec.ts,
-    # planning.spec.ts, entry.spec.ts, keyboard.spec.ts, paste.spec.ts, computed.spec.ts), and the
-    # refusal of computed.spec.ts what summary_dependencies.json says of row 1: a change of the
-    # generator that moves them fails here. Those of the core are in the window as the grid
+    # planning.spec.ts, entry.spec.ts, keyboard.spec.ts, paste.spec.ts, computed.spec.ts); those of
+    # the planning and the timelines read it also by the rank of a task among the tasks, the grid
+    # of the planning showing the tasks alone (`kinds`, US-0750/L1), which
+    # `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds. The
+    # refusal that computed.spec.ts reads is what summary_dependencies.json says of row 1: a change
+    # of the generator that moves them fails here. Those of the core are in the window as the grid
     # opens; the others are scrolled to.
     assert answer["totals"] == {
         "task_count": 1_000,
@@ -510,6 +521,40 @@ def test_the_marks_the_journeys_read(answer: dict[str, Any], items: list[Node]) 
     assert (task(311)["label"], task(311)["progress"]) == ("Revue 1.2.11", "started")
     assert [link["predecessor_row_number"] for link in row(311)["predecessors"]] == [291]
     assert (task(6_000)["label"], task(6_000)["is_milestone"]) == ("Fin du lot 9.3", True)
+
+
+def test_the_ranks_among_the_tasks_the_planning_journeys_read(
+    items: list[Node],
+) -> None:
+    # The grid of the planning shows the tasks alone (`kinds`, US-0750/L1, #1867): the journeys
+    # read a task by its rank among the tasks (`scrollToPosition(grid, rank)`, `rowAt(grid, rank)`),
+    # not by its row number, which counts the lines. A change of the order of the generator
+    # (`mockcore.whole`, `mockamendment.nodes_amendment`) that moves a rank fails here, not in the
+    # end-to-end run. No requirement is cited, as in the rest of this file (see its docstring).
+    tasks = [node for node in items if node["kind"] == "task"]
+    rank = {node["row_number"]: rank for rank, node in enumerate(tasks, start=1)}
+
+    # planning.spec.ts: scrollToPosition(grid, 20) for row 39 (two journeys),
+    # (grid, 64) for row 311.
+    assert (rank[39], rank[311]) == (20, 64)
+    # planning.spec.ts, the fold of the summary of row 14: rows 15 and 17, its tasks, are the 11th
+    # and the 12th; row 19, the 13th, is rowAt(grid, 11) once they are folded away.
+    assert (rank[15], rank[17], rank[19]) == (11, 12, 13)
+    # timelines.spec.ts: scrollToPosition(grid, 4) for row 5, (grid, 5) for the milestone of row 6.
+    assert (rank[5], rank[6]) == (4, 5)
+    # context.spec.ts: rowAt(grid, 1..5) on the amendment, the tasks of its subtree in this order,
+    # the line of the amendment being out of the projection.
+    amendment = mockamendment.nodes_amendment()["items"]
+    assert isinstance(amendment, list)
+    amended: list[Node] = [node for node in amendment if isinstance(node, dict)]
+    tasks = [node for node in amended if node["kind"] == "task"]
+    assert [(node["task"]["label"], node["difference"]) for node in tasks[:5]] == [
+        ("Installation sur site", "modified"),
+        ("Montage des armoires sur site", "modified"),
+        ("Essais sur site", "added"),
+        ("Reprise des essais de câblage", "added"),
+        ("Mise en service", "modified"),
+    ]
 
 
 def test_a_drawn_value_depends_on_its_key_alone() -> None:
