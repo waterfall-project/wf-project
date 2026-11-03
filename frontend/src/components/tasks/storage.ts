@@ -11,7 +11,8 @@
  * but the follow-up when the storage is refused (a private window, a quota). A task that
  * ended is not kept: its end was announced. The command that started a task does not survive
  * a reload — a function is no data —: a task followed again after one cannot be relaunched
- * from the tracker, and the user starts it again from its screen. Signing out, and a session found ended, forget them.
+ * from the tracker, and the user starts it again from its screen. Signing out, and a session found
+ * ended, forget them.
  */
 import { RUNNING, type TaskKind, type TaskStatus, type TrackedTask } from "./tracking";
 

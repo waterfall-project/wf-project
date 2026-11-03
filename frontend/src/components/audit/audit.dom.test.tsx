@@ -696,6 +696,21 @@ describe("the filters of the journal", () => {
     expect(lastAddress()).toBe("/admin/audit-log");
   });
 
+  it("name an author no choice offers nor inscription names by its names, never by its identifier [WF-ADM-0060-A]", () => {
+    page.search = `user_id=${CAMILLE}`;
+    render(
+      journal({
+        users: [],
+        named: { ...NAMED, account: { first_name: "Camille", last_name: "Martin" } },
+      }),
+    );
+    const author = screen.getByRole("combobox", { name: "Auteur" });
+    expect(within(author).getByRole("option", { selected: true })).toHaveTextContent(
+      "Camille Martin",
+    );
+    expect(author).not.toHaveTextContent(CAMILLE);
+  });
+
   it("filter by actions, checked in a menu in the order of the contract, back to the first page", async () => {
     page.search = "actions=backup&offset=50";
     render(journal());

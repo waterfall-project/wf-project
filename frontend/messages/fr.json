@@ -2800,6 +2800,7 @@
         "backupTakenAt": "Sauvegarde restaurée du <time></time>",
         "backupTakenAfter": "{first} ; Sauvegarde restaurée du <time></time>",
         "importKind": "Import : {kind}",
+        "roleUnchanged": "Ni le libellé ni les permissions n’ont changé",
         "then": "{first} ; {second}"
       },
       "filters": {
@@ -4012,7 +4013,7 @@
     "pending": "La restauration est en attente : la plateforme va passer en maintenance, et tous les utilisateurs seront alors déconnectés jusqu’à ce qu’elle soit terminée.",
     "maintenance": "La plateforme est en maintenance le temps de sa restauration : tous les utilisateurs ont été déconnectés, et pourront se reconnecter une fois la restauration terminée.",
     "signedOutTitle": "Session terminée",
-    "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous pour la connaître.",
+    "signedOut": "Votre session a pris fin avant que l’issue de la restauration soit connue. Reconnectez-vous : le journal d’audit la dit.",
     "doneTitle": "Restauration terminée",
     "done": "La plateforme a été restaurée. Reconnectez-vous pour continuer."
   },

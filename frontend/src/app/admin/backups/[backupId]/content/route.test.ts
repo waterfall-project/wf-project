@@ -85,11 +85,14 @@ describe("a backup, downloaded", () => {
     expect(client.calls.map((call) => call.path)).toEqual([`/backups/${BACKUP}/content`]);
   });
 
-  it("hands the backup on as it comes, answered before the API has sent the whole of it", async () => {
-    // A body whose first piece comes, and whose end never does: gigabytes are never held.
+  it("hands the backup on as it comes, answered before the API has sent the whole of it, then to its end [WF-ADM-0150-A]", async () => {
+    // A body whose first piece comes, and whose end comes only once the first has been read:
+    // gigabytes are never held.
+    let rest: ReadableStreamDefaultController<Uint8Array> | undefined;
     const upstream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new TextEncoder().encode("PGDMP"));
+        rest = controller;
       },
     });
     answering(upstream, {
@@ -100,8 +103,17 @@ describe("a backup, downloaded", () => {
     expect(response.status).toBe(200);
     const reader = response.body?.getReader();
     const first = await reader?.read();
+    // The first piece, before the stream is closed; the pieces after it however the route cuts them.
     expect(new TextDecoder().decode(first?.value)).toBe("PGDMP");
-    await reader?.cancel();
+    rest?.enqueue(new TextEncoder().encode("-sauvegarde"));
+    rest?.enqueue(new TextEncoder().encode("-complète"));
+    rest?.close();
+    const decoder = new TextDecoder();
+    let tail = "";
+    for (let piece = await reader?.read(); piece?.done === false; piece = await reader?.read()) {
+      tail += decoder.decode(piece.value, { stream: true });
+    }
+    expect(tail).toBe("-sauvegarde-complète");
   });
 
   it("names the file as the API names it, and gives its length when the body comes as it was sent", async () => {
@@ -195,7 +207,7 @@ describe("a backup, downloaded", () => {
     expect(sentBackTo(await download())).toContain("refusal=unreachable");
   });
 
-  it("sends the browser back to the screen of the backups alone, never another screen nor another site", async () => {
+  it("sends the browser back to the screen of the backups alone, never another screen nor another site, whatever page of its list the download left from [WF-ADM-0150-A]", async () => {
     serve({ [CONTENT]: { problem: { code: "NOT_FOUND", status: 404 } } });
     for (const from of ["//evil.example/admin/backups", "/admin/users", "/admin/backupsx", null]) {
       expect(sentBackTo(await download(BACKUP, from))).toMatch(

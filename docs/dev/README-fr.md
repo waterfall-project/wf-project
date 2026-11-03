@@ -1765,7 +1765,9 @@ le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
 les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
-inscriptions de sa seule requête. Le serveur trie sur chaque colonne (#550), dans les deux sens.
+inscriptions de sa seule requête. Le `title` de la cellule de l'action n'est posé que si le texte y
+est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne
+dit aussi une modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux sens.
 Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
 (`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
 (`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
@@ -1784,7 +1786,9 @@ l'auteur (`ValuesFilter`), l'auteur et le projet parmi ceux que nomme le journal
 par auteur) — sans auteur à choisir ni auteur choisi, le filtre d'auteur n'est pas offert —, les
 actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'histoire, nommé et
 levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
-qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
+qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent, et un auteur
+qu'aucune ligne lue ne nomme est lu par `getUser`, au plus une fois, et nommé comme partout
+(`naming.person`), jamais par son identifiant (#1010). Le projet et
 l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
 (`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
 ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans

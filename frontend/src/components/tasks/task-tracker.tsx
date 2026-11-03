@@ -11,7 +11,8 @@
  * keeps it, and nothing of it blocks the screen while its panel is closed — no control disabled;
  * open, the panel is a modal dialog, which the person closes when they will. A full
  * reload follows again the tasks that still ran, from the storage of the tab (`storage.ts`),
- * with what the user named them after; and, for a session, the tracker follows the tasks of its
+ * with what the user named them after — a session found ended is not followed again: it wipes the
+ * storage (`session-end.tsx`); and, for a session, the tracker follows the tasks of its
  * user that still run, which the root layout reads and streams apart from the document
  * (`listBackgroundTasks`), and those the API lists each time the tab shows again, which it did
  * not follow — started from another tab, another workstation —, without their command: failed,

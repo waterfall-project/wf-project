@@ -1759,7 +1759,9 @@ which the server would not sort (WF-IHM-0060) —, the nature and the label of t
 which has none, by its nature, never by its identifier —, the project and the correlation, each as
 the entry keeps it, and a link to the history of the object — the log filtered on its nature and
 its identifier, its whole history: the other filters and the search lifted, the sort kept —, the
-correlation leading likewise to the entries of its request alone. The server sorts on every column
+correlation leading likewise to the entries of its request alone. The `title` of the action cell is posed only if the text is cut short there,
+and it then carries the instant of the backup restored; the second line also says a role change
+with no change. The server sorts on every column
 (#550), in both directions. The most recent first when the address says nothing, and the sort is
 never lifted (`GridConfig.lifts`): the header of the date asks for descending first
 (`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
@@ -1778,7 +1780,9 @@ auditor without `users.read` filters by author) — without an author to choose 
 the author filter is not offered —, the actions in a menu, the nature of the object, the object
 whose history the address asks for, named and lifted, and the correlation, entered (`TextFilter`);
 an author or a project the address names without any choice offering it stays chosen under the
-name the entries give it. The project and the object are links where the session can consult
+name the entries give it, and an author that no line read names is read by `getUser`, at most once,
+and named as everywhere (`naming.person`), never by its identifier (#1010). The project and the
+object are links where the session can consult
 them — a project it can open (`listProjects`, all states; none when the API does not find the list
 of projects, which the service only serves from EP-04 on, a tolerance of the 404 that #962 then
 removes) —: the project, a revision of such a project, and an object that lives in a revision,

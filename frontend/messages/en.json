@@ -2800,6 +2800,7 @@
         "backupTakenAt": "Restored backup of <time></time>",
         "backupTakenAfter": "{first}; Restored backup of <time></time>",
         "importKind": "Import: {kind}",
+        "roleUnchanged": "Neither the label nor the permissions changed",
         "then": "{first}; {second}"
       },
       "filters": {
@@ -4012,7 +4013,7 @@
     "pending": "The restoration is waiting: the platform is about to go under maintenance, and every user will then be signed out until it is done.",
     "maintenance": "The platform is under maintenance while it is restored: every user has been signed out, and can sign in again once the restoration is done.",
     "signedOutTitle": "Session ended",
-    "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again to learn it.",
+    "signedOut": "Your session ended before the outcome of the restoration was known. Sign in again: the audit log tells it.",
     "doneTitle": "Restoration done",
     "done": "The platform has been restored. Sign in again to go on."
   },

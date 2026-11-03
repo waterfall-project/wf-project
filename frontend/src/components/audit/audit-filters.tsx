@@ -29,6 +29,7 @@ import { useTranslations } from "next-intl";
 import { useId, useOptimistic, useTransition } from "react";
 
 import { useAccountNaming } from "@/components/account/account-name";
+import type { NamedAccount } from "@/components/account/initials";
 import { ChoiceFilter } from "@/components/grid/choice-filter";
 import { readValues, valuesHref } from "@/components/grid/filters";
 import {
@@ -217,6 +218,11 @@ export interface AuditFilterBarProps {
    */
   readonly named: {
     readonly user: string | null | undefined;
+    /**
+     * The author chosen that no choice offers and no inscription names, read by its names
+     * (`getUser`): named as the accounts are everywhere, never by its identifier.
+     */
+    readonly account?: NamedAccount | undefined;
     readonly project: Omit<ProjectChoice, "id"> | undefined;
     /**
      * The object, by its label — none for a backup, named by its nature, and for an anonymised
@@ -239,6 +245,12 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
     value: kind,
     text: t(`enums.AuditActorKind.${kind}`),
   }));
+  const chosenAuthor =
+    named.account !== undefined
+      ? naming.person(named.account)
+      : named.user === undefined
+        ? undefined
+        : naming.kept(named.user);
   const authors = users.map((user) => ({ value: user.id, text: naming.kept(user.name) }));
   const projectName = ({ code, label }: Omit<ProjectChoice, "id">) =>
     code === null ? label : t("admin.auditLog.project", { code, label });
@@ -286,7 +298,7 @@ export function AuditFilterBar({ filters, users, projects, named, refused }: Aud
             every={t("admin.auditLog.filters.everyUser")}
             choices={authors}
             chosen={filters.user}
-            unknown={named.user === undefined ? undefined : naming.kept(named.user)}
+            unknown={chosenAuthor}
             page={AUDIT_PAGE}
           />
         )}

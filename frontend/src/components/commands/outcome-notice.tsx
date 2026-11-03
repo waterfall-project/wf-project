@@ -121,11 +121,13 @@ const ICON = "mt-0.5 size-4 shrink-0";
 
 /**
  * The address of the sign-in page, which comes back to the screen shown: its path and its query;
- * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`).
+ * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`); with
+ * `returnTo`, another screen of this front.
  */
-export function useSignInHref(reauthenticate = false): string {
+export function useSignInHref(reauthenticate = false, returnTo?: string): string {
   const query = useSearchParams().toString();
-  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`, reauthenticate);
+  const pathname = usePathname();
+  return loginHref(returnTo ?? `${pathname}${query === "" ? "" : `?${query}`}`, reauthenticate);
 }
 
 /**
@@ -136,13 +138,19 @@ export function useSignInHref(reauthenticate = false): string {
  * asks for the identifiers again (#855). Offered because the session is over, it wipes what the
  * session left in the tab (`useEndedSession`).
  */
-export function SignIn({ reauthenticate = false }: { readonly reauthenticate?: boolean }) {
+export function SignIn({
+  reauthenticate = false,
+  returnTo,
+}: {
+  readonly reauthenticate?: boolean;
+  readonly returnTo?: string;
+}) {
   const t = useTranslations("outcome");
   // A sign-in is offered where the session is found ended: nothing of it stays for the next (#1180).
   useEndedSession();
   return (
     <a
-      href={useSignInHref(reauthenticate)}
+      href={useSignInHref(reauthenticate, returnTo)}
       className="inline-flex items-center gap-1.5 font-medium underline"
     >
       <LogIn aria-hidden="true" className="size-4" />

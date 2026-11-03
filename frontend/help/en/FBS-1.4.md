@@ -19,7 +19,7 @@ On each backup, the commands it lists, each in its column, present when a backup
 
 - **Keep** marks the backup to keep: the rotation does not delete it; **Stop keeping** lifts the mark.
 - **Download** the archive of the backup; unavailable while it is not verified (“backup verified”).
-- **Restore** opens the restoration of the platform from the backup. Unavailable for a backup not verified, during a backup (“no backup running”) or another restoration (“no restoration running”). The dialog says what will be lost — everything entered since —, that the users will be signed out and that the restoration will be written in the audit log; it restores only once the identifier of the backup is entered. The restoration launched, the screen gives way to that of the maintenance, which follows it to its end and then offers to sign in again.
+- **Restore** opens the restoration of the platform from the backup. Unavailable for a backup not verified, during a backup (“no backup running”) or another restoration (“no restoration running”). The dialog says what will be lost — everything entered since —, that the users will be signed out and that the restoration will be written in the audit log; it restores only once the identifier of the backup is entered. The restoration launched, the screen gives way to that of the maintenance, which follows it to its end and then offers to sign in again. A session ended before then leads to the audit log, where the outcome of the restoration is read.
 
 During a restoration, only the download stays available. No command deletes a backup: the rotation sees to it, according to the retention.
 

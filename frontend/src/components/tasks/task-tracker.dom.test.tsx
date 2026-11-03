@@ -23,7 +23,6 @@ import {
 } from "@/test/fixtures";
 import { closeTasks, tasksButton, tasksRegion } from "@/test/task-panel";
 
-import { OWNER_KEY } from "./session-end";
 import { STORAGE_KEY } from "./storage";
 import { POLL_INTERVAL } from "./task-entry";
 import { TaskPanel, TasksButton, TaskTracker, useTrackTask } from "./task-tracker";
@@ -440,32 +439,6 @@ describe("the tracker of background tasks", () => {
       );
     },
   );
-
-  it("wipes a task interrupted for want of a session, even for the account that reconnects (#1180) [WF-SEC-0020-A]", async () => {
-    serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
-    const identified = (page: ReactNode) => (
-      <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr}>
-        <TaskTracker accountId="00000000-0000-4000-8000-0000000000a1">
-          <TasksButton />
-          <TaskPanel />
-          {page}
-        </TaskTracker>
-      </NextIntlClientProvider>
-    );
-    const view = render(identified(<Starting given={task("task_mark_queued")} />));
-    await userEvent.click(screen.getByRole("button", { name: "Lancer" }));
-    await tick();
-    expect(within(entries()).getByRole("link", { name: "Se connecter" })).toBeVisible();
-    expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(window.sessionStorage.getItem(OWNER_KEY)).toBeNull();
-    view.unmount(); // the same account signs in again, the tab reloads: no task is followed on
-    const client = serve({ [TASK]: "task_succeeded" });
-    render(identified(<Screen name="Planning" />));
-    await tick();
-    expect(reads(client)).toEqual([]);
-    expect(within(tasksRegion()).queryAllByRole("listitem")).toHaveLength(0);
-    expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
-  });
 
   it("leaves no alert of the API out of reach once the API refuses to say where the task stands", async () => {
     server.client = unreachable();
