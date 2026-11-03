@@ -2718,7 +2718,7 @@ slot 0: its ports and its names are those of before the slots.
 
 | Command             | What it does                                                                                                                                                                                                            |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | takes for the worktree the smallest free slot from 1 to N, or says the one it holds already; if the N are taken, it fails naming their holders; in the main repository (its `.git` is a directory), it says slot 0      |
+| `make slot`         | takes for the worktree it is run in the first free slot from 1 to N, or says its own; if the N are taken, it fails, holders named; in the main repository (its `.git` is a directory), it says slot 0, taking nothing   |
 | `make slot-release` | removes the containers and the volumes of the slot of the worktree — the service platform, the services of the tests —, then frees it; if Docker cannot remove them, the slot stays taken, and it says so               |
 | `make slots`        | writes N, then each slot taken on the workstation, whatever the repository, with its worktree and the moment it was taken                                                                                               |
 
