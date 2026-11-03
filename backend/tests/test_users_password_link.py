@@ -276,11 +276,13 @@ class Inviting(Watching):
         super().__init__(keycloak, settings, database)
         self.outcome: InvitationFailure | None = None
         self.entries_seen: list[int] = []
+        self.subjects: list[str] = []
         self._journal = database
 
     def send_invitation(self, subject: str) -> InvitationFailure | None:
         """Note, then give the outcome told."""
         self._note("send_invitation")
+        self.subjects.append(subject)
         self.entries_seen.append(len(journal(self._journal)))
         return self.outcome
 
@@ -322,6 +324,7 @@ def test_an_invitation_sent_again_is_answered_empty_and_inscribed_once_after_its
     # Read under a lock, sent with no connection held and nothing inscribed yet, then inscribed.
     assert inviting.held == [("send_invitation", 0)]
     assert inviting.entries_seen == [0]
+    assert len(inviting.subjects) == 1
     (entry,) = journal(database)
     assert (entry.action, entry.object_id, entry.params) == ("password_link_create", user_id, {})
     assert entry.actor_display_name == "Camille Martin"
