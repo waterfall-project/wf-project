@@ -295,8 +295,14 @@ function GestureNotice<Row extends GridNode>({
     if (refusal === undefined) {
       return undefined;
     }
-    return refusal.row === undefined
-      ? t("refusedCreating", { label: refusal.subject ?? "" })
+    if (refusal.row === undefined) {
+      // A creation beside no row is always named (`create`): the `?? ""` only satisfies the type.
+      return t("refusedCreating", { label: refusal.subject ?? "" });
+    }
+    // A line created without a label has no subject: the row is only the place the line was asked
+    // at, told by its number and never by its label, which is not the line's (#1701).
+    return refusal.subject === undefined
+      ? t("refusedAtRow", { number: refusal.row.row_number })
       : t("refusedAt", { number: refusal.row.row_number, label: labelOf(refusal.row) });
   };
   return (

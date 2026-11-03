@@ -299,6 +299,7 @@
       "created": "“{label}” created.",
       "createdUnnamed": "Line created.",
       "refusedAt": "Refused at row {number}, “{label}”:",
+      "refusedAtRow": "Refused at row {number}:",
       "refusedCreating": "Creation of “{label}” refused:",
       "onRow": "Row {number}, “{label}”",
       "timelines": "Timelines",

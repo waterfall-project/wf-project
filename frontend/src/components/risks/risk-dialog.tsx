@@ -13,7 +13,7 @@ import { type ReactElement, type Ref, useEffect, useId, useRef, useState } from 
 import { Command } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { type CommandOffer, UNAVAILABLE } from "@/components/commands/offer";
-import { WritingNote } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 
 /**

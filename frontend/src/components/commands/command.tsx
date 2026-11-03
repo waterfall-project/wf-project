@@ -17,7 +17,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { WritingNote } from "@/components/reference/reference-form";
+import { WritingNote } from "./writing-note";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
@@ -135,6 +135,8 @@ export function Command({
   const unmet = unmetId(offer, id);
   const why = `${id}-writing`;
   const waiting = busy || writing;
+  // Both the note of the write under way and the unmet condition describe the command, when both are said.
+  const describedBy = writing ? [why, unmet].filter((id) => id !== undefined).join(" ") : unmet;
   const run = () => {
     if (!offer.is_available || waiting) {
       return;
@@ -158,7 +160,7 @@ export function Command({
         label={label}
         help={help}
         unavailable={unmet === undefined ? undefined : unmetText(offer)}
-        describedBy={writing ? why : unmet}
+        describedBy={describedBy}
       >
         <Button
           type="button"

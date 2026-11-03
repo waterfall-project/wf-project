@@ -61,7 +61,7 @@ import { type CommandOffer, UNAVAILABLE, unmetId } from "@/components/commands/o
 import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-notice";
 import { rejected } from "@/components/commands/rejection";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
-import { WritingNote } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { ActiveState } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import {

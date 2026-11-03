@@ -129,20 +129,6 @@ export interface FormField {
   readonly invalid?: string;
 }
 
-/**
- * What a command that opens a form says while a write of the form is under way, which keeps it
- * inactive (`onWriting`): rendered then alone, for the command to be described by it. A command of a
- * cell of a dense grid, which has no room for it, says it in its tooltip (`CellCommand`).
- */
-export function WritingNote({ id, writing }: { readonly id: string; readonly writing: boolean }) {
-  const t = useTranslations("reference.form");
-  return writing ? (
-    <span id={id} className="text-xs text-muted-foreground">
-      {t("writing")}
-    </span>
-  ) : null;
-}
-
 /** A field of text the form requires, no longer than the contract takes. */
 export function required(name: string, label: string, maxLength: number): FormField {
   return { name, label, control: "text", required: true, maxLength };

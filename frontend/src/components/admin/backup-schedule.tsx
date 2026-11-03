@@ -42,12 +42,8 @@ import { useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
-import {
-  type Draft,
-  type FormField,
-  ReferenceForm,
-  WritingNote,
-} from "@/components/reference/reference-form";
+import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { ReferenceSection } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import { localTimeOfDay } from "@/i18n/format";

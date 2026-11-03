@@ -38,7 +38,8 @@ import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
-import { type Draft, type FormField, ReferenceForm, required, WritingNote } from "./reference-form";
+import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import {
   DurationUnitFigures,
   IndexThresholdTable,

@@ -62,8 +62,8 @@ import {
   type FormField,
   ReferenceForm,
   required,
-  WritingNote,
 } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
 

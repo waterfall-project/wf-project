@@ -56,7 +56,7 @@ import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-not
 import { rejected } from "@/components/commands/rejection";
 import type { RowCommands } from "@/components/grid/undo-commands";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
-import { WritingNote } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuLabel } from "@/components/ui/context-menu";
 import {

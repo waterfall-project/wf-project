@@ -428,10 +428,10 @@ partage le même invariant. Un défaut trouvé en revue et qui peut revenir s'aj
     qu'elle soit (`settings-forms.tsx`, `project-form.tsx`, `backup-schedule.tsx` ; la modification
     d'un sous-projet tant que celle de ce sous-projet est en route, `subproject-commands.tsx`), ou
     son pareil pour un dialogue qui n'est pas un formulaire du référentiel (la liste des
-    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). Les confirmations en ligne (`ConfirmedCommand`) tiennent de même leur commande
-    inactive par `writing` de `Command`, tant que leur état `busy` est vrai (#1364,
-    `revision-commands.dom.test.tsx`). La preuve, dans chacun de
-    `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
+    contributeurs, `contributor-commands.tsx`, EP-14/L54, #734). Les confirmations en ligne
+    (`ConfirmedCommand`) tiennent de même leur commande inactive par `writing` de `Command`, tant
+    que leur état `busy` est vrai (#1364, `revision-commands.dom.test.tsx`). La preuve, dans chacun
+    de `settings-forms.dom.test.tsx`, `project-form.dom.test.tsx` et `backup-schedule.dom.test.tsx` :
     l'écriture retenue, le dialogue fermé, la commande a le focus, inactive, et un clic n'ouvre
     rien ; libérée, la commande se lève et le formulaire rouvert écrit depuis la version de la
     réponse — après un succès ; après un refus arrivé le dialogue fermé (les seuils refusés, le code

@@ -299,6 +299,7 @@
       "created": "« {label} » créée.",
       "createdUnnamed": "Ligne créée.",
       "refusedAt": "Refusé à la ligne {number}, « {label} » :",
+      "refusedAtRow": "Refusé à la ligne {number} :",
       "refusedCreating": "Création de « {label} » refusée :",
       "onRow": "Ligne {number}, « {label} »",
       "timelines": "Chronologies",
