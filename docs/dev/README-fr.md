@@ -2738,7 +2738,7 @@ est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
 
 | Commande            | Ce qu'elle fait                                                                                                                                                                                                                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make slot`         | prend pour le worktree où elle est lancée le plus petit créneau libre de 1 à N, ou dit celui qu'il tient déjà ; quand les N sont pris, elle échoue en nommant leurs porteurs ; dans le dépôt principal — reconnu sans git, par un `.git` qui est un répertoire, là où celui d'un worktree lié est un fichier —, elle dit le créneau 0 et ne prend rien |
+| `make slot`         | prend pour le worktree le plus petit créneau libre de 1 à N, ou dit celui qu'il tient déjà ; si les N sont pris, elle échoue en nommant leurs porteurs ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0         |
 | `make slot-release` | retire les conteneurs et les volumes du créneau du worktree — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                          |
 | `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                              |
 

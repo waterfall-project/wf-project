@@ -261,6 +261,22 @@ def test_a_linked_worktree_that_git_refuses_is_an_error(workstation: Workstation
     assert "dubious ownership" in done.stderr
 
 
+def test_a_worktree_under_the_main_repository_is_not_slot_0(workstation: Workstation) -> None:
+    """US-1100: a worktree under the main one finds its .git file before the main .git directory."""
+    tree = workstation.main / ".claude/worktrees/lot"
+    tree.parent.mkdir(parents=True)
+    workstation.git(workstation.main, "worktree", "add", "--quiet", "--detach", str(tree))
+    (tree / "frontend").mkdir()
+    done = workstation.tool(tree, "claim")
+    assert done.returncode == 0, done.stderr
+    assert f"slot 1 taken: {tree}" in done.stdout
+    assert workstation.tool(tree, "which").stdout == "1\n"
+    refused = workstation.tool(tree, "which", extra=refusing_git(workstation))
+    assert refused.returncode != 0
+    assert refused.stdout == ""
+    assert "cannot say which worktree" in refused.stderr
+
+
 def test_outside_any_repository_is_slot_0(workstation: Workstation) -> None:
     """US-1100: outside any repository, the slot is 0, as before."""
     outside = workstation.root / "outside"
