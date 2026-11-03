@@ -95,7 +95,7 @@ from waterfall.platform.audit import Act
 from waterfall.platform.audit_columns import AuditColumnFilters
 from waterfall.platform.database import utc_now
 from waterfall.platform.errors import FieldError, UnavailableError, UnprocessableError
-from waterfall.platform.keycloak import IdentityProviderError
+from waterfall.platform.keycloak import IdentityProviderError, unavailable
 from waterfall.platform.keycloak_admin import KeycloakAdmin, LocalIdentity
 from waterfall.platform.logs import get_logger
 
@@ -174,6 +174,7 @@ def users(session: Session, actor: Actor, accounts: Sequence[Account]) -> list[U
             is_active=account.is_active,
             is_anonymized=account.anonymized_at is not None,
             is_last_administrator=account.user_id == last,
+            is_local=account.origin == LOCAL,
         )
         commands = account_commands(state, may_change=may_change, may_attribute=may_attribute)
         fields = account_fields(account, held[account.user_id])
@@ -635,3 +636,28 @@ def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> 
         inscribe_password_link(session, user_id, act)
     logger.info("account.password_link_made", user_id=str(user_id))
     return given
+
+
+@router.post(
+    "/users/{user_id}/invitation",
+    operation_id="resendInvitation",
+    dependencies=WRITE,
+    status_code=204,
+)
+def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> None:
+    """Have the provider send again the mail that carries the link of a local account (WF-ADM-0140).
+
+    Judged as the link is: an account that is not local, anonymised or deactivated has none (409),
+    and no mail leaves. A mail the provider does not send is never presented as sent: 503
+    (WF-EXP-0040), the link remaining to be handed over by another channel. The sending is
+    inscribed as the request of a link is, once the mail has left, the account read again under a
+    lock (#669).
+    """
+    with services.database.transaction() as session:
+        holder = password_link_holder(session, user_id)
+    if not invite(services.keycloak_admin, holder.subject, user_id):
+        raise unavailable()
+    act = Act(account.user_id, utc_now())
+    with services.database.transaction() as session:
+        inscribe_password_link(session, user_id, act)
+    logger.info("account.invitation_sent", user_id=str(user_id))

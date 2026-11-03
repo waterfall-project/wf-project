@@ -14,7 +14,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from access_rows import account, role
+from access_rows import account, anonymized_account, role
 from fastapi.testclient import TestClient
 from openapi_core import OpenAPI
 from realm import KEY, TestRealm
@@ -117,6 +117,75 @@ def test_an_account_that_is_not_local_or_is_deactivated_has_no_link(
     response = link_of(client, headers, user_id)
     assert refusal(response) == (409, "STATE_FORBIDS_OPERATION", {"missing_condition": condition})
     assert traces() == ([], 0)
+
+
+def invitation_of(client: ContractClient, headers: dict[str, str], user_id: UUID) -> Any:
+    """Ask the API to send again the invitation of an account."""
+    return client.post(f"{USERS}/{user_id}/invitation", headers=headers)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (link_of, "local", "is_not_anonymized"),
+        (invitation_of, "local", "is_not_anonymized"),
+        (link_of, "directory", "is_local_account"),
+        (invitation_of, "directory", "is_local_account"),
+    ],
+    ids=["link", "invitation", "link of the directory", "invitation of the directory"],
+)
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_an_anonymized_account_has_neither_link_nor_invitation_and_is_refused_as_such(
+    client: ContractClient,
+    database: Database,
+    headers: dict[str, str],
+    traces: Traces,
+    case: tuple[Callable[[ContractClient, dict[str, str], UUID], Any], str, str],
+) -> None:
+    # « sa réactivation est refusée » : the anonymisation is irreversible, so the refusal of a
+    # local account anonymised names it, not its deactivation, which it implies; one that is not
+    # local lacks that first. Nothing is asked of the provider, nor inscribed.
+    ask, origin, condition = case
+    user_id = anonymized_account(database, origin=origin)
+    response = ask(client, headers, user_id)
+    assert refusal(response) == (409, "STATE_FORBIDS_OPERATION", {"missing_condition": condition})
+    assert traces() == ([], 0)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("directory", "active", "is_local_account"),
+        ("local", "deactivated", "is_active_account"),
+    ],
+    ids=["not local", "deactivated"],
+)
+@pytest.mark.requirement("WF-ADM-0140-A")
+def test_an_account_that_is_not_local_or_is_deactivated_has_no_invitation(
+    client: ContractClient,
+    database: Database,
+    headers: dict[str, str],
+    traces: Traces,
+    case: tuple[str, str, str],
+) -> None:
+    # As for its link: no mail leaves for an account that authenticates elsewhere or may not sign
+    # in.
+    origin, state, condition = case
+    user_id = account(database, "Montgolfier", "Jeanne", origin=origin, state=state)
+    response = invitation_of(client, headers, user_id)
+    assert refusal(response) == (409, "STATE_FORBIDS_OPERATION", {"missing_condition": condition})
+    assert traces() == ([], 0)
+
+
+@pytest.mark.requirement("WF-ADM-0060-A")
+def test_a_link_made_for_an_account_anonymized_meanwhile_is_neither_inscribed_nor_given(
+    database: Database, session: Session
+) -> None:
+    user_id = anonymized_account(database)
+    with logging_context(correlation_id="link"), pytest.raises(ConflictError) as refused:
+        inscribe_password_link(session, user_id, Act(None, NOON))
+    assert refused.value.params == {"missing_condition": "is_not_anonymized"}
+    assert session.scalars(select(AuditEntry)).all() == []
 
 
 def test_an_account_that_does_not_exist_has_no_link(
