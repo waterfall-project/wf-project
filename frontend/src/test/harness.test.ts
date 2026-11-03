@@ -390,6 +390,29 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     },
   );
 
+  it("plays on forty workers, the fronts a slot's block of ports holds (#1902)", async () => {
+    vi.stubEnv("E2E_WORKERS", "40");
+    vi.stubEnv("E2E_FRONT_PORT", "20040");
+    const config = await harness();
+    expect(config.workers).toBe(40);
+    const fronts = frontsOf(config);
+    expect(fronts).toHaveLength(40);
+    expect(fronts.at(-1)?.url).toBe("http://127.0.0.1:20079");
+  });
+
+  it("refuses more than forty workers, which would take the ports of the next slot (#1902)", async () => {
+    vi.stubEnv("E2E_WORKERS", "41");
+    await expect(harness()).rejects.toThrow(
+      "E2E_WORKERS must be 40 at most: a front is started for each worker, and the block of ports of a slot holds 40 of them",
+    );
+  });
+
+  it("holds Playwright's own share to forty workers, on a machine of more than eighty processors (#1902)", async () => {
+    vi.stubEnv("WATERFALL_PROCESSORS", "200");
+    vi.stubEnv("E2E_WORKERS", undefined);
+    expect((await harness()).workers).toBe(40);
+  });
+
   it.each(["0", "-1", "2.5", "two"])("refuses %j as a number of workers", async (named) => {
     vi.stubEnv("E2E_WORKERS", named);
     await expect(harness()).rejects.toThrow("E2E_WORKERS must be a whole number of workers");

@@ -79,10 +79,10 @@ désignent ; sans sa variable, un tel test échoue en le disant :
 | Redis | `WATERFALL_TEST_REDIS_URL` (les tests du front sur les sessions la demandent aussi) |
 | Garage, le stockage objet | `WATERFALL_TEST_STORAGE_URL` |
 
-On peut prendre ceux de la plateforme de service (ci-dessous) ou lancer des services jetables. Les
-sections « Un test contre PostgreSQL », « Un test contre le stockage objet » et « Un test contre
-Redis » du [guide de développement](docs/dev/README-fr.md) donnent la forme des adresses et les
-commandes.
+`make test-back`, `make coverage-back`, `make test-front` et `make coverage-front` démarrent
+ces services pour le créneau du worktree, sur ses ports ; `make test-services` les démarre à la
+main. Une variable `WATERFALL_TEST_*_URL` déjà posée l'emporte. Le
+[guide de développement](docs/dev/README-fr.md) détaille les services et leurs adresses.
 
 ## La plateforme de service
 

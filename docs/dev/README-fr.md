@@ -2641,6 +2641,7 @@ commande.
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 16, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
@@ -2778,6 +2779,22 @@ tient pas de créneau, ces cibles échouent avant de rien lancer, en disant `mak
 ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
 `waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
 échoue d'emblée, en le disant.
+
+**Les services des tests** (US-1110). Les tests du back ont besoin de PostgreSQL, de Redis et du
+stockage objet, ceux du front de Redis (« Tests »). `make test-services` démarre les trois pour le
+créneau du worktree — `deploy/compose/compose.test.yaml`, sous le projet `waterfall-test-s<i>`, aux
+images épinglées de la plateforme (PostgreSQL 16 compris), leurs données en mémoire, publiés sur
+`127.0.0.1` aux ports 0, 1 et 2 du bloc du créneau — et attend leurs contrôles de santé ; relancée,
+elle ne fait rien de plus. `make test-services-down` les retire avec leurs volumes. On ne les lance
+pas à la main : `make test-back`, `make coverage-back`, `make test-front` et `make coverage-front`
+passent par `slots.py run --services db,redis,storage` (le front : `redis`), `TESTS` compris. Une
+fois le créneau lourd pris, s'il y en a un — après l'attente, jamais avant, de sorte que ce qu'on a
+retiré entre-temps est redémarré —, l'outil lance `make test-services` pour les services dont la
+variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` ou `WATERFALL_TEST_STORAGE_URL`
+n'est pas posée, et la pose sur leur port ; une variable que l'environnement donne déjà l'emporte,
+son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
+`make slot-release` les retire avec la plateforme de service. Dans un worktree lié sans créneau,
+les deux cibles échouent en disant `make slot`.
 
 ## Chaîne
 
@@ -3257,11 +3274,17 @@ que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend un
 test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
-- **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
-  l'environnement, « Commandes »), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
-  vaut alors
-  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
-  créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
+- **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent
+  PostgreSQL, pour le créneau du worktree (« Commandes »), quand la variable n'est pas déjà posée —
+  après l'attente d'un créneau lourd, `TESTS` compris —, et la posent sur lui. `make test-services`
+  le démarre seul (`deploy/compose/compose.test.yaml` : PostgreSQL 16, à l'image de la plateforme,
+  en mémoire, sur `127.0.0.1:<port du créneau>`, `20000` dans le dépôt principal), sans rien faire
+  de plus s'il tourne, et `make test-services-down` le retire avec ses volumes ; `make
+  slot-release` le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement
+  pose déjà l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
+- **Sur un poste dont `pg_restore` est plus récent que le serveur de la plateforme** — le poste
+  actuel, client 17, serveur 16 —, les tests des restaurations échouent (#982), jusqu'à l'EPIC
+  de montée de version des dépendances ; ni serveur 17 ni autre contournement.
 - **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
   en silence. Les tests d'`examples/`, sockets fermées, n'en ont pas besoin.
 - Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
@@ -3281,8 +3304,13 @@ le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_ro
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.
-- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
-  `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
+- **Sur un poste**, le Makefile démarre Garage comme PostgreSQL (« Un test contre PostgreSQL ») :
+  `make test-back` ou `make test-services`, qui lui donnent l'image et le `garage.toml` de la
+  plateforme, une clé et un secret propres aux tests, et la variable
+  `http://<clé>:<secret>@127.0.0.1:<port du créneau>` (`20002` dans le dépôt principal) ;
+  `make test-services-down` le retire. Aucun `docker run` à la main. Les tests des
+  restaurations y échouent tant que `pg_restore` du poste est plus récent que le serveur de la
+  plateforme (#982).
 - **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
 
 ### Un test contre Redis
@@ -3301,8 +3329,10 @@ d'un autre. Aucun test ne vide le serveur.
 
 - **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
   variable.
-- **Sur un poste**, un Redis jetable suffit :
-  `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
+- **Sur un poste**, le Makefile démarre Redis comme PostgreSQL (« Un test contre PostgreSQL ») :
+  `make test-back`, `make test-front` et leurs couvertures, ou `make test-services` ; l'image est
+  celle de la plateforme, sur `127.0.0.1:<port du créneau>` (`20001` dans le dépôt principal) ;
+  `make test-services-down` le retire. Aucun `docker run` à la main.
 - **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
   silence.
 
@@ -3369,8 +3399,9 @@ parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quar
 un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier d'au moins 1, rien d'autre), moins que
-Playwright n'en prend de lui-même — la moitié des processeurs — sur un poste chargé, où
+(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
+worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
+lui-même — la moitié des processeurs, plafonnée à quarante — sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 

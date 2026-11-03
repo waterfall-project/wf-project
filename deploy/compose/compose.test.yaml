@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 waterfall-project
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The services the tests run against (US-1110): PostgreSQL, Redis and Garage, at the versions and
+# by the images of the service platform (compose.service.yaml), their data in memory. Started by
+# `make test-services` under the project of the slot of the worktree, which publishes them on its
+# ports, on the workstation alone; `make test-back` and the others start them when their
+# WATERFALL_TEST_*_URL is not set. The chain starts its own (back.yml, front.yml) with the same
+# images and settings, and this file does not run there.
+#
+# Nothing here is a secret: a server that lives for the tests, reachable from the workstation alone.
+# The key of the storage is the one `tools/src/wftools/slots.py` writes in WATERFALL_TEST_STORAGE_URL.
+name: waterfall-test
+
+services:
+  postgres:
+    # The version the platform targets, pinned by the digest of its index. Trusting the connections
+    # of the workstation, as the service of the chain does: the role is a superuser who may create
+    # the database of each run.
+    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${WATERFALL_TEST_POSTGRES_PORT:-20000}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    # Nothing is kept: no snapshot, and nothing on disk.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${WATERFALL_TEST_REDIS_PORT:-20001}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  storage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    command: ["/garage", "server", "--single-node", "--default-access-key"]
+    environment:
+      GARAGE_RPC_SECRET: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff
+      GARAGE_DEFAULT_ACCESS_KEY: GK000000000000000000000001
+      GARAGE_DEFAULT_SECRET_KEY: test-only-storage-secret
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+    tmpfs:
+      - /var/lib/garage
+    ports:
+      - "127.0.0.1:${WATERFALL_TEST_STORAGE_PORT:-20002}:3900"
+    mem_limit: 256m
+    healthcheck:
+      # The image holds Garage alone: its own command asks the node how it stands.
+      test: ["CMD", "/garage", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

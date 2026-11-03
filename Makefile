@@ -26,6 +26,8 @@ COMPOSE_DEV := docker compose -f deploy/compose/compose.dev.yaml
 # platform runs under the project of the slot of the worktree (WATERFALL_SERVICE_PROJECT, below).
 COMPOSE_SERVICE_FILE = PRISM_VERSION=$(PRISM_VERSION) docker compose -f deploy/compose/compose.service.yaml
 COMPOSE_SERVICE = $(COMPOSE_SERVICE_FILE) -p $(WATERFALL_SERVICE_PROJECT)
+# The services of the tests (US-1110), under the project of the slot of the worktree.
+COMPOSE_TEST = docker compose -f deploy/compose/compose.test.yaml -p $(WATERFALL_TEST_PROJECT)
 # The production platform (US-0430), under a local name: Caddy's own authority makes its certificate.
 COMPOSE_PRODUCTION := docker compose -f deploy/compose/compose.prod.yaml -f deploy/compose/compose.prod.local.yaml
 # The root of the authority of Keycloak's front end on the service platform (#680), copied out of
@@ -47,6 +49,8 @@ PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 # pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
 # The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
 PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
+# pnpm for the unit tests of the front, which have the Redis of the slot of the worktree (TESTING_FRONT).
+PNPM_TESTING = cd $(FRONT) && $(TESTING_FRONT) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -61,7 +65,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
 	requirements-release screens readmes reuse lint-workflows \
-	lint-shell check slot slot-release slots \
+	lint-shell check slot slot-release slots test-services test-services-down \
 	check-all check-repo check-spec \
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
@@ -86,7 +90,8 @@ TESTS ?=
 SHARD ?=
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
-# paths fail by a timeout (#736). Empty, its own: half the processors.
+# paths fail by a timeout (#736). From 1 to 40: a front per worker, forty ports per slot. Empty, its
+# own: half the processors, at most 40.
 WORKERS ?=
 # N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
 # side, their coverage, the production build of the front, the end-to-end paths. Several agents
@@ -97,6 +102,13 @@ WORKERS ?=
 # always free. `env` keeps the variables set before the command a command of their own.
 SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# The same for tests that need services (US-1110: db, redis, storage, as `slots.py run --services`
+# names them): once the slot is taken, if any, it starts those whose WATERFALL_TEST_*_URL the
+# environment does not give (make test-services), sets the variables on them, and runs the command.
+# They start with TESTS too, which does not wait for a slot but needs its services as much.
+testing = $(SLOTS) run $(if $(TESTS),,--heavy )--services
+TESTING_BACK = $(testing) db,redis,storage -- env
+TESTING_FRONT = $(testing) redis -- env
 # The workers of pytest: the share a heavy run was given, or the one it would be given, for a run
 # of one file that does not wait.
 # An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
@@ -120,6 +132,8 @@ SLOT_PATHS := E2E_API_PORT E2E_FRONT_PORT
 $(call slot-export,service-up service-install keycloak-authority service-logs service-down \
 	test-keycloak e2e-service,$(SLOT_SERVICE))
 $(call slot-export,build-keycloak,WATERFALL_KEYCLOAK_IMAGE)
+$(call slot-export,test-services test-services-down,WATERFALL_TEST_PROJECT \
+	WATERFALL_TEST_POSTGRES_PORT WATERFALL_TEST_REDIS_PORT WATERFALL_TEST_STORAGE_PORT)
 $(call slot-export,e2e e2e-measure e2e-service,$(SLOT_PATHS))
 $(call slot-export,check-front-image,WATERFALL_FRONT_CHECK_IMAGE)
 
@@ -273,6 +287,7 @@ lint-compose: ## Validate the Compose files
 		WATERFALL_DEMO_USER=stand-in WATERFALL_DEMO_PASSWORD_HASH=stand-in \
 		WATERFALL_SERVER_ACTIONS_KEY=stand-in PRISM_VERSION=$(PRISM_VERSION) \
 		docker compose -f deploy/compose/compose.demo.yaml config --quiet
+	@docker compose -f deploy/compose/compose.test.yaml config --quiet
 
 build-keycloak: ## Build the image of Keycloak: the extension compiled and tested, the themes, the realm (deploy/keycloak)
 	@docker build $(call build-cache-from,keycloak) --tag $(WATERFALL_KEYCLOAK_IMAGE) deploy/keycloak
@@ -374,10 +389,10 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
 
 test-back: ## Tests of the back (TESTS=<file> runs one file)
-	@cd $(BACK) && $(heavy) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)
 
 coverage-back: ## Code coverage of the back: 90 % of lines, 85 % of branches (US-0060)
-	@cd $(BACK) && $(heavy) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
+	@cd $(BACK) && $(TESTING_BACK) uv run --frozen pytest $(PYTEST_WORKERS) --quiet --cov --cov-report=json:coverage.json
 	@$(WFTOOLS).codecoverage coverage.py $(BACK)/coverage.json
 
 # The front in two halves, which the chain runs side by side (front.yml, e2e.yml); on a
@@ -444,7 +459,7 @@ catalogs: ## The catalogues of the front are twins, with a key for each value th
 	@$(WFTOOLS).catalogs $(JSON_BUNDLE) $(FRONT)/messages/fr.json $(FRONT)/messages/en.json
 
 test-front: install-front ## Unit tests of the front (TESTS=<file> runs one file; SHARD=lint or i/N one part of them, as the chain spreads them)
-	@$(PNPM_HEAVY) test $(FRONT_PART) $(TESTS)
+	@$(PNPM_TESTING) test $(FRONT_PART) $(TESTS)
 
 build-front: export WATERFALL_API_ADDRESS = $(NOWHERE)
 build-front: install-front ## Build the front for production with no API to reach, no page reading it while built (#131); in the fast tier, the full one builds it for the end-to-end paths
@@ -462,9 +477,9 @@ prerendered-front: ## The production build of the front prerendered no page that
 # a part of the chain that failed silent cost a run to diagnose (US-0590b).
 coverage-front: install-front ## Code coverage of the front: 90 % of lines, 85 % of branches (US-0060); SHARD=lint or i/N measures one part of the tests, for coverage-front-merge
 ifdef SHARD
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
+	@$(PNPM_TESTING) exec vitest run --coverage --silent $(FRONT_PART) --reporter=blob --reporter=dot
 else
-	@$(PNPM_HEAVY) exec vitest run --coverage --silent
+	@$(PNPM_TESTING) exec vitest run --coverage --silent
 	@$(WFTOOLS).codecoverage istanbul $(FRONT)/coverage/coverage-summary.json
 endif
 
@@ -507,7 +522,7 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
@@ -564,6 +579,15 @@ slot-release: ## Remove the containers and volumes of the slot of this worktree 
 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
+
+# PostgreSQL 16, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
+# (WATERFALL_TEST_POSTGRES_PORT, _REDIS_PORT, _STORAGE_PORT): what the tests of the back and of the
+# front are given by make test-back and the others, unless their WATERFALL_TEST_*_URL says otherwise.
+test-services: ## Start, for the slot of this worktree, the services the tests run against — PostgreSQL, Redis, Garage — and wait for them; running, they stay as they are (SERVICES=<some of them>)
+	@$(COMPOSE_TEST) up --detach --wait $(SERVICES)
+
+test-services-down: ## Remove the services of the tests of the slot of this worktree, their volumes included
+	@$(COMPOSE_TEST) down --volumes
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)

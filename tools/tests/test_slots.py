@@ -256,6 +256,8 @@ HEAVY_TARGETS = {
     "e2e": True,
     "e2e-measure": False,
 }
+SERVICES_TARGETS = {"test-back", "coverage-back", "test-front", "coverage-front"}
+"""The targets that also start the test services (US-1110), whether they wait for a slot or not."""
 
 
 def plan(
@@ -284,10 +286,19 @@ def test_make_waits_for_a_slot_unless_a_single_file_is_selected(
     tmp_path: Path, target: str
 ) -> None:
     """US-1090: a heavy run waits for a slot, and a run of one file (TESTS) does not (#1892)."""
-    assert "slots.py run --heavy --" in plan(tmp_path, target).stdout
+    heavy = (
+        "slots.py run --heavy --services"
+        if target in SERVICES_TARGETS
+        else "slots.py run --heavy --"
+    )
+    assert heavy in plan(tmp_path, target).stdout
     if HEAVY_TARGETS[target]:
         one_file = plan(tmp_path, target, "TESTS=tests/test_guard.py").stdout
-        assert "slots.py run" not in one_file
+        if target in SERVICES_TARGETS:
+            assert "slots.py run --services" in one_file, "no wait, but the services of the tests"
+            assert "--heavy" not in one_file
+        else:
+            assert "slots.py run" not in one_file
         assert one_file.rstrip().endswith("tests/test_guard.py")
 
 
