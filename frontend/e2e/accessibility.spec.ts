@@ -297,6 +297,12 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
           );
           const { breaches } = await axeAudit(page);
           expect.soft(breaches, "axe's rules for WCAG A and AA").toEqual([]);
+          // In the search field, a first Escape empties it and keeps the panel (#1481).
+          const search = panel.getByRole("searchbox", { name: "Chercher dans l’aide" });
+          await search.fill("acquise");
+          await page.keyboard.press("Escape");
+          await expect(search).toHaveValue("");
+          await expect(panel).toBeVisible();
           await page.keyboard.press("Escape");
           await expect(page.getByRole("dialog")).toHaveCount(0);
           await expect(help).toBeFocused();
