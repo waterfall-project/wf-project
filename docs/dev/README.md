@@ -2694,6 +2694,21 @@ production code, tests and the rest (documentation, configuration, contract), th
 files set apart. The pull request puts that number next to the estimate of its issue; an
 overrun makes nothing fail (README of the roadmap, section « Lots »).
 
+The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
+coverage of the back and the front, `make test-tools`, the production build of the front, the
+end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the
+profile of the user, is an integer from 1 to 9; absent, it is 1; any other value is refused, and
+said. The admission is `tools/src/wftools/slots.py run --heavy -- <command>` (standard library
+alone, run by `python3` without `uv`), which the Makefile puts before every heavy run: it takes the
+first of N lock files of `$XDG_RUNTIME_DIR` (`/tmp` by default) — `waterfall-heavy.lock`, then
+`waterfall-heavy.2.lock` to `waterfall-heavy.<N>.lock` —, says once that all are taken and tries
+again every second, holds the lock until the command ends without passing it to its children (a
+server left behind does not keep the slot), relays the signals and returns the code of the command.
+A run of one single file (`TESTS`) does not wait. It also sets `WATERFALL_PROCESSORS`, the
+processors divided by N, at least 1: the workers of pytest (`-n`, eight at most for the back), of
+Vitest and of Playwright follow it, except `WORKERS`. At N = 1 the share is the whole workstation:
+nothing changes.
+
 ## The chain
 
 The chain is made of GitHub Actions workflows (`.github/workflows/`):

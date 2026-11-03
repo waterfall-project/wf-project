@@ -2714,6 +2714,21 @@ code de production, tests et le reste (documentation, configuration, contrat), l
 engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
 dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
 
+Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
+couverture du back et du front, `make test-tools`, la construction du front pour la production,
+les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
+l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
+toute autre valeur est refusée, en le disant. L'admission est `tools/src/wftools/slots.py run
+--heavy -- <commande>` (bibliothèque standard seule, lancée par `python3` sans `uv`), que le
+Makefile place devant chaque exécution lourde : elle prend le premier de N fichiers de verrou de
+`$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis `waterfall-heavy.2.lock` à
+`waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie chaque seconde, garde le
+verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un serveur resté derrière
+ne garde pas le créneau), relaie les signaux et rend le code de la commande. Une exécution d'un
+seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les processeurs
+divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de Vitest et
+de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne change.
+
 ## Chaîne
 
 La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :

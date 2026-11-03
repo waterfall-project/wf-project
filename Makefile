@@ -44,8 +44,9 @@ FRONT   := frontend
 NOWHERE := http://127.0.0.1:9
 PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
 PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
-# pnpm for a heavy run, which waits for its turn (HEAVY_LOCK).
-PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) pnpm
+# pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
+# The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
+PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -87,12 +88,20 @@ SHARD ?=
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
 # paths fail by a timeout (#736). Empty, its own: half the processors.
 WORKERS ?=
-# One heavy run at a time on the workstation: the whole tests of a side, their coverage, the
-# production build of the front, the end-to-end paths. Several agents running them side by side ran out of memory (2026-10). A run of
-# one file (TESTS) does not wait; on a runner of the chain, alone, the lock is always free. `env`
-# keeps the variables set before the command a command of their own once behind flock.
-HEAVY_LOCK ?= $(or $(XDG_RUNTIME_DIR),/tmp)/waterfall-heavy.lock
-heavy = $(if $(TESTS),,flock $(HEAVY_LOCK) env)
+# N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
+# side, their coverage, the production build of the front, the end-to-end paths. Several agents
+# running them side by side ran out of memory (2026-10). tools/src/wftools/slots.py admits them
+# (a free slot among N lock files of XDG_RUNTIME_DIR, the first the one of before N existed),
+# keeps the slot until the run ends and sets WATERFALL_PROCESSORS, the share of the processors of
+# one run. A run of one file (TESTS) does not wait; on a runner of the chain, alone, a slot is
+# always free. `env` keeps the variables set before the command a command of their own.
+SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
+heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
+# The workers of pytest: the share a heavy run was given, or the one it would be given, for a run
+# of one file that does not wait.
+# An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used. It is handed
+# to the shell by hand: GNU make 4.3 does not export a variable of the command line to $(shell).
+WATERFALL_PROCESSORS ?= $(or $(shell $(if $(filter-out undefined,$(origin WATERFALL_SLOTS)),WATERFALL_SLOTS='$(subst ','\'',$(WATERFALL_SLOTS))') $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))
@@ -142,10 +151,10 @@ dev-down: ## Stop the development platform
 
 # The tests of the tools compute more than they wait: one process per core (pytest-xdist). Work
 # stealing, as a few tests of the witness take minutes each and would otherwise wait behind a
-# worker's queue: on four cores, eleven minutes become under five. A heavy run always, behind the
-# lock (HEAVY_LOCK): it takes every core, and selects no single file (TESTS).
-test-tools: ## Run the tests of the repository tools
-	@cd $(TOOLS) && flock $(HEAVY_LOCK) uv run --frozen pytest -n auto --dist worksteal
+# worker's queue: on four cores, eleven minutes become under five. A heavy run, which takes its
+# share of the processors, unless it selects a single file (TESTS).
+test-tools: ## Run the tests of the repository tools (TESTS=<file> runs one file)
+	@cd $(TOOLS) && $(heavy) uv run --frozen pytest -n $(WATERFALL_PROCESSORS) --dist worksteal $(TESTS)
 
 lint-tools: ## Lint and format check of the repository tools
 	@cd $(TOOLS) && uv run --frozen ruff check . $(DOC_TOOLS) \
@@ -339,7 +348,7 @@ imports-back: ## The boundaries of the core (WF-ARC-0010)
 # The tests of the back wait on PostgreSQL, Redis and the storage more than they compute: they run on
 # one process per core (pytest-xdist), eight at most — each takes a database of Redis of its own,
 # which has sixteen. The tests of Keycloak (test-keycloak) stay on one: one of them restarts it.
-PYTEST_WORKERS := -n auto --maxprocesses 8
+PYTEST_WORKERS = -n $(WATERFALL_PROCESSORS) --maxprocesses 8
 
 test-back: ## Tests of the back (TESTS=<file> runs one file)
 	@cd $(BACK) && $(heavy) uv run --frozen pytest -q $(PYTEST_WORKERS) $(TESTS)

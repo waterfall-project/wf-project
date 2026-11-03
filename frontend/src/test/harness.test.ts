@@ -31,6 +31,7 @@ const VARIABLES = [
   "E2E_BUILT",
   "E2E_DEV_SERVER",
   "E2E_WORKERS",
+  "WATERFALL_PROCESSORS",
   "TEST_PARALLEL_INDEX",
   "CI",
   "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
@@ -356,6 +357,38 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
     expect(frontsOf(config)).toHaveLength(1);
     expect(config.use?.baseURL).toBe("http://127.0.0.1:3100");
   });
+
+  it.each([
+    ["12", 6],
+    ["6", 3],
+    ["3", 1],
+    ["1", 1],
+  ])(
+    "plays on the share %s of the processors that make gave it with %i workers, half of it (US-1090)",
+    async (share, expected) => {
+      vi.stubEnv("WATERFALL_PROCESSORS", share);
+      vi.stubEnv("E2E_WORKERS", undefined);
+      vi.stubEnv("E2E_BUILT", "1");
+      expect((await harness()).workers).toBe(expected);
+    },
+  );
+
+  it("plays on the workers the environment names, whatever the share of the processors (US-1090)", async () => {
+    vi.stubEnv("WATERFALL_PROCESSORS", "12");
+    vi.stubEnv("E2E_WORKERS", "2");
+    expect((await harness()).workers).toBe(2);
+  });
+
+  it.each(["0", "-1", "2.5", "half"])(
+    "refuses %j as a share of the processors (US-1090)",
+    async (named) => {
+      vi.stubEnv("WATERFALL_PROCESSORS", named);
+      vi.stubEnv("E2E_WORKERS", undefined);
+      await expect(harness()).rejects.toThrow(
+        "WATERFALL_PROCESSORS must be a whole number of processors",
+      );
+    },
+  );
 
   it.each(["0", "-1", "2.5", "two"])("refuses %j as a number of workers", async (named) => {
     vi.stubEnv("E2E_WORKERS", named);

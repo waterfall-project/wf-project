@@ -44,7 +44,7 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
 - **Un livreur à la fois**, dans son worktree : le poste s'est effondré trois fois sous les
   tests de plusieurs agents (2026-10-19, 21 et 22). Par sûreté, les exécutions lourdes — tests
   entiers, couverture, construction du front, parcours de bout en bout — attendent aussi leur
-  tour derrière un verrou du Makefile (`HEAVY_LOCK`).
+  tour derrière l'admission du Makefile (`WATERFALL_SLOTS`, guide, « Commandes »).
 - **Les questions.** Un livreur ne parle pas à l'utilisateur : une question bloquante devient
   un commentaire de l'issue du lot, et le lot passe `question` dans le tableau. Le pilote passe
   à un autre lot. Le jour, de 6 h à 20 h, il prévient l'utilisateur par une notification ; la
