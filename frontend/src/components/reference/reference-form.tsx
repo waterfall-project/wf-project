@@ -45,6 +45,7 @@
 import { Plus, Save, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import {
+  type ReactElement,
   type ReactNode,
   type SubmitEvent,
   useEffect,
@@ -178,6 +179,8 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
   readonly creating: boolean;
   /** What the button that sends says when it is neither « Créer » nor « Enregistrer »: a review. */
   readonly submit?: string | undefined;
+  /** The icon before it, drawn hidden from a screen reader; the one of « Créer » or « Enregistrer » when none. */
+  readonly icon?: ReactElement | undefined;
   readonly fields: readonly FormField[];
   /** What the form starts from: the object modified, or nothing typed. */
   readonly initial: Draft;
@@ -413,12 +416,19 @@ function FieldControl({
   );
 }
 
+/** The icon and the label of the button that sends, by case, when the caller gives none. */
+const CASES = {
+  create: { icon: <Plus aria-hidden="true" />, label: "create" },
+  save: { icon: <Save aria-hidden="true" />, label: "save" },
+} as const;
+
 /** Render the dialog that creates or modifies an object of the reference data, a project or a sub-project. */
 export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,
   creating,
   submit: submitLabel,
+  icon,
   fields,
   initial,
   ask,
@@ -437,6 +447,7 @@ export function ReferenceForm<T = ReferenceObject>({
   const t = useTranslations("reference.form");
   const locale = useLocale();
   const messages = useMessages();
+  const variant = creating ? "create" : "save";
   const list = useListReport();
   const id = useId();
   const [draft, setDraft] = useState(initial);
@@ -652,10 +663,8 @@ export function ReferenceForm<T = ReferenceObject>({
               {t("cancel")}
             </Button>
             <Button type="submit" aria-busy={pending}>
-              {creating ? <Plus aria-hidden="true" /> : <Save aria-hidden="true" />}
-              {pending || submitLabel === undefined
-                ? t(pending ? "sending" : creating ? "create" : "save")
-                : submitLabel}
+              {icon ?? CASES[variant].icon}
+              {pending ? t("sending") : (submitLabel ?? t(CASES[variant].label))}
             </Button>
           </DialogFooter>
         </form>

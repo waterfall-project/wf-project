@@ -570,6 +570,7 @@ export function ActualCostMapping({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
+            // No object named: the mapping of the costs is one of the project, not an object of a list.
             say(t("saved"));
           }}
         />

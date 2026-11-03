@@ -17,6 +17,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
+import { WritingNote } from "@/components/reference/reference-form";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
@@ -51,6 +52,11 @@ export interface CommandProps {
   readonly disclosure?: Disclosure | undefined;
   /** What the command is about, by its name, which the history of the messages notes. */
   readonly subject?: string | undefined;
+  /**
+   * Whether a write the command opened is under way: the command is then inactive, `aria-busy` and
+   * described by the sentence of the write, so that a late answer cannot close a reopening (n° 24).
+   */
+  readonly writing?: boolean | undefined;
 }
 
 /** A command that opens what it asks before it runs. */
@@ -114,6 +120,7 @@ export function Command({
   names,
   disclosure,
   subject,
+  writing = false,
 }: CommandProps) {
   const id = useId();
   const unmetText = useUnmet();
@@ -126,8 +133,10 @@ export function Command({
     return null;
   }
   const unmet = unmetId(offer, id);
+  const why = `${id}-writing`;
+  const waiting = busy || writing;
   const run = () => {
-    if (!offer.is_available || busy) {
+    if (!offer.is_available || waiting) {
       return;
     }
     if (disclosure !== undefined) {
@@ -149,15 +158,17 @@ export function Command({
         label={label}
         help={help}
         unavailable={unmet === undefined ? undefined : unmetText(offer)}
-        describedBy={unmet}
+        describedBy={writing ? why : unmet}
       >
         <Button
           type="button"
           variant="outline"
           size="sm"
-          aria-busy={busy}
+          aria-busy={waiting}
           // Unavailable with no condition to name: marked all the same, the tooltip saying none.
-          {...(!offer.is_available && unmet === undefined ? { "aria-disabled": true } : {})}
+          {...((!offer.is_available && unmet === undefined) || writing
+            ? { "aria-disabled": true }
+            : {})}
           aria-expanded={disclosure?.expanded}
           aria-controls={disclosure?.expanded === true ? disclosure.controls : undefined}
           ref={disclosure?.ref}
@@ -169,6 +180,7 @@ export function Command({
         </Button>
       </CommandTooltip>
       <UnmetConditions id={unmet} offer={offer} />
+      <WritingNote id={why} writing={writing} />
       <OutcomeNotice
         outcome={outcome}
         names={names}

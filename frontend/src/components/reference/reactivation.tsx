@@ -157,6 +157,8 @@ function ToldConditions({ told }: { readonly told: Told | undefined }) {
 /** A refusal told above a list, and the key that tells it apart from the others told with it. */
 interface Kept extends Reported {
   readonly key: number;
+  /** The scope the refusal was reported in (`Reactivations`): told while that scope is the one shown. */
+  readonly scope: string;
 }
 
 /**
@@ -171,17 +173,22 @@ interface Kept extends Reported {
  * was asked from: an answer that arrives after the list is read otherwise — the deactivated ones
  * hidden, a search of its own — says nothing of the list now shown (défaut n° 1 de
  * `typescript.md`), nor of the list back on that reading, whose clicks it no longer holds (#688); a
- * sort of another list of the screen leaves it said.
+ * sort of another list of the screen leaves it said. A `scope` tells apart the objects one list
+ * presents in turn — the risk of a detail: a refusal is kept with the scope it was asked in, even
+ * when answered once the scope is another, and told when that scope is shown again (#1377).
  */
 export function Reactivations({
   reads,
   fill = false,
+  scope = "",
   children,
 }: {
   /** The parameters of the address the list reads (`listReads`). */
   readonly reads: readonly string[];
   /** Whether the list takes the height left in its section, a grid of a screen of its own. */
   readonly fill?: boolean;
+  /** What the refusals told are about, when the list shows one object after another. */
+  readonly scope?: string;
   readonly children: ReactNode;
 }) {
   const [told, setTold] = useState<Told>();
@@ -204,23 +211,29 @@ export function Reactivations({
   // the clicks its commands hold, and one refused after is told by the bar of the shell — unless the
   // dialog that asked it, still open, tells it at its fields (#863).
   const held = useHeldCommand(String(generation));
-  const report = useCallback((refusal: Reported) => {
-    counted.current += 1;
-    const key = counted.current;
-    setRead((before) =>
-      before.generation === refusal.generation
-        ? {
-            ...before,
-            reported: [
-              ...before.reported.filter(
-                (kept) => refusal.target === undefined || kept.target !== refusal.target,
-              ),
-              { ...refusal, key },
-            ],
-          }
-        : before,
-    );
-  }, []);
+  const report = useCallback(
+    (refusal: Reported) => {
+      counted.current += 1;
+      const key = counted.current;
+      setRead((before) =>
+        before.generation === refusal.generation
+          ? {
+              ...before,
+              reported: [
+                ...before.reported.filter(
+                  (kept) =>
+                    refusal.target === undefined ||
+                    kept.target !== refusal.target ||
+                    kept.scope !== scope,
+                ),
+                { ...refusal, key, scope },
+              ],
+            }
+          : before,
+      );
+    },
+    [scope],
+  );
   const refocus = useCallback((back?: HTMLElement | null) => {
     if (back?.isConnected === true) {
       back.focus();
@@ -257,24 +270,26 @@ export function Reactivations({
       )}
     >
       <ToldConditions told={told?.generation === generation ? told : undefined} />
-      {reported.map((each) => (
-        <OutcomeNotice
-          key={each.key}
-          outcome={each.outcome}
-          names={each.names}
-          subject={each.subject}
-          onClear={() => {
-            setRead((before) => ({
-              ...before,
-              reported: before.reported.filter((kept) => kept.key !== each.key),
-            }));
-          }}
-          onDismissed={() => {
-            refocus(each.back);
-          }}
-          dismissible
-        />
-      ))}
+      {reported
+        .filter((each) => each.scope === scope)
+        .map((each) => (
+          <OutcomeNotice
+            key={each.key}
+            outcome={each.outcome}
+            names={each.names}
+            subject={each.subject}
+            onClear={() => {
+              setRead((before) => ({
+                ...before,
+                reported: before.reported.filter((kept) => kept.key !== each.key),
+              }));
+            }}
+            onDismissed={() => {
+              refocus(each.back);
+            }}
+            dismissible
+          />
+        ))}
       <Report value={value}>{children}</Report>
     </div>
   );

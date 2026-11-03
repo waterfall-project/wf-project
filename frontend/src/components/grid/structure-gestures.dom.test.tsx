@@ -305,6 +305,24 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("Ligne créée.")).toBeVisible();
   });
 
+  // No Vérif of an exigence says what the history notes: this test carries the correction of #1701.
+  it("notes a line created below a sister line without a label in the history of the messages, unnamed", async () => {
+    serve({ [CREATE]: { example: "estimate_line_created_labelled", status: 201 } });
+    render(estimateGrid());
+    await choose(LINE, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
+      target: { value: CATEGORY },
+    });
+    await create("");
+    expect(await screen.findByText("Ligne créée.")).toBeVisible();
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ tone: "success", sentence: "Ligne créée." });
+    expect(messages[0]?.object).toBeUndefined();
+    expect(JSON.stringify(messages)).not.toContain("Raccordement des borniers");
+  });
+
   it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
     const client = serve({ [CREATE]: { example: "estimate_line_created", status: 201 } });
     render(estimateGrid());

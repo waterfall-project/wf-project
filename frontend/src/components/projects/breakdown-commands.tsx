@@ -508,7 +508,9 @@ function useSend(commands: Commands, opened: Opened) {
     if (edit === undefined) {
       // The element is not in the reading the gesture starts from: nothing is sent, and it is said.
       if (target !== undefined) {
-        commands.say(t("gone", { kind: target.kind, label: target.label }));
+        commands.say(t("gone", { kind: target.kind, label: target.label }), {
+          object: target.label,
+        });
       }
       commands.close(opened.opening);
       return;
@@ -526,7 +528,7 @@ function useSend(commands: Commands, opened: Opened) {
         if (answer.kind === "done") {
           commands.answer(answer.data);
           const done = { add: "added", rename: "renamed", delete: "deleted" } as const;
-          commands.say(t(done[gesture.kind], told));
+          commands.say(t(done[gesture.kind], told), { object: told.label });
           commands.close(opened.opening);
         } else if (commands.isOpen(opened.opening) && gesture.kind !== "delete") {
           const { field, refusal: rest } = split(answer, sent, at);

@@ -931,13 +931,15 @@ describe("« Modifier » a risk", () => {
     expect(client.calls[1]?.body).toMatchObject({ lock_version: UPDATED.lock_version });
   });
 
+  // The refusal is kept by risk, in the detail: told again on return to the risk it is about (#1377);
+  // a success is not (the page read anew shows the modification). No Vérif says it.
   it.each([
-    ["success", /modifié\./],
-    ["rejected", /Le service est injoignable/],
-    ["refused", /Condition non remplie/],
-  ] satisfies [string, RegExp][])(
-    "tells nothing on the risk the detail went to while a write of the previous one is under way, once it is answered: %s (défaut n° 1)",
-    async (kind, said) => {
+    ["success", /modifié\./, false],
+    ["rejected", /Le service est injoignable/, true],
+    ["refused", /Condition non remplie/, true],
+  ] satisfies [string, RegExp, boolean][])(
+    "tells nothing on the risk the detail went to while a write of the previous one is under way, once it is answered, and tells a refusal on return to the first: %s (défaut n° 1)",
+    async (kind, said, again) => {
       const { timing, until, release } = held();
       if (kind === "rejected") {
         failing.until = until;
@@ -974,6 +976,17 @@ describe("« Modifier » a risk", () => {
       const command = screen.getByRole("button", { name: "Modifier" });
       expect(command).not.toHaveAttribute("aria-disabled");
       expect(command).not.toHaveAttribute("aria-busy", "true");
+
+      // Back on the risk the write was about: its refusal is told again; a success is not.
+      rerender(detail(CREATED));
+      if (again) {
+        expect(await screen.findByText(said)).toBeVisible();
+      } else {
+        expect(screen.queryByText(said)).toBeNull();
+      }
+      // And never on the other risk.
+      rerender(detail(OTHER));
+      expect(screen.queryByText(said)).toBeNull();
     },
   );
 });

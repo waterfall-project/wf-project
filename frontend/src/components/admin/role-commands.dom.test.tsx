@@ -245,6 +245,33 @@ describe("the creation of a role in line", () => {
     expect(refusedLeft()).toEqual([]);
     expect(readMessages().messages).toHaveLength(1);
   });
+
+  it("tells a label refused at its field by the bar of the shell when the form is gone before the answer [#1896]", async () => {
+    const answer = held();
+    serve(
+      {
+        [CREATED]: {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/label", code: "VALUE_TOO_LONG" }],
+          },
+        },
+      },
+      answer.timing,
+    );
+    const { unmount } = render(inFrench(table()));
+    await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "CG{Enter}");
+    // The form is unmounted while the write answers: no field is left to tell the refusal.
+    unmount();
+    await act(async () => {
+      answer.release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const left = refusedLeft();
+    expect(left).toHaveLength(1);
+    expect(left[0]?.refusal).toMatchObject({ problem: { fields: [{ pointer: "/label" }] } });
+  });
 });
 
 /** The table and the matrix of the roles, sharing the roles answered, as the page renders them. */

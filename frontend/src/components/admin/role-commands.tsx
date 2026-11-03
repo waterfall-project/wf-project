@@ -210,6 +210,14 @@ export function CreateRole() {
   const [focused, setFocused] = useState<object>();
   const input = useRef<HTMLInputElement>(null);
   const field = useId();
+  // Whether the field is still on the screen: gone, it tells nothing, and the bar must.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useEffect(() => {
     if (focused !== undefined) {
       input.current?.focus();
@@ -256,7 +264,7 @@ export function CreateRole() {
               return;
             }
             // Said at its field, out of a notice: noted in the history of the messages.
-            atField = true;
+            atField = mounted.current;
             noteRefusal(outcome, { subject: asked });
             setRefused(problemMessage(own, { locale, messages }));
             setFocused({});
