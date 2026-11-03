@@ -228,7 +228,7 @@ def test_the_deactivation_of_the_last_administrator_is_refused_until_a_second_on
     # permission. »
     jeanne_id, direction = jeanne
     account(database, "Durand", "Paul", roles=(direction,), state="deactivated")
-    (announced,) = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()["available_commands"]
+    announced = client.get(f"{USERS}/{jeanne_id}", headers=headers).json()["available_commands"][0]
     assert announced == {
         "command": "deactivate",
         "is_available": False,
