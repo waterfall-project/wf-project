@@ -1267,7 +1267,7 @@
         "help": "Generates the skeleton of the planning of the revision."
       },
       "declare_risk": {
-        "help": "Declares a new risk on the project."
+        "help": "Leads to the screen of the risks of the revision, where « Identify a risk » is offered."
       },
       "create_structure": {
         "help": "Prepares an amendment: a differential structure on the revision."

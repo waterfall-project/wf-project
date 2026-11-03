@@ -38,7 +38,7 @@ import { CostStructureList, RateUpdate } from "@/components/revisions/revision-p
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
 import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
-import { pageSearch } from "@/navigation/context";
+import { pageSearch, type ProjectContext } from "@/navigation/context";
 import { requestSession } from "@/session/request";
 
 import { screenMetadata } from "../../../title";
@@ -63,9 +63,11 @@ export async function generateMetadata({
 function RevisionsHeader({
   revision,
   project,
+  context,
 }: {
   readonly revision: Revision | undefined;
   readonly project: Project;
+  readonly context: ProjectContext;
 }) {
   const t = useTranslations();
   return (
@@ -73,7 +75,7 @@ function RevisionsHeader({
       title={t("functions.revisions")}
       icon={FUNCTION_ICONS.revisions}
       density={FUNCTION_DENSITY.revisions}
-      actions={<RevisionCommands revision={revision} project={project} />}
+      actions={<RevisionCommands revision={revision} project={project} context={context} />}
     />
   );
 }
@@ -148,7 +150,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
     <PendingAddress>
       <ContextBanner reading={read} difference={difference} />
       <Screen density={FUNCTION_DENSITY.revisions}>
-        <RevisionsHeader revision={read.revision} project={read.project} />
+        <RevisionsHeader revision={read.revision} project={read.project} context={read.context} />
         <MockupNotice lists />
         <RevisionHistory revisions={revisions} context={read.context} />
         <ReferenceDesignation

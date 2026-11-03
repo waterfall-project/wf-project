@@ -12,23 +12,29 @@
  * current revision and its abandon (`revision-commands.tsx`), the designation of the reference
  * being the history's, on the marked revision; the preparation of an amendment (`create_structure`),
  * which leads to its differential; the merge of an amendment (`merge_structure`) is its grid's, the
- * revision not saying which of its amendments it is about (US-0510). The other commands of a
- * revision come with the forms of their domain, which hand each command its server action; until
- * then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * revision not saying which of its amendments it is about (US-0510); the declaration of a risk,
+ * which leads to the screen of the risks of the revision, where it is identified (#1438). The other
+ * commands of a revision come with the forms of their domain, which hand each command its server
+ * action; until then a command is shown, and pressing it does nothing. The exports of a revision are the
  * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
  * the commands of a revision leaves them out. So does it the commands a screen of the revision
  * offers itself: its entries, which each grid takes as the revision lists them (`edit_planning`,
  * `edit_estimate`, `edit_remaining`, `edit_risks`), and the skeleton, which the empty grid of the
  * planning offers (EP-14/L44d).
  */
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
 import type { Revision } from "@/components/context/read-only";
 import type { Project } from "@/components/context/reading";
+import { buttonVariants } from "@/components/ui/button";
+import type { ProjectContext } from "@/navigation/context";
+import { functionHref, functionOf } from "@/navigation/functions";
 
 import { Command } from "./command";
+import { CommandTooltip } from "./command-tooltip";
 import { ExitCommands } from "./exit-command";
 import { isExit } from "./exits";
 import { commandIcon, REVISION_COMMAND_ICONS } from "./icons";
@@ -117,16 +123,62 @@ export function isListed(
   return !isExport(command) && !isOfferedByItsScreen(command);
 }
 
+/**
+ * The declaration of a risk, which the screen of the risks of the revision exercises
+ * (« Identifier un risque »): a link to that screen when it is available, the command unavailable
+ * naming what it lacks otherwise (#1438).
+ */
+function DeclareRiskCommand({
+  offer,
+  context,
+  names,
+  name,
+}: {
+  readonly offer: Revision["available_commands"][number];
+  readonly context: ProjectContext | undefined;
+  readonly names: Readonly<Record<string, string>>;
+  readonly name: string;
+}) {
+  const t = useTranslations();
+  const href = functionHref(functionOf("risks"), context);
+  const Icon = REVISION_COMMAND_ICONS.declare_risk;
+  if (!offer.is_available) {
+    return (
+      <Command
+        offer={offer}
+        label={t("enums.RevisionCommand.declare_risk")}
+        help={t("commands.revision.declare_risk.help")}
+        icon={commandIcon(Icon)}
+        names={names}
+        subject={name}
+      />
+    );
+  }
+  return href === undefined ? null : (
+    <CommandTooltip
+      label={t("enums.RevisionCommand.declare_risk")}
+      help={t("commands.revision.declare_risk.help")}
+    >
+      <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
+        {commandIcon(Icon)}
+        {t("enums.RevisionCommand.declare_risk")}
+      </Link>
+    </CommandTooltip>
+  );
+}
+
 /** The command of a revision that has a form of its own, or the plain command it is. */
 function RevisionCommandItem({
   offer,
   revision,
   name,
   names,
+  context,
 }: {
   readonly offer: Revision["available_commands"][number] & {
     readonly command: Exclude<RevisionCommand, OfferedElsewhere>;
   };
+  readonly context: ProjectContext | undefined;
   readonly revision: Revision;
   readonly name: string;
   readonly names: Readonly<Record<string, string>>;
@@ -158,6 +210,9 @@ function RevisionCommandItem({
       />
     );
   }
+  if (offer.command === "declare_risk") {
+    return <DeclareRiskCommand offer={offer} context={context} names={names} name={name} />;
+  }
   return (
     <Command
       offer={offer}
@@ -178,9 +233,12 @@ function RevisionCommandItem({
 export function RevisionCommands({
   revision,
   project,
+  context,
 }: {
   readonly revision: Revision | undefined;
   readonly project?: Project | undefined;
+  /** The reading context, which the commands that lead to a screen of the revision keep. */
+  readonly context?: ProjectContext | undefined;
 }) {
   const t = useTranslations();
   const create =
@@ -212,7 +270,13 @@ export function RevisionCommands({
           ? []
           : commands.map((offer) => (
               <li key={`${revision.revision_id}:${offer.command}`}>
-                <RevisionCommandItem offer={offer} revision={revision} name={name} names={names} />
+                <RevisionCommandItem
+                  offer={offer}
+                  revision={revision}
+                  name={name}
+                  names={names}
+                  context={context}
+                />
               </li>
             ))),
       ]}
