@@ -90,7 +90,8 @@ TESTS ?=
 SHARD ?=
 # How many workers `make e2e` plays the paths on (E2E_WORKERS, frontend/playwright.config.ts), each
 # against a front of its own: fewer than Playwright takes by itself on a loaded workstation, where
-# paths fail by a timeout (#736). Empty, its own: half the processors.
+# paths fail by a timeout (#736). From 1 to 40: a front per worker, forty ports per slot. Empty, its
+# own: half the processors, at most 40.
 WORKERS ?=
 # N heavy runs at a time on the workstation (WATERFALL_SLOTS, 1 by default): the whole tests of a
 # side, their coverage, the production build of the front, the end-to-end paths. Several agents
@@ -521,7 +522,7 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n (1 to 40, by default half the processors, at most 40) plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure
