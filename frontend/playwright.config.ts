@@ -80,11 +80,30 @@ function switchedOn(variable: string): boolean {
   return true;
 }
 
-/** The workers the environment names (`E2E_WORKERS`), or Playwright's own: half the processors. */
+/** The processors of the run: the share named by `WATERFALL_PROCESSORS`, or all of the machine's. */
+function processors(): number {
+  const named = process.env.WATERFALL_PROCESSORS;
+  if (named === undefined || named === "") {
+    return availableParallelism();
+  }
+  const chosen = Number(named);
+  if (!Number.isInteger(chosen) || chosen < 1) {
+    throw new Error(
+      `WATERFALL_PROCESSORS must be a whole number of processors, 1 or more: ${named}`,
+    );
+  }
+  return chosen;
+}
+
+/**
+ * The workers the environment names (`E2E_WORKERS`), or Playwright's own: half the processors — of
+ * the share `make` gave the run (`WATERFALL_PROCESSORS`, US-1090), the workstation's when none is
+ * given. A share that is not a whole number of 1 or more is refused.
+ */
 function workers(): number {
   const named = process.env.E2E_WORKERS;
   if (named === undefined || named === "") {
-    return Math.max(1, Math.floor(availableParallelism() / 2));
+    return Math.max(1, Math.floor(processors() / 2));
   }
   const chosen = Number(named);
   if (!Number.isInteger(chosen) || chosen < 1) {

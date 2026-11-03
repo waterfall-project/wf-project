@@ -362,7 +362,7 @@ et le Makefile n'arrête que ce qu'il a lui-même démarré.
 
 ## US-1090 — Les exécutions lourdes passent N à la fois
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1883
