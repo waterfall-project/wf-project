@@ -19,12 +19,13 @@ import { History } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { useAccountNaming } from "@/components/account/account-name";
 import { AnonymizedName, KeptName } from "@/components/account/anonymized-name";
 import { usePendingLink } from "@/components/grid/pending-address";
-import { LocalTime } from "@/components/local-time";
+import { LocalTime, useLocalTimestamp } from "@/components/local-time";
 import { formatLocale } from "@/i18n/format";
 
 import { type AuditObjectKind, correlationHref, historyHref } from "./audit-address";
@@ -71,7 +72,7 @@ type AuditAccessRole = components["schemas"]["AuditAccessRole"];
  * (WF-ADM-0090). The labels of the roles are shown as they were entered, never translated. None for
  * an action whose object says it all.
  */
-function useAuditDetails(params: AuditParams): string | undefined {
+function useAuditDetails(action: AuditEvent["action"], params: AuditParams): string | undefined {
   const t = useTranslations();
   const said = useTranslations("admin.auditLog.details");
   const list = new Intl.ListFormat(formatLocale(useLocale()), { type: "conjunction" });
@@ -93,7 +94,7 @@ function useAuditDetails(params: AuditParams): string | undefined {
   // The parameters the contract keeps of an action (`AuditParams`): the state a project exited to,
   // the reason given, the kind of exchange applied; the instant of the backup taken is the cell's own,
   // written in the time zone of the workstation once the browser has.
-  const action = ({ to_state, reason, import_kind }: AuditParams) => [
+  const exit = ({ to_state, reason, import_kind }: AuditParams) => [
     to_state !== undefined &&
       said("toState", { state: t(`enums.ProjectExit.to_state.${to_state}`) }),
     reason != null && reason !== "" && said("reason", { reason }),
@@ -129,14 +130,16 @@ function useAuditDetails(params: AuditParams): string | undefined {
     ];
   };
   const parts = [
-    ...action(params),
+    ...exit(params),
     ...account(params),
     ...role(params),
     ...attribution(params),
   ].filter((part) => part !== false);
-  return parts.length === 0
-    ? undefined
-    : parts.reduce((first, second) => said("then", { first, second }));
+  // A modification of a role that changes neither its label nor its permissions says so (#963).
+  if (parts.length === 0) {
+    return action === "access_role_update" ? said("roleUnchanged") : undefined;
+  }
+  return parts.reduce((first, second) => said("then", { first, second }));
 }
 
 /**
@@ -149,29 +152,117 @@ function useAuditDetails(params: AuditParams): string | undefined {
  */
 export function ActionCell({ event }: { readonly event: AuditEvent }) {
   const t = useTranslations("enums.AuditAction");
-  const said = useTranslations("admin.auditLog.details");
-  const details = useAuditDetails(event.params);
+  const details = useAuditDetails(event.action, event.params);
   const taken = event.params.backup_taken_at;
   if (details === undefined && taken === undefined) {
     return t(event.action);
   }
-  // The instant of a backup restored is written by the browser, in its time zone (`LocalTime`).
-  const time = () => <LocalTime value={taken ?? ""} />;
   return (
     <span className="flex flex-col text-xs leading-3">
       <span className="overflow-x-clip text-ellipsis whitespace-nowrap">{t(event.action)}</span>
-      <span
-        title={details}
-        className="overflow-x-clip text-ellipsis whitespace-nowrap text-muted-foreground"
-      >
-        {taken === undefined
-          ? details
-          : details === undefined
-            ? said.rich("backupTakenAt", { time })
-            : said.rich("backupTakenAfter", { first: details, time })}
-      </span>
+      <ActionDetails details={details} taken={taken} />
     </span>
   );
+}
+
+/**
+ * The second line of the cell of the action: what the action did, then, for a restoration, the
+ * instant of the backup it restored (`RestoredDetails`).
+ */
+function ActionDetails({
+  details,
+  taken,
+}: {
+  readonly details: string | undefined;
+  readonly taken: AuditEvent["params"]["backup_taken_at"];
+}) {
+  return taken === undefined ? (
+    <DetailLine title={details}>{details}</DetailLine>
+  ) : (
+    <RestoredDetails details={details} taken={taken} />
+  );
+}
+
+/**
+ * The second line of the cell of a restoration: what it did, then the instant of the backup it
+ * restored, written by the browser in its time zone (`LocalTime`); the same words, instant included,
+ * are the title when the cell cuts the line short (#1673).
+ */
+function RestoredDetails({
+  details,
+  taken,
+}: {
+  readonly details: string | undefined;
+  readonly taken: NonNullable<AuditEvent["params"]["backup_taken_at"]>;
+}) {
+  const said = useTranslations("admin.auditLog.details");
+  const stamp = useLocalTimestamp(taken);
+  const whole =
+    details === undefined
+      ? said.markup("backupTakenAt", { time: () => stamp })
+      : said.markup("backupTakenAfter", { first: details, time: () => stamp });
+  const time = () => <LocalTime value={taken} />;
+  return (
+    <DetailLine title={whole}>
+      {details === undefined
+        ? said.rich("backupTakenAt", { time })
+        : said.rich("backupTakenAfter", { first: details, time })}
+    </DetailLine>
+  );
+}
+
+/**
+ * A line of small type cut short across, whose whole text is its title when, and only when, it is
+ * cut: a title that repeats a text shown whole is read twice by some assistive technologies (#967).
+ */
+function DetailLine({
+  title,
+  children,
+}: {
+  readonly title: string | undefined;
+  readonly children: ReactNode;
+}) {
+  const { ref, cut } = useCut(title);
+  return (
+    <span
+      ref={ref}
+      title={cut ? title : undefined}
+      className="overflow-x-clip text-ellipsis whitespace-nowrap text-muted-foreground"
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Whether the text of an element is cut short by its width: measured once the browser has written
+ * it, and again when the cell changes size.
+ */
+function useCut(text: string | undefined): {
+  readonly ref: RefObject<HTMLSpanElement | null>;
+  readonly cut: boolean;
+} {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [cut, setCut] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null) {
+      return undefined;
+    }
+    const measure = () => {
+      setCut(element.scrollWidth > element.clientWidth);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [text]);
+  return { ref, cut };
 }
 
 /** Render the nature of the object of an inscription, in words. */

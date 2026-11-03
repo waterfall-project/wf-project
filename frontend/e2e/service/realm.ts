@@ -673,6 +673,24 @@ export async function accountAdministrator(browser: Browser, request: APIRequest
       });
       expect(given.status(), `PUT /users/${id}/access-roles`).toBe(200);
     },
+    /**
+     * Delete the role of a label once no account holds it (`deleteAccessRole`), so that a path that
+     * made it leaves nothing; none when the installation holds none of that label.
+     */
+    remove: async (label: string): Promise<void> => {
+      const search = new URLSearchParams({ search: label }).toString();
+      const found = (
+        await read<Schemas["AccessRole"][]>(request, await current(), `/access-roles?${search}`)
+      ).find((one) => one.label === label);
+      if (found === undefined) {
+        return;
+      }
+      const query = new URLSearchParams({ lock_version: String(found.lock_version) }).toString();
+      const removed = await request.delete(`${API}/access-roles/${found.access_role_id}?${query}`, {
+        headers: { Authorization: `Bearer ${await current()}` },
+      });
+      expect(removed.status(), `DELETE /access-roles/${found.access_role_id}`).toBe(204);
+    },
   };
 }
 

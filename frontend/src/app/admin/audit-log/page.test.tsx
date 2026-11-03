@@ -494,6 +494,24 @@ describe("an anonymised author in the journal", () => {
   });
 });
 
+describe("the audit log, the author chosen", () => {
+  const VIDAL = "01926f3a-7c00-7000-8000-000000000307";
+
+  it("names an author chosen that no facet nor line names by its names, read once, never by its identifier [WF-ADM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /users/{user_id}": "user_deactivated" };
+    const page = await journal({ user_id: VIDAL });
+    expect(text(page)).toContain("Auteur Tous les comptes Camille Martin Noé Vidal");
+    expect(text(page)).not.toContain(VIDAL);
+    expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
+  });
+
+  it("reads no account for an author the journal names, and leaves one the API does not find chosen by its identifier [WF-ADM-0060-A]", async () => {
+    server.answers = { ...server.answers, "GET /users/{user_id}": "user_deactivated" };
+    await journal({ user_id: CAMILLE });
+    expect(queriesOf("GET /users/{user_id}")).toEqual([]);
+  });
+});
+
 describe("the audit log, the size of the pages", () => {
   it.each([
     ["no preference", {}, "50"],

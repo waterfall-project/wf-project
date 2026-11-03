@@ -16,6 +16,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Browser, expect, type Locator, type Page, test } from "@playwright/test";
 
+import { formatLocale } from "../../src/i18n/format";
+import type { Locale } from "../../src/i18n/locale";
 import { compileAnswered } from "../compile";
 import { openMenu } from "../hydration";
 import { heldToTheContract } from "./contract";
@@ -55,22 +57,23 @@ function inscription(page: Page, grid: string, label: string): Locator {
 
 /**
  * Whether an inscription is dated of the moment it was made, give or take a minute, and presents the
- * day as the browser of its reader writes today in her language — the tag `formatLocale` builds its
- * formatters with.
+ * day of that moment as the browser of its reader writes it in her language — the tag `formatLocale`
+ * builds its formatters with —, not the day it is when the page is read, which midnight may change.
  */
-async function datedOfTheDay(row: Locator, after: number, tag: string): Promise<void> {
+async function datedOfTheDay(row: Locator, after: number, locale: Locale): Promise<void> {
   const time = row.locator("time");
   const instant = await time.getAttribute("datetime");
   const at = Date.parse(instant ?? "");
   expect(at).toBeGreaterThanOrEqual(after - 60_000);
   expect(at).toBeLessThanOrEqual(Date.now() + 60_000);
-  const today = await row
+  const day = await row
     .page()
     .evaluate(
-      (locale) => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date()),
-      tag,
+      ({ tag, moment }) =>
+        new Intl.DateTimeFormat(tag, { dateStyle: "medium" }).format(new Date(moment)),
+      { tag: formatLocale(locale), moment: at },
     );
-  await expect(time).toContainText(today);
+  await expect(time).toContainText(day);
 }
 
 /**
@@ -150,13 +153,15 @@ test("an attribution of a role, the journal filtered on its author and its actio
     await expect(english).toContainText(`Role granted: ${role}`);
     await expect(english).toContainText("Jeanne Montgolfier");
     await expect(english).toContainText("No project");
-    await datedOfTheDay(english, before, "en-GB");
+    await datedOfTheDay(english, before, "en");
     await reader.context().close();
     await author.context().close();
   } finally {
-    // The roles withdrawn once asserted, never before.
+    // The roles withdrawn once asserted, never before, then the role itself.
     if (holder !== undefined) {
       withdrawRoles(holder);
+      // The role the path made, unheld now, is deleted: the next run makes its own (#963).
+      await administrator.remove(role);
     }
     await calls.dispose();
   }

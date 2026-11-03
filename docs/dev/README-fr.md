@@ -1759,7 +1759,8 @@ des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`au
 préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
 ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
 des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
+aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action — son `title` n'est posé que si le texte est tronqué, et
+il porte alors l'instant de la sauvegarde restaurée ; une modification de rôle sans changement le dit —, qui se trie par le code
 de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
 le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
@@ -1784,7 +1785,8 @@ l'auteur (`ValuesFilter`), l'auteur et le projet parmi ceux que nomme le journal
 par auteur) — sans auteur à choisir ni auteur choisi, le filtre d'auteur n'est pas offert —, les
 actions dans un menu, la nature de l'objet, l'objet dont l'adresse demande l'histoire, nommé et
 levé, et la corrélation, saisie (`TextFilter`) ; un auteur ou un projet que l'adresse nomme sans
-qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent. Le projet et
+qu'aucun choix ne l'offre reste choisi sous le nom que les inscriptions lui donnent, et un auteur qu'aucune ligne lue ne nomme est lu par
+`getUser`, au plus une fois, et nommé comme partout (`naming.person`), jamais par son identifiant (#1010). Le projet et
 l'objet sont des liens là où la session peut les consulter — un projet qu'elle peut ouvrir
 (`listProjects`, tous états ; aucun quand l'API ne trouve pas la liste des projets, que le service
 ne sert qu'à partir d'EP-04, une tolérance du 404 que #962 retire alors) — : le projet, une révision d'un tel projet, et un objet qui vit dans

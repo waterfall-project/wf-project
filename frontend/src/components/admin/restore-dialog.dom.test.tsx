@@ -41,6 +41,18 @@ vi.mock("@/api/server", () => ({
   publicClient: () => server.open,
 }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
+// The real notice, its phases recorded: a phase `failed` is the page's to answer, never a notice's.
+const phases = vi.hoisted((): { shown: string[] } => ({ shown: [] }));
+vi.mock("@/components/system/maintenance", async (original) => {
+  const actual = await original<typeof import("@/components/system/maintenance")>();
+  return {
+    ...actual,
+    RestorationNotice: (props: Parameters<typeof actual.RestorationNotice>[0]) => {
+      phases.shown.push(props.phase.kind);
+      return actual.RestorationNotice(props);
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -96,6 +108,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
   forgetMessages();
+});
+
+beforeEach(() => {
+  phases.shown = [];
 });
 
 afterEach(() => {
@@ -343,7 +359,7 @@ describe("the restoration of the platform", () => {
     );
   });
 
-  it("gives the page back with the motive of a restoration refused before the maintenance", async () => {
+  it("gives the page back with the motive of a restoration refused before the maintenance, no notice rendered for the phase of its refusal [WF-ADM-0160-A]", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     serve({ [TASK]: "task_restore_backup_newer_version" }, { [HEALTH]: "liveness" });
     render(backupList());
@@ -352,6 +368,9 @@ describe("the restoration of the platform", () => {
       "Cette sauvegarde vient d’une version plus récente que celle installée",
     );
     expect(screen.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
+    // The notice was rendered while the task was waited for, never for the phase of the refusal (#1023).
+    expect(phases.shown.length).toBeGreaterThan(0);
+    expect(phases.shown).not.toContain("failed");
   });
 
   it("affirms nothing of a restoration whose task can no longer be read before any maintenance was seen, and offers to sign in again", async () => {
@@ -364,6 +383,8 @@ describe("the restoration of the platform", () => {
     await confirmRestore(LAST_NIGHT);
     const said = await screen.findByRole("status", { name: "Session terminée" });
     expect(said).toHaveTextContent("avant que l’issue de la restauration soit connue");
+    // The outcome is read in the journal of audit, which the tasks followed do not hold (#1024).
+    expect(said).toHaveTextContent("le journal d’audit la dit");
     expect(said).not.toHaveTextContent("Restauration terminée");
     expect(said).not.toHaveTextContent("restaurée");
     expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
