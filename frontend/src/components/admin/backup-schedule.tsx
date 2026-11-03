@@ -42,12 +42,8 @@ import { useLocalTimestamp } from "@/components/local-time";
 import { useNoteMessage } from "@/components/notices/message-history";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
-import {
-  type Draft,
-  type FormField,
-  ReferenceForm,
-  WritingNote,
-} from "@/components/reference/reference-form";
+import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { ReferenceSection } from "@/components/reference/section";
 import { Button } from "@/components/ui/button";
 import { localTimeOfDay } from "@/i18n/format";
@@ -579,6 +575,7 @@ export function BackupScheduleSection({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
+            // No object named: the schedule is the platform's one, not an object of a list.
             say(t("form.saved"));
             // A guard of the waiting command (`onWriting`), which serves in no normal use: no other
             // opening can come before the answer.

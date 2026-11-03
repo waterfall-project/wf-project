@@ -56,7 +56,7 @@ import { OutcomeNotice, useNoteRefusal } from "@/components/commands/outcome-not
 import { rejected } from "@/components/commands/rejection";
 import type { RowCommands } from "@/components/grid/undo-commands";
 import { type Said, type Say, useSaid } from "@/components/notices/said";
-import { WritingNote } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { ContextMenuItem, ContextMenuLabel } from "@/components/ui/context-menu";
 import {
@@ -508,7 +508,9 @@ function useSend(commands: Commands, opened: Opened) {
     if (edit === undefined) {
       // The element is not in the reading the gesture starts from: nothing is sent, and it is said.
       if (target !== undefined) {
-        commands.say(t("gone", { kind: target.kind, label: target.label }));
+        commands.say(t("gone", { kind: target.kind, label: target.label }), {
+          object: target.label,
+        });
       }
       commands.close(opened.opening);
       return;
@@ -526,7 +528,7 @@ function useSend(commands: Commands, opened: Opened) {
         if (answer.kind === "done") {
           commands.answer(answer.data);
           const done = { add: "added", rename: "renamed", delete: "deleted" } as const;
-          commands.say(t(done[gesture.kind], told));
+          commands.say(t(done[gesture.kind], told), { object: told.label });
           commands.close(opened.opening);
         } else if (commands.isOpen(opened.opening) && gesture.kind !== "delete") {
           const { field, refusal: rest } = split(answer, sent, at);

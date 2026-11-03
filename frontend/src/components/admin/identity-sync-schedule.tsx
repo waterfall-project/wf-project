@@ -26,12 +26,8 @@ import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
-import {
-  type Draft,
-  type FormField,
-  ReferenceForm,
-  WritingNote,
-} from "@/components/reference/reference-form";
+import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
+import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { localTimeOfDay } from "@/i18n/format";
 
@@ -274,6 +270,7 @@ export function IdentitySyncScheduleSection({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
+            // No object named: the schedule is the platform's one, not an object of a list.
             say(t("saved"));
             setOpened((current) => (current?.opening === opened.opening ? undefined : current));
           }}

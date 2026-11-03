@@ -132,6 +132,9 @@ export function broughtBack(away: () => boolean): void {
  * write tells it itself. Refused while `away` says, as the refusal arrives, that its screen is left
  * and about to go with what tells it, the write is kept among them whatever `told` says, released
  * or not — and taken back from them if its screen is brought back before it went (`broughtBack`).
+ * `told` is read only in the callbacks of `answered`, a promise derived from the write that settles a
+ * turn after it, so that what asked the write may set what `told` reads in its own `then`: a reading
+ * made at the resolution itself would come too early.
  */
 export function holdNavigation(
   write: Promise<WriteAnswer>,

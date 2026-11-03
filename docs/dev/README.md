@@ -364,7 +364,8 @@ before the router has shown the entry traversed to — « Forward » pressed whi
 screen, which never left, says it too, and the bar takes back what it said of it (`broughtBack`,
 #1476): the refusal is said twice, one after the other, never at the same time, and noted once in
 the message history, by the identity of its response — for a refusal carried by an `outcome`; a
-boolean response has no identity, and the history notes it apart from what the screen says of it. Until its response, the write awaited in the
+boolean response has no identity, and the history notes it apart from what the screen says of it.
+Until its response, the write awaited in the
 transition still holds the clicks: the screen left by « Back », still displayed, releases it only
 as it leaves. This holds as long as the router keeps this order, perhaps an upstream defect. A
 write still under way when

@@ -193,7 +193,8 @@ function followed<Row extends GridNode>(
 interface Refusal<Row extends GridNode> {
   readonly outcome: Outcome<unknown>;
   readonly row: Row | undefined;
-  readonly subject: string;
+  /** The name of what was written; none for a line created without one, the server naming it. */
+  readonly subject: string | undefined;
 }
 
 /** Give the focus back to what opened a dialog, or to the active cell of the grid. */
@@ -294,8 +295,14 @@ function GestureNotice<Row extends GridNode>({
     if (refusal === undefined) {
       return undefined;
     }
-    return refusal.row === undefined
-      ? t("refusedCreating", { label: refusal.subject })
+    if (refusal.row === undefined) {
+      // A creation beside no row is always named (`create`): the `?? ""` only satisfies the type.
+      return t("refusedCreating", { label: refusal.subject ?? "" });
+    }
+    // A line created without a label has no subject: the row is only the place the line was asked
+    // at, told by its number and never by its label, which is not the line's (#1701).
+    return refusal.subject === undefined
+      ? t("refusedAtRow", { number: refusal.row.row_number })
       : t("refusedAt", { number: refusal.row.row_number, label: labelOf(refusal.row) });
   };
   return (
@@ -395,7 +402,8 @@ export function useStructureGestures<Row extends GridNode>(
     call: () => Promise<Outcome<NodesWritten>>,
     row: () => Row | undefined,
     node: {
-      readonly label: string;
+      /** What the write is about, by name; none for a line created without one. */
+      readonly label: string | undefined;
       readonly done: string;
       readonly moves?: Row;
       /** The answers were told to `onWritten` one by one, as they came. */
@@ -431,7 +439,7 @@ export function useStructureGestures<Row extends GridNode>(
           account.reach(outcome.data.structure_lock_version);
         }
         setTold(undefined);
-        say(node.done, { object: node.label });
+        say(node.done, node.label === undefined ? undefined : { object: node.label });
         // The row followed is one of the structure shown: an answer of a structure left since would
         // keep its row, which the grid would follow anew on coming back to that structure.
         const { moves: bore } = node;
@@ -515,13 +523,17 @@ export function useStructureGestures<Row extends GridNode>(
   };
   const create = (current: Opened<Row>, entered: Entered) => {
     // A line created without a label is named by the server, after a task or a role the front does
-    // not compose: told without a name, the label it bears being the one the grid then reads.
+    // not compose: told without a name, and sent with none — the history of the messages and the
+    // subject of a refusal never name the line it was created beside (#1701).
     const unnamed = entered.label === "" && current.row !== undefined;
-    const named = unnamed ? labelOf(current.row) : entered.label;
+    const named = unnamed ? undefined : entered.label;
     send(
       () => createNode(scope.structure, bodyOf(current.gesture, current.row, entered)),
       () => current.row,
-      { label: named, done: unnamed ? t("createdUnnamed") : t("created", { label: named }) },
+      {
+        label: named,
+        done: unnamed ? t("createdUnnamed") : t("created", { label: entered.label }),
+      },
       current.opening,
     );
   };

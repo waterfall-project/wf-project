@@ -360,7 +360,8 @@ l'entrée traversée — « Suivant » pressé pendant qu'il la lit —, l'écra
 dit aussi, et la barre retire ce qu'elle en disait (`broughtBack`, #1476) : le refus est dit deux
 fois, l'un après l'autre, jamais en même temps, et noté une fois dans l'historique des messages, par
 l'identité de sa réponse — pour un refus porté par un `outcome` ; une réponse booléenne n'a pas
-d'identité, et l'historique la note à part de ce que l'écran en dit. Jusqu'à sa réponse, l'écriture attendue dans la transition retient encore
+d'identité, et l'historique la note à part de ce que l'écran en dit.
+Jusqu'à sa réponse, l'écriture attendue dans la transition retient encore
 les clics : l'écran quitté par « Précédent », toujours affiché, ne la libère qu'en partant. Cela
 tient tant que le routeur garde cet ordre, peut-être un défaut amont. Une écriture encore en route quand
 son écran s'en va, et refusée ensuite, n'est dite par aucun écran : la barre de la coquille, qui

@@ -45,6 +45,7 @@
 import { Plus, Save, X } from "lucide-react";
 import { useLocale, useMessages, useTranslations } from "next-intl";
 import {
+  type ReactElement,
   type ReactNode,
   type SubmitEvent,
   useEffect,
@@ -128,20 +129,6 @@ export interface FormField {
   readonly invalid?: string;
 }
 
-/**
- * What a command that opens a form says while a write of the form is under way, which keeps it
- * inactive (`onWriting`): rendered then alone, for the command to be described by it. A command of a
- * cell of a dense grid, which has no room for it, says it in its tooltip (`CellCommand`).
- */
-export function WritingNote({ id, writing }: { readonly id: string; readonly writing: boolean }) {
-  const t = useTranslations("reference.form");
-  return writing ? (
-    <span id={id} className="text-xs text-muted-foreground">
-      {t("writing")}
-    </span>
-  ) : null;
-}
-
 /** A field of text the form requires, no longer than the contract takes. */
 export function required(name: string, label: string, maxLength: number): FormField {
   return { name, label, control: "text", required: true, maxLength };
@@ -178,6 +165,8 @@ export interface ReferenceFormProps<T = ReferenceObject> extends Pick<
   readonly creating: boolean;
   /** What the button that sends says when it is neither « Créer » nor « Enregistrer »: a review. */
   readonly submit?: string | undefined;
+  /** The icon before it, drawn hidden from a screen reader; the one of « Créer » or « Enregistrer » when none. */
+  readonly icon?: ReactElement | undefined;
   readonly fields: readonly FormField[];
   /** What the form starts from: the object modified, or nothing typed. */
   readonly initial: Draft;
@@ -413,12 +402,19 @@ function FieldControl({
   );
 }
 
+/** The icon and the label of the button that sends, by case, when the caller gives none. */
+const CASES = {
+  create: { icon: <Plus aria-hidden="true" />, label: "create" },
+  save: { icon: <Save aria-hidden="true" />, label: "save" },
+} as const;
+
 /** Render the dialog that creates or modifies an object of the reference data, a project or a sub-project. */
 export function ReferenceForm<T = ReferenceObject>({
   title,
   hint,
   creating,
   submit: submitLabel,
+  icon,
   fields,
   initial,
   ask,
@@ -437,6 +433,7 @@ export function ReferenceForm<T = ReferenceObject>({
   const t = useTranslations("reference.form");
   const locale = useLocale();
   const messages = useMessages();
+  const variant = creating ? "create" : "save";
   const list = useListReport();
   const id = useId();
   const [draft, setDraft] = useState(initial);
@@ -652,10 +649,8 @@ export function ReferenceForm<T = ReferenceObject>({
               {t("cancel")}
             </Button>
             <Button type="submit" aria-busy={pending}>
-              {creating ? <Plus aria-hidden="true" /> : <Save aria-hidden="true" />}
-              {pending || submitLabel === undefined
-                ? t(pending ? "sending" : creating ? "create" : "save")
-                : submitLabel}
+              {icon ?? CASES[variant].icon}
+              {pending ? t("sending") : (submitLabel ?? t(CASES[variant].label))}
             </Button>
           </DialogFooter>
         </form>
