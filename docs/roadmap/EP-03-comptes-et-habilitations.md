@@ -1455,7 +1455,7 @@ qu'elle se soit connectée.
   révisions marquées, contributeurs inscrits — arrivent en EP-04, qui clôt l'exigence.
 - `WF-ADM-0070-A` — « Le dernier compte administrateur, retiré de l’annuaire, reste actif et la synchronisation le signale. »
 - écart : `WF-ADM-0070-A` — « Un compte local créé depuis Waterfall existe dans le fournisseur d’identité, sans rôle. » : « sans rôle » est de la spécification 1.0.2 (#1730) ; le contrat
-  retire `access_role_ids` de `UserCreate` (#1731), et le service suit en EP-03 (#1732).
+  retire `access_role_ids` de `UserCreate` (#1731), et le service suit en EP-18 (US-1050, #1732).
 - `WF-ADM-0070-A` — « Un compte anonymisé dont la personne figure encore dans l’annuaire reste anonymisé après synchronisation, et aucun compte n’est créé à son nom. »
 - `WF-ADM-0070-A` — « Une personne ajoutée à l’annuaire a un compte dans Waterfall au terme de la périodicité choisie, sans intervention. » : la périodicité est celle de la
   tâche planifiée de lecture, quotidienne par défaut.

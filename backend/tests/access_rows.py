@@ -24,6 +24,21 @@ DAY = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
 ADMINISTRATION = ("users.write", "access_roles.write")
 
 
+def anonymized_account(database: Database, **columns: object) -> UUID:
+    """Write an account anonymised: deactivated for good, with neither name nor address."""
+    row = raw_account(
+        last_name=None,
+        first_name=None,
+        email=None,
+        state="deactivated",
+        anonymized_at=datetime(2026, 10, 2, tzinfo=UTC),
+        **columns,
+    )
+    with database.transaction() as session:
+        session.execute(insert(UserAccount).values(**row))
+    return UUID(str(row["id"]))
+
+
 def holder(database: Database, *, active: bool = True) -> UUID:
     """Write an account that holds no role yet, and give its identifier."""
     state = "active" if active else "deactivated"

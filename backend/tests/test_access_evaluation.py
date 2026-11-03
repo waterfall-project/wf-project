@@ -348,8 +348,13 @@ def test_an_unknown_role_and_a_role_not_consultable_get_the_same_answer(
     hidden = role(database, "Chiffreur", permissions=("estimate.read",))
     may_not = person(hidden)
     sent = CHANGED if method == "PATCH" else None
-    unknown = api.request(method, f"{ROLES}/{uuid4()}", headers=may_consult, json=sent)
-    not_consultable = api.request(method, f"{ROLES}/{hidden}", headers=may_not, json=sent)
+    version = {"lock_version": 0}
+    unknown = api.request(
+        method, f"{ROLES}/{uuid4()}", headers=may_consult, json=sent, params=version
+    )
+    not_consultable = api.request(
+        method, f"{ROLES}/{hidden}", headers=may_not, json=sent, params=version
+    )
     # The same status, the same type, the same body but for the correlation of each request.
     assert unknown.status_code == not_consultable.status_code == 404
     assert unknown.headers["content-type"] == not_consultable.headers["content-type"]
@@ -390,6 +395,7 @@ ASKED: dict[str, tuple[str, ...]] = {
     "anonymizeUser": ("users.read", "users.write"),
     "setUserAccessRoles": ("users.read", "users.write", CHANGE),
     "createPasswordSetupLink": ("users.read", "users.write"),
+    "resendInvitation": ("users.read", "users.write"),
     "startIdentitySync": ("users.write",),
     "getLatestIdentitySync": ("users.read",),
     "listAccessRoles": (CONSULT,),

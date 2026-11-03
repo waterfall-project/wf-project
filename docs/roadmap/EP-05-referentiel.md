@@ -2,7 +2,7 @@
 id: EP-05
 titre: Décrire l'entreprise que les projets emploient : organisation, ressources, calendriers, coûts
 statut: prêt
-depend_de: EP-16
+depend_de: EP-16, EP-18
 famille: front, back
 issue:
 ---
@@ -140,6 +140,10 @@ suit une fois figé.
   `fields` (B-01 ; contrat #1739).
 - #1746 — les objets actifs du référentiel lus par toute session, la grille des taux sous
   `cost_settings.read` (C-01 ; contrat #1745).
+- #1873 — outil : les bornes des paramètres de requête déclarés à la main (`ge`, `le`,
+  `min_length`, `max_length`…) confrontées à celles du contrat, avec les autres contrôles de
+  conformité ; EP-05 ajoute des listes et des suppressions à paramètres de requête, où il sert.
+  Relevé par la revue d'US-1060 (#1854), reporté d'EP-18 par décision de l'auteur du 2026-11-03.
 
 - #1338, pour #1304, points 1 et 3 — le service de la reprise de la spécification du 2026-10-22 (#1306, C-371 à C-375 ; #1304), dont EP-16 écrit le contrat, le faux back et les écrans (décision de l'auteur du 2026-10-22, au cadrage d'EP-16) :
   le nom de l'entreprise à l'amorçage et dans les paramètres communs, et la correspondance de

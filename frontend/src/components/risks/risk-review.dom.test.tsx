@@ -56,7 +56,7 @@ const AUTOMATION: Risk = (() => {
   return found;
 })();
 // The same risk dismissed, its category deactivated since: an example of the contract shows it.
-const DEACTIVATED = example("risk_dismissed_category_deactivated") as Risk;
+const DEACTIVATED_CATEGORY = example("risk_dismissed_category_deactivated") as Risk;
 
 const ONE = { id: "01926f3a-7c00-7000-8000-000000000404", label: "Provisions pour risques" };
 const CONTRACTUAL = { id: "01926f3a-7c00-7000-8000-000000000405", label: "Aléas contractuels" };
@@ -238,7 +238,7 @@ describe("« Réexaminer » a risk", () => {
 
   it("asks another category of a risk dismissed whose own is deactivated, only for its return, among the active ones", async () => {
     const client = serve({ [REVIEW]: { example: "risk_reidentified", status: 201 } });
-    render(detail(DEACTIVATED));
+    render(detail(DEACTIVATED_CATEGORY));
     const form = await open();
     const category = within(form).getByRole("combobox", { name: "Catégorie" });
     expect(
@@ -256,7 +256,7 @@ describe("« Réexaminer » a risk", () => {
 
   it("requires the category to bring such a risk back to identified, and sends the one chosen", async () => {
     const client = serve({ [REVIEW]: { example: "risk_reidentified", status: 201 } });
-    render(detail(DEACTIVATED));
+    render(detail(DEACTIVATED_CATEGORY));
     const form = await open();
     await userEvent.selectOptions(within(form).getByRole("combobox", { name: "État retenu" }), [
       "identified",
@@ -279,7 +279,7 @@ describe("« Réexaminer » a risk", () => {
 
   it("does not ask the category when the return has one alone to choose", async () => {
     serve();
-    render(detail(DEACTIVATED, REVIEWS, { ...OPTIONS, categories: [ONE] }));
+    render(detail(DEACTIVATED_CATEGORY, REVIEWS, { ...OPTIONS, categories: [ONE] }));
     const form = await open();
     expect(within(form).queryByRole("combobox", { name: "Catégorie" })).toBeNull();
   });

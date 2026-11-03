@@ -125,14 +125,24 @@ def act(api: ContractClient, headers: dict[str, str]) -> dict[str, str]:
             },
         )
     )
-    body = jeanne(new_address(), access_role_ids=[pilot_id])
-    account = done(api.post(USERS, headers=headers, json=body), 201)
+    # An account is born without a role: its creation inscribes only `user_create`, and the role is
+    # given afterwards by an attribution of its own.
+    account = done(api.post(USERS, headers=headers, json=jeanne(new_address())), 201)
     user_id = account["user_id"]
+    assert account["access_role_ids"] == []
+    version = done(
+        api.request(
+            "PUT",
+            f"{USERS}/{user_id}/access-roles",
+            headers=headers,
+            json={"access_role_ids": [pilot_id], "lock_version": account["lock_version"]},
+        )
+    )["lock_version"]
     version = done(
         api.patch(
             f"{USERS}/{user_id}",
             headers=headers,
-            json={"first_name": "Jeanne-Marie", "lock_version": account["lock_version"]},
+            json={"first_name": "Jeanne-Marie", "lock_version": version},
         )
     )["lock_version"]
     version = done(
@@ -153,7 +163,7 @@ def act(api: ContractClient, headers: dict[str, str]) -> dict[str, str]:
                 json={"is_active": is_active, "lock_version": version},
             )
         )["lock_version"]
-    done(api.delete(f"{ROLES}/{pilot_id}", headers=headers), 204)
+    done(api.delete(f"{ROLES}/{pilot_id}", headers=headers, params={"lock_version": 1}), 204)
     return {"directory": directory["user_id"], "jeanne": user_id, "pilot": pilot_id}
 
 
