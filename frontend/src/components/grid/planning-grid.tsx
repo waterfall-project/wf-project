@@ -153,7 +153,11 @@ export interface PlanningGantt {
   readonly exported: GanttExported;
 }
 
-/** Whether a reading is narrowed by neither a filter (`whole`) nor a search. */
+/**
+ * Whether a reading is narrowed by neither a filter (`whole`) nor a search. The search field trims
+ * what it enters (`searchHref`), but an address typed by hand may carry a blank one, which the grid
+ * reads (`readGridQuery` keeps any non-empty text) and sends: it is then a search, as the server gets it.
+ */
 function unnarrowed(whole: boolean, query: GridQuery<NodeSortColumn>): boolean {
   return whole && (query.search ?? "") === "";
 }

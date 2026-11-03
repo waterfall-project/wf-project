@@ -448,6 +448,31 @@ describe("the work breakdown edited in its grid", () => {
     ]);
   });
 
+  it("says at the field only the first refusal of the label of the element the dialog writes, the second told under the dialog", async () => {
+    serve({
+      [SET]: {
+        problem: {
+          code: "VALIDATION_FAILED",
+          status: 422,
+          fields: [
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_REQUIRED" },
+            { pointer: "/work_packages/0/order_items/1/label", code: "VALUE_TOO_LONG" },
+          ],
+        },
+      },
+    });
+    render(list());
+    await fromMenu(PACKAGE, `Ajouter un poste au lot ${quoted(PACKAGE)}`);
+    const dialog = await enter(ADDED);
+    const field = within(dialog).getByRole("textbox", { name: "Libellé" });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Les données saisies ne sont pas valides.",
+    );
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Une valeur est requise.");
+    expect(within(dialog).queryByText(/^Poste «/)).toBeNull();
+  });
+
   it("names the element a refusal points at when it is not the one the dialog writes", async () => {
     // The order item added first; then « Poste 1.1 » renamed, the server refusing the order item
     // added after it, sent with the identifier « Poste 1.1 » bears.
