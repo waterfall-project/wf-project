@@ -1873,7 +1873,7 @@
   },
   "mockup": {
     "notKept": "Mock-up: the simulated service answers each write but keeps nothing; a row written stays shown as it answered it while the screen stays open, and a page reloaded or opened again shows its original data.",
-    "notFiltered": "Filters, search, sort and pages do not apply here: the simulated service always answers the same example."
+    "notFiltered": "Filters, search, sort and pages are ignored: the simulated service always returns the same example."
   },
   "tasks": {
     "label": "Background tasks",

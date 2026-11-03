@@ -1873,7 +1873,7 @@
   },
   "mockup": {
     "notKept": "Maquette : le service simulé répond à chaque écriture sans rien conserver ; une ligne écrite reste montrée telle qu’il l’a rendue tant que l’écran reste ouvert, et une page rechargée ou rouverte montre ses données d’origine.",
-    "notFiltered": "Les filtres, la recherche, le tri et les pages ne s’y appliquent pas : le service simulé rend toujours le même exemple."
+    "notFiltered": "Filtres, recherche, tri et pages ignorés : le service simulé rend toujours le même exemple."
   },
   "tasks": {
     "label": "Tâches de fond",
