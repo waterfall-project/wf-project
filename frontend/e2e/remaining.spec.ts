@@ -55,8 +55,9 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await compile(page.request, `${IN_REVISION}/kanban`);
   // The currency now closes each amount of the cards, which wrap a line more (`FiguresGrid` sets
   // them by the width, for every screen: a layout of the cards is a lot of its own, not this
-  // one's): the window is taller by that line, so that the totals of the grid stay in view.
-  await page.setViewportSize({ width: 1280, height: 800 });
+  // one's): the window is taller by that line, and by those of the note of the fake back
+  // (US-0760), so that the totals of the grid stay in view.
+  await page.setViewportSize({ width: 1280, height: 860 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page).toHaveTitle(
     "Estimation du reste à engager · Modernisation du poste de commande — Waterfall",
@@ -284,8 +285,9 @@ test("leads from the remaining to commit to the workload of the project, on the 
   await compile(page.request, `${IN_REVISION}/workload`);
   // The link is an icon alone for the room of the head on a window of 1280 points; the cards,
   // with the currency closing each amount, wrap a line more (see the first test): the window is
-  // 800 points high so that the title of the screen and the totals of the grid are in view.
-  await page.setViewportSize({ width: 1280, height: 800 });
+  // 860 points high (the note of the fake back, US-0760, takes two lines) so that the title of the
+  // screen and the totals of the grid are in view.
+  await page.setViewportSize({ width: 1280, height: 860 });
   await openHydrated(page, `${IN_REVISION}/remaining?subproject_id=${SUBPROJECT}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeInViewport({ ratio: 1 });
   await expect(

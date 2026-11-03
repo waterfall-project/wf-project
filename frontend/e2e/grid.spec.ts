@@ -222,10 +222,10 @@ function disjoint(
 }
 
 test.describe("on a narrow window", () => {
-  // 760 pixels high: the floor of the grid (US-0560) fits under a banner on two rows, the source
+  // 840 pixels high (760 before the note of the fake back, US-0760, a few lines at this width): the floor of the grid (US-0560) fits under a banner on two rows, the source
   // of the revision being shown whole; 700 left the page overflowing by 16 pixels, the totals half
   // out of view.
-  test.use({ viewport: { width: 700, height: 760 } });
+  test.use({ viewport: { width: 700, height: 840 } });
 
   test("keeps the label of each row, the header and the totals in view as the grid scrolls sideways [WF-IHM-0060-A]", async ({
     page,
