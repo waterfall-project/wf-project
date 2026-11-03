@@ -2633,7 +2633,8 @@ l'exemple, qui conclut à une seule page), ni `kinds`, ni `fields`, ni `include_
 ne garde rien. Un écran qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient
 aux tests du front, qui éprouvent la requête que l'écran fait, et au service. Les écrans de listes
 et de grilles le disent par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note
-sous l'en-tête.
+sous l'en-tête. Les écrans dont le service est livré (l'administration, EP-03) ne portent pas la note,
+même si `make dev` les sert par Prism et que les mêmes limites s'y appliquent.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la

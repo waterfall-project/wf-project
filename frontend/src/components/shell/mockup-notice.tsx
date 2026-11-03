@@ -12,6 +12,7 @@
  * example of each read whatever the request, so it applies no filter, search, sort, page or `kinds`,
  * and the note adds `mockup.notFiltered` to the one it already shows — one note per screen, never a
  * second one. The screen of a list shows it whether its commands write or not.
+ * A screen whose epic's service is delivered (administration, EP-03) shows no note, `lists` or not.
  *
  * Neither server nor client: it renders on either side.
  */
