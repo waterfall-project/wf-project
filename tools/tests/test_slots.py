@@ -6,6 +6,7 @@ The tool is run as the Makefile runs it, ``python3 slots.py run --heavy -- <comm
 ``XDG_RUNTIME_DIR`` on a temporary directory: no test touches the locks of the workstation.
 """
 
+import contextlib
 import fcntl
 import os
 import signal
@@ -46,6 +47,7 @@ def start(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        start_new_session=True,
     )
 
 
@@ -235,8 +237,10 @@ def test_a_sigint_sent_to_the_tool_alone_reaches_the_child(tmp_path: Path) -> No
         run.send_signal(signal.SIGINT)
         run.communicate(timeout=60)
     finally:
-        # A relay that regressed would leave the tool and its child: neither outlives the test.
-        run.kill()
+        # A relay that regressed would leave the tool and its child: the group of the tool, which
+        # the session of the start made, is killed whole, so neither outlives the test.
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(run.pid, signal.SIGKILL)
         run.communicate()
     # An unhandled KeyboardInterrupt ends the child by SIGINT itself: the tool returns 128 plus it.
     assert run.returncode == 128 + signal.SIGINT, "the child died of the SIGINT it was relayed"

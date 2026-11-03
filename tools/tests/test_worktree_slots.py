@@ -11,6 +11,7 @@ tried by what it hands its commands, nothing is started.
 
 import fcntl
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -195,6 +196,63 @@ def test_slot_0_keeps_the_ports_and_names_of_before() -> None:
         "WATERFALL_KEYCLOAK_IMAGE": "waterfall-keycloak",
         "WATERFALL_FRONT_CHECK_IMAGE": "waterfall-front:check",
     }
+
+
+def test_slot_0_ports_are_the_defaults_of_the_compose_file_and_the_paths() -> None:
+    """US-1100: the ports of slot 0 are the defaults of the Compose file and of Playwright."""
+    compose = (REPOSITORY / "deploy" / "compose" / "compose.service.yaml").read_text()
+    playwright = (REPOSITORY / "frontend" / "playwright.config.ts").read_text()
+    defaults = {
+        name: int(number)
+        for name, number in re.findall(r"\$\{(\w+_PORT):-(\d+)\}", compose)
+        + re.findall(r'port\("(\w+_PORT)", (\d+)\)', playwright)
+    }
+    assert set(defaults) >= {"WATERFALL_PROXY_PORT", "E2E_API_PORT", "E2E_FRONT_PORT"}
+    for name, default in defaults.items():
+        assert slots.ports(0)[name] == default, f"{name} at slot 0 is not its default"
+
+
+def test_a_checkout_that_cannot_be_read_is_an_error_not_slot_0(workstation: Workstation) -> None:
+    """US-1100: a checkout the VCS cannot read is said, not given the main repository's ports."""
+    broken = workstation.root / "broken"
+    broken.mkdir()
+    (broken / ".git").write_text("gitdir: /nonexistent/gitdir\n")
+    for action in (["which"], ["which", "--variables"], ["claim"], ["release"]):
+        done = workstation.tool(broken, *action)
+        assert done.returncode != 0, action
+        assert done.stdout == "", "no slot said"
+        assert "cannot say which worktree" in done.stderr
+        assert "Traceback" not in done.stderr
+
+
+def test_outside_any_repository_is_slot_0(workstation: Workstation) -> None:
+    """US-1100: outside any repository, the slot is 0, as before."""
+    outside = workstation.root / "outside"
+    outside.mkdir()
+    ceiling = {"GIT_CEILING_DIRECTORIES": str(workstation.root)}
+    done = workstation.tool(outside, "which", extra=ceiling)
+    assert (done.returncode, done.stdout) == (0, "0\n")
+
+
+def test_a_slot_file_of_invalid_bytes_is_taken_again(workstation: Workstation) -> None:
+    """US-1100: a file of the register that cannot be decoded is an abandoned slot, no trace."""
+    workstation.register.mkdir(parents=True)
+    (workstation.register / "1").write_bytes(b"\xff\xfe\x80")
+    tree = workstation.worktree("lot")
+    done = workstation.tool(tree, "claim")
+    assert done.returncode == 0, done.stderr
+    assert "slot 1 taken" in done.stdout
+    assert "Traceback" not in done.stderr
+
+
+def test_a_register_that_cannot_be_used_is_said_without_trace(workstation: Workstation) -> None:
+    """US-1100: a register the user cannot use is a message, not a trace."""
+    workstation.register.parent.mkdir(parents=True)
+    workstation.register.write_text("not a directory")
+    done = workstation.tool(workstation.worktree("lot"), "claim")
+    assert done.returncode == 1
+    assert done.stderr.startswith("slots: ")
+    assert "Traceback" not in done.stderr
 
 
 def test_two_of_three_slots_asked_together_are_taken_at_two(workstation: Workstation) -> None:

@@ -86,6 +86,9 @@ PORTS_OF_BEFORE = {
     "E2E_FRONT_PORT": 3100,
 }
 """The same at slot 0, the ports of the main repository before the slots."""
+GIT_FATAL = 128
+OUTSIDE_REPOSITORY = "not a git repository (or any"
+"""The code and the words of git for a directory outside any repository (``LC_ALL=C``)."""
 COMPOSE_SETTINGS = ("COMPOSE_FILE", "COMPOSE_PROJECT_NAME", "COMPOSE_PROFILES")
 """What would point ``docker compose -p <project> down`` at another file or project."""
 
@@ -264,7 +267,11 @@ def variables(slot: int) -> dict[str, str]:
 
 
 def current_worktree(directory: Path | None = None) -> Worktree | None:
-    """Return the worktree a command runs in; None outside a repository of git, or without git."""
+    """Return the worktree a command runs in; None outside a repository of git, or without git.
+
+    Any other failure of git — a repository it refuses to read — is said, not taken for slot 0:
+    a linked worktree would be given the ports and names of the main repository.
+    """
     asked = ["--show-toplevel", "--git-dir", "--git-common-dir"]
     try:
         found = subprocess.run(
@@ -273,12 +280,16 @@ def current_worktree(directory: Path | None = None) -> Worktree | None:
             capture_output=True,
             text=True,
             check=False,
+            env={**os.environ, "LC_ALL": "C"},
         )
-    except OSError:
+    except FileNotFoundError:
         return None
     lines = found.stdout.splitlines()
-    if found.returncode != 0 or len(lines) != len(asked):
+    if found.returncode == GIT_FATAL and OUTSIDE_REPOSITORY in found.stderr:
         return None
+    if found.returncode != 0 or len(lines) != len(asked):
+        message = f"git cannot say which worktree this is: {found.stderr.strip() or found.stdout}"
+        raise SlotsError(message)
     top, own, common = lines
     return Worktree(Path(top), Path(own).resolve() == Path(common).resolve())
 
@@ -320,6 +331,8 @@ def holders(directory: Path) -> dict[int, Holder]:
             lines = entry.read_text(encoding="utf-8").splitlines()
         except FileNotFoundError:
             continue
+        except (OSError, UnicodeDecodeError):
+            lines = []  # unreadable: no worktree, so abandoned, and taken again as such
         worktree, taken_at = ([*lines, "", ""])[:2]
         taken[int(entry.name)] = Holder(worktree, taken_at)
     return dict(sorted(taken.items()))
@@ -539,6 +552,9 @@ def main(
     except SlotsError as error:
         print(f"slots: {error}", file=sys.stderr)
         return 2
+    except OSError as error:
+        print(f"slots: the register or a command cannot be used: {error}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
