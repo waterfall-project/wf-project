@@ -208,7 +208,7 @@ test("a grid of a few rows is no taller than its content, in a window that would
 /**
  * The screens whose key figures lie in cards above their grid (US-0550), at the two widths of the
  * harness, in a window 768 high: the totals of the grid stay in the window at both. Two ways hold
- * the criterion at 911 (US-0710, #1209): on the remaining to commit, `folded`, the cards are
+ * the criterion at 911 (US-0710, #1209): on the estimate and the remaining to commit, `folded`, the cards are
  * folded into a summary that unfolds (`FoldingFigures`, below 1024 points) and are hidden; on the
  * others they stay visible, the actual costs, whose grid and journal of imports lie one under the
  * other below 1024, bounding the grid to the height of the window less where it starts
@@ -217,7 +217,7 @@ test("a grid of a few rows is no taller than its content, in a window that would
  * points and the page scrolls.
  */
 const CARD_SCREENS = [
-  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768, folded: false },
+  { address: path(`${REVISION}/estimate`), widths: [1366, 911], height: 768, folded: true },
   { address: path(`${REVISION}/remaining`), widths: [1366, 911], height: 768, folded: true },
   { address: path(`${REVISION}/actual-costs`), widths: [1366, 911], height: 768, folded: false },
   { address: path(`${REVISION}/risks`), widths: [1366, 911], height: 768, folded: false },

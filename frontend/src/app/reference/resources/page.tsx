@@ -114,16 +114,9 @@ const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
  * The title of the screen, and the switch of the deactivated objects for who may read them; under it,
- * for who may write, that the fake back keeps nothing of what is written.
+ * the note of the fake back: it keeps nothing of what is written, and filters nothing.
  */
-function ResourcesHeader({
-  inactive,
-  writes,
-}: {
-  readonly inactive: boolean | undefined;
-  /** Whether the session may modify the settings of the resources, and its commands write. */
-  readonly writes: boolean;
-}) {
+function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
   const t = useTranslations("functions");
   return (
     <>
@@ -135,7 +128,7 @@ function ResourcesHeader({
           inactive === undefined ? undefined : <InactiveSwitch shown={inactive} pages={PAGES} />
         }
       />
-      {writes ? <MockupNotice /> : null}
+      <MockupNotice lists />
     </>
   );
 }
@@ -370,7 +363,7 @@ export default async function ResourceSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.resource_settings}>
       <PendingAddress>
-        <ResourcesHeader inactive={readsInactive ? shown : undefined} writes={editable} />
+        <ResourcesHeader inactive={readsInactive ? shown : undefined} />
         <OrgNodeList
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}

@@ -49,6 +49,7 @@ import { PendingAddress } from "@/components/grid/pending-address";
 import type { GridPreferences } from "@/components/grid/settings";
 import { ICON } from "@/components/projects/project-tables";
 import { LEAF_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { contextQuery, type PageSearchParams } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -164,6 +165,7 @@ export default async function ExchangesPage({
       <ContextBanner reading={reading} />
       <Screen>
         <ExchangesHeader />
+        <MockupNotice lists />
         {shown === undefined ? null : (
           <ImportReport
             key={shown.import_id}

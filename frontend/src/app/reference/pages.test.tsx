@@ -257,7 +257,7 @@ describe("the settings of the costs", () => {
     expect(text(page)).toContain("Nouvelle nature");
     expect(text(page)).toContain("Nouvelle catégorie");
     expect(page).toContain('aria-label="Modifier «\u00a0Débours\u00a0»"');
-    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé répond/);
+    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé ne conserve/);
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",
@@ -265,7 +265,7 @@ describe("the settings of the costs", () => {
       "GET /reference/cost-categories": "volume/cost_categories_reader",
     };
     const read = await costsAt();
-    for (const offered of ["Nouvelle", "Modifier", "Désactiver", "Maquette"]) {
+    for (const offered of ["Nouvelle", "Modifier", "Désactiver"]) {
       expect(read).not.toContain(offered);
     }
   });

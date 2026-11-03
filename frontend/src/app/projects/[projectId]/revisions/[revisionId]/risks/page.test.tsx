@@ -593,3 +593,11 @@ describe("the commands of the risks", () => {
     expect(handed?.tasks.map(({ label }) => label)).toContain("Études de détail");
   });
 });
+
+describe("the note of the fake back on the risks", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await risksAt();
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
+  });
+});

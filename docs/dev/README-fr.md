@@ -1052,7 +1052,7 @@ déplacé d'abord, dans la borne de 64 du contrat, pour qu'un déplacement ne d�
 ses dates et son couloir ; elles se créent par leur nom et la chronologie montrée se supprime après
 confirmation, comme le projet liste `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). Le serveur sélectionne ce que chacune dessine (#463) : l'arborescence
 demande les récapitulatives jusqu'au niveau de l'adresse (`summaries_only`, `max_level`), une
-chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres,
+chronologie les tâches qui y sont inscrites (`timeline_id`). Le faux back ignorant ces filtres (« Ce que le faux back ne fait pas »),
 chacune applique encore le même critère à la réponse (`summaryTree`, `inscribedTo`) : un filtre
 idempotent, qui ne change rien contre un serveur qui les tient, écart temporaire d'EP-02 retiré
 avec le back d'EP-03. L'arborescence offre exactement les niveaux que la structure a, du premier à
@@ -1309,7 +1309,7 @@ une case de la matrice des permissions), sinon à la cellule active de la grille
 les paramètres qu'elle lit (`listReads`), le tri d'une autre liste de l'écran n'y comptant pas. Dans
 une grille, la commande est hors de la tabulation, et Entrée sur sa cellule la presse
 (`CELL_COMMAND`, `grid-keyboard.ts`). Le faux back ignorant les filtres, les pages et
-`include_inactive`, et ne gardant rien, les tests éprouvent ce que l'écran demande ; le service le
+`include_inactive`, et ne gardant rien (« Ce que le faux back ne fait pas »), les tests éprouvent ce que l'écran demande ; le service le
 tiendra en EP-05.
 
 ### Les paramètres de coûts : natures et catégories
@@ -1402,8 +1402,9 @@ survit donc aux relectures — ; une création n'ajoute aucune ligne, la page re
 serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
 désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
 (`useListReport`). Le faux back ne gardant rien, l'écran le dit
-sous son en-tête, pour qui écrit — une ligne écrite restant montrée telle que le serveur l'a rendue
-tant que l'écran reste ouvert — (`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
+sous son en-tête, pour qui écrit — la note tient en 150 signes avec celle des listes, et ne dit pas
+qu'une ligne écrite reste montrée telle que le serveur l'a rendue tant que l'écran reste ouvert —
+(`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
 par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
 service de son EPIC). La saisie d'un taux reste celle de la grille.
 
@@ -2629,6 +2630,18 @@ une API que l'environnement nomme (`WATERFALL_API_ADDRESS`), le harnais ne pose 
 Le faux back sert des lectures. Il ne garde aucun état : un projet créé n'apparaît pas dans
 la liste suivante. Il sert aux lots de front qui précèdent leur lot de back et aux tests du
 front qui ne font que lire, jamais à éprouver une écriture.
+
+### Ce que le faux back ne fait pas
+
+Prism rend le premier exemple de l'opération quelle que soit la requête : il ne lit aucun
+paramètre. Sur un écran de `make dev`, il n'applique donc ni filtre, ni recherche, ni tri, ni
+pagination (`limit` et `offset` partent bien, mais la barre se calcule sur le `meta` de
+l'exemple, qui conclut à une seule page), ni `kinds`, ni `fields`, ni `include_inactive` — et il
+ne garde rien. Un écran qui en dépend se juge mal en maquette (#1399) : juger ces gestes revient
+aux tests du front, qui éprouvent la requête que l'écran fait, et au service. Les écrans de listes
+et de grilles le disent par `MockupNotice` avec `lists` (`mockup.notFiltered`), en une seule note
+sous l'en-tête. Les écrans dont le service est livré (l'administration, EP-03) ne portent pas la note,
+même si `make dev` les sert par Prism et que les mêmes limites s'y appliquent.
 
 _Contrôles_ : `make lint-openapi` (exemples conformes aux schémas, volumes compris),
 `make mock-data-up-to-date` (les volumes versionnés sont ceux que l'outil écrit, dans la

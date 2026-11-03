@@ -49,7 +49,8 @@ describe("the page of the correspondence of the actual costs", () => {
     expect(page).toContain("Texte de commande");
     expect(page).not.toContain("Enregistrer la correspondance");
     expect(page).not.toContain("<input");
-    expect(page).not.toMatch(/role="note"/);
+    // The list says what the fake back does not apply, in its one note.
+    expect(page.match(/role="note"/g)).toHaveLength(1);
   });
 
   it("says the four columns without a label of an empty correspondence [WF-REF-0190-A]", async () => {

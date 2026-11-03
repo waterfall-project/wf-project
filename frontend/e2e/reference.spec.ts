@@ -313,7 +313,7 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
 }) => {
   test.slow();
   await page.goto("/reference/costs");
-  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
 
   // A category created in its form. No project is opened here, nothing witnesses the hydration:
   // the creation is pressed again until React opens its form, and never once it is open.
@@ -405,7 +405,7 @@ test("creates a role in its form, moves a node under an active one, and designat
 }) => {
   test.slow();
   await page.goto("/reference/resources");
-  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
 
   // A role created in its form. No project is opened here, nothing witnesses the hydration: the
   // creation is pressed again until React opens its form, and never once it is open.
@@ -486,7 +486,7 @@ test("modifies the risk matrix and the thresholds of the indices in their forms,
 }) => {
   test.slow();
   await page.goto("/reference/risks");
-  await expect(page.getByRole("note")).toContainText("le service simulé répond");
+  await expect(page.getByRole("note")).toContainText("le service simulé ne conserve");
 
   // No project is opened here, nothing witnesses the hydration: the command is pressed again until
   // React opens its form, and never once it is open.

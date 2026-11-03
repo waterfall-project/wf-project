@@ -10,6 +10,8 @@ The cards above the [estimate](FBS-4.4.md) grid, as the server calculates them f
 - **Deviation from the previous marked revision**, when there is one.
 - **By nature of cost**, in amount and in share of the total; **By subproject**; **By work package**: the total of the subtree of the task that bears each work package of the work breakdown, a work package without an attached task being shown without a total. A share that cannot be calculated says so, with its reason.
 
+Below 1024 points of width — a window zoomed to 150% —, the cards fold into a summary, **Key figures**, which unfolds on a click or from the keyboard: the totals of the grid stay in view. Above that width they are open. The notice of the missing hourly rates and the mention that the indicators are unavailable are not folded.
+
 When labour cost categories have no hourly rate for the reference year of the revision, the notice “Missing hourly rates” names them with the year: the estimate cannot be calculated before they have one, and its indicators are said unavailable.
 
 ## Its commands

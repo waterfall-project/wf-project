@@ -318,7 +318,7 @@ function CostsHeader({
       ) : (
         <CompanyName name={settings.company_name} />
       )}
-      {writes ? <MockupNotice /> : null}
+      <MockupNotice lists />
     </>
   );
 }

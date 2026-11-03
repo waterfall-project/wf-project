@@ -207,7 +207,7 @@ export default async function HomePage({
             <ContributorFilter filtered={filtered} mayLift={mayLift} query={searchQuery(raw)} />
           }
         />
-        {creates ? <MockupNotice /> : null}
+        <MockupNotice lists />
         <ReferenceIncomplete readiness={readiness} permissions={permissions} />
         <ProjectsShown projects={projects} asked={asked} preferences={kept} />
       </Screen>

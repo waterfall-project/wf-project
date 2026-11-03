@@ -707,7 +707,7 @@ describe("the indicators and the missing rates of the estimate", () => {
     );
     // « Help »: the button the address of the mock, a project's page, puts in each header (#1439).
     expect(text(html)).toMatch(
-      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
+      /Costing and estimate Help Structure principale · 6 tasks, 1 line Workload Imports and exports Mock-up: .* Estimate indicators Computed on Estimate total €68,923,691.06 .*No\. Label/,
     );
     // Its head leads to the workload of the project, a leaf of the estimate, in the same context,
     // on the reference budget of a project in progress (#1069).

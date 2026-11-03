@@ -10,6 +10,8 @@ Les cartes au-dessus de la grille de [devis](FBS-4.4.md), telles que le serveur 
 - **Écart avec la révision marquée précédente**, quand il y en a une.
 - **Par nature de coût**, en montant et en part du total ; **Par sous-projet** ; **Par lot** : le total du sous-arbre de la tâche qui porte chaque lot du lotissement, un lot sans tâche rattachée étant présenté sans total. Une part qui ne peut pas être calculée le dit, avec son motif.
 
+Sous 1024 points de large — une fenêtre agrandie à 150 % —, les cartes se replient en un résumé, **Chiffres clés**, qui se déplie d’un clic ou au clavier : les totaux de la grille restent ainsi en vue. Au-dessus, elles sont ouvertes. L’avis des taux horaires manquants et la mention d’indicateurs indisponibles ne se replient pas.
+
 Quand des catégories de coût de main-d’œuvre n’ont pas de taux horaire pour l’année de référence de la révision, l’avis « Taux horaires manquants » les nomme avec l’année : le devis ne peut pas être calculé avant qu’elles en aient un, et ses indicateurs sont dits indisponibles.
 
 ## Ses commandes
