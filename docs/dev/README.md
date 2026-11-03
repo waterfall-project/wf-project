@@ -2696,6 +2696,16 @@ production code, tests and the rest (documentation, configuration, contract), th
 files set apart. The pull request puts that number next to the estimate of its issue; an
 overrun makes nothing fail (README of the roadmap, section « Lots »).
 
+`make tracking ISSUE=<n>` changes one line of the tracking table in the body of the epic's issue,
+through `gh`, and touches nothing else: `LOT=<identifier>` (`US-1080` for a story of one lot,
+`US-1120/L2` for a lot of a story that has several) with `STATE`, `PR` or `MODEL`, only those given
+changing; `US=<identifier> STATUS=…`; `FINDING=<n> ATTACHED=… DECISION=…`, which adds the finding
+(the title of its issue without the `[EP-nn]`, `à trancher` in bold), changes it where it is, or
+removes it when its issue is closed. The columns are found by their header; the target refuses,
+non-zero code and body unchanged, a line it does not find. It reads the body again under a lock of
+the workstation of its own for the issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+(`/tmp` by default), just before writing it: two simultaneous calls each keep their change.
+
 The workstation admits only `WATERFALL_SLOTS` heavy runs at a time — the whole tests and the
 coverage of the back and the front, `make test-tools`, the production build of the front, the
 end-to-end paths —, whatever the repository or the worktree. This environment variable, set in the

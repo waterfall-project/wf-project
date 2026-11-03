@@ -482,7 +482,7 @@ La version de PostgreSQL et le client du poste : l'EPIC de montée de version de
 
 ## US-1120 — Le pilote lance jusqu'à N livreurs
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1886

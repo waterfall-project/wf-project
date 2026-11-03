@@ -70,7 +70,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 	check-contract check-back lint-back typecheck-back imports-back test-back check-front \
 	check-front-code check-front-e2e check-front-image \
 	install-front lint-front typecheck-front test-front build-front prerendered-front generate-client client-up-to-date generate-server-models server-models-up-to-date catalogs \
-	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size \
+	coverage-back coverage-front roadmap check-roadmap e2e e2e-measure e2e-browsers lot-size tracking \
 	lint-docker changes gate \
 	check-tools clean
 
@@ -591,6 +591,12 @@ test-services-down: ## Remove the services of the tests of the slot of this work
 
 lot-size: ## The real size of a lot, against its epic (BASE=origin/epic/EP-nn); never fails
 	@$(WFTOOLS).lotsize "$(BASE)" $(HEAD)
+
+tracking: ## Change one line of the tracking table of an epic's issue, under a lock: ISSUE=<n> with LOT=<id> [STATE PR MODEL], US=<id> STATUS=…, or FINDING=<n> ATTACHED=… DECISION=…
+	@$(WFTOOLS).tracking $${ISSUE:+--issue "$$ISSUE"} $${LOT:+--lot "$$LOT"} $${US:+--us "$$US"} \
+		$${FINDING:+--finding "$$FINDING"} $${STATE:+--state "$$STATE"} $${PR:+--pr "$$PR"} \
+		$${MODEL:+--model "$$MODEL"} $${STATUS:+--status "$$STATUS"} \
+		$${ATTACHED:+--attached "$$ATTACHED"} $${DECISION:+--decision "$$DECISION"}
 
 changes: ## Print which families of checks the change touches (BASE; HEAD, or the working tree)
 	@$(WFTOOLS).changes "$(BASE)" $(HEAD)
