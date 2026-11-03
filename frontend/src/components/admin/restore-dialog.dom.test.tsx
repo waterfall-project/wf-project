@@ -387,10 +387,13 @@ describe("the restoration of the platform", () => {
     expect(said).toHaveTextContent("le journal d’audit la dit");
     expect(said).not.toHaveTextContent("Restauration terminée");
     expect(said).not.toHaveTextContent("restaurée");
-    expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/login"),
+    // The sign-in comes back to the journal of audit, where the outcome is read (#1024).
+    const next = new URL(
+      within(said).getByRole("link", { name: "Se connecter" }).getAttribute("href") ?? "",
+      "http://front.test",
     );
+    expect(next.pathname).toBe("/login");
+    expect(next.searchParams.get("next")).toBe("/admin/audit-log");
   });
 
   it("says the maintenance of a restoration that closed the session between the probe and the read of its task, then its end — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {

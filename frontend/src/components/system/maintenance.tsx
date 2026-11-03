@@ -128,6 +128,9 @@ export function useRestorationPhase(taskId: string | undefined): RestorationPhas
   return phase;
 }
 
+/** Where the outcome of a restoration is read, and where the sign-in that follows it comes back. */
+const AUDIT_LOG_SCREEN = "/admin/audit-log";
+
 /**
  * The screen of a restoration whose task can no longer be read for want of a session, before any
  * maintenance was seen: the way to sign in again, without saying whether the restoration was made.
@@ -145,7 +148,7 @@ function SignedOutNotice() {
         {t("signedOutTitle")}
       </h1>
       <p>{t("signedOut")}</p>
-      <SignIn reauthenticate />
+      <SignIn reauthenticate returnTo={AUDIT_LOG_SCREEN} />
     </section>
   );
 }

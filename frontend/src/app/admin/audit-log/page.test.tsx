@@ -505,10 +505,20 @@ describe("the audit log, the author chosen", () => {
     expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
   });
 
-  it("reads no account for an author the journal names, and leaves one the API does not find chosen by its identifier [WF-ADM-0060-A]", async () => {
+  it("reads no account for an author the journal names [WF-ADM-0060-A]", async () => {
     server.answers = { ...server.answers, "GET /users/{user_id}": "user_deactivated" };
     await journal({ user_id: CAMILLE });
     expect(queriesOf("GET /users/{user_id}")).toEqual([]);
+  });
+
+  it("leaves an author the API does not find chosen by its identifier [WF-ADM-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /users/{user_id}": { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await journal({ user_id: VIDAL });
+    expect(queriesOf("GET /users/{user_id}")).toHaveLength(1);
+    expect(page).toContain(`<option value="${VIDAL}" selected="">${VIDAL}</option>`);
   });
 });
 

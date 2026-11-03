@@ -101,6 +101,7 @@ test("an attribution of a role, the journal filtered on its author and its actio
   const administrator = await accountAdministrator(browser, calls);
   const role = `Audit ${randomBytes(4).toString("hex")}`;
   let holder: string | undefined;
+  let given = false;
   try {
     const auditor = await localAccount(browser, administrator);
     holder = auditor.email;
@@ -114,6 +115,8 @@ test("an attribution of a role, the journal filtered on its author and its actio
 
     // The administrator gives her the consultation, by the service, which inscribes it.
     const before = Date.now();
+    // Set before the call: a role made, then a failure, is still cleaned up.
+    given = true;
     await administrator.give(auditor.id, role, ["audit_log.read"]);
     const asked = filtered(administrator.self, "user_access_roles_set");
 
@@ -157,11 +160,18 @@ test("an attribution of a role, the journal filtered on its author and its actio
     await reader.context().close();
     await author.context().close();
   } finally {
-    // The roles withdrawn once asserted, never before, then the role itself.
-    if (holder !== undefined) {
-      withdrawRoles(holder);
-      // The role the path made, unheld now, is deleted: the next run makes its own (#963).
-      await administrator.remove(role);
+    // The roles withdrawn once asserted, never before, then the role itself. A cleanup that fails
+    // is told, never thrown: it would hide the error of the path (#963).
+    try {
+      if (holder !== undefined) {
+        withdrawRoles(holder);
+      }
+      // The role the path made, unheld now, is deleted: the next run makes its own.
+      if (given) {
+        await administrator.remove(role);
+      }
+    } catch (failure) {
+      console.error("The cleanup of the audit path failed:", failure);
     }
     await calls.dispose();
   }

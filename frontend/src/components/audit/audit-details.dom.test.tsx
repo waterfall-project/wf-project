@@ -152,7 +152,7 @@ describe("the title of the cell of the action", () => {
     params,
   });
 
-  it("is posed only when the cell cuts its text short, so that no technology reads it twice [WF-SEC-0030-A]", () => {
+  it("is posed only when the cell cuts its text short, so that no technology reads it twice", () => {
     measureCut(false);
     expect(
       detailsOf(inscription("access_role_update", "Responsable d'équipe"), "fr")?.getAttribute(
@@ -168,7 +168,7 @@ describe("the title of the cell of the action", () => {
     ).toMatch(/^Auparavant « Manager » ; Permission donnée/);
   });
 
-  it("gives, once cut, the instant of the backup restored alone and after the reason [WF-SEC-0030-A]", () => {
+  it("gives, once cut, the instant of the backup restored alone and after the reason [WF-ADM-0160-A]", () => {
     measureCut(true);
     const instant = "2026-06-01T10:00:00Z";
     const alone = detailsOf(restored({ backup_taken_at: instant }), "fr");
@@ -182,7 +182,7 @@ describe("the title of the cell of the action", () => {
     );
   });
 
-  it("is not posed on a restoration shown whole [WF-SEC-0030-A]", () => {
+  it("is not posed on a restoration shown whole", () => {
     measureCut(false);
     const alone = detailsOf(restored({ backup_taken_at: "2026-06-01T10:00:00Z" }), "fr");
     expect(alone?.hasAttribute("title")).toBe(false);

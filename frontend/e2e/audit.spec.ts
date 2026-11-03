@@ -66,6 +66,37 @@ test("reaches the journal of audit from the navigation of the administration, an
   await expect(page).toHaveURL(RISK, { timeout: WORKING });
 });
 
+test("poses the title of the second line of the action only where the browser cuts its text short [WF-IHM-0060-A]", async ({
+  page,
+}) => {
+  await page.goto(JOURNAL);
+  const grid = page.getByRole("grid", { name: "Journal d’audit" });
+  await expect(grid.getByRole("row", { name: /Créé par le fournisseur d’identité/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  // Each second line, with its title and the browser's own measure of its text.
+  const lines = () =>
+    grid.locator("span.text-ellipsis").evaluateAll((spans) =>
+      spans.map((span) => ({
+        titled: span.hasAttribute("title"),
+        cut: span.scrollWidth > span.clientWidth,
+      })),
+    );
+  const mismatches = async () => {
+    const read = await lines();
+    return read.length === 0 ? -1 : read.filter(({ titled, cut }) => titled !== cut).length;
+  };
+  // Wide, no line is cut and none carries a title; narrowed, some are cut and carry theirs.
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await expect.poll(async () => (await lines()).filter(({ titled }) => titled).length).toBe(0);
+  expect(await mismatches()).toBe(0);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect
+    .poll(async () => (await lines()).filter(({ titled }) => titled).length, { timeout: WORKING })
+    .toBeGreaterThan(0);
+  expect(await mismatches()).toBe(0);
+});
+
 test("sorts the journal on its columns both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
   page,
 }) => {
