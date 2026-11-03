@@ -94,17 +94,33 @@ def wait_for_slot(paths: Sequence[Path]) -> int:
 
 
 def run_command(command: Sequence[str], environment: Mapping[str, str]) -> int:
-    """Run the command as a child, relaying the signals; return its code (128 + n if killed)."""
+    """Run the command as a child, relaying the signals; return its code (128 + n if killed).
+
+    The handlers are set before the child exists, so a signal that comes first is kept and relayed
+    once it does: the tool never dies leaving a child without a slot. SIGINT from a terminal
+    reaches the child by itself (same process group), so it is not relayed a second time; one sent
+    to the tool alone, or kept from before the child existed, is.
+    """
+    children: list[subprocess.Popen[bytes]] = []
+    early: list[int] = []
+
+    def relay(received: int, _frame: object) -> None:
+        if children:
+            if received != signal.SIGINT:
+                children[0].send_signal(received)
+        else:
+            early.append(received)
+
+    previous = {number: signal.signal(number, relay) for number in RELAYED}
     try:
-        child = subprocess.Popen(command, env=dict(environment), close_fds=True)
-    except OSError as error:
-        print(f"slots: cannot run {command[0]!r}: {error.strerror}", file=sys.stderr)
-        return 127 if isinstance(error, FileNotFoundError) else 126
-    previous = {
-        number: signal.signal(number, lambda received, _frame: child.send_signal(received))
-        for number in RELAYED
-    }
-    try:
+        try:
+            child = subprocess.Popen(command, env=dict(environment), close_fds=True)
+        except OSError as error:
+            print(f"slots: cannot run {command[0]!r}: {error.strerror}", file=sys.stderr)
+            return 127 if isinstance(error, FileNotFoundError) else 126
+        children.append(child)
+        for received in early:
+            child.send_signal(received)
         code = child.wait()
     finally:
         for number, handler in previous.items():

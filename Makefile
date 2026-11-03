@@ -45,7 +45,8 @@ NOWHERE := http://127.0.0.1:9
 PNPM_ENV := COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
 PNPM    := cd $(FRONT) && $(PNPM_ENV) pnpm
 # pnpm for a heavy run, which waits for its turn (tools/src/wftools/slots.py).
-PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) pnpm
+# The front takes the same share as the back (WATERFALL_PROCESSORS), a run of one file (TESTS) too.
+PNPM_HEAVY = cd $(FRONT) && $(heavy) $(PNPM_ENV) WATERFALL_PROCESSORS=$(WATERFALL_PROCESSORS) pnpm
 # Pinned so that a check passes or fails on what this repository contains, never on
 # what a tool released overnight. Raise a version here and nowhere else.
 REDOCLY_VERSION := 2.54.3
@@ -98,7 +99,8 @@ SLOTS = python3 $(CURDIR)/tools/src/wftools/slots.py
 heavy = $(if $(TESTS),,$(SLOTS) run --heavy -- env)
 # The workers of pytest: the share a heavy run was given, or the one it would be given, for a run
 # of one file that does not wait.
-WATERFALL_PROCESSORS ?= $(shell $(SLOTS) processors)
+# An invalid WATERFALL_SLOTS stops make here, saying so, only where the share is used.
+WATERFALL_PROCESSORS ?= $(or $(shell $(SLOTS) processors 2>/dev/null),$(error WATERFALL_SLOTS must be an integer from 1 to 9, not '$(WATERFALL_SLOTS)'))
 full-only = $(if $(filter full,$(TIER)),$(1))
 # The coverage run executes the same tests: in the full tier it replaces the plain run.
 full-else = $(if $(filter full,$(TIER)),$(1),$(2))

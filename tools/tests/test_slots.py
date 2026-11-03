@@ -19,9 +19,15 @@ import pytest
 from wftools import REPOSITORY, slots
 
 SLOTS = REPOSITORY / "tools" / "src" / "wftools" / "slots.py"
-PAUSE = (
-    "import sys, time; open(sys.argv[1], 'w').write(str(time.time())); time.sleep(1.5); "
-    "open(sys.argv[2], 'w').write(str(time.time()))"
+# Writes its start, waits for the file "go" (60 s at most, never to block), writes its end.
+HANDSHAKE = (
+    "import os, sys, time\n"
+    "directory, name = sys.argv[1], sys.argv[2]\n"
+    "open(f'{directory}/s{name}', 'w').write(str(time.time_ns()))\n"
+    "deadline = time.monotonic() + 60\n"
+    "while not os.path.exists(f'{directory}/go') and time.monotonic() < deadline:\n"
+    "    time.sleep(0.01)\n"
+    "open(f'{directory}/e{name}', 'w').write(str(time.time_ns()))\n"
 )
 
 
@@ -52,20 +58,30 @@ def wait_for(path: Path) -> None:
 def test_two_of_three_heavy_runs_pass_together_at_two_slots(tmp_path: Path) -> None:
     """US-1090: with N = 2, three heavy runs: two pass together, the third waits for one to end."""
     runs = [
-        start(
-            tmp_path,
-            [sys.executable, "-c", PAUSE, str(tmp_path / f"s{i}"), str(tmp_path / f"e{i}")],
-            "2",
-        )
+        start(tmp_path, [sys.executable, "-c", HANDSHAKE, str(tmp_path), str(i)], "2")
         for i in range(3)
     ]
-    for run in runs:
-        run.communicate(timeout=30)
-        assert run.returncode == 0
-    starts = sorted(float((tmp_path / f"s{i}").read_text()) for i in range(3))
-    ends = sorted(float((tmp_path / f"e{i}").read_text()) for i in range(3))
-    assert starts[1] < ends[0], "two runs pass together"
-    assert starts[2] >= ends[0], "the third waits for one of them to end"
+    try:
+        # Two runs started and none ended: they pass together, each waiting for "go".
+        deadline = time.monotonic() + 30
+        while len(list(tmp_path.glob("s?"))) < 2:
+            assert time.monotonic() < deadline, "two runs never started together"
+            time.sleep(0.02)
+        time.sleep(0.3)
+        assert len(list(tmp_path.glob("s?"))) == 2, "the third waits while two hold the slots"
+        assert not list(tmp_path.glob("e?"))
+        (tmp_path / "go").write_text("go")
+        for run in runs:
+            run.communicate(timeout=60)
+            assert run.returncode == 0
+    finally:
+        (tmp_path / "go").write_text("go")
+        for run in runs:
+            if run.poll() is None:
+                run.kill()
+    starts = sorted(int((tmp_path / f"s{i}").read_text()) for i in range(3))
+    ends = sorted(int((tmp_path / f"e{i}").read_text()) for i in range(3))
+    assert starts[2] >= ends[0], "the third started once one of them had ended"
 
 
 def test_the_first_slot_is_the_lock_of_before(tmp_path: Path) -> None:
@@ -146,12 +162,14 @@ def test_the_signals_reach_the_command_and_its_code_is_returned(tmp_path: Path) 
 
 
 def test_a_command_killed_by_a_signal_returns_128_plus_it(tmp_path: Path) -> None:
+    """US-1090: a command killed by a signal returns 128 plus it."""
     run = start(tmp_path, ["sh", "-c", "kill -KILL $$"])
     run.communicate(timeout=10)
     assert run.returncode == 128 + signal.SIGKILL
 
 
 def test_a_missing_command_returns_127(tmp_path: Path) -> None:
+    """US-1090: a command that does not exist returns 127 and is named."""
     run = start(tmp_path, ["no-such-command-for-slots"])
     _, error = run.communicate(timeout=10)
     assert run.returncode == 127
@@ -180,6 +198,7 @@ def test_the_share_of_the_processors_is_at_least_one(monkeypatch: pytest.MonkeyP
 
 
 def test_the_share_is_printed_for_a_run_that_does_not_wait() -> None:
+    """US-1090: processors prints the share, for a run that does not wait."""
     environment = {**os.environ, "WATERFALL_SLOTS": "2"}
     printed = subprocess.run(
         [sys.executable, str(SLOTS), "processors"],
@@ -191,23 +210,94 @@ def test_the_share_is_printed_for_a_run_that_does_not_wait() -> None:
     assert int(printed.stdout) == slots.processor_share(2)
 
 
-def test_make_waits_for_a_slot_unless_a_single_file_is_selected(tmp_path: Path) -> None:
-    """US-1090: test-tools is a heavy run, and a run of one file (TESTS) does not wait (#1892)."""
+def test_a_signal_before_the_child_exists_is_relayed_to_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """US-1090: a SIGTERM that comes before the child exists is kept, then relayed to it."""
+    real = subprocess.Popen
 
-    def plan(*arguments: str) -> str:
-        # Not the variables of the make that runs this test, TESTS among them.
-        outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_PROCESSORS")
-        environment = {k: v for k, v in os.environ.items() if k not in outer}
-        return subprocess.run(
-            ["make", "--dry-run", "test-tools", *arguments],
-            cwd=REPOSITORY,
-            env={**environment, "XDG_RUNTIME_DIR": str(tmp_path)},
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
+    def popen_after_signal(*arguments: object, **options: object) -> subprocess.Popen[bytes]:
+        signal.raise_signal(signal.SIGTERM)
+        return real(*arguments, **options)  # type: ignore[call-overload, no-any-return]
 
-    assert "slots.py run --heavy --" in plan()
-    one_file = plan("TESTS=tests/test_guard.py")
-    assert "slots.py run" not in one_file
-    assert one_file.rstrip().endswith("tests/test_guard.py")
+    monkeypatch.setattr(slots.subprocess, "Popen", popen_after_signal)
+    code = slots.run_command([sys.executable, "-c", "import time; time.sleep(60)"], dict(os.environ))
+    assert code == 128 + signal.SIGTERM
+
+
+def test_a_sigint_sent_to_the_tool_alone_is_not_relayed(tmp_path: Path) -> None:
+    """US-1090: SIGINT from a terminal reaches the child itself, so the tool does not repeat it."""
+    ready = tmp_path / "ready"
+    script = (
+        "import os, time\n"
+        f"open({str(ready)!r}, 'w')\n"
+        f"while not os.path.exists({str(tmp_path / 'go')!r}):\n"
+        "    time.sleep(0.01)\n"
+    )
+    run = start(tmp_path, [sys.executable, "-c", script])
+    wait_for(ready)
+    run.send_signal(signal.SIGINT)
+    time.sleep(0.3)
+    assert run.poll() is None, "the tool waits for its child"
+    (tmp_path / "go").write_text("go")
+    run.communicate(timeout=30)
+    assert run.returncode == 0
+
+
+HEAVY_TARGETS = {
+    "test-tools": True,
+    "test-back": True,
+    "coverage-back": False,
+    "test-front": True,
+    "coverage-front": False,
+    "build-front": False,
+    "e2e": True,
+    "e2e-measure": False,
+}
+
+
+def plan(tmp_path: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    """Return the dry run of make, free of the variables of the make that runs this test."""
+    outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_PROCESSORS", "WATERFALL_SLOTS")
+    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    return subprocess.run(
+        ["make", "--dry-run", *arguments],
+        cwd=REPOSITORY,
+        env={**environment, "XDG_RUNTIME_DIR": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize("target", list(HEAVY_TARGETS))
+def test_make_waits_for_a_slot_unless_a_single_file_is_selected(
+    tmp_path: Path, target: str
+) -> None:
+    """US-1090: a heavy run waits for a slot, and a run of one file (TESTS) does not (#1892)."""
+    assert "slots.py run --heavy --" in plan(tmp_path, target).stdout
+    if HEAVY_TARGETS[target]:
+        one_file = plan(tmp_path, target, "TESTS=tests/test_guard.py").stdout
+        assert "slots.py run" not in one_file
+        assert one_file.rstrip().endswith("tests/test_guard.py")
+
+
+def test_the_back_workers_follow_the_share(tmp_path: Path) -> None:
+    """US-1090: at N = 2, the plan of test-back runs on the share, eight workers at most."""
+    share = slots.processor_share(2)
+    output = plan(tmp_path, "test-back", "WATERFALL_SLOTS=2").stdout
+    assert f"-n {share} --maxprocesses 8" in output
+
+
+def test_the_front_gets_the_share_of_a_run_of_one_file_too(tmp_path: Path) -> None:
+    """US-1090: the front is given WATERFALL_PROCESSORS, whatever the run of the front."""
+    share = slots.processor_share(2)
+    for arguments in (["TESTS=x"], []):
+        output = plan(tmp_path, "test-front", "WATERFALL_SLOTS=2", *arguments).stdout
+        assert f"WATERFALL_PROCESSORS={share} pnpm test" in output
+
+
+def test_make_names_an_invalid_slot_count_whatever_the_target(tmp_path: Path) -> None:
+    """US-1090: with TESTS, an invalid WATERFALL_SLOTS stops make, saying so; other targets run."""
+    refused = plan(tmp_path, "test-tools", "TESTS=x", "WATERFALL_SLOTS=x")
+    assert refused.returncode != 0
+    assert "WATERFALL_SLOTS" in refused.stderr
+    assert plan(tmp_path, "lint-front", "WATERFALL_SLOTS=x").returncode == 0
