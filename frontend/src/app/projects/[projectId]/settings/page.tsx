@@ -23,7 +23,8 @@
  * `manage_contributors` (EP-02/L44b): to a session that may write them, the page reads the accounts
  * the server proposes (`listContributorSuggestions`, WF-PRJ-0070), and the list whole when the grid
  * reads it filtered — a reading filtered has no counter to write from. Once, under its header, the
- * screen says that the fake back keeps none of what any of these commands writes (`MockupNotice`).
+ * screen says that the fake back keeps none of what any of these commands writes and applies none of
+ * the searches, sorts and filters above (`MockupNotice`, `lists`).
  */
 import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
@@ -93,15 +94,10 @@ export async function generateMetadata({
 
 /**
  * The title of the screen, with the icon of its function, and the state of the project; under it,
- * when the screen writes, the notice that the fake back keeps nothing.
+ * the notice of the fake back, which keeps nothing and applies none of the searches, sorts and
+ * filters the lists of the screen ask (US-0760): the screen shows it whether it writes or not.
  */
-function SettingsHeader({
-  project,
-  writes,
-}: {
-  readonly project: Project;
-  readonly writes: boolean;
-}) {
+function SettingsHeader({ project }: { readonly project: Project }) {
   const t = useTranslations();
   return (
     <>
@@ -116,7 +112,7 @@ function SettingsHeader({
           </span>
         }
       />
-      {writes ? <MockupNotice /> : null}
+      <MockupNotice lists />
     </>
   );
 }
@@ -124,8 +120,7 @@ function SettingsHeader({
 /**
  * The commands the project lists: `update` for its identity and its sub-projects,
  * `update_work_breakdown` for its work breakdown — unavailable besides while a background task runs
- * (EP-14/L42s) —, `manage_contributors` for its contributors; whether the screen writes anything —
- * one of them available —, and says once that the fake back keeps nothing.
+ * (EP-14/L42s) —, `manage_contributors` for its contributors.
  */
 function offersOf(project: Project) {
   const update = findOffer(project.available_commands, "update");
@@ -135,7 +130,6 @@ function offersOf(project: Project) {
     update,
     breakdown,
     manage,
-    writes: [update, breakdown, manage].some((offer) => offer?.is_available === true),
   };
 }
 
@@ -288,7 +282,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
     ),
   ]);
   const offers = offersOf(read.project);
-  const { update, manage, writes } = offers;
+  const { update, manage } = offers;
   const [[suggestions, whole], wholeBreakdown, generation] = await Promise.all([
     readWritable(client, address.projectId, manage, contributors),
     readWholeBreakdown(client, address.projectId, offers.breakdown, breakdown),
@@ -300,7 +294,7 @@ export default async function SettingsPage(props: ProjectPageProps) {
       <Screen density={FUNCTION_DENSITY.project_settings}>
         {/* The searches, the sorts and the filters of the grids compose their changes. */}
         <PendingAddress>
-          <SettingsHeader project={read.project} writes={writes} />
+          <SettingsHeader project={read.project} />
           {/* Keyed by the project: an answer of the server never outlives its project. */}
           <ProjectIdentity key={read.project.project_id} project={read.project} />
           <WorkBreakdownList

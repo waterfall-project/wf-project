@@ -604,14 +604,15 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Modify the contributors");
   });
 
-  it("says nothing of the fake back on a terminal project, which lists no command, nor do its sub-projects' rows (US-0702/L3)", async () => {
+  it("says the fake back keeps nothing and filters nothing, once, on a terminal project, which lists no command (US-0702/L3, US-0760)", async () => {
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}": "project_completed",
       "GET /projects/{project_id}/subprojects": "subprojects_completed",
     };
     const page = html(await SettingsPage(at()));
-    expect(text(page)).not.toContain("Mock-up:");
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(text(page)).toContain("Filters, search, sort and pages do not apply here");
     // Nothing is offered that writes, the commands of the sub-projects' rows neither: the
     // project lists none, so the screen presents none, available or not.
     expect(buttons(page).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
@@ -623,7 +624,7 @@ describe("the settings of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
     const read = html(await SettingsPage(at()));
     expect(buttons(read).filter((name) => /New|Modify|Delete|Edit/.test(name))).toEqual([]);
-    expect(text(read)).not.toContain("Mock-up:");
+    expect(read.match(/<p role="note"/g)).toHaveLength(1);
     expect(paths()["GET /projects/{project_id}/contributors/suggestions"]).toBeUndefined();
   });
 
@@ -632,6 +633,7 @@ describe("the settings of a project", () => {
     expect(buttons(page)).toContain("Edit the project");
     expect(page.match(/<p role="note"/g)).toHaveLength(1);
     expect(page).toMatch(/<p role="note"[^>]*>.*Mock-up: the simulated service/);
+    expect(page).toContain("Filters, search, sort and pages do not apply here");
     // The forms are the searches of the work breakdown, the sub-projects and the contributors: the
     // commands open theirs in a dialog.
     expect([...page.matchAll(/<form[^>]*>/g)].map((form) => form[0])).toEqual([
@@ -641,11 +643,12 @@ describe("the settings of a project", () => {
     ]);
   });
 
-  it("offers no modification to a session the project lists none for, nor says the fake back keeps nothing", async () => {
+  it("offers no modification to a session the project lists none for, yet says once what the fake back does not apply to its lists (US-0760)", async () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_reader" };
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
-    expect(page).not.toContain('role="note"');
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages do not apply here");
   });
 
   it("offers no modification of a terminal project, which lists no command [WF-CYC-0100-A]", async () => {
@@ -653,8 +656,8 @@ describe("the settings of a project", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const page = html(await SettingsPage(at()));
     expect(buttons(page).filter((name) => name.includes("Edit"))).toEqual([]);
-    // Nothing can be written: the screen says nothing of what the fake back keeps.
-    expect(page).not.toContain('role="note"');
+    // Nothing can be written, the note stays for the lists: one, never two.
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
   });
 
   it("is not found for a project the API does not find, as the other screens of a project", async () => {

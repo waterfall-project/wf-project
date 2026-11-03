@@ -394,3 +394,11 @@ describe("the screen of the remaining to commit", () => {
     expect(page).not.toContain("Avenant 2");
   });
 });
+
+describe("the note of the fake back on the remaining to commit", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await remainingAt();
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages do not apply here");
+  });
+});

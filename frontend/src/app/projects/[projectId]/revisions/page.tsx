@@ -36,6 +36,7 @@ import {
 import { ReferenceDesignation, RevisionHistory } from "@/components/revisions/revision-history";
 import { CostStructureList, RateUpdate } from "@/components/revisions/revision-parts";
 import { FUNCTION_DENSITY, FUNCTION_ICONS } from "@/components/shell/function-display";
+import { MockupNotice } from "@/components/shell/mockup-notice";
 import { PageHeader, Screen } from "@/components/shell/page-header";
 import { pageSearch } from "@/navigation/context";
 import { requestSession } from "@/session/request";
@@ -148,6 +149,7 @@ export default async function RevisionsPage(props: ProjectPageProps) {
       <ContextBanner reading={read} difference={difference} />
       <Screen density={FUNCTION_DENSITY.revisions}>
         <RevisionsHeader revision={read.revision} project={read.project} />
+        <MockupNotice lists />
         <RevisionHistory revisions={revisions} context={read.context} />
         <ReferenceDesignation
           revisions={revisions}

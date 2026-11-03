@@ -625,3 +625,11 @@ describe("« Écarts seulement » on the comparison of two revisions [WF-REV-008
     expect(page).not.toContain("Écarts seulement");
   });
 });
+
+describe("the note of the fake back on the revisions", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = html(await RevisionsPage(at()));
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Les filtres, la recherche, le tri et les pages ne s’y appliquent pas");
+  });
+});
