@@ -392,7 +392,12 @@ describe("the fronts of the harness, one for each worker of the paths (#1477)", 
 
   it("plays on forty workers, the fronts a slot's block of ports holds (#1902)", async () => {
     vi.stubEnv("E2E_WORKERS", "40");
-    expect((await harness()).workers).toBe(40);
+    vi.stubEnv("E2E_FRONT_PORT", "20040");
+    const config = await harness();
+    expect(config.workers).toBe(40);
+    const fronts = frontsOf(config);
+    expect(fronts).toHaveLength(40);
+    expect(fronts.at(-1)?.url).toBe("http://127.0.0.1:20079");
   });
 
   it("refuses more than forty workers, which would take the ports of the next slot (#1902)", async () => {
