@@ -86,15 +86,18 @@ test("poses the title of the second line of the action only where the browser cu
     const read = await lines();
     return read.length === 0 ? -1 : read.filter(({ titled, cut }) => titled !== cut).length;
   };
-  // Wide, no line is cut and none carries a title; narrowed, some are cut and carry theirs.
-  await page.setViewportSize({ width: 1920, height: 900 });
-  await expect.poll(async () => (await lines()).filter(({ titled }) => titled).length).toBe(0);
-  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
+  // Whatever the fonts and the width of the workstation, a title is posed exactly where the browser
+  // cuts the text short: the equivalence holds at each width, and both its sides are met.
+  const titledCount = async () => (await lines()).filter(({ titled }) => titled).length;
+  const untitledCount = async () => (await lines()).filter(({ titled }) => !titled).length;
   await page.setViewportSize({ width: 1600, height: 900 });
-  await expect
-    .poll(async () => (await lines()).filter(({ titled }) => titled).length, { timeout: WORKING })
-    .toBeGreaterThan(0);
   await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
+  await expect.poll(titledCount, { timeout: WORKING }).toBeGreaterThan(0);
+  // A line that is not cut carries no title.
+  await expect.poll(untitledCount, { timeout: WORKING }).toBeGreaterThan(0);
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
+  await expect.poll(untitledCount, { timeout: WORKING }).toBeGreaterThan(0);
 });
 
 test("sorts the journal on its columns both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
