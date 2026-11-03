@@ -150,7 +150,8 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | livré | EP-16 |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18 |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | en cours | rien |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
@@ -193,7 +194,9 @@ concerne le durcissement ou le contrat — tout le reste, dont les ajustements d
 en bout, elle, est du durcissement et revient à EP-16 (US-0590b). EP-18 fait suivre au service des comptes et à son écran les
 quatre décisions de la revue du contrat du 2026-10-31 qui touchent EP-03, livré ; il passe avant
 EP-05, qui touche les mêmes fichiers, et se livre avant le lot des comptes d'EP-17 (US-0780/L1),
-sans suspendre le reste d'EP-17.
+sans suspendre le reste d'EP-17. EP-19 rend le dépôt et ses agents sûrs pour plusieurs livreurs
+à la fois ; il passe avant EP-05, qui en profitera et touche le Makefile et la plateforme de
+service qu'il réécrit (décision de l'auteur du 2026-11-03).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
