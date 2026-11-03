@@ -1,7 +1,7 @@
 ---
 id: EP-18
 titre: Le service des comptes et ses écrans suivent le contrat figé — un compte naît sans rôle, un rôle se supprime à sa version, un refus de longueur dit sa borne, le compte dit ses commandes du lien
-statut: en cours
+statut: livré
 depend_de: EP-16
 famille: back, front
 issue: 1852
