@@ -2116,6 +2116,7 @@
       "partialKinds": "Les lots et les postes ne montrent que ce que le filtre par nature retient.",
       "retained": "{kind, select, order_item {{count, plural, one {# poste} other {# postes}}} work_package {{count, plural, one {# lot} other {# lots}}} other {{count, plural, one {# livrable} other {# livrables}}}}",
       "noneRetained": "Aucun élément retenu",
+      "noOrderItem": "Aucun poste",
       "element": "{kind, select, order_item {le poste} work_package {le lot} other {le livrable}} « {label} »",
       "createWorkPackage": "Nouveau lot",
       "add": "{kind, select, work_package {Ajouter un poste} other {Ajouter un livrable}}",
@@ -2132,7 +2133,8 @@
       "added": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » ajouté.",
       "renamed": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} renommé « {label} ».",
       "deleted": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » supprimé.",
-      "refusedFor": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » : {problem}"
+      "refusedFor": "{kind, select, order_item {Poste} work_package {Lot} other {Livrable}} « {label} » : {problem}",
+      "gone": "{kind, select, order_item {Le poste} work_package {Le lot} other {Le livrable}} « {label} » n’est plus dans le lotissement lu : rien n’a été envoyé. Rechargez la page."
     },
     "transitions": {
       "title": "Historique des états",

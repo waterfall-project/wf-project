@@ -409,6 +409,9 @@ export function CellMenu({
       event.preventDefault();
       return;
     }
+    // A menu opened anew starts from no command having taken the focus: one that set it and opened
+    // nothing would otherwise leave it set for the menu after.
+    took.current = false;
     const { target } = event;
     const opened = target instanceof Element ? target.closest("td[data-column]") : null;
     setAt(positionOf(opened));

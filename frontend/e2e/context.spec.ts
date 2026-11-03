@@ -102,7 +102,9 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   // The grid reads the nodes of the amendment, each marked by the difference the server renders
   // (US-0500): a task modified, a task added, a task modified again. The planning asks for tasks
   // alone (`kinds`): the lines of the amendment, one unchanged and one removed, are not among its
-  // rows.
+  // rows. The first five tasks, in this order, are those
+  // `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (tools/tests/
+  // test_mockstructure.py), with the difference each bears.
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const mark = (row: number) => rowAt(grid, row).getByRole("gridcell").first();
   await expect(grid.getByRole("columnheader").first()).toHaveAccessibleName("Écart");

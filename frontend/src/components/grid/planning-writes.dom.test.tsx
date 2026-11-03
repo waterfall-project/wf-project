@@ -87,7 +87,9 @@ function grid(
     version = 1,
     items = breakdown,
     skeleton,
+    query = NO_QUERY,
   }: {
+    readonly query?: GridQuery<NodeSortColumn>;
     readonly structure?: typeof STRUCTURE;
     readonly version?: number;
     /** The lots and the posts read; `null` for none, the work breakdown not read. */
@@ -102,7 +104,7 @@ function grid(
         structure={structure}
         structureVersion={version}
         filters={{ kinds: ["task"] }}
-        query={NO_QUERY}
+        query={query}
         preferences={undefined}
         undoable
         editable
@@ -365,8 +367,9 @@ describe("the skeleton of the planning", () => {
   });
 
   it("is no longer offered once the main structure bears a task: unavailable with its condition in an empty reading, absent beside tasks [WF-PRJ-0030-A]", async () => {
-    // Elle n'est plus proposée dès que la structure principale comporte une tâche: the witness,
-    // read by a search that retains nothing, then whole.
+    // Elle n'est plus proposée dès que la structure principale comporte une tâche: the revision of
+    // the witness lists it unavailable, whatever the reading of the grid; a search that retains
+    // nothing is the next test's.
     const client = serve({});
     const { rerender } = render(grid(empty, { skeleton: skeletonOf("revision") }));
     const command = screen.getByRole("button", { name: "Engendrer le squelette de planning" });
@@ -377,6 +380,21 @@ describe("the skeleton of the planning", () => {
     await userEvent.click(command);
     expect(client.calls).toEqual([]);
     rerender(grid(studies, { skeleton: skeletonOf("revision") }));
+    expect(screen.queryByRole("button", { name: "Engendrer le squelette de planning" })).toBeNull();
+  });
+
+  it("leaves an empty grid that says it retains no task, not the skeleton, to a search that retains nothing in a structure that has tasks [WF-PLA-0080-A]", () => {
+    // La recherche sur un libellé ne laisse voir que les tâches correspondantes et leurs parents.
+    render(
+      grid(empty, {
+        skeleton: skeletonOf("revision"),
+        query: { ...NO_QUERY, search: "introuvable" },
+      }),
+    );
+    expect(
+      screen.getByRole("row", { name: "Aucune ligne ne répond à la demande." }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Total — aucune tâche")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Engendrer le squelette de planning" })).toBeNull();
   });
 

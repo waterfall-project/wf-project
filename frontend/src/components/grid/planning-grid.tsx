@@ -153,6 +153,11 @@ export interface PlanningGantt {
   readonly exported: GanttExported;
 }
 
+/** Whether a reading is narrowed by neither a filter (`whole`) nor a search. */
+function unnarrowed(whole: boolean, query: GridQuery<NodeSortColumn>): boolean {
+  return whole && (query.search ?? "") === "";
+}
+
 /** The skeleton generated on a structure: its tasks as the grid reads them, and its version. */
 interface Generated {
   readonly structure: string;
@@ -463,7 +468,9 @@ export function PlanningGrid({
             </>
           ),
         };
-  const offered = nodes.items.length === 0 || ours !== undefined;
+  // The skeleton is for a structure with no task: a search or a filter that retains none leaves an
+  // empty grid that says so, with its totals (#819.4), and the skeleton filling it would ignore them.
+  const offered = (nodes.items.length === 0 && unnarrowed(whole, query)) || ours !== undefined;
   // The row of a task of the rows read, by its node, which a link in conflict is named by.
   const rowNumbers = useMemo(() => {
     const numbers = new Map(shown.items.map((node) => [node.node_id, node.row_number]));

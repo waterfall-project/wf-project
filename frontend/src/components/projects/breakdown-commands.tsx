@@ -149,6 +149,8 @@ interface Commands {
   readonly open: (gesture: Gesture, trigger: HTMLElement | undefined) => void;
   /** Close the dialog; given an opening, only if it is still the one open. */
   readonly close: (opening?: number) => void;
+  /** Whether an opening is still the one open, as of now. */
+  readonly isOpen: (opening: number) => boolean;
 }
 
 /** The commands of the work breakdown of a project; none outside it. */
@@ -200,6 +202,8 @@ export function BreakdownCommands({
   const [opened, setOpened] = useState<Opened>();
   // How many times a dialog was opened: what tells an opening from the next.
   const openings = useRef(0);
+  // Which opening is the one open, set at the moment it changes (defect n° 2), not in an effect.
+  const current = useRef<number | undefined>(undefined);
   const [writing, write] = useState(false);
   const commands = useMemo<Commands | undefined>(
     () =>
@@ -223,6 +227,7 @@ export function BreakdownCommands({
             return;
           }
           openings.current += 1;
+          current.current = openings.current;
           refuse(undefined);
           const section = trigger?.closest("section");
           setOpened({
@@ -234,7 +239,11 @@ export function BreakdownCommands({
             opening: openings.current,
           });
         },
+        isOpen: (opening) => current.current === opening,
         close: (opening) => {
+          if (opening === undefined || current.current === opening) {
+            current.current = undefined;
+          }
           setOpened((current) =>
             opening === undefined || current?.opening === opening ? undefined : current,
           );
@@ -397,9 +406,10 @@ export function useBreakdownCommands(): RowCommands<BreakdownRow> | undefined {
 }
 
 /**
- * The refusal of a write split by where it is said: what points at the element the dialog writes —
- * at its field while it is open —, what points at another element, named, and the rest; nothing left
- * to tell under the dialog when its field says all.
+ * The refusal of a write split by where it is said: what points at the label of the element the
+ * dialog writes — at its field while it is open —, what points at another element, named, and the
+ * rest, the identifier of the element itself among it; nothing left to tell under the dialog when
+ * its field says all.
  */
 function split(
   answer: Outcome<unknown>,
@@ -416,8 +426,14 @@ function split(
     const element = elementAt(sent, problem.pointer);
     if (element === undefined) {
       rest.push(problem);
-    } else if (element.pointer === at && field === undefined) {
-      field = problem;
+    } else if (element.pointer === at) {
+      // The label is the one field of the dialog; the identifier is not the user's to correct, nor
+      // is a second refusal of the label: told under the dialog, not as another element's.
+      if (field === undefined && problem.pointer === `${at}/label`) {
+        field = problem;
+      } else {
+        rest.push(problem);
+      }
     } else {
       named.push({ kind: element.kind, label: element.label, problem });
     }
@@ -485,20 +501,23 @@ function useSend(commands: Commands, opened: Opened) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<Refusal>();
   const noteRefusal = useNoteRefusal();
-  const open = useRef(true);
-  useEffect(() => {
-    open.current = true;
-    return () => {
-      open.current = false;
-    };
-  }, []);
   const send = (label: string, onField: (problem: FieldProblem) => void) => {
     const { gesture } = opened;
-    const { sent, at } = edited(opened.from, opened.counter, gesture, label);
+    const edit = edited(opened.from, opened.counter, gesture, label);
+    const target = gesture.kind === "add" ? gesture.parent : gesture.row;
+    if (edit === undefined) {
+      // The element is not in the reading the gesture starts from: nothing is sent, and it is said.
+      if (target !== undefined) {
+        commands.say(t("gone", { kind: target.kind, label: target.label }));
+      }
+      commands.close(opened.opening);
+      return;
+    }
+    const { sent, at } = edit;
     const told =
       gesture.kind === "add"
         ? { kind: CHILD[gesture.parent?.kind ?? "root"], label }
-        : { kind: gesture.row.kind, label: gesture.kind === "rename" ? label : gesture.row.label };
+        : { kind: gesture.row.kind, label: edit.label };
     setRefusal(undefined);
     commands.write(true);
     startTransition(async () => {
@@ -509,7 +528,7 @@ function useSend(commands: Commands, opened: Opened) {
           const done = { add: "added", rename: "renamed", delete: "deleted" } as const;
           commands.say(t(done[gesture.kind], told));
           commands.close(opened.opening);
-        } else if (open.current && gesture.kind !== "delete") {
+        } else if (commands.isOpen(opened.opening) && gesture.kind !== "delete") {
           const { field, refusal: rest } = split(answer, sent, at);
           if (field !== undefined) {
             // Said at its fields: noted whole, the notice of the rest noting nothing more.
