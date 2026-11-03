@@ -13,12 +13,13 @@ worktree runs it before its environment is synchronised.
 
 The line is cut into simple commands the way the shell runs them: at its operators, inside each
 substitution — ``$( )``, backquotes, ``<( )`` —, inside the script of ``bash -c``, ``sh -c`` or
-``zsh -c``, of ``eval`` and of ``trap``; past the assignments and the prefixes that run a command
-(``sudo``, ``env``, ``timeout``, ``nohup``, ``xargs``…). Each command is then split into words by
-``shlex``, and judged by the base name of its command word. Comments, redirections and the body of
-a here-document run nothing, and are left out — the body of an unquoted one is still searched for
-substitutions, which the shell runs. ``shlex`` cuts the words alone: its operators do not tell a
-quoted ``;`` from one that ends a command, and ``kill 1 ';' $pid`` would hide its last target.
+``zsh -c``, of ``eval``, of ``trap`` and of ``env -S``; past the assignments and the prefixes
+that run a command (``sudo``, ``env``, ``timeout``, ``nohup``, ``xargs``…). Each command is then
+split into words by ``shlex``, and judged by the base name of its command word. Comments,
+redirections and the body of a here-document run nothing, and are left out — the body of an
+unquoted one is still searched for substitutions, which the shell runs. ``shlex`` cuts the words
+alone: its operators do not tell a quoted ``;`` from one that ends a command, and
+``kill 1 ';' $pid`` would hide its last target.
 """
 
 import json
@@ -79,8 +80,17 @@ class _Options(NamedTuple):
 
     def skip(self, words: list[str], index: int) -> int:
         """Return the index of the word that follows the options and operands from ``index``."""
+        return self.parse(words, index)[1] + self.operands
+
+    def parse(self, words: list[str], index: int) -> tuple[list[tuple[str, str]], int]:
+        """Return the options from ``index`` that take an argument, and the index past them.
+
+        Each option comes with its argument; the index is that of the first operand.
+        """
+        taken: list[tuple[str, str]] = []
         while index < len(words):
             word = words[index]
+            following = words[index + 1] if index + 1 < len(words) else ""
             if word == "--":
                 index += 1
                 break
@@ -88,16 +98,25 @@ class _Options(NamedTuple):
             if word == "-" or not word.startswith("-"):
                 break
             if word.startswith("--"):
-                index += 2 if word in self.long else 1
+                name, equals, value = word.partition("=")
+                if equals or word in self.long:
+                    taken.append((name, value if equals else following))
+                index += 2 if not equals and word in self.long else 1
                 continue
             # A cluster of short options: the first that takes an argument ends it, the rest of
             # the word being its argument, or the next word when it ends the cluster.
             cluster = word[1:]
             taking = next((at for at, char in enumerate(cluster) if char in self.short), None)
+            if taking is not None:
+                rest = cluster[taking + 1 :]
+                taken.append((f"-{cluster[taking]}", rest or following))
             index += 2 if taking == len(cluster) - 1 else 1
-        return index + self.operands
+        return taken, index
 
 
+# The option of `env` whose argument is a command line, which it splits into words and runs
+# before the words that follow its options; GNU `env` takes `--s` and up for `--split-string`.
+_SPLIT_STRING = frozenset({"-S"} | {"--split-string"[:end] for end in range(3, 15)})
 # The commands that run the command that follows their options.
 _PREFIXES = {
     "sudo": _Options(
@@ -106,7 +125,7 @@ _PREFIXES = {
         | frozenset({"--host", "--other-user", "--prompt", "--role", "--type", "--user"}),
     ),
     "doas": _Options("Cu"),
-    "env": _Options("CSu", frozenset({"--chdir", "--split-string", "--unset"})),
+    "env": _Options("CSu", frozenset({"--chdir", "--unset"}) | (_SPLIT_STRING - {"-S"})),
     "nohup": _Options(),
     "nice": _Options("n", frozenset({"--adjustment"})),
     "timeout": _Options("ks", frozenset({"--kill-after", "--signal"}), operands=1),
@@ -123,6 +142,8 @@ _PREFIXES = {
         | frozenset({"--process-slot-var"}),
     ),
 }
+# The long options of `bash` that take the next word for their argument.
+_SHELL_LONG = frozenset({"--init-file", "--rcfile"})
 _DOCKER = _Options(
     "cHl",
     frozenset({"--config", "--context", "--host", "--log-level", "--tlscacert", "--tlscert"})
@@ -323,7 +344,7 @@ def refusal(command: str) -> str | None:
     return _line(command, 0)
 
 
-def _line(text: str, depth: int) -> str | None:
+def _line(text: str, depth: int, *, piped: bool = False) -> str | None:
     commands: list[str] = []
     try:
         _Scanner(text, commands, depth).scan()
@@ -331,12 +352,14 @@ def _line(text: str, depth: int) -> str | None:
     except ValueError:
         found = _FORBIDDEN.search(text)
         return None if found is None else f"a line it cannot cut, which names `{found.group()}`"
-    return next((form for words in split if (form := _simple(words, depth)) is not None), None)
+    return next(
+        (form for words in split if (form := _simple(words, depth, piped=piped)) is not None),
+        None,
+    )
 
 
-def _simple(words: list[str], depth: int) -> str | None:
+def _simple(words: list[str], depth: int, *, piped: bool = False) -> str | None:
     """Judge a simple command, past its assignments and the prefixes that run it."""
-    piped = False
     index = 0
     while index < len(words):
         word = words[index]
@@ -346,7 +369,13 @@ def _simple(words: list[str], depth: int) -> str | None:
         elif name in _PREFIXES:
             # What `xargs` runs takes its arguments from the pipe: they are never literal.
             piped = piped or name == "xargs"
-            index = _PREFIXES[name].skip(words, index + 1)
+            options, index = _PREFIXES[name].parse(words, index + 1)
+            index += _PREFIXES[name].operands
+            lines = [value for option, value in options if option in _SPLIT_STRING]
+            if name == "env" and lines:
+                # `env -S 'pkill x'`: the words of the line come before those that follow.
+                line = " ".join([*lines, shlex.join(words[index:])])
+                return _line(line, depth + 1, piped=piped)
         else:
             check = _CHECKS.get(name)
             command = _Command(name, words[index + 1 :], piped=piped, depth=depth)
@@ -456,25 +485,53 @@ def _unlink(command: _Command) -> str | None:
 
 
 def _shell(command: _Command) -> str | None:
-    """Judge the script of ``bash -c``, ``sh -c`` and their like; a script file is not read."""
+    """Judge the script of ``bash -c``, ``sh -c`` and their like; a script file is not read.
+
+    ``bash`` and ``dash`` take the argument of each ``-o`` or ``-O`` of a cluster from the words
+    that follow it, ``zsh`` from the rest of the cluster when the ``-o`` does not end it: the
+    script is judged under both readings.
+    """
     arguments = command.arguments
+    scripts = {_script(arguments, rest=rest) for rest in (False, True)}
+    return next(
+        (
+            form
+            for script in sorted(found for found in scripts if found is not None)
+            if (form := _line(arguments[script], command.depth + 1)) is not None
+        ),
+        None,
+    )
+
+
+def _script(arguments: list[str], *, rest: bool) -> int | None:
+    """Return the index of the script of a shell run with ``-c``, or None when there is none.
+
+    ``rest``: an ``-o`` that does not end its cluster takes the rest of it for its argument;
+    otherwise each ``-o`` of a cluster takes the next word.
+    """
     index = 0
     scripted = False
     while index < len(arguments):
         word = arguments[index]
-        if word in {"-o", "+o", "-O", "+O"}:
-            index += 2
-        elif word in {"-", "--"}:
+        if word in {"-", "--"}:
             index += 1
             break
-        elif len(word) > 1 and word[0] in "-+":
-            scripted = scripted or (word[0] == "-" and word[1] != "-" and "c" in word)
-            index += 1
-        else:
+        if word[:1] not in {"-", "+"} or word in {"-", "+"}:
             break
-    if scripted and index < len(arguments):
-        return _line(arguments[index], command.depth + 1)
-    return None
+        index += 1
+        if word.startswith("--"):
+            index += 1 if word in _SHELL_LONG else 0
+            continue
+        cluster = word[1:]
+        for at, char in enumerate(cluster):
+            if char in "oO" and rest:
+                index += 1 if at == len(cluster) - 1 else 0
+                break
+            if char in "oO":
+                index += 1
+            # `bash` and `dash` read a `c` of `+c` as one of `-c`.
+            scripted = scripted or char == "c"
+    return index if scripted and index < len(arguments) else None
 
 
 def _eval(command: _Command) -> str | None:

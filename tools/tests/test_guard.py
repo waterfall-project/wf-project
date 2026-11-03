@@ -209,6 +209,54 @@ def test_the_refusal_holds_wherever_the_command_stands(command: str) -> None:
     assert refused(command)
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "env -S 'pkill x'",
+        "env --split-string='kill $pid'",
+        '/usr/bin/env -S "docker stop $(docker ps -q)"',
+        "env -S'pkill x'",
+        "env -iS 'pkill x'",
+        "env --split-string 'pkill x'",
+        "env --sp 'pkill x'",
+        "env -S kill '$pid'",
+        "env -S 'env -S \"pkill x\"'",
+        "pgrep make | xargs env -S kill",
+    ],
+)
+def test_the_line_that_env_splits_is_judged_as_a_line(command: str) -> None:
+    assert refused(command)
+
+
+def test_a_permitted_line_that_env_splits_passes() -> None:
+    assert not refused("env -S 'kill 12345'")
+    assert not refused("env -S 'make check' BASE=origin/epic/EP-19")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "bash -euo pipefail -c 'pkill x'",
+        "bash -eo pipefail -c 'pkill x'",
+        "sh -o errexit -c 'kill $pid'",
+        "zsh -o pipefail -ec 'pkill x'",
+        "bash -oe pipefail -c 'pkill x'",
+        "bash -co pipefail 'pkill x'",
+        "bash +o posix -O extglob -c 'pkill x'",
+        "zsh -opipefail -c 'pkill x'",
+        "bash --rcfile /dev/null -c 'pkill x'",
+        "bash -c -- 'pkill x'",
+    ],
+)
+def test_the_script_of_a_shell_is_found_past_its_options(command: str) -> None:
+    assert refused(command)
+
+
+def test_a_permitted_script_past_the_options_of_a_shell_passes() -> None:
+    assert not refused("bash -euo pipefail -c 'kill 12345'")
+    assert not refused("bash -euo pipefail scripts/run.sh pkill")
+
+
 def test_a_line_not_cut_is_refused_when_it_names_a_forbidden_word() -> None:
     assert refused('echo "never closed; pkill x')
     assert refused("rm -f '.git/index.lock")
