@@ -225,23 +225,15 @@ def test_a_signal_before_the_child_exists_is_relayed_to_it(monkeypatch: pytest.M
     assert code == 128 + signal.SIGTERM
 
 
-def test_a_sigint_sent_to_the_tool_alone_is_not_relayed(tmp_path: Path) -> None:
-    """US-1090: SIGINT from a terminal reaches the child itself, so the tool does not repeat it."""
+def test_a_sigint_sent_to_the_tool_alone_reaches_the_child(tmp_path: Path) -> None:
+    """US-1090: the tool relays every signal, SIGINT included; the child frees the slot."""
     ready = tmp_path / "ready"
-    script = (
-        "import os, time\n"
-        f"open({str(ready)!r}, 'w')\n"
-        f"while not os.path.exists({str(tmp_path / 'go')!r}):\n"
-        "    time.sleep(0.01)\n"
-    )
+    script = f"import time\nopen({str(ready)!r}, 'w')\ntime.sleep(120)\n"
     run = start(tmp_path, [sys.executable, "-c", script])
     wait_for(ready)
     run.send_signal(signal.SIGINT)
-    time.sleep(0.3)
-    assert run.poll() is None, "the tool waits for its child"
-    (tmp_path / "go").write_text("go")
-    run.communicate(timeout=30)
-    assert run.returncode == 0
+    run.communicate(timeout=60)
+    assert run.returncode in (130, 1), "the child stopped on the SIGINT it was relayed"
 
 
 HEAVY_TARGETS = {

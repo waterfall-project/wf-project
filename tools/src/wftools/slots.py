@@ -97,17 +97,17 @@ def run_command(command: Sequence[str], environment: Mapping[str, str]) -> int:
     """Run the command as a child, relaying the signals; return its code (128 + n if killed).
 
     The handlers are set before the child exists, so a signal that comes first is kept and relayed
-    once it does: the tool never dies leaving a child without a slot. SIGINT from a terminal
-    reaches the child by itself (same process group), so it is not relayed a second time; one sent
-    to the tool alone, or kept from before the child existed, is.
+    once it does: the tool never dies leaving a child without a slot. Every signal is relayed,
+    SIGINT included, before and after the child exists, so one sent to the tool alone reaches it.
     """
     children: list[subprocess.Popen[bytes]] = []
     early: list[int] = []
 
     def relay(received: int, _frame: object) -> None:
         if children:
-            if received != signal.SIGINT:
-                children[0].send_signal(received)
+            # On Ctrl-C the child gets SIGINT twice, by the group and by this relay: accepted,
+            # as a child outside the foreground group would lose the terminal.
+            children[0].send_signal(received)
         else:
             early.append(received)
 
