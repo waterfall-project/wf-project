@@ -401,7 +401,7 @@ Une admission selon la mémoire libre : N reste un nombre que l'auteur fixe.
 
 ## US-1100 — Chaque lot a son créneau : ses ports et ses noms
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1884
