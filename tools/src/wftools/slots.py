@@ -26,7 +26,8 @@ ports and under the names of before. The register of the workstation, whatever t
 ``$XDG_RUNTIME_DIR/waterfall-slots/``: a file ``<i>`` for each slot taken, which holds the path of
 its worktree and the moment it was taken, written under an exclusive lock of the register. A slot
 whose worktree no longer exists is free; whoever takes a slot first removes the projects of
-Compose an earlier holder left in it, volumes included, as ``release`` does before it frees it.
+Compose an earlier holder left in it, volumes included, as ``release`` does before it frees it,
+the lock held until they are removed.
 ``which`` prints the slot of the current worktree, ``which --variables`` its ports and names for the
 Makefile, and ``list`` the slots taken on the workstation.
 """
@@ -47,6 +48,8 @@ from typing import NamedTuple
 LOCK_NAME = "waterfall-heavy"
 MAX_SLOTS = 9
 RETRY_SECONDS = 1.0
+REMOVE_SECONDS = 300
+"""How long ``docker compose down`` may take, the lock of the register held, before it fails."""
 RELAYED = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)
 
 REGISTER_NAME = "waterfall-slots"
@@ -287,11 +290,19 @@ def register(environment: Mapping[str, str]) -> Path:
 
 @contextmanager
 def locked(directory: Path) -> Generator[None]:
-    """Hold the exclusive lock of the register, created if it is not."""
+    """Hold the exclusive lock of the register, created if it is not; say once when it waits."""
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor = os.open(directory / REGISTER_LOCK, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(
+                "The register of the slots is held, a slot being taken or released; waiting.",
+                file=sys.stderr,
+                flush=True,
+            )
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
         yield
     finally:
         os.close(descriptor)
@@ -331,9 +342,10 @@ def describe(taken: Mapping[int, Holder]) -> list[str]:
 def claim(directory: Path, worktree: Path, count: int, remove: Remove) -> tuple[int, bool]:
     """Take a slot of 1 to N for the worktree, or find the one it holds; return it, and if new.
 
-    The slot taken is the smallest free one, a slot whose worktree no longer exists being free. It
-    is written under the lock, and what a holder left in it removed after, the lock released: no
-    one else takes the slot while it is removed, as it names this worktree already.
+    The slot taken is the smallest free one, a slot whose worktree no longer exists being free.
+    What a holder left in it is removed first, then the slot written, the lock held throughout: a
+    slot is never said held — to this worktree, by another claim — before it is emptied, and a
+    removal that fails takes nothing, so the next claim does it again.
     """
     with locked(directory):
         taken = holders(directory)
@@ -348,34 +360,33 @@ def claim(directory: Path, worktree: Path, count: int, remove: Remove) -> tuple[
             message = f"all {count} slot(s) are taken (WATERFALL_SLOTS):\n  {listed}"
             raise RegisterError(message)
         slot = free[0]
+        try:
+            remove(slot)
+        except RegisterError as error:
+            message = (
+                f"slot {slot} is not taken: what was left in it could not be removed: {error}. "
+                "Run make slot again once Docker answers."
+            )
+            raise RegisterError(message) from error
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
         written = directory / f".{slot}.new"
         written.write_text(f"{worktree}\n{stamp}\n", encoding="utf-8")
         written.replace(directory / str(slot))
-    try:
-        remove(slot)
-    except RegisterError as error:
-        message = (
-            f"slot {slot} is taken, but what was left in it could not be removed: {error}. "
-            "Run make slot-release, then make slot."
-        )
-        raise RegisterError(message) from error
     return slot, True
 
 
 def release(directory: Path, worktree: Path, remove: Remove) -> int | None:
     """Remove what the slot of the worktree holds, then free it; return it, None if none was held.
 
-    The slot is freed only once its projects are removed: if they cannot be, it stays taken.
+    The slot is freed only once its projects are removed: if they cannot be, it stays taken. The
+    lock is held throughout, as ``claim`` holds it: no claim of this worktree answers in between.
     """
     with locked(directory):
         slot = slot_of(holders(directory), worktree)
-    if slot is None:
-        return None
-    remove(slot)
-    with locked(directory):
-        if slot_of(holders(directory), worktree) == slot:
-            (directory / str(slot)).unlink(missing_ok=True)
+        if slot is None:
+            return None
+        remove(slot)
+        (directory / str(slot)).unlink(missing_ok=True)
     return slot
 
 
@@ -395,7 +406,8 @@ def compose_remover(environment: Mapping[str, str], directory: Path) -> Remove:
 
     By the name of the project alone, from the register, where no Compose file lies: what is
     removed is what Docker labels with the project, whatever worktree started it. Without Docker,
-    nothing was started.
+    nothing was started. A ``down`` that has not ended after ``REMOVE_SECONDS`` fails: the lock of
+    the register is held while it runs.
     """
     clean = {name: value for name, value in environment.items() if name not in COMPOSE_SETTINGS}
 
@@ -407,10 +419,18 @@ def compose_remover(environment: Mapping[str, str], directory: Path) -> Remove:
             command = ["docker", "compose", "-p", project, "down", "--volumes"]
             try:
                 done = subprocess.run(
-                    command, cwd=directory, env=clean, stdout=sys.stderr, check=False
+                    command,
+                    cwd=directory,
+                    env=clean,
+                    stdout=sys.stderr,
+                    check=False,
+                    timeout=REMOVE_SECONDS,
                 )
             except FileNotFoundError:
                 return
+            except subprocess.TimeoutExpired as expired:
+                message = f"{' '.join(command)} did not end within {REMOVE_SECONDS} s"
+                raise RegisterError(message) from expired
             if done.returncode:
                 message = f"{' '.join(command)} failed with code {done.returncode}"
                 raise RegisterError(message)

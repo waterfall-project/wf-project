@@ -188,9 +188,10 @@ dépôt principal garde les ports et les noms d'aujourd'hui.
   l'instant de la prise. `slots.py claim` — `make slot` — prend, sous un verrou exclusif du
   registre, le créneau qui nomme déjà ce worktree, ou le plus petit de 1 à N qui est libre ; un
   créneau dont le worktree n'existe plus est libre, et avant de le rendre, l'outil en retire les
-  projets Compose (`down --volumes`). Tous pris, il échoue en listant les porteurs. `release` —
-  `make slot-release` — retire les projets Compose du créneau, volumes compris, puis libère le
-  fichier ; `list` — `make slots` — écrit N, puis chaque créneau pris et son worktree, pour tout
+  projets Compose (`down --volumes`), le verrou tenu jusqu'à ce retrait réussi et le fichier
+  écrit après lui : un retrait qui échoue ne prend rien, et la prise suivante le refait. Tous
+  pris, il échoue en listant les porteurs. `release` — `make slot-release` — retire, sous le même
+  verrou, les projets Compose du créneau, volumes compris, puis libère le fichier ; `list` — `make slots` — écrit N, puis chaque créneau pris et son worktree, pour tout
   le poste.
 - **Le créneau d'une commande** : `slots.py which` rend celui du worktree courant, ou 0. Le dépôt
   principal est au créneau 0. Dans un worktree lié sans créneau, une cible qui en a besoin — les

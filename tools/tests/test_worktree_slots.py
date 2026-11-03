@@ -9,10 +9,12 @@ the ``PATH`` that write what they are asked and the variables they are given: th
 tried by what it hands its commands, nothing is started.
 """
 
+import fcntl
 import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -21,10 +23,15 @@ from wftools import REPOSITORY, slots
 
 SLOTS = REPOSITORY / "tools" / "src" / "wftools" / "slots.py"
 MAKEFILE = REPOSITORY / "Makefile"
-# Writes its name, its arguments and the variables of the slots it is given, to its log; fails
-# with the code in FAIL_CODE, if any.
+# Writes its name, its arguments and the variables of the slots it is given, to its log; waits,
+# 60 s at most, for the file STAND_IN_GATE, if any; fails with the code in FAIL_CODE, if any.
 STAND_IN = """#!/bin/sh
 { echo "$(basename "$0") $*"; env | grep -E '^(WATERFALL|E2E)_' | sort; } >> "$STAND_IN_LOG"
+waited=0
+while [ -n "${STAND_IN_GATE:-}" ] && [ ! -e "$STAND_IN_GATE" ] && [ "$waited" -lt 1200 ]; do
+    sleep 0.05
+    waited=$((waited + 1))
+done
 exit "${FAIL_CODE:-0}"
 """
 OUTER = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "TESTS")
@@ -287,6 +294,123 @@ def test_an_abandoned_slot_is_taken_after_what_it_holds_is_removed(
         "docker compose -p waterfall-test-s1 down --volumes",
     ]
     assert slots.holders(workstation.register)[1].worktree == str(tree)
+
+
+def abandon_slot_1(workstation: Workstation) -> Path:
+    """Have a worktree take slot 1, then remove it; return a new worktree, the log emptied."""
+    gone = workstation.worktree("gone")
+    assert workstation.tool(gone, "claim").returncode == 0
+    shutil.rmtree(gone)
+    workstation.logged()
+    return workstation.worktree("lot")
+
+
+DOWNS_OF_SLOT_1 = [
+    "docker compose -p waterfall-service-s1 down --volumes",
+    "docker compose -p waterfall-test-s1 down --volumes",
+]
+
+
+def test_a_takeover_whose_removal_failed_is_done_again(workstation: Workstation) -> None:
+    """US-1100: a slot not emptied of its leftovers is not taken; the next claim empties it."""
+    tree = abandon_slot_1(workstation)
+    failed = workstation.tool(tree, "claim", extra={"FAIL_CODE": "3"})
+    assert failed.returncode == 1
+    assert "slot 1 is not taken" in failed.stderr
+    assert "down --volumes failed with code 3" in failed.stderr
+    assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1[:1]
+    assert slots.slot_of(slots.holders(workstation.register), tree) is None
+    assert workstation.tool(tree, "which").returncode == 1, "no target runs on the slot meanwhile"
+    claimed = workstation.tool(tree, "claim")
+    assert claimed.returncode == 0
+    assert f"slot 1 taken: {tree}" in claimed.stdout
+    assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1
+
+
+def test_no_claim_says_held_before_the_slot_is_emptied(workstation: Workstation) -> None:
+    """US-1100: two claims at once on an abandoned slot: none says held before its down ends."""
+    tree = abandon_slot_1(workstation)
+    gate = workstation.root / "gate"
+    environment = workstation.environment | {"STAND_IN_GATE": str(gate)}
+    asked: list[subprocess.Popen[str]] = []
+    try:
+        for _ in range(2):
+            asked.append(
+                subprocess.Popen(
+                    [sys.executable, str(SLOTS), "claim"],
+                    cwd=tree,
+                    env=environment,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+            )
+            # The first is in its down, the lock of the register held, before the second starts.
+            deadline = time.monotonic() + 60
+            while not docker_asked(workstation.log.read_text() if workstation.log.exists() else ""):
+                assert time.monotonic() < deadline, "the first claim never asked for a down"
+                time.sleep(0.02)
+        first, second = asked
+        assert second.stderr is not None
+        assert "register of the slots is held" in second.stderr.readline()
+        assert second.poll() is None, "no answer while the down of the first has not ended"
+        gate.write_text("go")
+        answers = [run.communicate(timeout=60) for run in asked]
+    finally:
+        gate.write_text("go")
+        for run in asked:
+            if run.poll() is None:
+                run.kill()
+                run.communicate()
+    assert [run.returncode for run in asked] == [0, 0]
+    assert f"slot 1 taken: {tree}" in answers[0][0]
+    assert f"slot 1 already held: {tree}" in answers[1][0]
+    assert docker_asked(workstation.logged()) == DOWNS_OF_SLOT_1, "emptied once"
+    assert first.returncode == 0
+
+
+def test_the_register_is_locked_while_a_slot_is_emptied(tmp_path: Path) -> None:
+    """US-1100: claim and release remove under the lock; a failed removal takes, frees nothing."""
+    register = tmp_path / "waterfall-slots"
+    tree = tmp_path / "lot"
+    (tree / ".git").mkdir(parents=True)
+    removed: list[int] = []
+
+    def remove(slot: int) -> None:
+        with (register / slots.REGISTER_LOCK).open("w") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                removed.append(slot)
+                return
+        message = "the lock of the register was free during the removal"
+        raise AssertionError(message)
+
+    def fail(_slot: int) -> None:
+        message = "docker compose down failed"
+        raise slots.RegisterError(message)
+
+    with pytest.raises(slots.RegisterError, match=r"slot 1 is not taken: .* down failed"):
+        slots.claim(register, tree, 2, fail)
+    assert slots.holders(register) == {}
+    assert slots.claim(register, tree, 2, remove) == (1, True)
+    with pytest.raises(slots.RegisterError, match="down failed"):
+        slots.release(register, tree, fail)
+    assert slots.slot_of(slots.holders(register), tree) == 1
+    assert slots.release(register, tree, remove) == 1
+    assert removed == [1, 1]
+    assert slots.holders(register) == {}
+
+
+def test_a_down_that_does_not_end_fails(
+    workstation: Workstation, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """US-1100: a down that has not ended in time fails, freeing the lock of the register."""
+    monkeypatch.setattr(slots, "REMOVE_SECONDS", 0.5)
+    environment = workstation.environment | {"STAND_IN_GATE": str(workstation.root / "never")}
+    remove = slots.compose_remover(environment, workstation.root)
+    with pytest.raises(slots.RegisterError, match=r"did not end within 0\.5 s"):
+        remove(1)
 
 
 def test_release_removes_the_projects_of_the_slot_then_frees_it(workstation: Workstation) -> None:

@@ -2748,7 +2748,10 @@ qui porte le chemin du worktree (`git rev-parse --show-toplevel`) et l'instant d
 sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
 créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
 ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
-projets). `slots.py which` dit le créneau du worktree courant.
+projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
+`make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
+le créneau n'est pas pris, et le `make slot` suivant refait le retrait. `slots.py which` dit le
+créneau du worktree courant.
 
 Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
 éphémères de Linux ; au créneau 0, ceux d'avant :
