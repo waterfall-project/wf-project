@@ -283,13 +283,21 @@ sub-issues follows the cutting:
 
 **The tracking table** is in the body of the epic's issue, never in a comment,
 and it is kept up to date at each change of state — lot started, in review, merged, blocked;
-story gone `en cours` or `fini`; finding opened or settled. It has two parts:
+story gone `en cours` or `fini`; finding opened or settled. The agents change it with
+`make tracking` — `ISSUE=<n> LOT=<identifier> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifier>
+STATUS=…` or `FINDING=<n> ATTACHED=… DECISION=…` —, which reads the body again under a lock of
+the workstation just before writing it and changes only the line asked for: none rewrites the
+body itself, several deliverers would overwrite one another there. It has two parts:
 
 - **Order of realisation**: one line per story, in the order they are delivered, with its
   issue and its status, the one of the file; under it, one line per lot, in order, with its
   dependencies, its state — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
   its pull request, and the model that developed it, with the reason for the escalation if there
-  was one;
+  was one; and its **« Pas avec »** column: the lots of the epic with which it is not delivered
+  at the same time (`—` if there are none). It is symmetric — if L2 is « pas avec » L1, L1 is
+  with L2 —, and the framer fills it in, at the lot plan, for two lots that no dependency
+  separates and that touch the same file. The pilot does not launch two lots so marked
+  together, even when their dependencies allow it. The template of a lot has the same field;
 - **Open findings**: each finding that is not closed, the issue it is attached to, and
   its decision.
 

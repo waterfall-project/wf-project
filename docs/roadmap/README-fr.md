@@ -282,13 +282,22 @@ sous-issues suit le découpage :
 
 **Le tableau de suivi** est dans le corps de l'issue de l'EPIC, jamais dans un commentaire,
 et il est tenu à jour à chaque changement d'état — lot commencé, en revue, fusionné, bloqué ;
-US passée `en cours` ou `fini` ; constat ouvert ou tranché. Il a deux parties :
+US passée `en cours` ou `fini` ; constat ouvert ou tranché. Les agents le changent par
+`make tracking` — `ISSUE=<n> LOT=<identifiant> [STATE=…] [PR=…] [MODEL=…]`, `US=<identifiant>
+STATUS=…` ou `FINDING=<n> ATTACHED=… DECISION=…` —, qui relit le corps sous un verrou du poste
+juste avant de l'écrire et ne change que la ligne demandée : aucun ne réécrit le corps lui-même,
+plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
 
 - **Ordre de réalisation** : une ligne par US, dans l'ordre où elles se livrent, avec son
   issue et son statut, celui du fichier ; sous elle, une ligne par lot, dans l'ordre, avec ses
   dépendances, son état — `à faire`, `en cours`, `en revue`, `fusionné`, `bloqué : <issue>` —,
   sa pull request, et le modèle qui l'a développé, avec la raison de l'escalade s'il y en a
-  eu une ;
+  eu une ; et sa colonne **« Pas avec »** : les lots de l'EPIC avec lesquels il ne se livre
+  pas en même temps (`—` s'il n'y en a pas). Elle est symétrique — si L2 est « pas avec » L1,
+  L1 l'est avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
+  dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas ensemble deux
+  lots ainsi marqués, même quand leurs dépendances le permettent. Le gabarit d'un lot a le
+  même champ ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.
 

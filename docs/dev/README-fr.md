@@ -2809,6 +2809,48 @@ son service n'est pas démarré, et le travail de la chaîne, qui pose les trois
 `make slot-release` les retire avec la plateforme de service. Dans un worktree lié sans créneau,
 les deux cibles échouent en disant `make slot`.
 
+**L'essai à N = 4** (EP-19, hors de l'EPIC). La preuve d'EP-19 se joue à N = 2, sur le poste actuel.
+Quatre livreurs ensemble ne s'essaient qu'à l'arrivée de la nouvelle machine, et c'est l'auteur qui
+les joue ; N reste un nombre qu'il fixe, aucune admission ne le déduit de la mémoire libre. Les
+étapes :
+
+1. **Poser N.** `WATERFALL_SLOTS` est une variable de l'environnement du profil de l'utilisateur
+   (`export WATERFALL_SLOTS=4` dans `~/.profile` ou `~/.bashrc`), un entier de 1 à 9, et elle se
+   lit dans toutes les sessions : celle du pilote, ses livreurs, et les commandes `make` de chacun.
+   Ouvrir de nouvelles sessions après le changement ; `make slots` écrit le N qu'elles voient.
+2. **Partir à vide.** Aucun conteneur d'un lot précédent (`docker ps`), aucun créneau pris
+   (`make slots`), le dépôt principal à jour. Noter la mémoire et les processeurs du poste.
+3. **Monter par paliers**, N = 2 puis 3 puis 4, en rejouant à chacun l'étape 4 ; ne passer au palier
+   suivant que si le précédent est propre.
+4. **Jouer N livreurs ensemble**, sur des lots d'un EPIC sans « Pas avec » entre eux, ou à la main :
+   N worktrees, chacun son `make slot`, et dans chacun, ensemble, `make test-back`, puis
+   `make coverage-front` et `make e2e` sans `TESTS` — les exécutions lourdes —, enfin
+   `make check BASE=origin/epic/EP-nn`. Un `make slot-release` à la fin de chacun.
+5. **Mesurer**, à chaque palier :
+   - la mémoire du poste au plus haut (`free -m` toutes les dix secondes pendant l'essai) et
+     l'usage de l'espace d'échange : c'est elle qui a fait s'effondrer le poste (2026-10-19, 21,
+     22) ;
+   - la durée de chaque exécution lourde, comparée à celle d'un livreur seul ; la part des
+     processeurs, `WATERFALL_PROCESSORS` (le poste divisé par N), est-elle trop étroite, ou trop
+     large ?
+   - l'attente de l'admission : les exécutions qui disent attendre un créneau lourd, et combien de
+     temps ; à N livreurs et N exécutions lourdes admises, elle devrait être courte ;
+   - les ports et les noms : `make slots` montre chaque créneau pris par un worktree différent, aucun
+     test n'échoue sur un port ou un projet Compose déjà pris (`docker ps` : un projet par créneau),
+     et `make slot-release` laisse le créneau sans conteneur ni volume ;
+   - les services de test (`tmpfs`) : pas de base ni de Redis partagés entre créneaux, aucune
+     collision de données entre deux livreurs ;
+   - la file de fusion et le tableau de suivi : aucune ligne du tableau écrasée (`make tracking`),
+     aucun conflit que le plan n'avait pas prévu (« Pas avec ») ;
+   - le coût des livreurs : le contexte et les tokens par lot, comparés à N = 1.
+6. **Relever N, ou le garder.** Garder le N du palier tant qu'aucune de ces mesures ne signale un
+   début d'effondrement : mémoire proche de la limite ou échange en cours, durée d'un palier
+   plus que multipliée par N, attente d'admission qui s'allonge. Au premier symptôme, redescendre d'un
+   cran (`WATERFALL_SLOTS=<N − 1>`) et ouvrir une issue `outil` avec les mesures. N = 4 fixé,
+   le pilote lance jusqu'à quatre livreurs ; au-delà, N ne dépasse pas 9, la borne des ports.
+7. **Écrire le résultat** dans l'issue de l'essai : le N retenu, les mesures, ce qu'il faudra
+   régler (la part des processeurs, le nombre de workers).
+
 ## Chaîne
 
 La chaîne est faite de workflows GitHub Actions (`.github/workflows/`) :
