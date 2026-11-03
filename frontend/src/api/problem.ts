@@ -46,7 +46,12 @@ import { FALLBACK_LOCALE } from "@/i18n/locale";
 import { asksIdentifiers } from "@/navigation/login";
 
 import { Unreachable } from "./client";
-import { isAccountRefusal, kindOf, type ProblemKind } from "./problem-kind";
+import {
+  type AccountRefusalCode,
+  accountRefusalOf,
+  kindOf,
+  type ProblemKind,
+} from "./problem-kind";
 import type { components } from "./generated/schema";
 
 export { kindOf, type ProblemKind } from "./problem-kind";
@@ -186,7 +191,7 @@ export class AccountRefused extends Error {
   /** The refusal of an operation, by its `operationId`, and the code that says why. */
   constructor(
     readonly operation: string,
-    readonly code: "ACCOUNT_DEACTIVATED" | "ACCOUNT_NOT_ADMITTED",
+    readonly code: AccountRefusalCode,
   ) {
     super(`${operation} answered 401 ${code}`);
     this.name = "AccountRefused";
@@ -202,11 +207,9 @@ export class AccountRefused extends Error {
  */
 export function refusalOf(operation: string, status: number, body: unknown): Error {
   const code = isProblem(body) ? body.code : undefined;
-  if (isAccountRefusal(status, code)) {
-    return new AccountRefused(
-      operation,
-      code === "ACCOUNT_DEACTIVATED" ? "ACCOUNT_DEACTIVATED" : "ACCOUNT_NOT_ADMITTED",
-    );
+  const refusal = accountRefusalOf(status, code);
+  if (refusal !== undefined) {
+    return new AccountRefused(operation, refusal);
   }
   return status === 401
     ? new SignedOut(operation, code)

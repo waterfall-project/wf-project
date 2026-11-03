@@ -238,7 +238,12 @@ describe("the anonymisation of an account", () => {
     const confirmation = await screen.findByRole("alertdialog", {
       name: "Anonymiser «\u00a0Alix Moreau\u00a0»\u00a0?",
     });
+    // It says all the anonymisation does (#942): irreversible, the name, the first name and the
+    // address erased, the avatar withdrawn, a local account withdrawn from the identity provider.
     expect(confirmation).toHaveTextContent("est irréversible");
+    expect(confirmation).toHaveTextContent("son nom, son prénom et son adresse sont effacés");
+    expect(confirmation).toHaveTextContent("son avatar est retiré");
+    expect(confirmation).toHaveTextContent("un compte local est retiré du fournisseur d’identité");
     await userEvent.click(within(confirmation).getByRole("button", { name: "Anonymiser" }));
     await waitFor(() => {
       expect(told().textContent).toBe("Compte anonymisé.");
@@ -319,6 +324,40 @@ describe("the anonymisation of an account", () => {
     });
     expect(anonymization).toHaveAttribute("aria-busy", "false");
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
+  });
+
+  it("writes nothing and says so when a write of the row begins while the confirmation is open (#941)", async () => {
+    const held = heldActivation();
+    const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
+    render(accounts());
+    const activation = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00a0Alix Moreau\u00a0» actif",
+    });
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Anonymiser «\u00a0Alix Moreau\u00a0»" }),
+    );
+    const confirmation = await screen.findByRole("alertdialog");
+    // A write of the activation of her row begins behind the dialog, which no pointer reaches; the
+    // route is served the one example of the contract, which the test does not read.
+    act(() => {
+      activation.click();
+    });
+    await waitFor(() => {
+      expect(writes(client)).toHaveLength(1);
+    });
+    await userEvent.click(within(confirmation).getByRole("button", { name: "Anonymiser" }));
+    // Nothing is asked for her anonymisation, and the table says why.
+    expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
+    await waitFor(() => {
+      expect(told().textContent).toBe(
+        "Une écriture de « Alix Moreau » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée.",
+      );
+    });
+    held.release();
+    await waitFor(() => {
+      expect(activation).toHaveAttribute("aria-busy", "false");
+    });
+    expect(writes(client)).toHaveLength(1);
   });
 
   it("presents the reactivation and the anonymisation of an anonymised account unavailable, each naming the condition it lacks [WF-ADM-0060-A]", async () => {
@@ -675,11 +714,10 @@ describe("the creation of a local account", () => {
       held.timing,
     );
     render(accounts());
-    await userEvent.click(
-      within(grid()).getByRole("button", {
-        name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
-      }),
-    );
+    const martinLink = within(grid()).getByRole("button", {
+      name: "Lien de fixation du mot de passe de «\u00a0Camille Martin\u00a0»",
+    });
+    await userEvent.click(martinLink);
     await createGarnier(await openCreation());
     const offer = await screen.findByRole("button", { name: "Remettre le lien" });
     expect(offer).toHaveAttribute("aria-busy", "true");
@@ -698,6 +736,13 @@ describe("the creation of a local account", () => {
     await waitFor(() => {
       expect(offer).toHaveAttribute("aria-busy", "false");
     });
+    // The link of Martin closed over the creation (#951): the creation stays open, alone, and the
+    // focus is not left in the dialog of the link, gone. Which element holds it otherwise is a
+    // browser's to say: its trap (Radix `FocusScope`) pulls it back into the creation, which
+    // happy-dom does not run, so this test does not say it.
+    expect(screen.queryByRole("dialog", { name: /Camille Martin/ })).toBeNull();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Créer un compte local" })).toBeVisible();
     expect(offer).not.toHaveAttribute("aria-disabled");
     await userEvent.click(offer);
     expect(

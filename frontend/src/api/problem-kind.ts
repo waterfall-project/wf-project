@@ -21,20 +21,36 @@ const KIND_BY_STATUS: Readonly<Record<number, ProblemKind>> = {
   412: "stale",
 };
 
-/** The 401 that refuse the account itself, whatever its session: deactivated, or not admitted. */
-const ACCOUNT_REFUSALS: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
-  "ACCOUNT_DEACTIVATED",
-  "ACCOUNT_NOT_ADMITTED",
-]);
+/**
+ * The 401 that refuse the account itself, whatever its session — the one list of them —, each with
+ * the state of the session it stands for: deactivated, or not admitted.
+ */
+export const ACCOUNT_REFUSALS = {
+  ACCOUNT_DEACTIVATED: "deactivated",
+  ACCOUNT_NOT_ADMITTED: "not_admitted",
+} as const satisfies Partial<Record<ErrorCode, string>>;
+
+/** A code that refuses the account itself. */
+export type AccountRefusalCode = keyof typeof ACCOUNT_REFUSALS;
 
 /**
- * Whether a 401 refuses the account itself rather than its session — deactivated
- * (`ACCOUNT_DEACTIVATED`), or one Waterfall does not admit (`ACCOUNT_NOT_ADMITTED`, #664): leading
- * it back to the sign-in page would loop, the identity provider signing it in again to the same
- * refusal. The screen says it instead.
+ * The code of the 401 that refuses the account itself rather than its session — deactivated
+ * (`ACCOUNT_DEACTIVATED`), or one Waterfall does not admit (`ACCOUNT_NOT_ADMITTED`, #664) —, or
+ * `undefined` for any other answer: leading such an account back to the sign-in page would loop,
+ * the identity provider signing it in again to the same refusal. The screen says it instead.
  */
+export function accountRefusalOf(status: number, code: unknown): AccountRefusalCode | undefined {
+  return status === 401 && isRefusalCode(code) ? code : undefined;
+}
+
+/** Whether a code is one of those of `ACCOUNT_REFUSALS`. */
+function isRefusalCode(code: unknown): code is AccountRefusalCode {
+  return typeof code === "string" && Object.hasOwn(ACCOUNT_REFUSALS, code);
+}
+
+/** Whether a 401 refuses the account itself rather than its session (`accountRefusalOf`). */
 export function isAccountRefusal(status: number, code: unknown): boolean {
-  return status === 401 && [...ACCOUNT_REFUSALS].some((refusal) => refusal === code);
+  return accountRefusalOf(status, code) !== undefined;
 }
 
 /**

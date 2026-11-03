@@ -57,12 +57,7 @@ import {
 import type { BackgroundTask } from "@/api/problem";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { OutcomeNotice } from "@/components/commands/outcome-notice";
-import {
-  forgetMessages,
-  noteMessage,
-  shownScreen,
-  unreadRefusals,
-} from "@/components/notices/message-history";
+import { noteMessage, shownScreen, unreadRefusals } from "@/components/notices/message-history";
 import { MessageList, useMessageHistory } from "@/components/notices/message-list";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +67,8 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/comp
 import { listRunningTasks, readBackgroundTask } from "@/api/actions/tasks";
 
 import { readRefusal, withoutRefusal } from "./result-refusal";
-import { forgetTasks, restoreTasks, saveTasks } from "./storage";
+import { isOwner, keepOwner, wipeStores } from "./session-end";
+import { restoreTasks, saveTasks } from "./storage";
 import { EndLog, TaskEntry, taskName, TaskPolling, useTaskNaming } from "./task-entry";
 import {
   type EndLine,
@@ -306,6 +302,11 @@ export interface TaskTrackerProps {
   /** Whether a session is open: its user's tasks that still run are read again as the tab shows. */
   readonly signedIn?: boolean;
   /**
+   * The identifier of the account of the session: what the tab kept of another account's — or of
+   * none — is wiped before it is read back (`session-end.tsx`).
+   */
+  readonly accountId?: string | undefined;
+  /**
    * The tasks of the user that still run, which the server of Next reads apart from the document
    * (`listBackgroundTasks`), and streams: the shell dispatches no server action as it mounts, and
    * nothing of the page waits for them. None without a session.
@@ -360,7 +361,7 @@ export function afterReveal(change: () => void): () => void {
 }
 
 /** Follow the background tasks the screens within it start, and those of its user that run. */
-export function TaskTracker({ signedIn = false, running, children }: TaskTrackerProps) {
+export function TaskTracker({ signedIn = false, accountId, running, children }: TaskTrackerProps) {
   const [store] = useState(trackerStore);
   const { dispatch } = store;
   const restored = useSyncExternalStore(
@@ -369,11 +370,23 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
     () => false,
   );
   const panelId = useId();
+  // Signing out: the tasks followed leave the page, and what the session left in the tab is wiped
+  // (`wipeStores`, the one place that does, #1180).
+  const forget = useCallback(() => {
+    dispatch({ type: "forget" });
+    store.show(false);
+    wipeStores();
+  }, [store, dispatch]);
   // The storage of the tab is the browser's: read once mounted, never while rendering on the
   // server, and written only once read, lest an empty list erase it.
   useEffect(() => {
+    if (accountId !== undefined && !isOwner(accountId)) {
+      // Another account wrote what the tab kept, or none: nothing of it is read back (#1180).
+      wipeStores();
+      keepOwner(accountId);
+    }
     dispatch({ type: "restore", tasks: restoreTasks() });
-  }, [dispatch]);
+  }, [dispatch, accountId]);
   // The refusal of a result the browser came back with, once: the task is read, followed — an
   // ended task is not kept across the load —, and its entry tells the refusal; a task that cannot
   // be read again, the panel tells it itself. The address no longer carries it once the page is
@@ -447,6 +460,11 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
     let saved: Tracking["tasks"] | undefined;
     const save = () => {
       const { tasks, restored: back } = store.read().tracking;
+      // Once the session is found ended (`SignIn`), the stores are wiped and own no account: the
+      // tasks of that session are not written again.
+      if (accountId !== undefined && !isOwner(accountId)) {
+        return;
+      }
       if (back && tasks !== saved) {
         saved = tasks;
         saveTasks(tasks);
@@ -454,21 +472,16 @@ export function TaskTracker({ signedIn = false, running, children }: TaskTracker
     };
     save();
     return store.subscribe(save);
-  }, [store]);
+  }, [store, accountId]);
   const commands = useMemo<TrackerCommands>(
     () => ({
       track: (task, launch = {}) => {
         store.tell({ kind: "started", task, subject: launch.subject });
         dispatch({ type: "track", task, launch });
       },
-      forget: () => {
-        dispatch({ type: "forget" });
-        store.show(false);
-        forgetTasks();
-        forgetMessages();
-      },
+      forget,
     }),
-    [store, dispatch],
+    [store, dispatch, forget],
   );
   const button = useRef<HTMLButtonElement>(null);
   const value = useMemo(() => ({ store, panelId, button }), [store, panelId]);

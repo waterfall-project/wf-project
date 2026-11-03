@@ -2557,8 +2557,9 @@
       "giveLink": "Remettre le lien",
       "anonymized": "Compte anonymisé.",
       "anonymizationTitle": "Anonymiser « {name} » ?",
-      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, et le compte ne se réactive plus.",
-      "keep": "Conserver"
+      "anonymizationFinal": "L’anonymisation de « {name} » est irréversible : son nom, son prénom et son adresse sont effacés, de la table comme du journal d’audit, son avatar est retiré, un compte local est retiré du fournisseur d’identité, et le compte ne se réactive plus.",
+      "keep": "Conserver",
+      "rowBusy": "Une écriture de « {name} » est en cours : rien n’a été écrit, renouvelez la demande une fois la réponse donnée."
     },
     "identitySync": {
       "title": "Lecture des comptes du fournisseur d’identité",
@@ -2586,7 +2587,7 @@
       "unnamed": "Sans nom chez le fournisseur",
       "address": "Adresse : {email}",
       "subject": "Identifiant chez le fournisseur : {subject}",
-      "carrier": "Adresse portée par le compte <name></name>"
+      "carrier": "Adresse portée par : <name></name>"
     },
     "accessRoles": {
       "title": "Rôles d’habilitation",

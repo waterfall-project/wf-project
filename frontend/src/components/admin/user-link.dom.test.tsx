@@ -119,6 +119,43 @@ describe("the link to set the password", () => {
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
   });
 
+  it("holds the switch of the state while a link is on the way, a press asking nothing: the invariant holds both ways (#949) [WF-ADM-0060-A]", async () => {
+    const held = holdRoute("POST /users/{user_id}/password-link");
+    const client = serve(
+      { "POST /users/{user_id}/password-link": { status: 201, example: "password_setup_link" } },
+      held.timing,
+    );
+    render(accounts());
+    const petitSwitch = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00a0Lucas Petit\u00a0» actif",
+    });
+    expect(petitSwitch).not.toHaveAttribute("aria-disabled");
+    await userEvent.click(
+      within(grid()).getByRole("button", {
+        name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
+      }),
+    );
+    await waitFor(() => {
+      expect(petitSwitch).toHaveAttribute("aria-busy", "true");
+    });
+    expect(petitSwitch).toHaveAttribute("aria-disabled", "true");
+    // Pressed, the switch asks nothing: no account is deactivated while its link is on the way.
+    await userEvent.click(petitSwitch);
+    expect(petitSwitch).toBeChecked();
+    held.release();
+    const dialog = await screen.findByRole("dialog", {
+      name: "Lien de fixation du mot de passe de «\u00a0Lucas Petit\u00a0»",
+    });
+    // Still held while the link is shown, and free once it is closed.
+    expect(petitSwitch).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fermer" }));
+    await waitFor(() => {
+      expect(petitSwitch).not.toHaveAttribute("aria-disabled");
+    });
+    expect(petitSwitch).toHaveAttribute("aria-busy", "false");
+    expect(writes(client).map(([route]) => route)).toEqual(["POST /users/{user_id}/password-link"]);
+  });
+
   it("asks one link at a time, the other commands of the link busy and unavailable the while", async () => {
     const held = holdRoute("POST /users/{user_id}/password-link");
     const client = serve(

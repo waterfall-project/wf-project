@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChartOption, ChartPalette } from "@/components/chart/chart";
 import { CATALOGUES } from "@/i18n/catalogues";
+import { CurrencyProvider } from "@/currency/context";
 import { formatTimestamp } from "@/i18n/format";
 import { expectAccessible } from "@/test/axe";
 import { example } from "@/test/fixtures";
@@ -269,18 +270,24 @@ describe("the tracking of the milestones", () => {
 });
 
 /** Render cumulative curves under a caption of the test. */
-function curves(name: string, variant: (data: CurveSeries) => CurveSeries = (data) => data) {
+function curves(
+  name: string,
+  variant: (data: CurveSeries) => CurveSeries = (data) => data,
+  currency?: string,
+) {
   const data = variant(example(name) as CurveSeries);
   return {
     data,
     ...english(
-      <CurveSeriesChart
-        curves={data}
-        title="Curves"
-        description="Drawn."
-        file="curves"
-        provenance={PROVENANCE}
-      />,
+      <CurrencyProvider currency={currency}>
+        <CurveSeriesChart
+          curves={data}
+          title="Curves"
+          description="Drawn."
+          file="curves"
+          provenance={PROVENANCE}
+        />
+      </CurrencyProvider>,
     ),
   };
 }
@@ -316,6 +323,27 @@ describe("the cumulative curves", () => {
     expect(series.slice(0, 3).map((each) => each.step)).toEqual([undefined, "end", undefined]);
     // Dates of planning: the ticks are placed at midnight in UTC, as the points.
     expect(lastOption()?.useUTC).toBe(true);
+  });
+
+  it.each([
+    ["titles the axis of amounts with the currency of the installation", "EUR"],
+    ["leaves the axis of amounts untitled when the currency is unknown", undefined],
+  ] as const)("%s [WF-REF-0140-A]", (_, currency) => {
+    // Two points a series: the axis, not the values, is read (docs/dev/typescript.md, defect 23).
+    curves(
+      "cost_curve",
+      (data) => ({
+        ...data,
+        series: data.series.map((series) => ({ ...series, points: series.points.slice(0, 2) })),
+      }),
+      currency,
+    );
+    const axis = lastOption()?.yAxis as { name?: string; nameLocation?: string };
+    if (currency === undefined) {
+      expect(axis).not.toHaveProperty("name");
+    } else {
+      expect(axis).toMatchObject({ name: currency, nameLocation: "end" });
+    }
   });
 
   it("marks a step of the reference budget at its date, named by its cause, and lists it [WF-IND-0100-A]", () => {
