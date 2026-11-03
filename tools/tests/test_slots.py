@@ -228,12 +228,18 @@ def test_a_signal_before_the_child_exists_is_relayed_to_it(monkeypatch: pytest.M
 def test_a_sigint_sent_to_the_tool_alone_reaches_the_child(tmp_path: Path) -> None:
     """US-1090: the tool relays every signal, SIGINT included; the child frees the slot."""
     ready = tmp_path / "ready"
-    script = f"import time\nopen({str(ready)!r}, 'w')\ntime.sleep(120)\n"
+    script = f"import time\nopen({str(ready)!r}, 'w')\ntime.sleep(60)\n"
     run = start(tmp_path, [sys.executable, "-c", script])
-    wait_for(ready)
-    run.send_signal(signal.SIGINT)
-    run.communicate(timeout=60)
-    assert run.returncode in (130, 1), "the child stopped on the SIGINT it was relayed"
+    try:
+        wait_for(ready)
+        run.send_signal(signal.SIGINT)
+        run.communicate(timeout=60)
+    finally:
+        # A relay that regressed would leave the tool and its child: neither outlives the test.
+        run.kill()
+        run.communicate()
+    # An unhandled KeyboardInterrupt ends the child by SIGINT itself: the tool returns 128 plus it.
+    assert run.returncode == 128 + signal.SIGINT, "the child died of the SIGINT it was relayed"
 
 
 HEAVY_TARGETS = {
@@ -251,9 +257,14 @@ HEAVY_TARGETS = {
 def plan(
     tmp_path: Path, *arguments: str, extra: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    """Return the dry run of make, free of the variables of the make that runs this test."""
+    """Return the dry run of make, free of the variables of the make that runs this test.
+
+    The ports and names of a slot are given, those of slot 0: the plan is the same in a worktree
+    of a lot that holds no slot (US-1100).
+    """
     outer = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TESTS", "WATERFALL_PROCESSORS", "WATERFALL_SLOTS")
-    environment = {k: v for k, v in os.environ.items() if k not in outer} | (extra or {})
+    environment = {k: v for k, v in os.environ.items() if k not in outer}
+    environment |= slots.variables(0) | (extra or {})
     return subprocess.run(
         ["make", "--dry-run", *arguments],
         cwd=REPOSITORY,

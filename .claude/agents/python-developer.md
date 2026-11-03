@@ -59,10 +59,11 @@ qui touche l'extension Keycloak. Ce qui suit ne dit que ce qui est propre à ton
 - Pendant le développement, ne lance que les tests que tu touches :
   `make test-back TESTS=tests/<fichier>` ; le palier entier vient à la fin.
 - `make check BASE=origin/epic/EP-nn` passe — le palier rapide de ce que tu as touché. Sa
-  sortie peut être longue : écris-la dans un fichier et lis-en la fin,
-  `make check BASE=origin/epic/EP-nn > /tmp/check.log 2>&1; tail -n 60 /tmp/check.log` ; si
-  l'échec peut venir de la collecte — import, fixture, configuration —, lis aussi le début,
-  `head -n 40 /tmp/check.log`.
+  sortie peut être longue : écris-la dans `.waterfall/check.log` de ton worktree, que git
+  ignore, et lis-en la fin, `mkdir -p .waterfall; make check BASE=origin/epic/EP-nn >
+  .waterfall/check.log 2>&1; tail -n 60 .waterfall/check.log` — jamais dans `/tmp/check.log`,
+  que deux développeurs se disputeraient ; si l'échec peut venir de la collecte — import,
+  fixture, configuration —, lis aussi le début, `head -n 40 .waterfall/check.log`.
 - **Trois échecs sur la même cause, et tu t'arrêtes.** Si le même contrôle, ou le même test,
   échoue trois fois, pas de quatrième tentative : rends la main avec le diagnostic — ce que
   tu as essayé, ce que tu soupçonnes, ce qui reste rouge. L'agent de livraison décide de la
