@@ -308,7 +308,7 @@ suivent.
 
 ## US-1080 — Aucun agent n'arrête ce qu'un autre a lancé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1882
