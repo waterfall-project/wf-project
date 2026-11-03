@@ -14,6 +14,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
   unreachable,
 } from "@/test/fixtures";
@@ -280,13 +281,8 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("says it is reading what the value depends on until the server answers, in one live region", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [DEPENDENCIES]: "dependencies_summary" },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [DEPENDENCIES]: "dependencies_summary" }, answer.until);
     renderGrid("planning");
     await userEvent.click(cell("Études", FINISH));
     const region = within(refusal()).getByRole("status");
@@ -295,7 +291,7 @@ describe("a value of a grid the server computes", () => {
     expect(region).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByRole("list")).toBeNull();
     await expectAccessible(document.body);
-    answer();
+    answer.release();
     // The same region, which now holds what the server said.
     expect(await within(region).findByRole("list")).toBeInTheDocument();
     expect(region).toHaveAttribute("aria-busy", "false");
@@ -350,12 +346,10 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("asks afresh for a row read in another version, never showing the answer before", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
+    const answer = held();
     const client = serve(
       { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
+      answer.until,
       1,
     );
     const { rerender } = renderGrid("planning");
@@ -366,23 +360,18 @@ describe("a value of a grid the server computes", () => {
     rerender(planningOf(withSummaryChanged()));
     expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByText(/^Le montant d’une ligne de main-d’œuvre/)).toBeNull();
-    answer();
+    answer.release();
     expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
     expect(asked(client)).toHaveLength(2);
   });
 
   it("drops an answer to a question changed meanwhile", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] }, answer.until);
     const { rerender } = renderGrid("planning");
     await userEvent.click(cell("Études", FINISH));
     rerender(planningOf(withSummaryChanged()));
-    answer();
+    answer.release();
     const { paragraphs } = await said();
     expect(paragraphs).not.toContain(
       "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",

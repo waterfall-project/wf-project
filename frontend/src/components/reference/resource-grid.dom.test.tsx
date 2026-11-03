@@ -17,6 +17,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
 } from "@/test/fixtures";
 
@@ -401,15 +402,10 @@ describe("the grid of the resource roles", () => {
   });
 
   it("says nothing of a refusal answered after the address changed, on the list now shown nor once back on the reading it was asked from", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
+    const answer = held();
     const client = fakeClient(
       { [ROLE_ACTIVATION]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-      {
-        hold: () =>
-          new Promise((resolve) => {
-            answer = resolve;
-          }),
-      },
+      answer.timing,
     );
     server.client = client;
     page.search = "include_inactive=true";
@@ -419,7 +415,7 @@ describe("the grid of the resource roles", () => {
     // The deactivated ones hidden meanwhile: another reading of the list.
     page.search = "";
     rerender(roleGrid());
-    answer();
+    answer.release();
     await vi.waitFor(() => {
       expect(command).not.toHaveAttribute("aria-busy", "true");
     });

@@ -359,8 +359,15 @@ response — here the write awaited in `startTransition(async …)`. The screen 
 displayed until the response, and a write refused while it is left for another path — made before
 the traversal or after — goes to the bar, even when what requested it says it still says it
 (`told`), since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought
-back to its path before the refusal, the screen says it itself. This holds as long as the router
-keeps this order, perhaps an upstream defect. A write still under way when
+back to its path before the refusal, the screen says it itself. Brought back after the refusal,
+before the router has shown the entry traversed to — « Forward » pressed while it reads it —, the
+screen, which never left, says it too, and the bar takes back what it said of it (`broughtBack`,
+#1476): the refusal is said twice, one after the other, never at the same time, and noted once in
+the message history, by the identity of its response — for a refusal carried by an `outcome`; a
+boolean response has no identity, and the history notes it apart from what the screen says of it. Until its response, the write awaited in the
+transition still holds the clicks: the screen left by « Back », still displayed, releases it only
+as it leaves. This holds as long as the router keeps this order, perhaps an upstream defect. A
+write still under way when
 its screen goes away, and refused afterwards, is said by no screen: the bar of the shell, which
 outlives each of them, says it by a notice one closes (`LeftRefusals`, `refusedLeft` of
 `held-writes.ts`, #863), and records it in the message history with its refusal and the screen it

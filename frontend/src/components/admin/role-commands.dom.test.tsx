@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -13,7 +13,16 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { NO_AUDIT } from "@/test/accounts";
 import { atCommit, atFocus } from "@/test/committed";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  fakeClient,
+  type FakeTiming,
+  held,
+} from "@/test/fixtures";
+import { dismissLeftRefusals, refusedLeft } from "@/navigation/held-writes";
+import { heldLink } from "@/test/held-link";
 
 import { AccessRoleList, PermissionMatrix } from "./account-lists";
 import { MatrixWrites } from "./permission-matrix";
@@ -24,6 +33,7 @@ import { RoleAnswers } from "./role-answers";
 // once a role is written, and the address it reads.
 const server = vi.hoisted((): { client: ApiClient | undefined } => ({ client: undefined }));
 const refresh = vi.hoisted(() => vi.fn());
+const page = vi.hoisted(() => ({ search: "" }));
 
 vi.mock("@/api/server", () => ({ serverClient: () => server.client }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -31,7 +41,7 @@ vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/admin/access-roles",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(page.search),
 }));
 
 type Schemas = components["schemas"];
@@ -69,8 +79,8 @@ function inFrench(children: ReactNode) {
 }
 
 /** Serve the fake back, its answers held as the test says, and give it back to read its calls. */
-function serve(answers: FakeAnswers, hold?: () => Promise<unknown>): FakeClient {
-  const client = fakeClient(answers, hold === undefined ? {} : { hold });
+function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -94,6 +104,8 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(560);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   forgetMessages();
+  page.search = "";
+  dismissLeftRefusals();
 });
 
 afterEach(() => {
@@ -127,19 +139,38 @@ describe("the creation of a role in line", () => {
   });
 
   it("keeps a label typed while the server answers the one sent", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [CREATED]: { example: "access_role_created", status: 201 } },
-      () => new Promise((settle) => (answer = settle)),
-    );
+    const answer = held();
+    serve({ [CREATED]: { example: "access_role_created", status: 201 } }, answer.timing);
     render(inFrench(table()));
     const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
     await userEvent.type(label, "CG{Enter}D");
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(told().textContent).toBe("« Contrôle de gestion » créé.");
     });
     expect(label).toHaveValue("CGD");
+  });
+
+  it("holds a link clicked while the creation answers, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
+    const answer = held();
+    serve({ [CREATED]: { problem: { code: "PERMISSION_MISSING", status: 403 } } }, answer.timing);
+    render(inFrench(table()));
+    const link = heldLink();
+    try {
+      await userEvent.type(screen.getByRole("textbox", { name: "Nouveau rôle" }), "CG{Enter}");
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.PERMISSION_MISSING,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 
   it("refuses at its field a label left blank, as the entry of the grid does, and asks nothing", async () => {
@@ -184,6 +215,35 @@ describe("the creation of a role in line", () => {
         object: "CG",
       }),
     ]);
+  });
+
+  it("tells a label refused at its field by the field alone, the list read anew meanwhile: the bar of the shell does not tell it too (#1476)", async () => {
+    const answer = held();
+    serve(
+      {
+        "PATCH /me/preferences": "preferences",
+        [CREATED]: {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/label", code: "VALUE_TOO_LONG" }],
+          },
+        },
+      },
+      answer.timing,
+    );
+    const { rerender } = render(inFrench(table()));
+    const label = screen.getByRole("textbox", { name: "Nouveau rôle" });
+    await userEvent.type(label, "CG{Enter}");
+    // The list searched meanwhile: it tells nothing of the reading now shown.
+    page.search = "search=Manager";
+    rerender(inFrench(table()));
+    answer.release();
+    await waitFor(() => {
+      expect(label).toHaveAccessibleDescription(CATALOGUES.fr.errors.VALUE_TOO_LONG);
+    });
+    expect(refusedLeft()).toEqual([]);
+    expect(readMessages().messages).toHaveLength(1);
   });
 });
 

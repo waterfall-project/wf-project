@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
@@ -16,8 +16,11 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 
 import { PermissionMatrix } from "./account-lists";
 import { MatrixWrites } from "./permission-matrix";
@@ -101,8 +104,8 @@ function inLanguage(children: ReactNode, locale: Locale = "fr") {
 }
 
 /** Serve the fake back, its answers held as the test says, and give it back to read its calls. */
-function serve(answers: FakeAnswers, hold?: () => Promise<unknown>): FakeClient {
-  const client = fakeClient(answers, hold === undefined ? {} : { hold });
+function serve(answers: FakeAnswers, timing: FakeTiming = {}): FakeClient {
+  const client = fakeClient(answers, timing);
   server.client = client;
   return client;
 }
@@ -207,11 +210,8 @@ describe("the matrix of the permissions", () => {
 
 describe("the matrix of the permissions, where they are modified", () => {
   it("composes a role of the permissions of two actors: a manager given the modification of the planning, the role written whole from the version read [WF-ADM-0020-A]", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    const client = serve(
-      { [ROLE]: "access_role_updated" },
-      () => new Promise((settle) => (answer = settle)),
-    );
+    const answer = held();
+    const client = serve({ [ROLE]: "access_role_updated" }, answer.timing);
     rendered(
       <Written
         permissions={windowOf("planning.write", "risks.write", "all_projects_read")}
@@ -246,7 +246,7 @@ describe("the matrix of the permissions, where they are modified", () => {
     );
     // Answered: the manager holds the permissions of both actors, its other cells are available
     // again, and the page is read anew.
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(other).not.toHaveAttribute("aria-disabled");
     });
@@ -363,11 +363,8 @@ describe("the matrix of the permissions, where they are modified", () => {
   });
 
   it("tells a refusal only on the reading it was asked from", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [ROLE]: { problem: LAST_ADMINISTRATOR } },
-      () => new Promise((settle) => (answer = settle)),
-    );
+    const answer = held();
+    serve({ [ROLE]: { problem: LAST_ADMINISTRATOR } }, answer.timing);
     const shown = windowOf("users.write");
     const { rerender } = rendered(<Written permissions={shown} roles={roles} />);
     await userEvent.click(cell("Modifier les utilisateurs", "Direction de projet"));
@@ -378,11 +375,51 @@ describe("the matrix of the permissions, where they are modified", () => {
     );
     const users = cell("Modifier les utilisateurs", "Direction de projet");
     expect(users).toHaveAttribute("aria-busy", "true");
-    answer();
+    answer.release();
     await waitFor(() => {
       expect(users).toHaveAttribute("aria-busy", "false");
     });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(users).toBeChecked();
+  });
+
+  it("forgets a refusal told once the matrix is read otherwise: told neither on the reading now shown nor back on the one it was asked from (#901)", async () => {
+    serve({ [ROLE]: { problem: LAST_ADMINISTRATOR } });
+    const shown = windowOf("users.write");
+    const { rerender } = rendered(<Written permissions={shown} roles={roles} />);
+    await userEvent.click(cell("Modifier les utilisateurs", "Direction de projet"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      CATALOGUES.fr.errors.LAST_ADMINISTRATOR,
+    );
+    page.search = "search=Direction";
+    rerender(
+      inLanguage(<Written permissions={shown} roles={[roleNamed("Direction de projet")]} />),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    page.search = "";
+    rerender(inLanguage(<Written permissions={shown} roles={roles} />));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("holds a link clicked while a cell writes, and does not follow it when the server refuses the write: the refusal is told above the matrix (#688, #889)", async () => {
+    const answer = held();
+    serve({ [ROLE]: { problem: LAST_ADMINISTRATOR } }, answer.timing);
+    rendered(<Written permissions={windowOf("users.write")} roles={roles} />);
+    const link = heldLink();
+    try {
+      await userEvent.click(cell("Modifier les utilisateurs", "Direction de projet"));
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.LAST_ADMINISTRATOR,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 });

@@ -8,7 +8,8 @@
  * screen keeps for the matrix and the table alike (`RoleAnswers`): the next write, a cell or a
  * renaming, goes from its version. A refusal is told above the matrix by the catalogue of the codes
  * of error, on the reading it was asked from alone (`Reactivations`), the cell showing the role as it
- * was, and taking the focus back once the refusal is dismissed.
+ * was, and taking the focus back once the refusal is dismissed. The navigations of the page wait
+ * for the write, and do not take place when it is refused (`held` of the list, #688).
  */
 "use client";
 
@@ -17,7 +18,7 @@ import { createContext, type ReactNode, useContext, useRef, useState } from "rea
 
 import { updateAccessRole } from "@/api/actions/access-roles";
 import type { components } from "@/api/generated/schema";
-import { rejected } from "@/components/commands/rejection";
+import { useHeldCommand } from "@/components/commands/held";
 import { Reactivations, useListReport } from "@/components/reference/reactivation";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -74,6 +75,9 @@ export function MatrixWrites(props: WritesProps) {
  */
 function Writing({ order, roles, children }: WritesProps) {
   const list = useListReport();
+  // The list, which tells the refusal, holds the navigations while the role answers (#688, #889).
+  const own = useHeldCommand();
+  const heldWrite = list?.held ?? own;
   const answers = useRoleAnswers();
   const [asked, setAsked] = useState<ReadonlyMap<string, ReadonlySet<PermissionCode>>>(
     () => new Map(),
@@ -109,20 +113,20 @@ function Writing({ order, roles, children }: WritesProps) {
     // The reading the cell is checked on: its refusal is told on it alone.
     const generation = list?.generation ?? 0;
     const permissions = order.filter((each) => next.has(each));
-    void updateAccessRole(id, { label: role.label, permissions, lock_version: role.lock_version })
-      .catch(rejected)
-      .then((outcome) => {
-        setAsked((before) => {
-          const after = new Map(before);
-          after.delete(id);
-          return after;
-        });
-        if (outcome.kind === "done") {
-          answers?.record(outcome.data);
-        } else {
-          list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
-        }
+    void heldWrite(
+      updateAccessRole(id, { label: role.label, permissions, lock_version: role.lock_version }),
+    ).then((outcome) => {
+      setAsked((before) => {
+        const after = new Map(before);
+        after.delete(id);
+        return after;
       });
+      if (outcome.kind === "done") {
+        answers?.record(outcome.data);
+      } else {
+        list?.report({ outcome, generation, names: {}, target: `permissions ${id}`, back: cell });
+      }
+    });
   };
   return <WritesContext value={{ holding, write }}>{children}</WritesContext>;
 }

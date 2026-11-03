@@ -21,6 +21,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 import { closeTasks, tasksRegion } from "@/test/task-panel";
 
@@ -597,11 +598,8 @@ describe("the exits of the lifecycle of a project", () => {
   });
 
   it("keeps the confirmation while the API is asked, and says its refusal once it answers", async () => {
-    let answer: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      answer = resolve;
-    });
-    serve({ [EXIT]: CONFLICT }, { hold: () => held });
+    const answer = held();
+    serve({ [EXIT]: CONFLICT }, answer.timing);
     open();
     await confirm("Terminer le projet");
     const cancel = screen.getByRole("button", { name: "Annuler" });
@@ -617,7 +615,7 @@ describe("the exits of the lifecycle of a project", () => {
       () => screen.getByRole("button", { name: "Annuler" }).getAttribute("aria-disabled"),
     );
     // Let go outside `act`, which would render both commits at once: as the browser gets the answer.
-    answer();
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Modernisation du poste de commande",
     );

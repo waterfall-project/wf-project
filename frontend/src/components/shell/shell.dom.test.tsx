@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { type ReactElement, useEffect, useRef } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "@/api/client";
 import type { components } from "@/api/generated/schema";
-import { useHeldWrites } from "@/components/commands/held";
+import type { Outcome } from "@/api/problem";
+import { useHeldCommand, useHeldWrites } from "@/components/commands/held";
+import { OutcomeNotice } from "@/components/commands/outcome-notice";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { SIDEBAR_COOKIE } from "@/components/ui/sidebar-state";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
@@ -536,6 +538,45 @@ function writer(): {
   return { Screen, make };
 }
 
+/**
+ * A screen whose command is answered when the test says, awaited as a modal dialog awaits it, its
+ * refusal told on the screen once answered (`OutcomeNotice`).
+ */
+function commanding(): {
+  Screen: () => ReactElement;
+  answer: (outcome: Outcome<unknown>) => void;
+} {
+  let answer: (outcome: Outcome<unknown>) => void = () => undefined;
+  const command = new Promise<Outcome<unknown>>((resolve) => {
+    answer = resolve;
+  });
+  /** The screen, its command made once mounted. */
+  function Screen() {
+    const held = useHeldCommand();
+    const [outcome, setOutcome] = useState<Outcome<unknown>>();
+    const made = useRef(false);
+    useEffect(() => {
+      if (!made.current) {
+        made.current = true;
+        void held(command).then(setOutcome);
+      }
+    }, [held]);
+    return (
+      <main>
+        {outcome === undefined ? null : (
+          <OutcomeNotice
+            outcome={outcome}
+            onClear={() => {
+              setOutcome(undefined);
+            }}
+          />
+        )}
+      </main>
+    );
+  }
+  return { Screen, answer };
+}
+
 /** « Précédent » or « Suivant » of the browser, towards `path`: the address changes, the screen stays. */
 function traverse(path: string): void {
   window.history.replaceState(null, "", path);
@@ -685,6 +726,35 @@ describe("the writes refused once their screen is gone (#863)", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(bar().queryByRole("alert")).toBeNull();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("leave a refusal the bar told while « Précédent » left the screen, which « Suivant » brought back before it went: the screen tells it, the bar takes it back, the history keeps a single entry (#1476)", async () => {
+    // The router of Next 16.4 shows the entry traversed to once the action under way has answered,
+    // and reads it first: « Suivant » pressed meanwhile brings the screen back, never unmounted.
+    forgetMessages();
+    window.history.replaceState(null, "", "/account");
+    const { Screen, answer } = commanding();
+    shell({}, <Screen />);
+    traverse("/");
+
+    await act(async () => {
+      answer({
+        kind: "refused",
+        problem: { code: "ALREADY_EXISTS", status: 409 },
+        conflictingObjectId: null,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(bar().getByRole("alert")).toHaveTextContent(
+      "Une modification qui n’est plus affichée a été refusée : elle n’est pas enregistrée.",
+    );
+    traverse("/account");
+
+    expect(bar().queryByRole("alert")).toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert")).toHaveTextContent("Cet élément existe déjà.");
+    expect(readMessages().messages).toHaveLength(1);
     window.history.replaceState(null, "", "/");
   });
 

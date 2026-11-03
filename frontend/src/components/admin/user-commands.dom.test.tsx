@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,8 +29,10 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
+import { heldLink } from "@/test/held-link";
 import { keysOf } from "@/test/grid-preferences";
 
 import { type User, userGrid } from "./admin-grids";
@@ -426,6 +428,31 @@ describe("the state of an account, on its switch", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Recharger/);
     expect(roux).toBeChecked();
     expect(told().textContent).toBe("");
+  });
+
+  it("holds a link clicked while a deactivation answers, and does not follow it when the server refuses it: the refusal is told above the table (#688, #889)", async () => {
+    const answer = held();
+    const refused = { problem: { code: "PERMISSION_MISSING", status: 403 } } as const;
+    serve({ "PUT /users/{user_id}/activation": refused }, answer.timing);
+    render(accounts());
+    const link = heldLink();
+    try {
+      await userEvent.click(
+        within(grid()).getByRole("switch", { name: "Compte de «\u00a0Inès Roux\u00a0» actif" }),
+      );
+      link.click();
+      await act(async () => {
+        answer.release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        CATALOGUES.fr.errors.PERMISSION_MISSING,
+      );
+      expect(link.followed).not.toHaveBeenCalled();
+    } finally {
+      link.remove();
+    }
   });
 });
 

@@ -12,7 +12,7 @@ import { forgetMessages, readMessages } from "@/components/notices/message-histo
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import type { components } from "@/api/generated/schema";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { atCommit } from "@/test/committed";
 import { heldLink } from "@/test/held-link";
 
@@ -68,13 +68,10 @@ function inFrench(page: ReactNode) {
  * a request is under way.
  */
 function holding(answers: FakeAnswers): () => void {
-  let give: () => void = () => undefined;
-  const released = new Promise<void>((resolve) => {
-    give = resolve;
-  });
-  server.client = fakeClient(answers, { hold: () => released });
+  const answer = held();
+  server.client = fakeClient(answers, answer.timing);
   return () => {
-    give();
+    answer.release();
   };
 }
 

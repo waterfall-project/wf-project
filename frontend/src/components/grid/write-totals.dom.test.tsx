@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiClient } from "@/api/client";
 import { forgetMessages, readMessages } from "@/components/notices/message-history";
 import { CATALOGUES } from "@/i18n/catalogues";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import { example, type FakeAnswers, type FakeClient, fakeClient, held } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
 import { SHOWN } from "@/test/grid-preferences";
 
@@ -192,13 +192,10 @@ describe("what a write answers besides the row written", () => {
 
   it("takes the totals read anew after the last write alone, dropping a reading under way when another write left", async () => {
     // The first reading anew is held until the second has answered, which answers other totals.
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const answer = held();
     const client = fakeClient(
       { [LINE]: "estimate_line_updated", [NODES_ROUTE]: ["nodes", "nodes_risk_occurred"] },
-      { hold: (route, index) => (route === NODES_ROUTE && index === 0 ? held : undefined) },
+      { hold: (route, index) => (route === NODES_ROUTE && index === 0 ? answer.until : undefined) },
     );
     server.client = client;
     const search = { sort: undefined, search: "borniers", size: undefined };
@@ -216,7 +213,7 @@ describe("what a write answers besides the row written", () => {
     });
     // The first reading answers last: dropped, the totals of the second stay.
     await act(async () => {
-      release();
+      answer.release();
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(totals()[1]).toBe("Total — 3 tâches, 2 lignes");
