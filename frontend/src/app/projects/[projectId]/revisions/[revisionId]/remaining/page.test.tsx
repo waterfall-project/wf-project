@@ -315,6 +315,13 @@ describe("the screen of the remaining to commit", () => {
     expect(calls).toContain("GET /reference/cost-categories");
   });
 
+  it("still hands the grid the lines of the answer, asking no kind, whatever the tasks beside them [WF-PLA-0080-A]", async () => {
+    await remainingAt();
+    expect(queryOf(NODES)).not.toHaveProperty("kinds");
+    const items = handed[0]?.nodes.items ?? [];
+    expect(items.some((row) => row.kind === "estimate_line")).toBe(true);
+  });
+
   it("hands the grid the sub-projects of the project, with their codes, when the structure lists the remaining to commit available", async () => {
     await remainingAt();
     expect(handed).toHaveLength(1);

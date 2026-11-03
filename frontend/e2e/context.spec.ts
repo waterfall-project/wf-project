@@ -100,14 +100,17 @@ test("a grid opened on a differential structure names it, chosen in the banner, 
   await expect(facts.filter({ hasText: /^Avenant 2 — reprise des essais$/ })).toBeVisible();
   await expect(facts.filter({ hasText: /^Avenant$/ })).toBeVisible();
   // The grid reads the nodes of the amendment, each marked by the difference the server renders
-  // (US-0500): a task modified, a line unchanged, a line removed, read in its place, a task added.
+  // (US-0500): a task modified, a task added, a task modified again. The planning asks for tasks
+  // alone (`kinds`): the lines of the amendment, one unchanged and one removed, are not among its
+  // rows.
   const grid = page.getByRole("treegrid", { name: "Grille de planning" });
   const mark = (row: number) => rowAt(grid, row).getByRole("gridcell").first();
   await expect(grid.getByRole("columnheader").first()).toHaveAccessibleName("Écart");
   await expect(mark(1)).toHaveText("MModifié");
-  await expect(mark(3)).toHaveText("");
-  await expect(mark(4)).toHaveText("-Retiré");
-  await expect(mark(5)).toHaveText("+Ajouté");
+  await expect(mark(2)).toHaveText("MModifié");
+  await expect(mark(3)).toHaveText("+Ajouté");
+  await expect(mark(4)).toHaveText("+Ajouté");
+  await expect(mark(5)).toHaveText("MModifié");
   // The head of the grid names it too.
   await expect(page.getByRole("main")).toContainText("Avenant 2 — reprise des essais ·");
 

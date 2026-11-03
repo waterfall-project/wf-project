@@ -163,6 +163,24 @@ describe("the screen of the planning", () => {
     });
   });
 
+  it("hands the grid the tasks alone of an answer that mixes tasks and lines, the server rendering more than the kinds it was asked [WF-PLA-0080-A]", async () => {
+    // The fake back renders its example whole whatever `kinds` asks (#1397): the witness mixes.
+    server.answers = { ...server.answers, [NODES]: "nodes" };
+    await planning();
+    expect(callsOf(NODES).at(-1)?.query.getAll("kinds")).toEqual(["task"]);
+    const rows = grid.given.at(-1)?.nodes.items ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.map((row) => row.kind)).toEqual(rows.map(() => "task"));
+  });
+
+  it("hands the grid of a differential the tasks alone of an answer that mixes them with lines [WF-PLA-0080-A]", async () => {
+    server.answers = { ...server.answers, [NODES]: "nodes_amendment" };
+    await planning({ structure: "01926f3a-7c00-7000-8000-000000000203" });
+    const rows = grid.given.at(-1)?.nodes.items ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.kind === "task")).toBe(true);
+  });
+
   it("gives the grid the planning start date of the structure it reads, which it presents above the tasks [WF-PLA-0020-A]", async () => {
     const page = await planning();
     // The 2 March 2026 of the witness, as the server gives it.
@@ -454,9 +472,12 @@ describe("« Écarts seulement » on the grid of the planning [WF-REV-0100-A] [W
     expect(BUTTON.exec(page)?.[1]).toBe("true");
     expect(chips(page)).toContain("Differences only");
     expect(chips(page)).toContain(`aria-label="Remove the filter “Differences only”"`);
-    // The rows are those of the answer: the front retains none of its own.
-    const answered = example("nodes_amendment_differences") as { items: unknown[] };
-    expect(grid.given.at(-1)?.nodes.items).toHaveLength(answered.items.length);
+    // The rows are the tasks of the answer: the front retains none of its own, but the lines the
+    // server rendered besides the tasks it was asked (`kinds`, #1397).
+    const answered = example("nodes_amendment_differences") as { items: { kind: string }[] };
+    expect(grid.given.at(-1)?.nodes.items).toHaveLength(
+      answered.items.filter((node) => node.kind === "task").length,
+    );
     expect(grid.given.at(-1)?.filters.difference).toEqual(["added", "removed", "modified"]);
   });
 

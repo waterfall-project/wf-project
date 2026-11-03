@@ -14,12 +14,13 @@ import { ESTIMATE_FIELDS } from "@/components/grid/estimate";
 import type { EstimateGridProps } from "@/components/grid/estimate-grid";
 import {
   type AnyNodeFields,
+  type NodeKind,
   COMMON_FIELDS,
   type NodeList,
   nodeFieldNames,
   SPARSE_LINE_FIELDS,
 } from "@/components/grid/nodes";
-import { PLANNING_FIELDS } from "@/components/grid/planning";
+import { PLANNING_FIELDS, PLANNING_KINDS } from "@/components/grid/planning";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
 import { CATALOGUES } from "@/i18n/catalogues";
 import {
@@ -923,8 +924,14 @@ describe("the rows a page hands its grid", () => {
    * Check that each row a grid was handed holds the fields of its list its node has, and those
    * alone, its facets alike; a field of a line that says nothing is left out (`SPARSE_LINE_FIELDS`).
    */
-  function projected(items: readonly object[], fields: AnyNodeFields) {
-    const answer = example(VOLUME) as NodeList;
+  function projected(items: readonly object[], fields: AnyNodeFields, kinds?: readonly NodeKind[]) {
+    const whole = example(VOLUME) as NodeList;
+    // The server may render more than the kinds asked, the fake back does: the grid has these alone.
+    const answer = {
+      ...whole,
+      items:
+        kinds === undefined ? whole.items : whole.items.filter(({ kind }) => kinds.includes(kind)),
+    };
     const listed = {
       node: [...COMMON_FIELDS.node, ...fields.node, "task", "estimate_line"],
       task: [...COMMON_FIELDS.task, ...fields.task],
@@ -961,7 +968,7 @@ describe("the rows a page hands its grid", () => {
     renderToStaticMarkup(inEnglish(await PlanningPage({ params, searchParams: NO_SEARCH })));
     expect(nodesFields()).toEqual(nodeFieldNames(PLANNING_FIELDS));
     expect(grids.planning).toHaveLength(1);
-    projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS);
+    projected(grids.planning[0]?.nodes.items ?? [], PLANNING_FIELDS, PLANNING_KINDS);
     expect(grids.planning[0]?.structure).toEqual(STRUCTURE);
   });
 });

@@ -61,3 +61,23 @@ describe("the report of an import, what the file dates otherwise", () => {
     ).toBeNull();
   });
 });
+
+describe("the report of an import, a line that puts a task under a milestone", () => {
+  it("is rejected with the sentence of the catalogue, by its place in the file [WF-PLA-0050-A]", () => {
+    const analysed = example("import_analysed") as Import & {
+      report: NonNullable<Import["report"]>;
+    };
+    const [line] = analysed.report.rejected;
+    expect(line).toBeDefined();
+    open({
+      ...analysed,
+      report: {
+        ...analysed.report,
+        rejected:
+          line === undefined ? [] : [{ ...line, code: "MILESTONE_HAS_NO_SUBTASK", params: {} }],
+      },
+    });
+    const table = screen.getByRole("table", { name: /Lignes rejetées/i });
+    expect(within(table).getByText("Un jalon ne porte pas de sous-tâches.")).toBeVisible();
+  });
+});

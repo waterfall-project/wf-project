@@ -279,6 +279,8 @@
       "insertLine": "Insérer une ligne",
       "indent": "Indenter",
       "outdent": "Désindenter",
+      "milestoneChild": "Un jalon (tâche de durée nulle) ne porte pas de sous-tâches.",
+      "afterMilestone": "La tâche qui précède est un jalon, qui ne porte pas de sous-tâches.",
       "up": "Monter",
       "down": "Descendre",
       "moved": {

@@ -43,7 +43,7 @@ test("inscribes a task to a timeline from the menu of its cell, sees it in the c
   await page.keyboard.press("Escape");
   const at = await columnsOf(grid, { label: "Libellé", timelines: "Chronologies" });
 
-  const review = await scrollToPosition(grid, 5);
+  const review = await scrollToPosition(grid, 4);
   await expect(review).toHaveAccessibleName(/^5 .*Revue de conception/);
   await expect(review.getByRole("gridcell").nth(at.timelines)).toHaveText("");
 
@@ -93,7 +93,7 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
   const at = await columnsOf(grid, { label: "Libellé" });
   // Row 6 of the example, « Réception des études », a milestone inscribed to both timelines and to
   // the tracking.
-  const milestone = await scrollToPosition(grid, 6);
+  const milestone = await scrollToPosition(grid, 5);
   await expect(milestone).toHaveAccessibleName(/^6 .*Réception des études/);
   const boxes = await openTimelines(page, milestone, at.label);
   await expect(boxes.getByRole("menuitemcheckbox")).toHaveText([
@@ -108,7 +108,7 @@ test("offers the time/time tracking of a milestone beside its timelines, checked
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   // A task that is no milestone is offered the timelines alone.
-  const task = await scrollToPosition(grid, 5);
+  const task = await scrollToPosition(grid, 4);
   const others = await openTimelines(page, task, at.label);
   await expect(others.getByRole("menuitemcheckbox", { name: "Suivi temps/temps" })).toHaveCount(0);
 });

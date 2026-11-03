@@ -279,6 +279,8 @@
       "insertLine": "Insert a line",
       "indent": "Indent",
       "outdent": "Outdent",
+      "milestoneChild": "A milestone (a task of no duration) bears no subtasks.",
+      "afterMilestone": "The task above is a milestone, which bears no subtasks.",
       "up": "Move up",
       "down": "Move down",
       "moved": {
