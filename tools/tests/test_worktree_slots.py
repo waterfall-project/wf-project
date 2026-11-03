@@ -225,6 +225,42 @@ def test_a_checkout_that_cannot_be_read_is_an_error_not_slot_0(workstation: Work
         assert "Traceback" not in done.stderr
 
 
+def refusing_git(workstation: Workstation) -> dict[str, str]:
+    """Put on the PATH a git that refuses every repository, as one of another owner."""
+    directory = workstation.root / "refusing"
+    directory.mkdir()
+    git = directory / "git"
+    git.write_text(
+        "#!/bin/sh\n"
+        "echo \"fatal: detected dubious ownership in repository at '$PWD'\" >&2\n"
+        "exit 128\n"
+    )
+    git.chmod(0o755)
+    return {"PATH": f"{directory}{os.pathsep}{workstation.environment['PATH']}"}
+
+
+def test_a_main_repository_that_git_refuses_is_slot_0(workstation: Workstation) -> None:
+    """US-1100: the main repository is slot 0 without git, whose refusal is no matter."""
+    refusing = refusing_git(workstation)
+    for directory in (workstation.main, workstation.main / "frontend"):
+        done = workstation.tool(directory, "which", extra=refusing)
+        assert (done.returncode, done.stdout) == (0, "0\n"), done.stderr
+    done = workstation.tool(workstation.main, "which", "--variables", extra=refusing)
+    assert done.returncode == 0, done.stderr
+    assert "WATERFALL_SLOT=0" in done.stdout.splitlines()
+    assert f"E2E_API_PORT={slots.ports(0)['E2E_API_PORT']}" in done.stdout.splitlines()
+
+
+def test_a_linked_worktree_that_git_refuses_is_an_error(workstation: Workstation) -> None:
+    """US-1100: a linked worktree git refuses is said, though the main repository would not be."""
+    tree = workstation.worktree("lot")
+    done = workstation.tool(tree, "which", extra=refusing_git(workstation))
+    assert done.returncode != 0
+    assert done.stdout == ""
+    assert "cannot say which worktree" in done.stderr
+    assert "dubious ownership" in done.stderr
+
+
 def test_outside_any_repository_is_slot_0(workstation: Workstation) -> None:
     """US-1100: outside any repository, the slot is 0, as before."""
     outside = workstation.root / "outside"

@@ -266,12 +266,29 @@ def variables(slot: int) -> dict[str, str]:
     return {"WATERFALL_SLOT": str(slot)} | numbers | names(slot)
 
 
+def checkout_marker(directory: Path) -> Path | None:
+    """Return the first ``.git`` found from the directory upward, or None outside any checkout."""
+    start = directory.resolve()
+    for candidate in (start, *start.parents):
+        marker = candidate / ".git"
+        if marker.exists():
+            return marker
+    return None
+
+
 def current_worktree(directory: Path | None = None) -> Worktree | None:
     """Return the worktree a command runs in; None outside a repository of git, or without git.
 
-    Any other failure of git — a repository it refuses to read — is said, not taken for slot 0:
-    a linked worktree would be given the ports and names of the main repository.
+    The main repository is told without git, which may refuse a repository of another owner: the
+    first ``.git`` upward is a directory. A ``.git`` file is a linked worktree, and git is asked
+    for its path; any failure of git there is said, not taken for slot 0, or the worktree would
+    be given the ports and names of the main repository.
     """
+    marker = checkout_marker(directory or Path.cwd())
+    if marker is None:
+        return None
+    if marker.is_dir():
+        return Worktree(marker.parent, main=True)
     asked = ["--show-toplevel", "--git-dir", "--git-common-dir"]
     try:
         found = subprocess.run(
