@@ -26,7 +26,7 @@ from dataclasses import replace
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -644,14 +644,16 @@ def post_password_link(user_id: UUID, account: Caller, services: ServicesOf) -> 
     dependencies=WRITE,
     status_code=204,
 )
-def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> None:
+def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> Response:
     """Have the provider send again the mail that carries the link of a local account (WF-ADM-0140).
 
     Judged as the link is: an account that is not local, anonymised or deactivated has none (409),
     and no mail leaves. A mail the provider does not send is never presented as sent: 503
     (WF-EXP-0040), the link remaining to be handed over by another channel. The sending is
     inscribed as the request of a link is, once the mail has left, the account read again under a
-    lock (#669).
+    lock (#669). An account anonymised or deactivated between the sending and that inscription is
+    answered 409 though the mail has left: the defect of the request of a link, which the design
+    accepts.
     """
     with services.database.transaction() as session:
         holder = password_link_holder(session, user_id)
@@ -661,3 +663,4 @@ def post_invitation(user_id: UUID, account: Caller, services: ServicesOf) -> Non
     with services.database.transaction() as session:
         inscribe_password_link(session, user_id, act)
     logger.info("account.invitation_sent", user_id=str(user_id))
+    return Response(status_code=204)

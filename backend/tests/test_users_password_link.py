@@ -29,6 +29,7 @@ from waterfall.platform.audit import Act, AuditEntry
 from waterfall.platform.database import Database
 from waterfall.platform.errors import ConflictError
 from waterfall.platform.keycloak import Keycloak
+from waterfall.platform.keycloak_admin import InvitationFailure
 from waterfall.platform.logs import logging_context
 from waterfall.platform.settings import ServiceSettings
 
@@ -157,8 +158,10 @@ def test_an_anonymized_account_has_neither_link_nor_invitation_and_is_refused_as
     [
         ("directory", "active", "is_local_account"),
         ("local", "deactivated", "is_active_account"),
+        # Lacking both, it is refused by the first.
+        ("directory", "deactivated", "is_local_account"),
     ],
-    ids=["not local", "deactivated"],
+    ids=["not local", "deactivated", "both"],
 )
 @pytest.mark.requirement("WF-ADM-0140-A")
 def test_an_account_that_is_not_local_or_is_deactivated_has_no_invitation(
@@ -259,3 +262,89 @@ def test_a_link_made_for_an_account_deactivated_meanwhile_is_neither_inscribed_n
         inscribe_password_link(session, user_id, Act(None, NOON))
     assert refused.value.params == {"missing_condition": "is_active_account"}
     assert session.scalars(select(AuditEntry)).all() == []
+
+
+class Inviting(Watching):
+    """The administration client whose mail leaves, or fails, as told; it asks Keycloak for none.
+
+    Each sending notes the entries the journal held at that moment, and ``Watching`` the
+    connections lent by the pool: the order of the steps is read from them.
+    """
+
+    def __init__(self, keycloak: Keycloak, settings: ServiceSettings, database: Database) -> None:
+        """Tell the outcome of the sendings, none by default; nothing is sent yet."""
+        super().__init__(keycloak, settings, database)
+        self.outcome: InvitationFailure | None = None
+        self.entries_seen: list[int] = []
+        self._journal = database
+
+    def send_invitation(self, subject: str) -> InvitationFailure | None:
+        """Note, then give the outcome told."""
+        self._note("send_invitation")
+        self.entries_seen.append(len(journal(self._journal)))
+        return self.outcome
+
+
+@pytest.fixture
+def inviting(keycloak: Keycloak, realm_settings: ServiceSettings, database: Database) -> Inviting:
+    """Give the administration client whose sendings are told."""
+    return Inviting(keycloak, realm_settings, database)
+
+
+@pytest.fixture
+def inviting_client(
+    contract: OpenAPI, database: Database, keycloak: Keycloak, inviting: Inviting
+) -> ContractClient:
+    """Give a client of the API whose administration client sends no real mail."""
+    app = create_app(Services(database, keycloak, inviting, *nowhere()))
+    return ContractClient(TestClient(app, raise_server_exceptions=False), contract)
+
+
+def journal(database: Database) -> list[AuditEntry]:
+    """Give the entries of the journal."""
+    with database.transaction() as session:
+        entries = session.scalars(select(AuditEntry)).all()
+        session.expunge_all()
+    return list(entries)
+
+
+@pytest.mark.requirement("WF-ADM-0140-A")
+@pytest.mark.requirement("WF-EXP-0040-A")
+def test_an_invitation_sent_again_is_answered_empty_and_inscribed_once_after_its_sending(
+    inviting_client: ContractClient,
+    database: Database,
+    headers: dict[str, str],
+    inviting: Inviting,
+) -> None:
+    user_id = account(database, "Montgolfier", "Jeanne")
+    response = invitation_of(inviting_client, headers, user_id)
+    assert (response.status_code, response.content) == (204, b"")
+    # Read under a lock, sent with no connection held and nothing inscribed yet, then inscribed.
+    assert inviting.held == [("send_invitation", 0)]
+    assert inviting.entries_seen == [0]
+    (entry,) = journal(database)
+    assert (entry.action, entry.object_id, entry.params) == ("password_link_create", user_id, {})
+    assert entry.actor_display_name == "Camille Martin"
+    assert entry.actor_user_id is not None
+
+
+@pytest.mark.parametrize("outcome", ["not_sent", "no_mail_server", "provider_unavailable"])
+@pytest.mark.requirement("WF-ADM-0140-A")
+@pytest.mark.requirement("WF-EXP-0040-A")
+def test_an_invitation_that_did_not_leave_is_never_presented_as_sent_nor_inscribed(
+    inviting_client: ContractClient,
+    database: Database,
+    headers: dict[str, str],
+    inviting: Inviting,
+    outcome: InvitationFailure,
+) -> None:
+    inviting.outcome = outcome
+    user_id = account(database, "Montgolfier", "Jeanne")
+    response = invitation_of(inviting_client, headers, user_id)
+    assert refusal(response) == (
+        503,
+        "COMPONENT_UNAVAILABLE",
+        {"component": "identity_provider"},
+    )
+    assert inviting.held == [("send_invitation", 0)]
+    assert journal(database) == []
