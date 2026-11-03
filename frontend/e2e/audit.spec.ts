@@ -89,12 +89,12 @@ test("poses the title of the second line of the action only where the browser cu
   // Wide, no line is cut and none carries a title; narrowed, some are cut and carry theirs.
   await page.setViewportSize({ width: 1920, height: 900 });
   await expect.poll(async () => (await lines()).filter(({ titled }) => titled).length).toBe(0);
-  expect(await mismatches()).toBe(0);
+  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
   await page.setViewportSize({ width: 1600, height: 900 });
   await expect
     .poll(async () => (await lines()).filter(({ titled }) => titled).length, { timeout: WORKING })
     .toBeGreaterThan(0);
-  expect(await mismatches()).toBe(0);
+  await expect.poll(mismatches, { timeout: WORKING }).toBe(0);
 });
 
 test("sorts the journal on its columns both ways and filters it by the server, under the names of the contract, back to its first page [WF-IHM-0060-A]", async ({
