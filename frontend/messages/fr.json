@@ -139,6 +139,7 @@
       "severity": "Gravité",
       "provisionAmount": "Provision",
       "occurrenceCost": "Coût à la survenance",
+      "occurredReestimatedAmount": "Réestimé des survenus",
       "state": "État",
       "lastReview": "Dernier réexamen",
       "matrixCell": "Case de la matrice",
@@ -480,6 +481,16 @@
     },
     "filter": "Filtrer par état",
     "everyState": "Tous les états",
+    "filters": {
+      "toggle": "Filtres des colonnes",
+      "zone": "Filtrer par zone",
+      "everyZone": "Toutes les zones",
+      "probabilityBounds": "Bornes de la probabilité, de 0 à 1",
+      "amountBounds": "Bornes des montants",
+      "review": "Période du dernier réexamen",
+      "unreviewed": "Non réexaminés depuis le dernier marquage",
+      "refused": "Les risques ne sont pas lus : le serveur refuse les filtres demandés."
+    },
     "provisions": {
       "title": "Provisions des risques retenus",
       "identified": "Risques identifiés",
@@ -1502,6 +1513,9 @@
       },
       "occurrenceCost": {
         "help": "Coût à la survenance d’un risque survenu : le total de son devis propre quand il a été déclaré survenu, que ni les réestimations ni la terminaison de ses tâches ne changent. Calculé par le serveur."
+      },
+      "occurredReestimatedAmount": {
+        "help": "Réestimé d’un risque survenu : la somme des montants réestimés courants des lignes qui en sont issues, en regard du coût à la survenance pour en montrer la dérive. Une information, calculée par le serveur, hors de l’écart de couverture."
       },
       "state": {
         "help": "État du risque : identifié, survenu ou écarté."

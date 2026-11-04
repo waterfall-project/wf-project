@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import type { ProjectRiskMatrixProps } from "@/components/risks/risk-bubble-chart";
 import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
@@ -244,6 +245,7 @@ describe("the screen of the risks", () => {
       "severity",
       "provision_amount",
       "occurrence_cost",
+      "occurred_reestimated_amount",
       "state",
       "computed_fields",
       "last_review_on",
@@ -272,6 +274,61 @@ describe("the screen of the risks", () => {
       search: "armoires",
       size: 50,
     });
+  });
+
+  it("asks the server the zones, the bounds of each column of figures and the period of the last review the address names, under the names of the contract [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, [LIST]: "risks_filtered" };
+    await risksAt({
+      zones: "watch,unknown",
+      probability_min: "0.1",
+      provision_amount_min: "100000",
+      occurred_reestimated_amount_max: "300.5",
+      last_review_on_to: "2026-03-01",
+      severity_min: "abc",
+    });
+    expect(queryOf(LIST)).toEqual({
+      revision_id: REVISION,
+      limit: "50",
+      zones: "watch",
+      probability_min: "0.1",
+      provision_amount_min: "100000",
+      occurred_reestimated_amount_max: "300.5",
+      last_review_on_to: "2026-03-01",
+    });
+    // The totals are those of the risks retained, as the answer gives them.
+    const answer = example("risks_filtered") as { totals: unknown };
+    expect(grids.risks[0]?.risks.totals).toEqual(answer.totals);
+  });
+
+  it("says the filters the server refused at their field and reads no grid, the other filters kept [WF-IHM-0130-A]", async () => {
+    const refusal = example("risks_period_inverted") as components["schemas"]["Problem"] & {
+      status: 422;
+    };
+    server.answers = { ...server.answers, [LIST]: { problem: refusal } };
+    const page = await risksAt({
+      last_review_on_from: "2026-03-01",
+      last_review_on_to: "2026-02-01",
+    });
+    expect(grids.risks).toEqual([]);
+    expect(text(page)).toContain("The risks are not read: the server refuses the filters asked.");
+    expect(text(page)).toContain("The end of the period may not precede its start, 1 Mar 2026");
+    expect(page).toContain("Period of the last review");
+  });
+
+  it("offers the shortcut of the periodic review at the day of the last marking of the project, which the server lists [WF-RIS-0020-A]", async () => {
+    const revisions = example("revisions") as { items: { marked_at: string | null }[] };
+    const marked = revisions.items.find((each) => each.marked_at !== null)?.marked_at ?? "";
+    const day = new Date(marked).toISOString().slice(0, 10);
+    const page = await risksAt();
+    expect(text(page)).toContain("Not reviewed since the last marking");
+    expect(page).toContain(`last_review_on_to=${day}`);
+  });
+
+  it("reads the register without the shortcut when the revisions are refused, the contract giving them no other refusal [WF-RIS-0020-A]", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}/revisions": NOT_FOUND };
+    const page = await risksAt();
+    expect(grids.risks).not.toEqual([]);
+    expect(text(page)).not.toContain("Not reviewed since the last marking");
   });
 
   it("asks the server the page and the size of the pages the address names [WF-IHM-0060-A]", async () => {

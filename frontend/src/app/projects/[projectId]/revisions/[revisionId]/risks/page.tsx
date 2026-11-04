@@ -20,7 +20,13 @@ import { notFound } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { readOrFail } from "@/api/problem";
+import type { components } from "@/api/generated/schema";
+import {
+  OPTIONAL_READ_REFUSALS,
+  readOrFail,
+  readOrRefused,
+  readUnlessRefused,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
@@ -36,13 +42,21 @@ import {
   type GridQuery,
   readGridQuery,
 } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import {
   readRisk,
+  readRiskFilters,
   RISK_STATES,
+  RISK_ZONES,
   RISKS_LIST,
+  type RiskFilters,
+  riskFilterQuery,
   type RiskState,
   STATES,
+  universalDay,
+  ZONES,
 } from "@/components/risks/address";
+import { RiskColumnFilters } from "@/components/risks/risk-filters";
 import { FiguresGrid } from "@/components/figures-card";
 import { ProvisionSummary } from "@/components/risks/provision-totals";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
@@ -82,6 +96,16 @@ export async function generateMetadata({
   return screenMetadata("functions.risks", projectId);
 }
 
+type FieldProblem = components["schemas"]["FieldProblem"];
+
+/** The refusal of a filter of a column the server cannot apply (`listRisks`, 422). */
+const FILTERS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
+
+/** The risks of a page, or the filters the server refused, said at their field. */
+type RisksRead =
+  | ({ readonly kind: "read"; readonly page: ListPage } & RiskRows)
+  | { readonly kind: "refused"; readonly fields: readonly FieldProblem[] };
+
 /**
  * A page of the risks of the revision as the address asks it — sorted, searched, filtered on
  * states, from its place —, and the totals of their provisions, those of every risk retained, not
@@ -90,12 +114,13 @@ export async function generateMetadata({
 async function readRisks(
   { revision, address }: GridAddress,
   states: readonly RiskState[],
+  filters: RiskFilters,
   asked: Promise<GridQuery<RiskSortColumn>>,
-): Promise<RiskRows & { readonly page: ListPage }> {
+): Promise<RisksRead> {
   const query = await asked;
   const { sort, search } = query;
   const offset = readPage(address, OFFSET);
-  const answer = await readOrFail("listRisks", () =>
+  const answer = await readOrRefused("listRisks", FILTERS_REFUSED, () =>
     serverClient().GET("/projects/{project_id}/risks", {
       params: {
         path: { project_id: revision.projectId },
@@ -104,13 +129,34 @@ async function readRisks(
           ...limited(query),
           ...(offset === 0 ? {} : { offset }),
           ...(states.length === 0 ? {} : { states: [...states] }),
+          ...riskFilterQuery(filters),
           ...(search === undefined ? {} : { search }),
           ...(sort === undefined ? {} : { sort_by: sort.column, sort_order: sort.order }),
         },
       },
     }),
   );
-  return { items: answer.items.map(riskRow), totals: answer.totals, page: answer.meta };
+  if (answer.kind === "refused") {
+    return { kind: "refused", fields: answer.problem.fields ?? [] };
+  }
+  const { items, totals, meta } = answer.data;
+  return { kind: "read", items: items.map(riskRow), totals, page: meta };
+}
+
+/** The day of the last marking of the project, the latest revision marked (`listRevisions`). */
+async function readLastMarkedOn({ revision }: GridAddress): Promise<string | undefined> {
+  // A shortcut the screen can do without: a session that may not list the revisions, or a project
+  // without them, loses the shortcut and keeps the register (`readUnlessRefused`).
+  const revisions = await readUnlessRefused("listRevisions", OPTIONAL_READ_REFUSALS, () =>
+    serverClient().GET("/projects/{project_id}/revisions", {
+      params: { path: { project_id: revision.projectId }, query: { status: ["marked"], limit: 1 } },
+    }),
+  );
+  // The API lists the most recent first. The day is the one of the instant in universal time, the
+  // zone in which the front reads and writes every date (`TIME_ZONE`, `i18n/format.ts`): a marking
+  // at 00:30 in Paris is of the day before, and `last_review_on_to` is inclusive.
+  const markedAt = revisions?.items.find((each) => each.marked_at !== null)?.marked_at;
+  return markedAt === null || markedAt === undefined ? undefined : universalDay(markedAt);
 }
 
 /** The coverage of the risks in the revision: the reserve against what the risks cost. */
@@ -158,6 +204,43 @@ async function readDetail({ revision }: GridAddress, risk: string | undefined) {
     ),
   ]);
   return { risk: read, reviews };
+}
+
+/** What stands for the grid when the server refused a filter of a column (422), the risks unread. */
+function FiltersRefused() {
+  const t = useTranslations("risks.filters");
+  return <p className="text-sm text-destructive">{t("refused")}</p>;
+}
+
+/** The fields the server refused of the filters; none when it read the risks. */
+function refusedFields(risks: RisksRead): readonly FieldProblem[] {
+  return risks.kind === "refused" ? risks.fields : [];
+}
+
+/** The grid of the risks and its pages, or that the server refused the filters asked. */
+function RisksBlock({
+  risks,
+  query,
+  preferences,
+}: {
+  readonly risks: RisksRead;
+  readonly query: GridQuery<RiskSortColumn>;
+  readonly preferences: GridPreferences | undefined;
+}) {
+  if (risks.kind === "refused") {
+    return <FiltersRefused />;
+  }
+  return (
+    <>
+      <RisksGrid risks={risks} query={query} preferences={preferences} />
+      <ListPages
+        list={RISKS_LIST}
+        texts="risks.pages"
+        page={risks.page}
+        shown={risks.items.length}
+      />
+    </>
+  );
 }
 
 /** The title of the screen, how many risks the grid holds, and its commands. */
@@ -220,6 +303,7 @@ export default async function RisksPage({
   const [revision, search] = await Promise.all([params, searchParams]);
   const at = gridAddress(revision, search, "risks");
   const states = readValues(at.address, STATES, RISK_STATES);
+  const filters = readRiskFilters(at.address, readValues(at.address, ZONES, RISK_ZONES));
   const session = requestSession();
   const settings = session.then(
     (kept) => kept?.display_preferences?.grids?.[RISK_GRID.key] ?? undefined,
@@ -246,10 +330,10 @@ export default async function RisksPage({
       ? readProvisionOptions(at.revision.projectId, at.revision.revisionId)
       : undefined,
   );
-  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept] =
+  const [read, risks, coverage, matrix, detail, preferences, query, offer, choices, kept, marked] =
     await Promise.all([
       reading,
-      readRisks(at, states, asked),
+      readRisks(at, states, filters, asked),
       readCoverage(at),
       readMatrix(at),
       shown,
@@ -258,6 +342,7 @@ export default async function RisksPage({
       declare,
       options,
       session,
+      readLastMarkedOn(at),
     ]);
   if (read === "not_found") {
     notFound();
@@ -273,7 +358,7 @@ export default async function RisksPage({
       <PendingAddress>
         <Screen density={FUNCTION_DENSITY.risks} fillWide>
           <RisksHeader
-            count={risks.page.total}
+            count={risks.kind === "read" ? risks.page.total : 0}
             actions={
               <IdentifyRisk
                 projectId={at.revision.projectId}
@@ -286,10 +371,16 @@ export default async function RisksPage({
           <MockupNotice lists />
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <FiguresGrid className="min-w-0 grow basis-[40rem]">
-              <ProvisionSummary totals={risks.totals} />
+              {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
               <RiskCoverageSummary coverage={coverage} context={coverage.context} />
             </FiguresGrid>
-            <RiskStateFilter states={states} />
+            <RiskColumnFilters
+              filters={filters}
+              fields={refusedFields(risks)}
+              lastMarkedOn={marked}
+            >
+              <RiskStateFilter states={states} />
+            </RiskColumnFilters>
           </div>
           <RiskMatrixSection
             reading={read}
@@ -303,13 +394,7 @@ export default async function RisksPage({
             className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
           >
             <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
-              <RisksGrid risks={risks} query={query} preferences={preferences} />
-              <ListPages
-                list={RISKS_LIST}
-                texts="risks.pages"
-                page={risks.page}
-                shown={risks.items.length}
-              />
+              <RisksBlock risks={risks} query={query} preferences={preferences} />
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">
