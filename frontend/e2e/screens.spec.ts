@@ -50,11 +50,13 @@ async function start(page: Page, address: string): Promise<void> {
 
 /**
  * Follow a link by a click, and check the screen it leads to names what the link does: within the
- * bound of a screen of grid, which several of them are (`WORKING`) — the screen the link is on too,
- * a grid whose main part may come after the shell has hydrated.
+ * bound of a screen of grid, which several of them are (`WORKING`). The link itself is there within
+ * the five seconds of an assertion: the screen it is on was opened hydrated, its main part with it
+ * (`openHydrated`, #1537), and leaving a grid of a thousand tasks costs the browser a fifth of a
+ * second of work (`departure.spec.ts`, US-0800, #1230).
  */
 async function follow(page: Page, link: Locator, route: string, name: string): Promise<void> {
-  await expect(link).toHaveAttribute("href", at(route), { timeout: WORKING });
+  await expect(link).toHaveAttribute("href", at(route));
   await expect(link).toBeVisible();
   await link.click();
   await expect(page).toHaveURL((url) => url.pathname === path(route), { timeout: WORKING });
