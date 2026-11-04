@@ -152,7 +152,8 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
 | [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | en cours | rien |
-| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18, EP-19 |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
+| [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planning | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Costing and estimate | à planifier | EP-06 |
@@ -197,7 +198,10 @@ line with the four decisions of the 2026-10-31 contract review that touch EP-03,
 before EP-05, which touches the same files, and is delivered before the accounts lot of EP-17
 (US-0780/L1), without suspending the rest of EP-17. EP-19 makes the repository and its agents safe
 for several deliverers at once; it comes before EP-05, which will benefit from it and touches the
-Makefile and the service platform it rewrites (decision of the author, 2026-11-03).
+Makefile and the service platform it rewrites (decision of the author, 2026-11-03). EP-20 brings the
+platform, its runtimes and its dependencies to their latest stable versions, and makes watching
+them regular; it comes after EP-19, whose pins it raises, and before EP-05, the first domain
+epic, which is built on the target versions (decision of the author, 2026-11-03).
 
 EP-13 depends only on EP-04: it can start early, but it closes cross-cutting requirements
 whose last action comes late, and it finishes last.
