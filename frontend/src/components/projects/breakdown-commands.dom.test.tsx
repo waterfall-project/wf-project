@@ -448,7 +448,7 @@ describe("the work breakdown edited in its grid", () => {
     ]);
   });
 
-  it("says at the field only the first refusal of the label of the element the dialog writes, the second told under the dialog", async () => {
+  it("says at the field only the first refusal of the label of the element the dialog writes, the second kept in the history of the messages", async () => {
     serve({
       [SET]: {
         problem: {
@@ -471,8 +471,8 @@ describe("the work breakdown edited in its grid", () => {
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription("Une valeur est requise.");
     expect(within(dialog).queryByText(/^Poste «/)).toBeNull();
-    // The second refusal of the label is out of the field, told by the notice under the dialog,
-    // whose reasons are noted with the first: both said in the history of the messages.
+    // The second refusal of the label is out of the field: the notice under the dialog says only
+    // the generic sentence, and both reasons are kept in the history of the messages.
     expect(field).not.toHaveAccessibleDescription(/trop longue/);
     expect(readMessages().messages).toEqual([
       expect.objectContaining({
