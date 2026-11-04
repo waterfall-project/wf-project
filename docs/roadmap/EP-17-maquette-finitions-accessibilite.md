@@ -1418,7 +1418,7 @@ devis, EP-09 pour le reste à engager).
 
 ## US-0800 — Quitter une grille de mille tâches
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : aucune
 - **issue** : #1557
