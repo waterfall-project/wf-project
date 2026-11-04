@@ -698,9 +698,9 @@
       "file": "indices-evolution"
     },
     "costStructure": {
-      "noActualCost": "The actual cost is not broken down by nature: the ERP does not provide it.",
-      "budget": "Reference budget by nature",
-      "remaining": "Remaining to commit by nature",
+      "noActualCost": "The actual cost is not broken down by cost type: the ERP does not provide it.",
+      "budget": "Reference budget by cost type",
+      "remaining": "Remaining to commit by cost type",
       "labor": "Labour by organisation node",
       "nature": "Cost type",
       "orgNode": "Organisation node",
@@ -2307,7 +2307,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another cost type.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
