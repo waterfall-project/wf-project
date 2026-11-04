@@ -2,11 +2,11 @@
 
 ## What the screen shows
 
-The column “Amount (reference year)” of the [estimate grid](FBS-4.4.2.md): the amount of each line, of each task — summary task included — and of the total, costed at the hourly rates of the reference year of the revision, without inflation. Beside it, “Amount corrected for inflation” projects this same amount onto the year of consumption of the line, which the planning gives, at the inflation rate of the project.
+The column “Amount (reference year)” of the [estimate grid](FBS-4.4.2.md): the amount of each line, of each task — summary task included — and of the total, costed at the hourly rates of the reference year of the revision, without inflation. Beside it, “Re-estimated amount” projects this same amount onto the year of consumption of the line, which the planning gives, at the inflation rate of the project.
 
 The reference year is the one whose hourly rates cost the revision: retained at its creation, it no longer changes. The following years are projected by the inflation rate of the project, set in its settings.
 
-The estimate shows neither the budgeted amount nor the re-estimated amount: the first is read in the [remaining to commit](FBS-4.5.md) and founds the [reference budget](notions/budget-de-reference.md); the second is the re-estimation of the reviews.
+The estimate does not show the budgeted amount: it is read in the [remaining to commit](FBS-4.5.md) and founds the [reference budget](notions/budget-de-reference.md).
 
 ## Its commands
 

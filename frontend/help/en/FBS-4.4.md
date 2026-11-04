@@ -30,7 +30,7 @@ The grid is entered, and takes a paste, only where the structure read lists “E
 
 The amounts are calculated by the server, never entered: a labour line is worth its quantity, its effort and the hourly rate of its category for the reference year; a non-labour line, its quantity and its unit disbursement; a task, its lines and its subordinates. A computed cell, greyed and marked Σ, says what its value depends on when one tries to enter it. The subproject of a provision line comes from its risk: it is computed.
 
-The header of the amount corrected for inflation names, in its tooltip, the reference year of the revision and the inflation rate of the project. The column “Subproject” is hidden as long as you do not show it through **Columns**.
+The header of the column “Re-estimated amount” names, in its tooltip, the reference year of the revision and the inflation rate of the project. The column “Subproject” is hidden as long as you do not show it through **Columns**.
 
 ## Keyboard gestures
 
