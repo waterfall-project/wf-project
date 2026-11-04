@@ -51,10 +51,18 @@ jobs:
         with:
           persist-credentials: false
       # The client of the server's major (the Dockerfile of the back, #982): the runner brings the
-      # 16 of the PGDG, which pg_dump refuses to run against a server 18. /usr/bin/pg_dump and
-      # pg_restore, which the backups call, are the wrapper of Debian: it runs the highest major
-      # installed, which the last lines check.
+      # 16 of the PGDG, which pg_dump refuses to run against a server 18, and no longer has the
+      # repository to install the 18 from. It is added as the Dockerfile adds it, its key pinned by
+      # its digest (fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8); a source of the
+      # same repository the image may still hold is dropped first, which apt would refuse beside
+      # this one. /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of
+      # Debian: it runs the highest major installed, which the last lines check.
       - run: |
+          curl --fail --silent --show-error --location --output pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  pgdg.asc" | sha256sum --check --strict
+          sudo install --mode 0644 pgdg.asc /usr/share/keyrings/pgdg.asc
+          sudo grep --files-with-matches --recursive apt.postgresql.org /etc/apt/sources.list /etc/apt/sources.list.d | xargs --no-run-if-empty sudo rm
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends postgresql-client-18
           /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
