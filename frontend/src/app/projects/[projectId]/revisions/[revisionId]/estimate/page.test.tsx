@@ -32,6 +32,25 @@ vi.mock("@/components/grid/estimate-grid", () => ({
     return null;
   },
 }));
+// The session of the contract, some of its permissions withdrawn for a test.
+const withdrawn = vi.hoisted(() => ({ permissions: [] as string[] }));
+vi.mock("@/session/request", async (original) => {
+  const actual = await original<typeof import("@/session/request")>();
+  return {
+    ...actual,
+    requestSession: async () => {
+      const session = await actual.requestSession();
+      return session === undefined
+        ? undefined
+        : {
+            ...session,
+            permissions: session.permissions.filter(
+              (permission) => !withdrawn.permissions.includes(permission),
+            ),
+          };
+    },
+  };
+});
 // The filter by a lot or a post reads the address the browser shows.
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -79,6 +98,7 @@ async function estimateFor(session: "me" | "me_estimator") {
 }
 
 beforeEach(() => {
+  withdrawn.permissions = [];
   grids.estimate = [];
   server.clients = [];
   server.answers = {
@@ -157,6 +177,16 @@ describe("the grid of the estimate, entered as the structure lists it", () => {
 });
 
 describe("the reference data the estimate is entered from", () => {
+  it("asks the active ones alone of a session that only reads the cost and resource settings, which the contract keeps for the permission to modify them [WF-REF-0150-A]", async () => {
+    // The consultation alone: the permissions to read kept, those to modify withdrawn. The fake back
+    // answers the deactivated ones whatever is asked, so the request of the page is what is proved.
+    withdrawn.permissions = ["cost_settings.write", "resource_settings.write"];
+    const grid = await estimateFor("me");
+    expect(queryOf("/cost-categories")?.has("include_inactive")).toBe(false);
+    expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
+    expect(grid?.reference.roles).toBeDefined();
+  });
+
   it("asks the deactivated categories and roles with the permissions of the reference that keep them", async () => {
     const grid = await estimateFor("me");
     expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
@@ -164,15 +194,15 @@ describe("the reference data the estimate is entered from", () => {
     expect(grid?.reference.roles?.some(({ active }) => !active)).toBe(true);
   });
 
-  it("asks only the active ones of a part of the reference the session may not read, and still enters the estimate on them (#351)", async () => {
-    // The estimator reads the cost settings, not the resource settings: the contract would refuse
-    // him the deactivated roles (403), and he enters on the active ones.
+  it("asks only the active ones of a part of the reference the session may not modify, and still enters the estimate on them (#351) [WF-REF-0150-A]", async () => {
+    // The estimator reads the cost settings without modifying them, and has no resource settings:
+    // the contract would refuse him the deactivated ones (403), and he enters on the active ones.
     server.answers = {
       ...server.answers,
       "GET /projects/{project_id}/revisions/{revision_id}/structures": "structures_estimator",
     };
     const grid = await estimateFor("me_estimator");
-    expect(queryOf("/cost-categories")?.get("include_inactive")).toBe("true");
+    expect(queryOf("/cost-categories")?.has("include_inactive")).toBe(false);
     expect(queryOf("/resource-roles")?.has("include_inactive")).toBe(false);
     expect(grid?.reference.roles).toBeDefined();
     // The lines, not the label of a task, which is the planning's.

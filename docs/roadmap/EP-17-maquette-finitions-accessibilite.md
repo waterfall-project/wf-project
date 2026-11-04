@@ -1232,7 +1232,7 @@ commande muette ni perdre le panneau d'un geste (#1438, #1481).
 
 ## US-1010 — Les écrans du référentiel demandent ce que le contrat leur accorde
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-REF-0150-A`
 - **opérations** : `listResourceRoles`, `listCostCategories`, `getActualCostMapping`,
   `setActualCostMapping`

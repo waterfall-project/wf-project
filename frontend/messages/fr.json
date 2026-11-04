@@ -2477,6 +2477,8 @@
       "add": "Ajouter un intitulé à « {column} »",
       "addShort": "Ajouter un intitulé",
       "addKept": "Déclarer une colonne conservée",
+      "keptFull": "Condition non remplie : moins de {max} colonnes conservées. Le maximum est atteint.",
+      "keptTooMany": "La liste des colonnes conservées est trop longue : {max} colonnes au plus.",
       "doubles": "Il double l’intitulé « {label} » de la colonne « {column} ».",
       "doublesKept": "Il double l’intitulé « {label} » d’une colonne conservée.",
       "save": "Enregistrer la correspondance",

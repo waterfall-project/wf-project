@@ -13,7 +13,7 @@ A label is compared to the header of the file, and to the other labels, regardle
 To whoever cannot modify the cost settings, the screen shows the lists, without a command. To the others, a form:
 
 - **Add a label** to a column read, and the bin of a label to remove it;
-- **Declare a kept column**, and the bin to remove it; a column read is not declared kept as well;
+- **Declare a kept column**, and the bin to remove it; a column read is not declared kept as well. The contract admits fifty kept columns at most: at fifty, the command is unavailable and says its condition, and a refusal of the server for a list too long is said under the list;
 - **Save the mapping** replaces the whole mapping. The server judges the labels: a label refused is refused at its field, which takes the focus, and a duplicate names the label it duplicates. If the mapping has changed since its reading, the refusal offers to read the page again.
 
 The fields wait for the answer of the server during the saving.

@@ -15,7 +15,7 @@
  * figure as the API gives it: the front computes, sorts, filters and pages nothing.
  *
  * The lists and the grid hold the active objects alone, and the deactivated ones too when the
- * address asks for them and the session bears the permission of reading of the cost settings,
+ * address asks for them and the session bears the permission of modifying the cost settings,
  * without which the contract refuses `include_inactive` (WF-REF-0150, 403); each nature and each
  * category carries the command that reactivates it, as the server lists it. The categories are
  * filtered by a nature chosen among every one the session reads, read whole as a list of choices is
@@ -172,9 +172,9 @@ function readQueries(
   grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): CostQueries {
-  const state = (name: string) => stateOf(search, name, permissions, "cost_settings.read");
+  const state = (name: string) => stateOf(search, name, permissions, "cost_settings.write");
   return {
-    inactive: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
+    inactive: inactiveQuery(asksInactive(search), permissions, "cost_settings.write"),
     rates: readGridQuery(
       search,
       RATE_SORTS,
@@ -213,15 +213,12 @@ function readQueries(
  * categories, every nature deactivated ones included, whose types the form of a category
  * compares (#577): a category under a deactivated nature is offered the active natures of its type.
  * Read only when the natures the filter offers leave the deactivated ones out, and only by a session
- * that may read them (403 otherwise).
+ * that may modify the settings (403 otherwise).
  */
-async function readCosts(
-  queries: CostQueries,
-  session: { readonly editable: boolean; readonly readsInactive: boolean },
-) {
+async function readCosts(queries: CostQueries, session: { readonly editable: boolean }) {
   const client = serverClient();
   const { inactive } = queries;
-  const typing = session.editable && session.readsInactive && inactive.include_inactive !== true;
+  const typing = session.editable && inactive.include_inactive !== true;
   return Promise.all([
     readOrRefused("getHourlyRateGrid", BOUNDS_REFUSED, () =>
       client.GET("/reference/hourly-rates", {
@@ -274,8 +271,8 @@ async function readCosts(
 
 /**
  * The title of the screen, the currency every amount of it is expressed in, and the switch of the
- * deactivated objects for who may read them; under it, for who may write, that the fake back keeps
- * nothing of what is written.
+ * deactivated objects for who may modify the settings; under it, for who may write, that the fake
+ * back keeps nothing of what is written.
  */
 function CostsHeader({
   settings,
@@ -377,17 +374,16 @@ export default async function CostSettingsPage({
   const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
   const editable = platformOffer(permissions, "cost_settings") !== undefined;
-  const readsInactive = permissions.includes("cost_settings.read");
   const [settings, [rates, types, categories, natures, typed]] = await Promise.all([
     readReferenceSettings(),
-    readCosts(queries, { editable, readsInactive }),
+    readCosts(queries, { editable }),
   ]);
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>
       <PendingAddress>
         <CostsHeader
           settings={settings}
-          inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
+          inactive={editable ? queries.inactive.include_inactive === true : undefined}
           writes={editable}
         />
         <CostTypeList
@@ -396,7 +392,7 @@ export default async function CostSettingsPage({
           query={queries.types}
           preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
           state={queries.typeState}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           kinds={queries.kinds}
         />
@@ -406,7 +402,7 @@ export default async function CostSettingsPage({
           query={queries.categories}
           preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
           state={queries.categoryState}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           natures={natures.map(natureChoice)}
           every={typesOf(editable, typed, natures)}
@@ -415,7 +411,7 @@ export default async function CostSettingsPage({
         <RatesSection>
           <RateFilterBar
             filters={queries.rateFilters}
-            readsInactive={readsInactive}
+            readsInactive={editable}
             {...rateFiltered(rates, queries.rateFilters)}
           />
           {rates.kind === "read" ? (
