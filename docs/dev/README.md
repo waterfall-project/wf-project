@@ -3565,6 +3565,17 @@ and which requires `WATERFALL_API_ADDRESS`; absent, everything, without the path
 it, Playwright would not know how to distribute the paths: the measurement, which waits for all of them, would
 drag them all into each shard.
 
+The `measure` project also measures what leaving a grid of a thousand tasks costs the browser
+(`frontend/e2e/departure.spec.ts`, US-0800): the planning, opened hydrated and settled, left for
+the screen of the revisions by the link of the navigation, the processor of the page slowed four
+times, the slowdown under which #1218 had measured this departure. The work is that of the main
+thread of the page, which Chromium counts itself (`Performance.getMetrics`), from the click to the
+screen reached, less Playwright's; it breaks down into script, styles, layout and native work.
+Five departures are measured after one that is not, and their median must hold under one second:
+it fails the path, with a margin of five to one on a workstation, where the opening measures what
+it measures in the chain. The files of the project play one after the other (`workers: 1`): each
+would weigh on what the other measures.
+
 The witness path — list of projects, project, grid — goes through three minimal pages,
 with no text of their own, which EP-02 replaces while keeping the path. They read the API on the
 server side (`frontend/src/api/server.ts`); their unit tests receive the examples of the

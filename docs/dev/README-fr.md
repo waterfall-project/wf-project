@@ -3583,6 +3583,17 @@ et qui exige `WATERFALL_API_ADDRESS` ; absente, le tout, sans les parcours contr
 elle, Playwright ne saurait pas répartir les parcours : la mesure, qui les attend tous, les
 entraînerait tous dans chaque morceau.
 
+Le projet `measure` mesure aussi ce que coûte au navigateur de quitter une grille de mille tâches
+(`frontend/e2e/departure.spec.ts`, US-0800) : le planning, ouvert hydraté et posé, quitté pour
+l'écran des révisions par le lien de la navigation, le processeur de la page ralenti quatre fois,
+le ralentissement sous lequel #1218 avait mesuré ce départ. Le travail est celui du fil principal
+de la page, que Chromium compte lui-même (`Performance.getMetrics`), du clic à l'écran atteint,
+moins celui de Playwright ; il se ventile en script, styles, mise en page et travail natif. Cinq
+départs sont mesurés après un qui ne l'est pas, et leur médiane doit tenir sous une seconde :
+celle-ci fait échouer le parcours, avec une marge de cinq contre un sur un poste, où l'ouverture
+mesure ce qu'elle mesure dans la chaîne. Les fichiers du projet se jouent l'un après l'autre
+(`workers: 1`) : chacun pèserait sur ce que l'autre mesure.
+
 Le parcours témoin — liste des projets, projet, grille — traverse trois pages minimales,
 sans texte propre, qu'EP-02 remplace en gardant le parcours. Elles lisent l'API côté
 serveur (`frontend/src/api/server.ts`) ; leurs tests unitaires reçoivent les exemples du
