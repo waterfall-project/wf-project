@@ -215,13 +215,10 @@ function readQueries(
  * Read only when the natures the filter offers leave the deactivated ones out, and only by a session
  * that may modify the settings (403 otherwise).
  */
-async function readCosts(
-  queries: CostQueries,
-  session: { readonly editable: boolean; readonly readsInactive: boolean },
-) {
+async function readCosts(queries: CostQueries, session: { readonly editable: boolean }) {
   const client = serverClient();
   const { inactive } = queries;
-  const typing = session.editable && session.readsInactive && inactive.include_inactive !== true;
+  const typing = session.editable && inactive.include_inactive !== true;
   return Promise.all([
     readOrRefused("getHourlyRateGrid", BOUNDS_REFUSED, () =>
       client.GET("/reference/hourly-rates", {
@@ -274,8 +271,8 @@ async function readCosts(
 
 /**
  * The title of the screen, the currency every amount of it is expressed in, and the switch of the
- * deactivated objects for who may modify the settings; under it, for who may write, that the fake back keeps
- * nothing of what is written.
+ * deactivated objects for who may modify the settings; under it, for who may write, that the fake
+ * back keeps nothing of what is written.
  */
 function CostsHeader({
   settings,
@@ -377,10 +374,11 @@ export default async function CostSettingsPage({
   const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
   const editable = platformOffer(permissions, "cost_settings") !== undefined;
-  const readsInactive = permissions.includes("cost_settings.write");
+  // Who may modify the settings (`cost_settings.write`) may also see the deactivated objects.
+  const readsInactive = editable;
   const [settings, [rates, types, categories, natures, typed]] = await Promise.all([
     readReferenceSettings(),
-    readCosts(queries, { editable, readsInactive }),
+    readCosts(queries, { editable }),
   ]);
   return (
     <Screen density={FUNCTION_DENSITY.cost_settings}>

@@ -282,7 +282,10 @@ function LabelList({
   const fullId = `${id}-full`;
   return (
     <div className="grid gap-2">
-      <ul className="grid gap-2">
+      <ul
+        className="grid gap-2"
+        aria-describedby={listProblem === undefined ? undefined : `${id}-list-problem`}
+      >
         {rows.map(({ key, text }, rank) => {
           const problem = problems.get(key);
           const own = `${id}-${String(key)}`;

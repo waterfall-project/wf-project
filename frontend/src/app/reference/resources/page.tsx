@@ -5,13 +5,15 @@
  * (FBS-3.2.1), the resource roles (FBS-3.2.2), the calendars (FBS-3.2.3) — three dense grids, each
  * searched and filtered by the server and, for the roles, bounded on their figures, sorted and paged
  * by it, as the address asks under the names of each grid (#301, #511, #533, #545); the calendars
- * bound no hours of a day (WF-IHM-0130-A) — and the constants the units of duration convert by, under the same permission as the calendars (WF-PLA-0160). Each object
- * names those it is attached to as the server resolves them. Every figure as the API gives it: the
- * front sorts, filters and pages nothing.
+ * bound no hours of a day (WF-IHM-0130-A) — and the constants the units of duration convert by,
+ * under the same permission as the calendars (WF-PLA-0160). Each object names those it is attached
+ * to as the server resolves them. Every figure as the API gives it: the front sorts, filters and
+ * pages nothing.
  *
  * The lists hold the active objects alone, and the deactivated ones too when the address asks for
- * them and the session may modify the settings (`resource_settings.write`) (WF-REF-0150, `include_inactive`); each object carries the
- * command that reactivates it, as the server lists it. The roles are filtered by their code, by a
+ * them and the session may modify the settings (`resource_settings.write`) (WF-REF-0150,
+ * `include_inactive`); each object carries the command that reactivates it, as the server lists
+ * it. The roles are filtered by their code, by a
  * node of the organisation chosen among the whole tree — read whole a second time when a search or a
  * filter narrows the grid of the tree —, by a category of cost and by a calendar chosen among every
  * one the session reads, each read whole as a list of choices is (#303); the categories, which the

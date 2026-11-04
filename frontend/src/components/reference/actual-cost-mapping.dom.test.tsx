@@ -240,7 +240,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(refresh).not.toHaveBeenCalled();
   });
 
-  it("tells, under the list of the kept columns, the refusal that designates the list itself, as well as the sentence of its envelope, and marks no label (#1514, #1567) [WF-REF-0190-A]", async () => {
+  it("tells, under the list of the kept columns, the refusal that designates the list itself, as well as the sentence of its envelope, and marks no label (#1514, #1567)", async () => {
     serve({
       [SET]: {
         problem: example("actual_cost_mapping_kept_columns_too_many") as Problem & {
@@ -257,6 +257,10 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(kept).toHaveTextContent(
       "La liste des colonnes conservées est trop longue : 50 colonnes au plus.",
     );
+    // The list is described by the refusal, so that a screen reader says it with the list.
+    expect(within(kept).getByRole("list")).toHaveAccessibleDescription(
+      "La liste des colonnes conservées est trop longue\u00a0: 50 colonnes au plus.",
+    );
     expect(document.querySelector("[aria-invalid]")).toBeNull();
     expect(save).toHaveFocus();
     expect(refresh).not.toHaveBeenCalled();
@@ -265,7 +269,7 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     expect(kept).not.toHaveTextContent("trop longue");
   });
 
-  it("leaves the declaration of a kept column available below the ceiling of the contract, and unavailable at it, with its condition said and nothing added by a press [WF-REF-0190-A]", async () => {
+  it("leaves the declaration of a kept column available below the ceiling of the contract, and unavailable at it, with its condition said and nothing added by a press", async () => {
     const ceiling = (count: number): Mapping => ({
       ...witness,
       kept_columns: Array.from({ length: count }, (_, rank) => `Colonne ${String(rank + 1)}`),
@@ -291,11 +295,14 @@ describe("the correspondence of the extraction of the actual costs, written", ()
     ).not.toHaveAttribute("aria-disabled");
   });
 
-  it("reads the ceiling of the kept columns from the contract: the maxItems of kept_columns in ActualCostMappingWrite [WF-REF-0190-A]", () => {
+  it("reads the ceiling of the kept columns from the contract: the maxItems of kept_columns in ActualCostMappingWrite", () => {
     const lines = readFileSync(SCHEMAS, "utf-8").split("\n");
     const schema = lines.indexOf("ActualCostMappingWrite:");
     const kept = lines.findIndex((line, index) => index > schema && line === "    kept_columns:");
-    const max = /^ {6}maxItems: (\d+)$/.exec(lines[kept + 2] ?? "")?.[1];
+    // The block of the property: up to the next key of the same indentation.
+    const end = lines.findIndex((line, index) => index > kept && /^ {0,4}\S/.test(line));
+    const block = lines.slice(kept + 1, end === -1 ? undefined : end);
+    const max = block.map((line) => /^\s+maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
     expect(schema).toBeGreaterThan(-1);
     expect(Number(max)).toBe(KEPT_COLUMNS_LIMIT);
   });

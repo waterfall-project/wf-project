@@ -138,8 +138,9 @@ async function readOptional<T>(
 
 /**
  * The query of a list of the reference data: the deactivated objects too, for a session that bears
- * the permission of modifying that part of the reference — the contract refuses `include_inactive` without it
- * (403) —, the active ones alone otherwise, which an estimator enters on (#351).
+ * the permission of modifying that part of the reference — the contract refuses
+ * `include_inactive` without it (403) —, the active ones alone otherwise, which an estimator
+ * enters on (#351).
  */
 function referenceQuery(permissions: readonly Permission[], permission: Permission) {
   return permissions.includes(permission) ? { include_inactive: true } : {};
