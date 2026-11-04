@@ -622,7 +622,7 @@ def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
             assert copied < status["last_backup"]["at"], name
 
 
-def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_itsmoment() -> None:
+def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_its_instant() -> None:
     # EP-14/L42m (#628): the deposit reads in the archive the instant it bears, the date the
     # confirmation of the restore states (WF-ADM-0160). The copy deposited is one the location of
     # Lyon keeps and the platform no longer does: a scheduled night, older than the list, within
