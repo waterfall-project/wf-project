@@ -258,11 +258,13 @@ export default async function PlanningPage({
           revision={revision}
         />
         <MockupNotice lists />
-        {screen.breakdown === undefined ? null : (
-          <BreakdownFilterChoice choices={screen.breakdown} />
-        )}
-        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
-        {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {screen.breakdown === undefined ? null : (
+            <BreakdownFilterChoice choices={screen.breakdown} />
+          )}
+          <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+          {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
+        </div>
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}

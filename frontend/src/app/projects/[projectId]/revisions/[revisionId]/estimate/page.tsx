@@ -328,11 +328,13 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        {screen.breakdown === undefined ? null : (
-          <BreakdownFilterChoice choices={screen.breakdown} />
-        )}
-        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
-        {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {screen.breakdown === undefined ? null : (
+            <BreakdownFilterChoice choices={screen.breakdown} />
+          )}
+          <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+          {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
+        </div>
         <EstimateGrid
           key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
