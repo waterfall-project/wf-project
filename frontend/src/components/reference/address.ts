@@ -3,9 +3,9 @@
 /**
  * What the screens of the reference data read in their address besides the sort, the search and the
  * page of each grid: whether their lists show the deactivated objects too (WF-REF-0150), under the
- * name of the contract, `include_inactive`, which the page asks only of a session that may read them
- * — the contract refuses `include_inactive` without the permission of reading of that part of the
- * reference (403), as the lists of the estimate do (#351) —; and the filters of each list on its
+ * name of the contract, `include_inactive`, which the page asks only of a session that may modify
+ * that part of the reference — the contract refuses `include_inactive` without the permission of
+ * modification (`*.write`, 403, C-01) —; and the filters of each list on its
  * columns (WF-IHM-0130): an identifier chosen (`identifierOf`), the state (`is_active`, which takes
  * precedence over `include_inactive`, under the same permission: `stateOf`), a text or a depth;
  * what a list shows of a page whose bounds the API refused (`shownPage`); and what a page asks of
@@ -55,7 +55,7 @@ export function identifierOf(search: SearchParameters, name: string): string | u
 /**
  * The state the address filters a list on, under the name given — the active objects alone, or the
  * deactivated ones alone —; none when it names none. The deactivated ones alone are asked only of a
- * session that may read them, as `include_inactive` is: the contract refuses `is_active=false`
+ * session that may modify the settings, as `include_inactive` is: the contract refuses `is_active=false`
  * without the permission (403).
  */
 export function stateOf(

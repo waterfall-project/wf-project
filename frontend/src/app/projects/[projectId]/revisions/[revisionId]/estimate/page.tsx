@@ -138,7 +138,7 @@ async function readOptional<T>(
 
 /**
  * The query of a list of the reference data: the deactivated objects too, for a session that bears
- * the permission of that part of the reference — the contract refuses `include_inactive` without it
+ * the permission of modifying that part of the reference — the contract refuses `include_inactive` without it
  * (403) —, the active ones alone otherwise, which an estimator enters on (#351).
  */
 function referenceQuery(permissions: readonly Permission[], permission: Permission) {
@@ -158,8 +158,8 @@ function referenceQuery(permissions: readonly Permission[], permission: Permissi
 async function readReference(projectId: string): Promise<EstimateReference> {
   const client = serverClient();
   const permissions = (await requestSession())?.permissions ?? [];
-  const categoryQuery = referenceQuery(permissions, "cost_settings.read");
-  const roleQuery = referenceQuery(permissions, "resource_settings.read");
+  const categoryQuery = referenceQuery(permissions, "cost_settings.write");
+  const roleQuery = referenceQuery(permissions, "resource_settings.write");
   const [categories, roles, subprojects] = await Promise.all([
     readEveryPageUnlessRefused("listCostCategories", OPTIONAL_READ_REFUSALS, (page) =>
       client.GET("/reference/cost-categories", {

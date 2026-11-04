@@ -10,7 +10,7 @@
  * front sorts, filters and pages nothing.
  *
  * The lists hold the active objects alone, and the deactivated ones too when the address asks for
- * them and the session may read them (WF-REF-0150, `include_inactive`); each object carries the
+ * them and the session may modify the settings (`resource_settings.write`) (WF-REF-0150, `include_inactive`); each object carries the
  * command that reactivates it, as the server lists it. The roles are filtered by their code, by a
  * node of the organisation chosen among the whole tree — read whole a second time when a search or a
  * filter narrows the grid of the tree —, by a category of cost and by a calendar chosen among every
@@ -113,7 +113,7 @@ const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * The title of the screen, and the switch of the deactivated objects for who may read them; under it,
+ * The title of the screen, and the switch of the deactivated objects for who may modify the settings; under it,
  * the note of the fake back: it keeps nothing of what is written, and filters nothing.
  */
 function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
@@ -292,11 +292,11 @@ function readQueries(
   grids: KeptGrids | undefined,
   permissions: readonly Permission[],
 ): ResourceQueries {
-  const state = (name: string) => stateOf(search, name, permissions, "resource_settings.read");
+  const state = (name: string) => stateOf(search, name, permissions, "resource_settings.write");
   return {
     editable: platformOffer(permissions, "resource_settings") !== undefined,
-    inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.read"),
-    inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.read"),
+    inactive: inactiveQuery(asksInactive(search), permissions, "resource_settings.write"),
+    inactiveCategories: inactiveQuery(asksInactive(search), permissions, "cost_settings.write"),
     nodes: readGridQuery<never>(search, [], undefined, ORG_NODE_ADDRESS),
     nodeFilters: {
       code: textOf(search, ORG_CODE, ORG_CODE_LENGTH),
@@ -349,7 +349,7 @@ export default async function ResourceSettingsPage({
   const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
-  const readsInactive = permissions.includes("resource_settings.read");
+  const readsInactive = permissions.includes("resource_settings.write");
   const shown = queries.inactive.include_inactive === true;
   // The depths of the whole tree, from the first to the deepest the server gives.
   const deepest = Math.max(0, ...tree.map((node) => node.level));

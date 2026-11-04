@@ -2477,6 +2477,8 @@
       "add": "Add a label to “{column}”",
       "addShort": "Add a label",
       "addKept": "Declare a kept column",
+      "keptFull": "Condition not met: fewer than {max} kept columns. The maximum is reached.",
+      "keptTooMany": "The list of kept columns is too long: {max} columns at most.",
       "doubles": "It doubles the label “{label}” of column “{column}”.",
       "doublesKept": "It doubles the label “{label}” of a kept column.",
       "save": "Save the mapping",
