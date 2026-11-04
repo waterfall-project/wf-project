@@ -333,7 +333,7 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   await expect(form).toBeHidden({ timeout: WORKING });
   // The list says what the server created — its example —, and adds no row of its own.
   await expect(categories.getByRole("status").filter({ hasText: "créée" })).toHaveText(
-    "« Petites fournitures » créée.",
+    "«\u00a0Petites fournitures\u00a0» créée.",
   );
 
   // A rate entered on the grid, answered by the first example of `setHourlyRate`. The page the
@@ -355,8 +355,8 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   // A nature deactivated from its row: the row shows what the server answers, deactivated and
   // offering its reactivation.
   const natures = page.getByRole("grid", { name: "Natures de coût" });
-  await natures.getByRole("button", { name: "Désactiver « Débours »" }).click();
-  await expect(natures.getByRole("button", { name: "Réactiver « Débours »" })).toBeVisible({
+  await natures.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }).click();
+  await expect(natures.getByRole("button", { name: "Réactiver «\u00a0Débours\u00a0»" })).toBeVisible({
     timeout: WORKING,
   });
   await expect(rowAt(natures, 1)).toContainText("Désactivé");

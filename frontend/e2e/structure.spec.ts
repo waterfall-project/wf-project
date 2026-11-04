@@ -336,7 +336,7 @@ test("filters the remaining to commit by the post « Poste 1.1 » chosen among t
     "Lot : Lot 1",
     "Poste : Poste 1.1",
   ]);
-  await filter.selectOption({ label: "Poste : Poste 1.1" });
+  await filter.selectOption({ label: "Poste\u00a0: Poste 1.1" });
   await expect(page).toHaveURL(
     `${IN_REVISION}/remaining?order_item_id=01926f3a-7c00-7000-8000-000000000712`,
     { timeout: WORKING },
