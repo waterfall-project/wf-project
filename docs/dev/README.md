@@ -2626,8 +2626,9 @@ screen of `make dev` it therefore applies no filter, no search, no sort, no pagi
 page), no `kinds`, no `fields`, no `include_inactive` — and it keeps nothing. A screen that depends
 on them is badly judged on the mock-up (#1399): judging these gestures falls to the front tests,
 which test the request the screen makes, and to the service. The screens of lists and grids say it
-through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The screens whose service is delivered (administration, EP-03) do not
-show the note, even though `make dev` serves them through Prism and the same limits apply.
+through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The
+screens whose service is delivered (administration, EP-03) do not show the note, even though
+`make dev` serves them through Prism and the same limits apply.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
