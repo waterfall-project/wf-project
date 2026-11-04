@@ -157,6 +157,34 @@ function focusBack(trigger: Element): boolean {
 const softly = expect.configure({ soft: true });
 
 /**
+ * Wait until what opened has taken its place: no animation running in the page, and the box of
+ * what opened and of what has the focus unchanged over a few frames. A dialog that shows is not
+ * always laid out — its content may still move as the focus enters it and scrolls to what it
+ * takes —, and the walk that follows judges an element covered by `html` when it measures the
+ * place the element is about to leave (#1862).
+ */
+async function untilPlaced(opened: Locator): Promise<void> {
+  await opened.evaluate(async (element) => {
+    const boxes = () =>
+      [element, document.activeElement].map((box) => {
+        const { x, y, width, height } = box?.getBoundingClientRect() ?? new DOMRect();
+        return [x, y, width, height].join(" ");
+      });
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    await Promise.all(document.getAnimations().map((animation) => animation.finished));
+    let still = 0;
+    let before = boxes();
+    // Bounded: a box that never settles is the walk's to judge, not a wait with no end.
+    for (let frames = 0; frames < 120 && still < 5; frames += 1) {
+      await frame();
+      const now = boxes();
+      still = now.join("|") === before.join("|") ? still + 1 : 0;
+      before = now;
+    }
+  });
+}
+
+/**
  * Open what an opener opens, by the keyboard, and say whether it opened: the dialog or the menu,
  * shown, or the editor, which took the focus in its cell.
  */
@@ -190,6 +218,9 @@ async function open(page: Page, opener: Opener): Promise<Locator | undefined> {
       () => false,
     );
   expect.soft(shown, `${opener.said}: Enter opens one ${opener.opens}, shown`).toBe(true);
+  if (shown) {
+    await untilPlaced(opened);
+  }
   return shown ? opened : undefined;
 }
 
