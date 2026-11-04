@@ -56,7 +56,8 @@ jobs:
       # its digest (fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8); a source of the
       # same repository the image may still hold is dropped first, which apt would refuse beside
       # this one. /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of
-      # Debian: it runs the highest major installed, which the last lines check.
+      # Debian, which keeps the 16 of the runner (it prefers the major of the cluster the image
+      # holds): they are pointed at the 18, which the last lines check.
       - run: |
           curl --fail --silent --show-error --location --output pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  pgdg.asc" | sha256sum --check --strict
@@ -65,7 +66,8 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends postgresql-client-18
-          ls /usr/lib/postgresql; /usr/bin/pg_dump --version; /usr/bin/pg_restore --version; cat /usr/share/postgresql-common/pg_wrapper | head -0
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_dump /usr/bin/pg_dump
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_restore /usr/bin/pg_restore
           /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
           /usr/bin/pg_restore --version | grep --fixed-strings "(PostgreSQL) 18."
       # The image and the settings of the service platform (deploy/compose/compose.service.yaml),
