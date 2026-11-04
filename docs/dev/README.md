@@ -1755,15 +1755,15 @@ without it like an address that leads nowhere (WF-ADM-0110). It presents a page 
 `audit_log` key): the date, in local time, the author, the action and, under it, what it did to its
 object — composed by the front in the language of the reader from the codes and the parameters the
 entry keeps (`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110);
-a second line of the action cell, which sorts by the code of the action, never a column of its own,
-which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a backup,
-which has none, by its nature, never by its identifier —, the project and the correlation, each as
-the entry keeps it, and a link to the history of the object — the log filtered on its nature and
-its identifier, its whole history: the other filters and the search lifted, the sort kept —, the
-correlation leading likewise to the entries of its request alone. The `title` of the action cell is posed only if the text is cut short there,
-and it then carries the instant of the backup restored; the second line also says a role change
-with no change. The server sorts on every column
-(#550), in both directions. The most recent first when the address says nothing, and the sort is
+a second line in the action cell, which sorts by the code of the action — never a column of its
+own, which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a
+backup, which has none, by its nature, never by its identifier —, the project and the correlation,
+each as the entry keeps it, and a link to the history of the object — the log filtered on its
+nature and its identifier, its whole history: the other filters and the search lifted, the sort
+kept —, the correlation leading likewise to the entries of its request alone. The `title` of the
+action cell is posed only if the text is cut short there, and it then carries the instant of the
+backup restored; the second line also says a role change with no change. The server sorts on every
+column (#550), in both directions. The most recent first when the address says nothing, and the sort is
 never lifted (`GridConfig.lifts`): the header of the date asks for descending first
 (`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
 object only leads to its own screen if the session reads its function — the risks, the planning

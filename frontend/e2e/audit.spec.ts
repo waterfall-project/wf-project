@@ -58,7 +58,11 @@ test("reaches the journal of audit from the navigation of the administration, an
     .getByRole("row", { name: /Retard de livraison des armoires/ })
     .getByRole("link", { name: "PRJ-001 · Modernisation du poste de commande" })
     .click();
-  await expect(page).toHaveURL(`/projects/${PROJECT}`, { timeout: WORKING });
+  // The page of the project leads on to its revision in progress, on its planning (US-0720): the
+  // address awaited is the one it settles on, not the one it passes through (#1920).
+  await expect(page).toHaveURL(new RegExp(`/projects/${PROJECT}/revisions/[^/]+/planning$`), {
+    timeout: WORKING,
+  });
 
   // The risk, which lives in a revision, leads to the risks of the one the inscription names.
   await page.goBack();
@@ -66,7 +70,7 @@ test("reaches the journal of audit from the navigation of the administration, an
   await expect(page).toHaveURL(RISK, { timeout: WORKING });
 });
 
-test("poses the title of the second line of the action only where the browser cuts its text short [WF-IHM-0060-A]", async ({
+test("poses the title of the second line of the action only where the browser cuts its text short", async ({
   page,
 }) => {
   await page.goto(JOURNAL);

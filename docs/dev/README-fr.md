@@ -1759,16 +1759,16 @@ des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`au
 préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
 ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
 des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
-de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
-le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
+aucune phrase (WF-ARC-0110) ; une seconde ligne dans la cellule de l'action, qui se trie par le code
+de l'action — jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature
+et le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
 les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
 inscriptions de sa seule requête. Le `title` de la cellule de l'action n'est posé que si le texte y
-est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne
-dit aussi une modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux sens.
-Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
+est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne dit aussi une
+modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux
+sens. Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
 (`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
 (`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
 ne mène à son écran propre que si la session lit sa fonction — les risques, le planning dont les
