@@ -22,6 +22,7 @@ import {
   nodeFieldNames,
   projectNodes,
   SPARSE_LINE_FIELDS,
+  SPARSE_NODE_FIELDS,
 } from "./nodes";
 import { PLANNING_FIELDS, PLANNING_GRID } from "./planning";
 import { REMAINING_FIELDS, remainingGrid } from "./remaining";
@@ -56,6 +57,17 @@ const ANSWERS = [
  */
 function keptKeys(source: object, fields: readonly string[]): string[] {
   return fields.filter((key) => key in source).sort();
+}
+
+/**
+ * The keys a projection keeps of a node: those of a closed list that the node has, but a field that
+ * says nothing — null (`SPARSE_NODE_FIELDS`).
+ */
+function keptNodeKeys(source: object, fields: readonly string[]): string[] {
+  const sparse = new Set<string>(SPARSE_NODE_FIELDS);
+  return keptKeys(source, fields).filter(
+    (key) => !sparse.has(key) || (source as Record<string, unknown>)[key] !== null,
+  );
 }
 
 /**
@@ -154,7 +166,7 @@ function holdsWhatTheGridReads<
         const rows = projectNodes(list, fields).items;
         for (const [index, source] of list.items.entries()) {
           const row = rows[index] ?? {};
-          expect(Object.keys(row).sort()).toEqual(keptKeys(source, node));
+          expect(Object.keys(row).sort()).toEqual(keptNodeKeys(source, node));
           expect(Object.keys(("task" in row ? row.task : undefined) ?? {}).sort()).toEqual(
             keptKeys(source.task ?? {}, task),
           );

@@ -10,6 +10,7 @@
 import type { components, operations } from "@/api/generated/schema";
 
 import type { GridColumn, GridConfig, GridTree, RowPart, RowsWritten } from "./columns";
+import { OriginMark } from "./origin-mark";
 import { rowNature, RowNatureIcon } from "./row-nature";
 
 /** A node of a structure, as the API reads it. */
@@ -227,6 +228,12 @@ function pick<T extends object, K extends keyof T>(source: T, keys: readonly K[]
   return picked as Pick<T, K>;
 }
 
+/**
+ * The fields of a node a projection leaves out when they say nothing — null, as on almost every
+ * node of a structure: the risk a node came of. The grid reads an absent field as the null it was.
+ */
+export const SPARSE_NODE_FIELDS = ["origin_risk_id"] as const;
+
 /** Some fields of a line, but those that say nothing (`SPARSE_LINE_FIELDS`). */
 function pickLine<K extends keyof EstimateLineFacet>(
   line: EstimateLineFacet,
@@ -246,8 +253,14 @@ export function projectNode<
   L extends keyof EstimateLineFacet,
 >(node: Node, fields: NodeFields<N, T, L>): NodeRow<N, T, L> {
   const { task, estimate_line: line } = node;
+  const sparse = new Set<string>(SPARSE_NODE_FIELDS);
   return {
-    ...pick(node, [...COMMON_FIELDS.node, ...fields.node]),
+    ...pick(
+      node,
+      [...COMMON_FIELDS.node, ...fields.node].filter(
+        (key) => !sparse.has(key) || node[key] !== null,
+      ),
+    ),
     ...(task === undefined
       ? {}
       : { task: task === null ? null : pick(task, [...COMMON_FIELDS.task, ...fields.task]) }),
@@ -476,6 +489,21 @@ export const NODE_TREE: GridTree<GridNode> = {
   nature: (node) => <RowNatureIcon node={node} />,
   emphasis,
   parent: (node) => node.parent_id,
+};
+
+/**
+ * The tree of a structure whose grid reads the risk a node came of (`origin_risk_id`, US-1020): the
+ * planning and the estimate, which mark the tasks and the lines a risk occurred merged after the
+ * icon of their nature.
+ */
+export const ORIGIN_TREE: GridTree<GridNode> = {
+  ...NODE_TREE,
+  nature: (node) => (
+    <>
+      <RowNatureIcon node={node} />
+      <OriginMark node={node} />
+    </>
+  ),
 };
 
 /** The difference a node bears with the structure it is read against (`GridConfig.difference`). */

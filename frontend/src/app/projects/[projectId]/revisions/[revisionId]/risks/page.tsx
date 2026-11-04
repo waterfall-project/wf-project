@@ -222,17 +222,19 @@ function RisksBlock({
   risks,
   query,
   preferences,
+  estimate,
 }: {
   readonly risks: RisksRead;
   readonly query: GridQuery<RiskSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  readonly estimate: string | undefined;
 }) {
   if (risks.kind === "refused") {
     return <FiltersRefused />;
   }
   return (
     <>
-      <RisksGrid risks={risks} query={query} preferences={preferences} />
+      <RisksGrid risks={risks} query={query} preferences={preferences} estimate={estimate} />
       <ListPages
         list={RISKS_LIST}
         texts="risks.pages"
@@ -394,7 +396,12 @@ export default async function RisksPage({
             className={`flex flex-col gap-4 lg:flex-1 lg:flex-row ${detail === undefined ? "lg:min-h-0" : "lg:min-h-96"}`}
           >
             <div className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1">
-              <RisksBlock risks={risks} query={query} preferences={preferences} />
+              <RisksBlock
+                risks={risks}
+                query={query}
+                preferences={preferences}
+                estimate={estimate}
+              />
             </div>
             {detail === undefined ? null : (
               <aside className="flex shrink-0 flex-col gap-4 lg:w-96 lg:overflow-y-auto">

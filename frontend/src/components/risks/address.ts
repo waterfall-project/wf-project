@@ -14,6 +14,7 @@
 import type { components, operations } from "@/api/generated/schema";
 import { type Bounds, boundNames, readBounds } from "@/components/grid/filters";
 import { type Period, type PeriodNames, readPeriod } from "@/components/grid/period";
+import { ORIGIN_RISK_PARAMETER } from "@/components/grid/origin-filter";
 import { CONTRACT_ADDRESS, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
@@ -123,6 +124,18 @@ export function riskHref(pathname: string, query: URLSearchParams, risk: string 
     next.set(RISK, risk);
   }
   return address(pathname, next);
+}
+
+/**
+ * The address of a grid of the structure — the estimate, in the context of the register — filtered
+ * on the lines and the tasks a risk occurred merged (`origin_risk_ids`, WF-RIS-0060), the rest of
+ * its query kept.
+ */
+export function originHref(grid: string, risk: string): string {
+  const [pathname = grid, query = ""] = grid.split("?", 2);
+  const next = new URLSearchParams(query);
+  next.set(ORIGIN_RISK_PARAMETER, risk);
+  return `${pathname}?${next.toString()}`;
 }
 
 /** What the register is filtered on besides its states, as the address asks it. */

@@ -4,7 +4,7 @@
 
 The card at the top of the screen of [risk management](FBS-4.6.md): the total of the provisions of the risks the filter by state keeps, by state — **Identified risks**, **Occurred risks**, **Dismissed risks** — and their **General total**, as the server renders them for the revision read. A risk occurred or dismissed no longer bears a provision.
 
-Beside it, the card **Risk coverage** sets the **Risk reserve** of the reference revision against the **Remaining provisions** of the identified risks and the **Cost of the occurred risks** — the total of their own estimate at the moment of their occurrence, which no longer changes. Their difference is the **Coverage variance**: negative, the risks cost more than what had been reserved.
+Beside it, the card **Risk coverage** sets the **Risk reserve** of the reference revision against the **Remaining provisions** of the identified risks and the **Cost of the occurred risks** — the total of their own estimate at the moment of their occurrence, which no longer changes. Their difference is the **Coverage variance**: negative, the risks cost more than what had been reserved. Beside the cost of the occurred risks, the **Reestimated cost of the occurred risks**, as an information: the sum of the current reestimated amounts of the lines that came of them, as the server renders it. It tells how far the occurred risks have drifted; the coverage variance does not count it.
 
 ## Its commands
 

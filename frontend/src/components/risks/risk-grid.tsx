@@ -112,6 +112,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
   columns: [
     {
       key: "label",
+      titled: true,
       label: "label",
       help: "risks.label",
       format: "text",
@@ -123,6 +124,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "probability",
+      titled: true,
       label: "probability",
       help: "risks.probability",
       format: "percent",
@@ -132,6 +134,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "severity",
+      titled: true,
       label: "severity",
       help: "risks.severity",
       format: "money",
@@ -142,6 +145,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "provision_amount",
+      titled: true,
       label: "provisionAmount",
       help: "risks.provisionAmount",
       format: "money",
@@ -153,6 +157,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "occurrence_cost",
+      titled: true,
       label: "occurrenceCost",
       help: "risks.occurrenceCost",
       format: "money",
@@ -165,6 +170,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "occurred_reestimated_amount",
+      titled: true,
       label: "occurredReestimatedAmount",
       help: "risks.occurredReestimatedAmount",
       format: "money",
@@ -176,6 +182,7 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
     },
     {
       key: "state",
+      titled: true,
       label: "state",
       help: "risks.state",
       format: "text",
@@ -183,10 +190,11 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       contract: "state",
       // The accessor of the sort alone: the cell names the state in the language of the interface.
       value: (risk) => risk.state,
-      render: (risk) => <RiskStateCell state={risk.state} />,
+      render: (risk) => <RiskStateCell risk={risk} />,
     },
     {
       key: "last_review_on",
+      titled: true,
       label: "lastReview",
       help: "risks.lastReview",
       format: "date",

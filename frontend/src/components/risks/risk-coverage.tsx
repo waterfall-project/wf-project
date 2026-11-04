@@ -20,16 +20,21 @@ import { FiguresCard, FiguresList } from "@/components/figures-card";
 export type RiskCoverage = components["schemas"]["RiskCoverage"];
 
 /**
- * Its four amounts, which the indicators of the remaining to commit repeat
+ * Its amounts, which the indicators of the remaining to commit repeat
  * (`RemainingIndicators.coverage`, WF-RAE-0020).
  */
 type RiskCoverageTotals = components["schemas"]["RiskCoverageTotals"];
 
-/** The four amounts of the coverage, as the contract names them, in its order. */
+/**
+ * The amounts of the coverage, as the contract names them, in its order. The reestimated cost of the
+ * occurred risks (`occurred_reestimated`, #1763) stands beside their cost as an information: the
+ * variance does not count it (WF-RIS-0050).
+ */
 const AMOUNTS = [
   ["reserve", "reserve"],
   ["remaining_provisions", "remainingProvisions"],
   ["occurred_cost", "occurredCost"],
+  ["occurred_reestimated", "occurredReestimated"],
   ["coverage_variance", "coverageVariance"],
 ] as const satisfies readonly (readonly [keyof RiskCoverageTotals, string])[];
 

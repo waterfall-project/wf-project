@@ -922,10 +922,13 @@ describe("the figures and the dates of a grid, in the language of the interface"
 
   it("marks each row by the icon of its nature, named in the language of the interface", () => {
     renderGrid(estimate, { locale: "en" });
-    // The icon before the label, in the second cell: the computed cells bear their own mark.
+    // The icon before the label, in the second cell: the computed cells bear their own mark, and a
+    // row a risk occurred merged the mark of its origin, after the icon of its nature.
     const label = (row: HTMLElement) => row.querySelectorAll("td")[1] ?? row;
     expect(
-      bodyRows().map((row) => within(label(row)).getByRole("img").getAttribute("aria-label")),
+      bodyRows().map((row) =>
+        within(label(row)).getAllByRole("img")[0]?.getAttribute("aria-label"),
+      ),
     ).toEqual([
       "Summary task",
       "Task",

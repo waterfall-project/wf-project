@@ -15,6 +15,7 @@ import { DenseGrid } from "@/components/grid/dense-grid";
 import type { GridQuery } from "@/components/grid/query";
 import type { GridPreferences } from "@/components/grid/settings";
 
+import { OccurredLines } from "./risk-cells";
 import { RISK_GRID, type RiskRows, type RiskSortColumn } from "./risk-grid";
 
 /** What the grid of the risks shows. */
@@ -23,19 +24,26 @@ export interface RisksGridProps {
   readonly risks: RiskRows;
   readonly query: GridQuery<RiskSortColumn>;
   readonly preferences: GridPreferences | undefined;
+  /**
+   * The address of the estimate of the revision, in the context of the screen, which the state of a
+   * risk occurred leads to, filtered on the lines that came of it; none, and it leads nowhere.
+   */
+  readonly estimate?: string | undefined;
 }
 
 /** Render the grid of the risks, its totals row the general total of the provisions retained. */
-export function RisksGrid({ risks, query, preferences }: RisksGridProps) {
+export function RisksGrid({ risks, query, preferences, estimate }: RisksGridProps) {
   const t = useTranslations("risks");
   return (
-    <DenseGrid
-      config={RISK_GRID}
-      rows={risks.items}
-      totals={risks.totals}
-      totalsCaption={() => t("generalTotal")}
-      query={query}
-      preferences={preferences}
-    />
+    <OccurredLines estimate={estimate}>
+      <DenseGrid
+        config={RISK_GRID}
+        rows={risks.items}
+        totals={risks.totals}
+        totalsCaption={() => t("generalTotal")}
+        query={query}
+        preferences={preferences}
+      />
+    </OccurredLines>
   );
 }

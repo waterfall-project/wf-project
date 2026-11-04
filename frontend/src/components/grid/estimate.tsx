@@ -51,10 +51,10 @@ import {
   type AnyNodeFields,
   type GridNode,
   LABEL_COLUMN,
-  NODE_TREE,
   nodeFresher,
   nodeKey,
   nodeNumber,
+  ORIGIN_TREE,
   type NodeSortColumn,
   type NodeRows,
   type NodeTotals,
@@ -69,7 +69,7 @@ import {
  * (`fields`) and hands the grid these alone (`projectNodes`).
  */
 export const ESTIMATE_FIELDS = {
-  node: [],
+  node: ["origin_risk_id"],
   task: ["base_amount", "reestimated_amount"],
   line: [
     "cost_category_id",
@@ -98,7 +98,7 @@ export const ESTIMATE_GRID: GridConfig<EstimateNode, NodeSortColumn, NodeTotals>
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,
-  tree: NODE_TREE,
+  tree: ORIGIN_TREE,
   columns: [
     LABEL_COLUMN,
     // A category and a role are named by the label the server resolves; an entry starts from

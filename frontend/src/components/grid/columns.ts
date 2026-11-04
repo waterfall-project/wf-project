@@ -91,6 +91,11 @@ export interface GridColumn<Row, Sort extends string, Totals> {
    */
   readonly icon?: LucideIcon;
   /**
+   * Whether its header names itself in a tooltip of the browser, its heading being cut at the width
+   * it is given (#1951); an icon does so already. Not, and a heading left whole says nothing more.
+   */
+  readonly titled?: boolean;
+  /**
    * Which of its cells the server computes, and the field of the contract each shows, which the
    * refusal of an entry asks the server about: none, and every cell holds what was entered.
    */

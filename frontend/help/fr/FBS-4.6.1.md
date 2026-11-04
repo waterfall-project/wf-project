@@ -4,7 +4,7 @@
 
 La grille de l’écran de [gestion des risques](FBS-4.6.md) : une ligne par risque que le filtre par état retient, tels que la révision lue les tient. Le serveur la trie, la cherche et la filtre comme l’adresse le demande ; le pied porte le total général des provisions des risques retenus. Le registre se lit : un risque se déclare, se modifie et se réexamine par les commandes de l’écran et de son détail.
 
-Le libellé d’un risque est un lien vers son détail, qui s’ouvre à côté du registre.
+Le libellé d’un risque est un lien vers son détail, qui s’ouvre à côté du registre. L’état d’un risque survenu est un lien vers le devis filtré sur les lignes qui en sont issues, pour qui lit le devis.
 
 ## Ses commandes
 

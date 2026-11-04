@@ -45,6 +45,8 @@ import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
 import { DifferencesOnly } from "@/components/grid/differences-only";
+import { originNames } from "@/components/grid/origin-filter";
+import { OriginFilterChoice } from "@/components/grid/origin-filter-choice";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
@@ -225,6 +227,7 @@ export default async function PlanningPage({
       fields: PLANNING_FIELDS,
       byBreakdown: true,
       byDifference: true,
+      byOrigin: true,
       // The attachment of a task is chosen among the lots and the posts where it is entered.
       needsBreakdown: (reading) => reading.edits.has("edit_planning"),
       chooses: true,
@@ -259,6 +262,7 @@ export default async function PlanningPage({
           <BreakdownFilterChoice choices={screen.breakdown} />
         )}
         <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+        {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}
@@ -275,6 +279,7 @@ export default async function PlanningPage({
             undoable: editable,
             editable,
             differential: screen.kind === "amendment",
+            origins: originNames(screen.origin),
             // The attachment is chosen among the same items, where the planning may be entered.
             breakdown: editable ? screen.breakdown?.items : undefined,
             skeleton,

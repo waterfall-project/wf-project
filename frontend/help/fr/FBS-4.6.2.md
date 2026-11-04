@@ -4,7 +4,7 @@
 
 La carte en tête de l’écran de [gestion des risques](FBS-4.6.md) : le total des provisions des risques que le filtre par état retient, par état — **Risques identifiés**, **Risques survenus**, **Risques écartés** — et leur **Total général**, tels que le serveur les rend pour la révision lue. Un risque survenu ou écarté ne porte plus de provision.
 
-À côté d’elle, la carte **Couverture des risques** met en regard la **Réserve pour risques** de la révision de référence avec les **Provisions restantes** des risques identifiés et le **Coût des risques survenus** — le total de leur devis propre au moment de leur survenance, qui ne change plus. Leur différence est l’**Écart de couverture** : négatif, les risques coûtent plus que ce qui avait été réservé.
+À côté d’elle, la carte **Couverture des risques** met en regard la **Réserve pour risques** de la révision de référence avec les **Provisions restantes** des risques identifiés et le **Coût des risques survenus** — le total de leur devis propre au moment de leur survenance, qui ne change plus. Leur différence est l’**Écart de couverture** : négatif, les risques coûtent plus que ce qui avait été réservé. En regard du coût des risques survenus, le **Réestimé des risques survenus**, à titre d’information : la somme des montants réestimés courants des lignes qui en sont issues, telle que le serveur la rend. Il dit la dérive des risques survenus ; l’écart de couverture ne le compte pas.
 
 ## Ses commandes
 

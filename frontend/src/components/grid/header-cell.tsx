@@ -56,7 +56,7 @@ const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
 /** What a header reads of its column: whether the server computes it whole, not its rows. */
 type HeaderColumn = Pick<
   GridColumn<unknown, string, unknown>,
-  "label" | "format" | "align" | "icon" | "axis" | "corner" | "help" | "helpValues"
+  "label" | "format" | "align" | "icon" | "axis" | "corner" | "help" | "helpValues" | "titled"
 > & {
   readonly computed?: { readonly whole: boolean };
 };
@@ -225,7 +225,7 @@ function Heading({
   return (
     <span
       id={id}
-      title={Icon === undefined ? undefined : label}
+      title={Icon === undefined && column?.titled !== true ? undefined : label}
       className="inline-flex min-w-0 items-center gap-1"
     >
       {column?.computed?.whole === true ? (

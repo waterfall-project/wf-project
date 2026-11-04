@@ -114,6 +114,7 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/risks": "risks",
   };
 });
 
@@ -345,5 +346,59 @@ describe("the note of the fake back on the estimate", () => {
     const page = await estimatePage("me");
     expect(page.match(/<p role="note"/g)).toHaveLength(1);
     expect(page).toContain("Filters, search, sort and pages are ignored");
+  });
+});
+
+describe("the filter of the estimate on the rows a risk occurred merged", () => {
+  const OCCURRED = "01926f3a-7c00-7000-8000-000000000752";
+  const IDENTIFIED = "01926f3a-7c00-7000-8000-000000000751";
+  const RISKS = "GET /projects/{project_id}/risks";
+
+  it("offers « Coming from a risk » and the risks occurred of the project alone, never one identified [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me");
+    expect(page).toMatch(/<label[^>]*>Origin<\/label>/);
+    expect(page).toContain(
+      `<option value="" selected="">All rows</option>` +
+        `<option value="true">Coming from a risk</option>` +
+        `<option value="${OCCURRED}">Retard de livraison des armoires</option>`,
+    );
+    expect(page).not.toContain(IDENTIFIED);
+    expect(queryOf("/risks")?.getAll("states")).toEqual(["occurred"]);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("asks the server for the rows of any risk when the address says so, and shows it chosen [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me", { is_from_risk: "true" });
+    expect(queryOf("/nodes")?.get("is_from_risk")).toBe("true");
+    expect(grids.estimate.at(-1)?.filters).toMatchObject({ is_from_risk: true });
+    expect(page).toContain(`<option value="true" selected="">Coming from a risk</option>`);
+  });
+
+  it("asks the server for the rows of the risk the address names, and hands the grid its label to name it by [WF-RIS-0060-A]", async () => {
+    const page = await estimatePage("me", { origin_risk_ids: OCCURRED });
+    expect(queryOf("/nodes")?.get("origin_risk_ids")).toBe(OCCURRED);
+    expect(queryOf("/nodes")?.has("is_from_risk")).toBe(false);
+    expect(grids.estimate.at(-1)?.origins).toEqual({
+      [OCCURRED]: "Retard de livraison des armoires",
+    });
+    expect(page).toContain(
+      `<option value="${OCCURRED}" selected="">Retard de livraison des armoires</option>`,
+    );
+  });
+
+  it("reads no value that is no identifier, as if the address named nothing [WF-RIS-0060-A]", async () => {
+    await estimatePage("me", { origin_risk_ids: "not-an-identifier" });
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+  });
+
+  it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+    };
+    const page = await estimatePage("me");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(page).not.toContain("Retard de livraison");
   });
 });

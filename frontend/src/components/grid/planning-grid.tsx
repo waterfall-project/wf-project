@@ -54,6 +54,7 @@ import { useShownProjectLabel } from "@/components/shell/shown-project";
 import { DenseGrid } from "./dense-grid";
 import { RowNumbers } from "./link-conflicts";
 import { nodeDependencies } from "./node-dependencies";
+import { OriginRisksProvider } from "./origin-mark";
 import {
   type NodeFilters,
   nodeNarrowing,
@@ -139,6 +140,11 @@ export interface PlanningGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
+  /**
+   * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
+   * names it by (`OriginMark`); none, and the mark says a risk without its name.
+   */
+  readonly origins?: Readonly<Record<string, string>> | undefined;
   /**
    * What the Gantt reads besides the rows: the graduations of hours of a day (`hoursOfDay`), and
    * where it comes from, which its exported image names. None, it stops at days and is not
@@ -306,6 +312,7 @@ export function PlanningGrid({
   timelines,
   timelineCreation,
   differential,
+  origins,
   gantt,
 }: PlanningGridProps) {
   const t = useTranslations("planningGrid");
@@ -496,30 +503,32 @@ export function PlanningGrid({
         <SkeletonOffer offer={skeleton} generate={generate} generated={ours} />
       ) : null}
       <RowNumbers value={rowNumbers}>
-        <DenseGrid
-          config={config}
-          rows={shown.items}
-          totals={shown.totals}
-          totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
-          query={query}
-          preferences={preferences}
-          dependencies={dependencies}
-          foldScope={structure.revision_id}
-          narrowing={nodeNarrowing(filters)}
-          undoable={undoable}
-          commands={zoomed}
-          around={(rows, table) => (
-            <GanttRows
-              rows={rows}
-              scope={`${config.key}:${structure.revision_id}`}
-              hoursPerDay={gantt?.hoursPerDay}
-              exported={gantt?.exported}
-            >
-              {table}
-              <GanttLegend />
-            </GanttRows>
-          )}
-        />
+        <OriginRisksProvider names={origins}>
+          <DenseGrid
+            config={config}
+            rows={shown.items}
+            totals={shown.totals}
+            totalsCaption={(totals) => t("totals", { tasks: totals.task_count })}
+            query={query}
+            preferences={preferences}
+            dependencies={dependencies}
+            foldScope={structure.revision_id}
+            narrowing={nodeNarrowing(filters)}
+            undoable={undoable}
+            commands={zoomed}
+            around={(rows, table) => (
+              <GanttRows
+                rows={rows}
+                scope={`${config.key}:${structure.revision_id}`}
+                hoursPerDay={gantt?.hoursPerDay}
+                exported={gantt?.exported}
+              >
+                {table}
+                <GanttLegend />
+              </GanttRows>
+            )}
+          />
+        </OriginRisksProvider>
       </RowNumbers>
     </>
   );

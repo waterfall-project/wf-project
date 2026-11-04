@@ -77,6 +77,10 @@
       "removed": "Votre avatar est retiré."
     }
   },
+  "originMark": {
+    "named": "Issue de la survenance du risque « {risk} »",
+    "unnamed": "Issue de la survenance d’un risque"
+  },
   "rowNature": {
     "summary": "Tâche récapitulative",
     "task": "Tâche",
@@ -257,6 +261,11 @@
       "label": "Lot ou poste",
       "every": "Tous les lots et postes",
       "choice": "{kind, select, work_package {Lot} other {Poste}} : {label}"
+    },
+    "originFilter": {
+      "label": "Origine",
+      "every": "Toutes les lignes",
+      "any": "Issues d’un risque"
     },
     "undo": {
       "undo": "Annuler",
@@ -503,6 +512,9 @@
       "reserve": "Réserve pour risques",
       "remainingProvisions": "Provisions restantes",
       "occurredCost": "Coût des risques survenus",
+      "occurredReestimated": "Réestimé des risques survenus (information)",
+      "occurredLines": "Voir les lignes issues de « {risk} »",
+      "occurredStateLines": "{state}, voir les lignes issues de « {risk} »",
       "coverageVariance": "Écart de couverture"
     },
     "matrix": {

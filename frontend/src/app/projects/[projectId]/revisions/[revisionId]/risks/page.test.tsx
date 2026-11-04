@@ -407,14 +407,14 @@ describe("the screen of the risks", () => {
     expect(text(page).match(/Risk reserve/g)).toHaveLength(1);
   });
 
-  it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
+  it("reads the coverage of the risks in the revision of its route, and shows its amounts as the server computes them, the reestimated of the occurred risks beside their cost as an information, the variance signed [WF-RIS-0050-A]", async () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
     expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
   });
 
