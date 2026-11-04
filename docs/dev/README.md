@@ -866,7 +866,8 @@ that list know none of them, and a column hidden by default is hidden there
 (`docs/api/DECISIONS.md`). A grid keeps in the account its sort and its columns — those it hides,
 and their widths —, never its page (rule validated by the author on 2026-10-09). Its filters, a
 grid that declares them (`GridConfig.filters`) keeps them as a preference, as the criterion of
-US-0380, which is authoritative, wants (#836, confirmation of the author to come): they are found
+US-0380, which is authoritative, wants (#836, confirmed by the author on
+2026-10-11): they are found
 again at the opening of an address that says nothing of the grid; the page and the filters of an
 address that says them live in the address. Any other grid keeps no filter. A column or a width
 is written after a pause, with the sort kept as is; what is waiting leaves when the page is left
