@@ -425,7 +425,21 @@ describe("the screen of the risks", () => {
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 · reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+    );
+    // The reestimated stands in regard of the cost, in its entry, not as a term of the variance: four
+    // terms, and the entry of the cost holds both amounts, the reestimated named in full to a reader.
+    const region = regionOf(page, "Risk coverage");
+    const coverage = region.slice(0, region.indexOf("</dl>"));
+    expect(coverage.match(/<dt/g)).toHaveLength(4);
+    const cost = coverage.slice(
+      coverage.indexOf("<dd", coverage.indexOf("Cost of the occurred risks</dt>")),
+    );
+    const entry = cost.slice(0, cost.indexOf("</dd></div>"));
+    expect(entry.match(/aria-label="Computed"/g)).toHaveLength(2);
+    expect(entry).toMatch(/<span aria-hidden="true">· reestimated<\/span>/);
+    expect(entry).toMatch(
+      /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
     );
   });
 

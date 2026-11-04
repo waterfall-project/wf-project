@@ -69,7 +69,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98\s€/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*·\sréestimé\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
   // The control station, the tests and commissioning and the whole without sub-project all over
