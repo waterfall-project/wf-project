@@ -50,6 +50,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The client of the server's major (the Dockerfile of the back, #982): the runner brings the
+      # 16 of the PGDG, which pg_dump refuses to run against a server 18. /usr/bin/pg_dump and
+      # pg_restore, which the backups call, are the wrapper of Debian: it runs the highest major
+      # installed, which the last lines check.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
+          /usr/bin/pg_restore --version | grep --fixed-strings "(PostgreSQL) 18."
       # The image and the settings of the service platform (deploy/compose/compose.service.yaml),
       # its key a value of the job; ready long before the tests, which run last.
       - run: >-
