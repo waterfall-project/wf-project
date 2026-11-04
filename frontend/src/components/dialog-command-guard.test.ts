@@ -70,7 +70,10 @@ describe("the commands that open a dialog", () => {
   it("a source that renders a dialog says it opens one, or is listed as opened otherwise [WF-IHM-0100-A]", () => {
     const silent = found
       .filter(({ name, dialogs, says }) => says < dialogs && !(name in OTHERWISE_OPENED))
-      .map(({ name, dialogs, says }) => `${name}: ${String(dialogs)} dialogs, ${String(says)} commands`);
+      .map(
+        ({ name, dialogs, says }) =>
+          `${name}: ${String(dialogs)} dialogs, ${String(says)} commands`,
+      );
     expect(silent).toEqual([]);
   });
 

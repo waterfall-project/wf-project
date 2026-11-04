@@ -143,9 +143,7 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
 
   // The keyboard: the last rectangle, a lane down — the lanes shown recorded after a pause.
   const recorded = page.waitForRequest(
-    (request) =>
-      isServerAction(request) &&
-      (request.postData() ?? "").includes("lanes"),
+    (request) => isServerAction(request) && (request.postData() ?? "").includes("lanes"),
   );
   await frieze.focus();
   await page.keyboard.press("End");

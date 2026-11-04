@@ -359,8 +359,7 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
     .click();
   const removal = page.waitForRequest(
     (request) =>
-      isServerAction(request) &&
-      (request.postData() ?? "").includes('"subproject_id":null'),
+      isServerAction(request) && (request.postData() ?? "").includes('"subproject_id":null'),
     { timeout: WORKING },
   );
   await page
