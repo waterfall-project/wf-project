@@ -543,7 +543,7 @@ risques active (`active_provision_category`) comprises, et mène aux paramètres
 refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
 `ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
 (WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
-sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
+sert à son adresse, avec ses propres exemples — le projet « created », sans révision —, tant que l'accueil est encore montré : une réponse arrivée après
 qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
 dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
 succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien

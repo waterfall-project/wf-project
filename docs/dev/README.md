@@ -550,8 +550,8 @@ EP-14/L42p, the active risk provision category (`active_provision_category`) inc
 to the cost settings, as the `REFERENCE_INCOMPLETE` refusal names them under the form; the form
 takes what `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for
 the order (WF-PRJ-0010), the description — and leads to the screen of the project the server
-created, which the fake back serves in the guise of the witness, as long as the home page is still
-shown: a response that arrives after one has left it does not replace the chosen navigation. A
+created, which the fake back serves at its own address, with its own examples — the project
+« created », with no revision —, as long as the home page is still shown: a response that arrives after one has left it does not replace the chosen navigation. A
 response that arrives after « Cancel », the dialog closed but the home page still shown, leads
 there all the same: it is the only way to say the success, which the simulated list does not show,
 and closed during the wait, the dialog silences nothing. The project settings present its identity
