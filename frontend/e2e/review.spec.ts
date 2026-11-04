@@ -38,7 +38,6 @@ interface Language {
   readonly names: {
     readonly functions: string;
     readonly projects: string;
-    readonly currentRevision: string;
     readonly revisionTerm: string;
     readonly draft: string;
     readonly planningGrid: string;
@@ -79,7 +78,6 @@ const FRENCH: Language = {
   names: {
     functions: "Fonctions",
     projects: "Projets",
-    currentRevision: "Révision en cours",
     revisionTerm: "Révision",
     draft: "En cours d’élaboration",
     planningGrid: "Grille de planning",
@@ -120,7 +118,6 @@ const ENGLISH: Language = {
   names: {
     functions: "Functions",
     projects: "Projects",
-    currentRevision: "Current revision",
     revisionTerm: "Revision",
     draft: "Draft",
     planningGrid: "Planning grid",
@@ -248,7 +245,7 @@ for (const language of [FRENCH, ENGLISH]) {
           },
           { timeout: WORKING },
         )
-        .toMatch(new RegExp(`^/projects/${PROJECT}(/|$)`));
+        .toBe(`${IN_REVISION}/planning`);
 
       // The actual costs, where the user filters a sub-project: the address carries it.
       await follow(page, language, names.actualCosts);
