@@ -133,7 +133,13 @@ describe("the report of an import, its commands and its refusal", () => {
   });
 
   it("offers the abandonment of an import whose application was refused, by what the import lists, with the explanation of the refusal [WF-IHM-0090-A]", () => {
-    open(example("import_apply_refused_permission") as Import);
+    open({
+      ...(example("import_apply_refused_permission") as Import),
+      available_commands: [
+        { command: "apply", is_available: false, missing_conditions: ["import_awaiting_decision"] },
+        { command: "abandon", is_available: true, missing_conditions: [] },
+      ],
+    });
     expect(screen.getByText("Refusé")).toBeVisible();
     expect(screen.getByRole("note")).toHaveTextContent(
       "Refusé à l’application, le fichier est supprimé : relancez l’import pour le reprendre.",

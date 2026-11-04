@@ -443,7 +443,8 @@ export function ImportReport({ projectId, entry, start, then }: ImportReportProp
       ) : (
         <Findings report={entry.report} />
       )}
-      {/* Its own commands for each import, as it lists them: an outcome, a confirmation open, stay with theirs. */}
+      {/* Its own commands, as the import lists them: an outcome or an open
+          confirmation stays with its import. */}
       <ReportCommands
         key={entry.import_id}
         projectId={projectId}
