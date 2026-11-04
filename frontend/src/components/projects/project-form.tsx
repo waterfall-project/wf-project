@@ -51,6 +51,7 @@ import { Command, useUnmet } from "@/components/commands/command";
 import { CommandTooltip } from "@/components/commands/command-tooltip";
 import { commandIcon, PROJECT_COMMAND_ICONS } from "@/components/commands/icons";
 import { type CommandOffer, findOffer, UNAVAILABLE } from "@/components/commands/offer";
+import { WritingNote } from "@/components/commands/writing-note";
 import type { Project } from "@/components/context/reading";
 import { noteMessage } from "@/components/notices/message-history";
 import { useSaid } from "@/components/notices/said";
@@ -63,7 +64,6 @@ import {
   ReferenceForm,
   required,
 } from "@/components/reference/reference-form";
-import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { editablePercent, percentRatio } from "@/i18n/format";
 

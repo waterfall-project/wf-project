@@ -550,8 +550,9 @@ EP-14/L42p, the active risk provision category (`active_provision_category`) inc
 to the cost settings, as the `REFERENCE_INCOMPLETE` refusal names them under the form; the form
 takes what `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for
 the order (WF-PRJ-0010), the description — and leads to the screen of the project the server
-created, which the fake back serves in the guise of the witness, as long as the home page is still
-shown: a response that arrives after one has left it does not replace the chosen navigation. A
+created, which the fake back serves at its own address, with its own examples — the project
+« created », with no revision —, as long as the home page is still shown: a response that arrives
+after one has left it does not replace the chosen navigation. A
 response that arrives after « Cancel », the dialog closed but the home page still shown, leads
 there all the same: it is the only way to say the success, which the simulated list does not show,
 and closed during the wait, the dialog silences nothing. The project settings present its identity
@@ -1396,11 +1397,12 @@ against the fake back, which keeps nothing, it therefore survives the re-reads �
 no row, the re-read page files it where the server retains it. What a write did is said in the
 region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
 like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
-under its header, for whoever writes — the note fits in 150 characters with that of the lists, and does
-not say that a written row remains shown as the server rendered it as long as the screen stays open —
-(`MockupNotice`, `components/shell/mockup-notice.tsx`, to be taken
-up by each screen of the mockup whose commands write, removed when the screen is plugged into the
-service of its epic). The entry of a rate remains that of the grid.
+under its header, for whoever writes — the note, with that of the lists, fits in 150 characters at
+most, so that the totals of a grid stay in the window, and does not say that a written row remains
+shown as the server rendered it as long as the screen stays open — (`MockupNotice`,
+`components/shell/mockup-notice.tsx`, to be taken up by each screen of the mockup whose commands
+write, removed when the screen is plugged into the service of its epic). The entry of a rate remains
+that of the grid.
 
 The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
 `/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
@@ -1755,15 +1757,15 @@ without it like an address that leads nowhere (WF-ADM-0110). It presents a page 
 `audit_log` key): the date, in local time, the author, the action and, under it, what it did to its
 object — composed by the front in the language of the reader from the codes and the parameters the
 entry keeps (`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110);
-a second line of the action cell, which sorts by the code of the action, never a column of its own,
-which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a backup,
-which has none, by its nature, never by its identifier —, the project and the correlation, each as
-the entry keeps it, and a link to the history of the object — the log filtered on its nature and
-its identifier, its whole history: the other filters and the search lifted, the sort kept —, the
-correlation leading likewise to the entries of its request alone. The `title` of the action cell is posed only if the text is cut short there,
-and it then carries the instant of the backup restored; the second line also says a role change
-with no change. The server sorts on every column
-(#550), in both directions. The most recent first when the address says nothing, and the sort is
+a second line in the action cell, which sorts by the code of the action — never a column of its
+own, which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a
+backup, which has none, by its nature, never by its identifier —, the project and the correlation,
+each as the entry keeps it, and a link to the history of the object — the log filtered on its
+nature and its identifier, its whole history: the other filters and the search lifted, the sort
+kept —, the correlation leading likewise to the entries of its request alone. The `title` of the
+action cell is posed only if the text is cut short there, and it then carries the instant of the
+backup restored; the second line also says a role change with no change. The server sorts on every
+column (#550), in both directions. The most recent first when the address says nothing, and the sort is
 never lifted (`GridConfig.lifts`): the header of the date asks for descending first
 (`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
 object only leads to its own screen if the session reads its function — the risks, the planning
@@ -2626,8 +2628,9 @@ screen of `make dev` it therefore applies no filter, no search, no sort, no pagi
 page), no `kinds`, no `fields`, no `include_inactive` — and it keeps nothing. A screen that depends
 on them is badly judged on the mock-up (#1399): judging these gestures falls to the front tests,
 which test the request the screen makes, and to the service. The screens of lists and grids say it
-through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The screens whose service is delivered (administration, EP-03) do not
-show the note, even though `make dev` serves them through Prism and the same limits apply.
+through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The
+screens whose service is delivered (administration, EP-03) do not show the note, even though
+`make dev` serves them through Prism and the same limits apply.
 
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
@@ -3300,7 +3303,10 @@ beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
 viewport.
 
-`make e2e`: Playwright starts the fake back (`make mock`) and the front, plays the paths
+`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by
+`npx` counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
+`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
+(`make mock`) and the front, plays the paths
 in Chromium, then stops both — it signals their whole process group, without which
 the servers that `make` and `pnpm` start would survive. It always starts its own
 servers, on ports of its own — 4110 for the fake back, 3100 for the front —, never those of
@@ -3685,13 +3691,13 @@ US-0200 in the file of EP-14 says it too):
 - what a gesture opens without a trigger the harness plays: the Popover of a refusal — of a
   computed cell, or of a refused write —, which opens only once the server has refused; a menu or a
   dialog opened from a menu — the menu of a cell (Shift+F10), and the dialogs it opens, the
-  insertion of a task for instance —; the paste of a block, opened by Ctrl+V; the dialogs a gesture opens
-  without a button — `TimelineForm` and `GestureDialog` of `structure-gestures.tsx` —, which the
-  harness does not find for want of a command saying `aria-haspopup="dialog"`: the test
-  `dialog-command-guard.test.ts` fails any source that renders a `<Dialog` driven by a state without
-  such a command, outside its named list (each entry with its reason). The component tests
-  hold them (`expectAccessible`, axe under happy-dom, without contrast nor layout; the focus Radix
-  gives back);
+  insertion of a task for instance —; the paste of a block, opened by Ctrl+V; the dialogs a gesture
+  opens without a button — `TimelineForm` and `GestureDialog` of `structure-gestures.tsx` —, which
+  the harness does not find for want of a command saying `aria-haspopup="dialog"`: the test
+  `dialog-command-guard.test.ts` exempts them from the rule and names them (each entry with its
+  reason), and fails any other source that renders more dialogs driven by a state than it has
+  commands saying so. The component tests hold them (`expectAccessible`, axe under happy-dom,
+  without contrast nor layout; the focus Radix gives back);
 - the list or the popover a cell editor would render in a portal outside the cell: the audit of an
   editor covers the cell, and no editor today renders one;
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture

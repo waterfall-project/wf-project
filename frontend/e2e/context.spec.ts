@@ -24,8 +24,9 @@ function banner(page: Page) {
 test("each screen of the data of a project names the project and the revision shown [WF-IHM-0020-A]", async ({
   page,
 }) => {
-  // The risks, a screen of its own reached by a click, compiled first (`e2e/compile.ts`).
-  await compile(page.request, `${IN_REVISION}/risks`);
+  // The risks, a screen of its own reached by a click, and the planning the page of the project
+  // leads to, compiled first (`e2e/compile.ts`).
+  await compile(page.request, `${IN_REVISION}/risks`, `${IN_REVISION}/planning`);
   await page.goto(`${IN_REVISION}/remaining`);
   await expect(banner(page).getByRole("definition")).toHaveText([
     "Modernisation du poste de commande",

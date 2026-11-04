@@ -24,10 +24,10 @@ import { setIdentitySyncSchedule } from "@/api/actions/users";
 import type { components } from "@/api/generated/schema";
 import { nextWeekday, WEEKDAYS } from "@/components/admin/schedule-days";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { WritingNote } from "@/components/commands/writing-note";
 import { useSaid } from "@/components/notices/said";
 import { Reactivations } from "@/components/reference/reactivation";
 import { type Draft, type FormField, ReferenceForm } from "@/components/reference/reference-form";
-import { WritingNote } from "@/components/commands/writing-note";
 import { Button } from "@/components/ui/button";
 import { localTimeOfDay } from "@/i18n/format";
 

@@ -15,7 +15,7 @@ import { openHydrated, WORKING } from "./hydration";
 // the pages (`page.test.tsx`, `screens.test.tsx`).
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 
-test("shows no encart on a project whose main structure bears its tasks, the server saying so [WF-PRJ-0030-A]", async ({
+test("leads a project with a revision in progress to its planning, where no encart is offered [WF-PRJ-0030-A]", async ({
   page,
 }) => {
   // `goto`, not `openHydrated`: the page leads elsewhere, and the probe of hydration would run on a

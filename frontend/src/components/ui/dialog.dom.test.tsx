@@ -46,6 +46,37 @@ describe("DialogContent", () => {
   });
 });
 
+describe("DialogContent, outside", () => {
+  it("scrolls to nothing a field outside the dialog takes the focus to [WF-IHM-0100-A]", async () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {
+      /* nothing to scroll in jsdom */
+    });
+    try {
+      render(
+        <>
+          <input aria-label="Outside field" />
+          {/* Not modal: the focus is free to leave the dialog, and stays where it goes. */}
+          <Dialog open modal={false}>
+            <DialogContent>
+              <DialogTitle>Form</DialogTitle>
+              <DialogDescription>Beside a field.</DialogDescription>
+              <input aria-label="Inside field" />
+            </DialogContent>
+          </Dialog>
+        </>,
+      );
+      await screen.findByRole("dialog");
+      const outside = document.querySelector<HTMLInputElement>('input[aria-label="Outside field"]');
+      scroll.mockClear();
+      outside?.focus();
+      expect(document.activeElement).toBe(outside);
+      expect(scroll).not.toHaveBeenCalled();
+    } finally {
+      scroll.mockRestore();
+    }
+  });
+});
+
 describe("AlertDialogContent", () => {
   it("says it is modal [WF-IHM-0100-A]", async () => {
     render(

@@ -33,13 +33,13 @@ import { type ComponentType, type ReactNode, useId, useRef, useState } from "rea
 import { setDurationUnits, updateReferenceSettings } from "@/api/actions/reference";
 import type { components } from "@/api/generated/schema";
 import { UNAVAILABLE } from "@/components/commands/offer";
+import { WritingNote } from "@/components/commands/writing-note";
 import { useSaid } from "@/components/notices/said";
 import { Button } from "@/components/ui/button";
 import { compareDecimals, editableDecimal, editablePercent, percentRatio } from "@/i18n/format";
 
 import { Reactivations } from "./reactivation";
 import { type Draft, type FormField, ReferenceForm, required } from "./reference-form";
-import { WritingNote } from "@/components/commands/writing-note";
 import {
   DurationUnitFigures,
   IndexThresholdTable,

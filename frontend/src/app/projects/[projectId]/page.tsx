@@ -5,8 +5,9 @@
  * revision, its screen is a way: the server leads to the revision the user works on — the one in
  * progress, else the reference, else the last one marked —, the reading context of the address and
  * its filters carried on (WF-IHM-0010); to the revisions, when that revision cannot be read by the
- * session, or when the project has revisions but none of those. A report of an import the address names (`import`) follows to the screen of the
- * exchanges of that revision, which shows it — unless it is the import that creates the first
+ * session, or when the project has revisions but none of those (the import the address names, if
+ * any, carried on). A report of an import the address names (`import`) follows to the screen of
+ * the exchanges of that revision, which shows it — unless it is the import that creates the first
  * revision, which stays here.
  *
  * A project without a revision keeps its screen: the banner of its reading context (WF-IHM-0020),
@@ -76,7 +77,7 @@ async function leadTo(
   const answer = await readRevision(context.projectId, revisionId);
   // A read the session may not make answers 404 (WF-ADM-0110): the contract lists no 403.
   if (answer?.response.status === 404) {
-    redirect(`${projectPath}/revisions${contextQuery(context, false)}`);
+    redirect(withImport(`${projectPath}/revisions${contextQuery(context, false)}`, shown));
   }
   const inRevision = { ...context, revisionId, revisionInPath: true };
   if (shown === undefined) {
@@ -87,12 +88,20 @@ async function leadTo(
       `${projectPath}/revisions/${revisionId}/exchanges`,
       inRevision,
     );
-    const separator = exchanges.includes("?") ? "&" : "?";
-    redirect(`${exchanges}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`);
+    redirect(withImport(exchanges, shown));
   }
 }
 
-/** Render a project without a revision, what it is and what starts it; lead to a revision otherwise. */
+/** The address, the report of the import the address names carried on, if it names one. */
+function withImport(address: string, shown: Awaited<ReturnType<typeof readShownImport>>): string {
+  if (shown === undefined) {
+    return address;
+  }
+  const separator = address.includes("?") ? "&" : "?";
+  return `${address}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`;
+}
+
+/** Render a project without a revision, what it is and what starts it; lead to a revision else. */
 export default async function ProjectPage(props: ProjectPageProps) {
   const [address, search] = await Promise.all([projectAddress(props), props.searchParams]);
   const [revisions, read, session, shown] = await Promise.all([
@@ -110,7 +119,9 @@ export default async function ProjectPage(props: ProjectPageProps) {
     await leadTo(opened, read.context, shown);
   } else if (revisions.length > 0) {
     // Revisions, but none in progress, of reference or marked: the way is their list.
-    redirect(contextAddress(`/projects/${address.projectId}/revisions`, read.context));
+    redirect(
+      withImport(contextAddress(`/projects/${address.projectId}/revisions`, read.context), shown),
+    );
   }
   const offers = importOffers(read.project);
   // Only a project without a revision shows its imports here.
@@ -118,7 +129,8 @@ export default async function ProjectPage(props: ProjectPageProps) {
     revisions.length === 0 ? await readMappingGap(offers, session?.permissions) : undefined;
   // The address of the screen without a report, its context kept.
   const start = contextAddress(address.pathname, read.context);
-  // The start of the planning: read at the server, from the revision in progress, which the list of the revisions carries whole (WF-PRJ-0030).
+  // The start of the planning: read at the server, from the revision in progress, which the list
+  // of the revisions carries whole (WF-PRJ-0030).
   const current = read.project.current_revision_id ?? undefined;
   const startable = startOffers(
     read.project,

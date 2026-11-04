@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 
 import { sortUntilAddress, WORKING } from "./hydration";
 import { rowAt, scroller, withinBox } from "./scroll";
+import { isServerAction } from "./server-action";
 
 /** The automation engineer, the deactivated role of the witness. */
 const AUTOMATION = "01926f3a-7c00-7000-8000-000000000453";
@@ -201,8 +202,7 @@ test("sorts and searches each list of the settings of the resources by the serve
   // the click.
   const reactivated = page.waitForResponse(
     (response) =>
-      response.request().method() === "POST" &&
-      response.request().headers()["next-action"] !== undefined &&
+      isServerAction(response.request()) &&
       (response.request().postData() ?? "").includes(AUTOMATION),
   );
   await roles.getByRole("button", { name: "Réactiver «\u00a0Automaticien\u00a0»" }).click();

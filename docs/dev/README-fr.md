@@ -543,8 +543,9 @@ risques active (`active_provision_category`) comprises, et mène aux paramètres
 refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
 `ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
 (WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
-sert sous les traits du témoin, tant que l'accueil est encore montré : une réponse arrivée après
-qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
+sert à son adresse, avec ses propres exemples — le projet « created », sans révision —, tant que
+l'accueil est encore montré : une réponse arrivée après qu'on l'a quitté ne remplace pas la
+navigation choisie. Une réponse arrivée après « Annuler », le
 dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
 succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
 taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
@@ -1403,11 +1404,12 @@ survit donc aux relectures — ; une création n'ajoute aucune ligne, la page re
 serveur la retient. Ce qu'une écriture a fait se dit dans la région de sa liste (« « Débours »
 désactivée. ») ; le refus d'une activation, au-dessus de la liste comme celui d'une réactivation
 (`useListReport`). Le faux back ne gardant rien, l'écran le dit
-sous son en-tête, pour qui écrit — la note tient en 150 signes avec celle des listes, et ne dit pas
-qu'une ligne écrite reste montrée telle que le serveur l'a rendue tant que l'écran reste ouvert —
-(`MockupNotice`, `components/shell/mockup-notice.tsx`, à reprendre
-par chaque écran de la maquette dont les commandes écrivent, retiré quand l'écran est branché sur le
-service de son EPIC). La saisie d'un taux reste celle de la grille.
+sous son en-tête, pour qui écrit — la note, avec celle des listes, tient en 150 signes au plus,
+pour que les totaux de grille restent dans la fenêtre, et ne dit pas qu'une ligne écrite reste
+montrée telle que le serveur l'a rendue tant que l'écran reste ouvert — (`MockupNotice`,
+`components/shell/mockup-notice.tsx`, à reprendre par chaque écran de la maquette dont les commandes
+écrivent, retiré quand l'écran est branché sur le service de son EPIC). La saisie d'un taux reste
+celle de la grille.
 
 La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
 `/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
@@ -1759,16 +1761,16 @@ des inscriptions de `listAuditEvents` sur la grille dense, en lecture seule (`au
 préférences sous la clé `audit_log`) : la date, en heure locale, l'auteur, l'action et, sous elle,
 ce qu'elle a fait à son objet — composé par le front dans la langue du lecteur à partir des codes et
 des paramètres que l'inscription garde (`AuditEvent.params`, `useAuditDetails`), l'API ne rendant
-aucune phrase (WF-ARC-0110) ; une seconde ligne de la cellule de l'action, qui se trie par le code
-de l'action, jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature et
-le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
+aucune phrase (WF-ARC-0110) ; une seconde ligne dans la cellule de l'action, qui se trie par le code
+de l'action — jamais une colonne à elle, que le serveur ne trierait pas (WF-IHM-0060) —, la nature
+et le libellé de l'objet — une sauvegarde, qui n'en a pas, par sa nature, jamais par son
 identifiant —, le projet et la corrélation, chacun tel que l'inscription le garde, et un lien vers
 l'histoire de l'objet — le journal filtré sur sa nature et son identifiant, toute son histoire :
 les autres filtres et la recherche levés, le tri gardé —, la corrélation menant de même aux
 inscriptions de sa seule requête. Le `title` de la cellule de l'action n'est posé que si le texte y
-est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne
-dit aussi une modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux sens.
-Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
+est tronqué, et il porte alors l'instant de la sauvegarde restaurée ; la seconde ligne dit aussi une
+modification de rôle sans changement. Le serveur trie sur chaque colonne (#550), dans les deux
+sens. Les plus récentes d'abord quand l'adresse ne dit rien, et le tri ne se lève jamais
 (`GridConfig.lifts`) : l'en-tête de la date demande d'abord le décroissant
 (`GridColumn.descendingFirst`), et ramène ainsi, depuis un autre tri, à l'ordre par défaut. Un objet
 ne mène à son écran propre que si la session lit sa fonction — les risques, le planning dont les
@@ -3319,7 +3321,10 @@ au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`s
 `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la
 fenêtre.
 
-`make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
+`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
+installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
+est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
+back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
@@ -3707,15 +3712,16 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
 - ce qu'un geste ouvre sans déclencheur que le harnais joue : le Popover d'un refus — d'une cellule
   calculée, ou d'une écriture refusée —, qui ne s'ouvre qu'une fois le serveur a refusé ; un menu
   ou un dialogue ouvert depuis un menu — le menu d'une cellule (Maj+F10), et les dialogues qu'il
-  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les dialogues qu'un geste ouvre
-  sans bouton — `TimelineForm` et `GestureDialog` de `structure-gestures.tsx` —, que le harnais ne
-  trouve pas faute de commande qui dise `aria-haspopup="dialog"` : le test
-  `dialog-command-guard.test.ts` fait échouer toute source qui rend un `<Dialog` piloté par un état
-  sans cette commande, hors de sa liste nommée (chaque entrée avec sa raison). Les tests
-  de composants les tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en
-  page ; le focus que Radix rend) ;
-- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule : l'audit
-  d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
+  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les
+  dialogues qu'un geste ouvre sans bouton — `TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx` —, que le harnais ne trouve pas faute de commande qui dise
+  `aria-haspopup="dialog"` : le test `dialog-command-guard.test.ts` les exempte de la règle et les
+  nomme (chaque entrée avec sa raison), et fait échouer toute autre source qui rend plus de
+  dialogues pilotés par un état que de commandes qui le disent. Les tests de composants les
+  tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en page ; le focus que
+  Radix rend) ;
+- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
+  l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
   atteint — un refus affiché, une adresse `?import=` — : le harnais ouvre chaque écran à son
   adresse, et n'y joue que les déclencheurs ;

@@ -242,6 +242,18 @@ describe("the screen of a project that has a revision leads to it", () => {
     );
   });
 
+  it("to the revisions with the import the address names, when none is open to receive its report [WF-IHM-0010-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      "GET /projects/{project_id}": "project_pricing",
+      "GET /projects/{project_id}/revisions": "revisions_project_created",
+    };
+    expect(await leadsTo({ import: IMPORT })).toBe(`${WITNESS}/revisions?import=${IMPORT}`);
+    expect(await leadsTo({ import: IMPORT, subproject_id: SUBPROJECT })).toBe(
+      `${WITNESS}/revisions?subproject_id=${SUBPROJECT}&import=${IMPORT}`,
+    );
+  });
+
   it("to the revision in progress, not to the one the address names, which the path replaces [WF-IHM-0010-A]", async () => {
     expect(await leadsTo({ revision_id: REFERENCE })).toBe(`${WITNESS}/revisions/${CURRENT}`);
   });
