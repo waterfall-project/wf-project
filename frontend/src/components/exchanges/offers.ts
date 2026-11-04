@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * What the screen of the imports and exports offers, which both its server and its client parts read: the
- * import and the export of each kind of file, as the server offers its command (WF-IHM-0090); what
- * an import still lets the user do, by its status; and the address of the report of an import.
+ * import and the export of each kind of file, as the server offers its command (WF-IHM-0090); and
+ * the address of the report of an import.
  *
  * An import is a command of the project — `import_planning`, `import_estimate`,
  * `import_remaining`, `import_actual_costs` —, offered with or without a current revision, which
@@ -20,7 +20,6 @@ import type { PagedList } from "@/navigation/pages";
 
 type ExchangeKind = components["schemas"]["ExchangeKind"];
 type ExportKind = components["schemas"]["ExportRequest"]["kind"];
-type ImportStatus = components["schemas"]["Import"]["status"];
 type ProjectCommand = components["schemas"]["ProjectCommand"];
 type RevisionCommand = components["schemas"]["RevisionCommand"];
 
@@ -123,25 +122,6 @@ export function exportOffers(revision: Revision | undefined): ExportOffers {
     task_tree_image: offer("task_tree_image"),
   };
 }
-
-/**
- * Whether an import, by its status, may still be applied — its report analysed, awaiting the
- * decision of the user — or abandoned — still open. Every status of the contract is named: one
- * the contract adds fails the type check until it is classified here. The import now lists these
- * two commands itself (`available_commands`, I-02), which the screen reads by #1791.
- */
-export const IMPORT_STEPS: Readonly<
-  Record<ImportStatus, { readonly apply: boolean; readonly abandon: boolean }>
-> = {
-  analysing: { apply: false, abandon: true },
-  analysed: { apply: true, abandon: true },
-  applying: { apply: false, abandon: false },
-  applied: { apply: false, abandon: false },
-  abandoned: { apply: false, abandon: false },
-  expired: { apply: false, abandon: false },
-  failed: { apply: false, abandon: false },
-  refused: { apply: false, abandon: false },
-};
 
 /** A mebibyte, in bytes. */
 export const MEBIBYTE = 1024 * 1024;

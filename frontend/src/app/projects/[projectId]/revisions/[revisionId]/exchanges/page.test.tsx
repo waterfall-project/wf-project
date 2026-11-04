@@ -318,14 +318,17 @@ describe("the screen of the imports and exports", () => {
     expect(planning).toContain("Kept Task Études de détail");
   });
 
-  it("says the analysis under way, without a report, still abandonable but not applicable", async () => {
+  it("says the analysis under way, without a report, abandonable, and its application listed unavailable [WF-IHM-0090-A]", async () => {
     server.answers = {
       ...server.answers,
       [GET_IMPORT]: { example: "import_analysing", status: 200 },
     };
     const page = await exchangesAt({ import: IMPORT });
     expect(text(page)).toContain("The file is being analysed.");
-    expect(buttons(page).slice(0, 2)).toEqual(["Help", "Abandon the import"]);
+    expect(buttons(page).slice(0, 3)).toEqual(["Help", "Apply the import", "Abandon the import"]);
+    expect(page).toMatch(
+      /<button[^>]*aria-disabled="true"[^>]*>(?:(?!<\/button>).)*Apply the import/s,
+    );
   });
 
   it("asks the page of the imports the address names, and leads to the pages around it", async () => {
