@@ -56,9 +56,9 @@ Ses règles sont dans le skill `pilote` (`.claude/skills/pilote/SKILL.md`). En b
   d'usage.
 - **« Pas avec ».** Le pilote ne lance jamais un lot dont un lot « pas avec » est commencé et
   non fusionné (`en cours`, `en revue`, `question`, `bloqué`), même quand leurs dépendances le
-  permettent : le cadreur marque
-  ainsi deux lots qu'aucune dépendance ne sépare et qui touchent un même fichier, pour que la
-  file de fusion n'ait pas à attraper tard un conflit que le plan savait.
+  permettent : le cadreur marque ainsi deux lots qu'aucune dépendance ne sépare et qui
+  touchent un même fichier, pour que la file de fusion n'ait pas à attraper tard un conflit
+  que le plan savait.
 - **Les questions.** Un livreur ne parle pas à l'utilisateur : une question bloquante devient
   un commentaire de l'issue du lot, et le lot passe `question` dans le tableau. Le pilote passe
   à un autre lot. Le jour, de 6 h à 20 h, il prévient l'utilisateur par une notification ; la

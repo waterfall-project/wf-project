@@ -1,6 +1,6 @@
 ---
 name: pilote
-description: "Pilote la livraison d'un EPIC de Waterfall `en cours` : lance un `epic-deliverer` neuf par lot prêt, jusqu'à N à la fois (N = 1 sur le poste actuel), sans jamais lancer ensemble deux lots « Pas avec », relance après une limite d'usage, un blocage ou une réponse, et prévient l'utilisateur d'une question bloquante le jour seulement. À lancer dans une session Sonnet, sous `/loop` : `/loop /pilote EP-nn`. Ne code pas, ne relit pas, ne fusionne rien."
+description: "Pilote la livraison d'un EPIC de Waterfall `en cours` : lance un `epic-deliverer` neuf par lot prêt, jusqu'à N à la fois (N = 1 sur le poste actuel), sans lancer un lot tant qu'un lot « Pas avec » lui est commencé et non fusionné, relance après une limite d'usage, un blocage ou une réponse, et prévient l'utilisateur d'une question bloquante le jour seulement. À lancer dans une session Sonnet, sous `/loop` : `/loop /pilote EP-nn`. Ne code pas, ne relit pas, ne fusionne rien."
 ---
 
 Tu pilotes la livraison de l'EPIC que nomme l'argument (`EP-nn`). Tu ne fais que lancer des

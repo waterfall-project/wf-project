@@ -150,8 +150,9 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | livré | EP-16 |
-| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | en cours | rien |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | livré | rien |
 | [EP-20](EP-20-migration-des-dependances.md) | Migration des dépendances | en cours | EP-19 |
+| [EP-21](EP-21-livreurs-en-parallele-suivi.md) | Livreurs en parallèle : suivi | à planifier | EP-19 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
@@ -200,7 +201,9 @@ sans suspendre le reste d'EP-17. EP-19 rend le dépôt et ses agents sûrs pour 
 service qu'il réécrit (décision de l'auteur du 2026-11-03). EP-20 porte la plateforme, ses environnements
 d'exécution et ses dépendances à leurs dernières versions stables, et en rend la veille
 régulière ; il vient après EP-19, dont il monte les épinglages, et avant EP-05, premier EPIC de
-domaine, qui se construit sur les versions cibles (décision de l'auteur du 2026-11-03).
+domaine, qui se construit sur les versions cibles (décision de l'auteur du 2026-11-03). EP-21
+reprend les constats d'outillage qu'EP-19 n'a pas pu corriger dans ses lots (décision de
+l'auteur du 2026-11-04) ; son rang se fixe à son cadrage.
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
@@ -301,8 +304,7 @@ plusieurs livreurs s'y réécriraient l'un l'autre. Il a deux parties :
   L1 l'est aussi avec L2 —, et le cadreur la remplit, au plan de lots, pour deux lots qu'aucune
   dépendance ne sépare et qui touchent un même fichier. Le pilote ne lance pas un lot dont un
   lot « pas avec » est commencé et non fusionné (`en cours`, `en revue`, `question`, `bloqué`),
-  même quand leurs dépendances le permettent. Le gabarit d'un lot a le
-  même champ ;
+  même quand leurs dépendances le permettent. Le gabarit d'un lot a le même champ ;
 - **Constats ouverts** : chaque constat qui n'est pas fermé, l'issue où il est rattaché, et
   sa décision.
 
