@@ -125,7 +125,7 @@ describe("the reading of the accounts", () => {
     ]);
     expect(within(tasks).getByText("Réussie")).toBeVisible();
     expect(screen.getByRole("log").textContent).toBe(
-      "Tâche terminée : Lecture des comptes du fournisseur d’identité.",
+      "Tâche terminée\u00A0: Lecture des comptes du fournisseur d’identité.",
     );
     // Its result is a report to read on the screen, not a file to download.
     expect(within(tasks).queryByRole("link", { name: /Télécharger/ })).toBeNull();
@@ -162,18 +162,18 @@ describe("the reading of the accounts", () => {
     expect(skipped).toEqual([
       [
         "Dominique BernardCompte Waterfall",
-        "Adresse : dominique.bernard@example.com",
+        "Adresse\u00A0: dominique.bernard@example.com",
         "Au moins un compte actif doit garder les permissions d’administration.",
       ],
       [
         "Hugo GarnierPersonne du fournisseur d’identité",
-        "Identifiant chez le fournisseur : 5b0c8e2a-3f6d-4a1e-9c47-2d8f1e6a7b90",
+        "Identifiant chez le fournisseur\u00A0: 5b0c8e2a-3f6d-4a1e-9c47-2d8f1e6a7b90",
         "Le fournisseur d’identité ne tient aucune adresse pour cette personne.",
       ],
       [
         "Personne du fournisseur d’identité",
         "Adresse portée par : Dominique Bernard",
-        "Identifiant chez le fournisseur : ef2f3c85-8bd7-4fec-bfa9-7f0a46f62620",
+        "Identifiant chez le fournisseur\u00A0: ef2f3c85-8bd7-4fec-bfa9-7f0a46f62620",
         "Cet élément existe déjà.",
       ],
     ]);
@@ -203,19 +203,19 @@ describe("the reading of the accounts", () => {
       ["Compte anonymiséCompte Waterfall", "Les données saisies ne sont pas valides."],
       [
         "Sans nom chez le fournisseurPersonne du fournisseur d’identité",
-        "Adresse : contact.chantier@example.com",
-        "Identifiant chez le fournisseur : 8e3f1c2a-6b4d-4f0e-a1c9-7d2e5b8f3a61",
+        "Adresse\u00A0: contact.chantier@example.com",
+        "Identifiant chez le fournisseur\u00A0: 8e3f1c2a-6b4d-4f0e-a1c9-7d2e5b8f3a61",
         "Les données saisies ne sont pas valides.",
       ],
       [
         "Personne du fournisseur d’identité",
         "Adresse portée par : Compte anonymisé",
-        "Identifiant chez le fournisseur : c47a2e9b-1d5f-4b8c-9e3a-6f0d2c8b5e14",
+        "Identifiant chez le fournisseur\u00A0: c47a2e9b-1d5f-4b8c-9e3a-6f0d2c8b5e14",
         "Cet élément existe déjà.",
       ],
       [
         "Personne du fournisseur d’identité",
-        "Identifiant chez le fournisseur : 2f9d6b1e-8a3c-4e7f-b5d2-9c1a4e6f8b03",
+        "Identifiant chez le fournisseur\u00A0: 2f9d6b1e-8a3c-4e7f-b5d2-9c1a4e6f8b03",
         "Cet élément existe déjà.",
       ],
     ]);

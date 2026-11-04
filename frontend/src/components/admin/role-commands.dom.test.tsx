@@ -128,7 +128,7 @@ describe("the creation of a role in line", () => {
     );
     await userEvent.type(label, "CG{Enter}");
     await waitFor(() => {
-      expect(told().textContent).toBe("« Contrôle de gestion » créé.");
+      expect(told().textContent).toBe("«\u00A0Contrôle de gestion\u00A0» créé.");
     });
     expect(busyWhenTold.stop()).toEqual(["false"]);
     expect(label).toHaveValue("");
@@ -146,7 +146,7 @@ describe("the creation of a role in line", () => {
     await userEvent.type(label, "CG{Enter}D");
     answer.release();
     await waitFor(() => {
-      expect(told().textContent).toBe("« Contrôle de gestion » créé.");
+      expect(told().textContent).toBe("«\u00A0Contrôle de gestion\u00A0» créé.");
     });
     expect(label).toHaveValue("CGD");
   });
@@ -320,7 +320,7 @@ describe("the renaming of a role in its cell", () => {
     });
     await userEvent.click(
       await screen.findByRole("checkbox", {
-        name: "« Modifier la planification » pour « Responsable d'équipe »",
+        name: "«\u00A0Modifier la planification\u00A0» pour «\u00A0Responsable d'équipe\u00A0»",
       }),
     );
     await waitFor(() => {
@@ -380,7 +380,7 @@ describe("the renaming of a role in its cell", () => {
     expect(within(matrix).queryByRole("columnheader", { name: "Manager" })).toBeNull();
     expect(
       within(matrix).getByRole("checkbox", {
-        name: "« Modifier la planification » pour « Responsable d'équipe »",
+        name: "«\u00A0Modifier la planification\u00A0» pour «\u00A0Responsable d'équipe\u00A0»",
       }),
     ).toBeInTheDocument();
     expect(within(matrix).queryByRole("checkbox", { name: /Manager/ })).toBeNull();

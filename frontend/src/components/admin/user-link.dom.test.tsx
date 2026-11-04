@@ -72,11 +72,11 @@ describe("the link to set the password", () => {
     });
     render(accounts());
     const command = within(grid()).getByRole("button", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
+      name: "Lien de fixation du mot de passe de «\u00A0Camille Martin\u00A0»",
     });
     await userEvent.click(command);
     const dialog = await screen.findByRole("dialog", {
-      name: "Lien de fixation du mot de passe de « Camille Martin »",
+      name: "Lien de fixation du mot de passe de «\u00A0Camille Martin\u00A0»",
     });
     const link = (example("password_setup_link") as Schemas["PasswordSetupLink"]).url;
     const field = within(dialog).getByRole("textbox", { name: "Lien" });

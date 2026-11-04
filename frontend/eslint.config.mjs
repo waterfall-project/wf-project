@@ -413,6 +413,15 @@ export default defineConfig([
     },
   },
   {
+    // A non-breaking space written as itself is invisible in a test, and an expectation with one
+    // cannot be told from one with an ordinary space: a test writes it as its escape, and the
+    // rule, which skips strings by default, reads strings and templates too (#905).
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "no-irregular-whitespace": ["error", { skipStrings: false, skipTemplates: false }],
+    },
+  },
+  {
     // Configuration files are not part of the TypeScript project.
     files: ["**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],

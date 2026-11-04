@@ -462,7 +462,7 @@ describe("the report of an import", () => {
     });
     const { container } = open(report(example("import_analysed") as Import));
     const section = screen.getByRole("region", {
-      name: "Compte rendu de l’import « devis-avenant-2-reprise-des-essais.xlsx »",
+      name: "Compte rendu de l’import «\u00A0devis-avenant-2-reprise-des-essais.xlsx\u00A0»",
     });
     const rejected = within(section).getByRole("table", { name: "Lignes rejetées" });
     expect(
@@ -856,7 +856,7 @@ describe("the request of an export", () => {
     ]);
     await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
     const download = await within(tasksRegion()).findByRole("link", {
-      name: "Télécharger le résultat : Export « Devis »",
+      name: "Télécharger le résultat\u00A0: Export «\u00A0Devis\u00A0»",
     });
     expect(download.getAttribute("href")).toMatch(
       /^\/tasks\/01926f3a-7c00-7000-8000-000000000935\/result\?from=/,

@@ -527,7 +527,7 @@ describe("the outcome of a command", () => {
     french(available(() => Promise.resolve({ kind: "unreachable" })));
     await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
     expect((await screen.findByRole("alert")).textContent).toBe(
-      "Le service est injoignable ; réessayez dans un instant.",
+      "Le service est injoignable\u202F; réessayez dans un instant.",
     );
   });
 

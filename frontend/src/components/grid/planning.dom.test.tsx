@@ -47,7 +47,7 @@ const STRUCTURE = {
   revision_id: "01926f3a-7c00-7000-8000-000000000102",
   structure_id: "01926f3a-7c00-7000-8000-000000000201",
 };
-const NBSP = " ";
+const NBSP = "\u00A0";
 const planning = example("nodes_planning") as NodeList;
 // The float of the design file, which has no successor: to the end of the whole structure, as
 // the example says it (#400) — the core incrusted in the thousand tasks, it follows them (#376).

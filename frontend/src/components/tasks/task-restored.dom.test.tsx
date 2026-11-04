@@ -73,7 +73,7 @@ describe("a task found again after a reload", () => {
     for (let read = 0; read < 2; read += 1) {
       await act(() => vi.advanceTimersByTimeAsync(POLL_INTERVAL));
       expect(bar).toHaveAttribute("aria-valuenow", "40");
-      expect(progressText()).toBe("40 %");
+      expect(progressText()).toBe("40\u202F%");
     }
   });
 });

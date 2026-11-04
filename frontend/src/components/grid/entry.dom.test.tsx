@@ -574,7 +574,7 @@ describe("the keyboard of a grid", () => {
     const field = screen.getByRole("textbox", { name: "Charge (h)" });
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription(
-      "Ce n’est pas un nombre : saisissez-le comme 1 234,5.",
+      "Ce n’est pas un nombre : saisissez-le comme 1\u202F234,5.",
     );
     expect(written(client)).toEqual([]);
     await expectAccessible(document.body);

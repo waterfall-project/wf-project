@@ -70,7 +70,7 @@ describe("the line under the bar", () => {
     await userEvent.keyboard("{Enter}");
     expect(screen.queryByText(line)).toBeNull();
     expect(tasksButton()).toHaveFocus();
-    expect(tasksButton()).toHaveAccessibleName("Tâches et messages : 1 tâche suivie");
+    expect(tasksButton()).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
   });
 
   it("is replaced by the next task, once closed as before", async () => {
@@ -105,7 +105,7 @@ describe("the line under the bar", () => {
       await userEvent.keyboard("{Enter}");
       expect(screen.queryByRole("button", { name: "Fermer la ligne de la tâche" })).toBeNull();
       expect(tasksButton()).toHaveFocus();
-      expect(tasksButton()).toHaveAccessibleName("Tâches et messages : 1 tâche suivie");
+      expect(tasksButton()).toHaveAccessibleName("Tâches et messages\u00A0: 1 tâche suivie");
       expect(within(tasksRegion()).getByText("Réussie")).toBeVisible();
     });
   });

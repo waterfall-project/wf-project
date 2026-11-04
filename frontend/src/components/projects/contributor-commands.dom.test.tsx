@@ -325,7 +325,7 @@ describe("the modification of the contributors of a project", () => {
       expect(capacity).toHaveFocus();
     });
     expect(capacity).toHaveAttribute("aria-invalid", "true");
-    expect(capacity).toHaveAccessibleDescription("Alix Moreau : Ce compte est désactivé.");
+    expect(capacity).toHaveAccessibleDescription("Alix Moreau\u00A0: Ce compte est désactivé.");
     // What points at no row is told under the form, without the row said already.
     const alert = within(form).getByRole("alert");
     expect(alert).toHaveTextContent("Les données saisies ne sont pas valides.");
@@ -358,10 +358,10 @@ describe("the modification of the contributors of a project", () => {
     await vi.waitFor(() => {
       expect(alix).toHaveFocus();
     });
-    expect(alix).toHaveAccessibleDescription("Alix Moreau : Ce compte est désactivé.");
+    expect(alix).toHaveAccessibleDescription("Alix Moreau\u00A0: Ce compte est désactivé.");
     expect(
       within(form).getByRole("combobox", { name: "Qualité de Sacha Lefèvre" }),
-    ).toHaveAccessibleDescription("Sacha Lefèvre : Compte inconnu.");
+    ).toHaveAccessibleDescription("Sacha Lefèvre\u00A0: Compte inconnu.");
     expect(within(form).queryByRole("alert")).toBeNull();
     // Said at its rows alone, noted all the same, once.
     expect(readMessages().messages).toEqual([
@@ -521,7 +521,7 @@ describe("the modification of the contributors of a project", () => {
     render(list({ is_available: false, missing_conditions: ["is_project_manager"] }));
     const command = screen.getByRole("button", { name: "Modifier les contributeurs" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie : être chef de projet.");
+    expect(command).toHaveAccessibleDescription("Condition non remplie\u00A0: être chef de projet.");
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
   });

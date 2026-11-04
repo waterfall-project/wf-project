@@ -13,9 +13,7 @@
  * being the history's, on the marked revision; the preparation of an amendment (`create_structure`),
  * which leads to its differential; the merge of an amendment (`merge_structure`) is its grid's, the
  * revision not saying which of its amendments it is about (US-0510); the declaration of a risk,
- * which leads to the screen of the risks of the revision, where it is identified (#1438). The other
- * commands of a revision come with the forms of their domain, which hand each command its server
- * action; until then a command is shown, and pressing it does nothing. The exports of a revision are the
+ * which leads to the screen of the risks of the revision, where it is identified (#1438). The exports of a revision are the
  * screen of the imports and exports' to offer, where they are asked (`ExportForm`): the list of
  * the commands of a revision leaves them out. So does it the commands a screen of the revision
  * offers itself: its entries, which each grid takes as the revision lists them (`edit_planning`,
@@ -183,7 +181,6 @@ function RevisionCommandItem({
   readonly name: string;
   readonly names: Readonly<Record<string, string>>;
 }) {
-  const t = useTranslations();
   if (offer.command === "mark") {
     return <MarkCommand offer={offer} revision={revision} names={names} />;
   }
@@ -210,19 +207,7 @@ function RevisionCommandItem({
       />
     );
   }
-  if (offer.command === "declare_risk") {
-    return <DeclareRiskCommand offer={offer} context={context} names={names} name={name} />;
-  }
-  return (
-    <Command
-      offer={offer}
-      label={t(`enums.RevisionCommand.${offer.command}`)}
-      help={t(`commands.revision.${offer.command}.help`)}
-      icon={commandIcon(REVISION_COMMAND_ICONS[offer.command])}
-      names={names}
-      subject={name}
-    />
-  );
+  return <DeclareRiskCommand offer={offer} context={context} names={names} name={name} />;
 }
 
 /**

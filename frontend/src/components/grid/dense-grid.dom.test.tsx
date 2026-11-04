@@ -892,12 +892,12 @@ describe("the figures and the dates of a grid, in the language of the interface"
       "",
       "1",
       "",
-      "1 234,56",
+      "1\u202F234,56",
       "Poste de commande",
       "30",
       "",
-      "1 234,56",
-      "1 234,56",
+      "1\u202F234,56",
+      "1\u202F234,56",
     ]);
     expect(english.row).toEqual([
       numberOf("Borniers"),

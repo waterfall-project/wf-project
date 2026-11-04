@@ -37,7 +37,7 @@ const SUBPROJECT = "01926f3a-7c00-7000-8000-000000000801";
 const MAIN = "01926f3a-7c00-7000-8000-000000000201";
 const AMENDMENT = "01926f3a-7c00-7000-8000-000000000203";
 // The French catalogue sets a no-break space inside quotes.
-const NB = " ";
+const NB = "\u00A0";
 
 type CostStructure = components["schemas"]["CostStructure"];
 

@@ -219,7 +219,7 @@ describe("a value of a grid the server computes", () => {
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
+        "Montant (année de réf.) ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
         "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       ],
       rows: [],
@@ -242,9 +242,9 @@ describe("a value of a grid the server computes", () => {
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Fin ne se saisit pas : Waterfall calcule cette valeur.",
+        "Fin ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
         "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
-        "Elle dépend de :",
+        "Elle dépend de\u00A0:",
       ],
       rows: [
         "2Études de détail",
@@ -257,7 +257,7 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client)).toEqual([
       [`${STRUCTURE_PATH}/nodes/${studiesId}/dependencies`, "task.finish"],
     ]);
-    expect(within(refusal()).getByRole("list", { name: "Elle dépend de :" })).toBeInTheDocument();
+    expect(within(refusal()).getByRole("list", { name: "Elle dépend de\u00A0:" })).toBeInTheDocument();
     expect(cell("Études", FINISH)).toHaveAttribute("aria-expanded", "true");
     await expectAccessible(document.body);
   });
@@ -426,7 +426,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell(provision, HOURS)).not.toHaveAttribute("aria-haspopup");
     await userEvent.click(cell(provision, QUANTITY));
     expect((await said()).paragraphs.slice(1)).toEqual([
-      "Qté ne se saisit pas : Waterfall calcule cette valeur.",
+      "Qté ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
@@ -444,7 +444,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell("Borniers", CATEGORY)).not.toHaveAttribute("aria-haspopup");
     await userEvent.click(labour);
     expect((await said()).paragraphs.slice(1, 3)).toEqual([
-      "Catégorie ne se saisit pas : Waterfall calcule cette valeur.",
+      "Catégorie ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Le rôle d’une ligne de main-d’œuvre détermine sa catégorie de coût.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.cost_category_id"]);
@@ -464,7 +464,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell("Raccordement des borniers", SUBPROJECT)).toHaveClass("bg-background");
     await userEvent.click(provision);
     expect((await said()).paragraphs[1]).toBe(
-      "Sous-projet ne se saisit pas : Waterfall calcule cette valeur.",
+      "Sous-projet ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
     );
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.subproject_id"]);
   });
@@ -486,7 +486,7 @@ describe("a value of a grid the server computes", () => {
     renderGrid("planning");
     await userEvent.click(cell("Pupitres opérateurs", FLOAT));
     expect((await said()).paragraphs.slice(1)).toEqual([
-      "Marge ne se saisit pas : Waterfall calcule cette valeur.",
+      "Marge ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Une tâche en mode manuel ne porte pas de marge.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["task.total_float"]);
@@ -550,7 +550,7 @@ describe("a value of a grid the server computes", () => {
     await userEvent.click(cell("Borniers", REFERENCE));
     expect([...refusal().querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
-      "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
+      "Montant (année de réf.) ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
     ]);
   });
 

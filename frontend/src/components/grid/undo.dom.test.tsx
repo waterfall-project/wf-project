@@ -44,9 +44,9 @@ const STRUCTURE = {
 };
 const REASON = "Indisponibles tant que le serveur ne conserve pas l’historique des saisies.";
 const TOLD_UNDO =
-  "Annuler est indisponible : le serveur ne conserve pas encore l’historique des saisies.";
+  "Annuler est indisponible\u00A0: le serveur ne conserve pas encore l’historique des saisies.";
 const TOLD_REDO =
-  "Rétablir est indisponible : le serveur ne conserve pas encore l’historique des saisies.";
+  "Rétablir est indisponible\u00A0: le serveur ne conserve pas encore l’historique des saisies.";
 
 /** A part of the screen, in a language. */
 function inLanguage(children: ReactNode, locale: Locale = "fr") {

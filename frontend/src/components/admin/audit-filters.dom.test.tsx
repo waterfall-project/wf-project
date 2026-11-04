@@ -157,9 +157,9 @@ describe("the filter of a table on the author of an audit column", () => {
     const client = serve({ "GET /users": "users_search" });
     render(accounts());
     // Each search its own form, named by the column it finds an author for.
-    const search = screen.getByRole("form", { name: "Chercher un compte pour « Modifié par »" });
+    const search = screen.getByRole("form", { name: "Chercher un compte pour «\u00A0Modifié par\u00A0»" });
     await userEvent.type(
-      within(search).getByRole("searchbox", { name: "Chercher un compte pour « Modifié par »" }),
+      within(search).getByRole("searchbox", { name: "Chercher un compte pour «\u00A0Modifié par\u00A0»" }),
       "ines roux",
     );
     // Whether the search was still held in the commit that told the accounts found: the request
@@ -172,7 +172,7 @@ describe("the filter of a table on the author of an audit column", () => {
     );
     await userEvent.click(button);
     expect((await screen.findByText(/^1 compte trouvé/)).textContent).toBe(
-      "1 compte trouvé, à choisir dans « Modifié par ».",
+      "1 compte trouvé, à choisir dans «\u00A0Modifié par\u00A0».",
     );
     expect(heldWhenTold.stop()).toEqual(["free"]);
     expect(client.calls.find(({ route }) => route === "GET /users")?.query.toString()).toBe(
@@ -188,7 +188,7 @@ describe("the filter of a table on the author of an audit column", () => {
     serve({ "GET /users": { problem: { code: "COMPONENT_UNAVAILABLE", status: 503 } } });
     render(accounts());
     await userEvent.type(
-      screen.getByRole("searchbox", { name: "Chercher un compte pour « Créé par »" }),
+      screen.getByRole("searchbox", { name: "Chercher un compte pour «\u00A0Créé par\u00A0»" }),
       "Mor{Enter}",
     );
     expect(await screen.findByRole("alert")).toBeInTheDocument();
