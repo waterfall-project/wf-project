@@ -111,7 +111,9 @@ Un composant serveur ne prend pas d'identifiant de `useId` : il nomme une sectio
 Un module serveur — une page de `src/app`, un module sans directive, une action `"use server"` —
 n'importe d'un module `"use client"` que des composants et des types : toute autre valeur, une
 constante, une fonction, y arrive en référence au client (défaut n° 12). Ce que les deux côtés
-lisent vit dans un module sans directive.
+lisent vit dans un module sans directive. La directive d'un utilitaire de test (`src/test/held-link.ts`)
+n'a d'effet que sur ces gardes d'import : Vitest ne sépare pas les deux mondes, et elle dit seulement
+que le module est celui du navigateur, que les tests du projet `dom` importent seuls.
 
 *Pourquoi* : moins de code envoyé au navigateur, et une seule source pour chaque donnée :
 la réponse de l'API. Et les identifiants que React donne aux composants serveur d'une page et aux

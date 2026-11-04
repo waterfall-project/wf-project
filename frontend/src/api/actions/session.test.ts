@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type ApiClient, createApiClient } from "@/api/client";
 import { createIdentityProvider } from "@/session/provider";
 import { FRONT_CLIENT } from "@/session/settings";
-import { closeStore, openSession, readSession, takeSignOut } from "@/session/store";
+import { armSignOut, closeStore, openSession, readSession, takeSignOut } from "@/session/store";
 import { requestBearer, SESSION_COOKIE, SessionLost } from "@/session/tokens";
 import {
   example,
@@ -36,6 +36,13 @@ vi.mock("@/session/provider", async (original) => ({
   ...(await original<typeof import("@/session/provider")>()),
   identityProvider: () => createIdentityProvider(TEST_SETTINGS),
 }));
+
+// The arming of a ticket of sign-out, spied: the Redis of the tests is shared by the files that run
+// together, so that "no key written" is read from the call that writes it, not from a listing.
+vi.mock("@/session/store", async (original) => {
+  const actual = await original<typeof import("@/session/store")>();
+  return { ...actual, armSignOut: vi.fn(actual.armSignOut) };
+});
 
 withTestRedis();
 
@@ -190,7 +197,10 @@ describe("the server action of the session", () => {
       bearer: () => Promise.reject(new SessionLost()),
       fetch: () => Promise.resolve(new Response(null, { status: 204 })),
     });
+    vi.mocked(armSignOut).mockClear();
     expect(await signOut()).toEqual(TO_SIGN_IN);
+    // No ticket `wf:sign-out:*` is written to Redis.
+    expect(armSignOut).not.toHaveBeenCalled();
   });
 
   it("touches no session of the front on the fake back, which grants its own", async () => {
