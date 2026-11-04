@@ -17,7 +17,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { type ReactElement, type Ref, useId, useState } from "react";
 
 import type { Outcome } from "@/api/problem";
-import { WritingNote } from "./writing-note";
 import { Button } from "@/components/ui/button";
 import { formatLocale } from "@/i18n/format";
 
@@ -25,6 +24,7 @@ import { CommandTooltip } from "./command-tooltip";
 import { useHeldCommand } from "./held";
 import { type CommandOffer, UNAVAILABLE, unmetId } from "./offer";
 import { type ObjectNames, OutcomeNotice } from "./outcome-notice";
+import { WritingNote } from "./writing-note";
 
 /** A command, what it is called, and what it does. */
 export interface CommandProps {
@@ -136,7 +136,7 @@ export function Command({
   const why = `${id}-writing`;
   const waiting = busy || writing;
   // Both the note of the write under way and the unmet condition describe the command, when both are said.
-  const describedBy = writing ? [why, unmet].filter((id) => id !== undefined).join(" ") : unmet;
+  const describedBy = writing ? [why, unmet].filter((part) => part !== undefined).join(" ") : unmet;
   const run = () => {
     if (!offer.is_available || waiting) {
       return;

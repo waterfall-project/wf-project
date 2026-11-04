@@ -88,9 +88,17 @@ async function leadTo(
       `${projectPath}/revisions/${revisionId}/exchanges`,
       inRevision,
     );
-    const separator = exchanges.includes("?") ? "&" : "?";
-    redirect(`${exchanges}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`);
+    redirect(withImport(exchanges, shown));
   }
+}
+
+/** The address, the report of the import the address names carried on, if it names one. */
+function withImport(address: string, shown: Awaited<ReturnType<typeof readShownImport>>): string {
+  if (shown === undefined) {
+    return address;
+  }
+  const separator = address.includes("?") ? "&" : "?";
+  return `${address}${separator}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`;
 }
 
 /** Render a project without a revision, what it is and what starts it; lead to a revision else. */
@@ -111,11 +119,8 @@ export default async function ProjectPage(props: ProjectPageProps) {
     await leadTo(opened, read.context, shown);
   } else if (revisions.length > 0) {
     // Revisions, but none in progress, of reference or marked: the way is their list.
-    const list = contextAddress(`/projects/${address.projectId}/revisions`, read.context);
     redirect(
-      shown === undefined
-        ? list
-        : `${list}${list.includes("?") ? "&" : "?"}${IMPORT_PARAMETER}=${encodeURIComponent(shown.import_id)}`,
+      withImport(contextAddress(`/projects/${address.projectId}/revisions`, read.context), shown),
     );
   }
   const offers = importOffers(read.project);

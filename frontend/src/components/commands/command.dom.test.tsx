@@ -177,6 +177,24 @@ describe("a command of a screen", () => {
     );
   });
 
+  it("is described by the note of the write under way and by the conditions it lacks, both elements shown", () => {
+    french(
+      <Command
+        offer={{ is_available: false, missing_conditions: ["project_in_progress"] }}
+        label="Terminer le projet"
+        help="Ce que la commande fait."
+        icon={commandIcon(PROJECT_COMMAND_ICONS.complete)}
+        writing
+      />,
+    );
+    const complete = screen.getByRole("button", { name: "Terminer le projet" });
+    const ids = (complete.getAttribute("aria-describedby") ?? "").split(" ");
+    expect(ids).toHaveLength(2);
+    const described = ids.map((id) => document.getElementById(id)?.textContent);
+    expect(described[0]).toMatch(/\S/);
+    expect(described[1]).toContain("projet en cours");
+  });
+
   it("does nothing when pressed unavailable: the server is not asked", async () => {
     const action = vi.fn(() => Promise.resolve<Outcome<unknown>>({ kind: "done", data: null }));
     french(
