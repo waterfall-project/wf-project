@@ -32,7 +32,7 @@ describe("the states of the home", () => {
     },
   );
 
-  it("tells the states by default from any other choice", () => {
+  it("tells the states by default from any other choice (WF-IHM-0130)", () => {
     expect(isDefaultStates(["in_progress", "pricing", "created"])).toBe(true);
     expect(isDefaultStates(["in_progress", "pricing"])).toBe(false);
     expect(isDefaultStates(["pricing"])).toBe(false);
