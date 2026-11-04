@@ -3301,7 +3301,9 @@ beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
 viewport.
 
-`make e2e`: Playwright starts the fake back (`make mock`) and the front, plays the paths
+`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by
+`npx` counted in the 120 s Playwright gives the fake back, #1901); Playwright starts the fake back
+(`make mock`) and the front, plays the paths
 in Chromium, then stops both — it signals their whole process group, without which
 the servers that `make` and `pnpm` start would survive. It always starts its own
 servers, on ports of its own — 4110 for the fake back, 3100 for the front —, never those of

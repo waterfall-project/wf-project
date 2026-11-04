@@ -55,7 +55,7 @@ PRISM   := npx --yes @stoplight/prism-cli@$(PRISM_VERSION)
 
 .DEFAULT_GOAL := help
 .PHONY: help build-doc build-doc-strict build-openapi lint-openapi inventory allocate-pbs mock \
-	mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
+	mock-tools mock-spec mock-data mock-data-up-to-date dev dev-down lint-compose service-up service-install service-logs service-down migrate \
 	build-keycloak build-cache test-keycloak check-keycloak keycloak-authority e2e-service check-service images \
 	production-trial check-production \
 	test-tools lint-tools typecheck-tools sources fixtures check-fixtures requirements \
@@ -119,6 +119,13 @@ inventory: ## Regenerate the endpoint inventory and the requirement coverage
 
 allocate-pbs: ## Write the PBS field of every requirement into the Word document
 	@python3 $(SPEC)/tools/allocate_pbs.py
+
+# The pinned tools of the fake back, fetched once before the harness starts it: left to `npx` at
+# the first `make mock`, their installation counted in the 120 s Playwright gives the fake back
+# (`webServer`), which a slow network used up in the chain (#1901).
+mock-tools: ## Fetch the pinned Redocly and Prism into the cache of npx, so that the fake back starts at once
+	@$(REDOCLY) --version >/dev/null
+	@$(PRISM) --version >/dev/null
 
 mock-spec: lint-openapi ## Derive from the contract the variant the fake back serves
 	@mkdir -p $(dir $(MOCK_SPEC))
@@ -475,7 +482,7 @@ e2e-build = $(if $(filter 1,$(E2E_BUILT) $(1)),,build-front)
 e2e: export E2E_PART = $(if $(SHARD),paths)
 e2e: export E2E_BUILT = 1
 e2e: export E2E_WORKERS = $(WORKERS)
-e2e: install-front $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
+e2e: install-front mock-tools $(call e2e-build,$(E2E_DEV_SERVER)) ## End-to-end paths, against the fake back that Playwright starts (US-0080), on the front built for production; SHARD=i/N plays the i-th of N parts of them, without the measure; WORKERS=n plays them on n workers; TESTS=<file> plays one file; E2E_DEV_SERVER=1 plays them against next dev, on a workstation
 	@$(PNPM_HEAVY) exec playwright test $(if $(SHARD),--shard=$(SHARD)) $(TESTS)
 
 e2e-measure: export E2E_PART = measure

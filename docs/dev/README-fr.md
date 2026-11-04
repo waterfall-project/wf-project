@@ -3319,7 +3319,9 @@ au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`s
 `frontend/e2e/scroll.ts`) plutôt que de compter sur la marge que la grille rend autour de la
 fenêtre.
 
-`make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
+`make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
+installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) ;
+Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
