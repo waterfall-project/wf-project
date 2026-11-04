@@ -470,11 +470,15 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   // Asked on a refusal alone: a reading context that fails is said by the reading itself.
   const needed = () =>
     context.then((read) => read !== "not_found" && grid.needsBreakdown?.(read) === true);
-  // The risks occurred are listed first: the nodes are asked for a risk of the list alone.
+  // The nodes are asked for a risk of the list of the risks occurred alone: they wait for that
+  // list when the address names a risk, and only then (#1955). With no filter, or the filter on
+  // any risk, the two are read together.
   const occurred = grid.byOrigin === true ? readOccurredRisks(at) : undefined;
-  const requested = (occurred ?? Promise.resolve(undefined)).then((risks) =>
-    grid.byOrigin === true ? retainedOrigin(readOriginFilter(at.address), risks) : undefined,
-  );
+  const named = grid.byOrigin === true ? readOriginFilter(at.address) : undefined;
+  const requested: Promise<OriginFilter | undefined> =
+    named?.kind === "risk"
+      ? (occurred ?? Promise.resolve(undefined)).then((risks) => retainedOrigin(named, risks))
+      : Promise.resolve(named);
   const [structure, reading, preferences, query, items, risks] = await Promise.all([
     readStructureNodes(at, grid, breakdownFilter, requested, asked),
     context,
