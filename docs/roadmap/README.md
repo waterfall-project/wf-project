@@ -151,7 +151,7 @@ EP-08, the three hundred projects in EP-13, which closes. Four rules, which each
 | [EP-16](EP-16-maquette-durcissement.md) | Mockup and contract: hardening | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Mockup: finishing touches and accessibility | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Accounts: findings of the contract review | livré | EP-16 |
-| [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | en cours | rien |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Deliverers in parallel | livré | rien |
 | [EP-20](EP-20-migration-des-dependances.md) | Migration of the dependencies | en cours | EP-19 |
 | [EP-05](EP-05-referentiel.md) | Reference data of the company | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projects, revisions and life cycle | prêt | EP-05 |

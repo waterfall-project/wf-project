@@ -150,7 +150,7 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-16](EP-16-maquette-durcissement.md) | Maquette et contrat : durcissement | livré | EP-15 |
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | livré | EP-16 |
-| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | en cours | rien |
+| [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | livré | rien |
 | [EP-20](EP-20-migration-des-dependances.md) | Migration des dépendances | en cours | EP-19 |
 | [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |

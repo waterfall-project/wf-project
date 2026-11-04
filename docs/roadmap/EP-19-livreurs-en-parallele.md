@@ -1,7 +1,7 @@
 ---
 id: EP-19
 titre: Rendre le dépôt et ses agents sûrs pour plusieurs livreurs à la fois sur un même poste
-statut: en cours
+statut: livré
 depend_de: rien
 famille: plateforme
 issue: 1881
