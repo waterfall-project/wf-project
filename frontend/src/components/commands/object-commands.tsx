@@ -133,7 +133,7 @@ function DeclareRiskCommand({
   name,
 }: {
   readonly offer: Revision["available_commands"][number];
-  readonly context: ProjectContext | undefined;
+  readonly context: ProjectContext;
   readonly names: Readonly<Record<string, string>>;
   readonly name: string;
 }) {
@@ -176,7 +176,7 @@ function RevisionCommandItem({
   readonly offer: Revision["available_commands"][number] & {
     readonly command: Exclude<RevisionCommand, OfferedElsewhere>;
   };
-  readonly context: ProjectContext | undefined;
+  readonly context: ProjectContext;
   readonly revision: Revision;
   readonly name: string;
   readonly names: Readonly<Record<string, string>>;
@@ -223,7 +223,7 @@ export function RevisionCommands({
   readonly revision: Revision | undefined;
   readonly project?: Project | undefined;
   /** The reading context, which the commands that lead to a screen of the revision keep. */
-  readonly context?: ProjectContext | undefined;
+  readonly context: ProjectContext;
 }) {
   const t = useTranslations();
   const create =
