@@ -88,6 +88,34 @@ def test_a_volume_16_is_refused_naming_the_versions_and_the_remedy(tmp_path: Pat
     assert done.stderr.rstrip().endswith(REMEDY)
 
 
+def test_a_root_and_an_18_docker_together_are_refused(tmp_path: Path) -> None:
+    """US-1130: a PG_VERSION at the root is refused though 18/docker/PG_VERSION is there too."""
+    data(tmp_path, ".", "16")
+    data(tmp_path, "18/docker", "18")
+    done = control(tmp_path)
+    assert done.returncode == 1
+    assert f"PostgreSQL 16, at {tmp_path}/PG_VERSION" in done.stderr
+    assert done.stderr.rstrip().endswith(REMEDY)
+
+
+def test_a_version_empty_or_unreadable_is_refused_all_the_same(tmp_path: Path) -> None:
+    """US-1130: an empty PG_VERSION, or a directory, still names the versions and the remedy.
+
+    The refusal is owed whatever the file says: `set -eu` must not end the script on `cat` alone.
+    """
+    (tmp_path / "PG_VERSION").write_text("")
+    empty = control(tmp_path)
+    (tmp_path / "PG_VERSION").unlink()
+    (tmp_path / "PG_VERSION").mkdir()
+    directory = control(tmp_path)
+    for done in (empty, directory):
+        assert done.returncode == 1
+        assert done.stdout == ""
+        assert "PostgreSQL unknown (PG_VERSION is empty or unreadable), at " in done.stderr
+        assert "runs PostgreSQL 18" in done.stderr
+        assert done.stderr.rstrip().endswith(REMEDY)
+
+
 @pytest.mark.parametrize("major", ["17", "19"])
 def test_the_data_of_another_major_beside_those_of_18_are_refused(
     tmp_path: Path, major: str
@@ -188,6 +216,17 @@ def test_service_up_prints_the_log_of_the_control_when_the_platform_does_not_sta
     assert len(asked) == 2, asked
     assert " up --build --detach --wait postgres " in asked[0]
     assert asked[1].endswith(" logs --no-color --no-log-prefix postgres-volume")
+    recipe = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    assert "|| { rc=$$?; " in recipe.split("\nservice-up:")[1].split("\n\n")[0]
+    assert "; exit $$rc; }" in recipe.split("\nservice-up:")[1].split("\n\n")[0]
+
+
+def test_check_tools_warns_of_a_pg_restore_that_is_not_18() -> None:
+    """US-1130: `make check-tools` warns when /usr/bin/pg_restore is not the server's major, 18."""
+    recipe = (REPOSITORY / "Makefile").read_text(encoding="utf-8")
+    tools = recipe.split("\ncheck-tools:")[1].split("\n\n")[0]
+    assert '/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\\."' in tools
+    assert "warning  /usr/bin/pg_restore is not PostgreSQL 18" in tools
 
 
 def test_the_note_of_the_update_says_the_break_and_the_refusal_sends_to_it() -> None:

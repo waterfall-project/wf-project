@@ -240,7 +240,7 @@ lint-docker: ## Lint the Dockerfiles
 # unless it refuses the data of another major version (US-1130): `up --detach` shows no log.
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
 	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
-		|| { $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit 1; }
+		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@$(COMPOSE_SERVICE) up --detach --wait restore

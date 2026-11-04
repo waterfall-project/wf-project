@@ -23,9 +23,11 @@ fi
 remedy=$1
 volume=${2:-/var/lib/postgresql}
 
-# The version the data say they are of, the remedy, and the refusal.
+# The version the data say they are of — "unknown" when the file is empty or cannot be read, the
+# refusal being owed all the same —, the remedy, and the refusal.
 refuse() {
-	found=$(cat "$1")
+	found=$(cat "$1" 2>/dev/null) || found=
+	found=${found:-"unknown (PG_VERSION is empty or unreadable)"}
 	echo "The volume of PostgreSQL holds the data of PostgreSQL $found, at $1;" \
 		"the platform runs PostgreSQL $EXPECTED and does not take them over. $remedy" >&2
 	exit 1
