@@ -32,6 +32,7 @@ from wftools import (
     mockwitnesscosts,
 )
 from wftools.mockids import PREFIX, universe
+from wftools.mockproject import moment
 from wftools.mockwitness import PAYMENT_DELAY, STUDIES_LINE, TODAY, fixture
 from wftools.mockwitnesscosts import COSTS, JOURNAL
 
@@ -42,10 +43,6 @@ _SEQUEL = timedelta(minutes=10)
 
 BLOCKS = mockwitness.N.BLOCKS
 """The terminal blocks of the core, paid a month after their work, as the detailed studies."""
-
-
-def _instant(text: str) -> datetime:
-    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
 
 
 def _every_example() -> dict[str, Any]:
@@ -270,7 +267,7 @@ def test_the_account_of_the_caller_is_written_alike_wherever_it_is_read() -> Non
         accounts = value.get("items", [value])
         mine = next(each for each in accounts if each["user_id"] == universe(301))
         audits.append((mine["audit"], mine["lock_version"]))
-        assert _instant(mine["audit"]["updated_at"]) <= TODAY, name
+        assert moment(mine["audit"]["updated_at"]) <= TODAY, name
     assert all(each == audits[0] for each in audits)
 
 
@@ -285,7 +282,7 @@ def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None
         anonymized = value.get("items", [value])[0]
         before = read[anonymized["user_id"]]
         assert before["anonymized_at"] is None, name
-        assert _instant(anonymized["anonymized_at"]) == TODAY, name
+        assert moment(anonymized["anonymized_at"]) == TODAY, name
         assert anonymized["audit"]["updated_at"] == anonymized["anonymized_at"], name
         assert anonymized["lock_version"] == before["lock_version"] + 1, name
         assert {anonymized[key] for key in ("last_name", "first_name", "email")} == {None}, name
@@ -295,7 +292,7 @@ def test_the_anonymization_of_today_follows_the_account_the_list_reads() -> None
         }, name
     journal = {each["audit_event_id"]: each for each in fixture("audit_events")["items"]}
     anonymization, *history = fixture("audit_events_anonymized_object")["items"]
-    assert (anonymization["action"], _instant(anonymization["occurred_at"])) == (
+    assert (anonymization["action"], moment(anonymization["occurred_at"])) == (
         "user_anonymize",
         TODAY,
     )
@@ -362,7 +359,7 @@ def test_each_import_of_the_journal_is_an_import_of_the_exchanges_applied_before
     for entry in JOURNAL:
         applied = imports[mockids.hex_identifier(entry.exchange)]
         assert (applied["kind"], applied["status"]) == ("actual_costs", "applied")
-        assert _instant(applied["created_at"]) < entry.event.instant
+        assert moment(applied["created_at"]) < entry.event.instant
     assert [item["status"] for item in imports.values() if item["kind"] == "actual_costs"].count(
         "applied"
     ) == len(JOURNAL)
@@ -372,12 +369,12 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
     examples: dict[str, Any],
 ) -> None:
     for item in fixture("imports")["items"]:
-        lasted = _instant(item["expires_at"]) - _instant(item["created_at"])
+        lasted = moment(item["expires_at"]) - moment(item["created_at"])
         assert timedelta(hours=24) <= lasted <= timedelta(hours=24, minutes=5), item["filename"]
         if item["status"] == "expired":
-            assert _instant(item["expires_at"]) <= TODAY, item["filename"]
+            assert moment(item["expires_at"]) <= TODAY, item["filename"]
         if item["status"] == "analysed":
-            assert _instant(item["expires_at"]) > TODAY, item["filename"]
+            assert moment(item["expires_at"]) > TODAY, item["filename"]
     expiries: dict[str, set[str]] = defaultdict(set)
     for item in fixture("imports")["items"]:
         expiries[item["import_id"]].add(item["expires_at"])
@@ -396,7 +393,7 @@ def test_an_import_expires_a_day_after_its_analysis_and_is_said_expired_once_pas
         expiries[item["import_id"]].add(item["expires_at"])
         finished = item["task"]["finished_at"]
         if item["task"]["kind"] == "import_analysis" and finished is not None:
-            expected = mockhistory.stamp(_instant(finished) + timedelta(hours=24))
+            expected = mockhistory.stamp(moment(finished) + timedelta(hours=24))
             assert item["expires_at"] == expected, name
     # An import has one expiry, whichever reading tells it.
     assert {key: found for key, found in expiries.items() if len(found) > 1} == {}
@@ -481,10 +478,10 @@ def test_the_background_tasks_run_each_at_its_own_instant_within_minutes_after_t
             submitted[task["submitted_at"]].add(task["task_id"])
             # A task follows the write that launches it: an analysis this morning or before, the
             # sequel of a write made at 14:05 within minutes after (#287).
-            assert _instant(task["submitted_at"]) <= TODAY + _SEQUEL
+            assert moment(task["submitted_at"]) <= TODAY + _SEQUEL
             if task["finished_at"] is not None:
                 assert task["submitted_at"] < task["finished_at"]
-                assert _instant(task["finished_at"]) <= TODAY + _SEQUEL
+                assert moment(task["finished_at"]) <= TODAY + _SEQUEL
     assert {instant: ids for instant, ids in submitted.items() if len(ids) > 1} == {}
 
 
@@ -514,7 +511,7 @@ def test_the_state_of_the_system_is_read_now_and_names_the_last_backup_of_the_li
     assert all((later - earlier).days == 1 for earlier, later in pairwise(days))
     for name in ("system_status", "system_status_backup_failed", "system_status_storage_full"):
         status = fixture(name)
-        checked = {_instant(each["checked_at"]) for each in status["components"]}
+        checked = {moment(each["checked_at"]) for each in status["components"]}
         assert all(at.date() == TODAY.date() and at <= TODAY for at in checked), name
         assert status["last_backup"]["at"] == scheduled, name
 
@@ -531,7 +528,7 @@ def test_the_external_copy_names_a_location_the_installation_declares() -> None:
     for name in ("external_backup_location_tested", "external_backup_location_test_failed"):
         tested = fixture(name)
         assert tested["location"] in declared, name
-        assert _instant(tested["tested_at"]) == TODAY, name
+        assert moment(tested["tested_at"]) == TODAY, name
     assert fixture("external_backup_location_tested")["failure"] is None
     refused = fixture("backup_schedule_unknown_location")["fields"][0]
     assert refused["params"]["location"] not in declared
@@ -625,19 +622,19 @@ def test_the_last_copy_follows_the_last_backup_it_copies() -> None:
             assert copied < status["last_backup"]["at"], name
 
 
-def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_its_instant() -> None:
+def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_itsmoment() -> None:
     # EP-14/L42m (#628): the deposit reads in the archive the instant it bears, the date the
     # confirmation of the restore states (WF-ADM-0160). The copy deposited is one the location of
     # Lyon keeps and the platform no longer does: a scheduled night, older than the list, within
     # the thirty copies of the schedule; named and sized as the platform writes its backups.
     deposited = fixture("file_upload_external_backup")
-    taken = _instant(deposited["backup_taken_at"])
+    taken = moment(deposited["backup_taken_at"])
     assert deposited["purpose"] == "external_backup"
     assert deposited["filename"] == f"waterfall-backup-{taken:%Y%m%dT%H%M%SZ}.tar"
     assert deposited["size_bytes"] <= fixture("installation")["external_backup_max_bytes"]
     schedule = fixture("backup_schedule")
     scheduled = sorted(
-        _instant(each["taken_at"])
+        moment(each["taken_at"])
         for each in fixture("backups")["items"]
         if each["origin"] == "scheduled"
     )
@@ -652,7 +649,7 @@ def test_a_deposited_backup_is_a_copy_the_external_location_keeps_and_names_its_
     ]
     [daily] = {later - earlier for earlier, later in pairwise(sizes)}
     assert deposited["size_bytes"] == sizes[0] - daily * (scheduled[0] - taken).days
-    assert _instant(deposited["uploaded_at"]) <= TODAY
+    assert moment(deposited["uploaded_at"]) <= TODAY
     # The file of an import has no date of backup.
     assert fixture("file_upload")["backup_taken_at"] is None
 
@@ -713,7 +710,7 @@ def test_a_restore_on_a_deposit_expired_or_unknown_is_not_found_without_paramete
     assert set(missing) == {"code", "status", "correlation_id"}
     assert (missing["status"], missing["code"]) == (404, "NOT_FOUND")
     deposit = fixture("file_upload_external_backup")
-    assert _instant(deposit["expires_at"]) - _instant(deposit["uploaded_at"]) == timedelta(days=1)
+    assert moment(deposit["expires_at"]) - moment(deposit["uploaded_at"]) == timedelta(days=1)
     told = _block_of("startRestore", "platform.yaml").split("'404':", 1)[1].split("'409':", 1)[0]
     assert "fixtures/api/restore_not_found.json" in told
 
@@ -798,7 +795,7 @@ def test_an_exclusion_and_a_reinstatement_answer_a_line_of_the_consultation_writ
         assert before["is_in_tracked_scope"] is not tracked, name
         assert line["is_in_tracked_scope"] is tracked, name
         assert (line["excluded_reason"] is None) is tracked, name
-        assert _instant(line["audit"]["updated_at"]) == TODAY, name
+        assert moment(line["audit"]["updated_at"]) == TODAY, name
         unchanged = {"is_in_tracked_scope", "excluded_reason", "audit"}
         assert {key: value for key, value in line.items() if key not in unchanged} == {
             key: value for key, value in before.items() if key not in unchanged

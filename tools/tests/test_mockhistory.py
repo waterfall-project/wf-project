@@ -31,6 +31,7 @@ from wftools import (
     mockwrites,
 )
 from wftools.mockids import universe
+from wftools.mockproject import moment
 from wftools.mockwitness import (
     AMENDMENT_MERGED,
     CREATED,
@@ -161,11 +162,9 @@ def _audits(value: Any) -> list[Node]:
     return found + [each for item in fields.values() for each in _audits(item)]
 
 
-def _instant(text: str) -> datetime:
-    """Return an instant, or a day at its first instant, in universal time."""
-    if "T" not in text:
-        return datetime.combine(date.fromisoformat(text), datetime.min.time(), UTC)
-    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+def _day(text: str) -> datetime:
+    """Return a day, ``2026-06-03``, at its first instant, in universal time."""
+    return datetime.combine(date.fromisoformat(text), datetime.min.time(), UTC)
 
 
 def test_every_instant_of_the_universe_lies_between_the_installation_and_today() -> None:
@@ -178,7 +177,8 @@ def test_every_instant_of_the_universe_lies_between_the_installation_and_today()
             span = _later(path.name, key)
             if path.name in _SEQUELS and key in _SEQUEL_KEYS:
                 span = _SEQUEL_SPAN
-            if not INSTALLED.instant <= _instant(text) <= TODAY + span:
+            at = moment(text) if "T" in text else _day(text)
+            if not INSTALLED.instant <= at <= TODAY + span:
                 strays.append((path.name, key, text))
         for each in _audits(value):
             audit = each["audit"]

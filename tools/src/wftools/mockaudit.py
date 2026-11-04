@@ -37,18 +37,20 @@ The answer of ``listAuditFacets`` is read from the same journal: its authors and
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
 from wftools import mockcosts, mockhistory, mocktext
 from wftools.mockhistory import stamp
 from wftools.mockids import AUDIT_EVENTS, CORRELATIONS, hex_identifier, identifier, universe
+from wftools.mockproject import moment
 from wftools.mocktext import PAGE
 from wftools.mockwitness import AMENDMENT_MERGED, ORDER_RECEIVED, TODAY, fixture
 from wftools.mockwitnesscosts import COSTS, JOURNAL
 from wftools.mockwitnessrisks import OCCURRED, REGISTER
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from wftools.mockstructure import JsonObject, JsonValue
 
 SECOND_PAGE = 10
@@ -90,11 +92,6 @@ def _witness_actor() -> JsonObject:
     return cast("JsonObject", fixture("project")["audit"]["created_by"])
 
 
-def _instant(text: str) -> datetime:
-    """Return an instant as the examples write it, in universal time."""
-    return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
-
-
 def _revisions() -> list[Inscription]:
     """Return the markings and the designations of the reference, from the revisions.
 
@@ -128,7 +125,7 @@ def _revisions() -> list[Inscription]:
     merged = AMENDMENT_MERGED.instant
     lived = revisions[amendment["revision_id"]]
     return [
-        on(offer, "revision_mark", _instant(offer["marked_at"]), joined=False),
+        on(offer, "revision_mark", moment(offer["marked_at"]), joined=False),
         Inscription(
             ORDER_RECEIVED.instant,
             _witness_actor(),
@@ -226,7 +223,7 @@ def _created() -> Inscription:
     project = fixture("project")
     audit = cast("JsonObject", project["audit"])
     return Inscription(
-        _instant(cast("str", audit["created_at"])),
+        moment(cast("str", audit["created_at"])),
         cast("JsonObject", audit["created_by"]),
         "project_create",
         "project",
@@ -258,7 +255,7 @@ def _accounts() -> list[Inscription]:
     """
     found = [
         Inscription(
-            _instant(role["audit"]["created_at"]),
+            moment(role["audit"]["created_at"]),
             role["audit"]["created_by"],
             "access_role_create",
             "access_role",
@@ -273,7 +270,7 @@ def _accounts() -> list[Inscription]:
         audit = user["audit"]
         found.append(
             Inscription(
-                _instant(audit["created_at"]),
+                moment(audit["created_at"]),
                 audit["created_by"],
                 "user_create",
                 "user",
@@ -285,7 +282,7 @@ def _accounts() -> list[Inscription]:
         if not user["is_active"]:
             found.append(
                 Inscription(
-                    _instant(audit["updated_at"]),
+                    moment(audit["updated_at"]),
                     audit["updated_by"],
                     "user_deactivate",
                     "user",
@@ -312,7 +309,7 @@ def _given() -> list[Inscription]:
         if last is not None and last["created_at"] > user["audit"]["created_at"]:
             found.append(
                 Inscription(
-                    _instant(last["created_at"]),
+                    moment(last["created_at"]),
                     last["created_by"],
                     "user_access_roles_set",
                     "user",
@@ -354,7 +351,7 @@ def _backups() -> list[Inscription]:
     backuper = _backuper()
     return [
         Inscription(
-            _instant(backup["taken_at"]),
+            moment(backup["taken_at"]),
             PLATFORM if backup["origin"] == "scheduled" else backuper,
             "backup",
             "backup",
@@ -383,7 +380,7 @@ def exit_today() -> Inscription:
     """
     project = fixture("project_completed")
     return Inscription(
-        _instant(project["audit"]["updated_at"]),
+        moment(project["audit"]["updated_at"]),
         project["audit"]["updated_by"],
         "project_exit",
         "project",
@@ -457,7 +454,7 @@ def import_applied_today() -> Inscription:
     task = fixture("task_import_succeeded")
     user = fixture("me")
     return Inscription(
-        _instant(task["finished_at"]),
+        moment(task["finished_at"]),
         {"kind": "user", "user_id": user["user_id"], "display_name": display_name(user)},
         "import_apply",
         "import",
@@ -481,7 +478,7 @@ def abandon_today() -> Inscription:
     audit = cast("JsonObject", project["audit"])
     revision, version = _current_revision()
     return Inscription(
-        _instant(cast("str", audit["updated_at"])),
+        moment(cast("str", audit["updated_at"])),
         cast("JsonObject", audit["updated_by"]),
         "revision_abandon",
         "revision",
