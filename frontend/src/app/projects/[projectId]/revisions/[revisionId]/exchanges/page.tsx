@@ -167,13 +167,7 @@ export default async function ExchangesPage({
         <ExchangesHeader />
         <MockupNotice lists />
         {shown === undefined ? null : (
-          <ImportReport
-            key={shown.import_id}
-            projectId={projectId}
-            entry={shown}
-            offer={offers[shown.kind]}
-            start={start}
-          />
+          <ImportReport key={shown.import_id} projectId={projectId} entry={shown} start={start} />
         )}
         <ImportPart projectId={projectId} offers={offers} start={start} gap={gap} />
         {/* The pages of the list keep the import shown, and turn from the address last asked. */}

@@ -164,7 +164,6 @@ export default async function ProjectPage(props: ProjectPageProps) {
             key={shown.import_id}
             projectId={address.projectId}
             entry={shown}
-            offer={offers[shown.kind]}
             start={start}
             then={shown.kind === "ms_project_schedule" ? planning : undefined}
           />

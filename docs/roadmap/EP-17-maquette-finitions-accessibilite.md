@@ -1389,7 +1389,7 @@ contrat de #1747 est d'US-0704.
 
 ## US-1040 — Le compte rendu d'import lit ses commandes
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `getImport`, `listImports`, `applyImport`, `abandonImport`
 - **issue** : #1836

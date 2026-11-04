@@ -3943,6 +3943,7 @@
   },
   "exchanges": {
     "subtitle": "Importer un fichier en deux temps — l’analyse, puis l’application confirmée — ou demander un export.",
+    "refused": "Refusé à l’application, le fichier est supprimé : relancez l’import pour le reprendre.",
     "import": {
       "title": "Importer un fichier",
       "none": "Aucun import ne vous est offert sur ce projet.",

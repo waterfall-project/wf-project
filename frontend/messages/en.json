@@ -3943,6 +3943,7 @@
   },
   "exchanges": {
     "subtitle": "Import a file in two steps — the analysis, then the confirmed application — or request an export.",
+    "refused": "Refused at the application, the file is deleted: restart the import to take it up again.",
     "import": {
       "title": "Import a file",
       "none": "No import is offered to you on this project.",

@@ -21,7 +21,7 @@ import { FileSpreadsheet } from "lucide-react";
 import { useFormatter, useLocale, useMessages, useTranslations } from "next-intl";
 
 import type { components } from "@/api/generated/schema";
-import type { CommandOffer } from "@/components/commands/offer";
+import { findOffer } from "@/components/commands/offer";
 import { LocalTime } from "@/components/local-time";
 import { DiffMark } from "@/components/grid/diff-mark";
 import type { RowDifference } from "@/components/grid/columns";
@@ -32,10 +32,9 @@ import type { Catalogue } from "@/i18n/catalogues";
 import { formatDecimal, formatPlanningDate } from "@/i18n/format";
 import { problemMessage } from "@/i18n/problem";
 
-import { IMPORT_STEPS } from "./offers";
 import { ReportCommands } from "./report-commands";
 
-type Import = components["schemas"]["Import"];
+type Import = components["schemas"]["ImportDetail"];
 type Report = components["schemas"]["ImportReport"];
 type Difference = Report["differences"][number];
 type DifferenceField = NonNullable<Difference["fields"]>[number];
@@ -389,32 +388,17 @@ function Findings({ report }: { readonly report: Report }) {
   );
 }
 
-/**
- * What the import may still be asked: a file the report rejects whole is applied no more, and only
- * its abandonment stays offered (`import_file_accepted`, WF-INTF-0040). The contract lists no
- * commands on an import (`Import` has no `available_commands`; the project's offer is not about
- * one import), so the screen derives from the report the one rule it needs: no apply when the
- * report refuses.
- */
-function stepsOf(entry: Import): (typeof IMPORT_STEPS)[Import["status"]] {
-  const steps = IMPORT_STEPS[entry.status];
-  return entry.report != null && entry.report.refusals.length > 0
-    ? { ...steps, apply: false }
-    : steps;
-}
-
-/** The import a report is of, what the server offers of its kind, and where the screen started. */
+/** The import a report is of, which lists its own commands, and where the screen started. */
 export interface ImportReportProps {
   readonly projectId: string;
   readonly entry: Import;
-  readonly offer: CommandOffer | undefined;
   readonly start: string;
   /** Where the screen leads once the import is applied — the planning it fills, if it is one. */
   readonly then?: string | undefined;
 }
 
 /** Render the report of an import, and offer to apply or abandon it. */
-export function ImportReport({ projectId, entry, offer, start, then }: ImportReportProps) {
+export function ImportReport({ projectId, entry, start, then }: ImportReportProps) {
   const t = useTranslations();
   const title = t("exchanges.report.title", { file: entry.filename });
   return (
@@ -447,6 +431,11 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
           </>
         )}
       </dl>
+      {entry.status === "refused" ? (
+        <p role="note" className={MUTED}>
+          {t("exchanges.refused")}
+        </p>
+      ) : null}
       {entry.report == null ? (
         <p className={MUTED}>
           {t(entry.status === "analysing" ? "exchanges.report.analysing" : "exchanges.report.none")}
@@ -454,14 +443,14 @@ export function ImportReport({ projectId, entry, offer, start, then }: ImportRep
       ) : (
         <Findings report={entry.report} />
       )}
-      {/* Its own commands for each import: an outcome, a confirmation open, stay with theirs. */}
+      {/* Its own commands for each import, as it lists them: an outcome, a confirmation open, stay with theirs. */}
       <ReportCommands
         key={entry.import_id}
         projectId={projectId}
         importId={entry.import_id}
         filename={entry.filename}
-        offer={offer}
-        steps={stepsOf(entry)}
+        apply={findOffer(entry.available_commands, "apply")}
+        abandon={findOffer(entry.available_commands, "abandon")}
         start={start}
         then={then}
       />
