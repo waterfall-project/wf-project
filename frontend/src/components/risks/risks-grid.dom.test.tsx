@@ -15,7 +15,7 @@ import { expectAccessible } from "@/test/axe";
 import { example, type FakeClient, fakeClient } from "@/test/fixtures";
 
 import type { RiskState } from "./address";
-import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
+import { RISK_GRID, riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
 import { RiskStateFilter } from "./state-filter";
 
@@ -48,10 +48,15 @@ function risksOf(name: "risks" | "risks_empty"): RiskRows {
 }
 
 /** The grid of the risks on an example, in a language, as the address asked it. */
-function risksGrid(risks: RiskRows, locale: Locale, query: GridQuery<RiskSortColumn> = NO_QUERY) {
+function risksGrid(
+  risks: RiskRows,
+  locale: Locale,
+  query: GridQuery<RiskSortColumn> = NO_QUERY,
+  estimate?: string,
+) {
   return (
     <NextIntlClientProvider locale={locale} messages={CATALOGUES[locale]} timeZone="UTC">
-      <RisksGrid risks={risks} query={query} preferences={undefined} />
+      <RisksGrid risks={risks} query={query} preferences={undefined} estimate={estimate} />
     </NextIntlClientProvider>
   );
 }
@@ -252,6 +257,41 @@ describe("the grid of the risks", () => {
     for (const label of ["Risque de reprise du câblage", "Indisponibilité de l'automaticien"]) {
       expect(cell(label, REESTIMATED).textContent).toBe("");
     }
+  });
+
+  it("leads from a risk occurred to the estimate filtered on the lines that came of it, the context kept, and from no other [WF-RIS-0060-A]", () => {
+    render(
+      risksGrid(risksOf("risks"), "fr", NO_QUERY, "/projects/p/revisions/r/estimate?revision_id=r"),
+    );
+    const link = within(cell("Retard de livraison des armoires", STATE)).getByRole("link");
+    expect(link).toHaveAttribute(
+      "href",
+      "/projects/p/revisions/r/estimate?revision_id=r&origin_risk_ids=01926f3a-7c00-7000-8000-000000000752",
+    );
+    expect(link).toHaveAccessibleName(
+      "Survenu, voir les lignes issues de « Retard de livraison des armoires »",
+    );
+    for (const label of ["Risque de reprise du câblage", "Indisponibilité de l'automaticien"]) {
+      expect(within(cell(label, STATE)).queryByRole("link")).toBeNull();
+    }
+  });
+
+  it("leads nowhere when the session does not read the estimate [WF-RIS-0060-A]", () => {
+    renderRisks();
+    expect(within(cell("Retard de livraison des armoires", STATE)).queryByRole("link")).toBeNull();
+  });
+
+  it("names in a tooltip a label and a heading the width cuts, the register as wide as before [WF-IHM-0070-A]", () => {
+    renderRisks();
+    expect(screen.getByRole("link", { name: "Retard de livraison des armoires" })).toHaveAttribute(
+      "title",
+      "Retard de livraison des armoires",
+    );
+    for (const heading of ["Probabilité", "État", "Dernier réexamen", "Coût à la survenance"]) {
+      const header = within(grid()).getByRole("columnheader", { name: new RegExp(heading) });
+      expect(header.querySelector(`[title="${heading}"]`)).not.toBeNull();
+    }
+    expect(RISK_GRID.columns.reduce((width, column) => width + column.width, 0)).toBe(980);
   });
 
   it("sorts by the cost at the occurrence, as the contract does, and offers no sort on the reestimated amount [WF-RIS-0040-A]", () => {

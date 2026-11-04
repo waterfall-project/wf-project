@@ -210,10 +210,10 @@ describe("the screen of the remaining to commit", () => {
         "Deviation from the previous review -1,803,418.08 By cost type",
     );
     // Each amount bears the one mark of a computed value.
-    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
+    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(8);
     expect(text(summary)).toContain("Débours: €57,634,670.39 (85.42%)");
     expect(text(summary)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 · reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
   });
 

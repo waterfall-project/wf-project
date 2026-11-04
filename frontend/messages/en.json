@@ -77,6 +77,10 @@
       "removed": "Your avatar is removed."
     }
   },
+  "originMark": {
+    "named": "Came of the occurrence of the risk “{risk}”",
+    "unnamed": "Came of the occurrence of a risk"
+  },
   "rowNature": {
     "summary": "Summary task",
     "task": "Task",
@@ -257,6 +261,11 @@
       "label": "Work package or order item",
       "every": "All work packages and order items",
       "choice": "{kind, select, work_package {Work package} other {Order item}}: {label}"
+    },
+    "originFilter": {
+      "label": "Origin",
+      "every": "All rows",
+      "any": "Coming from a risk"
     },
     "undo": {
       "undo": "Undo",
@@ -503,6 +512,10 @@
       "reserve": "Risk reserve",
       "remainingProvisions": "Remaining provisions",
       "occurredCost": "Cost of the occurred risks",
+      "occurredReestimated": "Reestimated cost of the occurred risks (information)",
+      "occurredReestimatedShort": "· reestimated",
+      "occurredLines": "Show the rows that came of “{risk}”",
+      "occurredStateLines": "{state}, show the rows that came of “{risk}”",
       "coverageVariance": "Coverage variance"
     },
     "matrix": {

@@ -41,6 +41,8 @@ import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
 import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
 import { DifferencesOnly } from "@/components/grid/differences-only";
+import { originNames } from "@/components/grid/origin-filter";
+import { OriginFilterChoice } from "@/components/grid/origin-filter-choice";
 import {
   ESTIMATE_FIELDS,
   ESTIMATE_GRID,
@@ -284,6 +286,7 @@ export default async function EstimatePage({
       fields: ESTIMATE_FIELDS,
       byBreakdown: true,
       byDifference: true,
+      byOrigin: true,
       chooses: true,
     }),
     readEstimateFigures(at),
@@ -325,10 +328,13 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        {screen.breakdown === undefined ? null : (
-          <BreakdownFilterChoice choices={screen.breakdown} />
-        )}
-        <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          {screen.breakdown === undefined ? null : (
+            <BreakdownFilterChoice choices={screen.breakdown} />
+          )}
+          <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
+          {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
+        </div>
         <EstimateGrid
           key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}
@@ -341,6 +347,7 @@ export default async function EstimatePage({
           query={screen.query}
           preferences={screen.preferences}
           differential={screen.kind === "amendment"}
+          origins={originNames(screen.origin)}
           inflation={inflationOf(screen.reading)}
         />
       </Screen>

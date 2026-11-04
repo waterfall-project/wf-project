@@ -19,6 +19,7 @@ import {
   type NodeList,
   nodeFieldNames,
   SPARSE_LINE_FIELDS,
+  SPARSE_NODE_FIELDS,
 } from "@/components/grid/nodes";
 import { PLANNING_FIELDS, PLANNING_KINDS } from "@/components/grid/planning";
 import type { PlanningGridProps } from "@/components/grid/planning-grid";
@@ -169,6 +170,7 @@ const EXAMPLE_BY_END = {
   "/resource-roles": ["GET /reference/resource-roles", "resource_roles"],
   "/subprojects": ["GET /projects/{project_id}/subprojects", "subprojects"],
   "/work-breakdown": ["GET /projects/{project_id}/work-breakdown", "work_breakdown"],
+  "/risks": ["GET /projects/{project_id}/risks", "risks"],
 } as const satisfies Readonly<Record<string, CitedRead>>;
 const READ_REVISION = [
   "GET /projects/{project_id}/revisions/{revision_id}",
@@ -262,6 +264,7 @@ beforeEach(() => {
     "GET /reference/resource-roles": "resource_roles",
     "GET /projects/{project_id}/subprojects": "subprojects",
     "GET /projects/{project_id}/work-breakdown": "work_breakdown",
+    "GET /projects/{project_id}/risks": "risks",
     "GET /projects/{project_id}/timelines": "timelines",
     "GET /reference/duration-units": "duration_units",
   };
@@ -935,7 +938,8 @@ describe("the rows a page hands its grid", () => {
       task: [...COMMON_FIELDS.task, ...fields.task],
       line: [...COMMON_FIELDS.line, ...fields.line],
     };
-    const sparse = new Set<string>(SPARSE_LINE_FIELDS); // a delay of nought says something
+    // A delay of nought says something; a node of no origin says nothing of it.
+    const sparse = new Set<string>([...SPARSE_LINE_FIELDS, ...SPARSE_NODE_FIELDS]);
     const silent = (value: unknown) => value === null || value === false;
     const kept = (source: Readonly<Record<string, unknown>>, keys: readonly string[]) =>
       keys.filter((key) => key in source && !(sparse.has(key) && silent(source[key]))).sort();

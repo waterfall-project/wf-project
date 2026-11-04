@@ -55,11 +55,11 @@ import { COMPUTED_FLOAT, computedWhereNamed } from "./computed-nodes";
 import {
   type AnyNodeFields,
   LABEL_COLUMN,
-  NODE_TREE,
   type NodeKind,
   nodeFresher,
   nodeKey,
   nodeNumber,
+  ORIGIN_TREE,
   type NodeSortColumn,
   type NodeTotals,
   type RowOf,
@@ -94,7 +94,7 @@ export const PLANNING_KINDS: readonly NodeKind[] = ["task"];
  * (`projectNodes`).
  */
 export const PLANNING_FIELDS = {
-  node: ["predecessors"],
+  node: ["predecessors", "origin_risk_id"],
   task: [
     "description",
     "scheduling_mode",
@@ -140,7 +140,7 @@ export const PLANNING_GRID: GridConfig<PlanningNode, NodeSortColumn, NodeTotals>
   rowKey: nodeKey,
   fresher: nodeFresher,
   rowNumber: nodeNumber,
-  tree: NODE_TREE,
+  tree: ORIGIN_TREE,
   columns: [
     { ...LABEL_COLUMN, width: 240 },
     {

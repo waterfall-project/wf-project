@@ -19,6 +19,7 @@ Above the grid:
 
 - **Planning start date** says the day the automatic tasks without a predecessor start on, as the server gives it. **Change the planning start date**, where the structure is entered, asks for the new day and confirms it: the server redates the tasks that depend on it, and refuses a day without a worked hour in the default calendar, naming the next working day.
 - **Work package or order item** filters the grid on the task that bears a work package or an order item of the work breakdown, with its subordinates and its ancestors. The banner shows the filter and allows to lift it.
+- **Origin** retains the tasks that came of the occurrence of a risk — **Coming from a risk** — or of a risk occurred that you choose; the server filters, with the ancestors of the tasks retained, and the address keeps the choice. A task that came of a risk bears, after the icon of its nature, a discreet mark that names that risk; the others bear none.
 - **Search a label** keeps the tasks whose label contains the text entered.
 - **Columns** chooses the columns shown; **Tree** folds everything, unfolds everything, or folds down to a level.
 - **Undo** (`Ctrl+Z`) and **Redo** (`Ctrl+Shift+Z`), where the structure is entered. They stay unavailable as long as the server does not keep the history of the entries.

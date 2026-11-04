@@ -27,8 +27,17 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
-// The session of the contract, some of the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+// The session of the contract, some of the sizes of pages its account keeps and the permissions it
+// holds set for a test.
+const kept = vi.hoisted(
+  (): {
+    grids: Record<string, { page_size: number }>;
+    permissions: readonly string[] | undefined;
+  } => ({
+    grids: {},
+    permissions: undefined,
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -39,6 +48,7 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            ...(kept.permissions === undefined ? {} : { permissions: kept.permissions }),
             display_preferences: {
               ...session.display_preferences,
               grids: { ...session.display_preferences?.grids, ...kept.grids },
@@ -149,6 +159,7 @@ function queryOf(route: string): Record<string, string> {
 
 beforeEach(() => {
   kept.grids = {};
+  kept.permissions = undefined;
   grids.risks = [];
   details.props = [];
   matrices.props = [];
@@ -407,14 +418,28 @@ describe("the screen of the risks", () => {
     expect(text(page).match(/Risk reserve/g)).toHaveLength(1);
   });
 
-  it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
+  it("reads the coverage of the risks in the revision of its route, and shows its amounts as the server computes them, the reestimated of the occurred risks beside their cost as an information, the variance signed [WF-RIS-0050-A]", async () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
     expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 · reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+    );
+    // The reestimated stands in regard of the cost, in its entry, not as a term of the variance: four
+    // terms, and the entry of the cost holds both amounts, the reestimated named in full to a reader.
+    const region = regionOf(page, "Risk coverage");
+    const coverage = region.slice(0, region.indexOf("</dl>"));
+    expect(coverage.match(/<dt/g)).toHaveLength(4);
+    const cost = coverage.slice(
+      coverage.indexOf("<dd", coverage.indexOf("Cost of the occurred risks</dt>")),
+    );
+    const entry = cost.slice(0, cost.indexOf("</dd></div>"));
+    expect(entry.match(/aria-label="Computed"/g)).toHaveLength(2);
+    expect(entry).toMatch(/<span aria-hidden="true">· reestimated<\/span>/);
+    expect(entry).toMatch(
+      /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
     );
   });
 
@@ -584,6 +609,19 @@ describe("the commands of the risks", () => {
     expect(callsTo(NODES)).toHaveLength(1);
     expect(callsTo(NODES)[0]?.path).toContain(`/revisions/${REVISION}/structures/`);
     expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
+  });
+
+  it("leads the state of a risk occurred to the estimate, and to the planning for a session that does not read it [WF-RIS-0060-A]", async () => {
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toContain("/estimate");
+    grids.risks = [];
+    kept.permissions = ["planning.read"];
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toContain("/planning");
+    grids.risks = [];
+    kept.permissions = [];
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toBeUndefined();
   });
 
   it.each([

@@ -42,6 +42,7 @@ import {
   type EstimateWritten,
 } from "./estimate";
 import { nodeDependencies } from "./node-dependencies";
+import { OriginRisksProvider } from "./origin-mark";
 import {
   type NodeColumn,
   type NodeFilters,
@@ -97,6 +98,11 @@ export interface EstimateGridProps {
    * the grid then has its column of marks (US-0500).
    */
   readonly differential?: boolean | undefined;
+  /**
+   * The labels of the risks occurred, by their identifier, which the mark of a row a risk merged
+   * names it by (`OriginMark`); none, and the mark says a risk without its name.
+   */
+  readonly origins?: Readonly<Record<string, string>> | undefined;
   /**
    * What the amount re-estimated, inflation included, is corrected by, which the header of its
    * column names: the year of reference of the revision and the rate of inflation it keeps, as the
@@ -217,6 +223,7 @@ export function EstimateGrid({
   query,
   preferences,
   differential,
+  origins,
   inflation,
 }: EstimateGridProps) {
   const t = useTranslations("estimateGrid");
@@ -297,20 +304,22 @@ export function EstimateGrid({
   ]);
   const config = useMemo(() => withDifference(read, differential), [read, differential]);
   return (
-    <DenseGrid
-      config={config}
-      rows={nodes.items}
-      totals={nodes.totals}
-      totalsCaption={(totals) =>
-        t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
-      }
-      query={query}
-      preferences={preferences}
-      dependencies={dependencies}
-      foldScope={structure.revision_id}
-      narrowing={nodeNarrowing(filters)}
-      undoable={editable}
-      commands={gestures}
-    />
+    <OriginRisksProvider names={origins}>
+      <DenseGrid
+        config={config}
+        rows={nodes.items}
+        totals={nodes.totals}
+        totalsCaption={(totals) =>
+          t("totals", { tasks: totals.task_count, lines: totals.estimate_line_count })
+        }
+        query={query}
+        preferences={preferences}
+        dependencies={dependencies}
+        foldScope={structure.revision_id}
+        narrowing={nodeNarrowing(filters)}
+        undoable={editable}
+        commands={gestures}
+      />
+    </OriginRisksProvider>
   );
 }
