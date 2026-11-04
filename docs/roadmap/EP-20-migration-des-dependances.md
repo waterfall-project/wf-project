@@ -448,7 +448,7 @@ La reprise des données d'une plateforme 16, et la restauration d'une sauvegarde
 
 ## US-1140 — Redis 8, Garage v2.5, Mailpit v1.33
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — plateforme
 - **opérations** : aucune
 - **issue** : #1927

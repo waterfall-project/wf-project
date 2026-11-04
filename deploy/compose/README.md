@@ -18,6 +18,9 @@ planificateur de ses tâches ; PostgreSQL, qui porte deux bases, celle de Waterf
 Keycloak ; Redis ; Garage, le stockage objet, et ses compartiments `backups` et `imports` ;
 Keycloak et l'application de son royaume. Les données vivent dans des volumes nommés.
 
+Redis est employé sous la licence AGPLv3, comme Waterfall lui-même, depuis sa version 8 ; le dépôt
+ne redistribue pas Redis : la plateforme tire son image du registre public.
+
 Une démonstration n'a pas de messagerie : les liens par lesquels un compte fixe son mot de passe
 se remettent depuis l'écran des comptes (WF-CMP-0030). Le chiffrement entre les services, plusieurs
 instances de l'API et la mise à jour sans interruption relèvent d'EP-13.
@@ -158,10 +161,11 @@ garantie. On retire la plateforme avec ses volumes, puis on la réinstalle et on
 docker compose -f compose.prod.yaml down --volumes
 ```
 
-Toutes les données de l'installation sont perdues, comme le dit « Arrêter ». Si on l'oublie, la
-plateforme refuse de démarrer : le service `postgres-volume`, qui lit le volume de PostgreSQL avant
-que le serveur ne démarre, nomme la version des données trouvées et celle attendue, 18, et renvoie
-ici (`docker compose -f compose.prod.yaml logs postgres-volume`). Il refuse de même les données de
+Toutes les données de l'installation sont perdues, comme le dit « Arrêter » ; celles de Redis et de
+Garage ne se reprennent pas non plus. Si on l'oublie, la plateforme refuse de démarrer : le service
+`postgres-volume`, qui lit le volume de PostgreSQL avant que le serveur ne démarre, nomme la version
+des données trouvées et celle attendue, 18, et renvoie ici
+(`docker compose -f compose.prod.yaml logs postgres-volume`). Il refuse de même les données de
 toute autre majeure que celle de la plateforme.
 
 ## Sauvegarder
