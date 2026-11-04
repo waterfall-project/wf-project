@@ -356,7 +356,9 @@ test("creates a category, enters a rate and deactivates a nature, the mock-up sa
   // offering its reactivation.
   const natures = page.getByRole("grid", { name: "Natures de coût" });
   await natures.getByRole("button", { name: "Désactiver «\u00a0Débours\u00a0»" }).click();
-  await expect(natures.getByRole("button", { name: "Réactiver «\u00a0Débours\u00a0»" })).toBeVisible({
+  await expect(
+    natures.getByRole("button", { name: "Réactiver «\u00a0Débours\u00a0»" }),
+  ).toBeVisible({
     timeout: WORKING,
   });
   await expect(rowAt(natures, 1)).toContainText("Désactivé");
