@@ -157,9 +157,13 @@ describe("the filter of a table on the author of an audit column", () => {
     const client = serve({ "GET /users": "users_search" });
     render(accounts());
     // Each search its own form, named by the column it finds an author for.
-    const search = screen.getByRole("form", { name: "Chercher un compte pour «\u00A0Modifié par\u00A0»" });
+    const search = screen.getByRole("form", {
+      name: "Chercher un compte pour «\u00A0Modifié par\u00A0»",
+    });
     await userEvent.type(
-      within(search).getByRole("searchbox", { name: "Chercher un compte pour «\u00A0Modifié par\u00A0»" }),
+      within(search).getByRole("searchbox", {
+        name: "Chercher un compte pour «\u00A0Modifié par\u00A0»",
+      }),
       "ines roux",
     );
     // Whether the search was still held in the commit that told the accounts found: the request

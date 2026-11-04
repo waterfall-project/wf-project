@@ -178,7 +178,9 @@ describe("the creation and the modification of a sub-project", () => {
   it("modifies a sub-project from the version read, and shows its row as the server answered it", async () => {
     const client = serve();
     render(list());
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    );
     const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
     const label = within(form).getByRole("textbox", { name: "Libellé" });
     expect(label).toHaveValue("Essais et mise en service");
@@ -215,18 +217,21 @@ describe("the creation and the modification of a sub-project", () => {
     const { timing, release } = held();
     const client = serve({}, timing);
     render(list());
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    );
     const first = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
     await userEvent.click(within(first).getByRole("button", { name: "Enregistrer" }));
     await vi.waitFor(() => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(first).getByRole("button", { name: "Annuler" }));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }));
-    const label = within(screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" })).getByRole(
-      "textbox",
-      { name: "Libellé" },
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
     );
+    const label = within(
+      screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
+    ).getByRole("textbox", { name: "Libellé" });
     await userEvent.type(label, " principal");
     release();
     // Said and shown behind the form opened since, which hides the rest of the screen from its
@@ -321,7 +326,9 @@ describe("the creation and the modification of a sub-project", () => {
     const client = serve();
     render(list());
     // The example answers « SP-ESS », whatever sub-project was modified: here « SP-CMD ».
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-CMD\u00A0»" }),
+    );
     const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-CMD\u00A0»" });
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
@@ -349,7 +356,9 @@ describe("the creation and the modification of a sub-project", () => {
       [UPDATE]: { problem: example("subproject_code_taken") as Problem & { status: 409 } },
     });
     render(list());
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    );
     const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
     const code = within(form).getByRole("textbox", { name: "Code ERP" });
     await userEvent.clear(code);
@@ -415,7 +424,9 @@ describe("the creation and the modification of a sub-project", () => {
   it("says the version stale under the form, with the offer to read the page anew", async () => {
     serve({ [UPDATE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } });
     render(list());
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    );
     const form = screen.getByRole("dialog", { name: "Modifier «\u00A0SP-ESS\u00A0»" });
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await userEvent.click(await within(form).findByRole("button", { name: "Recharger" }));
@@ -470,7 +481,9 @@ describe("the deletion of a sub-project", () => {
     const { timing, release } = held();
     const client = serve({}, timing);
     render(list(AVAILABLE, DELETABLE));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+    );
     const confirmation = screen.getByRole("dialog", {
       name: "Supprimer le sous-projet «\u00A0SP-REC\u00A0»\u00A0?",
     });
@@ -479,7 +492,9 @@ describe("the deletion of a sub-project", () => {
       expect(client.calls).toHaveLength(1);
     });
     await userEvent.click(within(confirmation).getByRole("button", { name: "Annuler" }));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    );
     release();
     // Said behind the form opened since, which hides the rest of the screen from its readers — a
     // text found with its no-break spaces read as plain ones.
@@ -571,7 +586,9 @@ describe("the deletion of a sub-project", () => {
       [DELETE]: { problem: example("subproject_delete_cited") as Problem & { status: 409 } },
     });
     render(list(AVAILABLE, DELETABLE));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+    );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
@@ -587,7 +604,9 @@ describe("the deletion of a sub-project", () => {
       [DELETE]: { problem: example("subproject_delete_stale") as Problem & { status: 412 } },
     });
     render(list(AVAILABLE, DELETABLE));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+    );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
@@ -605,7 +624,9 @@ describe("the deletion of a sub-project", () => {
       },
     });
     render(list(AVAILABLE, DELETABLE));
-    await userEvent.click(within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Supprimer «\u00A0SP-REC\u00A0»" }),
+    );
     await userEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }),
     );
@@ -643,9 +664,9 @@ describe("the commands a sub-project lists", () => {
     const cmd = within(grid()).getByText("SP-CMD").closest("tr");
     expect(cmd).not.toBeNull();
     expect(within(cmd as HTMLElement).queryByRole("button")).toBeNull();
-    expect(within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" })).not.toHaveAttribute(
-      "aria-disabled",
-    );
+    expect(
+      within(grid()).getByRole("button", { name: "Modifier «\u00A0SP-ESS\u00A0»" }),
+    ).not.toHaveAttribute("aria-disabled");
   });
 });
 

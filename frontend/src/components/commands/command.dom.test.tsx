@@ -137,11 +137,7 @@ describe("a command of a screen", () => {
       within(region)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual([
-      "Préparer un avenant",
-      "Marquer la révision",
-      "Abandonner la révision en cours",
-    ]);
+    ).toEqual(["Préparer un avenant", "Marquer la révision", "Abandonner la révision en cours"]);
   });
 
   it("gives each command the icon of its kind, hidden from a screen reader beside its name", () => {

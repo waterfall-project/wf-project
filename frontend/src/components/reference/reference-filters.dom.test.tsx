@@ -276,7 +276,9 @@ describe("the pages of a list of the reference data", () => {
     const { container } = render(
       inFrench(<ListPages list={ROLES} title="Rôles de ressources" page={MIDDLE} shown={50} />),
     );
-    const pages = screen.getByRole("navigation", { name: "Pages de «\u00A0Rôles de ressources\u00A0»" });
+    const pages = screen.getByRole("navigation", {
+      name: "Pages de «\u00A0Rôles de ressources\u00A0»",
+    });
     expect(pages).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
       "href",

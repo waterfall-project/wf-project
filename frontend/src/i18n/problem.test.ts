@@ -414,7 +414,9 @@ describe("the sentence of a refusal", () => {
         },
         "fr",
       ),
-    ).toContain("Élément d’OTP lu\u00A0: «\u00A0P9-SP\u00A0». Code projet lu\u00A0: «\u00A0P9\u00A0».");
+    ).toContain(
+      "Élément d’OTP lu\u00A0: «\u00A0P9-SP\u00A0». Code projet lu\u00A0: «\u00A0P9\u00A0».",
+    );
     expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
       "Autres lignes du fichier de même pièce et de même poste\u00A0: 4, 6 et 7.",
     );

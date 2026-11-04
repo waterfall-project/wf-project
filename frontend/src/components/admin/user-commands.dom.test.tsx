@@ -197,8 +197,12 @@ describe("the table of the accounts, its own entry", () => {
     const held = heldActivation();
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
     render(accounts());
-    const vidal = within(grid()).getByRole("switch", { name: "Compte de «\u00A0Noé Vidal\u00A0» actif" });
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
+    const vidal = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
+    });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     expect(vidal).not.toHaveAttribute("aria-disabled");
     await userEvent.click(vidal);
     await waitFor(() => {
@@ -422,7 +426,10 @@ describe("the state of an account, on its switch", () => {
     });
     // Noted in the history of the messages, about the account (#1181).
     expect(readMessages().messages).toEqual([
-      expect.objectContaining({ sentence: "«\u00A0Noé Vidal\u00A0» désactivé.", object: "Noé Vidal" }),
+      expect.objectContaining({
+        sentence: "«\u00A0Noé Vidal\u00A0» désactivé.",
+        object: "Noé Vidal",
+      }),
     ]);
     expect(vidal).not.toBeChecked();
     expect(vidal.closest("td")).toHaveTextContent("Désactivé");
@@ -524,7 +531,9 @@ describe("the access roles of an account, cell by cell", () => {
   it("withdraws her one role from an account, which then holds none, and says so (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_cleared" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de «\u00A0Inès Roux\u00A0»" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Inès Roux\u00A0»",
+    });
     await userEvent.click(trigger);
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Inès Roux\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Pilotage de projet" }));
@@ -546,7 +555,9 @@ describe("the access roles of an account, cell by cell", () => {
   it("attributes a second role to an account, which then holds both, in the order given (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_two" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     await userEvent.click(trigger);
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
@@ -601,7 +612,9 @@ describe("the access roles of an account, cell by cell", () => {
     await waitFor(() => {
       expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
-    await userEvent.click(within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" }));
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" }),
+    );
     const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {

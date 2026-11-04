@@ -257,7 +257,9 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client)).toEqual([
       [`${STRUCTURE_PATH}/nodes/${studiesId}/dependencies`, "task.finish"],
     ]);
-    expect(within(refusal()).getByRole("list", { name: "Elle dépend de\u00A0:" })).toBeInTheDocument();
+    expect(
+      within(refusal()).getByRole("list", { name: "Elle dépend de\u00A0:" }),
+    ).toBeInTheDocument();
     expect(cell("Études", FINISH)).toHaveAttribute("aria-expanded", "true");
     await expectAccessible(document.body);
   });

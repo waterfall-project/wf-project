@@ -433,7 +433,9 @@ describe("the reading of the help", () => {
       const reestimated = CATALOGUES[locale].grid.columns.reestimatedAmount;
       expect(await text("FBS-4.4.3")).toContain(reestimated);
       expect(await text("FBS-4.4")).toContain(reestimated);
-      expect(await text("FBS-4.4.3")).not.toMatch(/corrigé de l’inflation|corrected for inflation/u);
+      expect(await text("FBS-4.4.3")).not.toMatch(
+        /corrigé de l’inflation|corrected for inflation/u,
+      );
     },
   );
 

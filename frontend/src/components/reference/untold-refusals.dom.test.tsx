@@ -86,7 +86,9 @@ function refusedOnRelease(): () => void {
 
 /** Send the modification of the subcontracting from its dialog: the dialog, still open. */
 async function sent(): Promise<HTMLElement> {
-  await userEvent.click(screen.getByRole("button", { name: "Modifier «\u00A0Sous-traitance\u00A0»" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Modifier «\u00A0Sous-traitance\u00A0»" }),
+  );
   const form = screen.getByRole("dialog", { name: "Modifier «\u00A0Sous-traitance\u00A0»" });
   await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
   return form;

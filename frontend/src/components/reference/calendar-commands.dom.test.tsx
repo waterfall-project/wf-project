@@ -179,7 +179,9 @@ describe("the calendars", () => {
       screen.queryByRole("button", { name: "Désigner «\u00A0Semaine standard\u00A0» par défaut" }),
     ).toBeNull();
     await userEvent.click(
-      screen.getByRole("button", { name: "Désigner «\u00A0Semaine de quatre jours\u00A0» par défaut" }),
+      screen.getByRole("button", {
+        name: "Désigner «\u00A0Semaine de quatre jours\u00A0» par défaut",
+      }),
     );
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
@@ -192,7 +194,9 @@ describe("the calendars", () => {
         body: { lock_version: 1 },
       },
     ]);
-    expect(announced()).toContain("«\u00A0Semaine de quatre jours\u00A0» désigné calendrier par défaut.");
+    expect(announced()).toContain(
+      "«\u00A0Semaine de quatre jours\u00A0» désigné calendrier par défaut.",
+    );
     const row = document.querySelector('td[data-row="0"][data-column="is_default"]');
     expect(row).toHaveTextContent("Calendrier par défaut");
   });

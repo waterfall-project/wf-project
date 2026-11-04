@@ -416,7 +416,10 @@ describe("the organisation", () => {
         ACTIVE_NODES,
       ),
     );
-    const form = await opened("Modifier «\u00A0Cellule robotique\u00A0»", "Modifier «\u00A0Cellule robotique\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-AUTO").org_node_id);
     // Under the direction, its own parent, as the row of the list names it.
@@ -437,7 +440,10 @@ describe("the organisation", () => {
     serve();
     // The cell alone listed — narrowed by its code —: nothing says where its parent stands.
     render(organisation([nodeOf("CEL-ROBOT")], ACTIVE_NODES));
-    const form = await opened("Modifier «\u00A0Cellule robotique\u00A0»", "Modifier «\u00A0Cellule robotique\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-AUTO").org_node_id);
     expect(options(parent).at(-1)).toBe("Bureau d'études automatismes (désactivé)");
@@ -452,7 +458,10 @@ describe("the organisation", () => {
     const client = serve({ [NODE]: "org_node_renamed_under_inactive" });
     render(organisation(tree, closed));
     const robotics = nodeOf("CEL-ROBOT");
-    const form = await opened("Modifier «\u00A0Cellule robotique\u00A0»", "Modifier «\u00A0Cellule robotique\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+      "Modifier «\u00A0Cellule robotique\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     // Le déplacement sous un nœud désactivé est refusé : the purchases are not offered; the office of
     // automation, its parent, is, under the direction.
@@ -499,7 +508,10 @@ describe("the organisation", () => {
           : node,
     );
     render(organisation(tree, reorganised));
-    const form = await opened("Modifier «\u00A0Atelier de câblage\u00A0»", "Modifier «\u00A0Atelier de câblage\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
     // After the office of automation, as the tree orders them, and not right under the direction.
@@ -526,7 +538,10 @@ describe("the organisation", () => {
           : node,
     );
     render(organisation(tree, deeper));
-    const form = await opened("Modifier «\u00A0Atelier de câblage\u00A0»", "Modifier «\u00A0Atelier de câblage\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     expect(parent).toHaveValue(nodeOf("BE-ELEC").org_node_id);
     // Not at its place before the purchases, where it would seem a root above them.
@@ -561,7 +576,10 @@ describe("the organisation", () => {
   it("tells under the form the modification of a node from a stale version, with the offer to read the page anew", async () => {
     serve({ [NODE]: { problem: example("org_node_update_stale") as Problem & { status: 412 } } });
     render(organisation());
-    const form = await opened("Modifier «\u00A0Atelier de câblage\u00A0»", "Modifier «\u00A0Atelier de câblage\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const alert = await within(form).findByRole("alert");
     expect(alert).toHaveTextContent("Quelqu’un a modifié cette donnée entre-temps");
@@ -572,7 +590,10 @@ describe("the organisation", () => {
   it("says at the parent the refusal of an active node moved under a deactivated one", async () => {
     serve({ [NODE]: { problem: example("org_node_move_refused") as Problem & { status: 422 } } });
     render(organisation());
-    const form = await opened("Modifier «\u00A0Atelier de câblage\u00A0»", "Modifier «\u00A0Atelier de câblage\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+      "Modifier «\u00A0Atelier de câblage\u00A0»",
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const parent = within(form).getByRole("combobox", { name: "Parent" });
     await vi.waitFor(() => {
@@ -872,7 +893,10 @@ describe("the resource roles", () => {
   it("keeps a deactivated calendar a role is attached to, marked, among the active ones offered", async () => {
     serve();
     render(roleList());
-    const form = await opened("Modifier «\u00A0Automaticien\u00A0»", "Modifier «\u00A0Automaticien\u00A0»");
+    const form = await opened(
+      "Modifier «\u00A0Automaticien\u00A0»",
+      "Modifier «\u00A0Automaticien\u00A0»",
+    );
     expect(options(within(form).getByRole("combobox", { name: "Calendrier" }))).toEqual([
       "Choisir…",
       "Semaine de quatre jours",

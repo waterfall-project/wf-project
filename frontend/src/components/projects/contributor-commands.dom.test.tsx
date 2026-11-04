@@ -521,7 +521,9 @@ describe("the modification of the contributors of a project", () => {
     render(list({ is_available: false, missing_conditions: ["is_project_manager"] }));
     const command = screen.getByRole("button", { name: "Modifier les contributeurs" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    expect(command).toHaveAccessibleDescription("Condition non remplie\u00A0: être chef de projet.");
+    expect(command).toHaveAccessibleDescription(
+      "Condition non remplie\u00A0: être chef de projet.",
+    );
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
