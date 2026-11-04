@@ -151,7 +151,8 @@ les trois cents projets en EP-13, qui clôt. Quatre règles, que chaque tranche 
 | [EP-17](EP-17-maquette-finitions-accessibilite.md) | Maquette : finitions et accessibilité | prêt | EP-16 |
 | [EP-18](EP-18-comptes-ecarts-revue-du-contrat.md) | Comptes : écarts de la revue du contrat | livré | EP-16 |
 | [EP-19](EP-19-livreurs-en-parallele.md) | Livreurs en parallèle | en cours | rien |
-| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19 |
+| [EP-20](EP-20-migration-des-dependances.md) | Migration des dépendances | en cours | EP-19 |
+| [EP-05](EP-05-referentiel.md) | Référentiel de l'entreprise | prêt | EP-16, EP-18, EP-19, EP-20 |
 | [EP-04](EP-04-projets-et-revisions.md) | Projets, révisions et cycle de vie | prêt | EP-05 |
 | [EP-06](EP-06-planification.md) | Planification | à planifier | EP-04 |
 | [EP-07](EP-07-chiffrage-et-devis.md) | Chiffrage et devis | à planifier | EP-06 |
@@ -196,7 +197,10 @@ quatre décisions de la revue du contrat du 2026-10-31 qui touchent EP-03, livr�
 EP-05, qui touche les mêmes fichiers, et se livre avant le lot des comptes d'EP-17 (US-0780/L1),
 sans suspendre le reste d'EP-17. EP-19 rend le dépôt et ses agents sûrs pour plusieurs livreurs
 à la fois ; il passe avant EP-05, qui en profitera et touche le Makefile et la plateforme de
-service qu'il réécrit (décision de l'auteur du 2026-11-03).
+service qu'il réécrit (décision de l'auteur du 2026-11-03). EP-20 porte la plateforme, ses environnements
+d'exécution et ses dépendances à leurs dernières versions stables, et en rend la veille
+régulière ; il vient après EP-19, dont il monte les épinglages, et avant EP-05, premier EPIC de
+domaine, qui se construit sur les versions cibles (décision de l'auteur du 2026-11-03).
 
 EP-13 ne dépend que d'EP-04 : il peut commencer tôt, mais il clôt des exigences transverses
 dont la dernière action arrive tard, et il finit en dernier.
