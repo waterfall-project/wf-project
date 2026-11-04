@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # ESLint about a minute without its cache, the client, the types and the catalogues, and in
     # the fast tier the production build: 12 leaves room to a slow runner.
     timeout-minutes: 12
@@ -58,7 +58,7 @@ jobs:
   tests:
     # Shown as front / tests (lint) and front / tests (i/2).
     name: tests (${{ matrix.part }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Vitest spreads whole files over the parts, by the hash of their path: the three guards, which
     # are the longest by far and fell in the same part, have one of their own (the project lint of
     # frontend/vitest.config.ts). Every part runs to its end: one failing does not cancel the
@@ -111,7 +111,7 @@ jobs:
   coverage:
     needs: tests
     if: inputs.tier == 'full'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

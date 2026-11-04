@@ -4,7 +4,7 @@
 #
 # The specification lives in docs/spec, the interface contract in docs/api.
 # Requirements: python3 3.11+ (the projection), uv (Python 3.13 for the back and the tools),
-# node with npx and corepack (the front, the contract), pandoc 3.1.11.1 (the projection),
+# node with npx and corepack (the front, the contract), pandoc 3.13 (the projection),
 # docker (make dev), and mmdc to validate the diagrams.
 
 SPEC    := docs/spec
@@ -617,8 +617,8 @@ check-tools: ## Report which prerequisites are missing
 	@for t in python3 pandoc node npx corepack uv docker; do \
 		command -v $$t >/dev/null && echo "  ok       $$t" || echo "  missing  $$t"; \
 	done
-	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.1.11.1$$" \
-		|| echo "  warning  pandoc is not 3.1.11.1: the projection would differ from the chain's"
+	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.13$$" \
+		|| echo "  warning  pandoc is not 3.13: the projection would differ from the chain's"
 	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \
 		|| echo "  warning  /usr/bin/pg_restore is not PostgreSQL 18, the server's: the tests of the backups and restorations would fail (#982)"
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"

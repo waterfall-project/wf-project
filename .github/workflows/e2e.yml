@@ -32,7 +32,7 @@ jobs:
   paths:
     # Shown as e2e / paths (i/3) and e2e / measure.
     name: ${{ matrix.part == 'measure' && 'measure' || format('paths ({0})', matrix.part) }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container:
       # The multi-architecture index of the tag v1.63.0-noble, as the registry served it on
       # 2026-10-07 (docs/dev/README.md, « The chain », says how to read it); the tag follows the

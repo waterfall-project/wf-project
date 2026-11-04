@@ -17,7 +17,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | Node 24 | le front ; son corepack apporte pnpm |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
 | Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
-| `pandoc` 3.1.11.1 | la projection de la spécification (une autre version écrit un autre Markdown) |
+| `pandoc` 3.13 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) | facultatif : la validation des diagrammes |
 
 `make check-tools` dit ce qui manque.
