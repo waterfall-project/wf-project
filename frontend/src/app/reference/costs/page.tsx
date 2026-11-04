@@ -374,8 +374,6 @@ export default async function CostSettingsPage({
   const grids = session?.display_preferences?.grids ?? undefined;
   const queries = readQueries(search, grids, permissions);
   const editable = platformOffer(permissions, "cost_settings") !== undefined;
-  // Who may modify the settings (`cost_settings.write`) may also see the deactivated objects.
-  const readsInactive = editable;
   const [settings, [rates, types, categories, natures, typed]] = await Promise.all([
     readReferenceSettings(),
     readCosts(queries, { editable }),
@@ -385,7 +383,7 @@ export default async function CostSettingsPage({
       <PendingAddress>
         <CostsHeader
           settings={settings}
-          inactive={readsInactive ? queries.inactive.include_inactive === true : undefined}
+          inactive={editable ? queries.inactive.include_inactive === true : undefined}
           writes={editable}
         />
         <CostTypeList
@@ -394,7 +392,7 @@ export default async function CostSettingsPage({
           query={queries.types}
           preferences={grids?.[COST_TYPE_GRID_KEY] ?? undefined}
           state={queries.typeState}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           kinds={queries.kinds}
         />
@@ -404,7 +402,7 @@ export default async function CostSettingsPage({
           query={queries.categories}
           preferences={grids?.[COST_CATEGORY_GRID_KEY] ?? undefined}
           state={queries.categoryState}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           natures={natures.map(natureChoice)}
           every={typesOf(editable, typed, natures)}
@@ -413,7 +411,7 @@ export default async function CostSettingsPage({
         <RatesSection>
           <RateFilterBar
             filters={queries.rateFilters}
-            readsInactive={readsInactive}
+            readsInactive={editable}
             {...rateFiltered(rates, queries.rateFilters)}
           />
           {rates.kind === "read" ? (

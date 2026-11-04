@@ -10,15 +10,15 @@
  * A session that holds `cost_settings.write` adds, modifies and removes a label, and declares and
  * removes a kept column, in one form that replaces the correspondence whole with the version read
  * (`setActualCostMapping`); another reads the lists, with no command. The server alone judges the
- * labels: the kept columns stop at the ceiling of the contract (`KEPT_COLUMNS_LIMIT`), the refusal of the list
- * itself (`/kept_columns`, `VALUE_TOO_LONG`) being said under it; a refusal by field (422) is said at the label its pointer designates
- * (`/columns/<rank>/labels/<rank>`, `/kept_columns/<rank>`), the first one refused taking the focus,
- * a duplicate (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
+ * labels: the kept columns stop at the ceiling of the contract (`KEPT_COLUMNS_LIMIT`), the
+ * refusal of the list itself (`/kept_columns`, `VALUE_TOO_LONG`) being said under it; a refusal by
+ * field (422) is said at the label its pointer designates (`/columns/<rank>/labels/<rank>`,
+ * `/kept_columns/<rank>`), the first one refused taking the focus, a duplicate
+ * (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
  * refusal is told under the form — the version stale (412) with the offer to read the page anew,
- * which mounts the form again on what is read. The fields are held while the write is under way and
- * lose the focus: with any answer that refuses no label, it goes back to the control that held it. The
- * answer takes the place of the reading while it is
- * newer (`lock_version`).
+ * which mounts the form again on what is read. The fields are held while the write is under way
+ * and lose the focus: with any answer that refuses no label, it goes back to the control that
+ * held it. The answer takes the place of the reading while it is newer (`lock_version`).
  */
 "use client";
 
@@ -45,8 +45,8 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 const LABEL_LENGTH = 200;
 
 /**
- * The most kept columns the contract takes: the `maxItems` of `kept_columns` in `ActualCostMappingWrite`
- * (`docs/api/components/schemas/reference.yaml`), which the generated client does not carry;
+ * The most kept columns the contract takes: the `maxItems` of `kept_columns` in
+ * `ActualCostMappingWrite` (`docs/api/components/schemas/reference.yaml`), which the generated client does not carry;
  * `actual-cost-mapping.dom.test.tsx` proves it equal to the schema.
  */
 export const KEPT_COLUMNS_LIMIT = 50;

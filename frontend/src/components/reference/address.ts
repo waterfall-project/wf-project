@@ -55,8 +55,8 @@ export function identifierOf(search: SearchParameters, name: string): string | u
 /**
  * The state the address filters a list on, under the name given — the active objects alone, or the
  * deactivated ones alone —; none when it names none. The deactivated ones alone are asked only of a
- * session that may modify the settings, as `include_inactive` is: the contract refuses `is_active=false`
- * without the permission (403).
+ * session that may modify the settings, as `include_inactive` is: the contract refuses
+ * `is_active=false` without the permission (403).
  */
 export function stateOf(
   search: SearchParameters,

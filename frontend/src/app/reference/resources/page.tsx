@@ -115,8 +115,9 @@ const PAGES = [RESOURCE_ROLE_ADDRESS.offset, CALENDAR_ADDRESS.offset] as const;
 const BOUNDS_REFUSED = [{ status: 422, code: "VALIDATION_FAILED" }] as const;
 
 /**
- * The title of the screen, and the switch of the deactivated objects for who may modify the settings; under it,
- * the note of the fake back: it keeps nothing of what is written, and filters nothing.
+ * The title of the screen, and the switch of the deactivated objects for who may modify the
+ * settings; under it, the note of the fake back: it keeps nothing of what is written, and filters
+ * nothing.
  */
 function ResourcesHeader({ inactive }: { readonly inactive: boolean | undefined }) {
   const t = useTranslations("functions");
@@ -351,7 +352,6 @@ export default async function ResourceSettingsPage({
   const [narrowed, tree, roles, calendars, units, [categoryRead, calendarRead]] =
     await readLists(queries);
   const { editable } = queries;
-  const readsInactive = permissions.includes("resource_settings.write");
   const shown = queries.inactive.include_inactive === true;
   // The depths of the whole tree, from the first to the deepest the server gives.
   const deepest = Math.max(0, ...tree.map((node) => node.level));
@@ -365,12 +365,12 @@ export default async function ResourceSettingsPage({
   return (
     <Screen density={FUNCTION_DENSITY.resource_settings}>
       <PendingAddress>
-        <ResourcesHeader inactive={readsInactive ? shown : undefined} />
+        <ResourcesHeader inactive={editable ? shown : undefined} />
         <OrgNodeList
           {...narrowedTree(narrowed, tree)}
           query={queries.nodes}
           preferences={keptBy(grids, ORG_NODE_GRID_KEY)}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           filters={queries.nodeFilters}
           levels={Array.from({ length: deepest }, (_, at) => at + 1)}
@@ -380,7 +380,7 @@ export default async function ResourceSettingsPage({
           {...shownPage(roles)}
           query={queries.roles}
           preferences={keptBy(grids, RESOURCE_ROLE_GRID_KEY)}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           nodes={nodes}
           categories={categoryRead?.map(categoryChoice)}
@@ -397,7 +397,7 @@ export default async function ResourceSettingsPage({
           page={calendars.meta}
           query={queries.calendars}
           preferences={keptBy(grids, CALENDAR_GRID_KEY)}
-          readsInactive={readsInactive}
+          readsInactive={editable}
           editable={editable}
           state={queries.calendarState}
         />

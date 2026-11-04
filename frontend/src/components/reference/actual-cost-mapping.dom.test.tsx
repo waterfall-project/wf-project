@@ -297,13 +297,19 @@ describe("the correspondence of the extraction of the actual costs, written", ()
 
   it("reads the ceiling of the kept columns from the contract: the maxItems of kept_columns in ActualCostMappingWrite", () => {
     const lines = readFileSync(SCHEMAS, "utf-8").split("\n");
-    const schema = lines.indexOf("ActualCostMappingWrite:");
-    const kept = lines.findIndex((line, index) => index > schema && line === "    kept_columns:");
-    // The block of the property: up to the next key of the same indentation.
-    const end = lines.findIndex((line, index) => index > kept && /^ {0,4}\S/.test(line));
-    const block = lines.slice(kept + 1, end === -1 ? undefined : end);
-    const max = block.map((line) => /^\s+maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
-    expect(schema).toBeGreaterThan(-1);
+    const indentOf = (line: string) => line.length - line.trimStart().length;
+    // The lines nested under a key, whatever the line it stands on and the indentation of the file.
+    const under = (within: readonly string[], key: string): readonly string[] => {
+      const at = within.findIndex((line) => line.trim() === `${key}:`);
+      const rest = at === -1 ? [] : within.slice(at + 1);
+      const end = rest.findIndex(
+        (line) => line.trim() !== "" && indentOf(line) <= indentOf(within[at] ?? ""),
+      );
+      return end === -1 ? rest : rest.slice(0, end);
+    };
+    const kept = under(under(under(lines, "ActualCostMappingWrite"), "properties"), "kept_columns");
+    const max = kept.map((line) => /^\s*maxItems: (\d+)$/.exec(line)?.[1]).find(Boolean);
+    expect(kept.length).toBeGreaterThan(0);
     expect(Number(max)).toBe(KEPT_COLUMNS_LIMIT);
   });
 
