@@ -1363,7 +1363,7 @@ service (EP-08) ; un tri du réestimé des survenus, que le contrat ne propose p
 
 ## US-1030 — L'accueil retient aussi les projets créés
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune en propre
 - **opérations** : `listProjects`
 - **issue** : #1835

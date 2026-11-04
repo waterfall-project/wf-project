@@ -19,7 +19,7 @@ describe("the filter of the home", () => {
 
 describe("the states of the home", () => {
   it.each([
-    ["", undefined, ["pricing", "in_progress"]],
+    ["", undefined, ["created", "pricing", "in_progress"]],
     ["", "completed,pricing", ["pricing", "completed"]],
     ["states=lost,created", "completed", ["created", "lost"]],
     ["states=all", "completed", []],
@@ -33,7 +33,8 @@ describe("the states of the home", () => {
   );
 
   it("tells the states by default from any other choice", () => {
-    expect(isDefaultStates(["in_progress", "pricing"])).toBe(true);
+    expect(isDefaultStates(["in_progress", "pricing", "created"])).toBe(true);
+    expect(isDefaultStates(["in_progress", "pricing"])).toBe(false);
     expect(isDefaultStates(["pricing"])).toBe(false);
     expect(isDefaultStates([])).toBe(false);
   });
