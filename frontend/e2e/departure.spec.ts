@@ -19,7 +19,7 @@ import { path, text } from "./routes";
 // several paths: the measure plays alone on its machine (`playwright.config.ts`), and would
 // otherwise say little of what a loaded one pays. Five departures are measured, after one that is
 // not; their median is held under one second of work. On a workstation, the front built for
-// production paid a median of 180 ms under that slowdown, of which 90 ms of native work; the
+// production paid a median of about 180 to 215 ms under that slowdown depending on the run, 90 to 112 ms of it native work; the
 // development server of Next, which the paths played against when #1218 measured the departure,
 // 955 ms, of which 390 ms of native work: the development builds of React and Next — the debug
 // information of each element of the payload of the server revived, `jsxDEV`, the tracks of each
@@ -63,8 +63,15 @@ interface Work {
 /** The counters of the main thread of the page, now. */
 async function counters(session: CDPSession): Promise<Counters> {
   const { metrics } = await session.send("Performance.getMetrics");
-  const read = (name: string) =>
-    metrics.find((metric) => metric.name === name)?.value ?? Number.NaN;
+  const read = (name: string) => {
+    const value = metrics.find((metric) => metric.name === name)?.value;
+    if (value === undefined) {
+      throw new Error(
+        `the page reports no ${name} counter, the measure has nothing to hold (US-0800)`,
+      );
+    }
+    return value;
+  };
   return Object.fromEntries(COUNTERS.map((name) => [name, read(name)])) as Counters;
 }
 
@@ -146,11 +153,11 @@ test("leaves the planning of a thousand tasks for another screen within a second
   const slowed = `slowed ${String(SLOWDOWN)} times`;
   console.log(`Leaving the planning of a thousand tasks, ${slowed}: ${measured}`);
   test.info().annotations.push({ type: "measure", description: measured });
-  // A counter that is missing (NaN) or at zero would let the bound pass in silence.
+  // A counter at zero would let the bound pass in silence.
   for (const work of works) {
     expect(
       work.total,
-      "the main thread of the page counted no work, a counter missing or at zero (US-0800)",
+      "the main thread of the page counted no work, a counter at zero (US-0800)",
     ).toBeGreaterThan(0);
   }
   expect(of("total")).toBeLessThan(BOUND);

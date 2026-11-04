@@ -20,9 +20,8 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
   // The arrival on the workload keeps the bound of a screen of grid (`WORKING`), as the paths of
-  // the screens follow a link: it was slow under load too (#1218, #500). The departure from the
-  // estimate of a thousand tasks is measured apart, as the work of the browser (`departure.spec.ts`,
-  // US-0800, #1230).
+  // the screens follow a link, because the measure of the departure (`departure.spec.ts`, US-0800,
+  // #1230) covers neither the departure from the estimate nor the arrival on the workload.
   await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16&basis=reference_budget`, {
     timeout: WORKING,
   });
