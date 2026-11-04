@@ -53,10 +53,15 @@ test("the home sorts its projects and filters them by state on the server, from 
     "/?sort_by=code&sort_order=asc",
   );
   const states = page.getByRole("group", { name: "Filtre par état" });
-  // The filter by default is said, Chiffrage and En cours pressed (US-0660/L4, #1401).
+  // The filter by default is said, Créé, Chiffrage and En cours pressed (US-0660/L4, #1401;
+  // US-1030, #1748).
   await expect(
     page.getByRole("region", { name: "Filtre par défaut de la liste par état" }),
   ).toBeVisible();
+  await expect(states.getByRole("button", { name: "Créé" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(states.getByRole("button", { name: "Chiffrage" })).toHaveAttribute(
     "aria-pressed",
     "true",

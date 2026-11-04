@@ -93,7 +93,7 @@ const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 /** Every state of the contract, as the home asks them for `states=all`. */
 const EVERY_STATE = "created,pricing,in_progress,completed,lost,abandoned";
 /** The states the home asks when its address names none and the account kept none. */
-const DEFAULT_STATES = "pricing,in_progress";
+const DEFAULT_STATES = "created,pricing,in_progress";
 const UNAUTHORIZED = { problem: { code: "SESSION_REQUIRED", status: 401 } } as const;
 /** The notice that the fake back keeps nothing, for a session that may create a project. */
 const MOCKUP = `${CATALOGUES.en.mockup.notKept} ${CATALOGUES.en.mockup.notFiltered}`;
@@ -170,7 +170,7 @@ describe("the home, the list of projects", () => {
     expect(text(html)).toContain("2 projects");
   });
 
-  it("asks Chiffrage and En cours when the address names no state, every state for `states=all`, and the states, the sort, the search and the page it holds [WF-IHM-0130]", async () => {
+  it("asks Created, Pricing and In progress when the address names no state, every state for `states=all`, and the states, the sort, the search and the page it holds [WF-IHM-0130]", async () => {
     await home();
     expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
     server.clients = [];
@@ -201,14 +201,34 @@ describe("the home, the list of projects", () => {
     });
   });
 
-  it("says the filter by default while it applies, with Chiffrage and En cours pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
+  it("says the filter by default while it applies, with Created, Pricing and In progress pressed, and lifts it by « Every state » [WF-IHM-0130]", async () => {
     const html = await home();
     expect(html).toMatch(/role="group" aria-label="Filter by state"/);
     expect(html).toContain('aria-label="Default filter of the list by state"');
     const pressed = [...html.matchAll(/aria-pressed="true"[^>]*>(.*?)<\/button>/g)].map((match) =>
       text(match[1] ?? ""),
     );
-    expect(pressed).toEqual(["Pricing", "In progress"]);
+    expect(pressed).toEqual(["Created", "Pricing", "In progress"]);
+  });
+
+  it("reads the project created today on the home by default, the example of the contract the fake back serves [WF-IHM-0130]", async () => {
+    server.answers = { ...server.answers, "GET /projects": "projects_with_created" };
+    const html = await home();
+    expect(listQuery()).toEqual({ is_contributor: "true", states: DEFAULT_STATES });
+    const [grid] = grids.props;
+    expect(grid?.projects.map((each) => [each.code, each.state])).toEqual([
+      [null, "created"],
+      ["PRJ-002", "pricing"],
+      ["PRJ-001", "in_progress"],
+    ]);
+    expect(text(html)).toContain("3 projects");
+  });
+
+  it("keeps the states the account kept over the states by default, whatever they are [WF-IHM-0060-A]", async () => {
+    kept.grids = { projects: { filters: { states: "pricing" } } };
+    const html = await home();
+    expect(listQuery()).toEqual({ is_contributor: "true", states: "pricing" });
+    expect(html).not.toContain("Default filter of the list by state");
   });
 
   it("presses every state, and says no default, for `states=all` [WF-IHM-0130]", async () => {
