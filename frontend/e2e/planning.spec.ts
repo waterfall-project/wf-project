@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { type Download, expect, type Locator, type Request, test } from "@playwright/test";
+import { type Download, expect, type Locator, test } from "@playwright/test";
 
 import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the witness at the sizes of §4.6.2, its core first, a thousand tasks and their lines (#376) —:
@@ -22,10 +23,6 @@ import { rowAt, scrollToPosition, withinBox } from "./scroll";
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
-
-/** Whether a request is a server action of Next, which a write of the grid is (`next-action`). */
-const isServerAction = (request: Request) =>
-  request.method() === "POST" && request.headers()["next-action"] !== undefined;
 
 /**
  * The width the column of the names of the exported Gantt takes over the tasks of the fake back:

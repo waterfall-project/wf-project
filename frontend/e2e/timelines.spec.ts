@@ -5,6 +5,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { columnsOf } from "./columns";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The inscription of a task to a timeline, from the menu of its cell (US-0480, WF-PLA-0060), against
 // the fake back. It keeps nothing: it serves the first example of each read, and the first of
@@ -75,9 +76,7 @@ test("inscribes a task to a timeline from the menu of its cell, sees it in the c
   // Taken out: the same menu unchecks it, and the screen says the timelines were updated again.
   // The write is a server action, the one of the second click: the whole list, empty once the task is
   // taken out.
-  const removal = page.waitForRequest(
-    (request) => request.method() === "POST" && request.headers()["next-action"] !== undefined,
-  );
+  const removal = page.waitForRequest(isServerAction);
   await again.getByRole("menuitemcheckbox", { name: "Revue client" }).click();
   expect((await removal).postData()).toContain('"entries":[]');
   await expect(page.getByText(SAID)).toBeVisible({ timeout: WORKING });
@@ -145,8 +144,7 @@ test("lays out the frieze of a timeline by the keyboard and the mouse, and recor
   // The keyboard: the last rectangle, a lane down — the lanes shown recorded after a pause.
   const recorded = page.waitForRequest(
     (request) =>
-      request.method() === "POST" &&
-      request.headers()["next-action"] !== undefined &&
+      isServerAction(request) &&
       (request.postData() ?? "").includes("lanes"),
   );
   await frieze.focus();

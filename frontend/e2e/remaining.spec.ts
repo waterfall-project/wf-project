@@ -6,6 +6,7 @@ import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition, withinBox } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The fake back serves the first example of each read, whatever it asks: the structure of the
 // volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
@@ -358,7 +359,7 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
     .click();
   const removal = page.waitForRequest(
     (request) =>
-      request.headers()["next-action"] !== undefined &&
+      isServerAction(request) &&
       (request.postData() ?? "").includes('"subproject_id":null'),
     { timeout: WORKING },
   );
