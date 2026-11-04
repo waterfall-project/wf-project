@@ -46,6 +46,21 @@ describe("DialogContent", () => {
   });
 });
 
+describe("DialogContent, outside", () => {
+  it("scrolls to nothing a field outside the dialog takes the focus to [WF-IHM-0100-A]", () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {
+      /* nothing to scroll in jsdom */
+    });
+    try {
+      render(<input aria-label="Outside field" />);
+      screen.getByRole("textbox", { name: "Outside field" }).focus();
+      expect(scroll).not.toHaveBeenCalled();
+    } finally {
+      scroll.mockRestore();
+    }
+  });
+});
+
 describe("AlertDialogContent", () => {
   it("says it is modal [WF-IHM-0100-A]", async () => {
     render(

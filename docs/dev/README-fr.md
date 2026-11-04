@@ -3707,15 +3707,16 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
 - ce qu'un geste ouvre sans déclencheur que le harnais joue : le Popover d'un refus — d'une cellule
   calculée, ou d'une écriture refusée —, qui ne s'ouvre qu'une fois le serveur a refusé ; un menu
   ou un dialogue ouvert depuis un menu — le menu d'une cellule (Maj+F10), et les dialogues qu'il
-  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les dialogues qu'un geste ouvre
-  sans bouton — `TimelineForm` et `GestureDialog` de `structure-gestures.tsx` —, que le harnais ne
-  trouve pas faute de commande qui dise `aria-haspopup="dialog"` : le test
-  `dialog-command-guard.test.ts` fait échouer toute source qui rend un `<Dialog` piloté par un état
-  sans cette commande, hors de sa liste nommée (chaque entrée avec sa raison). Les tests
-  de composants les tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en
-  page ; le focus que Radix rend) ;
-- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule : l'audit
-  d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
+  ouvre, l'insertion d'une tâche par exemple — ; le collage d'un bloc, ouvert par Ctrl+V ; les
+  dialogues qu'un geste ouvre sans bouton — `TimelineForm` et `GestureDialog` de
+  `structure-gestures.tsx` —, que le harnais ne trouve pas faute de commande qui dise
+  `aria-haspopup="dialog"` : le test `dialog-command-guard.test.ts` les exempte de la règle et les
+  nomme (chaque entrée avec sa raison), et fait échouer toute autre source qui rend plus de
+  dialogues pilotés par un état que de commandes qui le disent. Les tests de composants les
+  tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en page ; le focus que
+  Radix rend) ;
+- la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
+  l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste
   atteint — un refus affiché, une adresse `?import=` — : le harnais ouvre chaque écran à son
   adresse, et n'y joue que les déclencheurs ;
