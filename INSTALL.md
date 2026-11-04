@@ -16,6 +16,7 @@ Pour installer une plateforme de démonstration à partir des images publiées, 
 | Python 3.11 ou plus, sous le nom `python3` | la projection de la spécification |
 | Node 24 | le front ; son corepack apporte pnpm |
 | Docker et son greffon Compose | `make dev`, la plateforme de service, les images |
+| Le client PostgreSQL 18 (`postgresql-client-18`, celui d'Ubuntu 26.04) | `pg_dump` et `pg_restore` dans `/usr/bin`, que les tests des sauvegardes et des restaurations appellent : ceux de la majeure du serveur, ni plus récents ni plus anciens (#982) |
 | `pandoc` 3.1.11.1 | la projection de la spécification (une autre version écrit un autre Markdown) |
 | `mmdc` (`npm i -g @mermaid-js/mermaid-cli`) | facultatif : la validation des diagrammes |
 
@@ -148,6 +149,11 @@ failed`. Deux façons d'en sortir :
   stockage, l'annuaire et l'autorité de Keycloak.
 
 `docker volume ls | grep waterfall-service` montre les volumes présents.
+
+**Les données d'une autre version de PostgreSQL ne sont pas reprises.** La plateforme tourne sur
+PostgreSQL 18 depuis EP-20 : sur le volume d'une plateforme démarrée avant, en PostgreSQL 16,
+`make service-up` échoue en affichant le refus de `postgres-volume`, qui nomme les deux versions.
+`make service-down WATERFALL_RESET_DATA=yes` repart de zéro.
 
 ### 2. Démarrer la plateforme
 

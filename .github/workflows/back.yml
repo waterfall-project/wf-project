@@ -25,14 +25,14 @@ jobs:
     services:
       postgres:
         # The version the platform targets (deploy/compose/compose.service.yaml), by its digest.
-        image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+        image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
         env:
           # A server that lives for the job and is reachable from the runner alone.
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready --username postgres"
+          --health-cmd "pg_isready --host 127.0.0.1 --username postgres"
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
@@ -50,6 +50,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The client of the server's major (the Dockerfile of the back, #982): the runner brings the
+      # 16 of the PGDG, which pg_dump refuses to run against a server 18, and no longer has the
+      # repository to install the 18 from. It is added as the Dockerfile adds it, its key pinned by
+      # its digest (fingerprint B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8); a source of the
+      # same repository the image may still hold is dropped first, which apt would refuse beside
+      # this one. /usr/bin/pg_dump and pg_restore, which the backups call, are the wrapper of
+      # Debian, which keeps the 16 of the runner (it prefers the major of the cluster the image
+      # holds): they are pointed at the 18, which the last lines check.
+      - run: |
+          curl --fail --silent --show-error --location --output pgdg.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  pgdg.asc" | sha256sum --check --strict
+          sudo install --mode 0644 pgdg.asc /usr/share/keyrings/pgdg.asc
+          sudo grep --files-with-matches --recursive apt.postgresql.org /etc/apt/sources.list /etc/apt/sources.list.d | xargs --no-run-if-empty sudo rm
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-18
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_dump /usr/bin/pg_dump
+          sudo ln --symbolic --force /usr/lib/postgresql/18/bin/pg_restore /usr/bin/pg_restore
+          /usr/bin/pg_dump --version | grep --fixed-strings "(PostgreSQL) 18."
+          /usr/bin/pg_restore --version | grep --fixed-strings "(PostgreSQL) 18."
       # The image and the settings of the service platform (deploy/compose/compose.service.yaml),
       # its key a value of the job; ready long before the tests, which run last.
       - run: >-

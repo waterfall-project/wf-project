@@ -236,8 +236,11 @@ lint-docker: ## Lint the Dockerfiles
 # front end is copied out first: a new volume makes a new one. The service of the restoration waits
 # for the application, which it would start with the platform: it starts last, so that the realm is
 # applied once, and Keycloak, which the application waits for, is never started again (--no-deps).
+# A start that fails prints the log of the control of the volume of PostgreSQL, which says nothing
+# unless it refuses the data of another major version (US-1130): `up --detach` shows no log.
 service-up: ## Start the service platform: PostgreSQL, Redis, the migrations, the API, the worker and its schedule, the service of the restoration, Keycloak in HTTPS and its realm, OpenLDAP, Mailpit (needs the secrets of the guide, "Commandes")
-	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit
+	@$(COMPOSE_SERVICE) up --build --detach --wait postgres redis api worker scheduler keycloak keycloak-front-end openldap mailpit \
+		|| { rc=$$?; $(COMPOSE_SERVICE) logs --no-color --no-log-prefix postgres-volume >&2; exit $$rc; }
 	@$(MAKE) --no-print-directory keycloak-authority
 	@$(COMPOSE_SERVICE) up --detach --wait --force-recreate --no-deps keycloak-realm
 	@$(COMPOSE_SERVICE) up --detach --wait restore
@@ -580,7 +583,7 @@ slot-release: ## Remove the containers and volumes of the slot of this worktree 
 slots: ## Print N, then the slots taken on the workstation and their worktrees
 	@$(SLOTS) list
 
-# PostgreSQL 16, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
+# PostgreSQL 18, Redis and Garage of the platform, in memory, on the ports of the slot of the worktree
 # (WATERFALL_TEST_POSTGRES_PORT, _REDIS_PORT, _STORAGE_PORT): what the tests of the back and of the
 # front are given by make test-back and the others, unless their WATERFALL_TEST_*_URL says otherwise.
 test-services: ## Start, for the slot of this worktree, the services the tests run against — PostgreSQL, Redis, Garage — and wait for them; running, they stay as they are (SERVICES=<some of them>)
@@ -616,6 +619,8 @@ check-tools: ## Report which prerequisites are missing
 	done
 	@command -v pandoc >/dev/null && pandoc --version | head -1 | grep -q " 3.1.11.1$$" \
 		|| echo "  warning  pandoc is not 3.1.11.1: the projection would differ from the chain's"
+	@/usr/bin/pg_restore --version 2>/dev/null | grep -q " 18\." \
+		|| echo "  warning  /usr/bin/pg_restore is not PostgreSQL 18, the server's: the tests of the backups and restorations would fail (#982)"
 	@command -v mmdc >/dev/null && echo "  ok       mmdc" || echo "  absent   mmdc (diagrams will not be validated)"
 
 clean: ## Remove everything the commands generate

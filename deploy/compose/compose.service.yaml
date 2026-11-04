@@ -69,21 +69,40 @@ x-keycloak: &keycloak
   image: ${WATERFALL_KEYCLOAK_IMAGE:-waterfall-keycloak}
 
 services:
+  # Refuses, then stops, a volume of PostgreSQL that holds the data of another major version: the
+  # platform does not take them over (US-1130), and the refusal names the versions and the remedy.
+  # Read-only, as root, who reads the data whatever their owner. `make service-up` prints its log
+  # when the platform does not start.
+  postgres-volume:
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    entrypoint: ["/bin/sh", "/postgres-volume.sh"]
+    command: ["Drop the data of the service platform: make service-down WATERFALL_RESET_DATA=yes."]
+    volumes:
+      - postgres-data:/var/lib/postgresql:ro
+      - ./postgres-volume.sh:/postgres-volume.sh:ro
+    restart: "no"
+
   postgres:
-    # The version the platform targets, pinned by the digest of its index.
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    # The version the platform targets, pinned by the digest of its index. Its data live in
+    # <major>/docker of the volume, the layout of the images since 18. The health check asks by
+    # TCP: the server of the first initialisation, which stops before the real one starts, listens
+    # on the socket alone (US-1130).
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
       POSTGRES_USER: waterfall
       POSTGRES_DB: waterfall
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_PASSWORD:?export WATERFALL_POSTGRES_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     # On the workstation only: the tests of the back reach the server there
     # (WATERFALL_TEST_DATABASE_URL).
     ports:
       - "127.0.0.1:${WATERFALL_POSTGRES_PORT:-5432}:5432"
+    depends_on:
+      postgres-volume:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username waterfall --dbname waterfall"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username waterfall --dbname waterfall"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -123,7 +142,7 @@ services:
   # Lets the role of the service, which the migrations create, sign in with its password, at
   # each start of the platform, then stops: the API and the worker connect as it.
   service-database-role:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/service-database-role.sql"]
     environment:
@@ -142,7 +161,7 @@ services:
   # The role of the backup, created when missing, and its password, at each start of the platform,
   # then stops (#895): the worker dumps the databases as it.
   backup-database-role:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/backup-database-role.sql"]
     environment:
@@ -310,7 +329,7 @@ services:
 
   # The database of Keycloak, on the same server, created with its role when missing (#215).
   keycloak-database:
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     user: postgres
     command: ["psql", "--no-psqlrc", "--set=ON_ERROR_STOP=1", "--file=/keycloak-database.sql"]
     environment:

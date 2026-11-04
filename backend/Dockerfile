@@ -39,9 +39,11 @@ ENV PATH="/app/.venv/bin:${PATH}" \
 
 # pg_dump and pg_restore, with which the worker backs up the two databases and verifies the archive
 # (WF-ADM-0150), and the service of the restoration restores them (WF-ADM-0160): the client of the
-# major version of the server, 16, the latest of its minor releases. Not Debian's, 17: pg_restore 17
-# sets transaction_timeout, which a server 16 refuses, and no restoration would end (#982). The key
-# of the repository is pinned by its digest; its fingerprint is
+# major version of the server, 18, the latest of its minor releases, from the repository of
+# PostgreSQL. The client follows the server, neither Debian's nor a newer one: a pg_restore newer
+# than the server sets what the server does not know — pg_restore 17 set transaction_timeout, which
+# a server 16 refused —, and no restoration would end (#982). The key of the repository is pinned
+# by its digest; its fingerprint is
 # B97B 0AFC AA1A 47F0 44F2 44A0 7FCC 7D46 ACCC 4CF8.
 RUN python -c "import urllib.request; urllib.request.urlretrieve('https://www.postgresql.org/media/keys/ACCC4CF8.asc', '/usr/share/keyrings/pgdg.asc')" \
     && echo "0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76  /usr/share/keyrings/pgdg.asc" > /tmp/pgdg.sha256 \
@@ -49,7 +51,7 @@ RUN python -c "import urllib.request; urllib.request.urlretrieve('https://www.po
     && rm /tmp/pgdg.sha256 \
     && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
-    && apt-get install --yes --no-install-recommends "postgresql-client-16=16.*" \
+    && apt-get install --yes --no-install-recommends "postgresql-client-18=18.*" \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/.venv /app/.venv
