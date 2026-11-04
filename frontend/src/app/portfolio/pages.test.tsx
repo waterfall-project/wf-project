@@ -257,8 +257,8 @@ describe("the screens of the portfolio", () => {
   it("presents the structure of the costs by nature and the labour by node, and no breakdown of the actual cost, over the period of the projects completed [WF-PTF-0010-A]", async () => {
     const page = text(await render(CostStructurePage, { from: "2025-01-01" }));
     expect(queryOf("GET /portfolio/cost-structure")).toEqual({ from: "2025-01-01" });
-    expect(page).toContain("The actual cost is not broken down by nature");
-    expect(page).toMatch(/Reference budget by nature .*Main-d'œuvre .*1,465,987,087\.43 55%/);
+    expect(page).toContain("The actual cost is not broken down by cost type");
+    expect(page).toMatch(/Reference budget by cost type .*Main-d'œuvre .*1,465,987,087\.43 55%/);
     expect(page).toMatch(/Labour by organisation node .*Bureau d'études électricité .*100%/);
   });
 
