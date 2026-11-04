@@ -63,7 +63,8 @@ interface Work {
 /** The counters of the main thread of the page, now. */
 async function counters(session: CDPSession): Promise<Counters> {
   const { metrics } = await session.send("Performance.getMetrics");
-  const read = (name: string) => metrics.find((metric) => metric.name === name)?.value ?? 0;
+  const read = (name: string) =>
+    metrics.find((metric) => metric.name === name)?.value ?? Number.NaN;
   return Object.fromEntries(COUNTERS.map((name) => [name, read(name)])) as Counters;
 }
 
@@ -145,5 +146,12 @@ test("leaves the planning of a thousand tasks for another screen within a second
   const slowed = `slowed ${String(SLOWDOWN)} times`;
   console.log(`Leaving the planning of a thousand tasks, ${slowed}: ${measured}`);
   test.info().annotations.push({ type: "measure", description: measured });
+  // A counter that is missing (NaN) or at zero would let the bound pass in silence.
+  for (const work of works) {
+    expect(
+      work.total,
+      "the main thread of the page counted no work, a counter missing or at zero (US-0800)",
+    ).toBeGreaterThan(0);
+  }
   expect(of("total")).toBeLessThan(BOUND);
 });

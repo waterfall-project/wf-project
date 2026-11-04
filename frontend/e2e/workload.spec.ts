@@ -3,7 +3,7 @@
 import { expect, test } from "@playwright/test";
 
 import { compile } from "./compile";
-import { openHydrated } from "./hydration";
+import { openHydrated, WORKING } from "./hydration";
 
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
@@ -19,11 +19,16 @@ test("leads from the estimate to the workload on the reference budget, drawn in 
   await compile(page.request, SCREEN);
   await openHydrated(page, `${ESTIMATE}?as_of=2026-03-16`);
   await page.getByRole("main").getByRole("link", { name: "Plan de charge" }).click();
-  // The five seconds of an assertion: leaving the estimate of a thousand tasks costs the browser a
-  // fifth of a second of work, its processor slowed four times (`departure.spec.ts`, US-0800);
-  // the five seconds it overran under load were those of the development server (#1218, #1230).
-  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16&basis=reference_budget`);
-  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible();
+  // The arrival on the workload keeps the bound of a screen of grid (`WORKING`), as the paths of
+  // the screens follow a link: it was slow under load too (#1218, #500). The departure from the
+  // estimate of a thousand tasks is measured apart, as the work of the browser (`departure.spec.ts`,
+  // US-0800, #1230).
+  await expect(page).toHaveURL(`${SCREEN}?as_of=2026-03-16&basis=reference_budget`, {
+    timeout: WORKING,
+  });
+  await expect(page.getByRole("heading", { level: 1, name: "Plan de charge" })).toBeVisible({
+    timeout: WORKING,
+  });
   const region = page.getByRole("region", { name: "Plan de charge du projet" });
   const figure = region.getByRole("figure", { name: "Charge par rôle et par mois" });
   await expect(
