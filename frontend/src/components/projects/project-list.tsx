@@ -79,8 +79,9 @@ export function ContributorFilter({ filtered, mayLift, query }: ContributorFilte
 
 /**
  * The filter by default of the list by state, said as the filter of the contributor is: shown while
- * it applies — the states retained are created, pricing and in progress, by the address, the account's
- * settings or neither —, and lifted by « Tous les états » of the filter by state beside it.
+ * it applies — the states retained are created, pricing and in progress, by the address, the
+ * account's settings or neither —, and lifted by « Tous les états » of the filter by state beside
+ * it.
  */
 export function DefaultStatesFilter() {
   const t = useTranslations("projectList.filter");
