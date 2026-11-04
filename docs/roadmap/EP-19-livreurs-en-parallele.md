@@ -359,6 +359,14 @@ attendant, l'auteur pose à la main des règles `permissions.deny` dans `~/.clau
 Ce que lance une commande `make` ou un script : le hook ne voit que la ligne que l'agent écrit,
 et le Makefile n'arrête que ce qu'il a lui-même démarré.
 
+Les formes qui ne s'écrivent que pour contourner le garde, limites connues (#1890, décision de
+l'auteur du 2026-11-04) : une commande passée en texte à un interpréteur
+(`echo 'pkill x' | bash`, `bash <<< '…'`, `python -c 'os.system(…)'`), et une substitution ou une
+variable en position de mot de commande (`x=pkill; $x …`). Le garde est un filet contre l'erreur,
+pas un bac à sable. `docker stop "wf-$SLOT-pg"` reste refusé, puisque la cible est calculée :
+les conteneurs d'un créneau se retirent par `make slot-release` et `make test-services-down`.
+Les formes qu'un agent écrit sans malice sont reportées vers EP-21.
+
 ---
 
 ## US-1090 — Les exécutions lourdes passent N à la fois

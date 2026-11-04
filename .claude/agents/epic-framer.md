@@ -50,8 +50,8 @@ Ne commence jamais à froid. Réunis d'abord :
    avec lesquels il ne se livre pas en même temps. Deux lots qu'aucune dépendance ne sépare
    et qui touchent un même fichier — comme US-1060 et US-1070, dans `api/users.py` — sont
    « pas avec » l'un l'autre ; la relation est symétrique, tu la notes des deux côtés, et tu
-   ne la mets que pour un fichier partagé, pas par prudence. Le pilote ne lance jamais deux
-   lots ainsi marqués ensemble. Tu le présentes à l'utilisateur ; les lots ne s'écrivent pas
+   ne la mets que pour un fichier partagé, pas par prudence. Le pilote ne lance pas un lot
+   tant qu'un lot ainsi marqué avec lui est commencé et non fusionné. Tu le présentes à l'utilisateur ; les lots ne s'écrivent pas
    dans le fichier de l'EPIC. **Arrête-toi pour validation.**
 
 À chaque étape, une réponse qui contredit une décision déjà prise — la spécification,
