@@ -19,10 +19,11 @@ def postgres_images(path: Path) -> list[str]:
 def test_the_postgresql_of_the_chain_is_the_image_of_the_service_platform() -> None:
     chain = postgres_images(ROOT / ".github" / "workflows" / "back.yml")
     # The server, the service that creates the database of Keycloak on it, the one that lets the
-    # role of the service sign in, and the one that makes the role of the backup (#895).
+    # role of the service sign in, the one that makes the role of the backup (#895), and the control
+    # of the volume (US-1130).
     platform = postgres_images(ROOT / "deploy" / "compose" / "compose.service.yaml")
     assert len(chain) == 1
-    assert platform == chain * 4
+    assert platform == chain * 5
 
 
 def test_the_redis_of_the_chain_is_the_image_of_the_service_platform() -> None:

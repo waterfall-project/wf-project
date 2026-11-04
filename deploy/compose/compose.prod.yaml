@@ -22,7 +22,7 @@ x-keycloak-address: &keycloak-address https://${WATERFALL_DOMAIN:?set WATERFALL_
 
 x-waterfall-image: &waterfall-image ghcr.io/waterfall-project/waterfall:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
 x-keycloak-image: &keycloak-image ghcr.io/waterfall-project/keycloak:${WATERFALL_IMAGE_TAG:?set WATERFALL_IMAGE_TAG in .env}
-x-postgres-image: &postgres-image postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+x-postgres-image: &postgres-image postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
 
 # The API, the worker and the schedule connect as the role of the service, which holds only what the
 # tables grant it, waterfall_service (#701); the migrations and the bootstrap, as waterfall, the
@@ -114,18 +114,36 @@ services:
       timeout: 5s
       retries: 30
 
+  # Refuses, then stops, a volume of PostgreSQL that holds the data of another major version: the
+  # platform does not take them over (US-1130), and the refusal names the versions and the remedy,
+  # the note of README.md. Read-only, as root, who reads the data whatever their owner.
+  postgres-volume:
+    image: *postgres-image
+    entrypoint: ["/bin/sh", "/postgres-volume.sh"]
+    command:
+      - "Remove the platform with its volumes (down --volumes), then install and bootstrap it again: deploy/compose/README.md, « Mettre à jour »."
+    volumes:
+      - postgres-data:/var/lib/postgresql:ro
+      - ./postgres-volume.sh:/postgres-volume.sh:ro
+    restart: "no"
+
   # The administrator of the server, postgres, made at the first start alone, as is its password:
   # to change it afterwards, ALTER ROLE postgres PASSWORD '...' in the container, then in .env.
+  # The data live in <major>/docker of the volume, the layout of the images since 18. The health
+  # check asks by TCP: the server of the first initialisation, which stops before the real one
+  # starts, listens on the socket alone (US-1130).
   postgres:
     image: *postgres-image
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${WATERFALL_POSTGRES_ADMIN_PASSWORD:?set WATERFALL_POSTGRES_ADMIN_PASSWORD in .env}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     restart: unless-stopped
+    depends_on:
+      postgres-volume: *done
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username postgres --dbname postgres"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname postgres"]
       interval: 2s
       timeout: 3s
       retries: 30

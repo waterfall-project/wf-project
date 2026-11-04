@@ -406,7 +406,7 @@ racine (US-1130, 1150, 1170, 1200). Le plan de lots en tire ses « Pas avec ».
 
 ## US-1130 — La plateforme sur PostgreSQL 18
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — plateforme
 - **opérations** : aucune
 - **issue** : #1926

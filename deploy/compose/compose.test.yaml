@@ -16,16 +16,16 @@ services:
   postgres:
     # The version the platform targets, pinned by the digest of its index. Trusting the connections
     # of the workstation, as the service of the chain does: the role is a superuser who may create
-    # the database of each run.
-    image: postgres:16-bookworm@sha256:0ea6700a3b4f0ae6ce746519073558aed4d88a79d8d07622a9a644946c7319c4
+    # the database of each run. The health check asks by TCP, as the platform's (US-1130).
+    image: postgres:18-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
       POSTGRES_HOST_AUTH_METHOD: trust
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     ports:
       - "127.0.0.1:${WATERFALL_TEST_POSTGRES_PORT:-20000}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready --username postgres"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres"]
       interval: 2s
       timeout: 3s
       retries: 30
