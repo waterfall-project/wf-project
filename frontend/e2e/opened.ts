@@ -171,7 +171,12 @@ async function untilPlaced(opened: Locator): Promise<void> {
         return [x, y, width, height].join(" ");
       });
     const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-    await Promise.all(document.getAnimations().map((animation) => animation.finished));
+    // Only the animations that end: an infinite one (a spinner, a pulse) never settles, and a
+    // cancelled one rejects `finished`.
+    const ending = document
+      .getAnimations()
+      .filter((animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime ?? 0));
+    await Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
     let still = 0;
     let before = boxes();
     // Bounded: a box that never settles is the walk's to judge, not a wait with no end.

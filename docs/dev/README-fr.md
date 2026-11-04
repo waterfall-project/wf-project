@@ -543,8 +543,9 @@ risques active (`active_provision_category`) comprises, et mène aux paramètres
 refus `REFERENCE_INCOMPLETE` les nomme sous le formulaire ; le formulaire prend ce que
 `ProjectCreate` prend — le libellé, exigé (WF-PRJ-0080), le code, qui peut attendre la commande
 (WF-PRJ-0010), la description — et mène à l'écran du projet que le serveur a créé, que le faux back
-sert à son adresse, avec ses propres exemples — le projet « created », sans révision —, tant que l'accueil est encore montré : une réponse arrivée après
-qu'on l'a quitté ne remplace pas la navigation choisie. Une réponse arrivée après « Annuler », le
+sert à son adresse, avec ses propres exemples — le projet « created », sans révision —, tant que
+l'accueil est encore montré : une réponse arrivée après qu'on l'a quitté ne remplace pas la
+navigation choisie. Une réponse arrivée après « Annuler », le
 dialogue fermé mais l'accueil toujours montré, y mène quand même : c'est la seule façon de dire le
 succès, que la liste simulée ne montre pas, et fermé pendant l'attente, le dialogue ne fait rien
 taire. Les paramètres du projet présentent son identité et ses faits — le libellé, le code, la date
@@ -1407,7 +1408,8 @@ sous son en-tête, pour qui écrit — la note, avec celle des listes, tient en 
 pour que les totaux de grille restent dans la fenêtre, et ne dit pas qu'une ligne écrite reste
 montrée telle que le serveur l'a rendue tant que l'écran reste ouvert — (`MockupNotice`,
 `components/shell/mockup-notice.tsx`, à reprendre par chaque écran de la maquette dont les commandes
-écrivent, retiré quand l'écran est branché sur le service de son EPIC). La saisie d'un taux reste celle de la grille.
+écrivent, retiré quand l'écran est branché sur le service de son EPIC). La saisie d'un taux reste
+celle de la grille.
 
 La correspondance de l'extraction des coûts réels (US-0620/L2, WF-REF-0190, FBS-3.1.3) a sa page,
 `/reference/costs/actual-cost-mapping`, que l'en-tête des paramètres de coûts offre par
@@ -3320,8 +3322,9 @@ au-delà des lignes en vue à l'ouverture, le parcours défile jusqu'à elle (`s
 fenêtre.
 
 `make e2e` : `make mock-tools` met d'abord en cache les Redocly et Prism épinglés (leur
-installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) ;
-Playwright démarre le faux back (`make mock`) et le front, joue les parcours
+installation par `npx` comptait dans les 120 s que Playwright donne au faux back, #1901) — il en
+est de même de `make e2e-measure` et de `make e2e-service`, dont Playwright démarre aussi le faux
+back ; Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
 serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de

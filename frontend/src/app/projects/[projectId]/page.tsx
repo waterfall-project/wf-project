@@ -77,7 +77,7 @@ async function leadTo(
   const answer = await readRevision(context.projectId, revisionId);
   // A read the session may not make answers 404 (WF-ADM-0110): the contract lists no 403.
   if (answer?.response.status === 404) {
-    redirect(`${projectPath}/revisions${contextQuery(context, false)}`);
+    redirect(withImport(`${projectPath}/revisions${contextQuery(context, false)}`, shown));
   }
   const inRevision = { ...context, revisionId, revisionInPath: true };
   if (shown === undefined) {

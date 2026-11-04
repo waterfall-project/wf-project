@@ -551,7 +551,8 @@ to the cost settings, as the `REFERENCE_INCOMPLETE` refusal names them under the
 takes what `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for
 the order (WF-PRJ-0010), the description — and leads to the screen of the project the server
 created, which the fake back serves at its own address, with its own examples — the project
-« created », with no revision —, as long as the home page is still shown: a response that arrives after one has left it does not replace the chosen navigation. A
+« created », with no revision —, as long as the home page is still shown: a response that arrives
+after one has left it does not replace the chosen navigation. A
 response that arrives after « Cancel », the dialog closed but the home page still shown, leads
 there all the same: it is the only way to say the success, which the simulated list does not show,
 and closed during the wait, the dialog silences nothing. The project settings present its identity
@@ -1400,7 +1401,8 @@ under its header, for whoever writes — the note, with that of the lists, fits 
 most, so that the totals of a grid stay in the window, and does not say that a written row remains
 shown as the server rendered it as long as the screen stays open — (`MockupNotice`,
 `components/shell/mockup-notice.tsx`, to be taken up by each screen of the mockup whose commands
-write, removed when the screen is plugged into the service of its epic). The entry of a rate remains that of the grid.
+write, removed when the screen is plugged into the service of its epic). The entry of a rate remains
+that of the grid.
 
 The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
 `/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
@@ -3302,7 +3304,8 @@ beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
 viewport.
 
 `make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by
-`npx` counted in the 120 s Playwright gives the fake back, #1901); Playwright starts the fake back
+`npx` counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
+`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
 (`make mock`) and the front, plays the paths
 in Chromium, then stops both — it signals their whole process group, without which
 the servers that `make` and `pnpm` start would survive. It always starts its own

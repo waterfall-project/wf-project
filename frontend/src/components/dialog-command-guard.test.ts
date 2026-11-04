@@ -56,9 +56,10 @@ function dialogsOf(text: string): number {
   ).length;
 }
 
-/** How many commands of the source say they open a dialog. */
+/** How many commands of the source say they open a dialog, its comments left out. */
 function sayings(text: string): number {
-  return text.split(SAYS).length - 1;
+  const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  return code.split(SAYS).length - 1;
 }
 
 describe("the commands that open a dialog", () => {
