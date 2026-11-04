@@ -12,7 +12,7 @@ import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
 import { example, fakeClient } from "@/test/fixtures";
 
-import { readRiskFilters, RISK_ZONES, riskFilterQuery, RISKS_LIST } from "./address";
+import { readRiskFilters, RISK_ZONES, riskFilterQuery, RISKS_LIST, universalDay } from "./address";
 import { RiskColumnFilters } from "./risk-filters";
 import { riskRow, type RiskRows, type RiskSortColumn } from "./risk-grid";
 import { RisksGrid } from "./risks-grid";
@@ -242,7 +242,13 @@ describe("the filters of the register on its columns", () => {
     expect(screen.queryByRole("link", { name: /Non réexaminés/ })).toBeNull();
   });
 
-  it("is named in English too", () => {
+  it("takes the day of the last marking in universal time, an instant near midnight keeping its day [WF-RIS-0020-A]", () => {
+    expect(universalDay("2026-02-01T00:30:00+01:00")).toBe("2026-01-31");
+    expect(universalDay("2026-01-31T23:59:59Z")).toBe("2026-01-31");
+    expect(universalDay("2026-01-31T23:30:00-01:00")).toBe("2026-02-01");
+  });
+
+  it("is named in English too [WF-IHM-0130-A]", () => {
     const search = new URLSearchParams("");
     render(
       <NextIntlClientProvider locale="en" messages={CATALOGUES.en} timeZone="UTC">

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import type { ProjectRiskMatrixProps } from "@/components/risks/risk-bubble-chart";
 import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
@@ -300,7 +301,9 @@ describe("the screen of the risks", () => {
   });
 
   it("says the filters the server refused at their field and reads no grid, the other filters kept [WF-IHM-0130-A]", async () => {
-    const refusal = example("risks_period_inverted") as { code: string; status: 422; fields: [] };
+    const refusal = example("risks_period_inverted") as components["schemas"]["Problem"] & {
+      status: 422;
+    };
     server.answers = { ...server.answers, [LIST]: { problem: refusal } };
     const page = await risksAt({
       last_review_on_from: "2026-03-01",
@@ -319,6 +322,13 @@ describe("the screen of the risks", () => {
     const page = await risksAt();
     expect(text(page)).toContain("Not reviewed since the last marking");
     expect(page).toContain(`last_review_on_to=${day}`);
+  });
+
+  it("reads the register without the shortcut when the revisions are refused, the contract giving them no other refusal [WF-RIS-0020-A]", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}/revisions": NOT_FOUND };
+    const page = await risksAt();
+    expect(grids.risks).not.toEqual([]);
+    expect(text(page)).not.toContain("Not reviewed since the last marking");
   });
 
   it("asks the server the page and the size of the pages the address names [WF-IHM-0060-A]", async () => {

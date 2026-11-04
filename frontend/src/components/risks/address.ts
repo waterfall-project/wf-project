@@ -18,6 +18,14 @@ import { CONTRACT_ADDRESS, pagedList } from "@/components/grid/query";
 import type { SearchParameters } from "@/navigation/context";
 import type { PagedList } from "@/navigation/pages";
 
+/**
+ * The day, `YYYY-MM-DD`, of an instant in universal time — the zone in which the front reads and
+ * writes every date (`TIME_ZONE`, `i18n/format.ts`): 00:30 in Paris on the 1st is still the 31st.
+ */
+export function universalDay(instant: string): string {
+  return new Date(instant).toISOString().slice(0, 10);
+}
+
 /** The state of a risk, as the contract names it. */
 export type RiskState = components["schemas"]["RiskState"];
 

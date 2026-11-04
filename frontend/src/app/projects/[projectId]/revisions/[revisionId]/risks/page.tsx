@@ -21,7 +21,12 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import type { components } from "@/api/generated/schema";
-import { readOrFail, readOrRefused } from "@/api/problem";
+import {
+  OPTIONAL_READ_REFUSALS,
+  readOrFail,
+  readOrRefused,
+  readUnlessRefused,
+} from "@/api/problem";
 import { serverClient } from "@/api/server";
 import { findOffer } from "@/components/commands/offer";
 import { ContextBanner } from "@/components/context/context-banner";
@@ -29,7 +34,6 @@ import { type ProjectReading, readProjectContext } from "@/components/context/re
 import { readPage } from "@/components/costs/address";
 import { readValues } from "@/components/grid/filters";
 import { ListPages } from "@/components/grid/list-pages";
-import type { GridPreferences } from "@/components/grid/settings";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
   CONTRACT_ADDRESS,
@@ -38,17 +42,19 @@ import {
   type GridQuery,
   readGridQuery,
 } from "@/components/grid/query";
+import type { GridPreferences } from "@/components/grid/settings";
 import {
   readRisk,
   readRiskFilters,
   RISK_STATES,
+  RISK_ZONES,
   RISKS_LIST,
   type RiskFilters,
   riskFilterQuery,
   type RiskState,
   STATES,
+  universalDay,
   ZONES,
-  RISK_ZONES,
 } from "@/components/risks/address";
 import { RiskColumnFilters } from "@/components/risks/risk-filters";
 import { FiguresGrid } from "@/components/figures-card";
@@ -139,16 +145,18 @@ async function readRisks(
 
 /** The day of the last marking of the project, the latest revision marked (`listRevisions`). */
 async function readLastMarkedOn({ revision }: GridAddress): Promise<string | undefined> {
-  const revisions = await readOrFail("listRevisions", () =>
+  // A shortcut the screen can do without: a session that may not list the revisions, or a project
+  // without them, loses the shortcut and keeps the register (`readUnlessRefused`).
+  const revisions = await readUnlessRefused("listRevisions", OPTIONAL_READ_REFUSALS, () =>
     serverClient().GET("/projects/{project_id}/revisions", {
       params: { path: { project_id: revision.projectId }, query: { status: ["marked"], limit: 1 } },
     }),
   );
-  // The API lists the most recent first; the day is the one of the instant in universal time.
-  const markedAt = revisions.items.find((each) => each.marked_at !== null)?.marked_at;
-  return markedAt === null || markedAt === undefined
-    ? undefined
-    : new Date(markedAt).toISOString().slice(0, 10);
+  // The API lists the most recent first. The day is the one of the instant in universal time, the
+  // zone in which the front reads and writes every date (`TIME_ZONE`, `i18n/format.ts`): a marking
+  // at 00:30 in Paris is of the day before, and `last_review_on_to` is inclusive.
+  const markedAt = revisions?.items.find((each) => each.marked_at !== null)?.marked_at;
+  return markedAt === null || markedAt === undefined ? undefined : universalDay(markedAt);
 }
 
 /** The coverage of the risks in the revision: the reserve against what the risks cost. */
