@@ -2641,6 +2641,7 @@ commande.
 | `make keycloak-authority`                                               | copie hors de la plateforme la racine de l'autorité du frontal de Keycloak, dans `deploy/compose/.authority/root.crt`, que git ignore ; `service-up` et `test-keycloak` le font à chaque démarrage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `make e2e-service`                                                      | les parcours du projet Playwright `service` (`frontend/e2e/service/`) contre le vrai service, par Prism en mandataire (« Un parcours de bout en bout ») ; mêmes secrets que `service-up`, et le navigateur de `make e2e-browsers`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `make service-logs`                                                     | les journaux des services de la plateforme, ceux de `SERVICES` (`SERVICES="keycloak openldap"`), tous par défaut                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `make test-services`, `make test-services-down`                         | démarre, retire les services des tests (`deploy/compose/compose.test.yaml` : PostgreSQL 16, Redis, Garage, en mémoire) pour le créneau du worktree, sur ses ports (`SERVICES=redis` n'en démarre que certains) ; `test-services` attend qu'ils répondent et ne fait rien de plus s'ils tournent, `test-services-down` les retire avec leurs volumes ; `make test-back` et les autres tests qui en ont besoin les démarrent d'eux-mêmes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make migrate`                                                          | applique les migrations à la base que désigne `WATERFALL_DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `make build-keycloak`                                                   | construit l'image de Keycloak (`deploy/keycloak/`) : l'extension compilée et ses tests JUnit passés, les thèmes, le royaume ; aucune JVM n'est demandée au poste                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `make test-keycloak`                                                    | démarre Keycloak sur la plateforme — et Mailpit, où il envoie ses courriels et où ses tests les lisent —, applique son royaume et lance les tests du marqueur `keycloak` (`backend/tests/test_keycloak_*.py`), que les autres tests du back écartent : le royaume et l'extension, et l'API qui valide ses jetons, servie dans le processus des tests sur une base qu'ils créent sur le PostgreSQL de la plateforme, sauf si `WATERFALL_TEST_DATABASE_URL` en nomme un autre ; il mesure la couverture du client de l'API d'administration de Keycloak et de l'amorçage, `waterfall-api install` (« Couverture du code ») ; mêmes secrets que `service-up`. Ses tests changent le royaume le temps d'un test — la durée d'une session inactive, celle des liens, le verrouillage, l'annuaire et le fournisseur désactivés, l'annuaire non synchronisé (`UNSYNCED`) —, et l'un d'eux redémarre Keycloak (#852) : il ne se lance jamais en même temps qu'un autre usage de la plateforme, `make e2e-service` ou les tests d'un autre agent, pas plus que `make check-keycloak` ni `make check` quand il éprouve la famille `keycloak` ou `service`                                                                                                 |
@@ -2705,7 +2706,8 @@ clients que son état nomme et que les fichiers qu'il applique ne déclarent pas
 client de test emporterait ceux du royaume.
 L'annuaire garde ses données dans un volume, comme les bases : réamorcé, il donnerait à ses
 personnes d'autres identifiants que ceux que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le
-supprime avec elles.
+supprime avec elles. Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree
+de lot a ceux du bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -2713,6 +2715,141 @@ supprime avec elles.
 code de production, tests et le reste (documentation, configuration, contrat), les fichiers
 engendrés mis à part. La pull request met ce nombre à côté de l'estimation de son issue ; un
 dépassement ne fait rien échouer (README de la roadmap, section « Lots »).
+
+`make tracking ISSUE=<n>` change une ligne du tableau de suivi du corps de l'issue de l'EPIC, par
+`gh`, et ne touche à rien d'autre : `LOT=<identifiant>` (`US-1080` pour une US d'un seul lot,
+`US-1120/L2` pour le lot d'une US qui en a plusieurs) avec `STATE`, `PR` ou `MODEL`, les seuls
+donnés changeant ; `US=<identifiant> STATUS=…` ; `FINDING=<n> ATTACHED=… DECISION=…`, qui ajoute
+le constat (le titre de son issue sans le `[EP-nn]`, `à trancher` en gras), le change s'il est
+déjà là, ou le retire quand son issue est fermée. Les colonnes se repèrent par leur en-tête ; la
+cible refuse, code non nul et corps inchangé, une ligne qu'elle ne trouve pas, une valeur à saut de
+ligne et une ligne du tableau plus courte que son en-tête ; un `|` d'une valeur est échappé. Elle ne
+prend une variable que sur la ligne de commande de make (une `PR` exportée sur le poste ne change
+rien), et ignore une valeur vide (`STATE=`). Elle relit le corps
+sous un verrou du poste propre à l'issue, `$XDG_RUNTIME_DIR/waterfall-tracking-<issue>.lock`
+(`/tmp` à défaut), juste avant de l'écrire : deux appels simultanés gardent chacun leur changement.
+
+Le poste n'admet que `WATERFALL_SLOTS` exécutions lourdes à la fois — les tests entiers et la
+couverture du back et du front, `make test-tools`, la construction du front pour la production,
+les parcours de bout en bout —, tous dépôts et worktrees confondus. Cette variable de
+l'environnement, celle du profil de l'utilisateur, est un entier de 1 à 9 ; absente, elle vaut 1 ;
+toute autre valeur est refusée, en le disant. L'admission est `tools/src/wftools/slots.py run
+--heavy -- <commande>` (bibliothèque standard seule, lancée par `python3` sans `uv`), que le
+Makefile place devant chaque exécution lourde : elle prend le premier de N fichiers de verrou de
+`$XDG_RUNTIME_DIR` (`/tmp` à défaut) — `waterfall-heavy.lock`, puis `waterfall-heavy.2.lock` à
+`waterfall-heavy.<N>.lock` —, dit une fois que tous sont pris et réessaie chaque seconde, garde le
+verrou jusqu'à la fin de la commande, sans le transmettre à ses enfants (un serveur resté derrière
+ne garde pas le créneau), relaie les signaux et rend le code de la commande. Une exécution d'un
+seul fichier (`TESTS`) n'attend pas. Elle pose aussi `WATERFALL_PROCESSORS`, les processeurs
+divisés par N, au moins 1 : les workers de pytest (`-n`, huit au plus pour le back), de Vitest et
+de Playwright s'y règlent, sauf `WORKERS`. À N = 1, la part est le poste entier : rien ne change.
+
+**Les créneaux des worktrees** (US-1100). Chaque worktree d'un lot prend un créneau de 1 à N — le
+même `WATERFALL_SLOTS` —, qui lui donne ses ports, ses projets Compose et les étiquettes de ses
+images : deux livreurs jouent ensemble les parcours de bout en bout, les tests de Keycloak ou les
+parcours contre le service sans se heurter. Le dépôt principal, comme chaque runner de la chaîne,
+est au créneau 0 : ses ports et ses noms sont ceux d'avant les créneaux.
+
+| Commande            | Ce qu'elle fait                                                                                                                                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `make slot`         | prend pour le worktree où elle est lancée le premier créneau libre de 1 à N, ou dit le sien ; si N sont pris, elle échoue, porteurs nommés ; dans le dépôt principal (son `.git` est un répertoire), elle dit le créneau 0, sans en prendre    |
+| `make slot-release` | retire les conteneurs et les volumes du créneau du worktree — la plateforme de service, les services de test —, puis le libère ; si Docker ne peut les retirer, le créneau reste pris, et elle le dit                                          |
+| `make slots`        | écrit N, puis chaque créneau pris sur le poste, tous dépôts confondus, avec son worktree et l'instant de sa prise                                                                                                                              |
+
+Le registre du poste est `$XDG_RUNTIME_DIR/waterfall-slots/` — `/tmp/waterfall-slots/` sans
+`XDG_RUNTIME_DIR`, comme les verrous des exécutions lourdes : un fichier `<i>` par créneau pris,
+qui porte le chemin du worktree (`git rev-parse --show-toplevel`) et l'instant de la prise, écrit
+sous un verrou exclusif du registre (`tools/src/wftools/slots.py claim`, `release`, `list`). Un
+créneau dont le worktree n'existe plus est libre ; celui qui prend un créneau en retire d'abord
+ce qu'un porteur y a laissé (`docker compose -p <projet> down --volumes`, pour chacun de ses deux
+projets), le verrou du registre tenu jusqu'à ce que ce retrait ait réussi, comme le tient
+`make slot-release` : un `make slot` lancé entre-temps attend, en le disant, et si Docker échoue,
+le créneau n'est pas pris, et le `make slot` suivant refait le retrait. `slots.py which` dit le
+créneau du worktree courant.
+
+Au créneau i de 1 à 9, les ports sont ceux du bloc `20000 + 100·i`, sous la plage des ports
+éphémères de Linux ; au créneau 0, ceux d'avant :
+
+| Ce qui écoute                                    | Variable                                                                                          | Créneau 0              | Créneau i                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------ |
+| PostgreSQL, Redis et Garage des services de test | `WATERFALL_TEST_POSTGRES_PORT`, `WATERFALL_TEST_REDIS_PORT`, `WATERFALL_TEST_STORAGE_PORT`        | 20000, 20001, 20002    | `20000 + 100·i`, `+ 1`, `+ 2`  |
+| PostgreSQL et Redis de la plateforme de service  | `WATERFALL_POSTGRES_PORT`, `WATERFALL_REDIS_PORT`                                                 | 5432, 6379             | `+ 10`, `+ 11`                 |
+| l'API, Keycloak, Mailpit, le mandataire de Prism | `WATERFALL_API_PORT`, `WATERFALL_KEYCLOAK_PORT`, `WATERFALL_MAILPIT_PORT`, `WATERFALL_PROXY_PORT` | 8000, 8443, 8025, 4210 | `+ 12`, `+ 13`, `+ 14`, `+ 15` |
+| le faux back des parcours                        | `E2E_API_PORT`                                                                                    | 4110                   | `+ 20`                         |
+| les fronts des parcours, un par worker           | `E2E_FRONT_PORT`, le premier                                                                      | 3100 et les suivants   | `+ 40` à `+ 79`                |
+
+Les noms portent le numéro du créneau : au créneau i, les projets Compose `waterfall-service-s<i>`
+(`WATERFALL_SERVICE_PROJECT`) et `waterfall-test-s<i>` (`WATERFALL_TEST_PROJECT`), les images
+`waterfall-keycloak-s<i>` (`WATERFALL_KEYCLOAK_IMAGE`, que `compose.service.yaml` lit) et
+`waterfall-front:check-s<i>` (`WATERFALL_FRONT_CHECK_IMAGE`, que lit `wftools.frontimage`) ; au
+créneau 0, `waterfall-service`, `waterfall-test`, `waterfall-keycloak` et `waterfall-front:check`.
+Le Makefile donne à chaque cible ce dont elle a besoin, sauf ce que l'environnement donne déjà :
+la plateforme de service — `service-up`, `service-install`, `service-logs`, `service-down`,
+`keycloak-authority`, `test-keycloak`, `e2e-service` — reçoit son projet, l'image de Keycloak et ses
+six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et `e2e-service`, les ports
+du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
+tient pas de créneau, ces cibles échouent avant de rien lancer, en disant `make slot` ; les autres
+ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
+`waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
+échoue d'emblée, en le disant.
+
+**Les services des tests** (US-1110). Les tests du back ont besoin de PostgreSQL, de Redis et du
+stockage objet, ceux du front de Redis (« Tests »). `make test-services` démarre les trois pour le
+créneau du worktree — `deploy/compose/compose.test.yaml`, sous le projet `waterfall-test-s<i>`, aux
+images épinglées de la plateforme (PostgreSQL 16 compris), leurs données en mémoire, publiés sur
+`127.0.0.1` aux ports 0, 1 et 2 du bloc du créneau — et attend leurs contrôles de santé ; relancée,
+elle ne fait rien de plus. `make test-services-down` les retire avec leurs volumes. On ne les lance
+pas à la main : `make test-back`, `make coverage-back`, `make test-front` et `make coverage-front`
+passent par `slots.py run --services db,redis,storage` (le front : `redis`), `TESTS` compris. Une
+fois le créneau lourd pris, s'il y en a un — après l'attente, jamais avant, de sorte que ce qu'on a
+retiré entre-temps est redémarré —, l'outil lance `make test-services` pour les services dont la
+variable `WATERFALL_TEST_DATABASE_URL`, `WATERFALL_TEST_REDIS_URL` ou `WATERFALL_TEST_STORAGE_URL`
+n'est pas posée, et la pose sur leur port ; une variable que l'environnement donne déjà l'emporte,
+son service n'est pas démarré, et le travail de la chaîne, qui pose les trois, n'en est pas changé.
+`make slot-release` les retire avec la plateforme de service. Dans un worktree lié sans créneau,
+les deux cibles échouent en disant `make slot`.
+
+**L'essai à N = 4** (EP-19, hors de l'EPIC). La preuve d'EP-19 se joue à N = 2, sur le poste actuel.
+Quatre livreurs ensemble ne s'essaient qu'à l'arrivée de la nouvelle machine, et c'est l'auteur qui
+les joue ; N reste un nombre qu'il fixe, aucune admission ne le déduit de la mémoire libre. Les
+étapes :
+
+1. **Poser N.** `WATERFALL_SLOTS` est une variable de l'environnement du profil de l'utilisateur
+   (`export WATERFALL_SLOTS=4` dans `~/.profile` ou `~/.bashrc`), un entier de 1 à 9, et elle se
+   lit dans toutes les sessions : celle du pilote, ses livreurs, et les commandes `make` de chacun.
+   Ouvrir de nouvelles sessions après le changement ; `make slots` écrit le N qu'elles voient.
+2. **Partir à vide.** Aucun conteneur d'un lot précédent (`docker ps`), aucun créneau pris
+   (`make slots`), le dépôt principal à jour. Noter la mémoire et les processeurs du poste.
+3. **Monter par paliers**, N = 2 puis 3 puis 4, en rejouant à chacun l'étape 4 ; ne passer au palier
+   suivant que si le précédent est propre.
+4. **Jouer N livreurs ensemble**, sur des lots d'un EPIC sans « Pas avec » entre eux, ou à la main :
+   N worktrees, chacun son `make slot`, et dans chacun, ensemble, `make test-back`, puis
+   `make coverage-front` et `make e2e` sans `TESTS` — les exécutions lourdes —, enfin
+   `make check BASE=origin/epic/EP-nn`. Un `make slot-release` à la fin de chacun.
+5. **Mesurer**, à chaque palier :
+   - la mémoire du poste au plus haut (`free -m` toutes les dix secondes pendant l'essai) et
+     l'usage de l'espace d'échange : c'est elle qui a fait s'effondrer le poste (2026-10-19, 21,
+     22) ;
+   - la durée de chaque exécution lourde, comparée à celle d'un livreur seul ; la part des
+     processeurs, `WATERFALL_PROCESSORS` (le poste divisé par N), est-elle trop étroite, ou trop
+     large ?
+   - l'attente de l'admission : les exécutions qui disent attendre un créneau lourd, et combien de
+     temps ; à N livreurs et N exécutions lourdes admises, elle devrait être courte ;
+   - les ports et les noms : `make slots` montre chaque créneau pris par un worktree différent, aucun
+     test n'échoue sur un port ou un projet Compose déjà pris (`docker ps` : un projet par créneau),
+     et `make slot-release` laisse le créneau sans conteneur ni volume ;
+   - les services de test (`tmpfs`) : pas de base ni de Redis partagés entre créneaux, aucune
+     collision de données entre deux livreurs ;
+   - la file de fusion et le tableau de suivi : aucune ligne du tableau écrasée (`make tracking`),
+     aucun conflit que le plan n'avait pas prévu (« Pas avec ») ;
+   - le coût des livreurs : le contexte et les tokens par lot, comparés à N = 1.
+6. **Relever N, ou le garder.** Garder le N du palier tant qu'aucune de ces mesures ne signale un
+   début d'effondrement : mémoire proche de la limite ou échange en cours, durée d'un palier
+   plus que multipliée par N, attente d'admission qui s'allonge. Au premier symptôme, redescendre d'un
+   cran (`WATERFALL_SLOTS=<N − 1>`) et ouvrir une issue `outil` avec les mesures. N = 4 fixé,
+   le pilote lance jusqu'à quatre livreurs ; au-delà, N ne dépasse pas 9, la borne des ports.
+7. **Écrire le résultat** dans l'issue de l'essai : le N retenu, les mesures, ce qu'il faudra
+   régler (la part des processeurs, le nombre de workers).
 
 ## Chaîne
 
@@ -3192,11 +3329,17 @@ que sa table marque (`WRITTEN_BY_MIGRATION` dans son `info`) ; `session` rend un
 test défait.
 
 - **Dans la chaîne**, `back.yml` démarre PostgreSQL en service du travail et pose la variable.
-- **Sur un poste**, deux façons : `make service-up` (avec les secrets de la plateforme dans
-  l'environnement, « Commandes »), dont PostgreSQL écoute sur `127.0.0.1:5432` — la variable
-  vaut alors
-  `postgresql://waterfall:<mot de passe>@127.0.0.1:5432/postgres` — ; ou un serveur local,
-  créé pour l'occasion (`initdb -E UTF8`, `pg_ctl start`) et supprimé ensuite.
+- **Sur un poste**, le Makefile s'en charge : `make test-back` et `make coverage-back` démarrent
+  PostgreSQL, pour le créneau du worktree (« Commandes »), quand la variable n'est pas déjà posée —
+  après l'attente d'un créneau lourd, `TESTS` compris —, et la posent sur lui. `make test-services`
+  le démarre seul (`deploy/compose/compose.test.yaml` : PostgreSQL 16, à l'image de la plateforme,
+  en mémoire, sur `127.0.0.1:<port du créneau>`, `20000` dans le dépôt principal), sans rien faire
+  de plus s'il tourne, et `make test-services-down` le retire avec ses volumes ; `make
+  slot-release` le retire aussi. Aucun `docker run` à la main. Une variable que l'environnement
+  pose déjà l'emporte, et son service n'est pas démarré : la chaîne n'est pas changée.
+- **Sur un poste dont `pg_restore` est plus récent que le serveur de la plateforme** — le poste
+  actuel, client 17, serveur 16 —, les tests des restaurations échouent (#982), jusqu'à l'EPIC
+  de montée de version des dépendances ; ni serveur 17 ni autre contournement.
 - **Sans la variable**, un test qui a besoin de la base **échoue** en le disant, et ne passe pas
   en silence. Les tests d'`examples/`, sockets fermées, n'en ont pas besoin.
 - Un test qui a besoin de deux instances du service lance deux processus (`subprocess`), chacun
@@ -3216,8 +3359,13 @@ le worker de la plateforme, par un rôle de sauvegarde que la fixture `backup_ro
 
 - **Dans la chaîne**, `back.yml` démarre Garage par `docker run` — un service du travail ne
   reçoit pas les arguments qu'il demande — et pose la variable.
-- **Sur un poste**, un Garage jetable suffit, avec les réglages de la plateforme :
-  `docker run -d --rm --name wf-test-storage -p 127.0.0.1:3900:3900 -v "$PWD/deploy/compose/garage.toml:/etc/garage.toml:ro" -e GARAGE_RPC_SECRET=<64 chiffres hexadécimaux> -e GARAGE_DEFAULT_ACCESS_KEY=GK000000000000000000000001 -e GARAGE_DEFAULT_SECRET_KEY=<secret> dxflrs/garage:v2.4.1 /garage server --single-node --default-access-key`.
+- **Sur un poste**, le Makefile démarre Garage comme PostgreSQL (« Un test contre PostgreSQL ») :
+  `make test-back` ou `make test-services`, qui lui donnent l'image et le `garage.toml` de la
+  plateforme, une clé et un secret propres aux tests, et la variable
+  `http://<clé>:<secret>@127.0.0.1:<port du créneau>` (`20002` dans le dépôt principal) ;
+  `make test-services-down` le retire. Aucun `docker run` à la main. Les tests des
+  restaurations y échouent tant que `pg_restore` du poste est plus récent que le serveur de la
+  plateforme (#982).
 - **Sans la variable**, un test qui a besoin du stockage **échoue** en le disant.
 
 ### Un test contre Redis
@@ -3236,8 +3384,10 @@ d'un autre. Aucun test ne vide le serveur.
 
 - **Dans la chaîne**, `front.yml` et `back.yml` démarrent Redis en service du travail et posent la
   variable.
-- **Sur un poste**, un Redis jetable suffit :
-  `docker run -d --rm --name wf-test-redis -p 127.0.0.1:6379:6379 redis:7-alpine`.
+- **Sur un poste**, le Makefile démarre Redis comme PostgreSQL (« Un test contre PostgreSQL ») :
+  `make test-back`, `make test-front` et leurs couvertures, ou `make test-services` ; l'image est
+  celle de la plateforme, sur `127.0.0.1:<port du créneau>` (`20001` dans le dépôt principal) ;
+  `make test-services-down` le retire. Aucun `docker run` à la main.
 - **Sans la variable**, un test qui a besoin de Redis **échoue** en le disant, et ne passe pas en
   silence.
 
@@ -3292,16 +3442,21 @@ fenêtre.
 `make e2e` : Playwright démarre le faux back (`make mock`) et le front, joue les parcours
 dans Chromium, puis arrête les deux — il signale leur groupe de processus entier, sans quoi
 les serveurs que `make` et `pnpm` lancent survivraient. Il démarre toujours ses propres
-serveurs, sur des ports à lui — 4110 pour le faux back, 3100 pour le front —, jamais ceux de
-`make dev`, et son faux back sert une variante du contrat écrite sous `frontend/.e2e/`, que
-`make dev` ne lit pas : un port déjà pris fait échouer le lancement en le disant. `E2E_API_PORT`
-et `E2E_FRONT_PORT` déplacent les ports, pour deux copies du dépôt sur un même poste — le front des
-parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous) ; un port
-qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
+serveurs, sur des ports à lui — ceux du créneau du worktree (« Commandes », « Les créneaux des
+worktrees ») : 4110 pour le faux back et 3100 pour le front dans le dépôt principal, au créneau 0,
+`20000 + 100·i + 20` et `+ 40` au créneau i d'un worktree de lot, qui fait d'abord `make slot` —,
+jamais ceux de `make dev`, et son faux back sert une variante du contrat écrite sous
+`frontend/.e2e/`, que `make dev` ne lit pas : un port déjà pris fait échouer le lancement en le
+disant. Deux worktrees à deux créneaux jouent donc leurs parcours en même temps, avec
+`WATERFALL_SLOTS` d'au moins 2, sans quoi le second attend que le premier ait fini. `E2E_API_PORT`
+et `E2E_FRONT_PORT`, posés dans l'environnement, l'emportent sur ceux du créneau — le front des
+parcours en prend autant qu'il a de workers, à partir de lui (ci-dessous), quarante au plus dans
+un bloc ; un port qui n'est pas un entier de 1 à 65535 est refusé. `make e2e-browsers` installe le
 navigateur. `make e2e SHARD=i/N` ne joue que le i-ième de N morceaux des parcours, comme
 chacun des runners de la chaîne (« Chaîne »), et `make e2e WORKERS=<n>` les joue sur `n` workers
-(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier d'au moins 1, rien d'autre), moins que
-Playwright n'en prend de lui-même — la moitié des processeurs — sur un poste chargé, où
+(`E2E_WORKERS`, que lit `playwright.config.ts` ; un entier de 1 à 40, rien d'autre : un front par
+worker, et le bloc d'un créneau n'en porte que quarante), moins que Playwright n'en prend de
+lui-même — la moitié des processeurs, plafonnée à quarante — sur un poste chargé, où
 des parcours échouent par délai (#736). Avec `WATERFALL_API_ADDRESS`, le harnais joue
 contre l'API qu'elle nomme et ne démarre aucun faux back.
 
@@ -3366,12 +3521,13 @@ n'admet qu'à cette condition le jeton fixe du faux back, et ne signale pas les 
 
 `make e2e-service` joue contre le vrai service les parcours du projet Playwright `service`
 (`frontend/e2e/service/`, US-0340), à côté de ceux du faux back, qui restent. Il démarre la
-plateforme de service (`make service-up`), son royaume appliqué avec l'adresse du front des
-parcours, `http://127.0.0.1:3100` (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
+plateforme de service (`make service-up`), sous le projet et sur les ports du créneau du worktree
+(« Commandes »), son royaume appliqué avec l'adresse du front des
+parcours, `http://127.0.0.1:3100` au créneau 0 (`WATERFALL_FRONT_ADDRESS`, que suit `E2E_FRONT_PORT`), et
 celle par laquelle Keycloak le joint depuis son conteneur, `http://host.docker.internal:3100`
 (`WATERFALL_FRONT_BACKCHANNEL`), quelles que soient celles que l'environnement exporte ; puis
 Prism en mandataire entre le front et l'API
-(`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210`, que déplace
+(`prism proxy --errors`, service `contract-proxy`, sur `127.0.0.1:4210` au créneau 0, que déplace
 `WATERFALL_PROXY_PORT`), qui sert la variante du faux back écrite dans
 `docs/api/waterfall.proxy.json` : une réponse hors de son schéma devient une erreur 500
 (`VIOLATIONS`), une adresse hors du contrat un 404 (`NO_PATH_MATCHED_ERROR`), une requête hors

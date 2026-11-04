@@ -46,8 +46,13 @@ Ne commence jamais à froid. Réunis d'abord :
    modèle de son développement — `sonnet`, ou `opus` avec la raison, prise dans la liste de
    cette même section : authentification, sécurité, migration de données, contrat, interface
    partagée, ou conception qui laisse une part à interpréter ; sans l'une de ces raisons,
-   c'est `sonnet`. Tu le présentes à l'utilisateur ; les lots ne s'écrivent pas dans le
-   fichier de l'EPIC. **Arrête-toi pour validation.**
+   c'est `sonnet`. Tu remplis aussi, pour chaque lot, son « Pas avec » : les lots de l'EPIC
+   avec lesquels il ne se livre pas en même temps. Deux lots qu'aucune dépendance ne sépare
+   et qui touchent un même fichier — comme US-1060 et US-1070, dans `api/users.py` — sont
+   « pas avec » l'un l'autre ; la relation est symétrique, tu la notes des deux côtés, et tu
+   ne la mets que pour un fichier partagé, pas par prudence. Le pilote ne lance jamais deux
+   lots ainsi marqués ensemble. Tu le présentes à l'utilisateur ; les lots ne s'écrivent pas
+   dans le fichier de l'EPIC. **Arrête-toi pour validation.**
 
 À chaque étape, une réponse qui contredit une décision déjà prise — la spécification,
 `docs/api/DECISIONS.md`, un EPIC livré ou en cours — s'énonce avec sa source, dans la
@@ -65,7 +70,10 @@ Une fois le plan validé :
   les rubriques du lot ; le corps suit les rubriques du gabarit, champs « Modèle » et
   « Pourquoi ce modèle » compris, le titre porte l'identifiant ;
 - le tableau de suivi, dans le corps de l'issue de l'EPIC : l'ordre de réalisation, chaque
-  US avec ses lots, leurs dépendances, leurs états `à faire` ; et les constats que le cadrage
+  US avec ses lots, leurs dépendances, leur colonne « Pas avec » (`—` quand il n'y en a pas),
+  leurs états `à faire` ; tu l'écris une première fois en créant l'issue, puis tu ne le
+  changes que par `make tracking` (`docs/dev/agents.md`) ; le champ « Pas avec » du gabarit
+  d'un lot reprend la même valeur ; et les constats que le cadrage
   laisse ouverts — issues de contrat ou de spécification —, chacun avec sa décision ;
 - les constats déjà ouverts que le cadrage reprend, rattachés selon leur décision, et ceux
   que le fichier de l'EPIC note dans « Constats reçus » ;

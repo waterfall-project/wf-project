@@ -27,6 +27,7 @@ image changes how the server is packed, not which routes are prerendered.
 import argparse
 import http.client
 import json
+import os
 import subprocess
 import sys
 import time
@@ -36,8 +37,9 @@ from pathlib import Path
 from wftools import REPOSITORY
 from wftools.images import cache_source
 
-IMAGE = "waterfall-front:check"
-"""The local tag of the image built here; it is never pushed."""
+IMAGE = os.environ.get("WATERFALL_FRONT_CHECK_IMAGE") or "waterfall-front:check"
+"""The local tag of the image built here, never pushed: the one of the slot of the worktree, which
+``make check-front-image`` gives (US-1100), so that two worktrees build theirs side by side."""
 
 PRERENDERED = frozenset({"/_global-error", "/icon.svg"})
 """The routes ``next build`` may prerender: they read nothing of the environment."""

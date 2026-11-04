@@ -65,10 +65,19 @@ qui est propre à ton rôle.
   `make test-front TESTS=src/<fichier>`, `make e2e TESTS=e2e/<fichier>` ; le palier entier
   vient à la fin.
 - `make check BASE=origin/epic/EP-nn` passe — le palier rapide de ce que tu as touché. Sa
-  sortie peut être longue : écris-la dans un fichier et lis-en la fin,
-  `make check BASE=origin/epic/EP-nn > /tmp/check.log 2>&1; tail -n 60 /tmp/check.log` ; si
-  l'échec peut venir de la collecte — import, configuration, client à régénérer —, lis aussi
-  le début, `head -n 40 /tmp/check.log`.
+  sortie peut être longue : écris-la dans `.waterfall/check.log` de ton worktree, que git
+  ignore, et lis-en la fin, `mkdir -p .waterfall; make check BASE=origin/epic/EP-nn >
+  .waterfall/check.log 2>&1; tail -n 60 .waterfall/check.log` — jamais dans `/tmp/check.log`,
+  que deux développeurs se disputeraient ; si l'échec peut venir de la collecte — import,
+  configuration, client à régénérer —, lis aussi le début, `head -n 40 .waterfall/check.log`.
+- **Le créneau.** Depuis US-1100, dans un worktree lié sans créneau, les cibles qui en ont
+  besoin — `build-keycloak`, `check-front-image`, `e2e`, `e2e-measure`… — échouent en disant
+  `make slot`, et un `make check` qui touche la famille keycloak ou l'image du front échoue
+  donc ainsi. Le livreur prend le créneau avant tout travail, et tu travailles dans son
+  worktree, celui qui le détient : si tu vois ce refus, ne prends pas de créneau, rapporte-le
+  au livreur dans ton compte rendu. Le service de test du front (Redis) est démarré et retiré
+  par le Makefile, pour ce créneau : tu ne le lances ni ne l'arrêtes toi-même (le garde refuse `docker compose … down` hors du
+  Makefile).
 - **Trois échecs sur la même cause, et tu t'arrêtes.** Si le même contrôle, ou le même test,
   échoue trois fois, pas de quatrième tentative : rends la main avec le diagnostic — ce que
   tu as essayé, ce que tu soupçonnes, ce qui reste rouge. L'agent de livraison décide de la

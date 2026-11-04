@@ -188,10 +188,11 @@ dépôt principal garde les ports et les noms d'aujourd'hui.
   l'instant de la prise. `slots.py claim` — `make slot` — prend, sous un verrou exclusif du
   registre, le créneau qui nomme déjà ce worktree, ou le plus petit de 1 à N qui est libre ; un
   créneau dont le worktree n'existe plus est libre, et avant de le rendre, l'outil en retire les
-  projets Compose (`down --volumes`). Tous pris, il échoue en listant les porteurs. `release` —
-  `make slot-release` — retire les projets Compose du créneau, volumes compris, puis libère le
-  fichier ; `list` — `make slots` — écrit N, puis chaque créneau pris et son worktree, pour tout
-  le poste.
+  projets Compose (`down --volumes`), le verrou tenu jusqu'à ce retrait réussi et le fichier
+  écrit après lui : un retrait qui échoue ne prend rien, et la prise suivante le refait. Tous
+  pris, il échoue en listant les porteurs. `release` — `make slot-release` — retire, sous le même
+  verrou, les projets Compose du créneau, volumes compris, puis libère le fichier ; `list` —
+  `make slots` — écrit N, puis chaque créneau pris et son worktree, pour tout le poste.
 - **Le créneau d'une commande** : `slots.py which` rend celui du worktree courant, ou 0. Le dépôt
   principal est au créneau 0. Dans un worktree lié sans créneau, une cible qui en a besoin — les
   services de test, la plateforme de service, les parcours, l'image du front — échoue en disant
@@ -308,7 +309,7 @@ suivent.
 
 ## US-1080 — Aucun agent n'arrête ce qu'un autre a lancé
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1882
@@ -362,7 +363,7 @@ et le Makefile n'arrête que ce qu'il a lui-même démarré.
 
 ## US-1090 — Les exécutions lourdes passent N à la fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1883
@@ -401,7 +402,7 @@ Une admission selon la mémoire libre : N reste un nombre que l'auteur fixe.
 
 ## US-1100 — Chaque lot a son créneau : ses ports et ses noms
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1884
@@ -442,7 +443,7 @@ contre le service sans se heurter.
 
 ## US-1110 — Les services de test d'un lot démarrés et retirés par le Makefile
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1885
@@ -481,7 +482,7 @@ La version de PostgreSQL et le client du poste : l'EPIC de montée de version de
 
 ## US-1120 — Le pilote lance jusqu'à N livreurs
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1886
