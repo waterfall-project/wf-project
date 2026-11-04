@@ -2,7 +2,7 @@
 
 ## What the screen shows
 
-A leaf of the [estimate to complete](FBS-4.5.md), reached from its header, in the same context: the view through which the project manager declares that a task has begun. This gesture has no other effect than exposing the lines of the task to the re-estimation, in the remaining to commit grid of the same revision; a task that bears lines may also be re-estimated there even before it starts, by **Enter the remaining to commit**. A task is started or it is not: no percentage is shown nor entered.
+A leaf of the [remaining to commit](FBS-4.5.md), reached from its header, in the same context: the view through which the project manager declares that a task has begun. This gesture has no other effect than exposing the lines of the task to the re-estimation, in the remaining to commit grid of the same revision; a task that bears lines may also be re-estimated there even before it starts, by **Enter the remaining to commit**. A task is started or it is not: no percentage is shown nor entered.
 
 Three columns, in the order the server gives: **Not started**, **Started**, **Completed**. Each task of the main structure of the current revision is a card: its row number and its label, its finish, and **Finish overdue** when it precedes the date of calculation; completed, the date it was completed on. A milestone not started all of whose predecessors are completed bears “milestone to complete”, by a text and an icon, to invite completing it: nothing completes by itself.
 
@@ -44,6 +44,6 @@ The columns are the states of the task, as the server gives them: the screen ded
 
 ## See also
 
-- [The estimate to complete](FBS-4.5.md) and [the remaining to commit grid](FBS-4.5.2.md), where the lines of the tasks are re-estimated, started or not;
+- [The remaining to commit](FBS-4.5.md) and [the remaining to commit grid](FBS-4.5.2.md), where the lines of the tasks are re-estimated, started or not;
 - [the planning grid](FBS-4.3.2.md), where the dates of start and of completion are read;
 - the notion: [the remaining to commit](notions/reste-a-engager.md).

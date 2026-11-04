@@ -1186,7 +1186,7 @@ suivi des tâches.
 
 ## US-0790 — L'écran des révisions, le panneau de l'aide et l'outillage des tests
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre
 - **issue** : #1556

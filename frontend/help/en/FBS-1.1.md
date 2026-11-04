@@ -6,7 +6,7 @@ The accounts of the installation, outside any project: each account with its ori
 
 At the top, the report of the last reading of the accounts of the identity provider that succeeded, or the indication that none has succeeded yet: the accounts created — without a role —, updated, deactivated, the identities of local accounts restored in the provider, the local accounts that were removed from it, and what was left as it was, with its reason, under **Details of the last reading**.
 
-Under this report, the **Reading schedule**: the platform reads the accounts of the identity provider by itself, every day by default, at the hour and, for a weekly reading, on the day set; the screen says whether the scheduled reading is active or suspended, its frequency, its day and its hour in universal time (UTC).
+Under this report, the **Reading periodicity**: the platform reads the accounts of the identity provider by itself, every day by default, at the hour and, for a weekly reading, on the day set; the screen says whether the scheduled reading is active or suspended, its frequency, its day and its hour in universal time (UTC).
 
 Then the table of the accounts, which the server sorts, searches, filters and pages; its footer says how many accounts it keeps.
 
@@ -16,7 +16,7 @@ These commands are offered only to whoever may modify the accounts; to the other
 
 - **Read the accounts** asks for a new reading of the accounts of the identity provider. It runs as a background task: the panel of the tasks follows it and offers, at its end, to read the screen again, where its report appears.
 - **Create a local account** opens the form: last name, first name and email address, all three required. The account is born without a role nor a means to sign in: its holder receives by email the link that has them set their password. When no invitation could be sent, the form says so and offers **Hand over the link**.
-- **Modify the schedule** opens the form of the reading schedule: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The schedule is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
+- **Modify the periodicity** opens the form of the reading periodicity: active or suspended, daily or weekly, the day for a weekly reading only, and the hour in universal time (UTC), with the local hour of this workstation it stands for. The schedule is saved whole; a reading in progress is not interrupted, the setting holds from the next one.
 - In the table, the last name and the first name of an account created in Waterfall are entered in their cell; those of an account of the directory or of the identity provider are their own, and are not entered.
 - **State**: the switch activates or deactivates the account. Deactivation is unavailable for the last active account that holds the administration permissions (“another active account holding the administration permissions”), and the reactivation of an anonymised account always is.
 - **Access roles**: the list of the roles of the installation, to check or uncheck, none, one or several. The server refuses the roles that would take from the last administrator their permissions.

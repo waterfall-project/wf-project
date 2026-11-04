@@ -8,7 +8,7 @@ The **S-curve**, under the milestone tracking of the [project indicators](FBS-4.
 - **Actual cost**: cumulated by the document dates, up to the date of calculation; it rises by steps.
 - **Project manager’s projection**: beyond, the [remaining to commit](notions/reste-a-engager.md) of each line spread over the part of the duration of its task that follows the date of calculation, or carried whole to the date of calculation when the finish of the task is passed.
 
-Shifted by the payment delays, the curve becomes **Cash out**: each amount is shifted by the payment delay of its line, the provisions of the identified risks staying at the date of their task; the actual cost is not shifted. The table **Cash out by month** then gives, month by month, the **Paid out** and what remains **To pay out**.
+Shifted by the payment delays, the curve becomes **Cash-out**: each amount is shifted by the payment delay of its line, the provisions of the identified risks staying at the date of their task; the actual cost is not shifted. The table **Cash-out by month** then gives, month by month, the **Paid out** and what remains **To pay out**.
 
 When nothing comes under the mesh read — a subproject without a line nor an actual cost —, the section says so instead of drawing a zero; a curve alone without a point is named under the chart.
 

@@ -24,7 +24,7 @@ Above the grid:
 
 In the menu of a cell (right click, `Shift+F10` or the Menu key): the gestures of structure — among them **Insert a line** (`Ctrl+Insert`) —, the folding, **Undo** and **Redo**, and the submenu **Subproject**, which carries the line, or the selection, to a subproject. Their detail is in the help of the [estimate grid](FBS-4.4.2.md).
 
-The grid is entered, and takes a paste, only where the structure read lists “Edit the estimate” available to you. Creating, moving or deleting a task writes the planning too: these gestures ask for “Edit the schedule” besides.
+The grid is entered, and takes a paste, only where the structure read lists “Edit the estimate” available to you. Creating, moving or deleting a task writes the planning too: these gestures ask for “Edit the planning” besides.
 
 ## Its columns and computed values
 

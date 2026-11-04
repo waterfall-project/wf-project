@@ -4,7 +4,7 @@
 
 The grid of the screen of [planning](FBS-4.3.md): a row per task of the structure read, in the order of the plan, each summary task above its subordinates, the handle and the row number at the start, the Gantt in the last column. The totals of the answer are in the footer. A search or a filter that retains no task, on a structure that has some, leaves an empty grid that says so — “No row matches the request.”, total “no task” — and does not offer the skeleton, which is for a structure with no task. The planning shows no estimate line: they are read in the estimate.
 
-A task is entered with the keyboard, cell by cell, where the structure read lists “Edit the schedule” available: its label, its description, its scheduling mode, its duration, its dates when they are not calculated, its predecessors, its attachment to the work breakdown. An entry refused is said above the grid, and its cell is marked.
+A task is entered with the keyboard, cell by cell, where the structure read lists “Edit the planning” available: its label, its description, its scheduling mode, its duration, its dates when they are not calculated, its predecessors, its attachment to the work breakdown. An entry refused is said above the grid, and its cell is marked.
 
 ## Its commands
 
@@ -15,7 +15,7 @@ The gestures of structure, in the menu of a cell and at their keys:
 - **Delete** (`Ctrl+Delete`) deletes the active row; a summary task, once confirmed, with its subordinates, their lines and their links.
 - **Timelines** checks the timelines the task is inscribed to; **Time/time tracking** inscribes a milestone to the tracking of the contractual milestones. **Create a timeline…** creates one, when the project has none.
 
-The gestures and the entry are offered only where the structure read lists “Edit the schedule” available. A write in progress holds the following gestures until the grid is read again, which says it is busy.
+The gestures and the entry are offered only where the structure read lists “Edit the planning” available. A write in progress holds the following gestures until the grid is read again, which says it is busy.
 
 ## Its columns and computed values
 

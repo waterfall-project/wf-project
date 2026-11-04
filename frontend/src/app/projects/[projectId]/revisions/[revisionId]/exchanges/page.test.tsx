@@ -209,9 +209,9 @@ describe("the screen of the imports and exports", () => {
     expect(page.startsWith('<section aria-label="Reading context"')).toBe(true);
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -223,7 +223,7 @@ describe("the screen of the imports and exports", () => {
       "Imports of the project File Kind Status Opened on devis-avenant-2-reprise-des-essais.xlsx Estimate Analysed couts-reels-2026-05.xlsx Actual costs Applied couts-reels-2026-04-correction.xlsx Actual costs Expired",
     );
     expect(links(page)).toContain(`${PATHNAME}?import=${IMPORT}`);
-    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project schedule Abandoned");
+    expect(text(page)).toContain("planning-poste-de-commande.xml MS Project planning Abandoned");
   });
 
   it("reads no revision but the one of its route, whose exports it offers, the imports being the project's", async () => {
@@ -232,9 +232,9 @@ describe("the screen of the imports and exports", () => {
     expect(calls(GET_REVISION)).toEqual([`/projects/${PROJECT}/revisions/${MARKED}?`]);
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -350,9 +350,9 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt();
     expect(buttons(page)).toEqual([
       "Help",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
       "Request the export",
     ]);
@@ -368,7 +368,7 @@ describe("the screen of the imports and exports", () => {
     const page = await exchangesAt();
     expect(buttons(page)).toEqual(["Help", "Import an estimate", "Request the export"]);
     expect(text(page)).toContain("holding the permission to create a revision");
-    expect(text(page)).toContain("Estimate Estimate to complete");
+    expect(text(page)).toContain("Estimate Remaining to commit");
   });
 
   it("is not found when the import the address names is not", async () => {

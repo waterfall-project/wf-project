@@ -14,7 +14,7 @@ The gestures of structure, in the menu of a cell and at their keys, as in the pl
 - **Subproject** carries the line, or the selection, to a subproject of the project, or to none. It is not offered on a provision line, nor on the line of a started task whose subproject has received actual costs.
 - **The paste** of a block copied from a spreadsheet (`Ctrl+V`) is made on the active cell. A preview says how many lines will be written and which are refused, with their reason; **Apply the paste** writes the valid lines, **Abandon** writes nothing. A block that would stretch under a hidden column, over folded rows or rows that the sort, the search or a filter have moved, is refused outright, the cause said.
 
-The entry, the paste and the gestures of line ask for “Edit the estimate”; the gestures of task ask for “Edit the schedule” too.
+The entry, the paste and the gestures of line ask for “Edit the estimate”; the gestures of task ask for “Edit the planning” too.
 
 ## Its columns and computed values
 

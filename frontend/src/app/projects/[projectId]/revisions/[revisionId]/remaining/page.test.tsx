@@ -145,7 +145,7 @@ describe("the screen of the remaining to commit", () => {
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     });
     expect(metadata.title).toBe(
-      "Estimate to complete · Modernisation du poste de commande — Waterfall",
+      "Remaining to commit · Modernisation du poste de commande — Waterfall",
     );
   });
 
@@ -207,7 +207,7 @@ describe("the screen of the remaining to commit", () => {
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
       "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 " +
-        "Deviation from the previous review -1,803,418.08 By nature of cost",
+        "Deviation from the previous review -1,803,418.08 By cost type",
     );
     // Each amount bears the one mark of a computed value.
     expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
