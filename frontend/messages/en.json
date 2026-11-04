@@ -139,6 +139,7 @@
       "severity": "Severity",
       "provisionAmount": "Provision",
       "occurrenceCost": "Cost at occurrence",
+      "occurredReestimatedAmount": "Reestimated of occurred",
       "state": "State",
       "lastReview": "Last review",
       "matrixCell": "Matrix cell",
@@ -480,6 +481,15 @@
     },
     "filter": "Filter by state",
     "everyState": "Every state",
+    "filters": {
+      "zone": "Filter by zone",
+      "everyZone": "Every zone",
+      "probabilityBounds": "Bounds of the probability, from 0 to 1",
+      "amountBounds": "Bounds of the amounts",
+      "review": "Period of the last review",
+      "unreviewed": "Not reviewed since the last marking",
+      "refused": "The risks are not read: the server refuses the filters asked."
+    },
     "provisions": {
       "title": "Provisions of the risks retained",
       "identified": "Identified risks",
@@ -1502,6 +1512,9 @@
       },
       "occurrenceCost": {
         "help": "Cost at occurrence of a risk that occurred: the total of its own estimate when it was declared occurred, which neither reestimates nor the completion of its tasks change. Computed by the server."
+      },
+      "occurredReestimatedAmount": {
+        "help": "Reestimated amount of a risk that occurred: the sum of the current reestimated amounts of the lines that came of it, beside the cost at occurrence to show the drift. An information, computed by the server, outside the coverage variance."
       },
       "state": {
         "help": "State of the risk: identified, occurred or dismissed."

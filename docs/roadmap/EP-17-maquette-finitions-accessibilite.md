@@ -1269,7 +1269,7 @@ permission (US-0760) : les tests portent sur la requête que la page fait, non s
 
 ## US-1020 — Le registre des risques filtré, et les lignes issues d'un risque survenu
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : `WF-RIS-0020-A`, `WF-RIS-0050-A`, `WF-RIS-0060-A`
 - **opérations** : `listRisks`, `getProjectRiskCoverage`, `listNodes`
 - **issue** : #1834

@@ -199,7 +199,7 @@ test("places the risks as bubbles that a hover tells and a click opens, the zone
   for (const state of ["Identifié", "Survenu", "Écarté"]) {
     await expect(drawing.locator("text", { hasText: new RegExp(`^${state}$`) })).toHaveCount(0);
   }
-  // The heaviest risk identified (1 250 000,00) is the largest bubble; the risk occurred is not drawn.
+  // The heaviest risk identified (1 250 000,00) is the largest bubble; the risk dismissed (12 000 000,00) is not drawn.
   const bubbles = await drawing.locator("path[fill-opacity='0.85']").evaluateAll((paths) =>
     paths.map((path) => {
       const box = path.getBoundingClientRect();

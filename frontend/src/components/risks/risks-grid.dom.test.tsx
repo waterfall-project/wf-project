@@ -89,12 +89,13 @@ function cell(label: string, position: number): HTMLElement {
 }
 
 // The places of the columns in a row: label, probability, severity, provision, cost at the
-// occurrence, state, review, cell.
+// occurrence, reestimated of the occurred, state, review, cell.
 const SEVERITY = 2;
 const PROVISION = 3;
 const OCCURRENCE = 4;
-const STATE = 5;
-const ZONE = 7;
+const REESTIMATED = 5;
+const STATE = 6;
+const ZONE = 8;
 
 beforeEach(() => {
   router.push.mockReset();
@@ -109,7 +110,7 @@ afterEach(() => {
 });
 
 describe("the grid of the risks", () => {
-  it("presents the six columns of the register, the cost at the occurrence and the cell of the matrix, each risk as the API gives it [WF-RIS-0040-A]", async () => {
+  it("presents the columns of the register, the cost at the occurrence, the reestimated of the occurred and the cell of the matrix, each risk as the API gives it [WF-RIS-0040-A]", async () => {
     const { container } = renderRisks();
     expect(
       within(grid())
@@ -121,6 +122,7 @@ describe("the grid of the risks", () => {
       "Gravité",
       "Provision",
       "Coût à la survenance",
+      "Réestimé des survenus",
       "État",
       "Dernier réexamen",
       "",
@@ -131,6 +133,7 @@ describe("the grid of the risks", () => {
       `40${NBSP}%`,
       `1${NARROW}250${NARROW}000,00`,
       `500${NARROW}000,00`,
+      "",
       "",
       "Identifié",
       "02/03/2026",
@@ -242,9 +245,25 @@ describe("the grid of the risks", () => {
     expect((server.client as FakeClient).calls).toEqual([]);
   });
 
+  it("shows the reestimated amount of a risk occurred beside its cost at the occurrence, as the server gives it, and nothing for the others [WF-RIS-0050-A]", () => {
+    renderRisks();
+    expect(cell("Retard de livraison des armoires", OCCURRENCE)).toHaveTextContent("200,00");
+    expect(cell("Retard de livraison des armoires", REESTIMATED)).toHaveTextContent("200,00");
+    for (const label of ["Risque de reprise du câblage", "Indisponibilité de l'automaticien"]) {
+      expect(cell(label, REESTIMATED).textContent).toBe("");
+    }
+  });
+
+  it("sorts by the cost at the occurrence, as the contract does, and offers no sort on the reestimated amount [WF-RIS-0040-A]", () => {
+    renderRisks();
+    const header = (name: RegExp) => within(grid()).getByRole("columnheader", { name });
+    expect(within(header(/Coût à la survenance/)).getByRole("button")).toBeVisible();
+    expect(within(header(/Réestimé des survenus/)).queryByRole("button")).toBeNull();
+  });
+
   it("presents no cell of the grid for entry: a risk is entered by the epic of the risks", async () => {
     renderRisks();
-    for (const position of [0, 1, OCCURRENCE, STATE, STATE + 1]) {
+    for (const position of [0, 1, OCCURRENCE, REESTIMATED, STATE, STATE + 1]) {
       cell("Risque de reprise du câblage", position).focus();
       await userEvent.keyboard("{F2}");
       expect(screen.queryByRole("textbox")).toBeNull();

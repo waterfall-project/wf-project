@@ -4,13 +4,15 @@
  * The configuration of the grid of the risks (WF-RIS-0040), the register of the risks of the
  * project as the revision read holds them: for each risk, its label, its probability, its
  * severity, the amount of its provision — for a risk occurred or dismissed, the provision it bore
- * in the reference revision —, its cost at the occurrence when it occurred (WF-RIS-0010), its
+ * in the reference revision —, its cost at the occurrence when it occurred (WF-RIS-0010) and, beside
+ * it, what the lines that came of it cost now (`occurred_reestimated_amount`, WF-RIS-0050), its
  * state and the date of its last review, and the cell of the matrix that colours it. The same
  * dense grid as the planning and the estimate: another configuration, read only — a risk is
  * entered by the epic of the risks (EP-08).
  *
- * Each column but the cost at the occurrence and the cell of the matrix sorts by the column of the
- * contract of the same name, the server sorting (WF-IHM-0130); it sorts by neither of the two.
+ * Each column but the reestimated amount and the cell of the matrix sorts by the column of the
+ * contract of the same name, the server sorting (WF-IHM-0130); it sorts by neither of the two. Each
+ * column is filtered beside the grid, by the address (`address.ts`, `risk-filters.tsx`).
  * The severity, the provision and the cost at the occurrence are computed (WF-RIS-0010,
  * WF-IHM-0030): columns computed whole, Σ in their header and in each cell that bears a value,
  * never entered; their refusal names what they depend on as the risk itself says it
@@ -43,6 +45,7 @@ export const RISK_FIELDS = [
   "severity",
   "provision_amount",
   "occurrence_cost",
+  "occurred_reestimated_amount",
   "state",
   "last_review_on",
   "matrix_cell",
@@ -64,7 +67,7 @@ export interface RiskRows {
  */
 export function riskRow(risk: Risk): RiskRow {
   const { risk_id, label, probability, severity, provision_amount, state, computed_fields } = risk;
-  const { occurrence_cost, last_review_on, matrix_cell } = risk;
+  const { occurrence_cost, occurred_reestimated_amount, last_review_on, matrix_cell } = risk;
   return {
     risk_id,
     label,
@@ -72,6 +75,7 @@ export function riskRow(risk: Risk): RiskRow {
     severity,
     provision_amount,
     occurrence_cost,
+    occurred_reestimated_amount,
     state,
     computed_fields,
     last_review_on,
@@ -154,9 +158,21 @@ export const RISK_GRID: GridConfig<RiskRow, RiskSortColumn, ProvisionTotals> = {
       format: "money",
       width: 120,
       // Computed at the occurrence, then kept (WF-RIS-0010): a risk occurred alone bears it, the
-      // cell of another empty. The server does not sort by it: the column offers no sort.
+      // cell of another empty.
       computed: computedInRisks("occurrence_cost", (risk) => risk.occurrence_cost !== null),
+      contract: "occurrence_cost",
       value: (risk) => risk.occurrence_cost,
+    },
+    {
+      key: "occurred_reestimated_amount",
+      label: "occurredReestimatedAmount",
+      help: "risks.occurredReestimatedAmount",
+      format: "money",
+      width: 120,
+      // What the lines that came of an occurred risk cost now, the server's sum, beside the cost at
+      // the occurrence it drifts from (WF-RIS-0050, #1763): an information, no computed field the
+      // risk names, and a column the register does not sort by.
+      value: (risk) => risk.occurred_reestimated_amount,
     },
     {
       key: "state",
