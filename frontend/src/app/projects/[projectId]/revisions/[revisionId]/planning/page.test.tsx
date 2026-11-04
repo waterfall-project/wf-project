@@ -547,6 +547,34 @@ describe("the filter of the planning on the rows a risk occurred merged", () => 
     expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
   });
 
+  it("asks for no risk that the project does not list as occurred — one since back to identified, or of another revision — and keeps the page [WF-RIS-0060-A]", async () => {
+    const page = await planning({ origin_risk_ids: IDENTIFIED });
+    expect(queryOf("/nodes")?.has("origin_risk_ids")).toBe(false);
+    expect(page).toContain(`<option value="" selected="">All rows</option>`);
+  });
+
+  it("keeps the page, unfiltered and the filter lifted, when the session lists no risk and the server finds the one named unknown [WF-RIS-0060-A]", async () => {
+    server.answers = {
+      ...server.answers,
+      [RISKS]: { problem: { code: "NOT_FOUND", status: 404 } },
+      [NODES]: [
+        {
+          problem: {
+            code: "VALIDATION_FAILED",
+            status: 422,
+            fields: [{ pointer: "/query/origin_risk_ids/0", code: "UNKNOWN_RISK" }],
+          },
+        },
+        "nodes",
+      ],
+    };
+    const page = await planning({ origin_risk_ids: OCCURRED });
+    expect(callsOf(NODES).map((call) => call.query.has("origin_risk_ids"))).toEqual([true, false]);
+    expect(grid.given.at(-1)?.filters).not.toHaveProperty("origin_risk_ids");
+    expect(page).toContain(`<option value="true">Coming from a risk</option>`);
+    expect(page).not.toContain('selected="">Retard');
+  });
+
   it("opens with « Coming from a risk » alone when the project has no risks to read to it", async () => {
     server.answers = {
       ...server.answers,

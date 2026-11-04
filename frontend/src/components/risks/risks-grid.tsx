@@ -25,8 +25,9 @@ export interface RisksGridProps {
   readonly query: GridQuery<RiskSortColumn>;
   readonly preferences: GridPreferences | undefined;
   /**
-   * The address of the estimate of the revision, in the context of the screen, which the state of a
-   * risk occurred leads to, filtered on the lines that came of it; none, and it leads nowhere.
+   * The address of the grid of the revision, in the context of the screen, which the state of a
+   * risk occurred leads to, filtered on the rows that came of it — the estimate, or the planning
+   * for a session that does not read it; none, and it leads nowhere.
    */
   readonly estimate?: string | undefined;
 }

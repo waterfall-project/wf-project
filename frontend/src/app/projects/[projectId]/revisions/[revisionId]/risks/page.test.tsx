@@ -27,8 +27,17 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
-// The session of the contract, some of the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+// The session of the contract, some of the sizes of pages its account keeps and the permissions it
+// holds set for a test.
+const kept = vi.hoisted(
+  (): {
+    grids: Record<string, { page_size: number }>;
+    permissions: readonly string[] | undefined;
+  } => ({
+    grids: {},
+    permissions: undefined,
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -39,6 +48,7 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            ...(kept.permissions === undefined ? {} : { permissions: kept.permissions }),
             display_preferences: {
               ...session.display_preferences,
               grids: { ...session.display_preferences?.grids, ...kept.grids },
@@ -149,6 +159,7 @@ function queryOf(route: string): Record<string, string> {
 
 beforeEach(() => {
   kept.grids = {};
+  kept.permissions = undefined;
   grids.risks = [];
   details.props = [];
   matrices.props = [];
@@ -584,6 +595,19 @@ describe("the commands of the risks", () => {
     expect(callsTo(NODES)).toHaveLength(1);
     expect(callsTo(NODES)[0]?.path).toContain(`/revisions/${REVISION}/structures/`);
     expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
+  });
+
+  it("leads the state of a risk occurred to the estimate, and to the planning for a session that does not read it [WF-RIS-0060-A]", async () => {
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toContain("/estimate");
+    grids.risks = [];
+    kept.permissions = ["planning.read"];
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toContain("/planning");
+    grids.risks = [];
+    kept.permissions = [];
+    await risksAt();
+    expect(grids.risks.at(-1)?.estimate).toBeUndefined();
   });
 
   it.each([

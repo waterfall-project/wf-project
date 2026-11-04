@@ -17,7 +17,10 @@ import { createContext, type ReactNode, useContext } from "react";
 /** The labels of the risks occurred, by their identifier. */
 type OriginNames = Readonly<Record<string, string>>;
 
-const NAMES = createContext<OriginNames>({});
+/** The names of a grid that has none: one object, so that the value of the context stays put. */
+const NO_NAMES: OriginNames = {};
+
+const NAMES = createContext<OriginNames>(NO_NAMES);
 
 /** Give the marks of the rows under it the labels of the risks occurred. */
 export function OriginRisksProvider({
@@ -27,7 +30,7 @@ export function OriginRisksProvider({
   readonly names: OriginNames | undefined;
   readonly children: ReactNode;
 }) {
-  return <NAMES.Provider value={names ?? {}}>{children}</NAMES.Provider>;
+  return <NAMES.Provider value={names ?? NO_NAMES}>{children}</NAMES.Provider>;
 }
 
 /** The risk a node came of, when the grid read the field and the node bears one. */

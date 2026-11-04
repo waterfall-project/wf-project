@@ -23,6 +23,7 @@ import { notFound } from "next/navigation";
 import type { components } from "@/api/generated/schema";
 import { readEveryPageUnlessRefused } from "@/api/every-page";
 import {
+  type Answer,
   type ExpectedRefusal,
   OPTIONAL_READ_REFUSALS,
   readOrFail,
@@ -69,6 +70,7 @@ import {
   originQuery,
   type OriginRisk,
   readOriginFilter,
+  retainedOrigin,
 } from "@/components/grid/origin-filter";
 import { type BreakdownItem, breakdownItems } from "@/components/grid/planning-attachment";
 import { type GridQuery, readGridQuery } from "@/components/grid/query";
@@ -285,8 +287,10 @@ function readStructure(
  * `breakdown` names, of the kinds the grid renders, the fields it reads alone — asked of the server
  * (`fields`, `kinds`), and projected (`projectNodes`), the server being free to render more than
  * asked, as the fake back does. A read the API refuses, or cannot answer, is thrown for the pages of the
- * shell to say (`readOrFail`): a grid left empty would say the revision has nothing. The
- * structures are read at once; what is asked of the nodes waits for the session, whose
+ * shell to say (`readOrFail`): a grid left empty would say the revision has nothing. The one
+ * exception is the risk of the origin filter that the server finds no risk occurred of the project
+ * (`UNKNOWN_RISK`): the nodes are read without the filter, which is then said lifted (`origin`).
+ * The structures are read at once; what is asked of the nodes waits for the session, whose
  * preferences may sort them.
  */
 async function readStructureNodes<N extends NodeField, T extends TaskField, L extends LineField>(
@@ -300,7 +304,7 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     byDifference = false,
   }: GridReading<N, T, L>,
   breakdown: BreakdownFilter | undefined,
-  origin: OriginFilter | undefined,
+  requested: Promise<OriginFilter | undefined>,
   asked: Promise<GridQuery<NodeSortColumn>>,
 ) {
   const { revision, context } = at;
@@ -318,17 +322,18 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
   // Read on a differential alone, where each node bears a difference.
   const difference =
     byDifference && read.kind === "amendment" ? readDifferenceFilter(at.address) : undefined;
-  const filters: NodeFilters = {
+  const origin = await requested;
+  const filtersOf = (by: OriginFilter | undefined): NodeFilters => ({
     ...(kinds === undefined ? {} : { kinds: [...kinds] }),
     ...(search === undefined ? {} : { search }),
     ...(subproject === null ? {} : { subproject_id: subproject }),
     ...(progress === undefined ? {} : { progress }),
     ...narrowed,
     ...breakdownQuery(breakdown),
-    ...originQuery(origin),
+    ...originQuery(by),
     ...differenceQuery(difference),
-  };
-  const answer = await readOrFail("listNodes", () =>
+  });
+  const listNodes = (filters: NodeFilters) =>
     client.GET("/projects/{project_id}/revisions/{revision_id}/structures/{structure_id}/nodes", {
       params: {
         path: structure,
@@ -338,8 +343,17 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
           ...filters,
         },
       },
-    }),
-  );
+    });
+  let shown = origin;
+  let answered = await listNodes(filtersOf(origin));
+  if (origin?.kind === "risk" && refusesRisk(answered)) {
+    // The risks occurred were not listed to judge it (`retainedOrigin`), and the server judges it
+    // not one: the grid is read unfiltered, and its filter shows none, to be chosen anew.
+    shown = undefined;
+    answered = await listNodes(filtersOf(undefined));
+  }
+  const filters = filtersOf(shown);
+  const answer = await readOrFail("listNodes", () => Promise.resolve(answered));
   return {
     label: read.label,
     kind: read.kind,
@@ -357,7 +371,24 @@ async function readStructureNodes<N extends NodeField, T extends TaskField, L ex
     scheduledAt: answer.meta.scheduled_at,
     filters,
     difference,
+    origin: shown,
   };
+}
+
+/**
+ * Whether the server refused a reading of the nodes for a risk that is not one occurred of the
+ * project: a 422 whose fields say `UNKNOWN_RISK` (`origin_risk_ids`, WF-RIS-0060).
+ */
+function refusesRisk({ response, error }: Answer<unknown>): boolean {
+  if (response.status !== 422 || typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, fields } = error as { code?: unknown; fields?: unknown };
+  return (
+    code === "UNKNOWN_RISK" ||
+    (Array.isArray(fields) &&
+      fields.some((field) => (field as { code?: unknown } | null)?.code === "UNKNOWN_RISK"))
+  );
 }
 
 /**
@@ -397,12 +428,15 @@ async function readBreakdownItems(
 
 /**
  * The risks occurred of the project, by their identifier and their label, in the order of the API;
- * none when the session may not read the risks or the project has none to it (`OPTIONAL_READ_REFUSALS`),
- * the filter then offering « Issues d'un risque » alone. The server is asked for the occurred
+ * none (`undefined`) when the session may not read the risks or the project has none to it
+ * (`OPTIONAL_READ_REFUSALS`): the filter then offers « Issues d'un risque » alone, and a risk the
+ * address names is left to the server to judge. The server is asked for the occurred
  * ones (`states`); a server free to render more than asked, as the fake back is, is not followed:
  * a risk that did not occur is not offered, the API would refuse it (`UNKNOWN_RISK`).
  */
-async function readOccurredRisks({ revision }: GridAddress): Promise<readonly OriginRisk[]> {
+async function readOccurredRisks({
+  revision,
+}: GridAddress): Promise<readonly OriginRisk[] | undefined> {
   const risks = await readEveryPageUnlessRefused("listRisks", OPTIONAL_READ_REFUSALS, (page) =>
     serverClient().GET("/projects/{project_id}/risks", {
       params: {
@@ -411,8 +445,8 @@ async function readOccurredRisks({ revision }: GridAddress): Promise<readonly Or
       },
     }),
   );
-  return (risks ?? [])
-    .filter(({ state }) => state === "occurred")
+  return risks
+    ?.filter(({ state }) => state === "occurred")
     .map(({ risk_id: id, label }) => ({ id, label }));
 }
 
@@ -436,21 +470,26 @@ export async function readGridScreen<N extends NodeField, T extends TaskField, L
   // Asked on a refusal alone: a reading context that fails is said by the reading itself.
   const needed = () =>
     context.then((read) => read !== "not_found" && grid.needsBreakdown?.(read) === true);
-  const originFilter = grid.byOrigin === true ? readOriginFilter(at.address) : undefined;
+  // The risks occurred are listed first: the nodes are asked for a risk of the list alone.
+  const occurred = grid.byOrigin === true ? readOccurredRisks(at) : undefined;
+  const requested = (occurred ?? Promise.resolve(undefined)).then((risks) =>
+    grid.byOrigin === true ? retainedOrigin(readOriginFilter(at.address), risks) : undefined,
+  );
   const [structure, reading, preferences, query, items, risks] = await Promise.all([
-    readStructureNodes(at, grid, breakdownFilter, originFilter, asked),
+    readStructureNodes(at, grid, breakdownFilter, requested, asked),
     context,
     settings,
     asked,
     grid.byBreakdown === true ? readBreakdownItems(at, needed) : undefined,
-    grid.byOrigin === true ? readOccurredRisks(at) : undefined,
+    occurred,
   ]);
   if (reading === "not_found") {
     notFound();
   }
   const breakdown = items === undefined ? undefined : { items, filter: breakdownFilter };
-  const origin = risks === undefined ? undefined : { risks, filter: originFilter };
-  return { reading, ...structure, query, preferences, breakdown, breakdownFilter, origin };
+  const { origin: filter, ...nodes } = structure;
+  const origin = grid.byOrigin === true ? { risks: risks ?? [], filter } : undefined;
+  return { reading, ...nodes, query, preferences, breakdown, breakdownFilter, origin };
 }
 
 /**

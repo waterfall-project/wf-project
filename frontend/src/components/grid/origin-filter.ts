@@ -32,7 +32,9 @@ export type OriginFilter =
  * risk when `is_from_risk` is `true`; none otherwise. One alone is read — the filter offers one at
  * a time, and lifts the other when it writes —: what the grid sends is what its filter shows. A
  * value that is no identifier of the contract (`Uuid`) is not read, as if the address named
- * nothing: the API would refuse it. `is_from_risk=false` is not offered, nor read.
+ * nothing: the API would refuse it. `is_from_risk=false` is not offered, nor read. Only the shape
+ * is judged here: that the risk is one occurred of the project is judged by `retainedOrigin` against
+ * the risks listed, or, when the session does not list them, by the server (`UNKNOWN_RISK`).
  */
 export function readOriginFilter(search: SearchParameters): OriginFilter | undefined {
   const risk = (search.get(ORIGIN_RISK_PARAMETER) ?? "").split(",").find(isUuid);
@@ -40,6 +42,23 @@ export function readOriginFilter(search: SearchParameters): OriginFilter | undef
     return { kind: "risk", risk };
   }
   return search.get(ORIGIN_ANY_PARAMETER) === ORIGIN_ANY_VALUE ? { kind: "any" } : undefined;
+}
+
+/**
+ * The filter the address names, but for a risk the project does not list as occurred — a link or a
+ * favourite to a risk since back to identified, the address of another revision —: that one is
+ * dropped, as if the address named nothing, the server being never asked what it would refuse.
+ * With no list (`undefined`: the session does not read the risks), the filter is kept, for the
+ * server to judge.
+ */
+export function retainedOrigin(
+  filter: OriginFilter | undefined,
+  occurred: readonly OriginRisk[] | undefined,
+): OriginFilter | undefined {
+  if (filter?.kind !== "risk" || occurred === undefined) {
+    return filter;
+  }
+  return occurred.some(({ id }) => id === filter.risk) ? filter : undefined;
 }
 
 /** What a reading of the nodes asks of the server for the filter: its one parameter, or nothing. */

@@ -4,7 +4,7 @@
 
 The grid of the screen of [risk management](FBS-4.6.md): a row per risk the filter by state keeps, as the revision read holds them. The server sorts it, searches it and filters it as the address asks; the footer bears the grand total of the provisions of the risks retained. The register is read only: a risk is declared, modified and reviewed through the commands of the screen and of its detail.
 
-The label of a risk is a link to its detail, which opens beside the register. The state of a risk occurred is a link to the estimate filtered on the lines that came of it, for whoever reads the estimate.
+The label of a risk is a link to its detail, which opens beside the register. The state of a risk occurred is a link to the estimate filtered on the lines that came of it, for whoever reads the estimate, or to the planning filtered on the tasks and lines that came of it, for whoever reads the planning without the estimate.
 
 ## Its commands
 

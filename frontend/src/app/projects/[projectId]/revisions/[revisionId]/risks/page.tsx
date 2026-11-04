@@ -206,6 +206,25 @@ async function readDetail({ revision }: GridAddress, risk: string | undefined) {
   return { risk: read, reviews };
 }
 
+/**
+ * The estimate of the revision, in its context, for a session that reads it — where the own
+ * estimate of a risk opens —, and where what came of a risk occurred is read: the estimate, or the
+ * planning for a session that does not read it, nowhere when it reads neither.
+ */
+function gridsOf(
+  permissions: readonly string[] | undefined,
+  { context }: GridAddress,
+): { readonly estimate: string | undefined; readonly occurred: string | undefined } {
+  const estimate = permissions?.includes("estimate.read")
+    ? functionHref(functionOf("estimate"), context)
+    : undefined;
+  const planning = permissions?.includes("planning.read")
+    ? functionHref(functionOf("planning"), context)
+    : undefined;
+  return { estimate, occurred: estimate ?? planning };
+}
+
+/** What stands for the grid when the server refused a filter of a column (422), the risks unread. */
 /** What stands for the grid when the server refused a filter of a column (422), the risks unread. */
 function FiltersRefused() {
   const t = useTranslations("risks.filters");
@@ -349,10 +368,7 @@ export default async function RisksPage({
   if (read === "not_found") {
     notFound();
   }
-  // The own estimate of a risk opens in the estimate of the revision, for a session that reads it.
-  const estimate = kept?.permissions.includes("estimate.read")
-    ? functionHref(functionOf("estimate"), at.context)
-    : undefined;
+  const { estimate, occurred: occurredGrid } = gridsOf(kept?.permissions, at);
   return (
     <>
       <ContextBanner reading={read} />
@@ -400,7 +416,7 @@ export default async function RisksPage({
                 risks={risks}
                 query={query}
                 preferences={preferences}
-                estimate={estimate}
+                estimate={occurredGrid}
               />
             </div>
             {detail === undefined ? null : (

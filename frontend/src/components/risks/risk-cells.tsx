@@ -56,9 +56,9 @@ export function RiskLabelCell({ risk }: { readonly risk: RiskRow }) {
 const ESTIMATE = createContext<string | undefined>(undefined);
 
 /**
- * Give the cells of the states the address of the estimate of the revision, in its context, which
- * the state of a risk occurred leads to, filtered on it; none, and they lead nowhere (the session
- * does not read the estimate).
+ * Give the cells of the states the address of the grid of the revision, in its context, which the
+ * state of a risk occurred leads to, filtered on it — the estimate, the planning when the session
+ * does not read the estimate; none, and they lead nowhere (it reads neither).
  */
 export function OccurredLines({
   estimate,
