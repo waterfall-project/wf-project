@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
 import { act, render, screen } from "@testing-library/react";
-import { hydrateRoot } from "react-dom/client";
+import { type Root, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -103,25 +103,37 @@ describe("the cards of figures folded into a summary", () => {
     const host = document.createElement("div");
     host.innerHTML = html;
     document.body.append(host);
-    act(() => {
-      hydrateRoot(host, element);
-    });
-    expect(host.querySelector("details")).not.toHaveAttribute("open");
-    host.remove();
+    let root: Root | undefined;
+    try {
+      act(() => {
+        root = hydrateRoot(host, element);
+      });
+      expect(host.querySelector("details")).not.toHaveAttribute("open");
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      host.remove();
+    }
   });
 
   it("keep what the reader chose while the width does not cross the breakpoint [WF-IHM-0100-A]", () => {
     windowOf(false);
-    const tree = (
+    const { container, rerender } = render(
       <FoldingFigures title="Key figures">
         <p>Total</p>
-      </FoldingFigures>
+      </FoldingFigures>,
     );
-    const { container, rerender } = render(tree);
     const details = container.querySelector("details");
     if (details === null) throw new Error("no details");
     details.open = true;
-    rerender(tree);
+    // A fresh element, so that React renders the component again: a write of `open` at each
+    // render would show here.
+    rerender(
+      <FoldingFigures title="Key figures">
+        <p>Total</p>
+      </FoldingFigures>,
+    );
     expect(details.open).toBe(true);
   });
 });
