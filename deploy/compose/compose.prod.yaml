@@ -150,7 +150,7 @@ services:
 
   # Nothing durable is kept in Redis: the queue and the sessions are lost with it, not the data.
   redis:
-    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    image: redis:8-alpine@sha256:21090af93f8324db2f0f0f4f38a7c60369d47d917e000c3423d89d2ae2883537
     user: redis
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDISCLI_AUTH\" --save ''"]
     environment:
@@ -336,7 +336,7 @@ services:
   # The object storage (PBS-3.3): Garage on one node, its layout made at its start and the key of the
   # platform taken from the environment (garage.toml), its memory bounded (WF-CMP-0020).
   storage:
-    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    image: dxflrs/garage:v2.5.0@sha256:677e5b758e4425a325b811c425c026bf35a4bf42f7ddbaa773de3f4fd779a5a5
     command: ["/garage", "server", "--single-node", "--default-access-key"]
     environment:
       GARAGE_RPC_SECRET: ${WATERFALL_STORAGE_RPC_SECRET:?set WATERFALL_STORAGE_RPC_SECRET in .env}
