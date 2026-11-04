@@ -54,7 +54,7 @@ test("reads the risks of a revision: the register and its totals, the detail of 
   );
   // The coverage of the risks, each amount as the server computes it, the variance signed.
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
 
   // The detail of a risk, from its label: its notes, its provision line, its reviews.
