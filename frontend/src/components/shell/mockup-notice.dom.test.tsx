@@ -23,6 +23,8 @@ describe("MockupNotice (US-0760)", () => {
       expect(notes).toHaveLength(1);
       expect(notes[0]?.textContent).toContain(CATALOGUES[locale].mockup.notKept);
       expect(notes[0]?.textContent).toContain(CATALOGUES[locale].mockup.notFiltered);
+      // Short enough for the totals of a grid to stay in the window (#1899).
+      expect(notes[0]?.textContent.length).toBeLessThanOrEqual(150);
     },
   );
 

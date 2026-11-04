@@ -612,7 +612,8 @@ describe("the settings of a project", () => {
     };
     const page = html(await SettingsPage(at()));
     expect(page.match(/<p role="note"/g)).toHaveLength(1);
-    expect(text(page)).toContain("Filters, search, sort and pages are ignored");
+    expect(text(page)).toContain(CATALOGUES.en.mockup.notFiltered);
+    expect(text(page)).toContain(CATALOGUES.en.mockup.notKept);
     // Nothing is offered that writes, the commands of the sub-projects' rows neither: the
     // project lists none, so the screen presents none, available or not.
     expect(buttons(page).filter((name) => /Edit|New|Modify|Delete/.test(name))).toEqual([]);
