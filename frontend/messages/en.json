@@ -482,6 +482,7 @@
     "filter": "Filter by state",
     "everyState": "Every state",
     "filters": {
+      "toggle": "Column filters",
       "zone": "Filter by zone",
       "everyZone": "Every zone",
       "probabilityBounds": "Bounds of the probability, from 0 to 1",

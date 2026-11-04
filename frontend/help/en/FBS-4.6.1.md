@@ -9,6 +9,7 @@ The label of a risk is a link to its detail, which opens beside the register.
 ## Its commands
 
 - **Search a label** keeps the risks whose label contains the text entered.
+- **Column filters** unfolds, under the cards, the bar of the filters that follow; it is folded by default, and opens by itself when one of these filters is active.
 - **Filter by zone** keeps the risks whose cell of the matrix is in the zones chosen.
 - **Bounds of the probability** and **Bounds of the amounts** keep, for each column of figures — probability, severity, provision, cost at occurrence, reestimated of occurred —, the risks whose value lies between a minimum and a maximum, both included; the probability is written from 0 to 1. An identified or dismissed risk, which has neither a cost at occurrence nor a reestimated amount, is kept by no bound of these two columns.
 - **Period of the last review** keeps the risks whose last review falls between two days, the end included.

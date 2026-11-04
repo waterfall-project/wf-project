@@ -374,13 +374,14 @@ export default async function RisksPage({
               {risks.kind === "read" ? <ProvisionSummary totals={risks.totals} /> : null}
               <RiskCoverageSummary coverage={coverage} context={coverage.context} />
             </FiguresGrid>
-            <RiskStateFilter states={states} />
+            <RiskColumnFilters
+              filters={filters}
+              fields={refusedFields(risks)}
+              lastMarkedOn={marked}
+            >
+              <RiskStateFilter states={states} />
+            </RiskColumnFilters>
           </div>
-          <RiskColumnFilters
-            filters={filters}
-            fields={refusedFields(risks)}
-            lastMarkedOn={marked}
-          />
           <RiskMatrixSection
             reading={read}
             matrix={matrix}

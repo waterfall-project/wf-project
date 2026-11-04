@@ -34,10 +34,10 @@ const NONE = { items: [], totals: (example("risks_empty") as RiskRows).totals };
 const NO_QUERY: GridQuery<RiskSortColumn> = { sort: undefined, search: undefined, size: undefined };
 
 /** The filters of the register, as the address of the page asks them, in French. */
-function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: string) {
+function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: string, unfold = true) {
   const search = new URLSearchParams(page.search);
   const zones = RISK_ZONES.filter((zone) => (search.get("zones") ?? "").split(",").includes(zone));
-  return render(
+  const rendered = render(
     <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
       <PendingAddress>
         <RiskColumnFilters
@@ -48,6 +48,12 @@ function renderFilters(fields: readonly FieldProblem[] = [], lastMarkedOn?: stri
       </PendingAddress>
     </NextIntlClientProvider>,
   );
+  // The bar is folded unless the address filters: the tests that need it open unfold it.
+  const toggle = screen.getByRole("button", { name: "Filtres des colonnes" });
+  if (unfold && toggle.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(toggle);
+  }
+  return rendered;
 }
 
 beforeEach(() => {
@@ -120,6 +126,34 @@ describe("the address of the register of the risks", () => {
 });
 
 describe("the filters of the register on its columns", () => {
+  it("is folded by default, its command named and its shortcut in view, and opens of itself when a filter of a column is active or a side is refused [WF-IHM-0100-A] [WF-IHM-0130-A]", async () => {
+    const { unmount } = renderFilters([], "2026-02-01", false);
+    const toggle = screen.getByRole("button", { name: "Filtres des colonnes" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("group", { name: "Filtrer par zone" })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Non réexaminés depuis le dernier marquage" }),
+    ).toBeVisible();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
+    unmount();
+    page.search = "zones=alert";
+    const zone = renderFilters([], undefined, false);
+    expect(screen.getByRole("button", { name: "Filtres des colonnes" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    zone.unmount();
+    page.search = "";
+    const refusal = example("risks_period_inverted") as { fields: FieldProblem[] };
+    renderFilters(refusal.fields, undefined, false);
+    expect(screen.getByRole("button", { name: "Filtres des colonnes" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
   it("offers the zone, the bounds of the probability and of the four columns of amounts, and the period of the last review [WF-IHM-0130-A]", async () => {
     const { container } = renderFilters();
     expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
@@ -261,6 +295,7 @@ describe("the filters of the register on its columns", () => {
         </PendingAddress>
       </NextIntlClientProvider>,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Column filters" }));
     expect(screen.getByRole("group", { name: "Filter by zone" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Not reviewed since the last marking" })).toBeVisible();
   });

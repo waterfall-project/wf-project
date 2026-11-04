@@ -9,6 +9,7 @@ Le libellé d’un risque est un lien vers son détail, qui s’ouvre à côté 
 ## Ses commandes
 
 - **Rechercher un libellé** retient les risques dont le libellé contient le texte saisi.
+- **Filtres des colonnes** déplie, sous les cartes, la barre des filtres qui suivent ; elle est repliée par défaut, et s’ouvre d’elle-même quand un de ces filtres est actif.
 - **Filtrer par zone** retient les risques dont la case de la matrice est dans les zones choisies.
 - **Bornes de la probabilité** et **Bornes des montants** retiennent, pour chaque colonne de nombres — probabilité, gravité, provision, coût à la survenance, réestimé des survenus —, les risques dont la valeur est entre un minimum et un maximum, inclus ; la probabilité s’y écrit de 0 à 1. Un risque identifié ou écarté, sans coût à la survenance ni réestimé, n’est retenu par aucune borne de ces deux colonnes.
 - **Période du dernier réexamen** retient les risques dont le dernier réexamen tombe entre deux jours, fin incluse.

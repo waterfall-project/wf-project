@@ -482,6 +482,7 @@
     "filter": "Filtrer par état",
     "everyState": "Tous les états",
     "filters": {
+      "toggle": "Filtres des colonnes",
       "zone": "Filtrer par zone",
       "everyZone": "Toutes les zones",
       "probabilityBounds": "Bornes de la probabilité, de 0 à 1",
