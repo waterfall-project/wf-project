@@ -2323,14 +2323,14 @@
       "createCostType": "New cost type",
       "createCostCategory": "New cost category",
       "costTypeHint": "The code, unique, the label and the type are required.",
-      "costTypeFixedHint": "The code, unique, and the label are required; the type of this nature does not change.",
-      "costCategoryHint": "The code and the accounting code, both unique, the label and the nature are required.",
+      "costTypeFixedHint": "The code, unique, and the label are required; the type does not change.",
+      "costCategoryHint": "The code and the accounting code, both unique, the label and the cost type are required.",
       "kindFixed": "The type does not change.",
       "kindFixedFor": "The type does not change. {unmet}",
-      "sameKind": "Only the natures of the same type are offered.",
-      "sameKindFor": "Only the natures of the same type are offered. {unmet}",
-      "ownOnly": "The type of the deactivated nature cannot be read: it alone is offered.",
-      "ownOnlyFor": "The type of the deactivated nature cannot be read: it alone is offered. {unmet}"
+      "sameKind": "Only the cost types of the same type are offered.",
+      "sameKindFor": "Only the cost types of the same type are offered. {unmet}",
+      "ownOnly": "The type of the deactivated cost type cannot be read: it alone is offered.",
+      "ownOnlyFor": "The type of the deactivated cost type cannot be read: it alone is offered. {unmet}"
     },
     "orgNodeForm": {
       "create": "New organisation node",
@@ -2965,10 +2965,10 @@
     "estimate_lines": "Estimate lines of the current revision that bear the subproject: {lines}. A provision line changes subproject through its risk.",
     "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
     "estimateLine": "line {row} “{label}”",
-    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another nature} other {to another labour category}}: {roles}.",
+    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another cost type} other {to another labour category}}: {roles}.",
     "resource_roles_calendar": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
     "resource_roles_calendar_none": "Tasks without a labour line, on the default calendar.",
-    "cost_categories": "{count, plural, one {Category of the nature to attach first to another nature of the same type} other {Categories of the nature to attach first to another nature of the same type}}: {categories}.",
+    "cost_categories": "{count, plural, one {Category of the cost type to attach first to another cost type of the same type} other {Categories of the cost type to attach first to another cost type of the same type}}: {categories}.",
     "tasks": "{count, plural, one {Task at issue} other {Tasks at issue}}: {tasks}.",
     "projects": "Projects involved: {projects}.",
     "projects_listed": "{count, number} projects involved, listed below.",
@@ -3384,9 +3384,9 @@
       "calendar_not_default": "calendar other than the default one",
       "calendar_active": "calendar active",
       "cost_type_active": "cost type active",
-      "cost_type_unused": "no category of the nature employed",
-      "cost_type_unrated": "no category of the nature bearing an hourly rate",
-      "cost_type_without_role": "no category of the nature attached to a resource role",
+      "cost_type_unused": "no category of the cost type employed",
+      "cost_type_unrated": "no category of the cost type bearing an hourly rate",
+      "cost_type_without_role": "no category of the cost type attached to a resource role",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
       "cost_category_without_role": "category attached to no resource role",
@@ -3764,14 +3764,14 @@
       "reactivate": "Reactivate"
     },
     "CostTypeCommand": {
-      "deactivate": "Deactivate the nature",
-      "reactivate": "Reactivate the nature",
-      "change_kind": "Change the type of the nature"
+      "deactivate": "Deactivate the cost type",
+      "reactivate": "Reactivate the cost type",
+      "change_kind": "Change the type of the cost type"
     },
     "CostCategoryCommand": {
       "deactivate": "Deactivate the category",
       "reactivate": "Reactivate the category",
-      "change_cost_type": "Attach the category to a nature of another type"
+      "change_cost_type": "Attach the category to a cost type of another type"
     },
     "UserCommand": {
       "deactivate": "Deactivate the account",
