@@ -234,7 +234,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // In the order of the API: start, complete, enter the remaining to commit; nothing it does not list.
     expect(entries.map((entry) => entry.textContent)).toEqual([
       "Démarrer",
-      "TerminerConditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+      "TerminerConditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
       "Saisir le reste à engager",
     ]);
     expect(entries[0]).not.toHaveAttribute("aria-disabled");
@@ -470,7 +470,7 @@ describe("the gestures of the cards of the Kanban", () => {
     const user = userEvent.setup();
     dragTo("Câblage des armoires", "Non démarrées");
     expect(within(card("Câblage des armoires")).getByRole("alert").textContent).toBe(
-      "Aucun geste ne mène cette tâche vers la colonne « Non démarrées ».",
+      "Aucun geste ne mène cette tâche vers la colonne «\u00A0Non démarrées\u00A0».",
     );
     // The same by the keys, Shift and the left arrow.
     await user.click(card("Câblage des armoires"));
@@ -486,7 +486,7 @@ describe("the gestures of the cards of the Kanban", () => {
     // The completion of a task not started lacks conditions: dropped on the completed ones, it says so.
     dragTo("Montage des armoires sur site", "Terminées");
     expect(within(card("Montage des armoires sur site")).getByRole("alert").textContent).toBe(
-      "« Terminer » est indisponible. Conditions non remplies : la tâche est un jalon et tâche sans ligne hors provision.",
+      "«\u00A0Terminer\u00A0» est indisponible. Conditions non remplies\u00A0: la tâche est un jalon et tâche sans ligne hors provision.",
     );
     expect(client.calls.filter((each) => each.route === PROGRESS)).toEqual([]);
     expect(

@@ -211,7 +211,7 @@ describe("the exits of the lifecycle of a project", () => {
 
     const form = screen.getByRole("form", { name: "Terminer le projet" });
     // What the user reads, the no-break spaces of French typography aside.
-    expect(form.textContent.replaceAll(" ", " ")).toContain(
+    expect(form.textContent.replaceAll("\u00A0", " ")).toContain(
       "Cette sortie est définitive : le projet passera à l’état « Terminé », et lui comme toutes ses données",
     );
     // A screen reader hears it too, on the field of the motive and on the button that confirms.
@@ -397,7 +397,7 @@ describe("the exits of the lifecycle of a project", () => {
     });
     closeTasks();
     await waitFor(() => {
-      expect(said()).toEqual(["Le projet est passé à l’état « Terminé »."]);
+      expect(said()).toEqual(["Le projet est passé à l’état «\u00A0Terminé\u00A0»."]);
     });
     await tick();
     expect(router.refresh).toHaveBeenCalledOnce();

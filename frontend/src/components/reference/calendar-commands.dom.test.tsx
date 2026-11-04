@@ -146,15 +146,15 @@ describe("the calendars", () => {
         sunday: "0",
       },
     });
-    expect(announced()).toContain("« Semaine de trente-cinq heures » créé.");
+    expect(announced()).toContain("«\u00A0Semaine de trente-cinq heures\u00A0» créé.");
   });
 
   it("modifies a calendar from the version read, its hours shown in the language of the reader", async () => {
     const client = serve();
     render(calendarList());
     const form = await opened(
-      "Modifier « Semaine de quatre jours »",
-      "Modifier « Semaine de quatre jours »",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
     );
     expect(within(form).getByRole("textbox", { name: "Lundi" })).toHaveValue("10");
     const label = within(form).getByRole("textbox", { name: "Libellé" });
@@ -176,10 +176,12 @@ describe("the calendars", () => {
     render(calendarList());
     // The default calendar is marked, and offers no designation.
     expect(
-      screen.queryByRole("button", { name: "Désigner « Semaine standard » par défaut" }),
+      screen.queryByRole("button", { name: "Désigner «\u00A0Semaine standard\u00A0» par défaut" }),
     ).toBeNull();
     await userEvent.click(
-      screen.getByRole("button", { name: "Désigner « Semaine de quatre jours » par défaut" }),
+      screen.getByRole("button", {
+        name: "Désigner «\u00A0Semaine de quatre jours\u00A0» par défaut",
+      }),
     );
     await vi.waitFor(() => {
       expect(refresh).toHaveBeenCalledOnce();
@@ -192,7 +194,9 @@ describe("the calendars", () => {
         body: { lock_version: 1 },
       },
     ]);
-    expect(announced()).toContain("« Semaine de quatre jours » désigné calendrier par défaut.");
+    expect(announced()).toContain(
+      "«\u00A0Semaine de quatre jours\u00A0» désigné calendrier par défaut.",
+    );
     const row = document.querySelector('td[data-row="0"][data-column="is_default"]');
     expect(row).toHaveTextContent("Calendrier par défaut");
   });
@@ -236,7 +240,7 @@ describe("the calendars", () => {
     const client = serve();
     render(calendarList(calendars.items));
     const command = screen.getByRole("button", {
-      name: "Désigner « Semaine de trente-neuf heures » par défaut",
+      name: "Désigner «\u00A0Semaine de trente-neuf heures\u00A0» par défaut",
     });
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAccessibleDescription("Condition non remplie\u00a0: calendrier actif.");
@@ -285,8 +289,8 @@ describe("the calendars", () => {
     });
     render(calendarList());
     const form = await opened(
-      "Modifier « Semaine de quatre jours »",
-      "Modifier « Semaine de quatre jours »",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
     );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const monday = within(form).getByRole("textbox", { name: "Lundi" });
@@ -338,8 +342,8 @@ describe("the calendars", () => {
     });
     render(calendarList());
     const form = await opened(
-      "Modifier « Semaine de quatre jours »",
-      "Modifier « Semaine de quatre jours »",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
+      "Modifier «\u00A0Semaine de quatre jours\u00A0»",
     );
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     const alert = await within(form).findByRole("alert");
@@ -352,11 +356,11 @@ describe("the calendars", () => {
     render(calendarList());
     // La désactivation du calendrier par défaut est refusée tant qu'un autre n'a pas été désigné.
     const command = screen.getByRole("button", {
-      name: "Désactiver « Semaine standard »",
+      name: "Désactiver «\u00A0Semaine standard\u00A0»",
     });
     expect(command).toHaveAttribute("aria-disabled", "true");
     expect(command).toHaveAccessibleDescription(
-      "Condition non remplie : calendrier autre que celui par défaut.",
+      "Condition non remplie\u00A0: calendrier autre que celui par défaut.",
     );
     await userEvent.click(command);
     expect(client.calls).toEqual([]);

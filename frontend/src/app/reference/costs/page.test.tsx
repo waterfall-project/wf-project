@@ -169,7 +169,7 @@ describe("the types of the natures the page hands the form of a category", () =>
     expect(queriesOf(TYPES)).toEqual([{}, WHOLE]);
     expect(handed().every).toEqual(handed().natures);
     expect(page).toContain("Nouvelle catégorie");
-    expect(page).toContain("Modifier « Sous-traitance »");
+    expect(page).toContain("Modifier «\u00A0Sous-traitance\u00A0»");
   });
 });
 

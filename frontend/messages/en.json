@@ -397,7 +397,7 @@
     "linkCode": "{link, select, finish_to_start {FS} start_to_start {SS} finish_to_finish {FF} start_to_finish {SF} other {}}",
     "trackingSeparator": ", ",
     "notComputableReason": " — {reason}",
-    "skeletonGenerated": "Schedule skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
+    "skeletonGenerated": "Planning skeleton generated: {tasks, plural, one {# task} other {# tasks}} in the grid.",
     "conflict": "Link in conflict: {predecessor}{code}{successor, select, unknown {} other { to row {successor}}}",
     "planningStart": {
       "shown": "<label>Planning start date</label>: <time>{date}</time>",
@@ -698,11 +698,11 @@
       "file": "indices-evolution"
     },
     "costStructure": {
-      "noActualCost": "The actual cost is not broken down by nature: the ERP does not provide it.",
-      "budget": "Reference budget by nature",
-      "remaining": "Remaining to commit by nature",
+      "noActualCost": "The actual cost is not broken down by cost type: the ERP does not provide it.",
+      "budget": "Reference budget by cost type",
+      "remaining": "Remaining to commit by cost type",
       "labor": "Labour by organisation node",
-      "nature": "Cost nature",
+      "nature": "Cost type",
       "orgNode": "Organisation node",
       "amount": "Amount",
       "share": "Share",
@@ -788,7 +788,7 @@
     "provisions": "Identified provisions",
     "delta": "Deviation from the previous marked revision",
     "deltaToReference": "Deviation from the reference",
-    "byCostType": "By nature of cost",
+    "byCostType": "By cost type",
     "bySubproject": "By subproject",
     "byWorkPackage": "By work package",
     "shareOf": " (<share></share>)",
@@ -811,7 +811,7 @@
     "total": "Remaining to commit",
     "deltaToReference": "Margin on the reference budget",
     "deltaToPrevious": "Deviation from the previous review",
-    "byCostType": "By nature of cost",
+    "byCostType": "By cost type",
     "bySubproject": "Remaining to commit by sub-project, and margin on the budget",
     "amountShare": "{name}: {amount} (<share></share>)",
     "balance": "{name}: {remaining}, margin {variance}"
@@ -984,9 +984,9 @@
     "costCurve": {
       "title": "Cumulative costs",
       "chartTitle": "S-curve",
-      "chartTitleDelayed": "Cash out",
+      "chartTitleDelayed": "Cash-out",
       "description": "Cumulative curves of the reference budget by the dates of the reference, of the actual cost by the document dates up to the calculation date, then of the project manager’s projection, with the dated steps of the reference budget.",
-      "descriptionDelayed": "The same curves shifted by the payment delay of each line, the provisions of the identified risks added at the date of their task: the cash out, past and to come.",
+      "descriptionDelayed": "The same curves shifted by the payment delay of each line, the provisions of the identified risks added at the date of their task: the cash-out, past and to come.",
       "delay": "Shift by the payment delays",
       "undelay": "Remove the shift by the payment delays",
       "file": "s-curve",
@@ -1007,7 +1007,7 @@
       "steps": "Steps of the reference budget",
       "cause": "Cause",
       "stepAmount": "Amount of the step",
-      "cashOut": "Cash out by month",
+      "cashOut": "Cash-out by month",
       "month": "Month",
       "past": "Paid out",
       "forecast": "To pay out",
@@ -1267,7 +1267,7 @@
         "help": "Generates the skeleton of the planning of the revision."
       },
       "declare_risk": {
-        "help": "Declares a new risk on the project."
+        "help": "Leads to the screen of the risks of the revision, where « Identify a risk » is offered."
       },
       "create_structure": {
         "help": "Prepares an amendment: a differential structure on the revision."
@@ -2307,7 +2307,7 @@
       "choose": "Choose…",
       "deactivatedChoice": "{choice} ({kind, select, other {deactivated}})",
       "takenBy": "Already held by “{name}”.",
-      "takenByAnother": "{kind, select, cost_type {Already held by another nature.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
+      "takenByAnother": "{kind, select, cost_type {Already held by another cost type.} cost_category {Already held by another category.} org_node {Already held by another node.} resource_role {Already held by another role.} calendar {Already held by another calendar.} project {Already held by another project.} subproject {Already held by another sub-project.} other {Already held by another object.}}",
       "create": "Create",
       "save": "Save",
       "sending": "Sending…",
@@ -2320,17 +2320,17 @@
       "designated": "“{name}” designated the default calendar."
     },
     "costForm": {
-      "createCostType": "New cost nature",
+      "createCostType": "New cost type",
       "createCostCategory": "New cost category",
       "costTypeHint": "The code, unique, the label and the type are required.",
-      "costTypeFixedHint": "The code, unique, and the label are required; the type of this nature does not change.",
-      "costCategoryHint": "The code and the accounting code, both unique, the label and the nature are required.",
+      "costTypeFixedHint": "The code, unique, and the label are required; the type does not change.",
+      "costCategoryHint": "The code and the accounting code, both unique, the label and the cost type are required.",
       "kindFixed": "The type does not change.",
       "kindFixedFor": "The type does not change. {unmet}",
-      "sameKind": "Only the natures of the same type are offered.",
-      "sameKindFor": "Only the natures of the same type are offered. {unmet}",
-      "ownOnly": "The type of the deactivated nature cannot be read: it alone is offered.",
-      "ownOnlyFor": "The type of the deactivated nature cannot be read: it alone is offered. {unmet}"
+      "sameKind": "Only the cost types of the same type are offered.",
+      "sameKindFor": "Only the cost types of the same type are offered. {unmet}",
+      "ownOnly": "The type of the deactivated cost type cannot be read: it alone is offered.",
+      "ownOnlyFor": "The type of the deactivated cost type cannot be read: it alone is offered. {unmet}"
     },
     "orgNodeForm": {
       "create": "New organisation node",
@@ -2371,7 +2371,7 @@
       "kindFilter": "Kinds of cost type",
       "everyKind": "Every kind",
       "count": "{count, plural, one {# cost type} other {# cost types}}",
-      "create": "New nature"
+      "create": "New cost type"
     },
     "costCategories": {
       "title": "Cost categories",
@@ -2457,7 +2457,7 @@
       "modify": "Modify the units of duration",
       "hint": "The hours per day, the hours per week and the days per month, each strictly positive.",
       "saved": "Units of duration saved.",
-      "effect": "The change applies to every project: the schedules of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
+      "effect": "The change applies to every project: the plannings of the revisions in progress are recalculated; a marked revision keeps the hours it calculated."
     },
     "actualCostMapping": {
       "form": "Mapping of the actual cost extraction",
@@ -2564,11 +2564,11 @@
     "identitySync": {
       "title": "Reading of the identity provider accounts",
       "schedule": {
-        "title": "Reading schedule",
-        "modify": "Modify the schedule",
-        "hint": "The schedule is saved whole. The time and the day are in universal time (UTC). A reading under way is not interrupted: the setting holds from the next one.",
+        "title": "Reading periodicity",
+        "modify": "Modify the periodicity",
+        "hint": "The periodicity is saved whole. The time and the day are in universal time (UTC). A reading under way is not interrupted: the setting holds from the next one.",
         "weekdayNote": "For a weekly reading only.",
-        "saved": "Schedule saved."
+        "saved": "Periodicity saved."
       },
       "start": "Read the accounts",
       "none": "No reading of the accounts has ended yet.",
@@ -2857,7 +2857,7 @@
     "planning": "Planning",
     "estimate": "Costing and estimate",
     "workload": "Workload",
-    "remaining": "Estimate to complete",
+    "remaining": "Remaining to commit",
     "risks": "Risk management",
     "actualCosts": "Actual costs",
     "projectIndicators": "Project indicators",
@@ -2965,10 +2965,10 @@
     "estimate_lines": "Estimate lines of the current revision that bear the subproject: {lines}. A provision line changes subproject through its risk.",
     "estimate_lines_listed": "{count, number} estimate lines of the current revision bear the subproject, listed below. A provision line changes subproject through its risk.",
     "estimateLine": "line {row} “{label}”",
-    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another nature} other {to another labour category}}: {roles}.",
+    "resource_roles": "Roles to attach first {of, select, cost_type {to a labour category of another cost type} other {to another labour category}}: {roles}.",
     "resource_roles_calendar": "{count, plural, one {Role whose calendar has no hour: {roles}.} other {Roles whose calendars never overlap: {roles}.}}",
     "resource_roles_calendar_none": "Tasks without a labour line, on the default calendar.",
-    "cost_categories": "{count, plural, one {Category of the nature to attach first to another nature of the same type} other {Categories of the nature to attach first to another nature of the same type}}: {categories}.",
+    "cost_categories": "{count, plural, one {Category of the cost type to attach first to another cost type of the same type} other {Categories of the cost type to attach first to another cost type of the same type}}: {categories}.",
     "tasks": "{count, plural, one {Task at issue} other {Tasks at issue}}: {tasks}.",
     "projects": "Projects involved: {projects}.",
     "projects_listed": "{count, number} projects involved, listed below.",
@@ -3085,8 +3085,8 @@
       "write": "Edit costing and estimate"
     },
     "remaining": {
-      "read": "View the estimate to complete",
-      "write": "Edit the estimate to complete"
+      "read": "View the remaining to commit",
+      "write": "Edit the remaining to commit"
     },
     "risks": {
       "read": "View risk management",
@@ -3333,7 +3333,7 @@
       "manage_contributors": "Manage contributors",
       "manage_timelines": "Manage timelines",
       "create_revision": "Create a revision",
-      "generate_skeleton": "Generate the schedule skeleton",
+      "generate_skeleton": "Generate the planning skeleton",
       "complete": "Complete the project",
       "lose": "Declare the project lost",
       "abandon": "Abandon the project",
@@ -3342,9 +3342,9 @@
       "declare_risk_occurrence": "Declare that a risk has occurred",
       "import_actual_costs": "Import actual costs",
       "exclude_cost_lines": "Exclude cost lines",
-      "import_planning": "Import an MS Project schedule",
+      "import_planning": "Import an MS Project planning",
       "import_estimate": "Import an estimate",
-      "import_remaining": "Import an estimate to complete"
+      "import_remaining": "Import a remaining to commit"
     },
     "CommandCondition": {
       "is_contributor": "being a contributor to the project",
@@ -3384,9 +3384,9 @@
       "calendar_not_default": "calendar other than the default one",
       "calendar_active": "calendar active",
       "cost_type_active": "cost type active",
-      "cost_type_unused": "no category of the nature employed",
-      "cost_type_unrated": "no category of the nature bearing an hourly rate",
-      "cost_type_without_role": "no category of the nature attached to a resource role",
+      "cost_type_unused": "no category of the cost type employed",
+      "cost_type_unrated": "no category of the cost type bearing an hourly rate",
+      "cost_type_without_role": "no category of the cost type attached to a resource role",
       "cost_category_unused": "category employed by no line",
       "cost_category_unrated": "category without hourly rates",
       "cost_category_without_role": "category attached to no resource role",
@@ -3437,10 +3437,10 @@
       "marked": "Marked"
     },
     "RevisionCommand": {
-      "edit_planning": "Edit the schedule",
-      "generate_skeleton": "Generate the schedule skeleton",
+      "edit_planning": "Edit the planning",
+      "generate_skeleton": "Generate the planning skeleton",
       "edit_estimate": "Edit the estimate",
-      "edit_remaining": "Update the estimate to complete",
+      "edit_remaining": "Re-estimate the remaining to commit",
       "edit_risks": "Edit the risks",
       "declare_risk": "Declare a risk",
       "apply_rate_update": "Apply the rate update",
@@ -3449,9 +3449,9 @@
       "mark": "Mark the revision",
       "designate_reference": "Designate as reference",
       "abandon": "Abandon the revision",
-      "export_planning": "Export the MS Project schedule",
+      "export_planning": "Export the MS Project planning",
       "export_estimate": "Export the estimate",
-      "export_remaining": "Export the estimate to complete",
+      "export_remaining": "Export the remaining to commit",
       "export_task_tree_image": "Export the task tree image"
     },
     "RateUpdateProposal": {
@@ -3508,9 +3508,9 @@
       "enter_remaining": "Enter the remaining to commit"
     },
     "StructureCommand": {
-      "edit_planning": "Edit the schedule",
+      "edit_planning": "Edit the planning",
       "edit_estimate": "Edit the estimate",
-      "edit_remaining": "Update the estimate to complete"
+      "edit_remaining": "Re-estimate the remaining to commit"
     },
     "StructureCreate": {
       "kind": {
@@ -3686,7 +3686,7 @@
       "resource_role": "The role of a labour line determines its cost category.",
       "risk": "A provision line takes from its risk its figures — its severity weighted by its probability — and its subproject.",
       "reference_revision": "The budgeted amount is the one the reference revision set.",
-      "remaining_reviews": "The re-estimated amount follows the reviews of the estimate to complete.",
+      "remaining_reviews": "The re-estimated amount follows the reviews of the remaining to commit.",
       "inflation": "The re-estimated amount, inflation included, is the line’s amount projected on its year of consumption at the inflation rate of the revision.",
       "own_estimate": "The severity of a risk is the total of its own estimate.",
       "severity_and_probability": "The provision of a risk is its severity weighted by its probability.",
@@ -3710,7 +3710,7 @@
       "no_planned_value": "No planned value at the calculation date.",
       "no_reference_budget": "No reference budget.",
       "no_budgeted_amount": "No budgeted amount in the subtree of the task.",
-      "no_actual_or_remaining": "Neither actual cost nor estimate to complete.",
+      "no_actual_or_remaining": "Neither actual cost nor remaining to commit.",
       "no_capacity": "No capacity for this role over the period.",
       "no_offer_out_of_pricing": "No offer left the Pricing state over the period.",
       "hourly_rate_missing": "Hourly rate missing for the reference year.",
@@ -3764,14 +3764,14 @@
       "reactivate": "Reactivate"
     },
     "CostTypeCommand": {
-      "deactivate": "Deactivate the nature",
-      "reactivate": "Reactivate the nature",
-      "change_kind": "Change the type of the nature"
+      "deactivate": "Deactivate the cost type",
+      "reactivate": "Reactivate the cost type",
+      "change_kind": "Change the type of the cost type"
     },
     "CostCategoryCommand": {
       "deactivate": "Deactivate the category",
       "reactivate": "Reactivate the category",
-      "change_cost_type": "Attach the category to a nature of another type"
+      "change_cost_type": "Attach the category to a cost type of another type"
     },
     "UserCommand": {
       "deactivate": "Deactivate the account",
@@ -3795,9 +3795,9 @@
       }
     },
     "ExchangeKind": {
-      "ms_project_schedule": "MS Project schedule",
+      "ms_project_schedule": "MS Project planning",
       "estimate": "Estimate",
-      "remaining": "Estimate to complete",
+      "remaining": "Remaining to commit",
       "actual_costs": "Actual costs"
     },
     "FileUploadPurpose": {
@@ -3876,9 +3876,9 @@
       "abandon": "Abandon the import"
     },
     "ExportKind": {
-      "ms_project_schedule": "MS Project schedule",
+      "ms_project_schedule": "MS Project planning",
       "estimate": "Estimate",
-      "remaining": "Estimate to complete",
+      "remaining": "Remaining to commit",
       "task_tree_image": "Task tree image"
     },
     "PortfolioPerformance": {
@@ -3918,9 +3918,9 @@
       "title": "Import a file",
       "none": "No import is offered to you on this project.",
       "kinds": {
-        "ms_project_schedule": "Import an MS Project schedule",
+        "ms_project_schedule": "Import an MS Project planning",
         "estimate": "Import an estimate",
-        "remaining": "Import an estimate to complete",
+        "remaining": "Import a remaining to commit",
         "actual_costs": "Import actual costs"
       },
       "file": "File to import",
@@ -3939,7 +3939,7 @@
       "hint": "Drag an .xml file here, or choose it. {max} MiB at most.",
       "choose": "Choose a file",
       "file": "MS Project file (.xml)",
-      "notXml": "This is not an .xml file: an MS Project schedule is exported as XML.",
+      "notXml": "This is not an .xml file: an MS Project planning is exported as XML.",
       "tooLarge": "The file is larger than {max} MiB, the largest size an import takes.",
       "sending": "Sending “{file}”…",
       "sent": "“{file}” is sent: its report is shown on the page.",

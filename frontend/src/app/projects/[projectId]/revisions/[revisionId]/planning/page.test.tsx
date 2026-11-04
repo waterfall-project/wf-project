@@ -67,7 +67,7 @@ const BREAKDOWN = "GET /projects/{project_id}/work-breakdown";
 const LOT = "01926f3a-7c00-7000-8000-000000000711";
 const ITEM = "01926f3a-7c00-7000-8000-000000000712";
 // The button of the skeleton, from its tag to its name.
-const SKELETON = /<button(?:(?!<button).)*?Generate the schedule skeleton<\/button>/;
+const SKELETON = /<button(?:(?!<button).)*?Generate the planning skeleton<\/button>/;
 
 /** Render in English, as the shell hands its texts to a screen. */
 function html(page: ReactNode): string {

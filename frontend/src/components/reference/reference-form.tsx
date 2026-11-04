@@ -441,7 +441,8 @@ export function ReferenceForm<T = ReferenceObject>({
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
   const [pending, startTransition] = useTransition();
   // The list holds the navigations while the write answers, when it is the one that may tell the
-  // refusal: the dialog closed meanwhile, its click is held all the same (#688).
+  // refusal: the dialog closed meanwhile, its click is held all the same (#688). Always called,
+  // used or not: a hook is not called on a condition.
   const own = useHeldCommand();
   const held = list?.held ?? own;
   const noteRefusal = useNoteRefusal();

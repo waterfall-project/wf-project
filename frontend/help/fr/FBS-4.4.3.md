@@ -2,11 +2,11 @@
 
 ## Ce que montre l’écran
 
-La colonne « Montant (année de réf.) » de la [grille de devis](FBS-4.4.2.md) : le montant de chaque ligne, de chaque tâche — récapitulative comprise — et du total, chiffré aux taux horaires de l’année de référence de la révision, sans inflation. À côté d’elle, « Montant corrigé de l’inflation » projette ce même montant sur l’année de consommation de la ligne, que le planning donne, au taux d’inflation du projet.
+La colonne « Montant (année de réf.) » de la [grille de devis](FBS-4.4.2.md) : le montant de chaque ligne, de chaque tâche — récapitulative comprise — et du total, chiffré aux taux horaires de l’année de référence de la révision, sans inflation. À côté d’elle, « Montant réestimé » projette ce même montant sur l’année de consommation de la ligne, que le planning donne, au taux d’inflation du projet.
 
 L’année de référence est celle dont les taux horaires chiffrent la révision : retenue à sa création, elle ne change plus. Les années suivantes sont projetées par le taux d’inflation du projet, réglé dans ses paramètres.
 
-Le devis ne montre ni le montant budgété ni le montant réestimé : le premier se lit au [reste à engager](FBS-4.5.md) et fonde le [budget de référence](notions/budget-de-reference.md) ; le second est la réestimation des revues.
+Le devis ne montre pas le montant budgété : il se lit au [reste à engager](FBS-4.5.md) et fonde le [budget de référence](notions/budget-de-reference.md).
 
 ## Ses commandes
 

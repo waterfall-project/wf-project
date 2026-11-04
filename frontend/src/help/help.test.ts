@@ -418,6 +418,27 @@ describe("the reading of the help", () => {
     ]);
   });
 
+  it.each(LOCALES)(
+    "tells, in %s, that « Declare a risk » leads to the screen of the risks, not that it opens nothing; and names the re-estimated amount of the estimate as the grid does [WF-IHM-0140-A]",
+    async (locale) => {
+      const text = async (code: string) => {
+        const page = await readHelpPage({ kind: "screen", code }, locale);
+        return page.kind === "written"
+          ? [page.intro, ...page.sections.map((section) => section.body)].join("\n")
+          : "";
+      };
+      const revisions = await text("FBS-4.1");
+      expect(revisions).not.toMatch(/n’ouvre rien|opens nothing/u);
+      expect(revisions).toMatch(/Identifier un risque|Identify a risk/u);
+      const reestimated = CATALOGUES[locale].grid.columns.reestimatedAmount;
+      expect(await text("FBS-4.4.3")).toContain(reestimated);
+      expect(await text("FBS-4.4")).toContain(reestimated);
+      expect(await text("FBS-4.4.3")).not.toMatch(
+        /corrigé de l’inflation|corrected for inflation/u,
+      );
+    },
+  );
+
   it("reads the page of a screen in English, its sections said in English, the columns of its grid the same [WF-IHM-0140-A]", async () => {
     const french = await readHelpPage({ kind: "screen", code: "FBS-4.4" }, "fr");
     const page = await readHelpPage({ kind: "screen", code: "FBS-4.4" }, "en");

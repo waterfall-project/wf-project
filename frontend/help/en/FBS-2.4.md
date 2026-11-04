@@ -4,11 +4,11 @@
 
 The breakdown of the costs of the projects of the perimeter, at the date of calculation. Under the title, the perimeter retained and the date of calculation. Three tables, each in amount and in share:
 
-- **Reference budget by nature**: the aggregated reference budget, broken down by cost type;
-- **Remaining to commit by nature**: the aggregated remaining to commit, broken down likewise;
+- **Reference budget by cost type**: the aggregated reference budget, broken down by cost type;
+- **Remaining to commit by cost type**: the aggregated remaining to commit, broken down likewise;
 - **Labour by organisation node**.
 
-The actual cost is not broken down by nature: the ERP does not provide it, and the screen says so. A project in pricing, when it is retained, counts for its current estimate weighted by its probability of winning: without the provision lines for the budget, provisions included for the remaining to commit.
+The actual cost is not broken down by cost type: the ERP does not provide it, and the screen says so. A project in pricing, when it is retained, counts for its current estimate weighted by its probability of winning: without the provision lines for the budget, provisions included for the remaining to commit.
 
 ## Its commands
 
@@ -22,7 +22,7 @@ The tables are read only: they are neither sorted nor filtered.
 
 ## Its columns and computed values
 
-The amount of a nature or of a node is the sum of those of the projects of the perimeter; its share, this amount over the total of the table. Everything is calculated by the server. A nature or a node without a name reads “Unnamed”.
+The amount of a cost type or of a node is the sum of those of the projects of the perimeter; its share, this amount over the total of the table. Everything is calculated by the server. A cost type or a node without a name reads “Unnamed”.
 
 ## Keyboard gestures
 

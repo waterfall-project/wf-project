@@ -1267,7 +1267,7 @@
         "help": "Engendre le squelette du planning de la révision."
       },
       "declare_risk": {
-        "help": "Déclare un nouveau risque au projet."
+        "help": "Mène à l’écran des risques de la révision, où « Identifier un risque » s’offre."
       },
       "create_structure": {
         "help": "Prépare un avenant : une structure différentielle sur la révision."

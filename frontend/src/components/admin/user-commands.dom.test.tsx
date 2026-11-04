@@ -90,14 +90,14 @@ describe("the table of the accounts, its own entry", () => {
     expect(screen.getByRole("button", { name: "Créer un compte local" })).toBeInTheDocument();
     expect(within(grid()).getAllByRole("switch")).toHaveLength(7);
     expect(
-      within(grid()).getByRole("switch", { name: "Compte de « Alix Moreau » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Alix Moreau\u00A0» actif" }),
     ).not.toBeChecked();
     expect(within(grid()).getAllByRole("button", { name: /^Rôles de «/ })).toHaveLength(7);
     // The five local accounts have a link; those of the directory and of the provider, none.
     expect(within(grid()).getAllByRole("button", { name: /^Lien de fixation/ })).toHaveLength(5);
     expect(
       within(grid()).queryByRole("button", {
-        name: "Lien de fixation du mot de passe de « Dominique Bernard »",
+        name: "Lien de fixation du mot de passe de «\u00A0Dominique Bernard\u00A0»",
       }),
     ).toBeNull();
     await expectAccessible(container);
@@ -137,7 +137,7 @@ describe("the table of the accounts, its own entry", () => {
     await userEvent.keyboard("Petit-Laurent{Enter}");
     expect(await within(grid()).findByText("Petit-Laurent")).toBeInTheDocument();
     await waitFor(() => {
-      expect(told().textContent).toBe("« Lucas Petit-Laurent » renommé.");
+      expect(told().textContent).toBe("«\u00A0Lucas Petit-Laurent\u00A0» renommé.");
     });
     const lucas = account("Petit");
     expect(writes(client)).toEqual([
@@ -165,7 +165,7 @@ describe("the table of the accounts, its own entry", () => {
     );
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Noé Vidal\u00A0» actif" }),
     );
     within(grid()).getByText("Vidal").closest<HTMLElement>("[tabindex]")?.focus();
     await userEvent.keyboard("Vidal-Roux{Enter}");
@@ -173,7 +173,7 @@ describe("the table of the accounts, its own entry", () => {
     expect(writes(client).map(([route]) => route)).toEqual(["PUT /users/{user_id}/activation"]);
     held.release();
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal-Roux » renommé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal-Roux\u00A0» renommé.");
     });
     const noe = account("Vidal");
     const deactivated = example("user_deactivated") as User;
@@ -197,8 +197,12 @@ describe("the table of the accounts, its own entry", () => {
     const held = heldActivation();
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" }, held.timing);
     render(accounts());
-    const vidal = within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" });
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    const vidal = within(grid()).getByRole("switch", {
+      name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
+    });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     expect(vidal).not.toHaveAttribute("aria-disabled");
     await userEvent.click(vidal);
     await waitFor(() => {
@@ -207,7 +211,7 @@ describe("the table of the accounts, its own entry", () => {
     expect(vidal).toHaveAttribute("aria-disabled", "true");
     expect(trigger).toHaveAttribute("aria-busy", "true");
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     const chiffreur = within(list).getByRole("checkbox", { name: "Chiffreur" });
     expect(chiffreur).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(chiffreur);
@@ -413,16 +417,19 @@ describe("the state of an account, on its switch", () => {
     const client = serve({ "PUT /users/{user_id}/activation": "user_deactivated" });
     render(accounts());
     const vidal = within(grid()).getByRole("switch", {
-      name: "Compte de « Noé Vidal » actif",
+      name: "Compte de «\u00A0Noé Vidal\u00A0» actif",
     });
     expect(vidal).toBeChecked();
     await userEvent.click(vidal);
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal » désactivé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
     // Noted in the history of the messages, about the account (#1181).
     expect(readMessages().messages).toEqual([
-      expect.objectContaining({ sentence: "« Noé Vidal » désactivé.", object: "Noé Vidal" }),
+      expect.objectContaining({
+        sentence: "«\u00A0Noé Vidal\u00A0» désactivé.",
+        object: "Noé Vidal",
+      }),
     ]);
     expect(vidal).not.toBeChecked();
     expect(vidal.closest("td")).toHaveTextContent("Désactivé");
@@ -441,10 +448,10 @@ describe("the state of an account, on its switch", () => {
     const client = serve({});
     render(accounts());
     const camille = within(grid()).getByRole("switch", {
-      name: "Compte de « Camille Martin » actif",
+      name: "Compte de «\u00A0Camille Martin\u00A0» actif",
     });
     const unmet =
-      "Condition non remplie : un autre compte actif portant les permissions d’administration.";
+      "Condition non remplie\u00A0: un autre compte actif portant les permissions d’administration.";
     expect(camille).toHaveAttribute("aria-disabled", "true");
     expect(camille).toHaveAccessibleDescription(unmet);
     await userEvent.click(camille);
@@ -500,15 +507,15 @@ describe("the access roles of an account, cell by cell", () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_set" });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de « Sacha Lefèvre »" }),
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" }),
     );
-    const list = await screen.findByRole("group", { name: "Rôles de « Sacha Lefèvre »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Sacha Lefèvre\u00A0»" });
     // Every role of the installation, whatever the node of the account (WF-ADM-0030).
     expect(within(list).getAllByRole("checkbox")).toHaveLength(roles.length);
     expect(within(list).getByRole("checkbox", { name: "Chiffreur" })).not.toBeChecked();
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Sacha Lefèvre » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Sacha Lefèvre\u00A0» attribués.");
     });
     expect(within(list).getByRole("checkbox", { name: "Chiffreur" })).toBeChecked();
     const sacha = account("Lefèvre");
@@ -524,12 +531,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("withdraws her one role from an account, which then holds none, and says so (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_cleared" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Inès Roux »" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Inès Roux\u00A0»",
+    });
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Inès Roux »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Inès Roux\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Pilotage de projet" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Inès Roux » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Inès Roux\u00A0» attribués.");
     });
     expect(trigger).toHaveTextContent("Aucun rôle");
     expect(within(list).getByRole("checkbox", { name: "Pilotage de projet" })).not.toBeChecked();
@@ -546,12 +555,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("attributes a second role to an account, which then holds both, in the order given (WF-ADM-0050)", async () => {
     const client = serve({ "PUT /users/{user_id}/access-roles": "user_access_roles_two" });
     render(accounts());
-    const trigger = within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" });
+    const trigger = within(grid()).getByRole("button", {
+      name: "Rôles de «\u00A0Noé Vidal\u00A0»",
+    });
     await userEvent.click(trigger);
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Rôles de « Noé Vidal » attribués.");
+      expect(told().textContent).toBe("Rôles de «\u00A0Noé Vidal\u00A0» attribués.");
     });
     expect(trigger).toHaveTextContent(/^AuditeurChiffreur$/);
     expect(within(list).getByRole("checkbox", { name: "Auditeur" })).toBeChecked();
@@ -574,10 +585,10 @@ describe("the access roles of an account, cell by cell", () => {
     });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("button", { name: "Rôles de « Camille Martin »" }),
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Camille Martin\u00A0»" }),
     );
     const list = await screen.findByRole("group", {
-      name: "Rôles de « Camille Martin »",
+      name: "Rôles de «\u00A0Camille Martin\u00A0»",
     });
     const direction = roles.find((role) => role.id === DIRECTION)?.label ?? "";
     await userEvent.click(within(list).getByRole("checkbox", { name: direction }));
@@ -596,13 +607,15 @@ describe("the access roles of an account, cell by cell", () => {
     });
     render(accounts());
     await userEvent.click(
-      within(grid()).getByRole("switch", { name: "Compte de « Noé Vidal » actif" }),
+      within(grid()).getByRole("switch", { name: "Compte de «\u00A0Noé Vidal\u00A0» actif" }),
     );
     await waitFor(() => {
-      expect(told().textContent).toBe("« Noé Vidal » désactivé.");
+      expect(told().textContent).toBe("«\u00A0Noé Vidal\u00A0» désactivé.");
     });
-    await userEvent.click(within(grid()).getByRole("button", { name: "Rôles de « Noé Vidal »" }));
-    const list = await screen.findByRole("group", { name: "Rôles de « Noé Vidal »" });
+    await userEvent.click(
+      within(grid()).getByRole("button", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" }),
+    );
+    const list = await screen.findByRole("group", { name: "Rôles de «\u00A0Noé Vidal\u00A0»" });
     await userEvent.click(within(list).getByRole("checkbox", { name: "Chiffreur" }));
     await waitFor(() => {
       expect(writes(client)).toHaveLength(2);
@@ -617,14 +630,14 @@ describe("the access roles of an account, cell by cell", () => {
   it("opens the roles of the active cell on Enter, the grid one stop of the tabulation, and gives the focus back to the cell on Escape", async () => {
     render(accounts());
     const trigger = within(grid()).getByRole("button", {
-      name: "Rôles de « Lucas Petit »",
+      name: "Rôles de «\u00A0Lucas Petit\u00A0»",
     });
     expect(trigger).toHaveAttribute("tabindex", "-1");
     const cell = trigger.closest("td") as HTMLElement;
     cell.focus();
     await userEvent.keyboard("{Enter}");
     expect(
-      await screen.findByRole("group", { name: "Rôles de « Lucas Petit »" }),
+      await screen.findByRole("group", { name: "Rôles de «\u00A0Lucas Petit\u00A0»" }),
     ).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     await waitFor(() => {
@@ -647,7 +660,7 @@ describe("the creation of a local account", () => {
     );
     await userEvent.click(within(form).getByRole("button", { name: "Créer" }));
     await waitFor(() => {
-      expect(told().textContent).toBe("Compte « Léa Garnier » créé.");
+      expect(told().textContent).toBe("Compte «\u00A0Léa Garnier\u00A0» créé.");
     });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("button", { name: "Créer un compte local" })).toHaveFocus();

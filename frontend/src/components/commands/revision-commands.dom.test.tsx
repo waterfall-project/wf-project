@@ -28,6 +28,7 @@ import {
 } from "@/test/fixtures";
 
 import { RevisionCommands } from "./object-commands";
+import type { ProjectContext } from "@/navigation/context";
 
 // The server of Next, as far as these commands need it: the fake back behind serverClient, the
 // render of the page again once a write is answered, and the router that leads the screen.
@@ -49,6 +50,12 @@ type Problem = components["schemas"]["Problem"];
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const LOCK = 3;
 const DRAFT = "01926f3a-7c00-7000-8000-000000000102";
+const CONTEXT: ProjectContext = {
+  projectId: PROJECT,
+  revisionId: DRAFT,
+  revisionInPath: true,
+  parameters: new URLSearchParams(),
+};
 const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const CREATED = "01926f3a-7c00-7000-8000-000000000103";
 const REVISIONS = `/projects/${PROJECT}/revisions`;
@@ -78,6 +85,7 @@ function commands(project = "project") {
   return (
     <RevisionCommands
       revision={example("revision") as Revision}
+      context={CONTEXT}
       project={example(project) as Project}
     />
   );
@@ -117,6 +125,7 @@ describe("the opening of the current revision", () => {
     show(
       <RevisionCommands
         revision={undefined}
+        context={CONTEXT}
         project={example("project_without_current_revision") as Project}
       />,
     );
@@ -151,6 +160,7 @@ describe("the opening of the current revision", () => {
     show(
       <RevisionCommands
         revision={undefined}
+        context={CONTEXT}
         project={example("project_without_current_revision") as Project}
       />,
     );

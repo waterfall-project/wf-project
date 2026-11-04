@@ -126,7 +126,7 @@ const ENGLISH: Language = {
     planningGrid: "Planning grid",
     actualCosts: "Actual costs",
     subprojectFilter: "Subproject",
-    remaining: "Estimate to complete",
+    remaining: "Remaining to commit",
     remainingGrid: "Remaining to commit grid",
     risks: "Risk management",
     riskRegister: "Risk register",

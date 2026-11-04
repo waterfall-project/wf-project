@@ -68,14 +68,14 @@ describe("the sentence of a refusal", () => {
     [
       "session_revoked",
       "fr",
-      "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles ; reconnectez-vous en saisissant à nouveau vos identifiants.",
+      "Votre session a été fermée — déconnexion, désactivation du compte ou retrait de ses rôles\u202F; reconnectez-vous en saisissant à nouveau vos identifiants.",
     ],
     [
       "session_revoked",
       "en",
       "Your session has been closed — by a sign-out, the deactivation of the account or the withdrawal of its roles; sign in again with your credentials.",
     ],
-    ["session_expired", "fr", "Votre session a expiré ; reconnectez-vous."],
+    ["session_expired", "fr", "Votre session a expiré\u202F; reconnectez-vous."],
     ["session_expired", "en", "Your session has expired; please sign in again."],
   ] as const)(
     "says a session closed — whose sign-in asks for the identifiers again — apart from one expired (#855): %s, %s",
@@ -355,7 +355,7 @@ describe("the sentence of a refusal", () => {
     const refused = example("estimate_line_subproject_has_actual_costs") as ProblemText;
     expect(say(refused, "fr")).toBe(
       "Les données saisies ne sont pas valides. Sous-projet qui a reçu des coûts réels, que la " +
-        "ligne ne quitte pas : « Poste de commande ».",
+        "ligne ne quitte pas\u00A0: «\u00A0Poste de commande\u00A0».",
     );
     expect(say(refused, "en")).toBe(
       "The data entered is not valid. Subproject that has received actual costs, which the line " +
@@ -365,9 +365,9 @@ describe("the sentence of a refusal", () => {
     expect(refused.fields?.[0]?.params).toBeDefined();
     const params = refused.fields?.[0]?.params ?? {};
     expect(say({ code: "SUBPROJECT_HAS_ACTUAL_COSTS", params }, "fr")).toBe(
-      "Cette ligne ne peut pas quitter ce sous-projet : sa tâche est démarrée, et le " +
+      "Cette ligne ne peut pas quitter ce sous-projet\u00A0: sa tâche est démarrée, et le " +
         "sous-projet a reçu des coûts réels. Sous-projet qui a reçu des coûts réels, que la ligne " +
-        "ne quitte pas : « Poste de commande ».",
+        "ne quitte pas\u00A0: «\u00A0Poste de commande\u00A0».",
     );
   });
 
@@ -382,25 +382,25 @@ describe("the sentence of a refusal", () => {
       return rejected;
     };
     expect(say(rejection("import_analysed", 0), "fr")).toContain(
-      "Valeur lue dans le fichier : « Essais de compatibilité électromagnétique ».",
+      "Valeur lue dans le fichier\u00A0: «\u00A0Essais de compatibilité électromagnétique\u00A0».",
     );
     expect(say(rejection("import_analysed", 1), "en")).toContain(
       "Value read in the file: “Soudeur (SOUD)”.",
     );
     expect(say(rejection("import_actual_costs_wbs_invalid"), "fr")).toContain(
-      "Élément d’OTP lu : « /SP-CAB ».",
+      "Élément d’OTP lu\u00A0: «\u00A0/SP-CAB\u00A0».",
     );
     expect(say(rejection("import_actual_costs_wbs_invalid"), "en")).toContain(
       "Work breakdown element read: “/SP-CAB”.",
     );
     expect(say(rejection("import_remaining_ambiguous_label"), "fr")).toContain(
-      "Libellé lu : « Mise en service », porté par les tâches « Mise en service » et « Mise en service ».",
+      "Libellé lu\u00A0: «\u00A0Mise en service\u00A0», porté par les tâches «\u00A0Mise en service\u00A0» et «\u00A0Mise en service\u00A0».",
     );
     expect(say(rejection("import_remaining_ambiguous_label"), "en")).toContain(
       "Label read: “Mise en service”, shared by the tasks “Mise en service” and “Mise en service”.",
     );
     expect(say(rejection("import_actual_costs_duplicate_line", 0), "fr")).toContain(
-      "Autre ligne du fichier de même pièce et de même poste : 5.",
+      "Autre ligne du fichier de même pièce et de même poste\u00A0: 5.",
     );
     expect(say(rejection("import_actual_costs_duplicate_line", 1), "en")).toContain(
       "Other line of the file with the same document and item: 4.",
@@ -414,9 +414,11 @@ describe("the sentence of a refusal", () => {
         },
         "fr",
       ),
-    ).toContain("Élément d’OTP lu : « P9-SP ». Code projet lu : « P9 ».");
+    ).toContain(
+      "Élément d’OTP lu\u00A0: «\u00A0P9-SP\u00A0». Code projet lu\u00A0: «\u00A0P9\u00A0».",
+    );
     expect(say({ code: "DUPLICATE_COST_LINE", params: { rows: [4, 6, 7] } }, "fr")).toContain(
-      "Autres lignes du fichier de même pièce et de même poste : 4, 6 et 7.",
+      "Autres lignes du fichier de même pièce et de même poste\u00A0: 4, 6 et 7.",
     );
   });
 
@@ -714,7 +716,7 @@ describe("the sentence of a refusal", () => {
       ],
     };
     expect(say(problem, "fr")).toBe(
-      "Les données saisies ne sont pas valides. Valeur maximale : 1. Valeur minimale : 0. Valeur maximale : 0,75.",
+      "Les données saisies ne sont pas valides. Valeur maximale\u00A0: 1. Valeur minimale\u00A0: 0. Valeur maximale\u00A0: 0,75.",
     );
     expect(say({ code: "VALUE_OUT_OF_RANGE", params: { maximum: 100 } }, "en")).toBe(
       "The value is outside the allowed range. Maximum value: 100.",
@@ -771,7 +773,7 @@ describe("the sentence of a refusal", () => {
   it("names the task a refused write gives, as the contract says it, in the reader's language [WF-PLA-0150-A]", () => {
     const refusal = example("task_horizon_exceeded") as ProblemText;
     expect(say(refusal, "fr")).toBe(
-      "La durée du projet dépasserait quinze ans. Tâche en cause : « Pupitres opérateurs ».",
+      "La durée du projet dépasserait quinze ans. Tâche en cause\u00A0: «\u00A0Pupitres opérateurs\u00A0».",
     );
     expect(say(refusal, "en")).toBe(
       "The duration of the project would exceed fifteen years. Task concerned: “Pupitres opérateurs”.",

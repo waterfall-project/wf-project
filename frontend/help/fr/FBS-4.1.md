@@ -22,7 +22,7 @@ En tête de l’écran, les commandes de la révision lue, chacune disponible ou
 - **Marquer la révision** demande un nom de version, obligatoire, et une description ; le marquage, confié au traitement de fond, fige la révision et conserve ses indicateurs. Indisponible sur une révision déjà marquée (« révision en cours d’élaboration ») ou pendant un traitement de fond.
 - **Préparer un avenant** crée, sous le libellé donné, un différentiel de la structure principale, qui s’ouvre dans la grille de planning ; rien n’est fusionné avant sa contractualisation, depuis la grille de son différentiel.
 - **Abandonner la révision en cours**, après confirmation : le projet revient à sa dernière révision marquée, et les lignes de la révision en cours sont supprimées. L’abandon est irréversible.
-- **Déclarer un risque** dit si l’identification d’un risque aboutirait, mais n’ouvre rien sur cet écran : le risque s’identifie sur l’écran des [risques](FBS-4.6.md).
+- **Déclarer un risque** mène, quand elle est disponible, à l’écran des [risques](FBS-4.6.md) de la révision, où « Identifier un risque » s’offre ; indisponible, elle dit ce qui lui manque.
 
 Dans les sections :
 

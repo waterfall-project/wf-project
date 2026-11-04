@@ -905,10 +905,10 @@ describe("an anonymised account in the journal", () => {
     ]);
     expect(grid().querySelector("tfoot tr")?.textContent).toBe("3 inscriptions");
     expect(
-      within(grid()).getAllByRole("link", { name: "Histoire de « Compte anonymisé »" }),
+      within(grid()).getAllByRole("link", { name: "Histoire de «\u00A0Compte anonymisé\u00A0»" }),
     ).toHaveLength(3);
     expect(
-      screen.getByRole("link", { name: "Lever le filtre sur « Compte anonymisé »" }),
+      screen.getByRole("link", { name: "Lever le filtre sur «\u00A0Compte anonymisé\u00A0»" }),
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/Alix|Moreau/);
   });

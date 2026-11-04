@@ -24,13 +24,13 @@ Above the grid:
 
 In the menu of a cell (right click, `Shift+F10` or the Menu key): the gestures of structure — among them **Insert a line** (`Ctrl+Insert`) —, the folding, **Undo** and **Redo**, and the submenu **Subproject**, which carries the line, or the selection, to a subproject. Their detail is in the help of the [estimate grid](FBS-4.4.2.md).
 
-The grid is entered, and takes a paste, only where the structure read lists “Edit the estimate” available to you. Creating, moving or deleting a task writes the planning too: these gestures ask for “Edit the schedule” besides.
+The grid is entered, and takes a paste, only where the structure read lists “Edit the estimate” available to you. Creating, moving or deleting a task writes the planning too: these gestures ask for “Edit the planning” besides.
 
 ## Its columns and computed values
 
 The amounts are calculated by the server, never entered: a labour line is worth its quantity, its effort and the hourly rate of its category for the reference year; a non-labour line, its quantity and its unit disbursement; a task, its lines and its subordinates. A computed cell, greyed and marked Σ, says what its value depends on when one tries to enter it. The subproject of a provision line comes from its risk: it is computed.
 
-The header of the amount corrected for inflation names, in its tooltip, the reference year of the revision and the inflation rate of the project. The column “Subproject” is hidden as long as you do not show it through **Columns**.
+The header of the column “Re-estimated amount” names, in its tooltip, the reference year of the revision and the inflation rate of the project. The column “Subproject” is hidden as long as you do not show it through **Columns**.
 
 ## Keyboard gestures
 

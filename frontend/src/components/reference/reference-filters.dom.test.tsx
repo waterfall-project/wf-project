@@ -78,13 +78,13 @@ describe("the filters of a list of the reference data", () => {
       inFrench(
         <StateFilter
           name={ROLE_STATE}
-          label="État des objets de « Rôles »"
+          label={"État des objets de «\u00A0Rôles\u00A0»"}
           chosen={undefined}
           page={RESOURCE_ROLE_ADDRESS.offset}
         />,
       ),
     );
-    const group = screen.getByRole("group", { name: "État des objets de « Rôles »" });
+    const group = screen.getByRole("group", { name: "État des objets de «\u00A0Rôles\u00A0»" });
     expect(group).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tous les états" })).toHaveAttribute(
       "aria-pressed",
@@ -98,7 +98,7 @@ describe("the filters of a list of the reference data", () => {
       inFrench(
         <StateFilter
           name={ROLE_STATE}
-          label="État des objets de « Rôles »"
+          label={"État des objets de «\u00A0Rôles\u00A0»"}
           chosen={false}
           page={RESOURCE_ROLE_ADDRESS.offset}
         />,
@@ -276,7 +276,9 @@ describe("the pages of a list of the reference data", () => {
     const { container } = render(
       inFrench(<ListPages list={ROLES} title="Rôles de ressources" page={MIDDLE} shown={50} />),
     );
-    const pages = screen.getByRole("navigation", { name: "Pages de « Rôles de ressources »" });
+    const pages = screen.getByRole("navigation", {
+      name: "Pages de «\u00A0Rôles de ressources\u00A0»",
+    });
     expect(pages).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Page précédente/ })).toHaveAttribute(
       "href",

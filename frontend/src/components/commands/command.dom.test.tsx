@@ -46,7 +46,17 @@ function french(children: ReactNode) {
 
 /** The commands of a revision of the contract. */
 function revisionCommands(name: string) {
-  return <RevisionCommands revision={example(name) as Revision} />;
+  return (
+    <RevisionCommands
+      revision={example(name) as Revision}
+      context={{
+        projectId: PROJECT,
+        revisionId: REVISION,
+        revisionInPath: true,
+        parameters: new URLSearchParams(),
+      }}
+    />
+  );
 }
 
 /** A command the server offers now, whose action answers what the test says. */
@@ -116,17 +126,18 @@ describe("a command of a screen", () => {
   it("lists the commands in the order of the server, within a region named for them, its exports left to the screen of the exchanges and its entries and its skeleton to their grids", () => {
     french(revisionCommands("revision"));
     const region = screen.getByRole("region", { name: "Commandes" });
+    // The declaration of a risk, which a main structure without task forbids (EP-14/L42s), is a
+    // link to the screen of the risks (#1438).
+    expect(
+      within(region)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Déclarer un risque"]);
     expect(
       within(region)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual([
-      // The declaration of a risk, which a main structure without task forbids (EP-14/L42s).
-      "Déclarer un risque",
-      "Préparer un avenant",
-      "Marquer la révision",
-      "Abandonner la révision en cours",
-    ]);
+    ).toEqual(["Préparer un avenant", "Marquer la révision", "Abandonner la révision en cours"]);
   });
 
   it("gives each command the icon of its kind, hidden from a screen reader beside its name", () => {
@@ -136,7 +147,8 @@ describe("a command of a screen", () => {
         {revisionCommands("revision")}
       </>,
     );
-    const buttons = screen.getAllByRole("button");
+    // The declaration of a risk is a link, drawn like the buttons around it.
+    const buttons = [...screen.getAllByRole("button"), ...screen.getAllByRole("link")];
     expect(buttons.length).toBeGreaterThan(5);
     for (const button of buttons) {
       expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
@@ -207,11 +219,25 @@ describe("a command of a screen", () => {
     );
   });
 
-  it("does nothing when pressed before its operation is wired", async () => {
+  it("leads « Déclarer un risque », available, to the screen of the risks of the revision, which its tooltip says [WF-IHM-0090-A]", async () => {
     french(revisionCommands("revision"));
-    await userEvent.click(screen.getByRole("button", { name: "Déclarer un risque" }));
+    const link = screen.getByRole("link", { name: "Déclarer un risque" });
+    expect(link).toHaveAttribute("href", `/projects/${PROJECT}/revisions/${REVISION}/risks`);
+    await userEvent.hover(link);
+    await screen.findByRole("tooltip");
+    expect(document.querySelector("[data-slot=tooltip-content]")).toHaveTextContent(
+      "Mène à l’écran des risques de la révision, où « Identifier un risque » s’offre.",
+    );
+  });
+
+  it("presents « Déclarer un risque », unavailable, as a command that names what it lacks and leads nowhere [WF-IHM-0090-A]", async () => {
+    french(revisionCommands("revision_without_tasks"));
+    expect(screen.queryByRole("link", { name: "Déclarer un risque" })).toBeNull();
+    const command = screen.getByRole("button", { name: "Déclarer un risque" });
+    expect(command).toHaveAttribute("aria-disabled", "true");
+    expect(command).toHaveAccessibleDescription(/Condition non remplie/);
+    await userEvent.click(command);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.queryByRole("form")).toBeNull();
   });
 });
 
@@ -497,7 +523,7 @@ describe("the outcome of a command", () => {
     french(available(() => Promise.resolve({ kind: "unreachable" })));
     await userEvent.click(screen.getByRole("button", { name: "Terminer le projet" }));
     expect((await screen.findByRole("alert")).textContent).toBe(
-      "Le service est injoignable ; réessayez dans un instant.",
+      "Le service est injoignable\u202F; réessayez dans un instant.",
     );
   });
 

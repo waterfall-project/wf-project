@@ -118,7 +118,7 @@ describe("the summary of the estimate", () => {
     // The estimate the offer v1.0 kept at its marking, before any risk: no provision.
     const html = text(summary("estimate_indicators_breakdown", "missing_rates_none", all, "en"));
     expect(html).toContain(
-      "By nature of cost Main-d'œuvre 9,343,749.58 (13.69%) Débours 58,894,953.47 (86.31%) By subproject",
+      "By cost type Main-d'œuvre 9,343,749.58 (13.69%) Débours 58,894,953.47 (86.31%) By subproject",
     );
     expect(html).toContain("By subproject No subproject 68,238,703.05 (100%)");
     expect(html).toContain("Estimate total 68,238,703.05 Identified provisions 0.00");
@@ -239,12 +239,12 @@ describe("the summary of the estimate", () => {
       ),
     );
     // The section of the natures of cost alone, up to the next one.
-    const from = html.indexOf("By nature of cost");
+    const from = html.indexOf("By cost type");
     const to = html.indexOf("By subproject", from);
     expect(from).toBeGreaterThanOrEqual(0);
     expect(to).toBeGreaterThan(from);
     const section = html.slice(from, to);
-    expect(section).toContain("By nature of cost");
+    expect(section).toContain("By cost type");
     expect(section).not.toContain("%");
     expect(section).toContain("(Not computable — The total is zero.)");
   });

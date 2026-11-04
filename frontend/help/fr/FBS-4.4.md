@@ -30,7 +30,7 @@ La grille ne se saisit, et ne prend un collage, que là où la structure lue lis
 
 Les montants sont calculés par le serveur, jamais saisis : une ligne de main-d’œuvre vaut sa quantité, sa charge et le taux horaire de sa catégorie pour l’année de référence ; une ligne hors main-d’œuvre, sa quantité et son débours unitaire ; une tâche, ses lignes et ses subordonnées. Une cellule calculée, grisée et marquée Σ, dit de quoi sa valeur dépend quand on tente de la saisir. Le sous-projet d’une ligne de provision vient de son risque : il est calculé.
 
-L’en-tête du montant corrigé de l’inflation nomme, dans son infobulle, l’année de référence de la révision et le taux d’inflation du projet. La colonne « Sous-projet » est masquée tant que vous ne l’affichez pas par **Colonnes**.
+L’en-tête de la colonne « Montant réestimé » nomme, dans son infobulle, l’année de référence de la révision et le taux d’inflation du projet. La colonne « Sous-projet » est masquée tant que vous ne l’affichez pas par **Colonnes**.
 
 ## Les gestes au clavier
 

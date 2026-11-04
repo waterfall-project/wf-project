@@ -84,7 +84,7 @@ describe("the imports on the screen of a project without revision", () => {
     // In pricing, the planning, the estimate and the remaining are offered; the actual costs
     // wait for the project to be in progress, which the command says.
     const commands = text(imports ?? "");
-    expect(commands).toContain("Import an MS Project schedule");
+    expect(commands).toContain("Import an MS Project planning");
     expect(commands).toContain("Import an estimate");
     expect(imports).toMatch(
       /aria-disabled="true"[^>]*>(<svg[^>]*>.*?<\/svg>)?Import actual costs</,
@@ -134,7 +134,7 @@ describe("the imports on the screen of a project without revision", () => {
     expect(text(page)).toContain(
       "Import an estimate Unmet condition: holding the permission to create a revision.",
     );
-    expect(text(page)).not.toContain("Import an MS Project schedule");
+    expect(text(page)).not.toContain("Import an MS Project planning");
   });
 });
 

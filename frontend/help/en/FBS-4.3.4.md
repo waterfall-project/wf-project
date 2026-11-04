@@ -15,7 +15,7 @@ From top to bottom:
 
 ## Its commands
 
-- **Import an MS Project schedule**, **Import an estimate**, **Import an estimate to complete**, **Import actual costs**: each follows the command the project lists, and says, unavailable, the condition it lacks. It opens the choice of the **File to import**, then **Analyse the file**. A file too large is refused at once; its content, the analysis judges. An extraction of actual costs declares the **Period extracted**, **From** and **To**, if you give it.
+- **Import an MS Project planning**, **Import an estimate**, **Import a remaining to commit**, **Import actual costs**: each follows the command the project lists, and says, unavailable, the condition it lacks. It opens the choice of the **File to import**, then **Analyse the file**. A file too large is refused at once; its content, the analysis judges. An extraction of actual costs declares the **Period extracted**, **From** and **To**, if you give it.
 - The actual costs are imported only if the mapping of the extraction is complete (“actual-cost extraction mapping complete”): the screen names the required columns without a label, and **Set the mapping of the extraction** leads to the [mapping](FBS-3.1.3.md).
 - The analysis is a background process: the tracking of the tasks offers to reload the screen when it has succeeded.
 - **Apply the import**, on a report analysed, asks for a confirmation — **Confirm the application** —, then is applied as a background process. Unavailable when the report rejects the whole file (“file accepted by the report”).

@@ -666,10 +666,11 @@ ses mesures par lots ; rien n'y est réécrit.
   touchées suivent.
 - **US-0790** : `commands/object-commands.tsx` rend `declare_risk` par un `Link` vers
   `functionHref(functionOf("risks"), context)` quand il est disponible, indisponible sinon avec sa
-  condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap sur le champ
-  (`onKeyDown`, `event.preventDefault()` quand `query` n'est pas vide), avant que Radix ne le
-  prenne (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
-  `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` (#905) ; #846 et #888.
+  condition (#1438), et l'aide FBS-4.1 retire sa phrase ; `help-panel.tsx` prend Échap par
+  `onEscapeKeyDown` du `SheetContent`, filtré sur le champ de recherche et sur une requête
+  `query` non vide (`event.preventDefault()`), Radix écoutant Échap sur le document, en capture
+  (#1481) ; `outcome-notice.dom.test.tsx` simule `next/navigation` (#902) ; la règle
+  `no-irregular-whitespace` avec `skipStrings: false` sur `**/*.test.ts?(x)` et `**/*.spec.ts` (#905) ; #846 et #888.
   Les aides du devis, `FBS-4.4.md` et `FBS-4.4.3.md`, dans les deux langues, nomment la colonne
   « Montant réestimé » et ne disent plus que le devis ne le montre pas (#1821) ; `messages/en.json`
   rend chaque terme d'une seule façon et deux commandes distinctes par deux libellés, les pages de
@@ -1186,7 +1187,7 @@ suivi des tâches.
 
 ## US-0790 — L'écran des révisions, le panneau de l'aide et l'outillage des tests
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0140-A`
 - **opérations** : aucune en propre
 - **issue** : #1556

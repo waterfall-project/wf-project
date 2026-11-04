@@ -869,8 +869,8 @@ d'afficher le reste ; des réglages écrits avant cette liste n'en connaissent a
 masquée par défaut y est masquée (`docs/api/DECISIONS.md`). Une grille garde dans le compte son tri
 et ses colonnes — celles qu'elle masque, et leurs largeurs —, jamais sa page (règle validée par
 l'auteur le 2026-10-09). Ses filtres, une grille qui les déclare (`GridConfig.filters`) les garde en
-préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmation de l'auteur à
-venir) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
+préférence, comme le veut le critère d'US-0380, qui fait foi (#836, confirmée par l'auteur le
+2026-10-11) : ils sont retrouvés à l'ouverture d'une adresse qui ne dit rien de la grille ; la page et
 les filtres d'une adresse qui les dit vivent dans l'adresse. Une autre grille ne garde aucun filtre. Une colonne ou une largeur
 s'écrit après une pause, avec le tri gardé tel quel ; ce qui attend part quand la page est
 quittée ou cachée, avant une recherche et au démontage — au mieux : une action serveur ne

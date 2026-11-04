@@ -395,7 +395,7 @@ describe("the cumulative curves", () => {
     }));
     // The studies, paid a month after their work: nothing paid out by the end of March.
     expect(lastSeries()[0]?.data).toContainEqual(["2026-03-31T00:00:00Z", "0.00"]);
-    const table = screen.getByRole("table", { name: "Cash out by month" });
+    const table = screen.getByRole("table", { name: "Cash-out by month" });
     expect(
       within(table)
         .getAllByRole("row")
@@ -421,7 +421,7 @@ describe("the cumulative curves", () => {
       cash_out_by_month: (data.cash_out_by_month ?? []).slice(0, 3),
     }));
     expect(
-      within(screen.getByRole("table", { name: "Cash out by month" })).getAllByRole("row"),
+      within(screen.getByRole("table", { name: "Cash-out by month" })).getAllByRole("row"),
     ).toHaveLength(4);
     await expectAccessible(container);
   });
@@ -441,7 +441,7 @@ describe("the cumulative curves", () => {
     expect(series.map((each) => each.step)).toEqual([undefined, "end", "end"]);
     // No step, no cash out: neither a mark nor a table of them.
     expect(series).toHaveLength(3);
-    expect(screen.queryByRole("table", { name: "Cash out by month" })).toBeNull();
+    expect(screen.queryByRole("table", { name: "Cash-out by month" })).toBeNull();
     expect(screen.getByText(/^Computed on/)).toBeInTheDocument();
   });
 });

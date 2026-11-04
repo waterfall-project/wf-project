@@ -10,7 +10,7 @@ The gestures of structure, in the menu of a cell and at their keys, as in the es
 
 The submenu **Subproject** carries the line, or the selection, to a subproject; it is not offered on a provision line, nor on the line of a started task whose subproject has received actual costs.
 
-The grid takes no paste. It is entered where the structure lists “Update the estimate to complete” available, and each line where it says it accepts it: the lines of a completed task are no longer modified. A task is completed when all its lines bear a zero remaining to commit; it is reopened from the [Kanban](FBS-4.5.3.md).
+The grid takes no paste. It is entered where the structure lists “Re-estimate the remaining to commit” available, and each line where it says it accepts it: the lines of a completed task are no longer modified. A task is completed when all its lines bear a zero remaining to commit; it is reopened from the [Kanban](FBS-4.5.3.md).
 
 ## Its columns and computed values
 

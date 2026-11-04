@@ -184,9 +184,9 @@ describe("the screen of a project without a revision, the only one a project kee
       "Help",
       "Import an MS Project file",
       "Later",
-      "Import an MS Project schedule",
+      "Import an MS Project planning",
       "Import an estimate",
-      "Import an estimate to complete",
+      "Import a remaining to commit",
       "Import actual costs",
     ]);
     expect(page).not.toContain("<form");
