@@ -26,9 +26,9 @@
  * trigger of a screen, one after the other.
  *
  * The triggers of the shell — the project, the account, the tasks, the help: everything outside
- * `main`, and the button of the help, which the title of a screen holds and marks `data-shell` — are
- * the same on every screen: they are played on the screen of reference alone (`shell`, #1840), the
- * triggers of the screen on each.
+ * `main`, and the button of the help, which the title of a screen holds and marks `data-shell` —
+ * are the same on every screen: they are played on the screen of reference alone (`shell`, #1840),
+ * the triggers of the screen on each.
  *
  * Left out: the cells whose own refusal is a dialog (`aria-haspopup` on a cell), which opens only
  * once the server refused; the triggers a grid holds row by row, but on the first row of their

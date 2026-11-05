@@ -49,7 +49,7 @@ test("plays each trigger of a dialog or a menu shown and enabled once, a trigger
   await expect(found[3]?.at ?? page.locator("none")).toHaveText("2");
 });
 
-test("plays the triggers of the shell — outside main, or marked data-shell — only where asked, those of the screen always, and the cells of the grids", async ({
+test("plays the triggers of the shell only where asked, those of the screen always, and the grid cells", async ({
   page,
 }) => {
   await page.setContent(

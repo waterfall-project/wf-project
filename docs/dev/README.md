@@ -3825,8 +3825,7 @@ mode and in dark mode (`colorScheme`) — six tests —, each bear on the two wi
   those of the shell — project, account, tasks, help: everything outside `main`, and the button of
   the help, which `data-shell` marks — are played on the screen of reference alone, the list of the
   revisions of a project (US-1220, #1840): they are the same on each screen, and replaying them
-  cost 38 to 67% of the critical path of the chain; the
-  first enterable cell of each grid — a cell of `DenseGrid`, which `data-column` places and nothing
+  cost 38 to 67% of the critical path of the chain; the first enterable cell of each grid — a cell of `DenseGrid`, which `data-column` places and nothing
   states read only (`aria-readonly`) — receives the focus and F2. An open dialog is walked by Tab
   bounded to it (`walkByTab(page, dialog)`): what Tab can reach, the widgets and the edges are judged
   in the dialog alone, the return to its first element is the trap it wants — a dialog of a single

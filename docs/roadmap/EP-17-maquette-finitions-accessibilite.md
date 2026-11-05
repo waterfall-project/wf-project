@@ -567,7 +567,8 @@ l'auteur) :
   porte. Écarté : le renvoi sans l'import, qui perd le compte rendu de l'import qui crée un projet
   dont aucune révision n'est lisible.
 - **La coquille jouée une fois** (#1840) : `opened.ts` distingue les déclencheurs de la coquille
-  (projet, compte, tâches, aide — ceux que porte l'en-tête, hors du contenu de la page) de ceux de
+  (projet, compte, tâches, aide — ceux que porte la coquille, hors du contenu de la page, et le
+  bouton de l'aide, que le titre de l'écran porte) de ceux de
   l'écran. Les premiers ne se jouent que sur la liste des révisions d'un projet — un écran de projet,
   parce que les menus du projet et des tâches n'existent qu'avec un projet, et l'un des plus légers —,
   en clair et en sombre, aux deux largeurs ; les seconds se jouent sur chaque écran. Écartés :
@@ -1639,7 +1640,8 @@ ce que le geste ouvre ne coûte pas 38 à 67 % du chemin critique de la chaîne 
   sur l'écran de référence.
 
 **Notes de réalisation.** `frontend/e2e/opened.ts` ne distingue pas encore la coquille du contenu :
-c'est l'en-tête commun (`header`, hors de `main`) qui la porte. Le critère d'US-0710 est amendé par
+c'est la coquille (hors de `main`), et le bouton de l'aide que le titre de l'écran porte et que
+`data-shell` marque, qui la portent. Le critère d'US-0710 est amendé par
 le cadrage du 2026-11-04 ; la conception par ce lot, qui la récrit. Écran de référence décidé par
 l'auteur : la liste des révisions.
 

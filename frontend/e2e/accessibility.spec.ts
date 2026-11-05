@@ -21,7 +21,8 @@
  *   modes, the indicator of the focus painted in each (#784);
  * - what a gesture opens, in both modes (US-0710, `opened.ts`): each dialog and each menu opened by
  *   Enter on its trigger — those of the shell (project, account, tasks, help) on the list of the
- *   revisions of a project alone, those of a screen on each (US-1220) —, the editor of the first cell of each grid that takes an entry opened by
+ *   revisions of a project alone, those of a screen on each (US-1220) —, the editor of the first
+ *   cell of each grid that takes an entry opened by
  *   F2; a dialog walked by Tab within itself, the focus seen entering a menu or an editor; the page
  *   audited by axe with it open; Escape closing it, the focus back on the trigger or the cell.
  *
@@ -178,7 +179,16 @@ function noteUndecided(
   }
 }
 
-for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS]) {
+const WALKED_SCREENS = [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREENS];
+
+test("walks the screen of reference, where the triggers of the shell are played", () => {
+  expect(
+    WALKED_SCREENS.some(({ code }) => code === SHELL_SCREEN),
+    `${SHELL_SCREEN} is not among the screens walked: the shell would be played nowhere`,
+  ).toBe(true);
+});
+
+for (const screen of WALKED_SCREENS) {
   for (const mode of ["light", "dark"] as const) {
     test.describe(`a workstation in ${mode} mode`, () => {
       test.use({ colorScheme: mode });
@@ -399,6 +409,12 @@ for (const screen of [...tableScreens(), ...OTHER_SCREENS, ...DIFFERENTIAL_SCREE
           };
           await resize(page, size);
           const found = await openers(page, screen.code === SHELL_SCREEN);
+          if (screen.code === SHELL_SCREEN) {
+            expect(
+              found.some(({ shell }) => shell),
+              `the screen of reference ${SHELL_SCREEN} plays no trigger of the shell: renamed, or none classed as such`,
+            ).toBe(true);
+          }
           test.info().annotations.push({
             type: "opened by a gesture",
             description: `${width}: ${found.length === 0 ? "nothing" : found.map(({ said }) => said).join("; ")}`,

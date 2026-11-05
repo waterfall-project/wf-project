@@ -3847,8 +3847,9 @@ largeurs :
   Entrée ; ceux de la coquille — projet, compte, tâches, aide : tout ce qui est hors de `main`, et
   le bouton de l'aide, que `data-shell` marque — ne se jouent que sur l'écran de référence, la
   liste des révisions d'un projet (US-1220, #1840) : ils sont les mêmes sur chaque écran, et les
-  rejouer coûtait 38 à 67 % du chemin critique de la chaîne ; la première cellule saisissable de chaque grille — une cellule de `DenseGrid`, que
-  `data-column` situe et que rien ne dit en lecture seule (`aria-readonly`) — reçoit le focus et F2.
+  rejouer coûtait 38 à 67 % du chemin critique de la chaîne ; la première cellule saisissable de
+  chaque grille — une cellule de `DenseGrid`, que `data-column` situe et que rien ne dit en lecture
+  seule (`aria-readonly`) — reçoit le focus et F2.
   Un dialogue ouvert est parcouru au Tab borné à lui (`walkByTab(page, dialogue)`) : ce que Tab peut
   atteindre, les widgets et les bords se jugent dans le dialogue seul, le retour à son premier
   élément est le piège qu'il veut — un dialogue d'un seul élément le garde —, et tout élément
