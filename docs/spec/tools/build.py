@@ -74,9 +74,7 @@ RE_FIGURE = re.compile(
     re.DOTALL,
 )
 # The text of a reference may hold brackets, escaped (\[) or in a balanced pair (one level).
-RE_CROSS_REFERENCE = re.compile(
-    r"\[((?:\\.|[^\[\]\\]|\[(?:\\.|[^\[\]\\])*\])*)\]\(#[^)\s]*\)"
-)
+RE_CROSS_REFERENCE = re.compile(r"\[((?:\\.|[^\[\]\\]|\[(?:\\.|[^\[\]\\])*\])*)\]\(#[^)\s]*\)")
 # The parts of the archive that hold text a reviewer may change: the body, the footnotes
 # and endnotes pandoc projects with it, and the headers and footers, which carry the
 # version and the date of the document.
