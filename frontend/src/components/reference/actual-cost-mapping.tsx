@@ -46,8 +46,8 @@ const LABEL_LENGTH = 200;
 
 /**
  * The most kept columns the contract takes: the `maxItems` of `kept_columns` in
- * `ActualCostMappingWrite` (`docs/api/components/schemas/reference.yaml`), which the generated client does not carry;
- * `actual-cost-mapping.dom.test.tsx` proves it equal to the schema.
+ * `ActualCostMappingWrite` (`docs/api/components/schemas/reference.yaml`), which the generated
+ * client does not carry; `actual-cost-mapping.dom.test.tsx` proves it equal to the schema.
  */
 export const KEPT_COLUMNS_LIMIT = 50;
 
