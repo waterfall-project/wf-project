@@ -89,7 +89,7 @@ describe("the card of a task that awaits its own lines", () => {
     // Une récapitulative dont toutes les subordonnées sont terminées et dont une ligne propre porte
     // un reste à engager de 500 est démarrée et signalée : la colonne démarrée la liste avec sa
     // facette, la carte lit le signal sans rien déduire des subordonnées.
-    board(awaiting());
+    board(columnsOf(example("startable_tasks_awaiting_own_lines") as StartableTasks));
     const mark = within(card("Études")).getByText(MARK);
     expect(within(column("Démarrées")).getByText(MARK)).toBe(mark);
     expect(mark).toBeVisible();
