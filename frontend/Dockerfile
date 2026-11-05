@@ -33,9 +33,10 @@ WORKDIR /app
 FROM node AS development
 
 # pnpm, at the version package.json names (`packageManager`), the only place that version is
-# written: package.json comes first, so that the layer holds until that line changes.
+# written: package.json comes first, so that the layer holds until package.json changes (any
+# change, not that line alone: the copy is the layer's input).
 COPY package.json /app/package.json
-RUN npm install --global "pnpm@$(node -p "require('/app/package.json').packageManager.split('@')[1]")" \
+RUN npm install --global "pnpm@$(node -p "require('/app/package.json').packageManager.split('@')[1].split('+')[0]")" \
     && chown 1000:1000 /app
 USER 1000:1000
 
