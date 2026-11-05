@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   paths:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # The images of the platform, Keycloak's built with its extension, then the paths: about as
     # long as keycloak.yml with the browser and the front on top.
     timeout-minutes: 25

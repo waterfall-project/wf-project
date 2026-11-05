@@ -625,7 +625,7 @@ par un bilan fait à la main.
 
 ## US-1200 — La chaîne sur Ubuntu 26.04, et pandoc à jour
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1928
