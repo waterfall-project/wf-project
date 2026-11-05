@@ -154,6 +154,34 @@ describe("the filters of the register on its columns", () => {
     );
   });
 
+  it("follows the address: folded, a filter laid opens the bar; open, the removal of the last filter folds it again [WF-IHM-0130-A]", () => {
+    const bar = (search: string) => {
+      const query = new URLSearchParams(search);
+      const zones = RISK_ZONES.filter((zone) =>
+        (query.get("zones") ?? "").split(",").includes(zone),
+      );
+      return (
+        <NextIntlClientProvider locale="fr" messages={CATALOGUES.fr} timeZone="UTC">
+          <PendingAddress>
+            <RiskColumnFilters
+              filters={readRiskFilters(query, zones)}
+              fields={[]}
+              lastMarkedOn={undefined}
+            />
+          </PendingAddress>
+        </NextIntlClientProvider>
+      );
+    };
+    const expanded = () =>
+      screen.getByRole("button", { name: "Filtres des colonnes" }).getAttribute("aria-expanded");
+    const { rerender } = render(bar(""));
+    expect(expanded()).toBe("false");
+    rerender(bar("zones=alert"));
+    expect(expanded()).toBe("true");
+    rerender(bar(""));
+    expect(expanded()).toBe("false");
+  });
+
   it("offers the zone, the bounds of the probability and of the four columns of amounts, and the period of the last review [WF-IHM-0130-A]", async () => {
     const { container } = renderFilters();
     expect(screen.getByRole("group", { name: "Filtrer par zone" })).toBeVisible();
