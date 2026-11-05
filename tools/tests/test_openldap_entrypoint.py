@@ -120,3 +120,28 @@ def test_a_later_start_loads_nothing(volumes: Volumes) -> None:
     assert kept.returncode == 0
     assert volumes.start().returncode == 124
     assert "kept" in volumes.listing().split("---")[0]
+
+
+def test_volumes_of_the_image_of_before_start_untouched(volumes: Volumes) -> None:
+    """Data and configuration without marker, as osixia left them: nothing is loaded or emptied."""
+    assert volumes.start().returncode == 124
+    kept = volumes.run("touch /var/lib/ldap/osixia /etc/ldap/slapd.d/osixia")
+    assert kept.returncode == 0
+    assert volumes.start().returncode == 124
+    data, config = volumes.listing().split("---")
+    assert "osixia" in data
+    assert "osixia" in config
+    assert MARKER not in data
+
+
+def test_a_marker_left_beside_the_configuration_is_removed_and_nothing_emptied(
+    volumes: Volumes,
+) -> None:
+    assert volumes.start().returncode == 124
+    left = volumes.run(f"touch /var/lib/ldap/{MARKER} /var/lib/ldap/kept")
+    assert left.returncode == 0
+    assert volumes.start().returncode == 124
+    data, config = volumes.listing().split("---")
+    assert MARKER not in data
+    assert "kept" in data
+    assert "cn=config.ldif" in config

@@ -2744,15 +2744,18 @@ L'annuaire est une image que le dépôt construit, `deploy/openldap/Dockerfile`,
 Debian (US-1150) : à son premier démarrage, son script d'entrée crée sa configuration et y charge
 `deploy/keycloak/development/directory.ldif`, puis ne recharge plus rien. Il garde ses données dans
 un volume, comme les bases : réamorcé, il donnerait à ses personnes d'autres identifiants que ceux
-que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le supprime avec elles. Avant de
-charger l'amorce, le script pose un repère, `.seeding`, dans le volume des données, et ne le
-retire qu'une fois la configuration copiée dans son volume. Un premier démarrage interrompu avant
-cette copie laisse le repère : les données n'ont jamais servi, et au démarrage suivant le script
-les vide et recharge l'amorce, comme il le fait sur deux volumes vides. Des données sans repère et
-sans configuration sont celles d'un annuaire qui a servi, dont le volume de configuration a
-disparu : le script refuse (code 1) de les réamorcer, ce qui donnerait d'autres identifiants à ses
-personnes, et dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Les volumes de l'image d'avant, celle d'`osixia`,
-servent tels quels : leurs personnes gardent leurs identifiants.
+que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le supprime avec elles. Avant de charger l'amorce,
+le script pose un repère, `.seeding`, dans le volume des données, et ne le retire qu'une fois la
+configuration copiée dans son volume ; un repère resté auprès de la configuration (arrêt entre la
+copie et le retrait) est retiré au démarrage suivant. Un premier démarrage interrompu avant cette
+copie laisse le repère : les données n'ont jamais servi, et au démarrage suivant le script les vide
+et recharge l'amorce, comme il le fait sur deux volumes vides. Des données sans repère et sans
+configuration sont celles d'un annuaire qui a servi, dont le volume de configuration a disparu : le
+script refuse (code 1) de les réamorcer, ce qui donnerait d'autres identifiants à ses personnes, et
+dit le remède, `make service-down WATERFALL_RESET_DATA=yes`. Cela vaut aussi pour le volume laissé
+par une amorce interrompue d'avant ce lot, sans repère : il est désormais refusé, et le remède le
+supprime. Les volumes de l'image d'avant, celle d'`osixia`, servent tels quels : leurs personnes
+gardent leurs identifiants.
 
 Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree de lot a ceux du
 bloc de son créneau (« Les créneaux des worktrees », ci-dessous).

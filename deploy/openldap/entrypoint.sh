@@ -20,7 +20,9 @@
 # configuration are a directory that has served — its volume of configuration is lost, and seeded
 # again it would give her people other entryUUIDs, and Keycloak other accounts —: the script
 # refuses, and says the remedy. The volumes the image of osixia made, on a workstation of before,
-# hold both: slapd starts on them as they are.
+# hold both: slapd starts on them as they are. A marker left beside a configuration — a stop
+# between the copy and the removal — is removed at the start, before slapd runs: were the volume of
+# the configuration lost later, it would else license emptying data that served.
 set -eu
 
 CONFIG=/etc/ldap/slapd.d
@@ -31,11 +33,12 @@ MARKER=$DATA/.seeding
 
 configure() {
     if [ -e "$MARKER" ]; then
-        # A first start interrupted before the copy of the configuration: slapd never served these data.
+        # A first start interrupted before the copy of the configuration: slapd never served them.
         echo "openldap: the seeding of $DATA was interrupted; emptying $DATA and seeding again" >&2
     elif [ -n "$(ls -A "$DATA")" ]; then
-        echo "openldap: $DATA holds data that served, and $CONFIG no configuration; refusing to seed again, which would give" >&2
-        echo "openldap: its people other entryUUIDs. Drop the data: make service-down WATERFALL_RESET_DATA=yes." >&2
+        echo "openldap: $DATA holds data that served, and $CONFIG no configuration;" >&2
+        echo "openldap: refusing to seed again, which would give its people other entryUUIDs." >&2
+        echo "openldap: Drop the data: make service-down WATERFALL_RESET_DATA=yes." >&2
         exit 1
     fi
     rm -rf "${DATA:?}"/* "${DATA:?}"/.[!.]* "${DATA:?}"/..?*
@@ -99,6 +102,9 @@ EOF
 
 if [ ! -e "$CONFIG/cn=config.ldif" ]; then
     configure
+else
+    # A stop between the copy of the configuration and the removal of the marker leaves both.
+    rm -f "$MARKER"
 fi
 # At every start: the files are openldap's whoever wrote them — slapadd, as root, or the image of
 # before, under another user.
