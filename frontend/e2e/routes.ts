@@ -77,17 +77,28 @@ export function tableScreens(): AppScreen[] {
 }
 
 /**
- * The screens no table names: the project itself, under its label; the account and its pages; the
- * sign-in that could not be made — the way in is the identity provider's, `/login` a route that
- * sends the browser there (EP-03) —; and the screen of an address no page answers.
+ * The screen of a project, under its label, which only a project without a revision shows
+ * (US-0720): any other is led to its revision. The fake back serves every project as the witness,
+ * which has revisions, so that the paths cannot reach it; the tests of the page hold it
+ * (`src/app/projects/[projectId]/page.test.tsx`), and the screen it leads to is checked with the
+ * table's. Counted among the pages (`src/app/screens.test.ts`), audited by the DOM test of the page
+ * (`src/app/projects/[projectId]/page.dom.test.tsx`) rather than with the screens.
  */
-export const OTHER_SCREENS: readonly AppScreen[] = [
+export const LEADING_SCREENS: readonly AppScreen[] = [
   {
     code: "project",
     route: "/projects/[projectId]",
     address: path("/projects/[projectId]"),
     name: project.value.label,
   },
+];
+
+/**
+ * The screens no table names: the account and its pages; the sign-in that could not be made — the
+ * way in is the identity provider's, `/login` a route that sends the browser there (EP-03) —; and
+ * the screen of an address no page answers.
+ */
+export const OTHER_SCREENS: readonly AppScreen[] = [
   { code: "account", route: "/account", address: "/account", name: text("accountMenu.account") },
   {
     code: "account-avatar",

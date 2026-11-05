@@ -19,15 +19,15 @@
  *
  * It is entered from the keyboard alone (WF-IHM-0040, `useGridKeyboard`): one cell is active, the
  * one stop of the grid in the order of tabulation, which the arrows move — the header among the
- * rows —, and a computed cell tried opens its refusal; a cell validated is written alone,
- * and what the server answers takes the place of what was read — the row, the rows the write changed
- * with it, the totals (`useCellWrites`), a refusal told above the grid, its cell marked (EP-14/L44d). A block pasted from a spreadsheet on the active cell is
- * shown as the server would write and refuse it, and its valid rows written once confirmed, in one
- * operation, what was not written told (WF-IHM-0050, `useGridPaste`). A grid that enters a
- * revision in progress places undo and redo, not wired yet (WF-IHM-0110, `UndoCommands`). A screen
- * may give its rows commands, in the bar on the row of the active cell and in the menu of a cell on
- * its row (`RowCommands`): the work breakdown edited in its grid (EP-14/L44c) — on the selection of
- * rows its handles make, which they drag, where the screen drags rows (`useRowSelection`, US-0460).
+ * rows —, and a computed cell tried opens its refusal; a cell validated is written alone, and what
+ * the server answers takes the place of what was read — the row, the rows the write changed with
+ * it, the totals (`useCellWrites`), a refusal told above the grid, its cell marked. A
+ * block pasted from a spreadsheet on the active cell is shown as the server would write and refuse
+ * it, and its valid rows written once confirmed, in one operation, what was not written told
+ * (WF-IHM-0050, `useGridPaste`). A grid that enters a revision in progress places undo and redo,
+ * not wired yet (WF-IHM-0110, `UndoCommands`). A screen may give its rows commands, in the bar on
+ * the row of the active cell and in the menu of a cell on its row (`RowCommands`): the work
+ * breakdown edited in its grid (EP-14/L44c), its selected rows dragged (`useRowSelection`, US-0460).
  *
  * A grid whose rows name their parents is a tree, which folds and unfolds (WF-PLA-0080,
  * `useGridFold`): a `treegrid`, each row telling its level, its place among its siblings and
@@ -95,7 +95,7 @@ import {
   useGridFold,
   useTreeRow,
 } from "./fold";
-import { useFrameWidth } from "./frame-width";
+import { useFrameWidth, useRoomBelow } from "./frame-width";
 import { barWidthOf, EDGE_REM, floorOf, ROW_REM, withBar } from "./grid-floor";
 import {
   type CellDraft,
@@ -197,6 +197,15 @@ export interface DenseGridProps<Row extends RowData, Sort extends string, Totals
   readonly narrowing?: Readonly<Record<string, unknown>> | undefined;
   /** The commands the screen gives the rows of the grid; none for a grid it writes nothing from. */
   readonly commands?: RowCommands<Row> | undefined;
+  /**
+   * Whether the screen may lay the grid low on the page, below what it stacks above it: the frame
+   * is then bounded to the window less where it starts, so that its totals stay in view
+   * (US-0710, #1209). The bound is kept at every width, though the stacking exists below the
+   * large breakpoint alone: above it the grid starts high and the bound is the window less a
+   * little, which `max-h-svh` already gives, so nothing visible changes for the cost of one
+   * observer of the page.
+   */
+  readonly stacked?: boolean | undefined;
 }
 
 /**
@@ -546,6 +555,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   foldScope,
   narrowing,
   commands,
+  stacked,
 }: DenseGridProps<Row, Sort, Totals>) {
   const t = useTranslations("grid");
   const locale = useLocale();
@@ -606,6 +616,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
   const scroller = useRef<HTMLDivElement>(null);
   const frameWidth = useFrameWidth(scroller);
   const room = useFrameRoom(scroller);
+  const roomBelow = useRoomBelow(scroller, stacked);
   const rowHeight = ROW_REM * useRootFontSize();
 
   // The address the last navigation of the grid — or of its screen — asked for: a search entered
@@ -881,6 +892,7 @@ function SharedGrid<Row extends RowData, Sort extends string, Totals>({
           className: "w-fit max-w-full max-h-svh rounded-md border",
           style: {
             minHeight: floorOf(model.length),
+            maxHeight: roomBelow,
             scrollPaddingBlock: edge,
             scrollPaddingInlineStart: pinnedWidth(table),
             scrollPaddingInlineEnd: endPinnedWidth(table),

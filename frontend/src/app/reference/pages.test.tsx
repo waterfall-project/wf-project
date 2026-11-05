@@ -257,7 +257,7 @@ describe("the settings of the costs", () => {
     expect(text(page)).toContain("Nouvelle nature");
     expect(text(page)).toContain("Nouvelle catégorie");
     expect(page).toContain('aria-label="Modifier «\u00a0Débours\u00a0»"');
-    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé répond/);
+    expect(page).toMatch(/<p role="note"[^>]*>.*?Maquette\u00a0: le service simulé ne conserve/);
     server.answers = {
       ...server.answers,
       "GET /me": "me_estimator",
@@ -265,7 +265,7 @@ describe("the settings of the costs", () => {
       "GET /reference/cost-categories": "volume/cost_categories_reader",
     };
     const read = await costsAt();
-    for (const offered of ["Nouvelle", "Modifier", "Désactiver", "Maquette"]) {
+    for (const offered of ["Nouvelle", "Modifier", "Désactiver"]) {
       expect(read).not.toContain(offered);
     }
   });
@@ -396,7 +396,6 @@ describe("the settings of the costs", () => {
             query={NO_QUERY}
             preferences={undefined}
             state={undefined}
-            readsInactive
             editable={false}
             kinds={[]}
           />
@@ -406,7 +405,6 @@ describe("the settings of the costs", () => {
             query={NO_QUERY}
             preferences={undefined}
             state={undefined}
-            readsInactive
             editable={false}
             natures={[]}
             nature={undefined}
@@ -433,7 +431,6 @@ describe("the settings of the costs", () => {
           query={NO_QUERY}
           preferences={undefined}
           state={undefined}
-          readsInactive={false}
           editable={false}
           kinds={[]}
         />
@@ -443,7 +440,6 @@ describe("the settings of the costs", () => {
           query={NO_QUERY}
           preferences={undefined}
           state={undefined}
-          readsInactive={false}
           editable={false}
           natures={[]}
           nature={undefined}
@@ -530,12 +526,12 @@ describe("the settings of the costs", () => {
 });
 
 describe("the settings of the risks and of the indicators", () => {
-  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the reference budget", async () => {
+  it("present the three bounds of each axis of the risk matrix, the severity in percentage of the base of the project [WF-REF-0160-A]", async () => {
     const page = rendered(await RiskSettingsPage());
     expect(rows(page, "Bornes de la matrice de risques")).toEqual([
       "Axe Première borne Deuxième borne Troisième borne",
       "Probabilité 10 % 30 % 60 %",
-      "Gravité, en pourcentage du budget de référence 1 % 5 % 10 %",
+      "Gravité, en pourcentage de l’assiette du projet 1 % 5 % 10 %",
     ]);
   });
 

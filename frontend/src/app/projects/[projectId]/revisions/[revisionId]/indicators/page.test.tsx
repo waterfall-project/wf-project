@@ -600,9 +600,9 @@ describe("the curves and the milestones of the screen", () => {
     });
     expect(page).toContain(`href="/projects/${PROJECT}/revisions/${REVISION}/indicators"`);
     expect(text(page)).toContain(
-      "Remove the shift by the payment delays Cash out Export as PNG Computed on",
+      "Remove the shift by the payment delays Cash-out Export as PNG Computed on",
     );
-    expect(text(page)).toContain("Cash out by month");
+    expect(text(page)).toContain("Cash-out by month");
   });
 });
 

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from "vitest";
 
-import { readBlock, widest } from "./paste";
+import { example } from "@/test/fixtures";
+
+import { type NodeList, pasteSpan } from "./nodes";
+import { localRefusal, readBlock, widest } from "./paste";
+import { PLANNING_GRID } from "./planning";
 
 describe("the block a spreadsheet copies", () => {
   it("is read as rows of cells, separated by tabs and line ends, the last one closing it", () => {
@@ -45,5 +49,46 @@ describe("the block a spreadsheet copies", () => {
     );
     expect(widest(tall)).toBe(2);
     expect(widest([])).toBe(0);
+  });
+});
+
+describe("the local refusal of a block", () => {
+  // The grid of the planning takes no paste yet: its columns alone are tried. `is_critical` lies
+  // between `total_float` and `started_on` in the order of the contract, and the grid has no column
+  // for it, the criticality being a mark of the float (#1699).
+  const task = (example("nodes_planning") as NodeList).items.find((node) => node.task != null);
+  const paste = {
+    preview: () => Promise.reject(new Error("not asked")),
+    apply: () => Promise.reject(new Error("not asked")),
+    span: pasteSpan,
+    name: (column: string) => column,
+  };
+  const shown = PLANNING_GRID.columns.map((column) => column.key);
+  const column = PLANNING_GRID.columns.find((each) => each.contract === "total_float");
+
+  /** The refusal of a block pasted on the float of the first task of the planning. */
+  function refusal(text: string) {
+    if (task === undefined || column === undefined) {
+      throw new Error("no task, or no float column");
+    }
+    const landed = {
+      at: { row: 0, column: column.key },
+      row: task,
+      column,
+      named: "total_float" as const,
+    };
+    return localRefusal(PLANNING_GRID, paste, landed, readBlock(text), shown);
+  }
+
+  it("lets through a block whose cell on a column the grid does not configure is empty", () => {
+    expect(refusal("2\t\t2026-03-02")).toBeUndefined();
+    expect(refusal("2\t \t2026-03-02\t")).toBeUndefined();
+  });
+
+  it("refuses a block whose cell on a column the grid does not configure is not empty", () => {
+    expect(refusal("2\toui")).toEqual({
+      outcome: undefined,
+      hidden: { shown: "absent", name: "is_critical" },
+    });
   });
 });

@@ -70,7 +70,7 @@ function settled(): Promise<void> {
 }
 
 /** A write whose answers wait until each is let go, from the row each write left from. */
-function held<Row, Totals>() {
+function heldEntry<Row, Totals>() {
   const asked: { from: Row; answer: (outcome: Outcome<RowsWritten<Row, Totals>>) => void }[] = [];
   const entry: CellEntry<Row, Totals> = {
     kind: { type: "decimal", nullable: false },
@@ -172,7 +172,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("keeps the answer of a write when the page is read anew at its address before the server answers", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     // `refresh` after a creation elsewhere on the screen: the same address, its rows read anew.
     rerender({ address: ADDRESS, rows: ratesAnew(), totals: null });
@@ -188,7 +188,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("keeps a refusal told when the page is read anew at its address", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, refuse } = held<RateRow, null>();
+    const { entry, refuse } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     await refuse(0, {
       kind: "refused",
@@ -201,7 +201,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("marks the cell refused until it is written, another cell written leaving it marked, the notice told", async () => {
     const { result } = writes(RATES, first);
-    const { entry, answer, refuse } = held<RateRow, null>();
+    const { entry, answer, refuse } = heldEntry<RateRow, null>();
     const key = entered.cost_category_id;
     await enter(result.current, MECHANICAL, "year_2015", entry);
     await refuse(0, {
@@ -221,7 +221,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("keeps the rate of 2015 and takes that of 2016 when a reading anew between the two carries the first alone", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     await answer(0, rate(entered));
     await enter(result.current, MECHANICAL, "year_2016", entry);
@@ -240,7 +240,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("shows the rate of a reading anew that caught up since, newer than the answer", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     const since = { ...entered, amount: "90.00", lock_version: entered.lock_version + 1 };
     rerender({ address: ADDRESS, rows: ratesAnew(since), totals: null });
@@ -250,7 +250,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("lets an answer kept give way to a reading anew newer than it", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     await answer(0, rate(entered));
     const since = { ...entered, amount: "86.00", lock_version: entered.lock_version + 1 };
@@ -260,7 +260,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("keeps the rates of 2015 and 2016, both answered, when a reading anew carries the first alone", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     await answer(0, rate(entered));
     await enter(result.current, MECHANICAL, "year_2016", entry);
@@ -271,7 +271,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("writes the next rate of a cell from the version a reading anew brought, a third party's", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, from } = held<RateRow, null>();
+    const { entry, from } = heldEntry<RateRow, null>();
     const theirs = { ...corrected, amount: "88.88", lock_version: 4 };
     rerender({ address: ADDRESS, rows: ratesAnew(theirs), totals: null });
     await enter(result.current, MECHANICAL, "year_2016", entry);
@@ -280,7 +280,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("finds the cell of a rate pending by its year when a reading anew holds a year more before it", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     // A rate of 2011 written meanwhile: a column more at the head, every cell one place further.
     const years = [2011, ...grid.years];
@@ -297,7 +297,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("keeps the cell pending, then answered, when another list of the screen is sorted meanwhile", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     // The natures sorted: another address, the same rows of the grid of the rates.
     rerender({ address: NATURES_SORTED, rows: ratesAnew(), totals: null });
@@ -308,7 +308,7 @@ describe("the rates written while the page is read anew", () => {
 
   it("drops the answer of a write when the grid is read at another address before the server answers", async () => {
     const { result, rerender } = writes(RATES, first);
-    const { entry, answer } = held<RateRow, null>();
+    const { entry, answer } = heldEntry<RateRow, null>();
     await enter(result.current, MECHANICAL, "year_2015", entry);
     // The grid sorted otherwise: another address, its rows in another order.
     const sorted = ratesAnew().toReversed();
@@ -356,7 +356,7 @@ describe("the nodes written while the page is read anew", () => {
 
   it("takes the answer of a second cell of a row when a reading anew carries the first, by the version of the node", async () => {
     const { result, rerender } = writes(NODES, first);
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry);
     await answer(0, (from) => nodeAnswered(from, { hours: "14" }, undefined, 1));
     const hours = result.current.rows[LABOUR];
@@ -372,7 +372,7 @@ describe("the nodes written while the page is read anew", () => {
 
   it("keeps whole the answer newer than a reading anew: the summary it recalculated and its totals with the row written", async () => {
     const { result, rerender } = writes(NODES, first);
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     const task = nodes.items[TASK];
     if (task?.task === null || task?.task === undefined) {
       throw new Error("the estimate holds the cabling");
@@ -405,7 +405,7 @@ describe("the nodes written while the page is read anew", () => {
 
   it("writes the next cell of a node from the version a reading anew brought", async () => {
     const { result, rerender } = writes(NODES, first);
-    const { entry, from } = held<EstimateNode, NodeTotals>();
+    const { entry, from } = heldEntry<EstimateNode, NodeTotals>();
     const labour = nodes.items[LABOUR];
     const version = (labour?.lock_version ?? 0) + 4;
     rerender({
@@ -419,7 +419,7 @@ describe("the nodes written while the page is read anew", () => {
 
   it("shows a node read anew at a later version before the answer of an earlier one", async () => {
     const { result, rerender } = writes(NODES, first);
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry);
     const labour = nodes.items[LABOUR];
     if (labour?.estimate_line === null || labour?.estimate_line === undefined) {
@@ -437,7 +437,7 @@ describe("the nodes written while the page is read anew", () => {
 
   it("keeps the totals answered, where the version of the node says nothing, while the totals read anew are those read before, and lets them go otherwise", async () => {
     const { result, rerender } = writes(NODES, first);
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     const answered = { ...nodes.totals, hours: "14" };
     await enter(result.current, LABOUR, "hours", entry);
     await answer(0, (from) => nodeAnswered(from, { hours: "14" }, answered, 1));
@@ -466,7 +466,7 @@ describe("the outcome of a cell written, in any grid", () => {
 
   it("tells a refusal by field by the reason of its field, and marks the cell (#817.1)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const { entry, refuse } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, TASK, "finish", entry);
     await refuse(0, { kind: "refused", problem: refusedDate, conflictingObjectId: null });
     expect(result.current.outcome).toMatchObject({
@@ -497,7 +497,7 @@ describe("the outcome of a cell written, in any grid", () => {
     "tells $failure without marking the cell, which says nothing of the value (#819.2)",
     async ({ outcome }) => {
       const { result } = writes(NODES, first);
-      const { entry, refuse } = held<EstimateNode, NodeTotals>();
+      const { entry, refuse } = heldEntry<EstimateNode, NodeTotals>();
       await enter(result.current, LABOUR, "hours", entry);
       await refuse(0, outcome);
       expect(result.current.outcome).toEqual(outcome);
@@ -507,7 +507,7 @@ describe("the outcome of a cell written, in any grid", () => {
 
   it("writes nothing of a value the row answered already holds, which would carry its version alone (#819.8)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, answer, from } = held<EstimateNode, NodeTotals>();
+    const { entry, answer, from } = heldEntry<EstimateNode, NodeTotals>();
     const hours: CellEntry<EstimateNode, NodeTotals> = {
       ...entry,
       value: (row) => row.estimate_line?.hours,
@@ -527,7 +527,7 @@ describe("the outcome of a cell written, in any grid", () => {
     const { result } = writes(NODES, first, (write) => {
       told.push(write);
     });
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry);
     let over = false;
     void told[0]?.then(() => {
@@ -544,7 +544,7 @@ describe("the outcome of a cell written, in any grid", () => {
 
   it("lifts the refusal of a cell typed anew as the row holds it, writing nothing (#819.8)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, refuse, from } = held<EstimateNode, NodeTotals>();
+    const { entry, refuse, from } = heldEntry<EstimateNode, NodeTotals>();
     const hours: CellEntry<EstimateNode, NodeTotals> = {
       ...entry,
       value: (row) => row.estimate_line?.hours,
@@ -596,7 +596,7 @@ describe("the rows written together while a cell of theirs is under way", () => 
 
   it("keeps what the rows written together answered when the cell written before them answers after them, earlier: their rows, the summary above them, the totals (#421)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, answer } = held<EstimateNode, NodeTotals>();
+    const { entry, answer } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry, "14");
     act(() => {
       result.current.applied(together());
@@ -615,7 +615,7 @@ describe("the rows written together while a cell of theirs is under way", () => 
 
   it("keeps quiet the refusal of a cell written before rows written together took its row (#202)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const { entry, refuse } = heldEntry<EstimateNode, NodeTotals>();
     await enter(result.current, LABOUR, "hours", entry, "14");
     act(() => {
       result.current.applied(together());
@@ -632,7 +632,7 @@ describe("the rows written together while a cell of theirs is under way", () => 
 
   it("tells the refusal of a row they did not write, whatever the quiet refusal answered after it (#202)", async () => {
     const { result } = writes(NODES, first);
-    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const { entry, refuse } = heldEntry<EstimateNode, NodeTotals>();
     const marked: Outcome<never> = {
       kind: "conflict",
       problem: example("node_create_marked_refused") as Problem,
@@ -654,7 +654,7 @@ describe("the rows written together while a cell of theirs is under way", () => 
 
   it("keeps the refusal of a cell written before them on a row they did not write", async () => {
     const { result } = writes(NODES, first);
-    const { entry, refuse } = held<EstimateNode, NodeTotals>();
+    const { entry, refuse } = heldEntry<EstimateNode, NodeTotals>();
     const stale: Outcome<never> = {
       kind: "stale",
       problem: { code: "STALE_LOCK_VERSION", status: 412 },
@@ -719,6 +719,48 @@ describe("the totals read anew behind a refusal told", () => {
     expect(readMessages().messages.map((message) => message.sentence)).toEqual([
       "Vous devez vous connecter.",
     ]);
+    // The notice tells the refusal of the write, not that of the totals behind it.
+    expect(result.current.outcome?.kind).toBe("stale");
     expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("tells by the notice alone, never noted beside it, the refusal of the totals answered in the tick the notice before was cleared (#1432)", async () => {
+    forgetMessages();
+    const stale: Outcome<never> = {
+      kind: "stale",
+      problem: { code: "STALE_LOCK_VERSION", status: 412 },
+      conflictingObjectId: null,
+    };
+    const lost: Outcome<never> = {
+      kind: "signed_out",
+      problem: { code: "SESSION_REQUIRED", status: 401 },
+      conflictingObjectId: null,
+    };
+    let totals: (outcome: Outcome<NodeTotals>) => void = () => undefined;
+    const retotal = () =>
+      new Promise<Outcome<NodeTotals>>((resolve) => {
+        totals = resolve;
+      });
+    const { result } = writes<EstimateNode, NodeTotals>(
+      { ...NODES, retotal },
+      { address: ADDRESS, rows: nodes.items, totals: nodes.totals },
+    );
+    const { entry, refuse, answer } = heldEntry<EstimateNode, NodeTotals>();
+    await enter(result.current, TASK, "label", entry, "x");
+    await enter(result.current, LABOUR, "hours", entry, "14");
+    // The first refused, told by the notice; the second done, which reads the totals anew.
+    await refuse(0, stale);
+    await answer(1, (from) => nodeAnswered(from, { hours: "14" }, undefined, 1));
+    expect(result.current.outcome).toBe(stale);
+    // The notice cleared, and the totals refused, before any render.
+    await act(async () => {
+      result.current.clear();
+      totals(lost);
+      await settled();
+    });
+    // One entry: the notice tells the refusal of the totals, and the screen notes what it tells;
+    // the writes note nothing beside it.
+    expect(result.current.outcome).toBe(lost);
+    expect(readMessages().messages).toEqual([]);
   });
 });

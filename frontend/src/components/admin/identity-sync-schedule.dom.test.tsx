@@ -230,17 +230,15 @@ describe("the periodicity of the reading of the accounts", () => {
   });
 
   it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so [WF-ADM-0070-A]", async () => {
-    let settle: () => void = () => undefined;
-    failing.until = new Promise<void>((resolve) => {
-      settle = resolve;
-    });
+    const answer = held();
+    failing.until = answer.until;
     serve();
     open();
     const form = await saveWeekly();
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     const command = screen.getByRole("button", { name: "Modifier la périodicité" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    settle();
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
     expect(command).not.toHaveAttribute("aria-disabled");
   });

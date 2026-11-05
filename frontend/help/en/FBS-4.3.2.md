@@ -2,20 +2,20 @@
 
 ## What the screen shows
 
-The grid of the screen of [planning](FBS-4.3.md): a row per task of the structure read, in the order of the plan, each summary task above its subordinates, the handle and the row number at the start, the Gantt in the last column. The totals of the answer are in the footer. The planning shows no estimate line: they are read in the estimate.
+The grid of the screen of [planning](FBS-4.3.md): a row per task of the structure read, in the order of the plan, each summary task above its subordinates, the handle and the row number at the start, the Gantt in the last column. The totals of the answer are in the footer. A search or a filter that retains no task, on a structure that has some, leaves an empty grid that says so — “No row matches the request.”, total “no task” — and does not offer the skeleton, which is for a structure with no task. The planning shows no estimate line: they are read in the estimate.
 
-A task is entered with the keyboard, cell by cell, where the structure read lists “Edit the schedule” available: its label, its description, its scheduling mode, its duration, its dates when they are not calculated, its predecessors, its attachment to the work breakdown. An entry refused is said above the grid, and its cell is marked.
+A task is entered with the keyboard, cell by cell, where the structure read lists “Edit the planning” available: its label, its description, its scheduling mode, its duration, its dates when they are not calculated, its predecessors, its attachment to the work breakdown. An entry refused is said above the grid, and its cell is marked.
 
 ## Its commands
 
 The gestures of structure, in the menu of a cell and at their keys:
 
-- **Insert below** (`Insert`) creates a task at the same level, under the active row; **Insert a sub-task** (`Alt+Insert`) creates it under the task of the row. A milestone has no sub-task. The task is named in a dialog: it is created a leaf, in automatic mode, of one day, without a predecessor.
-- **Indent** (`Alt+Shift+→`), **Outdent** (`Alt+Shift+←`), **Move up** (`Alt+Shift+↑`) and **Move down** (`Alt+Shift+↓`) move the active row, or the selection when the row is part of it; a summary task takes its subordinates with it. A move is offered only if the rows moved are sisters that follow one another and the neighbour it rests on is shown: a search or a filter may take it away. One does not indent under a milestone.
+- **Insert below** (`Insert`) creates a task at the same level, under the active row; **Insert a sub-task** (`Alt+Insert`) creates it under the task of the row. A milestone has no sub-task: **Insert a sub-task** stays shown on a milestone, unavailable, and says why; from the keyboard, `Alt+Insert` on a milestone does nothing, for the same reason. The task is named in a dialog: it is created a leaf, in automatic mode, of one day, without a predecessor.
+- **Indent** (`Alt+Shift+→`), **Outdent** (`Alt+Shift+←`), **Move up** (`Alt+Shift+↑`) and **Move down** (`Alt+Shift+↓`) move the active row, or the selection when the row is part of it; a summary task takes its subordinates with it. A move is offered only if the rows moved are sisters that follow one another and the neighbour it rests on is shown: a search or a filter may take it away. One does not indent under a milestone: **Indent** is then shown unavailable, with its condition; from the keyboard, `Alt+Shift+→` under a milestone does nothing, for the same reason.
 - **Delete** (`Ctrl+Delete`) deletes the active row; a summary task, once confirmed, with its subordinates, their lines and their links.
 - **Timelines** checks the timelines the task is inscribed to; **Time/time tracking** inscribes a milestone to the tracking of the contractual milestones. **Create a timeline…** creates one, when the project has none.
 
-The gestures and the entry are offered only where the structure read lists “Edit the schedule” available. A write in progress holds the following gestures until the grid is read again, which says it is busy.
+The gestures and the entry are offered only where the structure read lists “Edit the planning” available. A write in progress holds the following gestures until the grid is read again, which says it is busy.
 
 ## Its columns and computed values
 

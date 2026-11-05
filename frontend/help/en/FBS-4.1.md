@@ -4,8 +4,11 @@
 
 The revisions of the project: each one is a complete snapshot — its cost structures and the values of the reference data they use. A revision is first a draft, then frozen when it is marked; one of the marked revisions is the reference, which sets the budget, the risk reserve and the planned value. This cycle is that of the [periodic review](notions/revisions.md): open a current revision, update the planning and the remaining to commit, review the risks, then mark.
 
+Opening a project does not go through this screen: the page of the project leads to its revision in progress, else to its reference, else to its last marked revision; it leads here only if your session may not read that revision. When the import that has just created the project led here, its **report** is shown above the history, as on the page of the project. You also come here through the **Revisions** function, to read another one.
+
 From top to bottom:
 
+- the **Report** of the import the address names, when there is one;
 - the **Revision history**: for each one, its version, its state, its date of marking, its description, the link that opens it, and the mark of the reference;
 - the **Designation of the reference**, on the marked revisions;
 - the **Comparison of two revisions** marked;
@@ -20,7 +23,7 @@ At the top of the screen, the commands of the revision read, each available or n
 - **Mark the revision** asks for a version name, required, and a description; the marking, handed to the background processing, freezes the revision and keeps its indicators. Unavailable on a revision already marked (“draft revision”) or during a background process.
 - **Prepare an amendment** creates, under the label given, a differential of the main structure, which opens in the planning grid; nothing is merged before its contractualisation, from the grid of its differential.
 - **Abandon the current revision**, once confirmed: the project goes back to its last marked revision, and the lines of the current revision are deleted. The abandonment is irreversible.
-- **Declare a risk** says whether the identification of a risk would succeed, but opens nothing on this screen: the risk is identified on the screen of the [risks](FBS-4.6.md).
+- **Declare a risk** leads, when it is available, to the screen of the [risks](FBS-4.6.md) of the revision, where “Identify a risk” is offered; unavailable, it says what it lacks.
 
 In the sections:
 

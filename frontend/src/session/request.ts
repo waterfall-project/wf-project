@@ -20,6 +20,7 @@ import { cache } from "react";
 
 import type { components } from "@/api/generated/schema";
 import { reach } from "@/api/problem";
+import { ACCOUNT_REFUSALS, accountRefusalOf } from "@/api/problem-kind";
 import { serverClient } from "@/api/server";
 import { asksIdentifiers } from "@/navigation/login";
 
@@ -47,11 +48,9 @@ export type SessionState =
 
 /** The state a 401 says, by its code: a refusal of the account, a session closed, or none. */
 function refusedState(code: unknown): SessionState {
-  if (code === "ACCOUNT_DEACTIVATED") {
-    return { kind: "deactivated" };
-  }
-  if (code === "ACCOUNT_NOT_ADMITTED") {
-    return { kind: "not_admitted" };
+  const refusal = accountRefusalOf(401, code);
+  if (refusal !== undefined) {
+    return { kind: ACCOUNT_REFUSALS[refusal] };
   }
   return { kind: asksIdentifiers(code) ? "revoked" : "signed_out" };
 }

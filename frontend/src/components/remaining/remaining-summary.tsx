@@ -12,7 +12,8 @@
  * (`RiskCoverageSummary`, WF-RIS-0050). All with the date they are computed at
  * (WF-IHM-0020), or said unavailable when the API did not give them.
  *
- * The figures lie in cards (`FiguresCard`, US-0550), one for each block above.
+ * The figures lie in cards (`FiguresCard`, US-0550), one for each block above, folded into a
+ * summary below 1024 points of width (`FoldingFigures`, US-0710, #1209).
  *
  * Every figure is the API's, formatted from its exact string: nothing is summed nor subtracted
  * here (WF-ARC-0020). A deviation the API does not give — no previous review — is left out,
@@ -23,6 +24,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { components } from "@/api/generated/schema";
 import { ComputedTotal } from "@/components/computed-amount";
 import { FiguresCard, FiguresGrid, FiguresList } from "@/components/figures-card";
+import { FoldingFigures } from "@/components/folding-figures";
 import { ComputableValue } from "@/components/computable-value";
 import { RiskCoverageSummary } from "@/components/risks/risk-coverage";
 import { Signal } from "@/components/signal/signal";
@@ -124,13 +126,20 @@ export function RemainingSummary({
   readonly currency: string | undefined;
 }) {
   const t = useTranslations("remainingSummary");
-  return indicators === undefined ? (
-    <FiguresGrid>
-      <FiguresCard title={t("title")}>
-        <p className="text-muted-foreground">{t("unavailable")}</p>
-      </FiguresCard>
-    </FiguresGrid>
-  ) : (
-    <Figures indicators={indicators} currency={currency} />
+  if (indicators === undefined) {
+    // The notice that the figures are unavailable is not folded: a reader of a narrow window
+    // would see a closed summary and no notice (US-0710, #1209).
+    return (
+      <FiguresGrid>
+        <FiguresCard title={t("title")}>
+          <p className="text-muted-foreground">{t("unavailable")}</p>
+        </FiguresCard>
+      </FiguresGrid>
+    );
+  }
+  return (
+    <FoldingFigures title={t("fold")}>
+      <Figures indicators={indicators} currency={currency} />
+    </FoldingFigures>
   );
 }

@@ -18,6 +18,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
 } from "@/test/fixtures";
 
 import { CreateProject, ProjectIdentity } from "./project-form";
@@ -239,11 +240,8 @@ describe("the creation of a project", () => {
   });
 
   it("leads nowhere once the home is gone: a creation answered after the user left does not take the place of their navigation", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    const client = serve({}, { hold: () => until });
+    const answer = held();
+    const client = serve({}, answer.timing);
     const { unmount } = render(inFrench(<CreateProject ready />));
     await userEvent.click(screen.getByRole("button", { name: "Créer un projet" }));
     const form = dialog("Créer un projet");
@@ -253,9 +251,7 @@ describe("the creation of a project", () => {
       expect(client.calls).toHaveLength(1);
     });
     unmount();
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     // The answer arrives, and is left to fall: nothing navigates.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(router.push).not.toHaveBeenCalled();
@@ -561,11 +557,8 @@ describe("the modification of a project", () => {
   });
 
   it("keeps its command inactive while a modification of the dialog closed is under way, shows its answer, then opens on the version it brings (#661, #673)", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
-    const client = serve({}, { hold: () => until });
+    const answer = held();
+    const client = serve({}, answer.timing);
     render(inFrench(<ProjectIdentity project={witness} />));
     const name = `Modifier «\u00a0${witness.label}\u00a0»`;
     const command = screen.getByRole("button", { name: "Modifier le projet" });
@@ -586,9 +579,7 @@ describe("the modification of a project", () => {
     expect(command).toHaveAccessibleDescription(/^Enregistrement en cours…/);
     await userEvent.click(command);
     expect(screen.queryByRole("dialog")).toBeNull();
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     await vi.waitFor(() => {
       expect(screen.getByLabelText("Paramètres du projet")).toHaveTextContent(
         "Remplacement des automates et de la supervision du poste de commande.",
@@ -604,13 +595,10 @@ describe("the modification of a project", () => {
   });
 
   it("tells above the facts a code taken answered once the dialog is gone, naming its holder by the label the refusal gives it, and frees its command (#714)", async () => {
-    const settles: (() => void)[] = [];
-    const until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
+    const answer = held();
     serve(
       { [UPDATE]: { problem: example("project_code_taken") as Problem & { status: 409 } } },
-      { hold: () => until },
+      answer.timing,
     );
     render(inFrench(<ProjectIdentity project={pricing} />));
     const name = `Modifier «\u00a0${pricing.label}\u00a0»`;
@@ -622,9 +610,7 @@ describe("the modification of a project", () => {
     await userEvent.click(within(dialog(name)).getByRole("button", { name: "Enregistrer" }));
     await userEvent.click(within(dialog(name)).getByRole("button", { name: "Annuler" }));
     expect(command).toHaveAttribute("aria-disabled", "true");
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     // The screen shows no other project: the refusal names the holder by its label.
     const alert = await screen.findByRole("alert");
     // The sentence of the catalogue, its no-break spaces read as plain ones, as the text is.
@@ -640,19 +626,15 @@ describe("the modification of a project", () => {
   });
 
   it("frees its command once a write of the dialog closed is rejected, the API out of reach, and says so", async () => {
-    const settles: (() => void)[] = [];
-    failing.until = new Promise<void>((settle) => {
-      settles.push(settle);
-    });
+    const answer = held();
+    failing.until = answer.until;
     serve();
     const form = await openModification();
     await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
     await userEvent.click(within(form).getByRole("button", { name: "Annuler" }));
     const command = screen.getByRole("button", { name: "Modifier le projet" });
     expect(command).toHaveAttribute("aria-disabled", "true");
-    for (const settle of settles) {
-      settle();
-    }
+    answer.release();
     expect(await screen.findByRole("alert")).toHaveTextContent("Le service est injoignable");
     expect(command).not.toHaveAttribute("aria-disabled");
     await userEvent.click(command);

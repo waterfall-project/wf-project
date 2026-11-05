@@ -145,7 +145,7 @@ describe("the screen of the remaining to commit", () => {
       params: Promise.resolve({ projectId: PROJECT, revisionId: REVISION }),
     });
     expect(metadata.title).toBe(
-      "Estimate to complete · Modernisation du poste de commande — Waterfall",
+      "Remaining to commit · Modernisation du poste de commande — Waterfall",
     );
   });
 
@@ -207,13 +207,13 @@ describe("the screen of the remaining to commit", () => {
     expect(summary).toMatch(/Computed on <time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(summary)).toContain(
       "Remaining to commit 67,470,132.98 Margin on the reference budget -641,535.13 " +
-        "Deviation from the previous review -1,803,418.08 By nature of cost",
+        "Deviation from the previous review -1,803,418.08 By cost type",
     );
     // Each amount bears the one mark of a computed value.
-    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(7);
+    expect(summary.match(/aria-label="Computed"/g)).toHaveLength(8);
     expect(text(summary)).toContain("Débours: €57,634,670.39 (85.42%)");
     expect(text(summary)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
     );
   });
 
@@ -315,6 +315,13 @@ describe("the screen of the remaining to commit", () => {
     expect(calls).toContain("GET /reference/cost-categories");
   });
 
+  it("still hands the grid the lines of the answer, asking no kind, whatever the tasks beside them [WF-PLA-0080-A]", async () => {
+    await remainingAt();
+    expect(queryOf(NODES)).not.toHaveProperty("kinds");
+    const items = handed[0]?.nodes.items ?? [];
+    expect(items.some((row) => row.kind === "estimate_line")).toBe(true);
+  });
+
   it("hands the grid the sub-projects of the project, with their codes, when the structure lists the remaining to commit available", async () => {
     await remainingAt();
     expect(handed).toHaveLength(1);
@@ -385,5 +392,13 @@ describe("the screen of the remaining to commit", () => {
     expect(nodes?.path).toContain("/structures/01926f3a-7c00-7000-8000-000000000201/nodes");
     expect(page).not.toContain("Change the structure");
     expect(page).not.toContain("Avenant 2");
+  });
+});
+
+describe("the note of the fake back on the remaining to commit", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await remainingAt();
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
   });
 });

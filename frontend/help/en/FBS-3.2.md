@@ -13,7 +13,7 @@ Each table is searched and filtered by the server, and keeps its own height; the
 
 ## Its commands
 
-At the top of the screen, **Show the deactivated ones too** adds to the three tables the deactivated objects, and adds to them a filter of state; **Hide the deactivated ones** comes back from it. Offered to whoever may read the resource settings.
+At the top of the screen, **Show the deactivated ones too** adds to the three tables the deactivated objects, and adds to them a filter of state; **Hide the deactivated ones** comes back from it. Offered to whoever may modify the resource settings: the contract keeps the deactivated objects for that permission, and the screen does not ask them of whoever may only read.
 
 The commands that write are offered only to whoever may modify the resource settings; to the others, the screen is read only:
 

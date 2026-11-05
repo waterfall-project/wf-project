@@ -25,6 +25,11 @@
  * told again — save when its screen is `away` as the refusal arrives: left by « Précédent » or
  * « Suivant » for another path, and shown until the write answers, the router of Next waiting for it
  * when the write is awaited in a transition (`useHeldWrites`), it goes with what tells the refusal.
+ * Brought back to its path after the refusal and before the router showed the entry traversed to —
+ * « Suivant » pressed while the next page is read —, the screen never went and tells the refusal
+ * itself: the bar, which told it meanwhile, takes it back (`broughtBack`, #1476), the history of
+ * the messages noting it once, by the identity of its outcome. It is told twice in turn, the bar
+ * first, the screen after; never twice at once.
  *
  * Each refusal the bar tells is kept with what the write answered — its outcome, when it gave one —
  * and the screen it was made on, for the bar to note it in the history of the messages
@@ -67,6 +72,11 @@ const waits = new Set<Set<Held>>();
 
 /** The writes refused once released, told nowhere else: the bar of the shell tells them. */
 let leftRefused: readonly LeftRefusal[] = [];
+/**
+ * The refusals the bar tells only because their screen was away as they arrived: the `away` of
+ * their screen, and whether that screen, brought back, tells the refusal itself.
+ */
+const keptAway = new WeakMap<LeftRefusal, { away: () => boolean; tells: () => boolean }>();
 /** Those the count of the writes refused once released is told to. */
 const listeners = new Set<() => void>();
 
@@ -99,13 +109,32 @@ export function dismissLeftRefusals(): void {
 }
 
 /**
+ * The screen whose `away` is given is back on its path, never gone: the refusals the bar tells only
+ * because it was away as they arrived, and which it tells itself — the write held still, or what
+ * asked it telling it (`told`) —, are taken back from the bar (#1476).
+ */
+export function broughtBack(away: () => boolean): void {
+  const kept = leftRefused.filter((each) => {
+    const back = keptAway.get(each);
+    return back?.away !== away || !back.tells();
+  });
+  if (kept.length !== leftRefused.length) {
+    leftRefused = kept;
+    tellLeftRefusals();
+  }
+}
+
+/**
  * Hold the navigations of the page until a write has answered: whether it was applied, or its
  * outcome. Gives back its release, for the screen that made it to call when what tells its refusal
  * is no longer shown; refused after it, the write is kept among those the bar of the shell tells,
  * with the screen it was made on — unless `told` says, as the refusal arrives, that what asked the
  * write tells it itself. Refused while `away` says, as the refusal arrives, that its screen is left
  * and about to go with what tells it, the write is kept among them whatever `told` says, released
- * or not.
+ * or not — and taken back from them if its screen is brought back before it went (`broughtBack`).
+ * `told` is read only in the callbacks of `answered`, a promise derived from the write that settles a
+ * turn after it, so that what asked the write may set what `told` reads in its own `then`: a reading
+ * made at the resolution itself would come too early.
  */
 export function holdNavigation(
   write: Promise<WriteAnswer>,
@@ -131,21 +160,28 @@ export function holdNavigation(
     underWay.delete(held);
   });
   const answered = write.catch((): WriteAnswer => false);
-  // Kept once among the refusals the bar tells, whichever way it is found to be.
+  let isReleased = false;
+  // Whether the screen tells the refusal itself: the write held still, or what asked it telling it.
+  const tells = () => !isReleased || told?.() === true;
+  // Kept once among the refusals the bar tells, whichever way it is found to be; kept while its
+  // screen is away, it is taken back if the screen is brought back telling it.
   let kept = false;
-  const keep = (answer: WriteAnswer) => {
+  const keep = (answer: WriteAnswer, whileAway: boolean) => {
     if (kept || wasApplied(answer)) {
       return;
     }
     kept = true;
     const refusal = typeof answer === "boolean" || answer.kind === "done" ? undefined : answer;
-    leftRefused = [...leftRefused, { refusal, screen }];
+    const each: LeftRefusal = { refusal, screen };
+    if (whileAway && away !== undefined) {
+      keptAway.set(each, { away, tells });
+    }
+    leftRefused = [...leftRefused, each];
     tellLeftRefusals();
   };
-  let isReleased = false;
   void answered.then((answer) => {
     if (!isReleased && away?.() === true) {
-      keep(answer);
+      keep(answer, true);
     }
   });
   return () => {
@@ -153,8 +189,9 @@ export function holdNavigation(
       // Under way as it is released: refused after, it is told by the bar of the shell, unless what
       // asked it tells it still on a screen not left.
       void answered.then((answer) => {
-        if (away?.() === true || told?.() !== true) {
-          keep(answer);
+        const gone = away?.() === true;
+        if (gone || told?.() !== true) {
+          keep(answer, gone);
         }
       });
     }

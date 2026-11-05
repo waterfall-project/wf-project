@@ -440,23 +440,6 @@ describe("the tracker of background tasks", () => {
     },
   );
 
-  it("keeps a task interrupted for want of a session, and follows it on after a reload", async () => {
-    serve({ [TASK]: { problem: { code: "SESSION_EXPIRED", status: 401 } } });
-    const view = await started(task("task_mark_queued"), { subject: "V2" });
-    await tick();
-    expect(JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? "null")).toEqual([
-      { key: MARKING, task_id: MARKING, kind: "revision_mark", status: "queued", subject: "V2" },
-    ]);
-
-    // Signed in again, the user reloads the tab: the task is read anew, and its end announced.
-    view.unmount();
-    const client = serve({ [TASK]: "task_succeeded" });
-    render(shell(<Screen name="Planning" />));
-    await tick();
-    expect(reads(client)).toEqual([`/tasks/${MARKING}`]);
-    expect(ends()).toEqual([["Tâche terminée\u00A0: Marquage d’une révision «\u00A0V2\u00A0»."]]);
-  });
-
   it("leaves no alert of the API out of reach once the API refuses to say where the task stands", async () => {
     server.client = unreachable();
     await started(task("task_mark_queued"));

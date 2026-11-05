@@ -14,6 +14,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   type Problem,
   unreachable,
 } from "@/test/fixtures";
@@ -218,7 +219,7 @@ describe("a value of a grid the server computes", () => {
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
+        "Montant (année de réf.) ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
         "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
       ],
       rows: [],
@@ -241,9 +242,9 @@ describe("a value of a grid the server computes", () => {
     expect(await said()).toEqual({
       paragraphs: [
         "Valeur calculée",
-        "Fin ne se saisit pas : Waterfall calcule cette valeur.",
+        "Fin ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
         "Une tâche récapitulative tient ses dates, sa durée et son avancement de ses subordonnées.",
-        "Elle dépend de :",
+        "Elle dépend de\u00A0:",
       ],
       rows: [
         "2Études de détail",
@@ -256,7 +257,9 @@ describe("a value of a grid the server computes", () => {
     expect(asked(client)).toEqual([
       [`${STRUCTURE_PATH}/nodes/${studiesId}/dependencies`, "task.finish"],
     ]);
-    expect(within(refusal()).getByRole("list", { name: "Elle dépend de :" })).toBeInTheDocument();
+    expect(
+      within(refusal()).getByRole("list", { name: "Elle dépend de\u00A0:" }),
+    ).toBeInTheDocument();
     expect(cell("Études", FINISH)).toHaveAttribute("aria-expanded", "true");
     await expectAccessible(document.body);
   });
@@ -280,13 +283,8 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("says it is reading what the value depends on until the server answers, in one live region", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [DEPENDENCIES]: "dependencies_summary" },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [DEPENDENCIES]: "dependencies_summary" }, answer.until);
     renderGrid("planning");
     await userEvent.click(cell("Études", FINISH));
     const region = within(refusal()).getByRole("status");
@@ -295,7 +293,7 @@ describe("a value of a grid the server computes", () => {
     expect(region).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByRole("list")).toBeNull();
     await expectAccessible(document.body);
-    answer();
+    answer.release();
     // The same region, which now holds what the server said.
     expect(await within(region).findByRole("list")).toBeInTheDocument();
     expect(region).toHaveAttribute("aria-busy", "false");
@@ -350,12 +348,10 @@ describe("a value of a grid the server computes", () => {
   });
 
   it("asks afresh for a row read in another version, never showing the answer before", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
+    const answer = held();
     const client = serve(
       { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
+      answer.until,
       1,
     );
     const { rerender } = renderGrid("planning");
@@ -366,23 +362,18 @@ describe("a value of a grid the server computes", () => {
     rerender(planningOf(withSummaryChanged()));
     expect(within(refusal()).getByRole("status")).toHaveTextContent(PENDING);
     expect(within(refusal()).queryByText(/^Le montant d’une ligne de main-d’œuvre/)).toBeNull();
-    answer();
+    answer.release();
     expect(await within(refusal()).findByRole("list")).toBeInTheDocument();
     expect(asked(client)).toHaveLength(2);
   });
 
   it("drops an answer to a question changed meanwhile", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [DEPENDENCIES]: ["dependencies_labour", "dependencies_summary"] }, answer.until);
     const { rerender } = renderGrid("planning");
     await userEvent.click(cell("Études", FINISH));
     rerender(planningOf(withSummaryChanged()));
-    answer();
+    answer.release();
     const { paragraphs } = await said();
     expect(paragraphs).not.toContain(
       "Le montant d’une ligne de main-d’œuvre est le produit de sa quantité, de sa charge et du taux horaire de sa catégorie pour l’année de référence.",
@@ -437,7 +428,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell(provision, HOURS)).not.toHaveAttribute("aria-haspopup");
     await userEvent.click(cell(provision, QUANTITY));
     expect((await said()).paragraphs.slice(1)).toEqual([
-      "Qté ne se saisit pas : Waterfall calcule cette valeur.",
+      "Qté ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Une ligne de provision tient de son risque ses grandeurs — sa gravité pondérée par sa probabilité — et son sous-projet.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.quantity"]);
@@ -455,7 +446,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell("Borniers", CATEGORY)).not.toHaveAttribute("aria-haspopup");
     await userEvent.click(labour);
     expect((await said()).paragraphs.slice(1, 3)).toEqual([
-      "Catégorie ne se saisit pas : Waterfall calcule cette valeur.",
+      "Catégorie ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Le rôle d’une ligne de main-d’œuvre détermine sa catégorie de coût.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.cost_category_id"]);
@@ -475,7 +466,7 @@ describe("a value of a grid the server computes", () => {
     expect(cell("Raccordement des borniers", SUBPROJECT)).toHaveClass("bg-background");
     await userEvent.click(provision);
     expect((await said()).paragraphs[1]).toBe(
-      "Sous-projet ne se saisit pas : Waterfall calcule cette valeur.",
+      "Sous-projet ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
     );
     expect(asked(client).map(([, field]) => field)).toEqual(["estimate_line.subproject_id"]);
   });
@@ -497,7 +488,7 @@ describe("a value of a grid the server computes", () => {
     renderGrid("planning");
     await userEvent.click(cell("Pupitres opérateurs", FLOAT));
     expect((await said()).paragraphs.slice(1)).toEqual([
-      "Marge ne se saisit pas : Waterfall calcule cette valeur.",
+      "Marge ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
       "Une tâche en mode manuel ne porte pas de marge.",
     ]);
     expect(asked(client).map(([, field]) => field)).toEqual(["task.total_float"]);
@@ -561,7 +552,7 @@ describe("a value of a grid the server computes", () => {
     await userEvent.click(cell("Borniers", REFERENCE));
     expect([...refusal().querySelectorAll("p")].map((p) => p.textContent)).toEqual([
       "Valeur calculée",
-      "Montant (année de réf.) ne se saisit pas : Waterfall calcule cette valeur.",
+      "Montant (année de réf.) ne se saisit pas\u00A0: Waterfall calcule cette valeur.",
     ]);
   });
 

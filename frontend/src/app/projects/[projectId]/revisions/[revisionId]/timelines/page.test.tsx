@@ -181,7 +181,7 @@ describe("the screen of the timelines", () => {
     server.answers = { ...server.answers, "GET /projects/{project_id}": "project_completed" };
     const closed = await timelinesAt();
     expect(closed).not.toContain("New timeline");
-    expect(closed).not.toContain('role="note"');
+    expect(closed.match(/role="note"/g)).toHaveLength(1);
   });
 
   it("says a timeline holds no task of the revision read", async () => {

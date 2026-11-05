@@ -89,48 +89,65 @@ function slots(packs: WorkPackage[]): Slot[] {
   });
 }
 
+/** What a gesture sends: the work breakdown, the pointer of the element it adds or renames, its label. */
+export interface Edit {
+  readonly sent: BreakdownWrite;
+  /** The pointer of the element added or renamed; none for a deletion. */
+  readonly at: string | undefined;
+  /** The label of the element the gesture is about, as the reading holds it — not as a row shows it. */
+  readonly label: string;
+}
+
 /**
- * The work breakdown to send for a gesture made on a reading whole, from its counter, and the
- * pointer of the element added or renamed; none for a deletion, or for an element the reading no
- * longer holds.
+ * The work breakdown to send for a gesture made on a reading whole, from its counter; none when the
+ * element the gesture is about is not in that reading — a grid filtered, between the answer of a
+ * write and the page read anew —: nothing is then sent.
  */
 export function edited(
   from: WorkBreakdown,
   counter: number,
   gesture: Gesture,
   label: string,
-): { readonly sent: BreakdownWrite; readonly at: string | undefined } {
+): Edit | undefined {
   const packs = written(from);
+  const sent = { work_packages: packs, lock_version: counter };
   const find = (row: BreakdownRow) => slots(packs).find((slot) => slot.id === row.id);
-  let at: string | undefined;
   if (gesture.kind === "add") {
-    at =
-      gesture.parent === undefined
-        ? `/work_packages/${String(packs.push({ label, order_items: [] }) - 1)}`
-        : find(gesture.parent)?.add?.(label);
-  } else if (gesture.kind === "rename") {
-    const slot = find(gesture.row);
-    if (slot !== undefined) {
-      slot.element.label = label;
-      at = slot.pointer;
+    if (gesture.parent === undefined) {
+      return {
+        sent,
+        at: `/work_packages/${String(packs.push({ label, order_items: [] }) - 1)}`,
+        label,
+      };
     }
-  } else {
-    find(gesture.row)?.remove();
+    const at = find(gesture.parent)?.add?.(label);
+    return at === undefined ? undefined : { sent, at, label };
   }
-  return { sent: { work_packages: packs, lock_version: counter }, at };
+  const slot = find(gesture.row);
+  if (slot === undefined) {
+    return undefined;
+  }
+  if (gesture.kind === "rename") {
+    slot.element.label = label;
+    return { sent, at: slot.pointer, label };
+  }
+  const held = slot.element.label;
+  slot.remove();
+  return { sent, at: undefined, label: held };
 }
 
 /**
- * The element of what was sent a refusal by field points at — the deepest one whose pointer starts
- * it: `/work_packages/0/order_items/1/label` is the second order item of the first work package —,
- * by its kind, its label and its pointer; none for a field of no element (`/lock_version`).
+ * The element of what was sent a refusal by field points at — the deepest one whose pointer is the
+ * field's own or starts it: `/work_packages/0/order_items/1/label` is the second order item of the
+ * first work package —, by its kind, its label and its pointer; none for a field of no element
+ * (`/lock_version`).
  */
 export function elementAt(
   sent: BreakdownWrite,
   pointer: string,
 ): { readonly kind: BreakdownKind; readonly label: string; readonly pointer: string } | undefined {
-  const holding = slots(sent.work_packages).filter((slot) =>
-    pointer.startsWith(`${slot.pointer}/`),
+  const holding = slots(sent.work_packages).filter(
+    (slot) => pointer === slot.pointer || pointer.startsWith(`${slot.pointer}/`),
   );
   const deepest = holding.at(-1);
   return deepest === undefined

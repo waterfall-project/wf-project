@@ -6,19 +6,30 @@ import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { holdScripts, openHydrated, WORKING } from "./hydration";
 import { rowAt, scrollToPosition, withinBox } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The fake back serves the first example of `listNodes` whatever `kinds` asks — the structure of
 // the witness at the sizes of §4.6.2, its core first, a thousand tasks and their lines (#376) —:
-// its lines show here too, where the service renders the tasks alone — the component and page
-// tests prove that the planning asks for them. The journey reads the structure by marks the
-// generator writes, which `test_the_marks_the_journeys_read` (tools/tests/test_mockstructure.py)
-// holds: row 7, a task of the core completed off the critical path; row 311, started, which follows
-// row 291; row 39, a task of the critical path not started, which follows the factory acceptance of
-// row 13; row 14, a summary of the second level over the task of row 15, the last of its siblings,
-// before row 19 — where the fake back numbers the rows as it orders them.
+// the page keeps the tasks alone (`projectNodes`, #1397), as the service renders them, so that the
+// rows of the grid are the tasks, in the order of the fake back, and their row numbers (those of
+// the structure, lines counted) are no longer their positions. The journey reads the structure by
+// marks the generator writes, which `test_the_marks_the_journeys_read` holds, and by their ranks
+// among the tasks, which `test_the_ranks_among_the_tasks_the_planning_journeys_read` holds (both
+// in tools/tests/test_mockstructure.py): row 7, a task of the core completed off the critical
+// path; row 311, started, which follows row 291 — the 64th task; row 39, a task of the critical
+// path not started, which follows the factory acceptance of row 13 — the 20th; row 14, a summary of
+// the second level over the tasks of rows 15 and 17, the 11th and the 12th, before row 19 — the
+// 13th.
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const REVISION = "01926f3a-7c00-7000-8000-000000000102";
 const IN_REVISION = `/projects/${PROJECT}/revisions/${REVISION}`;
+
+/**
+ * The width the column of the names of the exported Gantt takes over the tasks of the fake back:
+ * the `namesWidth` of `gantt-image.ts` on them, which `gantt-image.test.ts` holds on the same rows.
+ * Only its link to the PNG exported is tried here, the rule of the width not being written twice.
+ */
+const NAMES_WIDTH = 252;
 
 test("opens the grid of the planning: its icons named, the critical path marked, the predecessors by row number, no header offering a sort [WF-IHM-0060-A]", async ({
   page,
@@ -49,10 +60,11 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(completed.getByRole("img", { name: "Terminée" })).toBeVisible();
   await expect(completed.getByRole("img", { name: "Chemin critique" })).toHaveCount(0);
   const at = await columnsOf(grid, { predecessors: "Prédécesseurs" });
-  // Row 39 is past the rows in view as the grid opens: scrolled to, so that it is checked in the
-  // window whatever the height of the grid, never in the margin the grid renders around it. The
-  // critical path, marked by its icon, whatever the colour.
-  const critical = await scrollToPosition(grid, 39);
+  // Row 39 is the 20th task (`test_the_ranks_among_the_tasks_the_planning_journeys_read`), and the
+  // grid renders only the rows in view and a margin around them: in a short grid the 20th lies
+  // past that margin as the grid opens, so it is scrolled to, and checked in the window. The
+  // critical path is marked by its icon, whatever the colour.
+  const critical = await scrollToPosition(grid, 20);
   await expect(critical).toHaveAccessibleName(/^39 .*Revue 1\.1\.3/);
   await expect(critical.getByRole("img", { name: "Tâche", exact: true })).toBeVisible();
   await expect(critical.getByRole("img", { name: "Automatique" })).toBeVisible();
@@ -61,7 +73,7 @@ test("opens the grid of the planning: its icons named, the critical path marked,
   await expect(critical.getByRole("gridcell").nth(at.predecessors)).toHaveText("13");
 
   // Further down, a task started, which follows another by its row number.
-  const follower = await scrollToPosition(grid, 311);
+  const follower = await scrollToPosition(grid, 64);
   await expect(follower).toHaveAccessibleName(/^311 .*Revue 1\.2\.11/);
   await expect(follower.getByRole("img", { name: "Démarrée" })).toBeVisible();
   await expect(follower.getByRole("gridcell").nth(at.predecessors)).toHaveText("291");
@@ -175,7 +187,7 @@ test("attaches the leaf under the task of « Lot 1 » to its post « Poste 1.1 �
   const cell = leaf.getByRole("gridcell").nth(at.attachment);
   await cell.click();
   await expect(cell).toBeFocused();
-  const sent = page.waitForRequest((request) => request.method() === "POST");
+  const sent = page.waitForRequest(isServerAction);
   await page.keyboard.press("P");
   const choice = page.getByRole("combobox", { name: "Rattachement" });
   await expect(choice).toHaveValue("01926f3a-7c00-7000-8000-000000000712");
@@ -193,7 +205,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   // Row 9, « Câblage des armoires », in automatic mode: the server names its start and its finish
   // among the fields it computes. Its label written, Tab goes along the cells it takes — the
   // description, the mode, the duration —, past its dates, to its attachment, the last; validated,
-  // that one places the cursor on row 10, at the label the row was started from. The fake back
+  // that one places the cursor on row 13, at the label the row was started from. The fake back
   // answers `updateTaskFacet` by its first example: the task of row 9 renamed. What each other cell
   // sends is proven on the examples by `planning-entry.dom.test.tsx`.
   await openHydrated(page, `${IN_REVISION}/planning`);
@@ -219,7 +231,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
   await cell(at.label).click();
   await page.keyboard.press("F2");
   await grid.getByRole("textbox", { name: "Libellé" }).fill("Câblage et repérage des armoires");
-  const sent = page.waitForRequest((request) => request.method() === "POST");
+  const sent = page.waitForRequest(isServerAction);
   await page.keyboard.press("Tab");
   await sent;
   for (const column of [at.description, at.mode, at.duration, at.predecessors, at.attachment]) {
@@ -227,7 +239,7 @@ test("enters the label of a task from the keyboard, traverses the dates its mode
     await page.keyboard.press("F2");
     await page.keyboard.press("Tab");
   }
-  const next = grid.getByRole("row", { name: /^10 / });
+  const next = grid.getByRole("row", { name: /^13 / });
   await expect(next.getByRole("gridcell").nth(at.label)).toBeFocused();
   await expect(
     grid.getByRole("row", { name: /^9 .*Câblage et repérage des armoires/ }),
@@ -256,7 +268,7 @@ test("enters a duration with its unit, then the predecessors « 13FD+2 j » of t
   await duration.click();
   await page.keyboard.press("F2");
   await grid.getByRole("textbox", { name: "Durée" }).fill("3 sem");
-  const durationSent = page.waitForRequest((request) => request.method() === "POST");
+  const durationSent = page.waitForRequest(isServerAction);
   await page.keyboard.press("Enter");
   await durationSent;
   // The duration is a task's own: its cell is entered, and the answer takes its place.
@@ -272,7 +284,7 @@ test("enters a duration with its unit, then the predecessors « 13FD+2 j » of t
   const field = grid.getByRole("textbox", { name: "Prédécesseurs" });
   await expect(field).toHaveValue("13");
   await field.fill("13FD+2 j");
-  const linksSent = page.waitForRequest((request) => request.method() === "POST");
+  const linksSent = page.waitForRequest(isServerAction);
   await page.keyboard.press("Enter");
   await linksSent;
   await expect(mounting.getByRole("gridcell").nth(at.predecessors)).toHaveText(/^13FD\+2\s*j$/);
@@ -378,7 +390,7 @@ test("draws the Gantt beside the grid, row for row, the critical path told in wo
   const completed = grid.getByRole("row", { name: /^7 .*Dossier de conception/ });
   const bar = completed.getByRole("gridcell").nth(at.gantt).getByRole("img");
   await expect(bar).toHaveAccessibleName("Du 09/04/2026 au 15/04/2026");
-  const critical = await scrollToPosition(grid, 39);
+  const critical = await scrollToPosition(grid, 20);
   const criticalBar = critical.getByRole("gridcell").nth(at.gantt).getByRole("img");
   await expect(criticalBar).toHaveAccessibleName("Du 01/07/2026 au 16/07/2026 — critique");
 
@@ -451,9 +463,9 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await summary.getByRole("gridcell").nth(at.label).getByRole("button", { name: "Plier" }).click();
   await expect(summary).toHaveAttribute("aria-expanded", "false");
   await expect(task).toHaveCount(0);
-  await expect(rowAt(grid, 15)).toHaveAccessibleName(/^19 .*Installation sur site/);
-  await expect(rowAt(grid, 15)).toHaveAttribute("aria-level", "1");
-  await expect(grid).not.toHaveAttribute("aria-rowcount", "6002");
+  await expect(rowAt(grid, 11)).toHaveAccessibleName(/^19 .*Installation sur site/);
+  await expect(rowAt(grid, 11)).toHaveAttribute("aria-level", "1");
+  await expect(grid).not.toHaveAttribute("aria-rowcount", "1002");
   const ganttOfSummary = summary.getByRole("gridcell").nth(at.gantt);
   await expect(ganttOfSummary.getByRole("img")).toBeVisible();
 
@@ -461,7 +473,7 @@ test("folds a summary in the grid and the Gantt follows, unfolds it from the Gan
   await ganttOfSummary.getByRole("button", { name: "Déplier" }).click();
   await expect(summary).toHaveAttribute("aria-expanded", "true");
   await expect(task.getByRole("gridcell").nth(at.gantt).getByRole("img")).toBeVisible();
-  await expect(grid).toHaveAttribute("aria-rowcount", "6002");
+  await expect(grid).toHaveAttribute("aria-rowcount", "1002");
 
   // By the keys of Microsoft Project, on the cell of the Gantt; kept for the session, read back
   // once the page is opened anew.
@@ -687,6 +699,9 @@ test("exports the Gantt as a PNG image over its whole extent at the level chosen
   await expect.poll(() => axisFrame(header)).toBeDefined();
   const drawing = await axisFrame(header);
   const [width, height] = await exported();
-  expect(width).toBe((drawing?.width ?? 0) + 32);
+  // The column of the names takes its room to the left of the bars (#1428): what the image is wider
+  // than the drawing and its margins is the width of the column of the names.
+  const names = width - ((drawing?.width ?? 0) + 32);
+  expect(names).toBe(NAMES_WIDTH);
   expect(height).toBe(fittedHeight + 24);
 });

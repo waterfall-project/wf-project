@@ -189,7 +189,7 @@ describe("the grid of the categories of cost", () => {
     const grid = screen.getByRole("grid", { name: "Catégories de coût" });
     expect(grid.querySelector("tfoot tr")?.textContent).toBe("200 catégories");
     expect(
-      screen.getByRole("searchbox", { name: "Rechercher dans « Catégories de coût »" }),
+      screen.getByRole("searchbox", { name: "Rechercher dans «\u00A0Catégories de coût\u00A0»" }),
     ).toBeInTheDocument();
     await expectAccessible(container);
   });

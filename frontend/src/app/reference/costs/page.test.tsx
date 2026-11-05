@@ -163,13 +163,20 @@ describe("the types of the natures the page hands the form of a category", () =>
     expect(handed().every).toBeUndefined();
   });
 
-  it("are the natures offered for a session that writes without reading the deactivated ones, which the contract would refuse it, and the page keeps its commands", async () => {
-    withdrawn.permissions = ["cost_settings.read"];
-    const page = await costsAt();
-    expect(queriesOf(TYPES)).toEqual([{}, WHOLE]);
-    expect(handed().every).toEqual(handed().natures);
-    expect(page).toContain("Nouvelle catégorie");
-    expect(page).toContain("Modifier « Sous-traitance »");
+  it("never ask the deactivated objects of a session that only reads the cost settings, which the contract keeps for the permission to modify them, nor offer to show them [WF-REF-0150-A]", async () => {
+    // `cost_settings.read` without `cost_settings.write`: the fake back would answer the deactivated
+    // ones whatever the permission, so the request of the page is what is proved.
+    withdrawn.permissions = ["cost_settings.write"];
+    const page = await costsAt({ include_inactive: "true" });
+    for (const route of [TYPES, "GET /reference/cost-categories", "GET /reference/hourly-rates"]) {
+      const queries = queriesOf(route);
+      expect(queries.length).toBeGreaterThan(0);
+      expect(
+        queries.every((query) => !("include_inactive" in query) && !("is_active" in query)),
+      ).toBe(true);
+    }
+    expect(page).not.toContain("désactivés");
+    expect(page).not.toContain("Nouvelle catégorie");
   });
 });
 

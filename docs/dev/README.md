@@ -359,8 +359,16 @@ response — here the write awaited in `startTransition(async …)`. The screen 
 displayed until the response, and a write refused while it is left for another path — made before
 the traversal or after — goes to the bar, even when what requested it says it still says it
 (`told`), since it goes away with the screen (`away` of `holdNavigation`, `useHeldWrites`); brought
-back to its path before the refusal, the screen says it itself. This holds as long as the router
-keeps this order, perhaps an upstream defect. A write still under way when
+back to its path before the refusal, the screen says it itself. Brought back after the refusal,
+before the router has shown the entry traversed to — « Forward » pressed while it reads it —, the
+screen, which never left, says it too, and the bar takes back what it said of it (`broughtBack`,
+#1476): the refusal is said twice, one after the other, never at the same time, and noted once in
+the message history, by the identity of its response — for a refusal carried by an `outcome`; a
+boolean response has no identity, and the history notes it apart from what the screen says of it.
+Until its response, the write awaited in the
+transition still holds the clicks: the screen left by « Back », still displayed, releases it only
+as it leaves. This holds as long as the router keeps this order, perhaps an upstream defect. A
+write still under way when
 its screen goes away, and refused afterwards, is said by no screen: the bar of the shell, which
 outlives each of them, says it by a notice one closes (`LeftRefusals`, `refusedLeft` of
 `held-writes.ts`, #863), and records it in the message history with its refusal and the screen it
@@ -542,8 +550,9 @@ EP-14/L42p, the active risk provision category (`active_provision_category`) inc
 to the cost settings, as the `REFERENCE_INCOMPLETE` refusal names them under the form; the form
 takes what `ProjectCreate` takes — the label, required (WF-PRJ-0080), the code, which may wait for
 the order (WF-PRJ-0010), the description — and leads to the screen of the project the server
-created, which the fake back serves in the guise of the witness, as long as the home page is still
-shown: a response that arrives after one has left it does not replace the chosen navigation. A
+created, which the fake back serves at its own address, with its own examples — the project
+« created », with no revision —, as long as the home page is still shown: a response that arrives
+after one has left it does not replace the chosen navigation. A
 response that arrives after « Cancel », the dialog closed but the home page still shown, leads
 there all the same: it is the only way to say the success, which the simulated list does not show,
 and closed during the wait, the dialog silences nothing. The project settings present its identity
@@ -858,7 +867,8 @@ that list know none of them, and a column hidden by default is hidden there
 (`docs/api/DECISIONS.md`). A grid keeps in the account its sort and its columns — those it hides,
 and their widths —, never its page (rule validated by the author on 2026-10-09). Its filters, a
 grid that declares them (`GridConfig.filters`) keeps them as a preference, as the criterion of
-US-0380, which is authoritative, wants (#836, confirmation of the author to come): they are found
+US-0380, which is authoritative, wants (#836, confirmed by the author on
+2026-10-11): they are found
 again at the opening of an address that says nothing of the grid; the page and the filters of an
 address that says them live in the address. Any other grid keeps no filter. A column or a width
 is written after a pause, with the sort kept as is; what is waiting leaves when the page is left
@@ -1041,7 +1051,7 @@ created by their name and the timeline shown is deleted after confirmation, as t
 `manage_timelines` (`timeline-commands.tsx`, EP-14/L44c). The server selects what each one draws
 (#463): the tree asks for the summary tasks down to the level of the address (`summaries_only`,
 `max_level`), a timeline the tasks inscribed in it (`timeline_id`). The fake back ignoring these
-filters, each one applies the same criterion again to the response (`summaryTree`,
+filters ("What the fake back does not do"), each one applies the same criterion again to the response (`summaryTree`,
 `inscribedTo`): an idempotent filter, which changes nothing against a server that honours them, a
 temporary gap of EP-02 removed with the back of EP-03. The tree offers exactly the levels the
 structure has, from the first to that of its deepest summary task, which the server says whatever
@@ -1129,7 +1139,13 @@ take, and says that it restricts only the grid, its indicators being those of th
 function, `…/revisions/[r]/kanban`, where the header of the grid leads: all the non-started tasks,
 the started and the completed ones with their date, as `listStartableTasks` renders them, each a
 card, a non-started milestone whose predecessors are completed flagged to be completed
-(`predecessors_completed`, a text and an icon); no percentage. The page cuts out the cards
+(`predecessors_completed`, a text and an icon), and any non-started task whose predecessors are
+completed flagged "ready to start" in the same way; no percentage. Two filters, which live in the
+address alone (`q`, the label, regardless of case and accents; `ready`, `1`), are read through
+`remaining/address.ts` and written through `router.replace`: `Kanban` filters what the server
+renders (`kanban-filter.ts`) — the label in the three columns, the ready tasks in the Not started
+column alone —, the header of a column with hidden cards says "n of N", and a chosen card that a
+filter hides loses the choice. The page cuts out the cards
 (`kanban-cards.ts`: what the card shows and its gestures, never the whole node of a thousand
 tasks) and reads the main structure of the revision (`listCostStructures`), where the gestures are
 written. A card is chosen by click or by the arrows (up and down within the column, left and right
@@ -1291,7 +1307,7 @@ grid, or to the list —, and only as long as the list reads as at the moment of
 parameters it reads (`listReads`), the sort of another list of the screen not counting there. In a
 grid, the command is out of the tabbing, and Enter on its cell presses it (`CELL_COMMAND`,
 `grid-keyboard.ts`). The fake back ignoring the filters, the pages and `include_inactive`, and
-keeping nothing, the tests test what the screen asks for; the service will honour it in EP-05.
+keeping nothing ("What the fake back does not do"), the tests test what the screen asks for; the service will honour it in EP-05.
 
 ### Cost settings: types and categories
 
@@ -1381,10 +1397,12 @@ against the fake back, which keeps nothing, it therefore survives the re-reads �
 no row, the re-read page files it where the server retains it. What a write did is said in the
 region of its list (« “Disbursement” deactivated. »); the refusal of an activation, above the list
 like that of a reactivation (`useListReport`). The fake back keeping nothing, the screen says so
-under its header, for whoever writes — a written row remaining shown as the server rendered it as
-long as the screen stays open — (`MockupNotice`, `components/shell/mockup-notice.tsx`, to be taken
-up by each screen of the mockup whose commands write, removed when the screen is plugged into the
-service of its epic). The entry of a rate remains that of the grid.
+under its header, for whoever writes — the note, with that of the lists, fits in 150 characters at
+most, so that the totals of a grid stay in the window, and does not say that a written row remains
+shown as the server rendered it as long as the screen stays open — (`MockupNotice`,
+`components/shell/mockup-notice.tsx`, to be taken up by each screen of the mockup whose commands
+write, removed when the screen is plugged into the service of its epic). The entry of a rate remains
+that of the grid.
 
 The mapping of the actual costs extraction (US-0620/L2, WF-REF-0190, FBS-3.1.3) has its page,
 `/reference/costs/actual-cost-mapping`, which the header of the cost settings offers through
@@ -1739,13 +1757,15 @@ without it like an address that leads nowhere (WF-ADM-0110). It presents a page 
 `audit_log` key): the date, in local time, the author, the action and, under it, what it did to its
 object — composed by the front in the language of the reader from the codes and the parameters the
 entry keeps (`AuditEvent.params`, `useAuditDetails`), the API returning no sentence (WF-ARC-0110);
-a second line of the action cell, which sorts by the code of the action, never a column of its own,
-which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a backup,
-which has none, by its nature, never by its identifier —, the project and the correlation, each as
-the entry keeps it, and a link to the history of the object — the log filtered on its nature and
-its identifier, its whole history: the other filters and the search lifted, the sort kept —, the
-correlation leading likewise to the entries of its request alone. The server sorts on every column
-(#550), in both directions. The most recent first when the address says nothing, and the sort is
+a second line in the action cell, which sorts by the code of the action — never a column of its
+own, which the server would not sort (WF-IHM-0060) —, the nature and the label of the object — a
+backup, which has none, by its nature, never by its identifier —, the project and the correlation,
+each as the entry keeps it, and a link to the history of the object — the log filtered on its
+nature and its identifier, its whole history: the other filters and the search lifted, the sort
+kept —, the correlation leading likewise to the entries of its request alone. The `title` of the
+action cell is posed only if the text is cut short there, and it then carries the instant of the
+backup restored; the second line also says a role change with no change. The server sorts on every
+column (#550), in both directions. The most recent first when the address says nothing, and the sort is
 never lifted (`GridConfig.lifts`): the header of the date asks for descending first
 (`GridColumn.descendingFirst`), and thus brings back, from another sort, to the default order. An
 object only leads to its own screen if the session reads its function — the risks, the planning
@@ -1763,7 +1783,9 @@ auditor without `users.read` filters by author) — without an author to choose 
 the author filter is not offered —, the actions in a menu, the nature of the object, the object
 whose history the address asks for, named and lifted, and the correlation, entered (`TextFilter`);
 an author or a project the address names without any choice offering it stays chosen under the
-name the entries give it. The project and the object are links where the session can consult
+name the entries give it, and an author that no line read names is read by `getUser`, at most once,
+and named as everywhere (`naming.person`), never by its identifier (#1010). The project and the
+object are links where the session can consult
 them — a project it can open (`listProjects`, all states; none when the API does not find the list
 of projects, which the service only serves from EP-04 on, a tolerance of the 404 that #962 then
 removes) —: the project, a revision of such a project, and an object that lives in a revision,
@@ -2598,6 +2620,18 @@ The fake back serves readings. It keeps no state: a created project does not app
 the next list. It serves the front lots that precede their back lot and the tests of the
 front that only read, never to put a write to the proof.
 
+### What the fake back does not do
+
+Prism renders the first example of the operation whatever the request: it reads no parameter. On a
+screen of `make dev` it therefore applies no filter, no search, no sort, no pagination (`limit` and
+`offset` are sent, but the bar is computed on the `meta` of the example, which concludes to a single
+page), no `kinds`, no `fields`, no `include_inactive` — and it keeps nothing. A screen that depends
+on them is badly judged on the mock-up (#1399): judging these gestures falls to the front tests,
+which test the request the screen makes, and to the service. The screens of lists and grids say it
+through `MockupNotice` with `lists` (`mockup.notFiltered`), in a single note under the header. The
+screens whose service is delivered (administration, EP-03) do not show the note, even though
+`make dev` serves them through Prism and the same limits apply.
+
 _Checks_: `make lint-openapi` (examples conforming to the schemas, volumes included),
 `make mock-data-up-to-date` (the versioned volumes are those the tool writes, in the
 contract family, which `fixtures/api/` wakes like the contract), `make lint-compose`.
@@ -3417,7 +3451,10 @@ beyond the lines in view at opening, the path scrolls to it (`scrollToPosition`,
 `frontend/e2e/scroll.ts`) rather than counting on the margin the grid renders around the
 viewport.
 
-`make e2e`: Playwright starts the fake back (`make mock`) and the front, plays the paths
+`make e2e`: `make mock-tools` first caches the pinned Redocly and Prism (their installation by
+`npx` counted in the 120 s Playwright gives the fake back, #1901) — so do `make e2e-measure` and
+`make e2e-service`, for which Playwright also starts the fake back; Playwright starts the fake back
+(`make mock`) and the front, plays the paths
 in Chromium, then stops both — it signals their whole process group, without which
 the servers that `make` and `pnpm` start would survive. It always starts its own
 servers, on ports of its own — those of the slot of the worktree (« Commands », « The slots of
@@ -3682,6 +3719,17 @@ and which requires `WATERFALL_API_ADDRESS`; absent, everything, without the path
 it, Playwright would not know how to distribute the paths: the measurement, which waits for all of them, would
 drag them all into each shard.
 
+The `measure` project also measures what leaving a grid of a thousand tasks costs the browser
+(`frontend/e2e/departure.spec.ts`, US-0800): the planning, opened hydrated and settled, left for
+the screen of the revisions by the link of the navigation, the processor of the page slowed four
+times, the slowdown under which #1218 had measured this departure. The work is that of the main
+thread of the page, which Chromium counts itself (`Performance.getMetrics`), from the click to the
+screen reached, less Playwright's; it breaks down into script, styles, layout and native work.
+Five departures are measured after one that is not, and their median must hold under one second:
+it fails the path, with a margin of five to one on a workstation, where the opening measures what
+it measures in the chain. The files of the project play one after the other (`workers: 1`): each
+would weigh on what the other measures.
+
 The witness path — list of projects, project, grid — goes through three minimal pages,
 with no text of their own, which EP-02 replaces while keeping the path. They read the API on the
 server side (`frontend/src/api/server.ts`); their unit tests receive the examples of the
@@ -3696,10 +3744,11 @@ with these screens and with the pages that only redirect (`REDIRECTS`): a page a
 makes it fail, as does a page of `REDIRECTS` that does not only redirect, or a route that
 intercepts another. Each screen is opened by its address in a 1366 × 768 point window,
 hydrated (`untilHydrated`, which waits for the keys React sets on each element the
-keyboard reaches), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
+keyboard reaches — those the walk reaches, one selector, `REACHABLE`, shared with the probe of the
+focus), then shrinks to 911 × 512 — what a 150 % zoom leaves of 1366 points, the
 page laid out again as the browser lays it out again when zooming; a device scale
-factor would change the pixels, not the layout. Three tests per screen each check the
-two widths:
+factor would change the pixels, not the layout. Three checks per screen, each played in light
+mode and in dark mode (`colorScheme`) — six tests —, each bear on the two widths:
 
 - the axe rules for WCAG A and AA (`axeAudit`, `frontend/e2e/axe.ts`) — axe is not WCAG —,
   contrast included, once in light mode and once in dark mode (`colorScheme`), each test
@@ -3709,13 +3758,18 @@ two widths:
   deviation, its colours stated; what axe leaves unmeasured (`unmeasured`), the test notes in an
   annotation, reason by reason (`elmPartiallyObscured`, `bgOverlap`…), the curve figures apart — a lone character
   whose colours axe did not measure counts there under its brevity, axe writing it over the reason
-  that prevented it from measuring. In light mode, the
+  that prevented it from measuring. What the other rules leave « incomplete » — a target too
+  small, a link in a text axe cannot judge… — is noted likewise, rule by rule, without a verdict
+  (`undecided`, #784). In light mode, the
   rules of field labels and image descriptions — `label`, `image-alt` and their
   relatives — are stated apart;
 - the keyboard walk (`walkByTab`, `frontend/e2e/tab-walk.ts`, the in-page measurement by
-  `frontend/e2e/focus-probe.ts`): at 1366 points, Tab from the top of the page, at 911 points from
+  `frontend/e2e/focus-probe.ts`), in both modes, the focus indicator painted in each (#784): at
+  1366 points, Tab from the top of the page, at 911 points from
   where the first walk stopped, each time until the return to the first element reached.
-  Each element reached is seen — displayed, not transparent, and the middle of what remains of it, clipped
+  Each element reached is seen — displayed, not transparent, and the middle of what remains of it —
+  of its first box, for a link wrapped over two lines, whose bounding box has its middle between
+  the two (#784) —, clipped
   by the viewport and by the padding box of each box that clips it along its containing
   blocks, is the element itself: nothing that paints is drawn over it, a layer the
   pointer passes through included —, and nothing else takes the pointer there, a transparent layer that
@@ -3733,8 +3787,9 @@ two widths:
   may lie entirely beyond the edge of a box that hides what overflows it, which the
   browser scrolls on focus but the pointer does not reach — a box the user
   scrolls is never an edge: what it hides, it shows by scrolling, and it is the box that
-  must be within the boxes around it; what it shows is still judged against them; no link or button is taken out of
-  the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
+  must be within the boxes around it; what it shows is still judged against them; no link or button — nor anything
+  that states its role, or that of a checkbox (`[role=button]`, `link`, `checkbox`) — is taken out
+  of the keyboard order outside such a widget. Finally, everything Tab reaches at 1366 points, it
   still reaches at 911 (`lost`). To see what paints over an element, the walk makes
   only the elements that do not take the pointer, and whose box touches that of the element or of one of its
   children, take it for the time of the measurement — each point the measurement asks the
@@ -3759,11 +3814,33 @@ two widths:
   batch reach neither the listeners the page set after the probe nor the focus, so that the focus is
   back on the first element when the next walk starts; what the page measured beyond a trap is not
   read, nor counted in what Tab did not reach. The count of reached elements and of traps stays on
-  the test's side. The walk, and it alone, keeps its trace without DOM snapshots
+  the test's side. The tests that walk by Tab — the screen, and what a gesture opens —, and they alone, keep their trace without DOM snapshots
   (`withoutSnapshots`): a snapshot per key weighed more than the walk itself under load (#1540), and
   its faults are read in its findings. `test.use({ trace })` does not apply to a single test — a
   group refuses an option that forces a new worker: the test restarts the trace the harness opened,
-  with the same options, without the snapshots.
+  with the same options, without the snapshots;
+- what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a dialog
+  or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a dialog and
+  each trigger of a menu sets —, displayed and enabled, receive the focus and Enter; those of the
+  shell — project, account, tasks, help: everything outside `main`, and the button of the help,
+  which `data-shell` marks — are played on the screen of reference alone, the list of the revisions
+  of a project (US-1220, #1840): they are the same on each screen, and replaying them cost 38 to 67%
+  of the critical path of the chain; the first enterable cell of each grid — a cell of `DenseGrid`,
+  which `data-column` places and nothing states read only (`aria-readonly`) — receives the focus and
+  F2. An open dialog is walked by Tab bounded to it (`walkByTab(page, dialog)`): what Tab can reach,
+  the widgets and the edges are judged in the dialog alone, the return to its first element is the
+  trap it wants — a dialog of a single element keeps it —, and any element reached outside it is a
+  fault (`escaped`). A menu moves the focus with the arrows and an editor validates on Tab: the test
+  checks there that the focus entered. What opened is then audited by axe — the cell, for an editor
+  —, and the rest of the page by the one rule whose verdict outside it the opening changes
+  (`aria-hidden-focus`: a menu or a modal dialog hides the page from a screen reader); the whole
+  page, which its own audit judges, is not audited again at each opening, which exceeded the timeout
+  of a test on the Kanban and the reference data, eight seconds an audit. Then Escape closes it and
+  the focus comes back to the trigger, or to the cell — the one holding the trigger, for a command
+  of a grid row. The triggers are discovered at each width and played one after the other in a
+  single test per screen and per mode, each check stated apart, named by the trigger and the width
+  (`expect.soft`); a command a grid repeats from row to row is played for the first row only, and a
+  failing check reopens the screen before the next trigger.
 
 `frontend/e2e/tab-walk.spec.ts` and `frontend/e2e/axe.spec.ts` exercise the walk and the axe audit
 themselves, on pages written for them (`page.setContent`): each defect they must
@@ -3776,12 +3853,40 @@ on a loaded workstation; the cold compilation of a screen adds to this time only
 `E2E_DEV_SERVER=1`, the built front having none. A reported deviation is fixed in the screen, never by setting aside a
 rule.
 
-The harness checks only the screens as they open: what a gesture opens — a dialog,
-a menu, the refusal of a cell, the editor of a cell — is not walked, nor what a
-closed `details` contains, nor a state a gesture reaches (a refusal, `?import=`); axe does not judge the
-contrast of a text laid on the drawing of a curve, and the contrast of the focus indicator
-(WCAG 1.4.11) is measured only by the tokens of `contrast.test.ts`. What covers them elsewhere, and
-what remains, is stated in the note of US-0200 (EP-14) and in #782.
+What the harness does not prove, and what covers it elsewhere (US-0200, US-0710; the note of
+US-0200 in the file of EP-14 says it too):
+
+- what a gesture opens without a trigger the harness plays: the Popover of a refusal — of a
+  computed cell, or of a refused write —, which opens only once the server has refused; a menu or a
+  dialog opened from a menu — the menu of a cell (Shift+F10), and the dialogs it opens, the
+  insertion of a task for instance —; the paste of a block, opened by Ctrl+V; the dialogs a gesture
+  opens without a button — `TimelineForm` and `GestureDialog` of `structure-gestures.tsx` —, which
+  the harness does not find for want of a command saying `aria-haspopup="dialog"`: the test
+  `dialog-command-guard.test.ts` exempts them from the rule and names them (each entry with its
+  reason), and fails any other source that renders more dialogs driven by a state than it has
+  commands saying so. The component tests hold them (`expectAccessible`, axe under happy-dom,
+  without contrast nor layout; the focus Radix gives back);
+- the shell on each screen: its menus and dialogs (project, account, tasks, help) are played only on
+  the list of the revisions of a project, in light and dark mode, at both widths (US-1220); a fault
+  specific to the shell of another screen — a header the page changes — would show only in its axe
+  audit and its walk by Tab, which are played on each screen;
+- the list or the popover a cell editor would render in a portal outside the cell: the audit of an
+  editor covers the cell, and no editor today renders one;
+- the content of a closed `details` — the table of the values of a curve — and a state a gesture
+  reaches — a refusal shown, an address `?import=` —: the harness opens each screen at its address,
+  and plays only the triggers there;
+- the failure screen (`error.tsx`, `global-error.tsx`), which no address opens: only its tests
+  render it (`system-pages.test.tsx`, and `expectAccessible` in `system.dom.test.tsx`);
+- in a widget that moves the focus itself, only the entry is checked: reaching each of its elements
+  with the arrows stays with the component tests (#784);
+- the texts axe does not measure: laid on the drawing of a curve, of the Gantt or of a timeline —
+  images for axe —, partly outside the box that scrolls them, under another; the test counts them in
+  an annotation, reason by reason, but that count is compared to nothing: a text that becomes
+  unmeasurable changes no verdict (#784). The placeholder texts of the fields (`placeholder`, the
+  search of the top bar and that of a grid) are not judged by axe: only the pair of tokens
+  `muted-foreground`/`background` of `contrast.test.ts` covers them;
+- the contrast of the focus indicator (WCAG 1.4.11), measured only by the tokens of
+  `contrast.test.ts`, not on the screens.
 
 _Check_: `make e2e`, at the full tier of the chain; the failure of a path makes it
 fail, a grid opening that exceeds the second is only a warning there.
@@ -4189,8 +4294,8 @@ the colours of an SVG, any literal or template without an expression other than 
 that no stylesheet lives outside `src/theme/`. `make test-front` —
 `contrast.test.ts` measures each pair of tokens in both modes, `brand.test.ts`
 compares the logos and the icon with those of `docs/assets`. The contrast of the rendered screens is
-checked in the browser, on each screen of the table, in light and in dark
-(`frontend/e2e/accessibility.spec.ts`, US-0200); the rest of the accessibility of a component, in its
+checked in the browser, on each screen of the application and on what a gesture opens there, in
+light and in dark (`frontend/e2e/accessibility.spec.ts`, US-0200, US-0710); the rest of the accessibility of a component, in its
 tests, through `expectAccessible` (`frontend/src/test/axe.ts`, axe-core under happy-dom, which does not
 compute colours). Left to the review: a colour built by a template with expressions
 or by a function, and a `style` or an SVG attribute that receives a variable rather than an

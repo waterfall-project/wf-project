@@ -2,13 +2,24 @@
 
 ## What the screen shows
 
-A leaf of the [estimate to complete](FBS-4.5.md), reached from its header, in the same context: the view through which the project manager declares that a task has begun. This gesture has no other effect than exposing the lines of the task to the re-estimation, in the remaining to commit grid of the same revision; a task that bears lines may also be re-estimated there even before it starts, by **Enter the remaining to commit**. A task is started or it is not: no percentage is shown nor entered.
+A leaf of the [remaining to commit](FBS-4.5.md), reached from its header, in the same context: the view through which the project manager declares that a task has begun. This gesture has no other effect than exposing the lines of the task to the re-estimation, in the remaining to commit grid of the same revision; a task that bears lines may also be re-estimated there even before it starts, by **Enter the remaining to commit**. A task is started or it is not: no percentage is shown nor entered.
 
 Three columns, in the order the server gives: **Not started**, **Started**, **Completed**. Each task of the main structure of the current revision is a card: its row number and its label, its finish, and **Finish overdue** when it precedes the date of calculation; completed, the date it was completed on. A milestone not started all of whose predecessors are completed bears “milestone to complete”, by a text and an icon, to invite completing it: nothing completes by itself.
 
 The Kanban reads the draft revision, whatever the revision of the context: on a marked revision, which has no task to start, it says so and shows nothing.
 
+A task not started all of whose predecessors are completed bears **Ready to start**, by an icon and a text, whether a filter is active or not; on a milestone, it comes beside “milestone to complete”. The server says which tasks are ready: the screen does not compute it.
+
+A started summary task whose subordinates are all completed, and one of whose own lines outside provisions still holds a remaining to commit, bears **Own lines open**, by an icon and a text: it waits only for its own lines. The server says it of the task; the screen does not deduce it from its subordinates, and a provision never makes it say so.
+
 ## Its commands
+
+**Finding a task.** Two filters, above the columns, write the address of the screen — they are kept in no preference nor session, and a copied page carries them:
+
+- **Search a task**: the label, whatever the case and the accents, in the three columns at once; `Enter` applies it, an emptied field lifts the filter.
+- **Ready tasks**: in the Not started column alone, keeps the tasks ready to start; the Started and Completed columns do not change.
+
+When a filter hides cards, the header of the column says how many are shown, “4 of 12”, which screen readers read too. A chosen card that a filter hides is no longer chosen: `Tab` goes back to the first card shown of its column.
 
 Each card makes the gestures its task offers, and only those, through its menu, by dragging it to a column, or with the keyboard:
 
@@ -33,6 +44,6 @@ The columns are the states of the task, as the server gives them: the screen ded
 
 ## See also
 
-- [The estimate to complete](FBS-4.5.md) and [the remaining to commit grid](FBS-4.5.2.md), where the lines of the tasks are re-estimated, started or not;
+- [The remaining to commit](FBS-4.5.md) and [the remaining to commit grid](FBS-4.5.2.md), where the lines of the tasks are re-estimated, started or not;
 - [the planning grid](FBS-4.3.2.md), where the dates of start and of completion are read;
 - the notion: [the remaining to commit](notions/reste-a-engager.md).

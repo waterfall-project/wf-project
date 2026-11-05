@@ -1224,20 +1224,40 @@ lui-même un conteneur qui défile, Safari non. Le parcours au clavier n'a relev
 à 911 points. Le guide (« Un parcours de bout en bout ») et les règles TypeScript (« Accessibilité »)
 disent le harnais et la règle des listes.
 
-Ce que les tests ne prouvent pas. Le harnais contrôle chaque écran tel qu'il s'ouvre, et rien de ce
-qu'un geste y ouvre : les dialogues, les menus, le Popover d'un refus et l'éditeur d'une cellule ne
-sont pas parcourus ; le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — n'est pas
-contrôlé ; un état qu'un geste atteint, un refus, une adresse `?import=`, non plus. Axe ne mesure pas
-le contraste d'un texte qu'il ne sait pas situer — posé sur le dessin d'une courbe, en partie hors de
-la boîte qui le fait défiler, sous un autre — : le test de ses règles le note en annotation, raison
-par raison, les figures de courbe à part, et un caractère seul dont il n'a pas mesuré les couleurs y
-compte sous sa brièveté, non comme un écart. Le contraste de l'indicateur du focus (WCAG 1.4.11)
-n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Ce qui les couvre
-ailleurs : `expectAccessible`, axe sous happy-dom sans le contraste, dans 58 fichiers de tests de
-composants, dont 21 ouvrent un dialogue ou un menu ; les jetons de la charte, mesurés deux à deux par
+Ce que les tests ne prouvent pas (réécrit par EP-17, US-0710/L1, #782, #784). L'écart des
+dialogues, des menus et des éditeurs est levé : le harnais ouvre sur chaque écran chaque déclencheur
+d'un dialogue ou d'un menu par Entrée, et l'éditeur de la première cellule saisissable de chaque
+grille par F2, parcourt un dialogue au Tab borné à lui, l'audite par axe — ce qui s'est ouvert, et sur le
+reste de la page la seule règle `aria-hidden-focus`, non la page entière, que son audit juge —, la referme
+par Échap et attend le focus sur le déclencheur ou la cellule, en clair et en sombre, aux deux
+largeurs ; le parcours au Tab de l'écran joue lui aussi dans les deux modes (guide, « Un parcours de
+bout en bout »). Restent hors du harnais : le Popover d'un refus, qui ne s'ouvre qu'une fois le
+serveur a refusé ; un menu ou un dialogue ouvert depuis un menu — le menu d'une cellule et ce qu'il
+ouvre — et les dialogues qu'un geste ouvre sans bouton — `TimelineForm` et `GestureDialog` de
+`structure-gestures.tsx`, le collage d'un bloc par Ctrl+V : un test de garde fait échouer toute commande
+d'un dialogue qui ne dit pas `aria-haspopup="dialog"` hors de cette liste ; le contenu d'un `details` fermé — le tableau
+des valeurs d'une courbe — et un état qu'un geste atteint — un refus affiché, une adresse
+`?import=` — ; l'écran de panne (`error.tsx`, `global-error.tsx`), qu'aucune adresse n'ouvre. Dans un
+widget qui déplace lui-même le focus, seule l'entrée est vérifiée : atteindre chacun de ses éléments
+aux flèches reste aux tests de composants. Axe ne mesure pas le contraste d'un texte qu'il ne sait
+pas situer — posé sur le dessin d'une courbe, du Gantt ou d'une chronologie, qu'il prend pour une
+image, en partie hors de la boîte qui le fait défiler, sous un autre — : le test de ses règles le
+note en annotation, raison par raison, les figures de courbe à part, et un caractère seul dont il
+n'a pas mesuré les couleurs y compte sous sa brièveté, non comme un écart ; ce compte n'est comparé
+à rien, et un texte qui devient non mesurable ne change aucun verdict. Ce que les autres règles
+laissent « incomplet » est noté de même, sans verdict. Les textes indicatifs des champs
+(`placeholder`) ne sont pas jugés par axe : seule la paire de jetons
+`muted-foreground`/`background` les couvre. Le contraste de l'indicateur du focus (WCAG 1.4.11)
+n'est mesuré que par les jetons de `contrast.test.ts`, pas sur les écrans. Le contour en pointillé
+d'une cellule refusée dont le focus est posé (`invalidRing`, #819, point 1, US-0710/L2) n'est tenu que
+par la classe qu'un test DOM lit : aucun parcours de bout en bout ne porte une cellule refusée par le
+serveur dont le focus est posé — le refus d'un numéro de prédécesseur se rend au niveau de l'éditeur, et
+Échap l'efface avec la cellule —, et happy-dom ne calcule pas `outline-style`. Ce qui les couvre ailleurs : `expectAccessible`,
+axe sous happy-dom sans le contraste, dans 57 fichiers de tests de composants à la livraison
+d'EP-14 — le 58e qui l'appelle est le test de l'outil lui-même, `src/test/axe.dom.test.tsx` —, dont
+21 ouvrent un dialogue ou un menu ; les jetons de la charte, mesurés deux à deux par
 `contrast.test.ts`, les séries des courbes et l'anneau du focus compris ; Radix et les tests de
-composants pour le focus qu'un dialogue ou un menu rend en se fermant. Les dialogues, les menus et les
-éditeurs hors du harnais sont suivis par #782.
+composants pour le focus qu'un dialogue ou un menu rend en se fermant.
 
 EP-14/L42s (#773), lot de contrat ajouté le 2026-10-10, auquel #775 s'est joint le même jour, solde
 les écarts du contrat à la spécification que L42p, L42r et L42k ont relevés, et ferme ce qui restait

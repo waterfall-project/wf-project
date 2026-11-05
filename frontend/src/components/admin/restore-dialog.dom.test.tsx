@@ -23,6 +23,7 @@ import {
   type FakeClient,
   fakeClient,
   type FakeTiming,
+  held,
   type Problem,
 } from "@/test/fixtures";
 import { tasksRegion } from "@/test/task-panel";
@@ -40,6 +41,18 @@ vi.mock("@/api/server", () => ({
   publicClient: () => server.open,
 }));
 vi.mock("next/cache", () => ({ refresh: vi.fn() }));
+// The real notice, its phases recorded: a phase `failed` is the page's to answer, never a notice's.
+const phases = vi.hoisted((): { shown: string[] } => ({ shown: [] }));
+vi.mock("@/components/system/maintenance", async (original) => {
+  const actual = await original<typeof import("@/components/system/maintenance")>();
+  return {
+    ...actual,
+    RestorationNotice: (props: Parameters<typeof actual.RestorationNotice>[0]) => {
+      phases.shown.push(props.phase.kind);
+      return actual.RestorationNotice(props);
+    },
+  };
+});
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
   useRouter: () => router,
@@ -95,6 +108,10 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1600);
   sessionStorage.clear();
   forgetMessages();
+});
+
+beforeEach(() => {
+  phases.shown = [];
 });
 
 afterEach(() => {
@@ -153,12 +170,7 @@ describe("the restoration of the platform", () => {
   });
 
   it("stays open while the restoration is asked, closed neither by Escape nor by « Annuler », and tells the refusal that answers it", async () => {
-    let release = () => undefined as unknown;
-    const answered = new Promise((settle) => {
-      release = () => {
-        settle(undefined);
-      };
-    });
+    const answer = held();
     serve(
       {
         [RESTORE]: {
@@ -166,7 +178,7 @@ describe("the restoration of the platform", () => {
         },
       },
       {},
-      { hold: (route) => (route === RESTORE ? answered : undefined) },
+      { hold: (route) => (route === RESTORE ? answer.until : undefined) },
     );
     render(backupList());
     await userEvent.click(
@@ -183,7 +195,7 @@ describe("the restoration of the platform", () => {
     expect(cancel).toBeDisabled();
     await userEvent.click(cancel);
     expect(screen.getByRole("dialog", { name: "Restaurer la plateforme" })).toBe(dialog);
-    release();
+    answer.release();
     // Refused while a backup runs: the condition that lacks, as the command said it in the list.
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Condition non remplie : aucune sauvegarde en cours.",
@@ -347,7 +359,7 @@ describe("the restoration of the platform", () => {
     );
   });
 
-  it("gives the page back with the motive of a restoration refused before the maintenance", async () => {
+  it("gives the page back with the motive of a restoration refused before the maintenance, no notice rendered for the phase of its refusal [WF-ADM-0160-A]", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     serve({ [TASK]: "task_restore_backup_newer_version" }, { [HEALTH]: "liveness" });
     render(backupList());
@@ -356,6 +368,9 @@ describe("the restoration of the platform", () => {
       "Cette sauvegarde vient d’une version plus récente que celle installée",
     );
     expect(screen.getByRole("button", { name: "Sauvegarder maintenant" })).toBeVisible();
+    // The notice was rendered while the task was waited for, never for the phase of the refusal (#1023).
+    expect(phases.shown.length).toBeGreaterThan(0);
+    expect(phases.shown).not.toContain("failed");
   });
 
   it("affirms nothing of a restoration whose task can no longer be read before any maintenance was seen, and offers to sign in again", async () => {
@@ -368,12 +383,17 @@ describe("the restoration of the platform", () => {
     await confirmRestore(LAST_NIGHT);
     const said = await screen.findByRole("status", { name: "Session terminée" });
     expect(said).toHaveTextContent("avant que l’issue de la restauration soit connue");
+    // The outcome is read in the journal of audit, which the tasks followed do not hold (#1024).
+    expect(said).toHaveTextContent("le journal d’audit la dit");
     expect(said).not.toHaveTextContent("Restauration terminée");
     expect(said).not.toHaveTextContent("restaurée");
-    expect(within(said).getByRole("link", { name: "Se connecter" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/login"),
+    // The sign-in comes back to the journal of audit, where the outcome is read (#1024).
+    const next = new URL(
+      within(said).getByRole("link", { name: "Se connecter" }).getAttribute("href") ?? "",
+      "http://front.test",
     );
+    expect(next.pathname).toBe("/login");
+    expect(next.searchParams.get("next")).toBe("/admin/audit-log");
   });
 
   it("says the maintenance of a restoration that closed the session between the probe and the read of its task, then its end — pendant une restauration, les utilisateurs sont déconnectés, et l’écran le dit", async () => {

@@ -149,6 +149,7 @@ export function ConfirmedCommand<T>({
           icon={icon}
           names={names}
           subject={subject}
+          writing={busy}
           disclosure={{
             expanded: shown,
             controls: form,

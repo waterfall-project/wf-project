@@ -149,7 +149,7 @@ describe("the filter of a list on the bounds of its figures", () => {
     // The list comes back refused: the focus on the bound refused.
     expect(most).toHaveFocus();
     expect(most).toHaveAccessibleDescription(
-      "La borne supérieure ne peut précéder la borne inférieure, 1 000.",
+      "La borne supérieure ne peut précéder la borne inférieure, 1\u202F000.",
     );
     expect(screen.getByRole("textbox", { name: "Heures par mois, min." })).not.toHaveAttribute(
       "aria-invalid",
@@ -366,7 +366,7 @@ describe("the entry of the bounds, dated by the address (#553)", () => {
     expect(most()).toHaveFocus();
     expect(most()).toHaveValue("400");
     expect(most()).toHaveAccessibleDescription(
-      "La borne supérieure ne peut précéder la borne inférieure, 1 000.",
+      "La borne supérieure ne peut précéder la borne inférieure, 1\u202F000.",
     );
   });
 

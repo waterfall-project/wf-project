@@ -47,7 +47,7 @@ interface CostList {
 
 const NO_QUERY: GridQuery<CostSortColumn> = { sort: undefined, search: undefined, size: undefined };
 // The spaces of the French formats: between thousands.
-const NARROW = " ";
+const NARROW = "\u202F";
 const COMMAND = "01926f3a-7c00-7000-8000-000000000801";
 const SUBPROJECTS: readonly SubprojectChoice[] = [
   { id: COMMAND, code: "SP-CMD", label: "Poste de commande" },

@@ -61,7 +61,10 @@ import { ACCOUNT_ICONS } from "./function-display";
 export type MenuAccount = Pick<
   components["schemas"]["UserSelf"],
   "first_name" | "last_name" | "email"
->;
+> & {
+  /** Whose the stores of the tab are (`TaskTracker`): none known, none checked. */
+  readonly user_id?: string;
+};
 
 /** The account, and its display preferences: `default` included. */
 export interface AccountMenuProps {

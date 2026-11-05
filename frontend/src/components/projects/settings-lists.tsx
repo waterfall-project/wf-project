@@ -145,6 +145,7 @@ export function WorkBreakdownList({
           kind="workBreakdown"
           rows={breakdownRows(breakdown)}
           project={project}
+          filtered={partial}
           query={shown.query}
           preferences={shown.preferences}
         />

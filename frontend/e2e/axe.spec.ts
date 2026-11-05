@@ -3,7 +3,8 @@
 /**
  * The audit of axe of the accessibility of the screens (`axe.ts`), proved on pages written for it:
  * a contrast axe measured and left « incomplete » is a breach, a text it could not measure is
- * counted under its reason. A tool of the harness, which proves no requirement itself.
+ * counted under its reason, and what any other rule left « incomplete » is counted under the rule.
+ * A tool of the harness, which proves no requirement itself.
  */
 import { expect, type Page, test } from "@playwright/test";
 
@@ -63,4 +64,12 @@ test("counts a text it could not measure under its reason, and no breach: pushed
     "shortTextContent, colours unmeasured": 1,
     "shortTextContent, colours unmeasured in a figure": 1,
   });
+});
+
+test("counts what another rule left incomplete under its name, and no breach", async ({ page }) => {
+  // A description that names no element of the page: axe cannot tell whether it is to come.
+  await write(page, `<button aria-describedby="nowhere">Bouton</button>`);
+  const { breaches, undecided } = await axeAudit(page);
+  expect(breaches).toEqual([]);
+  expect(undecided).toEqual({ "aria-valid-attr-value": 1 });
 });

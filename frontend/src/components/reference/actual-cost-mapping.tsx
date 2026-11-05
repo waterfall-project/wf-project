@@ -3,21 +3,23 @@
 /**
  * The correspondence of the extraction of the actual costs (FBS-3.1.3, WF-REF-0190, US-0620): for
  * each of the five columns Waterfall reads, the labels under which the ERP names it, and the labels
- * of the columns it keeps for information, declared one by one. A bar says the columns required that
- * have no label, as the server computes them (`is_complete`, `missing_columns`): the front computes
- * nothing of it, and takes it from the answer of a write as it takes it from the reading.
+ * of the columns it keeps for information, declared one by one. A bar says the columns required
+ * that have no label, as the server computes them (`is_complete`, `missing_columns`): the front
+ * computes nothing of it, and takes it from the answer of a write as it takes it from the
+ * reading.
  *
  * A session that holds `cost_settings.write` adds, modifies and removes a label, and declares and
  * removes a kept column, in one form that replaces the correspondence whole with the version read
  * (`setActualCostMapping`); another reads the lists, with no command. The server alone judges the
- * labels: a refusal by field (422) is said at the label its pointer designates
- * (`/columns/<rank>/labels/<rank>`, `/kept_columns/<rank>`), the first one refused taking the focus,
- * a duplicate (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
+ * labels: the kept columns stop at the ceiling of the contract (`KEPT_COLUMNS_LIMIT`), the
+ * refusal of the list itself (`/kept_columns`, `VALUE_TOO_LONG`) being said under it; a refusal by
+ * field (422) is said at the label its pointer designates (`/columns/<rank>/labels/<rank>`,
+ * `/kept_columns/<rank>`), the first one refused taking the focus, a duplicate
+ * (`DUPLICATE_COLUMN_LABEL`) naming the label it doubles (`params.duplicate_of`); any other
  * refusal is told under the form — the version stale (412) with the offer to read the page anew,
- * which mounts the form again on what is read. The fields are held while the write is under way and
- * lose the focus: with any answer that refuses no label, it goes back to the control that held it. The
- * answer takes the place of the reading while it is
- * newer (`lock_version`).
+ * which mounts the form again on what is read. The fields are held while the write is under way
+ * and lose the focus: with any answer that refuses no label, it goes back to the control that
+ * held it. The answer takes the place of the reading while it is newer (`lock_version`).
  */
 "use client";
 
@@ -43,7 +45,20 @@ type FieldProblem = components["schemas"]["FieldProblem"];
 /** The longest label the contract takes. */
 const LABEL_LENGTH = 200;
 
-/** A label being typed, with a key of its own that keeps it through the removal of the ones before. */
+/**
+ * The most kept columns the contract takes: the `maxItems` of `kept_columns` in
+ * `ActualCostMappingWrite` (`docs/api/components/schemas/reference.yaml`), which the generated
+ * client does not carry; `actual-cost-mapping.dom.test.tsx` proves it equal to the schema.
+ */
+export const KEPT_COLUMNS_LIMIT = 50;
+
+/** The pointer the contract refuses the list of the kept columns itself at (`VALUE_TOO_LONG`). */
+const KEPT_LIST = "/kept_columns";
+
+/**
+ * A label being typed, with a key of its own that keeps it through the removal of the ones
+ * before.
+ */
 interface Row {
   readonly key: number;
   readonly text: string;
@@ -52,7 +67,10 @@ interface Row {
 /** A list of labels: the rank of a column read, or the kept columns. */
 type Scope = number | "kept";
 
-/** What the form holds: the labels of each column read, in the order of the contract, and the kept ones. */
+/**
+ * What the form holds: the labels of each column read, in the order of the contract, and the kept
+ * ones.
+ */
 interface Draft {
   readonly next: number;
   readonly columns: readonly {
@@ -124,7 +142,10 @@ function written(
   };
 }
 
-/** The list of labels of a pointer of a write: the label it designates, and the column it belongs to. */
+/**
+ * The list of labels of a pointer of a write: the label it designates, and the column it belongs
+ * to.
+ */
 function labelAt(
   sent: components["schemas"]["ActualCostMappingWrite"],
   at: unknown,
@@ -214,6 +235,8 @@ interface ListProps {
   readonly register: (id: string, element: HTMLElement | null) => void;
   readonly update: (change: (draft: Draft) => Draft, focus: string, removed?: number) => void;
   readonly retype: (scope: Scope, key: number, text: string) => void;
+  /** The refusal of the kept columns as a list, said under it: the list too long. */
+  readonly listProblem?: FieldProblem | undefined;
 }
 
 /** The sentence that says what a refusal of a label is, and which label it doubles. */
@@ -248,14 +271,31 @@ function RowProblem({
 }
 
 /** A list of labels with its commands: a field and a removal for each, and the addition of one. */
-function LabelList({ scope, rows, name, problems, sent, register, update, retype }: ListProps) {
+function LabelList({
+  scope,
+  rows,
+  name,
+  problems,
+  sent,
+  register,
+  update,
+  retype,
+  listProblem,
+}: ListProps) {
   const t = useTranslations("reference.actualCostMapping");
   const commands = useTranslations("commands");
   const id = useId();
   const kept = scope === "kept";
+  // The ceiling of the contract: the command that declares one more is unavailable at it, its
+  // condition said beside it.
+  const full = kept && rows.length >= KEPT_COLUMNS_LIMIT;
+  const fullId = `${id}-full`;
   return (
     <div className="grid gap-2">
-      <ul className="grid gap-2">
+      <ul
+        className="grid gap-2"
+        aria-describedby={listProblem === undefined ? undefined : `${id}-list-problem`}
+      >
         {rows.map(({ key, text }, rank) => {
           const problem = problems.get(key);
           const own = `${id}-${String(key)}`;
@@ -310,10 +350,22 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
           );
         })}
       </ul>
+      {listProblem === undefined ? null : (
+        <p id={`${id}-list-problem`} className="text-sm text-destructive">
+          {t("keptTooMany", { max: maxOf(listProblem) })}
+        </p>
+      )}
+      {full ? (
+        <p id={fullId} className="text-sm text-muted-foreground">
+          {t("keptFull", { max: KEPT_COLUMNS_LIMIT })}
+        </p>
+      ) : null}
       <div>
         <CommandTooltip
           label={kept ? t("addKept") : t("add", { column: name })}
           help={commands("addMappingLabel.help")}
+          unavailable={full ? t("keptFull", { max: KEPT_COLUMNS_LIMIT }) : undefined}
+          describedBy={full ? fullId : undefined}
         >
           <Button
             type="button"
@@ -324,6 +376,10 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
             }}
             aria-label={kept ? t("addKept") : t("add", { column: name })}
             onClick={() => {
+              // Unavailable at the ceiling: the press adds nothing.
+              if (full) {
+                return;
+              }
               update(
                 (draft) =>
                   changed(draft, scope, (before, next) => [...before, { key: next, text: "" }], 1),
@@ -340,6 +396,21 @@ function LabelList({ scope, rows, name, problems, sent, register, update, retype
   );
 }
 
+/** The ceiling the server names in a refusal of the list, the contract's when it names none. */
+function maxOf(problem: FieldProblem): number {
+  const max = problem.params?.max_length;
+  return typeof max === "number" ? max : KEPT_COLUMNS_LIMIT;
+}
+
+/** The refusal of the list of the kept columns itself, the pointer designating no label. */
+function listRefusal(outcome: Outcome<unknown>): FieldProblem | undefined {
+  return "problem" in outcome
+    ? outcome.problem.fields?.find(
+        (field) => field.pointer === KEPT_LIST && field.code === "VALUE_TOO_LONG",
+      )
+    : undefined;
+}
+
 /** The pointer of every label of a draft, with the key of its row. */
 function pointers(draft: Draft): readonly (readonly [string, number])[] {
   return [
@@ -352,8 +423,8 @@ function pointers(draft: Draft): readonly (readonly [string, number])[] {
 
 /**
  * The refusals of the server by field the form says at a label, by the key of its row — a pointer
- * names a rank of the form sent, which a removal moves —, and the outcome to tell under the form: the
- * refusal without the fields said already, none when every one is. The draft is the one sent.
+ * names a rank of the form sent, which a removal moves —, and the outcome to tell under the form:
+ * the refusal without the fields said already, none when every one is. The draft is the one sent.
  */
 function placed(
   outcome: Outcome<unknown>,
@@ -407,6 +478,7 @@ function MappingForm({
   const [problems, setProblems] = useState<ReadonlyMap<number, FieldProblem>>(() => new Map());
   const [sent, setSent] = useState<components["schemas"]["ActualCostMappingWrite"]>();
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
+  const [listProblem, setListProblem] = useState<FieldProblem>();
   // A command in the page, no transition (#1484): busy from the press to the answer, in one update.
   const [busy, setBusy] = useState(false);
   const controls = useRef(new Map<string, HTMLElement>());
@@ -438,6 +510,7 @@ function MappingForm({
   };
   const update = (change: (before: Draft) => Draft, focus: string, removed?: number) => {
     setDraft(change);
+    setListProblem(undefined);
     if (removed !== undefined) {
       forget(removed);
     }
@@ -445,6 +518,9 @@ function MappingForm({
   };
   const retype = (scope: Scope, key: number, text: string) => {
     forget(key);
+    if (scope === "kept") {
+      setListProblem(undefined);
+    }
     setDraft((before) =>
       changed(before, scope, (rows) =>
         rows.map((row) => (row.key === key ? { ...row, text } : row)),
@@ -457,10 +533,12 @@ function MappingForm({
     if (busy) {
       return;
     }
-    // The control that holds the focus, which the fields held lose: it takes it back with the answer.
+    // The control that holds the focus, which the fields held lose: it takes it back with the
+    // answer.
     const active = activeControl(controls.current);
     setBusy(true);
     setOutcome(undefined);
+    setListProblem(undefined);
     const sentDraft = draft;
     const body = written(sentDraft, mapping.lock_version);
     void held(setActualCostMapping(body), () => true).then((answer) => {
@@ -484,6 +562,7 @@ function MappingForm({
         setFocused({ id: active });
       }
       setSent(body);
+      setListProblem(listRefusal(answer));
       setProblems(told.refused);
       setOutcome(told.told);
     });
@@ -512,7 +591,13 @@ function MappingForm({
       <fieldset disabled={busy} className="grid gap-2">
         <legend className="mb-1 text-sm font-semibold">{t("kept")}</legend>
         <p className="text-xs text-muted-foreground">{t("keptHint")}</p>
-        <LabelList {...common} scope="kept" rows={draft.kept} name={t("kept")} />
+        <LabelList
+          {...common}
+          scope="kept"
+          rows={draft.kept}
+          name={t("kept")}
+          listProblem={listProblem}
+        />
       </fieldset>
       <OutcomeNotice
         outcome={outcome}
@@ -570,6 +655,8 @@ export function ActualCostMapping({
             setAnswered((before) =>
               before === undefined || before.lock_version < answer.lock_version ? answer : before,
             );
+            // No object named: the mapping of the costs is one of the project, not an object of a
+            // list.
             say(t("saved"));
           }}
         />

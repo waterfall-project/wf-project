@@ -4,7 +4,7 @@
 
 La dernière colonne de la [grille de planning](FBS-4.3.2.md), épinglée à droite : chaque ligne y dessine sa tâche sur l’échelle du temps, alignée sur la grille. Une tâche est une barre — pleine sur le chemin critique, creuse ailleurs —, une récapitulative un crochet, un jalon un losange ; les liaisons joignent les tâches comme leur type le dit. Rien ne s’y lit à la seule couleur : chaque barre est nommée par ses dates, et « critique » quand elle l’est. Les jours chômés du calendrier de la tâche sont hachurés.
 
-Le Gantt se lit, il ne se saisit pas : les dates changent par la grille. Une ligne pliée dans la grille l’est aussi dans le Gantt ; le bouton qui précède le crochet d’une récapitulative la plie ou la déplie.
+Le Gantt se lit, il ne se saisit pas : les dates changent par la grille. Dans une grille vide — une structure sans tâche, ou une recherche qui n’en retient aucune —, il n’a aucune ligne à dessiner, et l’image exportée ne porte alors ni nom ni barre. Une ligne pliée dans la grille l’est aussi dans le Gantt ; le bouton qui précède le crochet d’une récapitulative la plie ou la déplie.
 
 ## Ses commandes
 
@@ -13,7 +13,7 @@ Dans le coin de l’en-tête du Gantt :
 - **Zoom avant** (`Ctrl++`) resserre l’échelle, jusqu’aux heures travaillées d’une journée ; indisponible quand le zoom est à son plus fort.
 - **Zoom arrière** (`Ctrl+-`) élargit l’échelle ; indisponible quand le zoom est à son plus faible.
 - **Ajuster au projet** règle l’échelle pour montrer le projet entier ; indisponible quand elle le montre déjà.
-- **Exporter en PNG** enregistre le Gantt en image, sur toute son étendue au niveau de zoom choisi, une ligne par tâche montrée, avec le projet, la révision et la date de calcul. Indisponible quand l’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives.
+- **Exporter en PNG** enregistre le Gantt en image, sur toute son étendue au niveau de zoom choisi, une ligne par tâche montrée, ses noms à gauche des barres, indentés selon leur niveau (la colonne élargit l’image), avec le projet, la révision et la date de calcul. Indisponible quand l’image serait trop grande pour le navigateur : dézoomez, ou pliez des récapitulatives.
 
 Le zoom et l’export se trouvent aussi au menu d’une cellule du Gantt. Sur un Mac, `⌘` tient lieu de `Ctrl`.
 

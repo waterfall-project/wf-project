@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 waterfall-project
 // SPDX-License-Identifier: AGPL-3.0-only
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { refresh } from "next/cache";
 import { NextIntlClientProvider } from "next-intl";
@@ -18,9 +18,17 @@ import {
 import { RateUpdate } from "@/components/revisions/revision-parts";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { expectAccessible } from "@/test/axe";
-import { example, type FakeAnswers, type FakeClient, fakeClient } from "@/test/fixtures";
+import {
+  example,
+  type FakeAnswers,
+  type FakeClient,
+  type FakeTiming,
+  fakeClient,
+  held,
+} from "@/test/fixtures";
 
 import { RevisionCommands } from "./object-commands";
+import type { ProjectContext } from "@/navigation/context";
 
 // The server of Next, as far as these commands need it: the fake back behind serverClient, the
 // render of the page again once a write is answered, and the router that leads the screen.
@@ -42,6 +50,12 @@ type Problem = components["schemas"]["Problem"];
 const PROJECT = "01926f3a-7c00-7000-8000-000000000001";
 const LOCK = 3;
 const DRAFT = "01926f3a-7c00-7000-8000-000000000102";
+const CONTEXT: ProjectContext = {
+  projectId: PROJECT,
+  revisionId: DRAFT,
+  revisionInPath: true,
+  parameters: new URLSearchParams(),
+};
 const OFFER = "01926f3a-7c00-7000-8000-000000000100";
 const CREATED = "01926f3a-7c00-7000-8000-000000000103";
 const REVISIONS = `/projects/${PROJECT}/revisions`;
@@ -71,6 +85,7 @@ function commands(project = "project") {
   return (
     <RevisionCommands
       revision={example("revision") as Revision}
+      context={CONTEXT}
       project={example(project) as Project}
     />
   );
@@ -110,6 +125,7 @@ describe("the opening of the current revision", () => {
     show(
       <RevisionCommands
         revision={undefined}
+        context={CONTEXT}
         project={example("project_without_current_revision") as Project}
       />,
     );
@@ -144,6 +160,7 @@ describe("the opening of the current revision", () => {
     show(
       <RevisionCommands
         revision={undefined}
+        context={CONTEXT}
         project={example("project_without_current_revision") as Project}
       />,
     );
@@ -414,6 +431,57 @@ describe("the application of the rate update", () => {
     lockVersion: 4,
     offer: offerOf("revision_rate_update_offered"),
   } as const;
+
+  // The command that opens the confirmation is inactive while the write is under way, so that a
+  // late answer cannot close a reopening (defect n° 24, #1364): it is the one component, tried on
+  // two of its instances. No Vérif of an exigence says it.
+  it.each([
+    {
+      name: "the abandon of a revision",
+      command: "Abandonner la révision en cours",
+      confirm: "Confirmer l’abandon",
+      route: ABANDON,
+      serving: (timing: FakeTiming) => fakeClient({ [ABANDON]: { status: 204 } }, timing),
+      screen: () => commands(),
+    },
+    {
+      name: "the update of the rates",
+      command: "Appliquer la mise à jour des taux",
+      confirm: "Confirmer la mise à jour",
+      route: RATES,
+      serving: (timing: FakeTiming) =>
+        fakeClient({ [RATES]: { example: "rate_update_applied", status: 200 } }, timing),
+      screen: () => <RateUpdate proposal={example("rate_update") as never} apply={apply} />,
+    },
+  ])(
+    "keeps the command of $name inactive while it is written, and lifts it with the answer",
+    async ({ command, confirm, route, serving, screen: page }) => {
+      const wait = held();
+      const client = serving(wait.timing);
+      server.client = client;
+      show(page());
+      const opener = screen.getByRole("button", { name: command });
+      await userEvent.click(opener);
+      await userEvent.click(screen.getByRole("button", { name: confirm }));
+
+      expect(opener).toHaveAttribute("aria-disabled", "true");
+      expect(opener).toHaveAttribute("aria-busy", "true");
+      expect(opener).toHaveAccessibleDescription("Enregistrement en cours…");
+      // Pressed, it neither closes the confirmation nor reopens another.
+      await userEvent.click(opener);
+      expect(opener).toHaveAttribute("aria-expanded", "true");
+      expect(client.calls.filter((call) => call.route === route)).toHaveLength(1);
+
+      await act(async () => {
+        wait.release();
+        await wait.until;
+      });
+      await vi.waitFor(() => {
+        expect(opener).not.toHaveAttribute("aria-disabled");
+      });
+      expect(opener).toHaveAttribute("aria-busy", "false");
+    },
+  );
 
   it("presents what changes, category by category, then applies the categories retained [WF-REV-0060-A]", async () => {
     const client = serve({ [RATES]: { example: "rate_update_applied", status: 200 } });

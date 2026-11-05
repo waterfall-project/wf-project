@@ -48,6 +48,7 @@ import {
   useNoteMessage,
 } from "@/components/notices/message-history";
 import { useShownProjectLabel } from "@/components/shell/shown-project";
+import { useEndedSession } from "@/components/tasks/session-end";
 import { asksIdentifiers, loginHref } from "@/navigation/login";
 
 /**
@@ -120,11 +121,13 @@ const ICON = "mt-0.5 size-4 shrink-0";
 
 /**
  * The address of the sign-in page, which comes back to the screen shown: its path and its query;
- * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`).
+ * with `reauthenticate`, a sign-in that asks for the identifiers again (`loginHref`); with
+ * `returnTo`, another screen of this front.
  */
-export function useSignInHref(reauthenticate = false): string {
+export function useSignInHref(reauthenticate = false, returnTo?: string): string {
   const query = useSearchParams().toString();
-  return loginHref(`${usePathname()}${query === "" ? "" : `?${query}`}`, reauthenticate);
+  const pathname = usePathname();
+  return loginHref(returnTo ?? `${pathname}${query === "" ? "" : `?${query}`}`, reauthenticate);
 }
 
 /**
@@ -132,13 +135,22 @@ export function useSignInHref(reauthenticate = false): string {
  * screen of failure offers it too, when a read wanted a session. A plain link, never one of the
  * router: `/login` sends the browser to another site, which the router would fetch, and prefetch
  * — each time starting a sign-in for nothing. For a session closed (`SESSION_REVOKED`), the sign-in
- * asks for the identifiers again (#855).
+ * asks for the identifiers again (#855). Offered because the session is over, it wipes what the
+ * session left in the tab (`useEndedSession`).
  */
-export function SignIn({ reauthenticate = false }: { readonly reauthenticate?: boolean }) {
+export function SignIn({
+  reauthenticate = false,
+  returnTo,
+}: {
+  readonly reauthenticate?: boolean;
+  readonly returnTo?: string;
+}) {
   const t = useTranslations("outcome");
+  // A sign-in is offered where the session is found ended: nothing of it stays for the next (#1180).
+  useEndedSession();
   return (
     <a
-      href={useSignInHref(reauthenticate)}
+      href={useSignInHref(reauthenticate, returnTo)}
       className="inline-flex items-center gap-1.5 font-medium underline"
     >
       <LogIn aria-hidden="true" className="size-4" />

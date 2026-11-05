@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { components } from "@/api/generated/schema";
 import type { ProjectRiskMatrixProps } from "@/components/risks/risk-bubble-chart";
 import { type Risk, RiskDetail, type RiskDetailProps } from "@/components/risks/risk-detail";
 import type { RisksGridProps } from "@/components/risks/risks-grid";
@@ -26,8 +27,17 @@ vi.mock("@/api/server", () => ({
     return client;
   },
 }));
-// The session of the contract, some of the sizes of pages its account keeps set for a test.
-const kept = vi.hoisted((): { grids: Record<string, { page_size: number }> } => ({ grids: {} }));
+// The session of the contract, some of the sizes of pages its account keeps and the permissions it
+// holds set for a test.
+const kept = vi.hoisted(
+  (): {
+    grids: Record<string, { page_size: number }>;
+    permissions: readonly string[] | undefined;
+  } => ({
+    grids: {},
+    permissions: undefined,
+  }),
+);
 vi.mock("@/session/request", async (original) => {
   const actual = await original<typeof import("@/session/request")>();
   return {
@@ -38,6 +48,7 @@ vi.mock("@/session/request", async (original) => {
         ? undefined
         : {
             ...session,
+            ...(kept.permissions === undefined ? {} : { permissions: kept.permissions }),
             display_preferences: {
               ...session.display_preferences,
               grids: { ...session.display_preferences?.grids, ...kept.grids },
@@ -148,6 +159,7 @@ function queryOf(route: string): Record<string, string> {
 
 beforeEach(() => {
   kept.grids = {};
+  kept.permissions = undefined;
   grids.risks = [];
   details.props = [];
   matrices.props = [];
@@ -211,6 +223,15 @@ describe("the screen of the risks", () => {
     expect(opened.indexOf("<figure aria-labelledby")).toBeLessThan(opened.indexOf('role="grid"'));
   });
 
+  it("reads the matrix without the states of the filter, and shows the three distinct totals of the list [WF-RIS-0040-A]", async () => {
+    const page = await risksAt({ states: "occurred" });
+    expect(matrices.props).toHaveLength(1);
+    expect(Object.keys(matrices.props[0] ?? {})).not.toContain("states");
+    expect(text(page)).toContain(
+      "Identified risks 500,000.00 Occurred risks 60.00 Dismissed risks 600,000.00 General total 1,100,060.00",
+    );
+  });
+
   it("starts the matrix as the account kept it, folded when it kept nothing", async () => {
     await risksAt();
     expect(matrices.props.map(({ folded }) => folded)).toEqual([true]);
@@ -235,6 +256,7 @@ describe("the screen of the risks", () => {
       "severity",
       "provision_amount",
       "occurrence_cost",
+      "occurred_reestimated_amount",
       "state",
       "computed_fields",
       "last_review_on",
@@ -263,6 +285,61 @@ describe("the screen of the risks", () => {
       search: "armoires",
       size: 50,
     });
+  });
+
+  it("asks the server the zones, the bounds of each column of figures and the period of the last review the address names, under the names of the contract [WF-IHM-0130-A]", async () => {
+    server.answers = { ...server.answers, [LIST]: "risks_filtered" };
+    await risksAt({
+      zones: "watch,unknown",
+      probability_min: "0.1",
+      provision_amount_min: "100000",
+      occurred_reestimated_amount_max: "300.5",
+      last_review_on_to: "2026-03-01",
+      severity_min: "abc",
+    });
+    expect(queryOf(LIST)).toEqual({
+      revision_id: REVISION,
+      limit: "50",
+      zones: "watch",
+      probability_min: "0.1",
+      provision_amount_min: "100000",
+      occurred_reestimated_amount_max: "300.5",
+      last_review_on_to: "2026-03-01",
+    });
+    // The totals are those of the risks retained, as the answer gives them.
+    const answer = example("risks_filtered") as { totals: unknown };
+    expect(grids.risks[0]?.risks.totals).toEqual(answer.totals);
+  });
+
+  it("says the filters the server refused at their field and reads no grid, the other filters kept [WF-IHM-0130-A]", async () => {
+    const refusal = example("risks_period_inverted") as components["schemas"]["Problem"] & {
+      status: 422;
+    };
+    server.answers = { ...server.answers, [LIST]: { problem: refusal } };
+    const page = await risksAt({
+      last_review_on_from: "2026-03-01",
+      last_review_on_to: "2026-02-01",
+    });
+    expect(grids.risks).toEqual([]);
+    expect(text(page)).toContain("The risks are not read: the server refuses the filters asked.");
+    expect(text(page)).toContain("The end of the period may not precede its start, 1 Mar 2026");
+    expect(page).toContain("Period of the last review");
+  });
+
+  it("offers the shortcut of the periodic review at the day of the last marking of the project, which the server lists [WF-RIS-0020-A]", async () => {
+    const revisions = example("revisions") as { items: { marked_at: string | null }[] };
+    const marked = revisions.items.find((each) => each.marked_at !== null)?.marked_at ?? "";
+    const day = new Date(marked).toISOString().slice(0, 10);
+    const page = await risksAt();
+    expect(text(page)).toContain("Not reviewed since the last marking");
+    expect(page).toContain(`last_review_on_to=${day}`);
+  });
+
+  it("reads the register without the shortcut when the revisions are refused, the contract giving them no other refusal [WF-RIS-0020-A]", async () => {
+    server.answers = { ...server.answers, "GET /projects/{project_id}/revisions": NOT_FOUND };
+    const page = await risksAt();
+    expect(grids.risks).not.toEqual([]);
+    expect(text(page)).not.toContain("Not reviewed since the last marking");
   });
 
   it("asks the server the page and the size of the pages the address names [WF-IHM-0060-A]", async () => {
@@ -308,6 +385,16 @@ describe("the screen of the risks", () => {
     expect(queryOf(LIST)).toEqual({ revision_id: REVISION, limit: "50" });
   });
 
+  it("asks the server to sort the risks by the reestimated amount of the occurred risks, and leaves the place of its null values to it [WF-RIS-0050-A]", async () => {
+    await risksAt({ sort_by: "occurred_reestimated_amount", sort_order: "desc" });
+    expect(queryOf(LIST)).toEqual({
+      revision_id: REVISION,
+      limit: "50",
+      sort_by: "occurred_reestimated_amount",
+      sort_order: "desc",
+    });
+  });
+
   it("presses the states the address filters on", async () => {
     const page = await risksAt({ states: "identified" });
     expect(page).toMatch(/aria-pressed="true"[^>]*>.*?Identified<\/button>/);
@@ -341,14 +428,30 @@ describe("the screen of the risks", () => {
     expect(text(page).match(/Risk reserve/g)).toHaveLength(1);
   });
 
-  it("reads the coverage of the risks in the revision of its route, and shows its four amounts as the server computes them, the variance signed [WF-RIS-0050-A]", async () => {
+  it("reads the coverage of the risks in the revision of its route, and shows its amounts as the server computes them, the reestimated of the occurred risks beside their cost as an information, the variance signed [WF-RIS-0050-A]", async () => {
     const page = await risksAt();
     expect(queryOf(COVERAGE)).toEqual({ revision_id: REVISION });
     expect(page).toMatch(/role="region" aria-label="Risk coverage"/);
     // Dated like every card, the region reading alone [WF-IHM-0020-A].
     expect(regionOf(page, "Risk coverage")).toMatch(/<time dateTime="2026-06-03T14:05:00Z"/);
     expect(text(page)).toContain(
-      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 Coverage variance 349,860.00",
+      "Risk reserve 850,060.00 Remaining provisions 500,000.00 Cost of the occurred risks 200.00 reestimated Reestimated cost of the occurred risks (information) 200.00 Coverage variance 349,860.00",
+    );
+    // The reestimated stands in regard of the cost, in its entry, not as a term of the variance: four
+    // terms, and the entry of the cost holds both amounts, the reestimated named in full to a reader.
+    const region = regionOf(page, "Risk coverage");
+    const coverage = region.slice(0, region.indexOf("</dl>"));
+    expect(coverage.match(/<dt/g)).toHaveLength(4);
+    const cost = coverage.slice(
+      coverage.indexOf("<dd", coverage.indexOf("Cost of the occurred risks</dt>")),
+    );
+    const entry = cost.slice(0, cost.indexOf("</dd></div>"));
+    expect(entry.match(/aria-label="Computed"/g)).toHaveLength(2);
+    // The bullet is a hidden element of its own, drawn by the style, not a part of the translated word.
+    expect(entry).toMatch(/<span[^>]*aria-hidden="true"[^>]*before:content-\[[^>]*><\/span>/);
+    expect(entry).toMatch(/<span aria-hidden="true">reestimated<\/span>/);
+    expect(entry).toMatch(
+      /<span class="sr-only">Reestimated cost of the occurred risks \(information\)<\/span>/,
     );
   });
 
@@ -357,11 +460,11 @@ describe("the screen of the risks", () => {
     // The table of the counts of the matrix, under the chart, named by its caption.
     const start = page.lastIndexOf(
       "<table",
-      page.indexOf("Count of the risks by cell of the matrix, all states together</caption>"),
+      page.indexOf("Count of the risks identified by cell of the matrix</caption>"),
     );
     const matrix = page.slice(start, page.indexOf("</table>", start));
     expect(text(matrix)).toContain(
-      "Probability Severity, as a share of the reference budget " +
+      "Probability Severity, as a share of the base of the project " +
         "0% to under 1% 1% to under 5% 5% to under 10% 10% and over",
     );
     // The highest probability at the top, its cells as the server classes them, counting only the identified risks (#1395).
@@ -520,6 +623,24 @@ describe("the commands of the risks", () => {
     expect(Object.fromEntries(callsTo(NODES)[0]?.query ?? [])).toMatchObject({ kinds: "task" });
   });
 
+  it("leads the state of a risk occurred to the estimate, and to the planning for a session that does not read it, the risk filtered on [WF-RIS-0060-A]", async () => {
+    const grid = `/projects/${PROJECT}/revisions/${REVISION}`;
+    const page = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBe(`${grid}/estimate`);
+    expect(page).toContain(`href="${grid}/estimate?origin_risk_ids=${DELIVERY}"`);
+    grids.risks = [];
+    kept.permissions = ["planning.read"];
+    const planning = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBe(`${grid}/planning`);
+    expect(planning).toContain(`href="${grid}/planning?origin_risk_ids=${DELIVERY}"`);
+    expect(planning).not.toContain(`${grid}/estimate?origin_risk_ids=`);
+    grids.risks = [];
+    kept.permissions = [];
+    const none = await risksAt();
+    expect(grids.risks.at(-1)?.originGrid).toBeUndefined();
+    expect(none).not.toContain("origin_risk_ids=");
+  });
+
   it.each([
     ["the sub-projects", SUBPROJECTS],
     ["the tasks of the main structure", NODES],
@@ -582,5 +703,13 @@ describe("the commands of the risks", () => {
     expect(handed?.categories.length).toBeGreaterThan(0);
     expect(handed?.subprojects.length).toBeGreaterThan(0);
     expect(handed?.tasks.map(({ label }) => label)).toContain("Études de détail");
+  });
+});
+
+describe("the note of the fake back on the risks", () => {
+  it("says once, under the header, that the service does not apply filters, search, sort and pages (US-0760)", async () => {
+    const page = await risksAt();
+    expect(page.match(/<p role="note"/g)).toHaveLength(1);
+    expect(page).toContain("Filters, search, sort and pages are ignored");
   });
 });

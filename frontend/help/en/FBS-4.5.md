@@ -1,4 +1,4 @@
-# Estimate to complete
+# Remaining to commit
 
 ## What the screen shows
 
@@ -21,7 +21,7 @@ Above the grid: **Work package or order item**, **Search a label**, **Columns**,
 
 In the menu of a cell (right click, `Shift+F10` or the Menu key): the gestures of structure, among them **Insert a line** (`Ctrl+Insert`) for an expense that had not been costed, the folding, **Undo** and **Redo**, and the submenu **Subproject**.
 
-The grid is entered only where the main structure lists “Update the estimate to complete” available to you: it is lacking as long as the project is not In progress (“project in progress”), and a line of a completed task is no longer re-estimated (“task not completed”).
+The grid is entered only where the main structure lists “Re-estimate the remaining to commit” available to you: it is lacking as long as the project is not In progress (“project in progress”), and a line of a completed task is no longer re-estimated (“task not completed”).
 
 ## Its columns and computed values
 

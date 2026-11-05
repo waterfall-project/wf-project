@@ -6,6 +6,7 @@ import { columnsOf } from "./columns";
 import { compile } from "./compile";
 import { openHydrated, WORKING } from "./hydration";
 import { scrollToPosition, withinBox } from "./scroll";
+import { isServerAction } from "./server-action";
 
 // The fake back serves the first example of each read, whatever it asks: the structure of the
 // volumes of §4.6.2 for the nodes — its lines show here whatever `progress` asks, where the service
@@ -68,7 +69,7 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   await expect(indicators).toContainText(/Reste à engager\s*67\s470\s132,98\s€/);
   await expect(indicators).toContainText("Calculé le");
   await expect(page.getByRole("region", { name: "Couverture des risques" })).toHaveText(
-    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
+    /Réserve pour risques\s*850\s060,00\s€\s*Provisions restantes\s*500\s000,00\s€\s*Coût des risques survenus\s*200,00\s€\s*réestimé\s*Réestimé des risques survenus \(information\)\s*200,00\s€\s*Écart de couverture\s*349\s860,00\s€/,
   );
   // Each sub-project in the zone the server classes it in, named, never by its colour alone.
   // The control station, the tests and commissioning and the whole without sub-project all over
@@ -166,6 +167,31 @@ test("reads the remaining to commit of a revision: its indicators, its grid, the
   // The only button in main is the help button of the screen header (WF-IHM-0140).
   await expect(main.getByRole("button")).toHaveCount(1);
   await expect(main.getByRole("button", { name: "Aide", exact: true })).toHaveCount(1);
+
+  // The filters live in the address: a label searched narrows the three columns, whatever the
+  // accents, and each column that hides cards says how many it shows [WF-RAE-0030-A].
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).fill("ETUDES");
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).press("Enter");
+  await expect(page).toHaveURL(/[?&]q=ETUDES(&|$)/, { timeout: WORKING });
+  await expect(page.getByRole("heading", { name: /^Terminées\s+2 sur 27$/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(completed.getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible();
+  // The tasks ready narrow the tasks not started alone. The label lifted first, so that the count
+  // of the column not started holds to the filter of the tasks ready alone: the example has none
+  // ready (the factory acceptance waits for the wiring), so the 925 cards all go, and the tasks
+  // started and completed, which only the label narrows, are all shown again.
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).fill("");
+  await main.getByRole("searchbox", { name: "Rechercher une tâche" }).press("Enter");
+  await expect(page).not.toHaveURL(/[?&]q=/, { timeout: WORKING });
+  await main.getByRole("checkbox", { name: "Tâches prêtes" }).check();
+  await expect(page).toHaveURL(/[?&]ready=1(&|$)/, { timeout: WORKING });
+  await expect(page.getByRole("heading", { name: /^Non démarrées\s+0 sur 925$/ })).toBeVisible({
+    timeout: WORKING,
+  });
+  await expect(page.getByRole("heading", { name: "Démarrées", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Terminées", exact: true })).toBeVisible();
 });
 
 test("completes a milestone without a line from the Kanban, from its menu, at a date entered [WF-RAE-0030-A]", async ({
@@ -333,8 +359,7 @@ test("carries a line to a sub-project from the menu of its cell, and takes it ou
     .click();
   const removal = page.waitForRequest(
     (request) =>
-      request.headers()["next-action"] !== undefined &&
-      (request.postData() ?? "").includes('"subproject_id":null'),
+      isServerAction(request) && (request.postData() ?? "").includes('"subproject_id":null'),
     { timeout: WORKING },
   );
   await page

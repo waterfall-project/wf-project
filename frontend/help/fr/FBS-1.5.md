@@ -2,7 +2,7 @@
 
 ## Ce que montre l’écran
 
-Le journal d’audit de la plateforme, hors de tout projet : une inscription par action qui engage — le marquage d’une révision, la désignation de la référence, la contractualisation d’un avenant, la survenance d’un risque, la sortie du cycle de vie, l’exclusion ou la réintégration d’une ligne de coût, l’application d’un import, la vie des comptes et des rôles d’habilitation, les sauvegardes et les restaurations. Chacune dit sa date, son auteur, son action et, sous elle, ce qu’elle a fait — les champs modifiés, l’état où un projet est sorti et son motif, la sauvegarde restaurée, la nature d’un import, les rôles ou permissions donnés et retirés, l’ancien libellé —, la nature et le nom de son objet, son projet et la corrélation de la requête qui l’a produite.
+Le journal d’audit de la plateforme, hors de tout projet : une inscription par action qui engage — le marquage d’une révision, la désignation de la référence, la contractualisation d’un avenant, la survenance d’un risque, la sortie du cycle de vie, l’exclusion ou la réintégration d’une ligne de coût, l’application d’un import, la vie des comptes et des rôles d’habilitation, les sauvegardes et les restaurations. Chacune dit sa date, son auteur, son action et, sous elle, ce qu’elle a fait — les champs modifiés, l’état où un projet est sorti et son motif, la sauvegarde restaurée et l’instant où elle fut prise, la nature d’un import, les rôles ou permissions donnés et retirés, l’ancien libellé —, la nature et le nom de son objet, son projet et la corrélation de la requête qui l’a produite.
 
 Un projet sans code encore se nomme par son libellé seul, dans la table comme à l’export. Chaque nom est celui du moment de l’action : un compte désactivé depuis garde le sien, un compte anonymisé paraît sous un libellé neutre. Le journal se lit seulement : rien ne modifie ni ne supprime une inscription. Celui d’un projet clos depuis longtemps se lit comme celui d’un projet en cours, par le filtre du projet.
 
@@ -20,7 +20,7 @@ Le journal n’a pas de commande d’écriture. Pour le lire :
 - Le champ de recherche retient les inscriptions dont le nom de l’objet contient le texte saisi.
 - **Colonnes** choisit les colonnes montrées ; **Lignes par page**, **Page précédente** et **Page suivante** parcourent le journal.
 
-Les auteurs et les projets proposés sont ceux que le journal entier cite, même pour qui ne peut pas lire les comptes. Dans la table :
+Les auteurs et les projets proposés sont ceux que le journal entier cite, même pour qui ne peut pas lire les comptes ; un auteur choisi que le journal ne cite plus reste choisi, sous son nom. Dans la table :
 
 - L’objet et le projet sont des liens quand le serveur dit que vous pouvez consulter le projet : le projet ; une révision ; un risque, dans les risques de sa révision, son détail ouvert ; un import, dans les imports et exports de sa révision, son compte rendu montré ; le différentiel d’un avenant, dans les structures de coûts de sa révision. Un compte, un rôle, une sauvegarde ou une ligne de coût n’ont pas d’écran à eux : leur nom se lit seul.
 - **Histoire de l’objet** filtre le journal sur ce seul objet ; **Lever** ôte ce filtre.
@@ -28,7 +28,7 @@ Les auteurs et les projets proposés sont ceux que le journal entier cite, même
 
 ## Ses colonnes et ses valeurs calculées
 
-Rien ne s’y calcule : chaque inscription garde ce qu’elle a inscrit. Ce qu’a fait une action est écrit dans la langue de l’interface à partir de ce que l’inscription garde. Le journal est toujours trié par l’une de ses colonnes : un en-tête passe d’un sens à l’autre sans lever le tri, et celui de la date remet le journal dans son ordre par défaut. L’action et la nature se trient dans l’ordre de leur liste, non dans l’ordre alphabétique de leurs mots.
+Rien ne s’y calcule : chaque inscription garde ce qu’elle a inscrit. Ce qu’a fait une action est écrit dans la langue de l’interface à partir de ce que l’inscription garde : une modification de rôle qui ne change ni le libellé ni les permissions le dit. Sous l’action, la phrase coupée par la largeur de la colonne se lit entière à l’infobulle, instant de la sauvegarde restaurée compris. L’issue d’une restauration se lit ici. Le journal est toujours trié par l’une de ses colonnes : un en-tête passe d’un sens à l’autre sans lever le tri, et celui de la date remet le journal dans son ordre par défaut. L’action et la nature se trient dans l’ordre de leur liste, non dans l’ordre alphabétique de leurs mots.
 
 ## Les gestes au clavier
 

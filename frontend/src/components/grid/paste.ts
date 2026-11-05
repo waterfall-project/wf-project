@@ -201,10 +201,13 @@ interface LocalRefusal {
 /**
  * Whether a block is refused here, before the server is asked: wider than the columns of the
  * facet of its node from the cell, in the order of the contract, or reaching one among them the
- * grid does not show — absent from its configuration, or hidden (WF-IHM-0060). Nothing when the
- * contract does not range the column of the cell: the server alone judges.
+ * grid does not show — absent from its configuration, or hidden (WF-IHM-0060). A column the grid
+ * does not configure refuses the block only if a cell of it, in the block, is not empty: an empty
+ * cell writes nothing, and the server judges the rest (`is_critical`, between the float and the
+ * start of the planning, #1699). Nothing when the contract does not range the column of the cell:
+ * the server alone judges.
  */
-function localRefusal<Row extends RowData, Sort extends string, Totals>(
+export function localRefusal<Row extends RowData, Sort extends string, Totals>(
   config: GridConfig<Row, Sort, Totals>,
   paste: NonNullable<GridConfig<Row, Sort, Totals>["paste"]>,
   landed: Landed<Row, Sort, Totals>,
@@ -220,9 +223,12 @@ function localRefusal<Row extends RowData, Sort extends string, Totals>(
     return { outcome: tooWide(span.length), hidden: undefined };
   }
   const set = new Set(shown);
-  for (const filled of span.slice(0, width)) {
+  for (const [index, filled] of span.slice(0, width).entries()) {
     const column = config.columns.find((configured) => configured.contract === filled);
     if (column === undefined) {
+      if (block.every((cells) => (cells[index] ?? "").trim() === "")) {
+        continue;
+      }
       return { outcome: undefined, hidden: { shown: "absent", name: paste.name(filled) } };
     }
     if (!set.has(column.key)) {

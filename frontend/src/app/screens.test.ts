@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { appFiles } from "@/test/app-files";
 
-import { OTHER_SCREENS, REDIRECTS, tableScreens } from "../../e2e/routes";
+import { LEADING_SCREENS, OTHER_SCREENS, REDIRECTS, tableScreens } from "../../e2e/routes";
 
 /** A segment of a route that intercepts another (`(.)x`, `(..)x`, `(...)x`). */
 const INTERCEPTING = /^\(\.{1,3}\)/;
@@ -16,6 +16,7 @@ describe("the pages of the application", () => {
     const known = [
       ...tableScreens().map((screen) => screen.route),
       ...OTHER_SCREENS.map((screen) => screen.route),
+      ...LEADING_SCREENS.map((screen) => screen.route),
       ...REDIRECTS,
     ];
     expect(
@@ -23,6 +24,11 @@ describe("the pages of the application", () => {
         .map((page) => page.route)
         .sort(),
     ).toEqual(known.sort());
+  });
+
+  it("count the screen of a project among the screens, not among the pages that only redirect: a project without a revision keeps it [WF-IHM-0010-A]", () => {
+    expect(REDIRECTS).not.toContain("/projects/[projectId]");
+    expect(LEADING_SCREENS.map((screen) => screen.route)).toEqual(["/projects/[projectId]"]);
   });
 
   it("intercept no route: the screen a route intercepts would show in place of one the paths check", () => {

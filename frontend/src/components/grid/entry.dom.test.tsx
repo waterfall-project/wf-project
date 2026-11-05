@@ -16,6 +16,7 @@ import {
   type FakeAnswers,
   type FakeClient,
   fakeClient,
+  held,
   unreachable,
 } from "@/test/fixtures";
 import { estimateReference } from "@/test/reference";
@@ -205,6 +206,34 @@ describe("the keyboard of a grid", () => {
       expect(cell(LABOUR, "base_amount")).toHaveTextContent(/1\s120,00$/);
     },
   );
+
+  it("keeps the cell out of the order of the keyboard while its entry is open, and gives the one stop of the grid back to a cell when it closes, by Escape or by a validation [WF-IHM-0100-A]", async () => {
+    serve();
+    render(grid());
+    const stops = () =>
+      screen.getByRole("treegrid").querySelectorAll<HTMLElement>('td[tabindex="0"]');
+    cell(LABOUR, "hours").focus();
+    // Open: the field is the stop, the cell around it is not a second target.
+    await userEvent.keyboard("{F2}");
+    expect(screen.getByRole("textbox", { name: "Charge (h)" })).toBeInTheDocument();
+    expect(cell(LABOUR, "hours")).toHaveAttribute("tabindex", "-1");
+    expect(stops()).toHaveLength(0);
+    // Escape: the same cell is the stop again, and holds the focus.
+    await userEvent.keyboard("{Escape}");
+    expect(cell(LABOUR, "hours")).toHaveAttribute("tabindex", "0");
+    expect(cell(LABOUR, "hours")).toHaveFocus();
+    expect(stops()).toHaveLength(1);
+    // Tab validates and moves the cursor: the cell that took the focus is the one stop.
+    await userEvent.keyboard("{F2}{Tab}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(stops()).toHaveLength(1);
+    expect(stops()[0]).toHaveFocus();
+    // Enter validates too, and the cursor goes to the next row.
+    await userEvent.keyboard("{F2}{Enter}");
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(stops()).toHaveLength(1);
+    expect(stops()[0]).toHaveFocus();
+  });
 
   it("renames a task by its own operation, and shows the label the server answered", async () => {
     const client = serve();
@@ -545,7 +574,7 @@ describe("the keyboard of a grid", () => {
     const field = screen.getByRole("textbox", { name: "Charge (h)" });
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(field).toHaveAccessibleDescription(
-      "Ce n’est pas un nombre : saisissez-le comme 1 234,5.",
+      "Ce n’est pas un nombre : saisissez-le comme 1\u202F234,5.",
     );
     expect(written(client)).toEqual([]);
     await expectAccessible(document.body);
@@ -597,19 +626,14 @@ describe("the keyboard of a grid", () => {
   });
 
   it("shows what was validated until the server answers, then the row it answered", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      {},
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({}, answer.until);
     render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^15$/);
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-busy", "true");
-    answer();
+    answer.release();
     await vi.waitFor(() => {
       expect(cell(LABOUR, "hours")).toHaveTextContent(/^14$/);
     });
@@ -629,6 +653,24 @@ describe("a write the server refuses", () => {
     await userEvent.click(within(alert).getByRole("button", { name: "Recharger" }));
     expect(router.refresh).toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("tells the focus of a refused cell by a dashed contour as well as by its ring [WF-IHM-0100-A]", async () => {
+    // The walk by Tab (`unmarked`) does not judge this second mark: this test holds its class; the contour
+    // the browser draws is no path's to read (EP-14, « Ce que les tests ne prouvent pas », #819, point 1).
+    serve({
+      [LINE]: {
+        problem: example("estimate_line_rate_missing") as Problem & { status: 422 },
+      },
+    });
+    render(grid());
+    cell(LABOUR, "hours").focus();
+    await userEvent.keyboard("15{Enter}");
+    await screen.findByRole("alert");
+    const refused = document.querySelector<HTMLElement>("td[aria-invalid='true']");
+    expect(refused).not.toBeNull();
+    expect(refused).toHaveClass("ring-destructive", "focus-visible:outline-dashed");
+    expect(cell(LABOUR, "quantity")).not.toHaveClass("focus-visible:outline-dashed");
   });
 
   it("explains a conflict, and says the API is out of reach", async () => {
@@ -714,13 +756,8 @@ describe("a write the server refuses", () => {
   });
 
   it("drops an answer that comes once the page has been read at another address", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      { [LINE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } },
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({ [LINE]: { problem: { code: "STALE_LOCK_VERSION", status: 412 } } }, answer.until);
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
@@ -731,7 +768,7 @@ describe("a write the server refuses", () => {
     rerender(grid("fr", nodes));
     expect(cell(last, "hours")).toHaveTextContent(/^12,5$/);
     await act(async () => {
-      answer();
+      answer.release();
       await Promise.resolve();
     });
     expect(screen.queryByRole("alert")).toBeNull();
@@ -741,13 +778,8 @@ describe("a write the server refuses", () => {
 
 describe("a write under way while the page is read anew at its address", () => {
   it("keeps the cell pending and takes the answer that comes after the page read anew", async () => {
-    let answer: (value?: unknown) => void = () => undefined;
-    serve(
-      {},
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const answer = held();
+    serve({}, answer.until);
     const { rerender } = render(grid());
     cell(LABOUR, "hours").focus();
     await userEvent.keyboard("15{Enter}");
@@ -756,7 +788,7 @@ describe("a write under way while the page is read anew at its address", () => {
     expect(cell(LABOUR, "hours")).toHaveTextContent(/^15$/);
     expect(cell(LABOUR, "hours")).toHaveAttribute("aria-busy", "true");
     await act(async () => {
-      answer();
+      answer.release();
       await Promise.resolve();
     });
     await vi.waitFor(() => {

@@ -45,8 +45,10 @@ import { setTaskProgress } from "@/api/actions/nodes";
 import { useUnmet } from "@/components/commands/command";
 import { useHeldCommand } from "@/components/commands/held";
 
-import type { TaskProgress } from "./address";
+import type { KanbanFilters, TaskProgress } from "./address";
 import { AnsweredCards } from "./kanban-answers";
+import { filtered } from "./kanban-filter";
+import { KanbanFilterBar } from "./kanban-filters";
 import { type Asking, Card, type CardActions, type CardState, type Notice } from "./kanban-card";
 import {
   type CardGesture,
@@ -80,11 +82,14 @@ export function Kanban({
   columns,
   structure,
   remaining,
+  filters,
 }: {
   readonly columns: KanbanColumns;
   readonly structure: KanbanStructure;
   /** The address of the grid of the remaining to commit of the revision. */
   readonly remaining: string;
+  /** The label searched and the tasks ready, as the address names them: what the board shows of the columns. */
+  readonly filters: KanbanFilters;
 }) {
   const t = useTranslations("kanban");
   const commands = useTranslations("enums.KanbanCommand");
@@ -96,6 +101,8 @@ export function Kanban({
   const [book] = useState(() => new AnsweredCards());
   const answered = useSyncExternalStore(book.subscribe, book.snapshot, book.snapshot);
   const [selected, setSelected] = useState<string>();
+  // The column of the card chosen that a filter hid: the stop of Tab goes to its first card shown.
+  const [hiddenFrom, setHiddenFrom] = useState<TaskProgress>();
   const [dragged, setDragged] = useState<string>();
   const [writing, setWriting] = useState<string>();
   const [asking, setAsking] = useState<Asking>();
@@ -114,13 +121,41 @@ export function Kanban({
   // The card chosen now, set at the very moment it is: an answer comes back after the user may
   // have chosen another card, and the focus must not be taken from that one.
   const chosen = useRef<string>(undefined);
-  const shown = useMemo(() => replaced(columns, answered), [columns, answered]);
-  // The one stop of Tab of the board: the card chosen, else the first card. The arrows go from card
-  // to card (WF-IHM-0100).
+  const everyCard = useMemo(() => replaced(columns, answered), [columns, answered]);
+  // The cards the filters keep; the ones a gesture answered keep under the tasks ready, their
+  // predecessors being read with the tasks anew: a milestone just reopened stays shown under
+  // « Tâches prêtes » until the reading brings its predecessors (decided on purpose, rather than
+  // seeing the card the user just moved vanish).
+  const shown = useMemo(
+    () => filtered(everyCard, filters, new Set(Object.keys(answered))),
+    [everyCard, filters, answered],
+  );
+  // The card chosen, unless a filter hides it: it is then no more chosen (the adjustment below says so).
+  const chosenNow = COLUMNS.some(([state]) =>
+    shown[state].some((card) => card.node_id === selected),
+  )
+    ? selected
+    : undefined;
+  // The one stop of Tab of the board: the card chosen, else the first card shown of the column the
+  // card chosen was in when a filter hid it, else the first card. The arrows go from card to card
+  // (WF-IHM-0100).
   const tabStop = useMemo(() => {
     const all = COLUMNS.flatMap(([state]) => shown[state]);
-    return all.find((card) => card.node_id === selected)?.node_id ?? all[0]?.node_id;
-  }, [shown, selected]);
+    const own = hiddenFrom === undefined ? undefined : shown[hiddenFrom][0];
+    return all.find((card) => card.node_id === chosenNow)?.node_id ?? (own ?? all[0])?.node_id;
+  }, [shown, chosenNow, hiddenFrom]);
+
+  // A card chosen that is no more shown loses the choice, for good: lifting the filter does not
+  // bring it back. It is no more shown because a filter hides it, or because a reading of the tasks
+  // took it away (the card of a task reopened or deleted elsewhere). Adjusted while rendering — the
+  // pattern React admits for a state drawn from what changed —, so that no render shows the card
+  // chosen and gone.
+  if (selected !== undefined && chosenNow === undefined) {
+    setHiddenFrom(
+      COLUMNS.find(([state]) => everyCard[state].some((card) => card.node_id === selected))?.[0],
+    );
+    setSelected(undefined);
+  }
 
   // An answer the columns read since overtake is forgotten, so that a later reading at an older
   // version — a page read before the write was seen — cannot bring it back. Done once the reading
@@ -268,7 +303,7 @@ export function Kanban({
   const actions: CardActions = {
     remaining,
     hint,
-    selected,
+    selected: chosenNow,
     tabStop,
     dragged,
     writing,
@@ -284,6 +319,7 @@ export function Kanban({
     },
     choose: (id) => {
       chosen.current = id;
+      setHiddenFrom(undefined);
       setSelected(id);
     },
     focusFrom: (id, key) => {
@@ -337,12 +373,23 @@ export function Kanban({
       <p id={hint} className="text-xs text-muted-foreground">
         {t("keys")}
       </p>
+      <KanbanFilterBar filters={filters} />
       <p role="status" className="sr-only">
         {announced.count === 0 ? null : <span key={announced.count}>{announced.text}</span>}
+        {/* The cards being updated, then those a reading did not reach, are told here too, in the
+            one permanent region of the board, not in a region of each card (#1356); the button of
+            the retry is not in it. */}
+        {Object.values(answered).map((each) => (
+          <span key={`${each.node_id}-${failed ? "outdated" : "updating"}`}>
+            {" "}
+            {t(failed ? "outdatedTold" : "updatingTold", { label: each.label })}
+          </span>
+        ))}
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         {COLUMNS.map(([state, title]) => {
           const listed = shown[state];
+          const total = everyCard[state].length;
           const reachable =
             moving !== undefined &&
             moving.state !== state &&
@@ -364,9 +411,21 @@ export function Kanban({
                 reachable ? "outline-2 outline-dashed outline-offset-4 outline-ring" : ""
               }`}
             >
-              <h2 className="text-sm font-semibold">{t(title)}</h2>
+              <h2 className="text-sm font-semibold">
+                {t(title)}
+                {listed.length < total ? (
+                  <>
+                    {" "}
+                    <span className="ml-0.5 font-normal text-muted-foreground">
+                      {t("count", { shown: listed.length, total })}
+                    </span>
+                  </>
+                ) : null}
+              </h2>
               {listed.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("empty")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {total === 0 ? t("empty") : t("noMatch")}
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {listed.map((card) => (

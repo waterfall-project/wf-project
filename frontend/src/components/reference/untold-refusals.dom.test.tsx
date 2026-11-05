@@ -11,7 +11,7 @@ import { LeftRefusals } from "@/components/shell/left-refusals";
 import { CATALOGUES } from "@/i18n/catalogues";
 import { dismissLeftRefusals } from "@/navigation/held-writes";
 import type { ListPage } from "@/navigation/pages";
-import { example, fakeClient } from "@/test/fixtures";
+import { example, fakeClient, held } from "@/test/fixtures";
 
 import type { CostCategory, CostType } from "./cost-grids";
 import { natureChoice } from "./cost-kinds";
@@ -61,7 +61,6 @@ function screenWithBar() {
           query={{ sort: undefined, search: undefined, size: undefined }}
           preferences={undefined}
           state={undefined}
-          readsInactive
           editable
           natures={types.items.map((nature) => natureChoice(nature))}
           nature={undefined}
@@ -76,21 +75,20 @@ function screenWithBar() {
 
 /** Serve a refusal of the modification of a category, held until the test releases it. */
 function refusedOnRelease(): () => void {
-  let release: () => void = () => undefined;
-  const until = new Promise<void>((settle) => {
-    release = settle;
-  });
+  const answer = held();
   server.client = fakeClient(
     { [CATEGORY]: { problem: { code: "PERMISSION_MISSING", status: 403 } } },
-    { hold: () => until },
+    answer.timing,
   );
-  return release;
+  return answer.release;
 }
 
 /** Send the modification of the subcontracting from its dialog: the dialog, still open. */
 async function sent(): Promise<HTMLElement> {
-  await userEvent.click(screen.getByRole("button", { name: "Modifier « Sous-traitance »" }));
-  const form = screen.getByRole("dialog", { name: "Modifier « Sous-traitance »" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Modifier «\u00A0Sous-traitance\u00A0»" }),
+  );
+  const form = screen.getByRole("dialog", { name: "Modifier «\u00A0Sous-traitance\u00A0»" });
   await userEvent.click(within(form).getByRole("button", { name: "Enregistrer" }));
   return form;
 }

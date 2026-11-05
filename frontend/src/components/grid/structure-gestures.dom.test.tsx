@@ -305,6 +305,24 @@ describe("the gestures that create tasks and lines in a grid of the structure", 
     expect(await screen.findByText("Ligne créée.")).toBeVisible();
   });
 
+  // No Vérif of an exigence says what the history notes: this test carries the correction of #1701.
+  it("notes a line created below a sister line without a label in the history of the messages, unnamed", async () => {
+    serve({ [CREATE]: { example: "estimate_line_created_labelled", status: 201 } });
+    render(estimateGrid());
+    await choose(LINE, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
+      target: { value: CATEGORY },
+    });
+    await create("");
+    expect(await screen.findByText("Ligne créée.")).toBeVisible();
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ tone: "success", sentence: "Ligne créée." });
+    expect(messages[0]?.object).toBeUndefined();
+    expect(JSON.stringify(messages)).not.toContain("Raccordement des borniers");
+  });
+
   it("inserts a line below a line, after it, and refuses a quantity that is no number", async () => {
     const client = serve({ [CREATE]: { example: "estimate_line_created", status: 201 } });
     render(estimateGrid());
@@ -575,6 +593,27 @@ describe("the refusal of a gesture, said to the row in cause", () => {
     expect(messages[0]).toMatchObject({ tone: "refusal", object: "Pièces" });
   });
 
+  // No Vérif of an exigence says what the refusal names: this test carries the correction of #1701.
+  it("tells the refusal of a line created below a sister line without a label by the place asked, never by the label of the sister line", async () => {
+    serve({
+      [CREATE]: { problem: example("node_create_without_hours") as Problem & { status: 422 } },
+    });
+    render(estimateGrid());
+    await choose(LINE, "Insérer une ligne");
+    const dialog = screen.getByRole("dialog", { name: "Insérer une ligne" });
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Catégorie" }), {
+      target: { value: CATEGORY },
+    });
+    await create("");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(`Refusé à la ligne ${String(node(LINE)?.row_number)} :`);
+    expect(alert).not.toHaveTextContent("Raccordement des borniers");
+    const { messages } = readMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ tone: "refusal" });
+    expect(JSON.stringify(messages)).not.toContain("Raccordement des borniers");
+  });
+
   it("names the task and both roles a line created would leave without a working hour, as the grid knows them [WF-PLA-0010-A]", async () => {
     serve({
       [CREATE]: { problem: example("node_create_without_hours") as Problem & { status: 422 } },
@@ -841,6 +880,47 @@ describe("the grids that offer no gesture", () => {
       "Insérer une sous-tâche",
       "Supprimer",
     ]);
+  });
+});
+
+describe("the gestures a milestone makes unavailable [WF-PLA-0050-A]", () => {
+  // « Réception des études », a milestone, and « Dossier de conception », the task just under it.
+  const MILESTONE = planning.items.findIndex((each) => each.task?.is_milestone === true);
+  const AFTER = MILESTONE + 1;
+
+  it("shows a sub-task of a milestone unavailable, with its condition, and creates nothing", async () => {
+    const client = serve({});
+    render(planningGrid(planning, true));
+    const menu = await openMenu(MILESTONE);
+    const item = within(menu).getByRole("menuitem", { name: /Insérer une sous-tâche/ });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(item);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    await activate(MILESTONE);
+    await userEvent.keyboard("{Alt>}{Insert}{/Alt}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(client.calls).toEqual([]);
+  });
+
+  it("shows an indentation under a milestone unavailable, and moves nothing", async () => {
+    const client = serve({});
+    render(planningGrid(planning, true));
+    const menu = await openMenu(AFTER);
+    const item = within(menu).getByRole("menuitem", { name: /Indenter/ });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(item);
+    await userEvent.keyboard("{Escape}");
+    await activate(AFTER);
+    await userEvent.keyboard("{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}");
+    expect(client.calls).toEqual([]);
+    // The task above the one that follows a task is indented as before.
+    const other = await openMenu(AFTER - 1);
+    expect(within(other).getByRole("menuitem", { name: /Indenter/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 });
 

@@ -6,9 +6,8 @@ import { expect, type Page, type Request, test } from "@playwright/test";
 
 // The second of §4.6.2 — « ouvrir une grille de planning, de devis ou de reste à engager de mille
 // tâches : 1 s » —, measured on the structure of the volumes the fake back serves (EP-02/L2): a
-// thousand tasks and five thousand lines, six thousand rows, for the estimate and for the
-// planning alike — the fake back serves them whatever `kinds` asks, where the service will give
-// the planning its tasks alone.
+// thousand tasks and five thousand lines, six thousand rows for the estimate; the fake back serves
+// them to the planning too, whatever `kinds` asks, but the page keeps its thousand tasks alone.
 //
 // An opening lasts from its start — the start of the navigation, for a grid opened by its
 // address; the click, for a grid opened from the navigation — until the grid is usable: drawn and
@@ -69,6 +68,8 @@ interface GridScreen {
   readonly link: string;
   readonly grid: string;
   readonly totals: RegExp;
+  /** The `aria-rowcount` of the grid: its rows, the header and the totals. */
+  readonly rows: string;
 }
 
 const ESTIMATE: GridScreen = {
@@ -76,6 +77,7 @@ const ESTIMATE: GridScreen = {
   link: "Chiffrage et devis",
   grid: "Grille de devis",
   totals: /^Total — 1\s000 tâches, 5\s000 lignes$/,
+  rows: "6002",
 };
 
 const PLANNING: GridScreen = {
@@ -83,6 +85,7 @@ const PLANNING: GridScreen = {
   link: "Planification",
   grid: "Grille de planning",
   totals: /^Total — 1\s000 tâches$/,
+  rows: "1002",
 };
 
 /** The address of the screen of a grid. */
@@ -399,7 +402,7 @@ async function measuresTheSecond(page: Page, screen: GridScreen, from: GridScree
   );
 
   const grid = page.getByRole("treegrid", { name: screen.grid });
-  await expect(grid).toHaveAttribute("aria-rowcount", "6002");
+  await expect(grid).toHaveAttribute("aria-rowcount", screen.rows);
   for (const shown of [
     grid.getByRole("columnheader", { name: "Libellé" }),
     grid.getByRole("gridcell", { name: screen.totals }),

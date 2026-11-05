@@ -230,11 +230,12 @@ test("draws the risk matrix of the portfolio as a bubble chart in place of the t
   const figure = page.getByRole("figure", { name: "Matrice des risques" });
   const drawing = figure.getByRole("img", { name: /^Nuage de bulles des risques/ });
   await expect(drawing.locator("svg")).toBeVisible({ timeout: WORKING });
-  // One bubble for each risk the server rendered, 429 of them, over the sixteen zones.
-  await expect(drawing.locator("path[fill-opacity='0.85']")).toHaveCount(429 + 1);
+  // One bubble for each risk identified the server rendered, 429 of them, over the sixteen zones;
+  // the chart has no legend of states, so that no marker is added to the bubbles.
+  await expect(drawing.locator("path[fill-opacity='0.85']")).toHaveCount(429);
   await figure.getByText("Valeurs du graphique").click();
   await expect(
-    figure.getByRole("table", { name: "Décompte des risques par case de la matrice" }),
+    figure.getByRole("table", { name: "Décompte des risques identifiés par case de la matrice" }),
   ).toBeVisible();
   const command = figure.getByRole("button", { name: "Exporter en PNG" });
   let download: Download | undefined;
