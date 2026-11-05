@@ -103,8 +103,8 @@ to it.
 
 The front is a Next.js application in strict TypeScript (`frontend/tsconfig.json`, with
 `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`). pnpm manages its dependencies,
-at the version `packageManager` names in `package.json`, launched by corepack
-(`corepack enable pnpm`); the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
+at the version `packageManager` names in `package.json`, installed once by
+`npm install --global pnpm`; the lock, `pnpm-lock.yaml`, is authoritative and the chain installs
 with `--frozen-lockfile`. The unit tests are `*.test.ts` or `*.test.tsx` files next to the code
 they exercise, run by Vitest in two projects (`vitest.config.ts`), which the file name decides
 between: `node` for the `*.test.ts` and `*.test.tsx` — the logic, and the server components of

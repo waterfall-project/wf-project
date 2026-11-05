@@ -640,7 +640,7 @@ ne pas écrire le référentiel sur un interpréteur et des bibliothèques en re
 
 ## US-1170 — Le front sur Node 26, pnpm 12 et ESLint 10
 
-- **statut** : à faire
+- **statut** : en cours
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1933

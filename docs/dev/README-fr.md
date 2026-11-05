@@ -103,8 +103,8 @@ nouvelle s'y ajoute.
 
 Le front est une application Next.js en TypeScript strict (`frontend/tsconfig.json`, avec
 `noUncheckedIndexedAccess` et `exactOptionalPropertyTypes`). pnpm en gère les dépendances,
-à la version que nomme `packageManager` dans `package.json`, lancée par corepack
-(`corepack enable pnpm`) ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
+à la version que nomme `packageManager` dans `package.json`, installé une fois par
+`npm install --global pnpm` ; le verrou, `pnpm-lock.yaml`, fait foi et la chaîne installe
 avec `--frozen-lockfile`. Les tests unitaires sont des fichiers `*.test.ts` ou `*.test.tsx`
 à côté du code qu'ils éprouvent, lancés par Vitest en deux projets (`vitest.config.ts`),
 que le nom du fichier départage : `node` pour les `*.test.ts` et `*.test.tsx` — la logique,
