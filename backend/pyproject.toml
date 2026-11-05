@@ -37,7 +37,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "boto3-stubs-lite[s3]>=1.43.124",
-    "datamodel-code-generator>=0.88.0",
+    "datamodel-code-generator>=0.89.0",
     "grimp>=3.18",
     "import-linter>=2.15",
     "openapi-core>=0.23.1",

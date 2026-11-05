@@ -1758,7 +1758,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs-lite", extras = ["s3"], specifier = ">=1.43.124" },
-    { name = "datamodel-code-generator", specifier = ">=0.88.0" },
+    { name = "datamodel-code-generator", specifier = ">=0.89.0" },
     { name = "grimp", specifier = ">=3.18" },
     { name = "import-linter", specifier = ">=2.15" },
     { name = "openapi-core", specifier = ">=0.23.1" },

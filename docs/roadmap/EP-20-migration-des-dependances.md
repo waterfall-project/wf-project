@@ -263,16 +263,23 @@ ne subsiste.
   datamodel-code-generator, `openapi-schema-validator` 0.8 par openapi-core. Le lot ne les force
   pas.
 - **Le code engendré** : `make generate-client`, puis la régénération des modèles par
-  datamodel-code-generator 0.88. Un écart de pure forme passe : ordre, mise en page, commentaires.
+  datamodel-code-generator 0.89. Un écart de pure forme passe : ordre, mise en page, commentaires.
   Un écart qui change la forme d'un modèle — son type Python, sa structure, le moteur qui valide
   ses motifs — est un constat que l'auteur tranche, même s'il ne vient que du générateur. L'essai
-  du 2026-11-03 en a trouvé un : la 0.88 met à plat l'`allOf` de `Money` et d'`IndexThreshold`.
-  Ces deux modèles passent d'une enveloppe de la classe engendrée `Decimal` à une chaîne qui
-  cumule les deux motifs, validée par le moteur de Python (`regex_engine="python-re"`) et non
-  plus par celui de pydantic. Rien ne change sur le fil, et aucun code du back ne les emploie
-  encore, mais EP-05 les emploiera (taux, seuils), et des lectures en masse paieraient le moteur
-  plus lent. Le lot ouvre le constat avec une mesure sur le volume des 6 000 nœuds, et ne
-  régénère pas les modèles avant la décision.
+  du 2026-11-03 en a trouvé un : le générateur met à plat l'`allOf` de `Money` et
+  d'`IndexThreshold`. L'auteur a tranché le 2026-11-05 (#1932) : le lot régénère les modèles par la
+  0.89, avec la cible `--target-python-version 3.14` (d'où le retrait de
+  `from __future__ import annotations`). `Money` et `IndexThreshold` passent d'une enveloppe de la
+  classe engendrée `Decimal` à une `RootModel[str]` qui cumule les deux motifs, validée par le
+  moteur de Python (`regex_engine="python-re"`) et non plus par celui de pydantic. Rien ne change
+  sur le fil, et aucun code du back ne les emploie encore.
+  - La mesure, sur 6 000 nœuds : 8,8 ms avec `python-re`, 6,1 ms pour l'ancienne enveloppe, 4,7 ms
+    pour la chaîne validée par le moteur Rust. Le surcoût est faible.
+  - L'ancienne forme avait un défaut latent : le motif s'appliquait à un `Decimal`, et la validation
+    de toute valeur valide levait `TypeError`.
+  - À savoir pour EP-05, qui emploiera ces modèles (taux, seuils) : sous `python-re`, `$` admet un
+    saut de ligne final. `Money.model_validate("1.5\n")` passe, ce que le moteur de pydantic
+    refusait.
 - **Les roues** : toutes les bibliothèques compilées du back et des outils, pyyaml compris, en ont
   une pour 3.14.
 
@@ -502,6 +509,7 @@ elle dépend. Le plan de lots en tire ses « Pas avec ».
 | TypeScript reste en 6.0 (auteur, 2026-11-03) | TS 7 : `typescript-eslint` déclare `<6.1.0`, et le contournement d'une dépendance paire est un contournement d'outil |
 | corepack retiré ; un pnpm de départ, qui prend lui-même la version de `packageManager` (auteur, 2026-11-03, qui revient sur « corepack épinglé » décidé le même jour) | corepack épinglé, installé par npm : un outil de plus, que Node ne livre plus et que Dependabot ne suit pas, une version en trois copies à accorder par un test, et des pannes à lui (ses clés de signature de npm, en 2025) ; il ne servait qu'à ce que pnpm fait désormais seul |
 | JDK 25 pour construire, `release 21` (auteur, 2026-11-03) | `release 25` : Keycloak 26.8.1 tourne sur OpenJDK 21 et ne chargerait pas l'extension ; tout garder en 21 : l'outil de construction prendrait du retard sans raison |
+| Régénérer les modèles par datamodel-code-generator 0.89, cible 3.14, `Money` et `IndexThreshold` en chaîne validée par `python-re` (auteur, 2026-11-05, option 1 de #1932) | garder l'ancienne forme, une enveloppe de `Decimal` : son motif levait `TypeError` à la validation de toute valeur valide. Le surcoût de `python-re` est mesuré (8,8 ms contre 4,7 ms sur 6 000 nœuds), et `$` y admet un saut de ligne final |
 | Les versions du bilan sont des planchers, le lot prend le dernier correctif de la série | les versions exactes du bilan : un lot livré une semaine plus tard reprendrait un retard, que Dependabot signalerait aussitôt |
 | Dependabot étendu, mensuel, mineures groupées et majeures seules (auteur, 2026-11-03) | Renovate : une application GitHub de plus ; une cible `make outdated` : elle n'ouvre aucune pull request, et le bilan resterait manuel |
 | Recopier la table d'`unaccent` de la 18.6 et adapter le lecteur, dans EP-20 (auteur, 2026-11-05, option 1 de #1960) | la reporter vers un EPIC suivant : EP-20 crée l'écart, et EP-05 s'appuie sur la recherche du faux back ; la laisser : l'écart est mesuré (« ¼ » donne ` 1/4` au service, `1/4` au faux back) |
