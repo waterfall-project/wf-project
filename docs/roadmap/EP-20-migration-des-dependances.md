@@ -608,7 +608,7 @@ ne reposent plus sur une image figée depuis 2021.
 
 ## US-1160 — Le back et les outils sur Python 3.14
 
-- **statut** : en cours
+- **statut** : fini
 - **exigences** : aucune — outil du dépôt
 - **opérations** : aucune
 - **issue** : #1930
