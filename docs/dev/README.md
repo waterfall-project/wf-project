@@ -3821,9 +3821,13 @@ mode and in dark mode (`colorScheme`) — six tests —, each bear on the two wi
   with the same options, without the snapshots;
 - what a gesture opens (US-0710, `frontend/e2e/opened.ts`): on each screen, the triggers of a
   dialog or of a menu — `aria-haspopup="dialog"` or `"menu"`, which each command that opens a
-  dialog and each trigger of a menu sets —, displayed and enabled, receive the focus and Enter; the
-  first enterable cell of each grid — a cell of `DenseGrid`, which `data-column` places and nothing
-  states read only (`aria-readonly`) — receives the focus and F2. An open dialog is walked by Tab
+  dialog and each trigger of a menu sets —, displayed and enabled, receive the focus and Enter;
+  those of the shell — project, account, tasks, help: everything outside `main`, and the button of
+  the help, which `data-shell` marks — are played on the screen of reference alone, the list of the
+  revisions of a project (US-1220, #1840): they are the same on each screen, and replaying them
+  cost 38 to 67% of the critical path of the chain; the first enterable cell of each grid — a
+  cell of `DenseGrid`, which `data-column` places and nothing states read only (`aria-readonly`) —
+  receives the focus and F2. An open dialog is walked by Tab
   bounded to it (`walkByTab(page, dialog)`): what Tab can reach, the widgets and the edges are judged
   in the dialog alone, the return to its first element is the trap it wants — a dialog of a single
   element keeps it —, and any element reached outside it is a fault (`escaped`). A menu moves the
@@ -3863,6 +3867,10 @@ US-0200 in the file of EP-14 says it too):
   reason), and fails any other source that renders more dialogs driven by a state than it has
   commands saying so. The component tests hold them (`expectAccessible`, axe under happy-dom,
   without contrast nor layout; the focus Radix gives back);
+- the shell on each screen: its menus and dialogs (project, account, tasks, help) are played only on
+  the list of the revisions of a project, in light and dark mode, at both widths (US-1220); a fault
+  specific to the shell of another screen — a header the page changes — would show only in its axe
+  audit and its walk by Tab, which are played on each screen;
 - the list or the popover a cell editor would render in a portal outside the cell: the audit of an
   editor covers the cell, and no editor today renders one;
 - the content of a closed `details` — the table of the values of a curve — and a state a gesture

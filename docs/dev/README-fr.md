@@ -3844,8 +3844,12 @@ largeurs :
 - ce qu'un geste ouvre (US-0710, `frontend/e2e/opened.ts`) : sur chaque écran, les déclencheurs
   d'un dialogue ou d'un menu — `aria-haspopup="dialog"` ou `"menu"`, que pose chaque commande qui
   ouvre un dialogue et chaque déclencheur d'un menu —, affichés et actifs, reçoivent le focus et
-  Entrée ; la première cellule saisissable de chaque grille — une cellule de `DenseGrid`, que
-  `data-column` situe et que rien ne dit en lecture seule (`aria-readonly`) — reçoit le focus et F2.
+  Entrée ; ceux de la coquille — projet, compte, tâches, aide : tout ce qui est hors de `main`, et
+  le bouton de l'aide, que `data-shell` marque — ne se jouent que sur l'écran de référence, la
+  liste des révisions d'un projet (US-1220, #1840) : ils sont les mêmes sur chaque écran, et les
+  rejouer coûtait 38 à 67 % du chemin critique de la chaîne ; la première cellule saisissable de
+  chaque grille — une cellule de `DenseGrid`, que `data-column` situe et que rien ne dit en lecture
+  seule (`aria-readonly`) — reçoit le focus et F2.
   Un dialogue ouvert est parcouru au Tab borné à lui (`walkByTab(page, dialogue)`) : ce que Tab peut
   atteindre, les widgets et les bords se jugent dans le dialogue seul, le retour à son premier
   élément est le piège qu'il veut — un dialogue d'un seul élément le garde —, et tout élément
@@ -3887,6 +3891,10 @@ d'US-0200 dans le fichier d'EP-14 le dit aussi) :
   dialogues pilotés par un état que de commandes qui le disent. Les tests de composants les
   tiennent (`expectAccessible`, axe sous happy-dom, sans contraste ni mise en page ; le focus que
   Radix rend) ;
+- la coquille sur chaque écran : ses menus et ses dialogues (projet, compte, tâches, aide) ne se
+  jouent que sur la liste des révisions d'un projet, en clair et en sombre, aux deux largeurs
+  (US-1220) ; un défaut propre à la coquille d'un autre écran — un en-tête que la page change — ne
+  se verrait qu'à son audit d'axe et à son parcours au Tab, qui, eux, se jouent sur chaque écran ;
 - la liste ou le popover qu'un éditeur de cellule rendrait dans un portail hors de la cellule :
   l'audit d'un éditeur porte sur la cellule, et aucun éditeur d'aujourd'hui n'en rend un ;
 - le contenu d'un `details` fermé — le tableau des valeurs d'une courbe — et un état qu'un geste

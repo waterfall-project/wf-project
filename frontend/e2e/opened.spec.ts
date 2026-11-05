@@ -39,7 +39,7 @@ test("plays each trigger of a dialog or a menu shown and enabled once, a trigger
        <table role="grid" aria-label="Lecture"><tr><td data-column="label" aria-readonly="true">C</td></tr></table>
      </body></html>`,
   );
-  const found = await openers(page);
+  const found = await openers(page, true);
   expect(found.map(({ opens, said }) => [opens, said])).toEqual([
     ["dialog", "the trigger of the dialog « Nouveau »"],
     ["menu", "the trigger of the menu « Colonnes »"],
@@ -47,4 +47,31 @@ test("plays each trigger of a dialog or a menu shown and enabled once, a trigger
     ["editor", "the editor of the cell hours of the grid « Grille »"],
   ]);
   await expect(found[3]?.at ?? page.locator("none")).toHaveText("2");
+});
+
+test("plays the triggers of the shell only where asked, those of the screen always, and the grid cells", async ({
+  page,
+}) => {
+  await page.setContent(
+    `<!doctype html><html lang="fr"><body>
+       <header><button aria-haspopup="menu">Compte</button></header>
+       <main>
+         <h1>Écran <button aria-haspopup="dialog" data-shell="">Aide</button></h1>
+         <button aria-haspopup="dialog">Nouveau</button>
+         <table role="grid" aria-label="Grille"><tr><td data-column="hours">2</td></tr></table>
+       </main>
+     </body></html>`,
+  );
+  const named = async (shell: boolean) =>
+    (await openers(page, shell)).map(({ said, shell: inShell }) => [said, inShell]);
+  expect(await named(false)).toEqual([
+    ["the trigger of the dialog « Nouveau »", false],
+    ["the editor of the cell hours of the grid « Grille »", false],
+  ]);
+  expect(await named(true)).toEqual([
+    ["the trigger of the menu « Compte »", true],
+    ["the trigger of the dialog « Aide »", true],
+    ["the trigger of the dialog « Nouveau »", false],
+    ["the editor of the cell hours of the grid « Grille »", false],
+  ]);
 });

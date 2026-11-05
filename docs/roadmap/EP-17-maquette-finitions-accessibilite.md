@@ -567,14 +567,15 @@ l'auteur) :
   porte. Écarté : le renvoi sans l'import, qui perd le compte rendu de l'import qui crée un projet
   dont aucune révision n'est lisible.
 - **La coquille jouée une fois** (#1840) : `opened.ts` distingue les déclencheurs de la coquille
-  (projet, compte, tâches, aide — ceux que porte l'en-tête, hors du contenu de la page) de ceux de
-  l'écran. Les premiers ne se jouent que sur la liste des révisions d'un projet — un écran de projet,
-  parce que les menus du projet et des tâches n'existent qu'avec un projet, et l'un des plus légers —,
-  en clair et en sombre, aux deux largeurs ; les seconds se jouent sur chaque écran. Écartés :
-  garder la couverture entière (+38 à 67 % du chemin critique) ; la coquille à une seule largeur ou
-  un seul mode (même amendement, gain moindre). La note du guide dit que la coquille se joue une fois ;
-  la pull request donne la durée avant et après, en part du chemin critique. Le critère d'US-0710 est
-  amendé par ce cadrage, la conception du harnais par le lot, qui en récrit déjà les notes.
+  (projet, compte, tâches, aide — ceux que porte la coquille, hors du contenu de la page, et le
+  bouton de l'aide, que le titre de l'écran porte) de ceux de l'écran. Les premiers ne se jouent que
+  sur la liste des révisions d'un projet — un écran de projet, parce que les menus du projet et des
+  tâches n'existent qu'avec un projet, et l'un des plus légers —, en clair et en sombre, aux deux
+  largeurs ; les seconds se jouent sur chaque écran. Écartés : garder la couverture entière (+38 à
+  67 % du chemin critique) ; la coquille à une seule largeur ou un seul mode (même amendement, gain
+  moindre). La note du guide dit que la coquille se joue une fois ; la pull request donne la durée
+  avant et après, en part du chemin critique. Le critère d'US-0710 est amendé par ce cadrage, la
+  conception du harnais par le lot, qui en récrit déjà les notes.
 - **La reprise est un lot unique, livré avant US-1210** : #1952 est une instabilité de la file, et la
   reprise et US-1210 touchent les mêmes fichiers du registre. Elle ne change aucune règle : ses
   tests citent les exigences de leurs voisins. Écarté : #1952 seul en lot détaché — le lot de
@@ -595,7 +596,10 @@ ses mesures par lots ; rien n'y est réécrit.
   - les déclencheurs de dialogue et de menu — `[aria-haspopup="dialog"]`, `[aria-haspopup="menu"]`,
     ce que Radix pose sur chaque `DialogTrigger` et `DropdownMenuTrigger` —, affichés et actifs,
     chacun ouvert par Entrée depuis le focus ; ce qui s'ouvre est le `[role="dialog"]` ou le
-    `[role="menu"]` qui apparaît, attendu visible ;
+    `[role="menu"]` qui apparaît, attendu visible ; ceux de la coquille — projet, compte, tâches,
+    aide : tout ce qui est hors de `main`, et le bouton de l'aide, que `data-shell` marque, parce
+    que le titre de l'écran le porte — ne se jouent que sur l'écran de référence, la liste des
+    révisions d'un projet (US-1220, #1840) ; ceux de l'écran, sur chaque écran ;
   - les éditeurs de cellule : dans chaque `[role="grid"]` ou `[role="treegrid"]`, la première
     cellule saisissable — `[aria-readonly="false"]` ou ce que `DenseGrid` marque d'une cellule qui
     s'édite (`data-editable`, posé par le lot si rien ne la distingue encore) — reçoit le focus et
@@ -1607,7 +1611,7 @@ agrégé du portefeuille (EP-11).
 
 ## US-1220 — Le harnais joue les déclencheurs de la coquille une seule fois
 
-- **statut** : à faire
+- **statut** : fini
 - **exigences** : `WF-IHM-0100-A`
 - **opérations** : aucune en propre
 - **issue** : #1965
@@ -1635,10 +1639,11 @@ ce que le geste ouvre ne coûte pas 38 à 67 % du chemin critique de la chaîne 
   (« Le harnais (US-0710) », bullet « Ce qu'un geste ouvre ») disent que la coquille ne se joue que
   sur l'écran de référence.
 
-**Notes de réalisation.** `frontend/e2e/opened.ts` ne distingue pas encore la coquille du contenu :
-c'est l'en-tête commun (`header`, hors de `main`) qui la porte. Le critère d'US-0710 est amendé par
-le cadrage du 2026-11-04 ; la conception par ce lot, qui la récrit. Écran de référence décidé par
-l'auteur : la liste des révisions.
+**Notes de réalisation.** `frontend/e2e/opened.ts` ne distinguait pas la coquille du contenu : tout
+ce qui est hors de `main`, et le bouton de l'aide que le titre de l'écran porte et que `data-shell`
+marque, la forme désormais. Le critère d'US-0710 est amendé par le cadrage du 2026-11-04 ; la
+conception par ce lot, qui la récrit. Écran de référence décidé par l'auteur : la liste des
+révisions.
 
 **Hors périmètre.** Un déclencheur d'écran que la coquille ne porte pas ; la largeur de 360 points
 (US-0290, EP-13).

@@ -430,6 +430,7 @@ function ScreenHelp({ code }: { readonly code: string }) {
           size="icon"
           className="size-7"
           aria-haspopup="dialog"
+          data-shell=""
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
           onClick={openScreen}
