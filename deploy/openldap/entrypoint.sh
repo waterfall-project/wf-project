@@ -13,8 +13,9 @@
 #
 # The configuration is made aside and copied into its volume once the seed is loaded, its
 # cn=config.ldif last: a first start interrupted midway leaves no configuration, and a directory
-# without its configuration is refused rather than seeded again over. The volumes the image of
-# osixia made, on a workstation of before, hold both: slapd starts on them as they are.
+# without its configuration has never been served — Keycloak has read no entryUUID from it — so the
+# data left there are emptied and the seed is loaded again. The volumes the image of osixia made,
+# on a workstation of before, hold both: slapd starts on them as they are.
 set -eu
 
 CONFIG=/etc/ldap/slapd.d
@@ -24,8 +25,9 @@ SUFFIX=dc=waterfall,dc=test
 
 configure() {
     if [ -e "$DATA/data.mdb" ]; then
-        echo "openldap: $DATA holds a directory but $CONFIG no configuration; remove both volumes (make service-down WATERFALL_RESET_DATA=yes)" >&2
-        exit 1
+        # A first start interrupted after slapadd -n1: slapd never served these data.
+        echo "openldap: $DATA holds data but $CONFIG no configuration; emptying $DATA and seeding again" >&2
+        rm -rf "${DATA:?}"/* "${DATA:?}"/.[!.]* "${DATA:?}"/..?*
     fi
     password=${WATERFALL_DIRECTORY_ADMIN_PASSWORD:?export WATERFALL_DIRECTORY_ADMIN_PASSWORD}
     # The password goes to slappasswd by a pipe, never a command line.

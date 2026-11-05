@@ -2708,9 +2708,13 @@ L'annuaire est une image que le dépôt construit, `deploy/openldap/Dockerfile`,
 Debian (US-1150) : à son premier démarrage, son script d'entrée crée sa configuration et y charge
 `deploy/keycloak/development/directory.ldif`, puis ne recharge plus rien. Il garde ses données dans
 un volume, comme les bases : réamorcé, il donnerait à ses personnes d'autres identifiants que ceux
-que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le supprime avec elles. Les volumes de l'image
-d'avant, celle d'`osixia`, servent tels quels : leurs personnes gardent leurs identifiants. Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree
-de lot a ceux du bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
+que Keycloak garde ; `WATERFALL_RESET_DATA=yes` le supprime avec elles. Un premier démarrage
+interrompu avant la copie de la configuration n'a jamais servi : au démarrage suivant, le script
+vide les données restées et recharge l'amorce. Les volumes de l'image d'avant, celle d'`osixia`,
+servent tels quels : leurs personnes gardent leurs identifiants.
+
+Les ports cités ici sont ceux du dépôt principal, au créneau 0 ; un worktree de lot a ceux du
+bloc de son créneau (« Les créneaux des worktrees », ci-dessous).
 
 `BASE` vaut `origin/main` par défaut ; un lot se compare à la branche de son EPIC.
 
@@ -2790,8 +2794,8 @@ Les noms portent le numéro du créneau : au créneau i, les projets Compose `wa
 Le Makefile donne à chaque cible ce dont elle a besoin, sauf ce que l'environnement donne déjà :
 la plateforme de service — `service-up`, `service-install`, `service-logs`, `service-down`,
 `keycloak-authority`, `test-keycloak`, `e2e-service` — reçoit son projet, les images de Keycloak et
-de l'annuaire et ses six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et `e2e-service`, les ports
-du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
+de l'annuaire et ses six ports ; `build-keycloak`, l'image de Keycloak ; `e2e`, `e2e-measure` et
+`e2e-service`, les ports du faux back et des fronts ; `check-front-image`, l'image du front. Dans un worktree lié qui ne
 tient pas de créneau, ces cibles échouent avant de rien lancer, en disant `make slot` ; les autres
 ne le demandent pas. `make production-trial`, hors des créneaux — ports 80 et 443, projet
 `waterfall-production-trial` —, ne tourne qu'au créneau 0 : depuis le worktree d'un lot, il
