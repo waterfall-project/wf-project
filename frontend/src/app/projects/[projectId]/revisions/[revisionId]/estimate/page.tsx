@@ -39,10 +39,8 @@ import type { ProjectReading } from "@/components/context/reading";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import { ExchangesLink } from "@/components/exchanges/exchanges-link";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
-import { DifferencesOnly } from "@/components/grid/differences-only";
+import { GridFilters } from "@/components/grid/grid-filters";
 import { originNames } from "@/components/grid/origin-filter";
-import { OriginFilterChoice } from "@/components/grid/origin-filter-choice";
 import {
   ESTIMATE_FIELDS,
   ESTIMATE_GRID,
@@ -328,13 +326,12 @@ export default async function EstimatePage({
           permissions={session?.permissions ?? []}
           currency={currency}
         />
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
-          <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
-          {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
-        </div>
+        <GridFilters
+          breakdown={screen.breakdown}
+          difference={screen.difference}
+          differential={screen.kind === "amendment"}
+          origin={screen.origin}
+        />
         <EstimateGrid
           key={screen.structure.structure_id}
           nodes={subprojectsEntered ? screen.nodes : withoutSubprojectIds(screen.nodes)}

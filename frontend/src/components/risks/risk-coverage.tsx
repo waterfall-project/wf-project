@@ -51,7 +51,13 @@ function OccurredCost({ coverage }: { readonly coverage: RiskCoverageTotals }) {
   return (
     <FigureTerm name={t("occurredCost")}>
       <span className="inline-flex flex-wrap items-baseline justify-end gap-x-1.5">
-        <ComputedAmount amount={coverage.occurred_cost} />
+        <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+          <ComputedAmount amount={coverage.occurred_cost} />
+          {/* The bullet closes the line of the cost: a broken line never opens on it. */}
+          <span aria-hidden="true" className="text-xs font-normal text-muted-foreground">
+            ·
+          </span>
+        </span>
         <span className="inline-flex items-baseline gap-1 text-xs font-normal whitespace-nowrap text-muted-foreground">
           <span aria-hidden="true">{t("occurredReestimatedShort")}</span>
           <span className="sr-only">{t("occurredReestimated")}</span>

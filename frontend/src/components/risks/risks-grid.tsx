@@ -29,14 +29,14 @@ export interface RisksGridProps {
    * risk occurred leads to, filtered on the rows that came of it — the estimate, or the planning
    * for a session that does not read it; none, and it leads nowhere.
    */
-  readonly estimate?: string | undefined;
+  readonly originGrid?: string | undefined;
 }
 
 /** Render the grid of the risks, its totals row the general total of the provisions retained. */
-export function RisksGrid({ risks, query, preferences, estimate }: RisksGridProps) {
+export function RisksGrid({ risks, query, preferences, originGrid }: RisksGridProps) {
   const t = useTranslations("risks");
   return (
-    <OccurredLines estimate={estimate}>
+    <OccurredLines originGrid={originGrid}>
       <DenseGrid
         config={RISK_GRID}
         rows={risks.items}

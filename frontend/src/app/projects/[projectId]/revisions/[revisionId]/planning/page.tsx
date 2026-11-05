@@ -43,10 +43,8 @@ import { type CommandOffer, findOffer } from "@/components/commands/offer";
 import type { ListedStructure } from "@/components/context/structure";
 import { ContextBanner } from "@/components/context/context-banner";
 import { breakdownChip } from "@/components/grid/breakdown-filter";
-import { BreakdownFilterChoice } from "@/components/grid/breakdown-filter-choice";
-import { DifferencesOnly } from "@/components/grid/differences-only";
+import { GridFilters } from "@/components/grid/grid-filters";
 import { originNames } from "@/components/grid/origin-filter";
-import { OriginFilterChoice } from "@/components/grid/origin-filter-choice";
 import type { NodeTotals } from "@/components/grid/nodes";
 import { PendingAddress } from "@/components/grid/pending-address";
 import {
@@ -258,13 +256,12 @@ export default async function PlanningPage({
           revision={revision}
         />
         <MockupNotice lists />
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          {screen.breakdown === undefined ? null : (
-            <BreakdownFilterChoice choices={screen.breakdown} />
-          )}
-          <DifferencesOnly filter={screen.difference} offered={screen.kind === "amendment"} />
-          {screen.origin === undefined ? null : <OriginFilterChoice choices={screen.origin} />}
-        </div>
+        <GridFilters
+          breakdown={screen.breakdown}
+          difference={screen.difference}
+          differential={screen.kind === "amendment"}
+          origin={screen.origin}
+        />
         <PlanningWithGantt
           key={screen.structure.structure_id}
           reading={screen.reading}

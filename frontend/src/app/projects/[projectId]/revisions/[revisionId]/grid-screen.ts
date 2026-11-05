@@ -383,11 +383,10 @@ function refusesRisk({ response, error }: Answer<unknown>): boolean {
   if (response.status !== 422 || typeof error !== "object" || error === null) {
     return false;
   }
-  const { code, fields } = error as { code?: unknown; fields?: unknown };
+  const { fields } = error as { fields?: unknown };
   return (
-    code === "UNKNOWN_RISK" ||
-    (Array.isArray(fields) &&
-      fields.some((field) => (field as { code?: unknown } | null)?.code === "UNKNOWN_RISK"))
+    Array.isArray(fields) &&
+    fields.some((field) => (field as { code?: unknown } | null)?.code === "UNKNOWN_RISK")
   );
 }
 

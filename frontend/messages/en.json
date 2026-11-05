@@ -513,7 +513,7 @@
       "remainingProvisions": "Remaining provisions",
       "occurredCost": "Cost of the occurred risks",
       "occurredReestimated": "Reestimated cost of the occurred risks (information)",
-      "occurredReestimatedShort": "· reestimated",
+      "occurredReestimatedShort": "reestimated",
       "occurredLines": "Show the rows that came of “{risk}”",
       "occurredStateLines": "{state}, show the rows that came of “{risk}”",
       "coverageVariance": "Coverage variance"
